@@ -2,21 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { I18nManager, Platform } from "react-native";
 import { reloadAppAsync } from "expo";
+import { getLocales } from "expo-localization";
 import { translations, Lang } from "./translations";
 
 const LANG_KEY = "app_language";
-
-type DeepPath<T, Prefix extends string = ""> = T extends object
-  ? {
-      [K in keyof T]: K extends string
-        ? T[K] extends object
-          ? DeepPath<T[K], Prefix extends "" ? K : `${Prefix}.${K}`>
-          : Prefix extends ""
-          ? K
-          : `${Prefix}.${K}`
-        : never;
-    }[keyof T]
-  : never;
 
 interface LangContextType {
   lang: Lang;
@@ -68,10 +57,28 @@ export function useLang() {
   return useContext(LangContext);
 }
 
+// ── كشف لغة النظام تلقائياً ────────────────────────────────────
+function detectSystemLang(): Lang {
+  try {
+    const locales = getLocales();
+    const primary = locales[0];
+    if (!primary) return "ar";
+    const code = primary.languageCode?.toLowerCase() ?? "";
+    if (code === "ar") return "ar";
+    if (code === "en") return "en";
+    // fallback: use ar for all other languages (المدينة عربية بالأساس)
+    return "ar";
+  } catch {
+    return "ar";
+  }
+}
+
 export async function getStoredLang(): Promise<Lang> {
   try {
     const stored = await AsyncStorage.getItem(LANG_KEY);
+    // إذا اختار المستخدم لغةً صراحةً → استخدمها
     if (stored === "en" || stored === "ar") return stored;
   } catch {}
-  return "ar";
+  // وإلا → اكتشف لغة الجهاز تلقائياً
+  return detectSystemLang();
 }

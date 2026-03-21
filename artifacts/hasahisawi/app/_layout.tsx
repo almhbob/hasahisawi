@@ -8,6 +8,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
+import NetworkBanner from "@/components/NetworkBanner";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -95,6 +96,7 @@ export default function RootLayout() {
                 <KeyboardProvider>
                   <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
+                    <NetworkBanner />
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>

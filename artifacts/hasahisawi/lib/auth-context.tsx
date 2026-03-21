@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import {
+  firebaseLoginEmail,
+  firebaseRegisterEmail,
+  firebaseLogout,
+  onFirebaseAuthChange,
+} from "@/lib/firebase/auth";
+import { fsSetDoc, fsGetDoc, COLLECTIONS } from "@/lib/firebase/firestore";
+import { isFirebaseConfigured } from "@/lib/firebase/index";
 
 export type AuthUser = {
   id: number;
@@ -10,6 +18,7 @@ export type AuthUser = {
   email?: string | null;
   role: "user" | "admin" | "moderator" | "guest";
   permissions?: string[];
+  firebaseUid?: string;
 };
 
 type AuthContextValue = {
@@ -30,22 +39,42 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const TOKEN_KEY = "auth_session_token";
-const USER_KEY = "auth_user_data";
+const USER_KEY  = "auth_user_data";
 const GUEST_KEY = "auth_is_guest";
 
 function apiUrl(path: string): string {
   return new URL(path, getApiUrl()).toString();
 }
 
+function looksLikeEmail(s: string): boolean {
+  return s.includes("@");
+}
+
+// حوّل مستخدم Firebase إلى AuthUser
+function fbUserToAuth(fbUser: any, extra?: Partial<AuthUser>): AuthUser {
+  return {
+    id: 0,
+    name: fbUser.displayName ?? extra?.name ?? "مستخدم",
+    email: fbUser.email ?? null,
+    phone: fbUser.phoneNumber ?? null,
+    role: "user",
+    firebaseUid: fbUser.uid,
+    ...extra,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser]       = useState<AuthUser | null>(null);
+  const [token, setToken]     = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const canPost = !isGuest && user !== null;
 
+  // ── استعادة الجلسة عند البدء ───────────────────────────────
   useEffect(() => {
+    let fbUnsub = () => {};
+
     (async () => {
       try {
         const [savedToken, savedUser, savedGuest] = await Promise.all([
@@ -53,22 +82,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(USER_KEY),
           AsyncStorage.getItem(GUEST_KEY),
         ]);
+
         if (savedGuest === "1" && !savedToken) {
           setIsGuest(true);
           setUser({ id: 0, name: "زائر", role: "guest" });
-        } else if (savedToken && savedUser) {
+          setIsLoading(false);
+          return;
+        }
+
+        if (isFirebaseConfigured) {
+          // راقب حالة Firebase Auth في الخلفية
+          fbUnsub = onFirebaseAuthChange(async (fbUser) => {
+            if (fbUser) {
+              // جلب بيانات الملف الشخصي من Firestore
+              const profile = await fsGetDoc<Partial<AuthUser>>(COLLECTIONS.USERS, fbUser.uid).catch(() => null);
+              setUser(fbUserToAuth(fbUser, profile ?? undefined));
+              setToken(await fbUser.getIdToken());
+              setIsGuest(false);
+            } else if (!savedToken) {
+              // لا Firebase ولا Express → يبقى بلا جلسة
+              setUser(null);
+              setToken(null);
+            }
+            setIsLoading(false);
+          });
+          // لا تنتظر — Firebase Auth ينهي الـ loading عبر الـ callback
+          return;
+        }
+
+        // Express API fallback
+        if (savedToken && savedUser) {
           setToken(savedToken);
           setUser(JSON.parse(savedUser));
         }
-      } catch { }
+      } catch {}
       setIsLoading(false);
     })();
+
+    return () => fbUnsub();
   }, []);
 
-  const saveSession = async (u: AuthUser, t: string) => {
-    setUser(u);
-    setToken(t);
-    setIsGuest(false);
+  const saveExpressSession = async (u: AuthUser, t: string) => {
+    setUser(u); setToken(t); setIsGuest(false);
     await Promise.all([
       AsyncStorage.setItem(TOKEN_KEY, t),
       AsyncStorage.setItem(USER_KEY, JSON.stringify(u)),
@@ -83,7 +138,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(GUEST_KEY, "1");
   };
 
+  // ── تسجيل الدخول ──────────────────────────────────────────
   const login = async (phoneOrEmail: string, password: string) => {
+    // Firebase Auth → للبريد الإلكتروني فقط
+    if (isFirebaseConfigured && looksLikeEmail(phoneOrEmail)) {
+      const fbUser = await firebaseLoginEmail(phoneOrEmail, password);
+      const profile = await fsGetDoc<Partial<AuthUser>>(COLLECTIONS.USERS, fbUser.uid).catch(() => null);
+      const authUser = fbUserToAuth(fbUser, profile ?? undefined);
+      setUser(authUser);
+      setToken(await fbUser.getIdToken());
+      setIsGuest(false);
+      await AsyncStorage.removeItem(GUEST_KEY);
+      return;
+    }
+
+    // Express API → للهاتف أو عند عدم وجود Firebase
     const res = await fetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -91,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "فشل تسجيل الدخول");
-    await saveSession(json.user, json.token);
+    await saveExpressSession(json.user, json.token);
   };
 
   const loginAdmin = async (email: string, password: string) => {
@@ -102,11 +171,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "فشل تسجيل الدخول");
-    await saveSession(json.user, json.token);
+    await saveExpressSession(json.user, json.token);
   };
 
-  const register = async (name: string, nationalId: string, phoneOrEmail: string, isEmail: boolean, password: string) => {
+  // ── إنشاء حساب ────────────────────────────────────────────
+  const register = async (
+    name: string, nationalId: string,
+    phoneOrEmail: string, isEmail: boolean, password: string,
+  ) => {
     if (!phoneOrEmail.trim()) throw new Error("يرجى إدخال البريد الإلكتروني أو رقم الهاتف");
+
+    // Firebase Auth → للبريد الإلكتروني فقط
+    if (isFirebaseConfigured && (isEmail || looksLikeEmail(phoneOrEmail))) {
+      const fbUser = await firebaseRegisterEmail(phoneOrEmail.trim(), password, name);
+      const profileData: Partial<AuthUser> = {
+        name,
+        email: phoneOrEmail.trim(),
+        role: "user",
+        ...(nationalId ? { national_id_masked: nationalId.slice(-4).padStart(nationalId.length, "*") } : {}),
+      };
+      // احفظ الملف الشخصي في Firestore
+      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, { ...profileData, uid: fbUser.uid });
+      const authUser = fbUserToAuth(fbUser, profileData);
+      setUser(authUser);
+      setToken(await fbUser.getIdToken());
+      setIsGuest(false);
+      await AsyncStorage.removeItem(GUEST_KEY);
+      return;
+    }
+
+    // Express API → للهاتف
     const body: Record<string, string> = { name, password };
     if (nationalId) body.national_id = nationalId;
     if (isEmail) body.email = phoneOrEmail;
@@ -118,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "فشل التسجيل");
-    await saveSession(json.user, json.token);
+    await saveExpressSession(json.user, json.token);
   };
 
   const registerAdmin = async (name: string, email: string, password: string, adminCode: string) => {
@@ -129,10 +223,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "فشل تسجيل المشرف");
-    await saveSession(json.user, json.token);
+    await saveExpressSession(json.user, json.token);
   };
 
   const refreshUser = async () => {
+    if (isFirebaseConfigured && user?.firebaseUid) {
+      const profile = await fsGetDoc<Partial<AuthUser>>(COLLECTIONS.USERS, user.firebaseUid).catch(() => null);
+      if (profile) setUser(u => u ? { ...u, ...profile } : u);
+      return;
+    }
     if (!token) return;
     try {
       const res = await fetch(apiUrl("/api/auth/me"), {
@@ -143,21 +242,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(json.user);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
       }
-    } catch { }
+    } catch {}
   };
 
   const logout = async () => {
-    if (token) {
+    if (isFirebaseConfigured && user?.firebaseUid) {
+      await firebaseLogout().catch(() => {});
+    } else if (token) {
       try {
         await fetch(apiUrl("/api/auth/logout"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-      } catch { }
+      } catch {}
     }
-    setUser(null);
-    setToken(null);
-    setIsGuest(false);
+    setUser(null); setToken(null); setIsGuest(false);
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),

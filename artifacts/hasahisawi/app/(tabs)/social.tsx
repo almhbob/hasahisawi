@@ -27,11 +27,15 @@ import { getAdminPin } from "./settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
+import { useFsPosts, FsPost } from "@/lib/firebase/hooks";
+import { isFirebaseConfigured } from "@/lib/firebase/index";
+import { fsUpdateDoc, COLLECTIONS } from "@/lib/firebase/firestore";
+import { requireNetwork } from "@/lib/network";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Post = {
-  id: number;
+  id: string | number;
   author_name: string;
   content: string;
   category: string;
@@ -40,6 +44,23 @@ type Post = {
   liked_by_me: boolean;
   created_at: string;
 };
+
+function fsPostToPost(fp: FsPost): Post {
+  const ts = fp.createdAt as any;
+  const created_at = ts?.seconds
+    ? new Date(ts.seconds * 1000).toISOString()
+    : new Date().toISOString();
+  return {
+    id: fp.id,
+    author_name: fp.authorName,
+    content: fp.content,
+    category: fp.category,
+    likes_count: fp.likes,
+    comments_count: fp.comments,
+    liked_by_me: false,
+    created_at,
+  };
+}
 
 type Comment = {
   id: number;
@@ -116,7 +137,7 @@ async function apiCreatePost(data: { author_name: string; content: string; categ
   return json;
 }
 
-async function apiDeletePost(id: number, token?: string | null): Promise<void> {
+async function apiDeletePost(id: string | number, token?: string | null): Promise<void> {
   const headers: Record<string, string> = {};
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -552,8 +573,11 @@ export default function SocialScreen() {
   const auth = useAuth();
   const isAdmin = auth.user?.role === "admin";
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ── Firestore real-time hook (gracefully empty when Firebase not configured)
+  const { posts: fsPosts, loading: fsLoading, addPost: fsAddPost, deletePost: fsDeletePost } = useFsPosts();
+
+  const [apiPosts, setApiPosts] = useState<Post[]>([]);
+  const [loading, setLoading]   = useState(!isFirebaseConfigured);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [deviceId, setDeviceId] = useState("");
@@ -562,6 +586,11 @@ export default function SocialScreen() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
+
+  // when Firestore is active, derive posts from it; otherwise use Express API
+  const posts: Post[] = isFirebaseConfigured
+    ? fsPosts.map(fsPostToPost)
+    : apiPosts;
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
@@ -574,14 +603,15 @@ export default function SocialScreen() {
     }
   }, [auth.user]);
 
-  const load = useCallback(async (quiet = false) => {
+  const loadFromApi = useCallback(async (quiet = false) => {
+    if (isFirebaseConfigured) return; // Firestore handles it
     if (!quiet) setLoading(true);
     setError("");
     try {
       const id = await getDeviceId();
       const data = await apiFetchPosts(id);
-      setPosts(data);
-    } catch (e: any) {
+      setApiPosts(data);
+    } catch {
       setError(t('common', 'error'));
     } finally {
       setLoading(false);
@@ -592,38 +622,71 @@ export default function SocialScreen() {
   useEffect(() => { init(); }, []);
   useFocusEffect(useCallback(() => {
     init();
-    load(true);
-  }, [init, load]));
+    loadFromApi(true);
+  }, [init, loadFromApi]));
+
+  // Sync Firestore loading state
+  useEffect(() => {
+    if (isFirebaseConfigured) setLoading(fsLoading);
+  }, [fsLoading]);
 
   const handlePost = async (content: string, category: string, name: string) => {
+    try {
+      await requireNetwork();
+    } catch (e: any) {
+      Alert.alert(tr("لا اتصال", "No Connection"), e.message);
+      return;
+    }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
-    await apiCreatePost({ author_name: name, content, category });
-    await load(true);
+    if (isFirebaseConfigured) {
+      await fsAddPost({
+        authorId:   auth.user?.firebaseUid ?? "anonymous",
+        authorName: name,
+        content,
+        category,
+        likes:    0,
+        comments: 0,
+      });
+    } else {
+      await apiCreatePost({ author_name: name, content, category });
+      await loadFromApi(true);
+    }
   };
 
-  const handleLike = async (postId: number) => {
-    if (!deviceId) return;
+  const handleLike = async (postId: string | number) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPosts(prev => prev.map(p =>
+    if (isFirebaseConfigured) {
+      // Optimistic update in Firestore
+      const post = fsPosts.find(p => p.id === postId);
+      if (post) {
+        await fsUpdateDoc(COLLECTIONS.POSTS, String(postId), { likes: post.likes + 1 });
+      }
+      return;
+    }
+    if (!deviceId) return;
+    setApiPosts(prev => prev.map(p =>
       p.id === postId
         ? { ...p, liked_by_me: !p.liked_by_me, likes_count: p.liked_by_me ? p.likes_count - 1 : p.likes_count + 1 }
         : p
     ));
-    try { await apiToggleLike(postId, deviceId); }
-    catch {}
+    try { await apiToggleLike(postId as number, deviceId); } catch {}
   };
 
-  const handleDelete = (postId: number) => {
+  const handleDelete = (postId: string | number) => {
     Alert.alert(t('common', 'delete'), t('social', 'deletePost'), [
       { text: t('common', 'cancel'), style: "cancel" },
       {
         text: t('common', 'delete'), style: "destructive",
         onPress: async () => {
           try {
-            await apiDeletePost(postId, auth.token);
-            setPosts(prev => prev.filter(p => p.id !== postId));
+            if (isFirebaseConfigured) {
+              await fsDeletePost(String(postId));
+            } else {
+              await apiDeletePost(postId, auth.token);
+              setApiPosts(prev => prev.filter(p => p.id !== postId));
+            }
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (e: any) { Alert.alert(t('common', 'error'), e.message); }
         }
@@ -703,11 +766,11 @@ export default function SocialScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => String(item.id)}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} colors={[Colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadFromApi(true); }} colors={[Colors.primary]} />
         }
         ListEmptyComponent={
           loading ? (
@@ -716,7 +779,7 @@ export default function SocialScreen() {
             <View style={styles.empty}>
               <Ionicons name="newspaper-outline" size={60} color={Colors.divider} />
               <Text style={styles.emptyText}>{t('social', 'noPostsYet')}</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => load()}>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => loadFromApi()}>
                 <Text style={styles.emptyBtnText}>{t('common', 'refresh')}</Text>
               </TouchableOpacity>
             </View>
