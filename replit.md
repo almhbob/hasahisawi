@@ -108,6 +108,13 @@ Expo React Native mobile app "حصاحيصاوي" — community services platfor
 - Real-time social posts via Firestore hooks (`useFsPosts`)
 - Arabic/English localization via lang-context
 - NetworkBanner connectivity checking
+- BrandPattern SVG component (`components/BrandPattern.tsx`) — 3 variants: diagonal/corner/header; used in home, login, DrawerMenu, GuestGate as subtle watermark
+
+**Branding:**
+- `assets/images/logo.png` — Hasahisawi logo (two people handshake, green+amber)
+- `assets/images/icon.png` — App icon (same logo, 1024×1024)
+- `assets/images/android-icon-foreground.png` — Logo with transparent background for adaptive icon
+- Brand colors: emerald `#27AE68` + warm amber `#F0A500`
 
 **DB Tables (raw pg in `api-server/src/routes/hasahisawi.ts`):**
 `users`, `user_sessions`, `social_posts`, `social_likes`, `social_comments`, `ratings`, `rated_entities`, `appointments`, `notifications`, `city_news`, `organizations`, `women_services`

@@ -23,6 +23,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
+import BrandPattern from "@/components/BrandPattern";
 import { useLang } from "@/lib/lang-context";
 
 const { width } = Dimensions.get("window");
@@ -91,8 +92,10 @@ export default function HomeScreen() {
   };
 
   return (
+    <View style={styles.container}>
+      <BrandPattern variant="diagonal" opacity={0.03} />
     <ScrollView
-      style={styles.container}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 120 }}
       showsVerticalScrollIndicator={false}
     >
@@ -483,6 +486,7 @@ export default function HomeScreen() {
 
       <AuthModal visible={showAuth} onClose={() => setShowAuth(false)} />
     </ScrollView>
+    </View>
   );
 }
 

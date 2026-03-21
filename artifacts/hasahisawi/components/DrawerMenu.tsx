@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
+import BrandPattern from "@/components/BrandPattern";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320);
@@ -125,7 +126,8 @@ export default function DrawerMenu() {
       {/* الدرج */}
       <Animated.View style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 12 }]}>
         {/* الرأس */}
-        <View style={styles.header}>
+        <View style={[styles.header, { overflow: "hidden" }]}>
+          <BrandPattern variant="header" opacity={0.07} />
           <View style={styles.headerInfo}>
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             <View>
@@ -203,7 +205,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   logo: {
-    width: 40, height: 40, borderRadius: 10,
+    width: 48, height: 48, borderRadius: 12,
   },
   appName: {
     fontFamily: "Cairo_700Bold",

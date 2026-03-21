@@ -11,9 +11,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import BrandPattern from "@/components/BrandPattern";
 
-const LOGO        = require("@/assets/images/logo.png");
-const CITY_IMG    = require("@/assets/images/hasahisa-city.jpg");
 const CITY_CREST  = require("@/assets/images/city-crest.png");
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -96,6 +95,9 @@ export default function LoginScreen() {
       <View style={styles.hero}>
         {/* خلفية كريمية */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: "#F2EBD8" }]} />
+
+        {/* علامة مائية بنمط الشعار */}
+        <BrandPattern variant="corner" opacity={0.04} />
 
         {/* ── شعار المدينة يملأ الـ Hero ── */}
         <Animated.View

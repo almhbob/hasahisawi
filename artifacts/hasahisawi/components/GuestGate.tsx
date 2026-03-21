@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/lib/auth-context";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
+import BrandPattern from "@/components/BrandPattern";
 
 type Feature = { icon: keyof typeof Ionicons.glyphMap; text: string };
 
@@ -45,6 +46,9 @@ export default function GuestGate({ children, preview, title, features }: Props)
 
   return (
     <View style={styles.root}>
+      {/* علامة مائية بنمط الشعار */}
+      <BrandPattern variant="diagonal" opacity={0.035} />
+
       {/* ──── معاينة خافتة للمحتوى ──────────────────────── */}
       {preview ? (
         <View style={styles.previewWrap} pointerEvents="none">
