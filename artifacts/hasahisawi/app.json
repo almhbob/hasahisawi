@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "حصاحيصاوي",
+    "slug": "al-hasahisa-service",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "hasahisawi",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#070D14"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.almhbob.hasahisawi"
+    },
+    "android": {
+      "package": "com.almhbob.hasahisawi",
+      "adaptiveIcon": {
+        "backgroundColor": "#070D14",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"
+      }
+    },
+    "owner": "almhbob2026"
+  }
+}

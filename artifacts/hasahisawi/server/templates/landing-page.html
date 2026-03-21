@@ -1,0 +1,849 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+  <head>
+    <title>حصاحيصاوي - بوابة خدمات مدينة الحصاحيصا</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="تطبيق حصاحيصاوي - بوابة خدمات مجتمعية شاملة لمواطني مدينة الحصاحيصا وقراها في السودان" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --primary: #00C47A;
+        --primary-dark: #00A866;
+        --accent: #F5C518;
+        --bg: #070D14;
+        --card-bg: #0D1B2A;
+        --text-primary: #EEF4FF;
+        --text-secondary: #7A9BC0;
+        --text-muted: #3D5A7A;
+        --divider: #142030;
+        --danger: #FF4757;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--bg);
+        color: var(--text-primary);
+        min-height: 100vh;
+        direction: rtl;
+        overflow-x: hidden;
+      }
+
+      /* ── Animated Background ── */
+      .bg-glow {
+        position: fixed;
+        top: -200px;
+        right: -200px;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(0,196,122,0.08) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .bg-glow-2 {
+        position: fixed;
+        bottom: -200px;
+        left: -200px;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(245,197,24,0.05) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── Nav ── */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: rgba(7,13,20,0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--divider);
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .nav-logo-icon {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+      .nav-logo-text {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .nav-badge {
+        background: var(--primary);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+      }
+
+      /* ── Hero ── */
+      .hero {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        padding: 80px 24px 60px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0,196,122,0.1);
+        border: 1px solid rgba(0,196,122,0.3);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 600;
+        padding: 6px 16px;
+        border-radius: 20px;
+        margin-bottom: 24px;
+      }
+      .hero-badge-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--primary);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.5); }
+      }
+      .hero h1 {
+        font-size: clamp(36px, 6vw, 64px);
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 16px;
+        background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .hero-sub {
+        font-size: clamp(16px, 2.5vw, 20px);
+        color: var(--text-secondary);
+        line-height: 1.7;
+        margin-bottom: 40px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .hero-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 60px;
+      }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--primary);
+        color: #fff;
+        font-family: 'Cairo', sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 14px 28px;
+        border-radius: 14px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 8px 24px rgba(0,196,122,0.3);
+      }
+      .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(0,196,122,0.4);
+      }
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        font-family: 'Cairo', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 14px 28px;
+        border-radius: 14px;
+        text-decoration: none;
+        border: 1px solid var(--divider);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-secondary:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-2px);
+      }
+
+      /* ── Stats ── */
+      .stats-row {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        padding: 32px 24px;
+        border-top: 1px solid var(--divider);
+        border-bottom: 1px solid var(--divider);
+        margin-bottom: 80px;
+      }
+      .stat-item {
+        text-align: center;
+      }
+      .stat-value {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+      .stat-label {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      /* ── Section ── */
+      .section {
+        position: relative;
+        z-index: 1;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 24px 80px;
+      }
+      .section-header {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+      .section-tag {
+        display: inline-block;
+        background: rgba(0,196,122,0.1);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 14px;
+        border-radius: 20px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .section-title {
+        font-size: clamp(24px, 4vw, 36px);
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+      }
+      .section-desc {
+        font-size: 16px;
+        color: var(--text-secondary);
+        max-width: 500px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      /* ── Services Grid ── */
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .service-card {
+        background: var(--card-bg);
+        border: 1px solid var(--divider);
+        border-radius: 20px;
+        padding: 24px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: default;
+      }
+      .service-card:hover {
+        border-color: rgba(0,196,122,0.4);
+        transform: translateY(-4px);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+      }
+      .service-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin: 0 auto 14px;
+      }
+      .service-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+      }
+      .service-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+
+      /* ── Features ── */
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+      .feature-card {
+        background: var(--card-bg);
+        border: 1px solid var(--divider);
+        border-radius: 20px;
+        padding: 28px;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        transition: all 0.3s;
+      }
+      .feature-card:hover {
+        border-color: rgba(0,196,122,0.3);
+        transform: translateY(-2px);
+      }
+      .feature-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(0,196,122,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+      }
+      .feature-content h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+      }
+      .feature-content p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+
+      /* ── Download Section ── */
+      .download-section {
+        position: relative;
+        z-index: 1;
+        background: var(--card-bg);
+        border-top: 1px solid var(--divider);
+        border-bottom: 1px solid var(--divider);
+        padding: 80px 24px;
+        text-align: center;
+        margin-bottom: 80px;
+      }
+      .download-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(0,196,122,0.05) 0%, transparent 70%);
+        pointer-events: none;
+      }
+      .download-title {
+        font-size: clamp(24px, 4vw, 36px);
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+      }
+      .download-sub {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 40px;
+      }
+      .download-steps {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .download-step {
+        background: var(--bg);
+        border: 1px solid var(--divider);
+        border-radius: 20px;
+        padding: 28px 24px;
+        flex: 1;
+        min-width: 200px;
+        max-width: 260px;
+        text-align: center;
+        transition: all 0.3s;
+      }
+      .download-step:hover {
+        border-color: rgba(0,196,122,0.4);
+        transform: translateY(-4px);
+      }
+      .step-num {
+        width: 36px;
+        height: 36px;
+        background: rgba(0,196,122,0.15);
+        color: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 16px;
+        margin: 0 auto 16px;
+      }
+      .download-step h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+      }
+      .download-step p {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+      .store-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        font-family: 'Cairo', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 10px;
+        text-decoration: none;
+        border: 1px solid var(--divider);
+        transition: all 0.2s;
+        margin: 4px;
+      }
+      .store-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .qr-box {
+        background: #fff;
+        border-radius: 16px;
+        padding: 16px;
+        width: 160px;
+        height: 160px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .open-app-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--primary);
+        color: #fff;
+        font-family: 'Cairo', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 12px 24px;
+        border-radius: 12px;
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .open-app-btn:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      /* ── Footer ── */
+      footer {
+        position: relative;
+        z-index: 1;
+        border-top: 1px solid var(--divider);
+        padding: 40px 24px;
+        text-align: center;
+      }
+      .footer-logo {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+      }
+      .footer-sub {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 24px;
+      }
+      .footer-links {
+        display: flex;
+        gap: 24px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+      .footer-link {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .footer-link:hover { color: var(--primary); }
+      .footer-copy {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* ── Loading ── */
+      .loading-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 999;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .loading-overlay.active { display: flex; }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--divider);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .loading-text {
+        font-size: 16px;
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 600px) {
+        .hero { padding: 60px 20px 40px; }
+        .stats-row { gap: 24px; }
+        .services-grid { grid-template-columns: repeat(2, 1fr); }
+        .features-grid { grid-template-columns: 1fr; }
+        .download-steps { flex-direction: column; align-items: center; }
+        .download-step { max-width: 100%; width: 100%; }
+      }
+
+      /* ── Animations ── */
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .fade-in { animation: fadeInUp 0.6s ease forwards; }
+      .fade-in-delay-1 { animation: fadeInUp 0.6s ease 0.1s forwards; opacity: 0; }
+      .fade-in-delay-2 { animation: fadeInUp 0.6s ease 0.2s forwards; opacity: 0; }
+      .fade-in-delay-3 { animation: fadeInUp 0.6s ease 0.3s forwards; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text">جاري فتح التطبيق...</div>
+    </div>
+
+    <!-- Navigation -->
+    <nav>
+      <div class="nav-logo">
+        <div class="nav-logo-icon">🏙️</div>
+        <span class="nav-logo-text">حصاحيصاوي</span>
+      </div>
+      <span class="nav-badge">الإصدار 1.0</span>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero fade-in">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        متاح الآن على iOS و Android
+      </div>
+      <h1>بوابة خدمات<br/>مدينة الحصاحيصا</h1>
+      <p class="hero-sub">
+        تطبيق مجتمعي شامل يجمع كل خدمات مدينة الحصاحيصا وقراها في مكان واحد —
+        دليل طبي، سوق، وظائف، مفقودات، وأكثر
+      </p>
+      <div class="hero-actions">
+        <a href="exps://EXPS_URL_PLACEHOLDER" class="btn-primary" onclick="handleOpen(event, this.href)">
+          📱 فتح التطبيق
+        </a>
+        <a href="#download" class="btn-secondary">
+          ⬇️ تحميل Expo Go
+        </a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row fade-in-delay-1">
+      <div class="stat-item">
+        <div class="stat-value">10+</div>
+        <div class="stat-label">قسم خدمي</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">∞</div>
+        <div class="stat-label">مستخدم مجتمعي</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">24/7</div>
+        <div class="stat-label">متاح دائماً</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">AR/EN</div>
+        <div class="stat-label">ثنائي اللغة</div>
+      </div>
+    </div>
+
+    <!-- Services -->
+    <div class="section fade-in-delay-2">
+      <div class="section-header">
+        <div class="section-tag">الخدمات</div>
+        <h2 class="section-title">كل ما تحتاجه في مكان واحد</h2>
+        <p class="section-desc">عشرة أقسام خدمية متكاملة تغطي احتياجات مواطني الحصاحيصا اليومية</p>
+      </div>
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(0,196,122,0.12)">🏥</div>
+          <div class="service-name">الدليل الطبي</div>
+          <div class="service-desc">صيدليات · مستشفيات · عيادات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(255,71,87,0.12)">🔍</div>
+          <div class="service-name">مفقودات</div>
+          <div class="service-desc">أعلن عن غرض مفقود أو موجود</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(74,63,159,0.12)">🎓</div>
+          <div class="service-name">الخدمات الطلابية</div>
+          <div class="service-desc">مدارس · معاهد · التعليم</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(30,110,138,0.12)">💼</div>
+          <div class="service-name">سوق العمل</div>
+          <div class="service-desc">وظائف وفرص عمل محلية</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(123,63,0,0.12)">🛒</div>
+          <div class="service-name">السوق</div>
+          <div class="service-desc">الأسر المنتجة · دلالة وأدوات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(39,174,96,0.12)">⚽</div>
+          <div class="service-name">النشاط الرياضي</div>
+          <div class="service-desc">الأندية · الفعاليات · البطولات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(142,68,173,0.12)">🎨</div>
+          <div class="service-name">النشاط الثقافي</div>
+          <div class="service-desc">مراكز ثقافية · معارض · فعاليات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(26,107,138,0.12)">💬</div>
+          <div class="service-name">المجتمع</div>
+          <div class="service-desc">منشورات · نقاشات · تعليقات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(201,168,76,0.12)">📅</div>
+          <div class="service-name">التقويم والمناسبات</div>
+          <div class="service-desc">أعياد وطنية · إسلامية · مناسبات</div>
+        </div>
+        <div class="service-card">
+          <div class="service-icon" style="background:rgba(0,196,122,0.12)">⚙️</div>
+          <div class="service-name">لوحة الإدارة</div>
+          <div class="service-desc">إدارة المحتوى والمستخدمين</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="section fade-in-delay-3">
+      <div class="section-header">
+        <div class="section-tag">المميزات</div>
+        <h2 class="section-title">تصميم عالمي بروح محلية</h2>
+        <p class="section-desc">مبني بأحدث تقنيات تطوير التطبيقات مع مراعاة احتياجات المجتمع المحلي</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🌙</div>
+          <div class="feature-content">
+            <h3>تصميم داكن احترافي</h3>
+            <p>واجهة مستخدم أنيقة بألوان داكنة مريحة للعين مع تمييز بصري واضح</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🌐</div>
+          <div class="feature-content">
+            <h3>ثنائي اللغة</h3>
+            <p>دعم كامل للغة العربية والإنجليزية مع تبديل سلس في أي وقت</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🔐</div>
+          <div class="feature-content">
+            <h3>نظام صلاحيات متقدم</h3>
+            <p>ثلاثة مستويات: مستخدم، مشرف قسم، ومسؤول كامل مع تحكم دقيق</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">⚡</div>
+          <div class="feature-content">
+            <h3>سرعة وأداء عالي</h3>
+            <p>مبني بـ Expo React Native مع تحريكات سلسة وتجربة مستخدم ممتازة</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">📱</div>
+          <div class="feature-content">
+            <h3>متوافق مع جميع الأجهزة</h3>
+            <p>يعمل على iOS و Android والويب بنفس الجودة والتجربة</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🏘️</div>
+          <div class="feature-content">
+            <h3>مجتمع تفاعلي</h3>
+            <p>منشورات، تعليقات، وإعجابات لتعزيز التواصل بين أبناء المدينة</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Section -->
+    <div class="download-section" id="download">
+      <div class="section-tag" style="margin-bottom:16px">التحميل</div>
+      <h2 class="download-title">ابدأ الاستخدام الآن</h2>
+      <p class="download-sub">ثلاث خطوات بسيطة لتجربة التطبيق على هاتفك</p>
+      <div class="download-steps">
+        <div class="download-step">
+          <div class="step-num">1</div>
+          <h3>حمّل Expo Go</h3>
+          <p>تطبيق مجاني لتشغيل تطبيقات Expo على هاتفك</p>
+          <div>
+            <a href="https://apps.apple.com/app/id982107779" class="store-btn" target="_blank" id="app-store-btn">
+              🍎 App Store
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=host.exp.exponent" class="store-btn" target="_blank" id="play-store-btn">
+              🤖 Google Play
+            </a>
+          </div>
+        </div>
+        <div class="download-step">
+          <div class="step-num">2</div>
+          <h3>امسح رمز QR</h3>
+          <p>افتح كاميرا هاتفك أو Expo Go وامسح الرمز</p>
+          <div class="qr-box" id="qr-code"></div>
+        </div>
+        <div class="download-step">
+          <div class="step-num">3</div>
+          <h3>افتح التطبيق</h3>
+          <p>أو انقر الزر أدناه مباشرةً لفتح التطبيق</p>
+          <a href="exps://EXPS_URL_PLACEHOLDER" class="open-app-btn" onclick="handleOpen(event, this.href)">
+            🚀 فتح التطبيق
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-logo">حصاحيصاوي 🏙️</div>
+      <div class="footer-sub">بوابة خدمات مجتمعية لمدينة الحصاحيصا وقراها — السودان</div>
+      <div class="footer-links">
+        <a href="#" class="footer-link">عن التطبيق</a>
+        <a href="#download" class="footer-link">تحميل</a>
+        <a href="#" class="footer-link">التواصل</a>
+      </div>
+      <div class="footer-copy">© 2024 حصاحيصاوي · جميع الحقوق محفوظة</div>
+    </footer>
+
+    <script src="https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
+    <script>
+      (function () {
+        const ua = navigator.userAgent;
+        const isAndroid = /Android/i.test(ua);
+        const isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const deepLink = "exps://EXPS_URL_PLACEHOLDER";
+
+        // Adjust store buttons based on platform
+        const appStoreBtn = document.getElementById("app-store-btn");
+        const playStoreBtn = document.getElementById("play-store-btn");
+        if (isIOS) {
+          playStoreBtn.style.opacity = "0.5";
+        } else if (isAndroid) {
+          appStoreBtn.style.opacity = "0.5";
+        }
+
+        // QR Code
+        const qrCode = new QRCodeStyling({
+          width: 300,
+          height: 300,
+          data: deepLink,
+          dotsOptions: { color: "#00C47A", type: "rounded" },
+          backgroundOptions: { color: "#ffffff" },
+          cornersSquareOptions: { type: "extra-rounded", color: "#070D14" },
+          cornersDotOptions: { type: "dot", color: "#00C47A" },
+          qrOptions: { errorCorrectionLevel: "H" },
+        });
+        qrCode.append(document.getElementById("qr-code"));
+
+        // Auto-open on mobile
+        if (isAndroid || isIOS) {
+          const overlay = document.getElementById("loading-overlay");
+          overlay.classList.add("active");
+          window.location.href = deepLink;
+          setTimeout(function () {
+            overlay.classList.remove("active");
+          }, 1500);
+        }
+      })();
+
+      function handleOpen(e, href) {
+        const ua = navigator.userAgent;
+        const isAndroid = /Android/i.test(ua);
+        const isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        if (isAndroid || isIOS) {
+          e.preventDefault();
+          const overlay = document.getElementById("loading-overlay");
+          overlay.classList.add("active");
+          window.location.href = href;
+          setTimeout(function () {
+            overlay.classList.remove("active");
+          }, 1500);
+        }
+      }
+    </script>
+  </body>
+</html>

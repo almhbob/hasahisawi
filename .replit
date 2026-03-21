@@ -17,6 +17,26 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/hasahisawi: حصاحيصاوي"
+
+[[workflows.workflow]]
+name = "artifacts/hasahisawi: حصاحيصاوي"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=20706 pnpm --filter @workspace/hasahisawi run dev"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
