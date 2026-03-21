@@ -49,26 +49,29 @@ function ClassicTabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarInactiveTintColor: "#8BBDA2",
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : Colors.cardBg,
+          backgroundColor: isIOS ? "transparent" : "#0F1E16",
           borderTopWidth: 1,
-          borderTopColor: Colors.divider,
+          borderTopColor: Colors.primary + "40",
           elevation: 0,
-          height: isWeb ? 64 : 58,
-          paddingBottom: isWeb ? 8 : 6,
-          paddingTop: 6,
+          height: isWeb ? 68 : 62,
+          paddingBottom: isWeb ? 10 : 8,
+          paddingTop: 8,
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.cardBg }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#0F1E16" }]} />
           ),
         tabBarLabelStyle: {
           fontFamily: "Cairo_500Medium",
-          fontSize: 10,
+          fontSize: 11,
+        },
+        tabBarIconStyle: {
+          marginBottom: -2,
         },
       }}
     >
