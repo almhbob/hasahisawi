@@ -128,7 +128,7 @@ const EVENTS: Event[] = [
 
 const CAMPAIGNS: Campaign[] = [
   { id: "c1", orgId: "o2", orgName: "جمعية البر الخيرية", title: "كفالة 50 يتيم", target: "50,000 جنيه", description: "حملة لكفالة 50 طفل يتيم لمدة سنة كاملة شاملاً التعليم والصحة والغذاء", icon: "heart", color: "#FF4FA3" },
-  { id: "c2", orgId: "o3", orgName: "مبادرة شارع الحوادث", title: "مستلزمات طبية طارئة", target: "20,000 جنيه", description: "تأمين مستلزمات إسعاف أولي وأدوية طارئة لمدة 6 أشهر للفريق الطوعي", icon: "medical-bag", color: "#00CFFF" },
+  { id: "c2", orgId: "o3", orgName: "مبادرة شارع الحوادث", title: "مستلزمات طبية طارئة", target: "20,000 جنيه", description: "تأمين مستلزمات إسعاف أولي وأدوية طارئة لمدة 6 أشهر للفريق الطوعي", icon: "medical-bag", color: "#3E9CBF" },
   { id: "c3", orgId: "o5", orgName: "مبادرة بنات حصاحيصا", title: "ماكينات خياطة للأسر", target: "30,000 جنيه", description: "شراء 10 ماكينات خياطة لتوزيعها على الأسر الفقيرة لتوليد دخل", icon: "needle", color: "#A855F7" },
 ];
 
@@ -139,7 +139,7 @@ const TYPE_CONFIG: Record<OrgType, { label: string; icon: string; color: string 
   charity:     { label: "جمعية خيرية",     icon: "hand-heart",     color: "#FF4FA3" },
   initiative:  { label: "مبادرة شبابية",  icon: "lightning-bolt", color: Colors.primary },
   cooperative: { label: "تعاونية",          icon: "account-group",  color: Colors.accent },
-  volunteer:   { label: "فريق تطوعي",      icon: "hand-okay",      color: "#00CFFF" },
+  volunteer:   { label: "فريق تطوعي",      icon: "hand-okay",      color: "#3E9CBF" },
 };
 
 function SectionHeader({ title, sub, color }: { title: string; sub?: string; color: string }) {
@@ -232,7 +232,7 @@ export default function OrgsScreen() {
           {[
             { num: `${orgs.filter(o => o.type === "charity").length}`, label: "جمعيات", color: "#FF4FA3" },
             { num: `${orgs.filter(o => o.type === "initiative").length}`, label: "مبادرات", color: Colors.primary },
-            { num: `${orgs.filter(o => o.type === "volunteer").length}`, label: "فرق تطوع", color: "#00CFFF" },
+            { num: `${orgs.filter(o => o.type === "volunteer").length}`, label: "فرق تطوع", color: "#3E9CBF" },
             { num: `${totalMembers}+`, label: "متطوع", color: Colors.accent },
           ].map((st, i) => (
             <View key={i} style={s.statItem}>

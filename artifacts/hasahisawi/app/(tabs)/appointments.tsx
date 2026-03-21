@@ -57,7 +57,7 @@ const FACILITIES: BookingFacility[] = [
     id: "f1", name: "مستشفى حصاحيصا الحكومي",
     category: "health", subcategory: "مستشفى",
     address: "المنطقة المركزية، حصاحيصا", phone: "+249912345682",
-    icon: "hospital-building", color: "#00CFFF",
+    icon: "hospital-building", color: "#3E9CBF",
     services: ["طوارئ", "جراحة عامة", "أطفال", "نساء وتوليد", "باطنية", "أشعة وتحاليل"],
     workDays: "السبت - الخميس", hours: "24 ساعة",
   },
@@ -65,7 +65,7 @@ const FACILITIES: BookingFacility[] = [
     id: "f2", name: "مستشفى الخيرية الأهلي",
     category: "health", subcategory: "مستشفى",
     address: "حي السلام، حصاحيصا", phone: "+249912345683",
-    icon: "hospital-building", color: "#00CFFF",
+    icon: "hospital-building", color: "#3E9CBF",
     services: ["باطنية", "أطفال", "تحاليل مخبرية", "مراجعة عامة"],
     workDays: "السبت - الخميس", hours: "7ص - 5م",
   },
@@ -89,7 +89,7 @@ const FACILITIES: BookingFacility[] = [
     id: "f5", name: "مركز صحة الأسرة",
     category: "health", subcategory: "مركز صحي",
     address: "حي الضحى، حصاحيصا", phone: "+249912345686",
-    icon: "heart-pulse", color: "#00D68F",
+    icon: "heart-pulse", color: "#27AE68",
     services: ["رعاية الأم والطفل", "تخطيط الأسرة", "تطعيمات", "صحة المدرسة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
@@ -98,7 +98,7 @@ const FACILITIES: BookingFacility[] = [
     id: "g1", name: "محلية حصاحيصا",
     category: "government", subcategory: "محلية",
     address: "مقر المحلية، حصاحيصا", phone: "+249912345690",
-    icon: "office-building", color: "#FFD000",
+    icon: "office-building", color: "#F0A500",
     services: ["تسجيل عقارات", "رخص تشغيل", "شهادات إقامة", "تسجيل مواليد", "دفن الموتى", "خدمات عامة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
@@ -106,7 +106,7 @@ const FACILITIES: BookingFacility[] = [
     id: "g2", name: "سجل مدني - حصاحيصا",
     category: "government", subcategory: "سجل مدني",
     address: "مبنى السجل المدني، حصاحيصا", phone: "+249912345691",
-    icon: "card-account-details", color: "#FFD000",
+    icon: "card-account-details", color: "#F0A500",
     services: ["استخراج بطاقة شخصية", "تجديد بطاقة", "شهادة ميلاد", "شهادة زواج", "شهادة وفاة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
@@ -130,7 +130,7 @@ const FACILITIES: BookingFacility[] = [
     id: "g5", name: "مكتب الشؤون الاجتماعية",
     category: "government", subcategory: "اجتماعي",
     address: "مجمع الخدمات، حصاحيصا", phone: "+249912345694",
-    icon: "account-group", color: "#00D68F",
+    icon: "account-group", color: "#27AE68",
     services: ["طلب إعانة", "تسجيل أسرة", "شهادة عوز", "خدمات ذوي الإعاقة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
@@ -339,20 +339,20 @@ export default function AppointmentsScreen() {
 
               <AnimatedPress onPress={() => { setCategory("health"); setStep("facility"); }}>
                 <LinearGradient
-                  colors={["#00CFFF18", "#00CFFF08"]}
-                  style={[s.catCard, { borderColor: "#00CFFF40" }]}
+                  colors={["#3E9CBF18", "#3E9CBF08"]}
+                  style={[s.catCard, { borderColor: "#3E9CBF40" }]}
                 >
-                  <View style={[s.catIcon, { backgroundColor: "#00CFFF20" }]}>
-                    <MaterialCommunityIcons name="hospital-building" size={36} color="#00CFFF" />
+                  <View style={[s.catIcon, { backgroundColor: "#3E9CBF20" }]}>
+                    <MaterialCommunityIcons name="hospital-building" size={36} color="#3E9CBF" />
                   </View>
                   <View style={s.catInfo}>
                     <Text style={s.catTitle}>المرافق الصحية</Text>
                     <Text style={s.catSub}>مستشفيات · عيادات · مراكز صحية</Text>
                     <View style={s.catCount}>
-                      <Text style={[s.catCountText, { color: "#00CFFF" }]}>{healthFacilities.length} مرافق متاحة</Text>
+                      <Text style={[s.catCountText, { color: "#3E9CBF" }]}>{healthFacilities.length} مرافق متاحة</Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={22} color="#00CFFF" />
+                  <Ionicons name="chevron-forward" size={22} color="#3E9CBF" />
                 </LinearGradient>
               </AnimatedPress>
 

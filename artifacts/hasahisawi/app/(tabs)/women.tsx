@@ -77,9 +77,9 @@ const SEED_SERVICES: WomenService[] = [
 
 const HEALTH_TIPS: HealthTip[] = [
   { id: "ht1", title: "تغذية المرأة الحامل", body: "تناولي الحديد والحمض الفوليك وأوميجا-3 يومياً. تجنبي المأكولات النيئة والكافيين الزائد. شربي 8 أكواب ماء على الأقل يومياً.", icon: "heart-pulse", color: "#FF4FA3" },
-  { id: "ht2", title: "فحوصات الصحة الدورية", body: "اعملي فحص صدر سنوياً وفحص دم كل 6 أشهر. ضغط الدم والسكر مهمان. زوري الطبيبة النسائية مرة في السنة.", icon: "clipboard-pulse", color: "#00CFFF" },
+  { id: "ht2", title: "فحوصات الصحة الدورية", body: "اعملي فحص صدر سنوياً وفحص دم كل 6 أشهر. ضغط الدم والسكر مهمان. زوري الطبيبة النسائية مرة في السنة.", icon: "clipboard-pulse", color: "#3E9CBF" },
   { id: "ht3", title: "الصحة النفسية للمرأة", body: "خصصي وقتاً يومياً لنفسك. التحدث مع المقربات يخفف التوتر. النوم الكافي 7-8 ساعات يحسن الصحة النفسية والجسدية.", icon: "emoticon-happy", color: "#A855F7" },
-  { id: "ht4", title: "نصائح ما بعد الولادة", body: "الرضاعة الطبيعية مفيدة لك وللطفل. لا تترددي في طلب المساعدة. مارسي تمارين المشي بعد أسبوعين من الولادة الطبيعية.", icon: "baby-carriage", color: "#00D68F" },
+  { id: "ht4", title: "نصائح ما بعد الولادة", body: "الرضاعة الطبيعية مفيدة لك وللطفل. لا تترددي في طلب المساعدة. مارسي تمارين المشي بعد أسبوعين من الولادة الطبيعية.", icon: "baby-carriage", color: "#27AE68" },
 ];
 
 const RECIPES: Recipe[] = [
@@ -127,10 +127,10 @@ const sh = StyleSheet.create({
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
   salon:     { label: "صالون تجميل", icon: "face-woman",     color: "#FF4FA3" },
   sewing:    { label: "خياطة",       icon: "needle",          color: "#A855F7" },
-  health:    { label: "صحة المرأة", icon: "heart-pulse",     color: "#00CFFF" },
+  health:    { label: "صحة المرأة", icon: "heart-pulse",     color: "#3E9CBF" },
   cooking:   { label: "طبخ ومطبخ",  icon: "pot-steam",       color: Colors.accent },
   childcare: { label: "رعاية أطفال", icon: "baby-face-outline", color: Colors.primary },
-  tip:       { label: "نصيحة",      icon: "lightbulb-on",   color: "#FFD000" },
+  tip:       { label: "نصيحة",      icon: "lightbulb-on",   color: "#F0A500" },
 };
 
 // ══════════════════════════════════════════════════════
@@ -200,7 +200,7 @@ export default function WomenScreen() {
             { num: `${servicesByType("salon").length}`, label: "صالون", color: "#FF4FA3" },
             { num: `${servicesByType("sewing").length}`, label: "خياطة", color: "#A855F7" },
             { num: `${servicesByType("cooking").length}`, label: "مطبخ", color: Colors.accent },
-            { num: `${servicesByType("health").length}`, label: "صحة", color: "#00CFFF" },
+            { num: `${servicesByType("health").length}`, label: "صحة", color: "#3E9CBF" },
           ].map((st, i) => (
             <View key={i} style={s.statItem}>
               <Text style={[s.statNum, { color: st.color }]}>{st.num}</Text>
@@ -356,7 +356,7 @@ export default function WomenScreen() {
             </Animated.View>
           ))}
 
-          <SectionHeader title="مراكز صحة المرأة" sub="في حصاحيصا" color="#00CFFF" />
+          <SectionHeader title="مراكز صحة المرأة" sub="في حصاحيصا" color="#3E9CBF" />
           {services.filter(s => s.type === "health").map((item, i) => {
             const cfg = TYPE_CONFIG[item.type];
             return (

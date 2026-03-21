@@ -68,20 +68,20 @@ export default function HomeScreen() {
   const [showAuth, setShowAuth] = useState(false);
 
   const SERVICES = useMemo(() => [
-    { id: "medical",   label: t('home','medical').label,         sub: t('home','medical').sub,         icon: "medkit",            iconType: "ionicons"  as const, color: "#00CFFF", bg: "#00CFFF20", route: "/(tabs)/medical"   as const },
+    { id: "medical",   label: t('home','medical').label,         sub: t('home','medical').sub,         icon: "medkit",            iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/medical"   as const },
     { id: "lost",      label: t('home','lost').label,            sub: t('home','lost').sub,             icon: "search",            iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/missing"   as const },
     { id: "student",   label: t('home','student').label,         sub: t('home','student').sub,          icon: "school",            iconType: "ionicons"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/student"   as const },
     { id: "jobs",      label: t('home','jobsService').label,     sub: t('home','jobsService').sub,      icon: "briefcase",         iconType: "ionicons"  as const, color: Colors.primary, bg: Colors.primary+"20", route: "/(tabs)/jobs"   as const },
     { id: "market",    label: t('home','marketService').label,   sub: t('home','marketService').sub,    icon: "storefront",        iconType: "ionicons"  as const, color: "#FF6B35", bg: "#FF6B3520", route: "/(tabs)/market"    as const },
-    { id: "sports",    label: t('home','sports').label,          sub: t('home','sports').sub,           icon: "football",          iconType: "ionicons"  as const, color: "#00D68F", bg: "#00D68F20", route: "/(tabs)/sports"    as const },
+    { id: "sports",    label: t('home','sports').label,          sub: t('home','sports').sub,           icon: "football",          iconType: "ionicons"  as const, color: "#27AE68", bg: "#27AE6820", route: "/(tabs)/sports"    as const },
     { id: "culture",   label: t('home','culture').label,         sub: t('home','culture').sub,          icon: "palette",           iconType: "material"  as const, color: "#FF4FA3", bg: "#FF4FA320", route: "/(tabs)/culture"   as const },
-    { id: "social",    label: t('home','social').label,          sub: t('home','social').sub,           icon: "chatbubbles",       iconType: "ionicons"  as const, color: "#00CFFF", bg: "#00CFFF20", route: "/(tabs)/social"    as const },
+    { id: "social",    label: t('home','social').label,          sub: t('home','social').sub,           icon: "chatbubbles",       iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/social"    as const },
     { id: "calendar",  label: t('home','calendarService').label, sub: t('home','calendarService').sub,  icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/calendar"  as const },
     { id: "women",     label: t('home','womenService').label,    sub: t('home','womenService').sub,     icon: "face-woman",        iconType: "material"  as const, color: "#FF4FA3", bg: "#FF4FA320", route: "/(tabs)/women"     as const },
     { id: "orgs",        label: t('home','orgsService').label,     sub: t('home','orgsService').sub,      icon: "hand-heart",        iconType: "material"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/orgs"         as const },
     { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
-    { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#00CFFF",  bg: "#00CFFF20",    route: "/(tabs)/numbers"      as const },
+    { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
   ], [lang]);
 
   const handlePress = (route: string) => {
@@ -153,7 +153,7 @@ export default function HomeScreen() {
           style={[styles.statsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
         >
           {[
-            { num: "١٢+", label: t('home','pharmacies'), icon: "medkit-outline",    color: "#00CFFF" },
+            { num: "١٢+", label: t('home','pharmacies'), icon: "medkit-outline",    color: "#3E9CBF" },
             { num: "٤٨+", label: t('home','jobs'),       icon: "briefcase-outline", color: Colors.accent },
             { num: "٦",   label: t('home','schools'),    icon: "school-outline",    color: Colors.primary },
           ].map((stat, i) => (
@@ -307,7 +307,7 @@ export default function HomeScreen() {
             style={styles.devCardBorder}
           >
             <LinearGradient
-              colors={["#060F1E", "#0A1628", "#060F1E"]}
+              colors={["#0D1A12", "#142119", "#0D1A12"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.devCardInner}
             >

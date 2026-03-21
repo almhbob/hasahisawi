@@ -62,7 +62,7 @@ const AGENCIES: Agency[] = [
     phone: "+249912300100",
     whatsapp: "+249912300100",
     icon: "water",
-    color: "#00CFFF",
+    color: "#3E9CBF",
     commonIssues: ["انقطاع المياه", "كسر في الأنابيب", "تسرب المياه", "تلوث المياه", "ضعف الضغط", "شبكة جديدة"],
     workHours: "7ص - 3م",
     emergency: true,
@@ -76,7 +76,7 @@ const AGENCIES: Agency[] = [
     phone: "+249912300200",
     whatsapp: "+249912300200",
     icon: "lightning-bolt",
-    color: "#FFD000",
+    color: "#F0A500",
     commonIssues: ["انقطاع الكهرباء", "عطل في الخطوط", "خطر صعق كهربائي", "كابل مكشوف", "عمود مكسور", "مشكلة عداد"],
     workHours: "24 ساعة",
     emergency: true,
@@ -89,7 +89,7 @@ const AGENCIES: Agency[] = [
     description: "الإشراف على النظافة العامة، إدارة النفايات، مكافحة التلوث البيئي وحماية الصحة العامة",
     phone: "+249912300300",
     icon: "leaf",
-    color: "#00D68F",
+    color: "#27AE68",
     commonIssues: ["مكب نفايات مخالف", "تلوث مجرى مائي", "رش مبيدات حشرية", "روائح كريهة", "مصنع ملوث", "حرق نفايات"],
     workHours: "7ص - 3م",
     emergency: false,
@@ -204,7 +204,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 const STATUS_CONFIG: Record<ReportStatus, { label: string; color: string; icon: string }> = {
   pending:    { label: "قيد الإرسال",    color: Colors.textMuted, icon: "time-outline" },
   received:   { label: "وصل للجهة",     color: Colors.accent,   icon: "checkmark-outline" },
-  inProgress: { label: "جاري المعالجة", color: "#00CFFF",       icon: "construct-outline" },
+  inProgress: { label: "جاري المعالجة", color: "#3E9CBF",       icon: "construct-outline" },
   resolved:   { label: "تم الحل",       color: Colors.primary,  icon: "checkmark-circle-outline" },
 };
 

@@ -1,37 +1,42 @@
 // ═══════════════════════════════════════════════════
-// نظام ألوان حصاحيصاوي — مستوحى من الشعار + مستقبلي
-// الأخضر الزمردي النيوني + الذهبي الإلكتروني
+// نظام ألوان حصاحيصاوي — مستوحى من الشعار بشكل إحترافي
+// أخضر زمردي طبيعي دافئ + ذهبي عنبري — داكن مريح للعين
 // ═══════════════════════════════════════════════════
 
 // ── الألوان الجوهرية من الشعار ──
-const primary   = "#00D68F";   // أخضر نيون زمردي — من الشخصية الخضراء
-const primaryDim = "#00A86B";  // أخضر داكن للتفاصيل
-const accent    = "#FFD000";   // ذهبي إلكتروني لامع — من الشخصية الذهبية
-const accentDim = "#C8A200";   // ذهبي داكن
-const cyber     = "#00CFFF";   // أزرق سيبراني تكميلي
-const violet    = "#A855F7";   // بنفسجي مستقبلي
+const primary     = "#27AE68";  // أخضر زمردي طبيعي — اللون الرئيسي من الشعار
+const primaryDim  = "#1D8851";  // أخضر داكن أعمق
+const primaryLight = "#D6F0E5"; // أخضر فاتح جداً للتلميحات الخافتة
 
-// ── خلفيات الفضاء العميق ──
-const bg            = "#040D18"; // خلفية فضائية
-const bgDeep        = "#020810"; // أعمق نقطة
-const cardBg        = "#0A1628"; // كرت زجاجي غامق
-const cardBgElevated = "#0F2040"; // كرت مرتفع مع وهج خفيف
-const glassCard     = "rgba(0,214,143,0.06)"; // زجاج أخضر
+const accent      = "#F0A500";  // ذهبي عنبري دافئ — من الشخصية الصفراء
+const accentDim   = "#C07E00";  // عنبري داكن للتفاصيل
 
-// ── النصوص ──
-const textPrimary   = "#E8F8F2"; // أبيض مائل للأخضر (مستقبلي)
-const textSecondary = "#7EC9A8"; // ثانوي أخضر خافت — مرئي على الداكن
-const textMuted     = "#3D6654"; // باهت — يُرى بوضوح كافٍ
+// ── ألوان ثانوية متناسقة ──
+const cyber       = "#3E9CBF";  // أزرق سماوي هادئ (تكميلي)
+const violet      = "#8B72BE";  // بنفسجي خافت (تكميلي)
+
+// ── خلفيات داكنة دافئة — لا برودة فضائية ──
+const bg             = "#0D1A12";  // داكن جداً مع دفء أخضر — أساس الشاشات
+const bgDeep         = "#090F0C";  // الأعمق — للزوايا وتأثيرات الظل
+const cardBg         = "#142119";  // بطاقة داكنة دافئة
+const cardBgElevated = "#1B2F22";  // بطاقة مرتفعة أفتح قليلاً
+const glassCard      = "rgba(39,174,104,0.07)"; // زجاج أخضر شفاف خافت
+
+// ── النصوص — قابلة للقراءة ومريحة ──
+const textPrimary   = "#E4F2EB";  // أبيض دافئ مائل للأخضر
+const textSecondary = "#79B597";  // ثانوي أخضر معتدل — مقروء
+const textMuted     = "#4E7A62";  // باهت — للتفاصيل الثانوية
 
 // ── الحدود والفواصل ──
-const divider       = "#132030"; // حد داكن مرئي
-const borderGlow    = "#00D68F30"; // حد متوهج أخضر
-const borderGoldGlow = "#FFD00030"; // حد متوهج ذهبي
+const divider        = "#1D3326";  // حد داكن مرئي دون إزعاج
+const borderGlow     = "#27AE6822"; // توهج أخضر خافت جداً
+const borderGoldGlow = "#F0A50022"; // توهج عنبري خافت جداً
 
 export default {
   // الأساسية
   primary,
   primaryDim,
+  primaryLight,
   accent,
   accentDim,
   cyber,
@@ -57,16 +62,16 @@ export default {
 
   // حالات
   success: primary,
-  danger:  "#FF4D6A",
+  danger:  "#E05567",  // أحمر دافئ — ليس صارخاً
   warning: accent,
   info:    cyber,
 
-  // للتوافق
+  // للتوافق مع Expo theme
   light: {
-    text:           textPrimary,
-    background:     bg,
-    tint:           primary,
-    tabIconDefault: textMuted,
+    text:            textPrimary,
+    background:      bg,
+    tint:            primary,
+    tabIconDefault:  textMuted,
     tabIconSelected: primary,
   },
 };
