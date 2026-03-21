@@ -12,6 +12,9 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import { useLang } from "@/lib/lang-context";
+import { useAuth } from "@/lib/auth-context";
+import GuestGate from "@/components/GuestGate";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -218,6 +221,8 @@ type Tab = "report" | "myReports";
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const { isRTL, tr } = useLang();
+  const auth = useAuth();
 
   const [tab, setTab] = useState<Tab>("report");
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
@@ -345,8 +350,40 @@ export default function ReportsScreen() {
         </View>
       </LinearGradient>
 
+      {/* ════════ GUEST GATE ════════ */}
+      {auth.isGuest ? (
+        <GuestGate
+          title={tr("التبليغ السريع", "Quick Reporting")}
+          preview={
+            <View style={{ padding: 16, gap: 12 }}>
+              {[
+                { icon: "water-outline", label: "انقطاع المياه", agency: "مياه حصاحيصا", color: "#3B82F6" },
+                { icon: "flash-outline", label: "عطل كهربائي", agency: "الكهرباء الوطنية", color: "#F59E0B" },
+                { icon: "leaf-outline", label: "مشكلة بيئية", agency: "البلدية", color: "#10B981" },
+              ].map((item, i) => (
+                <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: item.color + "20", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name={item.icon as any} size={20} color={item.color} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: "flex-end" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{item.label}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.agency}</Text>
+                  </View>
+                  <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+                </View>
+              ))}
+            </View>
+          }
+          features={[
+            { icon: "megaphone-outline",  text: tr("أرسل بلاغات لجهات المدينة مباشرة", "Report issues directly to city agencies") },
+            { icon: "time-outline",       text: tr("تابع حالة بلاغاتك لحظة بلحظة", "Track your reports in real time") },
+            { icon: "checkmark-circle-outline", text: tr("احصل على إشعار عند حل المشكلة", "Get notified when your issue is resolved") },
+          ]}
+        />
+      ) : null}
+
       {/* ════════ TAB: REPORT ════════ */}
-      {tab === "report" && (
+      {!auth.isGuest && tab === "report" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 16 }} showsVerticalScrollIndicator={false}>
 
           {/* Progress */}
@@ -632,7 +669,7 @@ export default function ReportsScreen() {
       )}
 
       {/* ════════ TAB: MY REPORTS ════════ */}
-      {tab === "myReports" && (
+      {!auth.isGuest && tab === "myReports" && (
         <View style={{ flex: 1 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
             {([["all", "الكل"], ["pending", "مُرسَل"], ["received", "وصل"], ["inProgress", "جارٍ"], ["resolved", "تم الحل"]] as [ReportStatus | "all", string][]).map(([k, label]) => {

@@ -20,6 +20,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 
 import { useLang } from "@/lib/lang-context";
+import { useAuth } from "@/lib/auth-context";
+import GuestGate from "@/components/GuestGate";
 
 export type Facility = {
   id: string;
@@ -90,7 +92,8 @@ export function getTypeLabel(type: Facility["type"], t: any) {
 }
 
 export default function MedicalScreen() {
-  const { t, isRTL, lang } = useLang();
+  const { t, isRTL, lang, tr } = useLang();
+  const auth = useAuth();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const [search, setSearch] = useState("");
@@ -171,6 +174,38 @@ export default function MedicalScreen() {
         </ScrollView>
       </View>
 
+      <GuestGate
+        title={tr("الخدمات الطبية", "Medical Services")}
+        preview={
+          <View style={{ padding: 16, gap: 12 }}>
+            {[
+              { name: "صيدلية الشفاء", type: "صيدلية", hours: "24 ساعة", onCall: true },
+              { name: "مستشفى حصاحيصا الحكومي", type: "مستشفى", hours: "24 ساعة", onCall: true },
+              { name: "عيادة الدكتور أحمد", type: "عيادة", hours: "4م - 9م", onCall: false },
+            ].map((item, i) => (
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.cyber + "20", alignItems: "center", justifyContent: "center" }}>
+                  <MaterialCommunityIcons name={i === 0 ? "medical-bag" : i === 1 ? "hospital-building" : "stethoscope"} size={20} color={Colors.cyber} />
+                </View>
+                <View style={{ flex: 1, alignItems: "flex-end" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{item.name}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.type} • {item.hours}</Text>
+                </View>
+                {item.onCall && (
+                  <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 10, color: Colors.primary }}>متاح</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        }
+        features={[
+          { icon: "call-outline",      text: tr("اتصل بأي منشأة طبية مباشرة", "Call any medical facility directly") },
+          { icon: "calendar-outline",  text: tr("احجز موعداً في عيادتك", "Book appointments at clinics") },
+          { icon: "star-outline",      text: tr("قيّم الخدمات وشارك تجربتك", "Rate services and share your experience") },
+        ]}
+      >
       <ScrollView
         style={styles.list}
         contentContainerStyle={[styles.listContent, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
@@ -248,6 +283,7 @@ export default function MedicalScreen() {
           );
         })}
       </ScrollView>
+      </GuestGate>
     </View>
   );
 }

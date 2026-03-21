@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -764,38 +765,73 @@ export default function SocialScreen() {
         </ScrollView>
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={item => String(item.id)}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadFromApi(true); }} colors={[Colors.primary]} />
+      <GuestGate
+        title={tr("ساحة المجتمع", "Community Feed")}
+        preview={
+          <View style={{ padding: 16, gap: 12 }}>
+            {[
+              { author: "أحمد محمد", time: "منذ ٣ دقائق", cat: "خبر", text: "تم افتتاح مركز الصحة الجديد في حي السلام..." },
+              { author: "فاطمة علي", time: "منذ ١٢ دقيقة", cat: "سؤال", text: "هل توجد وظائف شاغرة في مجال التعليم حالياً؟..." },
+              { author: "المجتمع الحصاحيصاوي", time: "منذ ساعة", cat: "إعلان", text: "إعلان هام: اجتماع مجلس الحي يوم الخميس القادم..." },
+            ].map((item, i) => (
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "30", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="person" size={18} color={Colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{item.author}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{item.time}</Text>
+                  </View>
+                  <View style={{ backgroundColor: Colors.accent + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent }}>{item.cat}</Text>
+                  </View>
+                </View>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 }}>{item.text}</Text>
+              </View>
+            ))}
+          </View>
         }
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
-          ) : (
-            <View style={styles.empty}>
-              <Ionicons name="newspaper-outline" size={60} color={Colors.divider} />
-              <Text style={styles.emptyText}>{t('social', 'noPostsYet')}</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => loadFromApi()}>
-                <Text style={styles.emptyBtnText}>{t('common', 'refresh')}</Text>
-              </TouchableOpacity>
-            </View>
-          )
-        }
-        renderItem={({ item, index }) => (
-          <PostCard
-            post={item}
-            index={index}
-            isAdmin={isAdmin}
-            onLike={handleLike}
-            onComment={openComments}
-            onDelete={handleDelete}
-          />
-        )}
-      />
+        features={[
+          { icon: "newspaper-outline",     text: tr("اطّلع على أخبار حصاحيصا لحظةً بلحظة", "Follow Hasahisa news in real time") },
+          { icon: "pencil-outline",        text: tr("شارك برأيك وأخبارك مع المجتمع", "Share your opinions with the community") },
+          { icon: "heart-outline",         text: tr("أعجب بالمنشورات وعلّق عليها", "Like and comment on posts") },
+          { icon: "chatbubbles-outline",   text: tr("شارك في نقاشات المجتمع الحية", "Join live community discussions") },
+        ]}
+      >
+        <FlatList
+          data={filtered}
+          keyExtractor={item => String(item.id)}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadFromApi(true); }} colors={[Colors.primary]} />
+          }
+          ListEmptyComponent={
+            loading ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+            ) : (
+              <View style={styles.empty}>
+                <Ionicons name="newspaper-outline" size={60} color={Colors.divider} />
+                <Text style={styles.emptyText}>{t('social', 'noPostsYet')}</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => loadFromApi()}>
+                  <Text style={styles.emptyBtnText}>{t('common', 'refresh')}</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          }
+          renderItem={({ item, index }) => (
+            <PostCard
+              post={item}
+              index={index}
+              isAdmin={isAdmin}
+              onLike={handleLike}
+              onComment={openComments}
+              onDelete={handleDelete}
+            />
+          )}
+        />
+      </GuestGate>
 
       <AddPostModal
         visible={showAdd}

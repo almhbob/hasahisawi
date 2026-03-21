@@ -347,6 +347,40 @@ export default function JobsScreen() {
         ))}
       </ScrollView>
 
+      <GuestGate
+        title={tr("فرص العمل", "Job Opportunities")}
+        preview={
+          <View style={{ padding: 16, gap: 12 }}>
+            {[
+              { title: "مدرّس لغة عربية", company: "مدرسة حصاحيصا الثانوية", type: "دوام كامل", loc: "حصاحيصا" },
+              { title: "محاسب قانوني", company: "شركة النيل التجارية", type: "دوام جزئي", loc: "حصاحيصا" },
+              { title: "مهندس زراعي", company: "مزرعة الخير", type: "عقد", loc: "الجزيرة" },
+            ].map((item, i) => (
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+                <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <View style={{ flex: 1, alignItems: "flex-end" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{item.title}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
+                  </View>
+                  <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginRight: 10 }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primary }}>{item.type}</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 8 }}>
+                  <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.loc}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        }
+        features={[
+          { icon: "briefcase-outline",     text: tr("اعثر على فرص عمل في حصاحيصا", "Find jobs in Hasahisa") },
+          { icon: "add-circle-outline",    text: tr("انشر إعلان وظيفتك مجاناً", "Post your job listing for free") },
+          { icon: "call-outline",          text: tr("تواصل مباشرةً مع أصحاب العمل", "Contact employers directly") },
+          { icon: "filter-outline",        text: tr("صفّح وظائف بحسب النوع والموقع", "Filter jobs by type and location") },
+        ]}
+      >
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -445,6 +479,7 @@ export default function JobsScreen() {
           );
         }}
       />
+      </GuestGate>
 
       <AddJobModal visible={showModal} onClose={() => setShowModal(false)} onSave={saveJob} />
     </View>

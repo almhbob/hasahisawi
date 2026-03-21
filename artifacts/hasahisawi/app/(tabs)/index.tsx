@@ -61,7 +61,7 @@ function ServiceGridItem({
 }
 
 export default function HomeScreen() {
-  const { t, isRTL, lang } = useLang();
+  const { t, isRTL, lang, tr } = useLang();
   const insets  = useSafeAreaInsets();
   const topPad  = Platform.OS === "web" ? 67 : insets.top;
   const auth    = useAuth();
@@ -199,6 +199,37 @@ export default function HomeScreen() {
             <View style={styles.brandGlowRight} />
           </LinearGradient>
         </Animated.View>
+
+        {/* لافتة وضع الزائر */}
+        {auth.isGuest && (
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={{ paddingHorizontal: 16, marginBottom: 4 }}>
+            <LinearGradient
+              colors={[Colors.accent + "22", Colors.accent + "10"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{ borderRadius: 16, borderWidth: 1, borderColor: Colors.accent + "35", flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 12 }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.accent + "25", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="person-outline" size={18} color={Colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.accent, textAlign: "right" }}>
+                  {tr("أنت تتصفح كزائر", "You're browsing as Guest")}
+                </Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                  {tr("سجّل للاستمتاع بكل خدمات التطبيق", "Register to unlock all app features")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={async () => { await auth.logout(); }}
+                style={{ backgroundColor: Colors.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
+              >
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#000" }}>
+                  {tr("سجّل", "Register")}
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </Animated.View>
+        )}
 
         {/* بانرات الخدمات السريعة */}
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.quickBannersRow}>

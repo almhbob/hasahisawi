@@ -21,6 +21,7 @@ import Colors from "@/constants/colors";
 
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
+import GuestGate from "@/components/GuestGate";
 
 function contactOptions(phone: string, t: any) {
   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -269,39 +270,74 @@ export default function LostItemsScreen() {
         </View>
       </View>
 
-      <View style={[styles.filters, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {(["all", "lost", "found"] as const).map((f) => (
-          <AnimatedPress
-            key={f}
-            style={[styles.filterBtn, filterStatus === f && styles.filterBtnActive]}
-            onPress={() => setFilterStatus(f)}
-            scaleDown={0.92}
-          >
-            <Text style={[styles.filterBtnText, filterStatus === f && styles.filterBtnTextActive]}>
-              {f === "all" ? t('common', 'all') : f === "lost" ? t('missing', 'lost') : t('missing', 'found')}
-            </Text>
-          </AnimatedPress>
-        ))}
-      </View>
-
-      <FlatList
-        data={filtered}
-        keyExtractor={i => i.id}
-        contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="search-outline" size={52} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>{t('missing', 'noItems')}</Text>
-            <Text style={styles.emptyText}>{t('missing', 'noItemsSub')}</Text>
+      <GuestGate
+        title={tr("المفقودات والموجودات", "Lost & Found")}
+        preview={
+          <View style={{ padding: 16, gap: 12 }}>
+            {[
+              { name: "محفظة جلدية سوداء", status: "lost", loc: "سوق حصاحيصا", time: "منذ يومين" },
+              { name: "هاتف سامسونج A54", status: "lost", loc: "شارع المدارس", time: "منذ ٥ أيام" },
+              { name: "وثيقة هوية وطنية", status: "found", loc: "حي السلام", time: "منذ ٣ أيام" },
+            ].map((item, i) => (
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name={item.status === "lost" ? "search-outline" : "checkmark-circle-outline"} size={20} color={item.status === "lost" ? Colors.danger : Colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: "flex-end" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{item.name}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{item.loc} • {item.time}</Text>
+                  </View>
+                  <View style={{ backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: item.status === "lost" ? Colors.danger : Colors.primary }}>
+                      {item.status === "lost" ? "مفقود" : "موجود"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         }
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
-            <ItemCard item={item} onMarkFound={markFound} onDelete={deleteItem} t={t} isRTL={isRTL} />
-          </Animated.View>
-        )}
-      />
+        features={[
+          { icon: "search-outline",          text: tr("أعلن عن مفقوداتك للمجتمع", "Announce your lost items to the community") },
+          { icon: "checkmark-done-outline",  text: tr("أبلّغ عن الأشياء التي عثرت عليها", "Report found items to help others") },
+          { icon: "call-outline",            text: tr("تواصل مع أصحاب المفقودات مباشرة", "Contact owners directly") },
+        ]}
+      >
+        <View style={[styles.filters, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {(["all", "lost", "found"] as const).map((f) => (
+            <AnimatedPress
+              key={f}
+              style={[styles.filterBtn, filterStatus === f && styles.filterBtnActive]}
+              onPress={() => setFilterStatus(f)}
+              scaleDown={0.92}
+            >
+              <Text style={[styles.filterBtnText, filterStatus === f && styles.filterBtnTextActive]}>
+                {f === "all" ? t('common', 'all') : f === "lost" ? t('missing', 'lost') : t('missing', 'found')}
+              </Text>
+            </AnimatedPress>
+          ))}
+        </View>
+
+        <FlatList
+          data={filtered}
+          keyExtractor={i => i.id}
+          contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={52} color={Colors.textMuted} />
+              <Text style={styles.emptyTitle}>{t('missing', 'noItems')}</Text>
+              <Text style={styles.emptyText}>{t('missing', 'noItemsSub')}</Text>
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
+              <ItemCard item={item} onMarkFound={markFound} onDelete={deleteItem} t={t} isRTL={isRTL} />
+            </Animated.View>
+          )}
+        />
+      </GuestGate>
     </View>
   );
 }
