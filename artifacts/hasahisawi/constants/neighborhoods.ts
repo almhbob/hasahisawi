@@ -1,0 +1,42 @@
+export type NeighborhoodItem = { label: string; type: "neighborhood" | "village" };
+
+export const HASAHISA_LOCATIONS: NeighborhoodItem[] = [
+  { label: "حي الوسط",         type: "neighborhood" },
+  { label: "حي الشرق",         type: "neighborhood" },
+  { label: "حي الغرب",         type: "neighborhood" },
+  { label: "حي الشمال",        type: "neighborhood" },
+  { label: "حي الجنوب",        type: "neighborhood" },
+  { label: "حي العمال",        type: "neighborhood" },
+  { label: "حي المحطة",        type: "neighborhood" },
+  { label: "حي النيل",         type: "neighborhood" },
+  { label: "حي الجامعة",       type: "neighborhood" },
+  { label: "حي الزهور",        type: "neighborhood" },
+  { label: "حي الصناعة",       type: "neighborhood" },
+  { label: "حي المدارس",       type: "neighborhood" },
+  { label: "الحي الجديد",      type: "neighborhood" },
+  { label: "حي الحرية",        type: "neighborhood" },
+  { label: "العزازة",           type: "neighborhood" },
+  { label: "حي السوق",         type: "neighborhood" },
+  { label: "حي القبة",         type: "neighborhood" },
+  { label: "كبنة",              type: "village" },
+  { label: "حلفاية الحصاحيصا", type: "village" },
+  { label: "أم ضباع",          type: "village" },
+  { label: "تنة",               type: "village" },
+  { label: "بانت",              type: "village" },
+  { label: "كناكرة",            type: "village" },
+  { label: "الشيخ حماد",       type: "village" },
+  { label: "طابية",             type: "village" },
+  { label: "بمبان",             type: "village" },
+  { label: "الجلاد",            type: "village" },
+  { label: "ود العباس",         type: "village" },
+  { label: "هيصة",              type: "village" },
+  { label: "قرية الجمعية",     type: "village" },
+  { label: "ود النيل",          type: "village" },
+  { label: "كرري",              type: "village" },
+  { label: "الهجيليج",          type: "village" },
+  { label: "شيخ الطيب",        type: "village" },
+  { label: "أخرى / خارج الحصاحيصا", type: "village" },
+];
+
+export const NEIGHBORHOODS = HASAHISA_LOCATIONS.filter(l => l.type === "neighborhood").map(l => l.label);
+export const VILLAGES      = HASAHISA_LOCATIONS.filter(l => l.type === "village").map(l => l.label);

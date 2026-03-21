@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
-  KeyboardAvoidingView, Pressable, Dimensions,
+  KeyboardAvoidingView, Pressable, Dimensions, Modal, FlatList,
 } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import BrandPattern from "@/components/BrandPattern";
+import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
 
 const CITY_CREST  = require("@/assets/images/city-crest.png");
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -32,6 +33,12 @@ export default function LoginScreen() {
   const [showPwd, setShowPwd]   = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const [birthDay, setBirthDay]     = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear]   = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [showNbrModal, setShowNbrModal] = useState(false);
+  const [nbrSearch, setNbrSearch]   = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -39,7 +46,21 @@ export default function LoginScreen() {
     setName(""); setNationalId(""); setIdentifier("");
     setPassword(""); setConfirmPwd(""); setError("");
     setShowPwd(false); setUseEmail(false);
+    setBirthDay(""); setBirthMonth(""); setBirthYear("");
+    setNeighborhood(""); setNbrSearch("");
   };
+
+  const getBirthDateISO = (): string | undefined => {
+    const d = birthDay.padStart(2, "0");
+    const m = birthMonth.padStart(2, "0");
+    const y = birthYear;
+    if (d && m && y.length === 4) return `${y}-${m}-${d}`;
+    return undefined;
+  };
+
+  const filteredLocations = HASAHISA_LOCATIONS.filter(l =>
+    l.label.includes(nbrSearch) || nbrSearch === ""
+  );
 
   const switchMode = (m: Mode) => { reset(); setMode(m); };
 
@@ -67,7 +88,7 @@ export default function LoginScreen() {
       } else {
         const isEmail = useEmail || identifier.includes("@");
         const nid = nationalId.trim().replace(/\s+/g, "");
-        await register(name.trim(), nid, identifier.trim(), isEmail, password);
+        await register(name.trim(), nid, identifier.trim(), isEmail, password, getBirthDateISO(), neighborhood || undefined);
       }
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -257,6 +278,75 @@ export default function LoginScreen() {
             </Field>
           )}
 
+          {/* ── تاريخ الميلاد ── */}
+          {mode === "register" && (
+            <View style={s2.fieldWrap}>
+              <View style={s2.fieldHeader}>
+                <Ionicons name="calendar-outline" size={15} color={Colors.textMuted} />
+                <Text style={s2.fieldLabel}>تاريخ الميلاد</Text>
+                <Text style={s2.optional}>(اختياري)</Text>
+              </View>
+              <View style={s2.dateRow}>
+                <View style={[s2.dateBox, { flex: 1 }]}>
+                  <Text style={s2.dateLabel}>اليوم</Text>
+                  <TextInput
+                    style={s2.dateInput}
+                    placeholder="01"
+                    placeholderTextColor={Colors.textMuted}
+                    value={birthDay}
+                    onChangeText={v => setBirthDay(v.replace(/\D/g,"").slice(0,2))}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    textAlign="center"
+                  />
+                </View>
+                <View style={[s2.dateBox, { flex: 1 }]}>
+                  <Text style={s2.dateLabel}>الشهر</Text>
+                  <TextInput
+                    style={s2.dateInput}
+                    placeholder="01"
+                    placeholderTextColor={Colors.textMuted}
+                    value={birthMonth}
+                    onChangeText={v => setBirthMonth(v.replace(/\D/g,"").slice(0,2))}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    textAlign="center"
+                  />
+                </View>
+                <View style={[s2.dateBox, { flex: 2 }]}>
+                  <Text style={s2.dateLabel}>السنة</Text>
+                  <TextInput
+                    style={s2.dateInput}
+                    placeholder="1990"
+                    placeholderTextColor={Colors.textMuted}
+                    value={birthYear}
+                    onChangeText={v => setBirthYear(v.replace(/\D/g,"").slice(0,4))}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    textAlign="center"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ── الحي / القرية ── */}
+          {mode === "register" && (
+            <View style={s2.fieldWrap}>
+              <View style={s2.fieldHeader}>
+                <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
+                <Text style={s2.fieldLabel}>الحي أو القرية</Text>
+                <Text style={s2.optional}>(اختياري)</Text>
+              </View>
+              <Pressable style={s2.pickerBtn} onPress={() => setShowNbrModal(true)}>
+                <Text style={neighborhood ? s2.pickerVal : s2.pickerPlaceholder}>
+                  {neighborhood || "اختر من أحياء وقرى الحصاحيصا"}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+              </Pressable>
+            </View>
+          )}
+
           {/* خطأ */}
           {!!error && (
             <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
@@ -312,6 +402,47 @@ export default function LoginScreen() {
           <View style={{ height: insets.bottom + 8 }} />
         </ScrollView>
       </Animated.View>
+
+      {/* ── مودال الحي / القرية ── */}
+      <Modal visible={showNbrModal} animationType="slide" transparent onRequestClose={() => setShowNbrModal(false)}>
+        <Pressable style={s2.modalOverlay} onPress={() => setShowNbrModal(false)}>
+          <Pressable style={[s2.modalSheet, { paddingBottom: insets.bottom + 12 }]} onPress={e => e.stopPropagation()}>
+            <View style={s2.modalHandle} />
+            <Text style={s2.modalTitle}>اختر الحي أو القرية</Text>
+            <View style={s2.searchWrap}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={s2.searchInput}
+                placeholder="ابحث..."
+                placeholderTextColor={Colors.textMuted}
+                value={nbrSearch}
+                onChangeText={setNbrSearch}
+              />
+            </View>
+            <FlatList
+              data={filteredLocations}
+              keyExtractor={i => i.label}
+              style={{ maxHeight: 360 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[s2.nbrRow, neighborhood === item.label && s2.nbrRowActive]}
+                  onPress={() => { setNeighborhood(item.label); setShowNbrModal(false); setNbrSearch(""); }}
+                >
+                  <Ionicons
+                    name={item.type === "neighborhood" ? "home-outline" : "leaf-outline"}
+                    size={16}
+                    color={item.type === "neighborhood" ? Colors.primary : Colors.accent}
+                  />
+                  <Text style={[s2.nbrLabel, neighborhood === item.label && s2.nbrLabelActive]}>
+                    {item.label}
+                  </Text>
+                  <Text style={s2.nbrType}>{item.type === "neighborhood" ? "حي" : "قرية"}</Text>
+                </Pressable>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -539,4 +670,44 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
     marginTop: 2, textAlign: "right",
   },
+});
+
+const s2 = StyleSheet.create({
+  fieldWrap: { marginBottom: 14 },
+  fieldHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 },
+  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+  optional: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  dateRow: { flexDirection: "row-reverse", gap: 8 },
+  dateBox: { backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, padding: 6 },
+  dateLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", marginBottom: 4 },
+  dateInput: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, height: 36, textAlignVertical: "center" },
+  pickerBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
+    paddingHorizontal: 14, paddingVertical: 14, gap: 8,
+  },
+  pickerVal: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
+  pickerPlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: {
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 0,
+  },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 12 },
+  searchWrap: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: Colors.bg, borderRadius: 12, marginHorizontal: 16, marginBottom: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  nbrRow: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  nbrRowActive: { backgroundColor: Colors.primary + "15" },
+  nbrLabel: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  nbrLabelActive: { color: Colors.primary, fontFamily: "Cairo_700Bold" },
+  nbrType: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 });

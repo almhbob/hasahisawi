@@ -168,6 +168,23 @@ export default function DrawerMenu() {
               ))}
             </View>
           ))}
+
+          {/* ── قسم الإدارة (للمديرين والمشرفين فقط) ── */}
+          {(user?.role === "admin" || user?.role === "moderator") && (
+            <View style={styles.group}>
+              <Text style={styles.groupLabel}>الإدارة</Text>
+              <Pressable
+                style={({ pressed }) => [styles.item, styles.adminItem, pressed && styles.itemPressed]}
+                onPress={() => navigate("/admin")}
+              >
+                <View style={[styles.iconBox, { backgroundColor: "#E74C3C1A" }]}>
+                  <Ionicons name="shield" size={20} color="#E74C3C" />
+                </View>
+                <Text style={[styles.itemLabel, { color: "#E74C3C" }]}>لوحة الإدارة</Text>
+                <Ionicons name="chevron-back" size={16} color="#E74C3C88" style={styles.chevron} />
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
     </View>
@@ -250,6 +267,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 12,
+  },
+  adminItem: {
+    borderColor: "#E74C3C30",
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 2,
   },
   itemPressed: {
     backgroundColor: Colors.cardBg,

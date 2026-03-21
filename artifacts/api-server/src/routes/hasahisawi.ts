@@ -83,6 +83,8 @@ export async function initHasahisawiDb() {
     )
   `);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30) UNIQUE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -265,12 +267,14 @@ async function isAdminRequest(req: Request): Promise<boolean> {
 
 router.post("/auth/register", async (req: Request, res: Response) => {
   try {
-    const { name, national_id, phone, email, password } = req.body;
+    const { name, national_id, phone, email, password, birth_date, neighborhood } = req.body;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO users (name, national_id, phone, email, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [name, national_id || null, phone || null, email || null, hash]
+      `INSERT INTO users (name, national_id, phone, email, password_hash, birth_date, neighborhood)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name, national_id || null, phone || null, email || null, hash,
+       birth_date || null, neighborhood || null]
     );
     const user = result.rows[0];
     const token = randomBytes(32).toString("hex");
@@ -918,6 +922,89 @@ router.get("/stats", async (_req: Request, res: Response) => {
       posts: postsResult.rows[0]?.count || 0,
       news: newsResult.rows[0]?.count || 0,
     });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════
+//  ADMIN DASHBOARD ROUTES
+// ══════════════════════════════════════════════
+
+router.get("/admin/users", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const result = await query(`
+      SELECT id, name, phone, email, role, neighborhood, birth_date,
+             national_id, created_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
+    const users = result.rows.map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      phone: u.phone,
+      email: u.email,
+      role: u.role,
+      neighborhood: u.neighborhood,
+      birth_date: u.birth_date,
+      national_id_masked: u.national_id ? String(u.national_id).slice(-4).padStart(String(u.national_id).length, "*") : null,
+      created_at: u.created_at,
+    }));
+    return res.json(users);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const [totals, byNeighborhood, recent] = await Promise.all([
+      query(`SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE role='admin')::int AS admins,
+        COUNT(*) FILTER (WHERE role='moderator')::int AS moderators,
+        COUNT(*) FILTER (WHERE role='user')::int AS members
+        FROM users`),
+      query(`SELECT neighborhood, COUNT(*)::int AS count
+             FROM users WHERE neighborhood IS NOT NULL
+             GROUP BY neighborhood ORDER BY count DESC LIMIT 10`),
+      query(`SELECT id, name, role, neighborhood, created_at FROM users
+             ORDER BY created_at DESC LIMIT 10`),
+    ]);
+    return res.json({
+      totals: totals.rows[0],
+      byNeighborhood: byNeighborhood.rows,
+      recentUsers: recent.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") {
+      return res.status(403).json({ error: "فقط المدير يمكنه تغيير الأدوار" });
+    }
+    const { role } = req.body;
+    const allowed = ["user", "moderator", "admin"];
+    if (!allowed.includes(role)) return res.status(400).json({ error: "دور غير صالح" });
+    const targetId = parseInt(req.params.id);
+    if (targetId === currentUser.id) return res.status(400).json({ error: "لا يمكنك تغيير دورك بنفسك" });
+    await query(`UPDATE users SET role=$1 WHERE id=$2`, [role, targetId]);
+    return res.json({ success: true });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });

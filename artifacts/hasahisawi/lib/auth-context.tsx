@@ -29,7 +29,7 @@ type AuthContextValue = {
   canPost: boolean;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
   loginAdmin: (email: string, password: string) => Promise<void>;
-  register: (name: string, nationalId: string, phoneOrEmail: string, isEmail: boolean, password: string) => Promise<void>;
+  register: (name: string, nationalId: string, phoneOrEmail: string, isEmail: boolean, password: string, birthDate?: string, neighborhood?: string) => Promise<void>;
   registerAdmin: (name: string, email: string, password: string, adminCode: string) => Promise<void>;
   enterAsGuest: () => void;
   logout: () => Promise<void>;
@@ -178,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (
     name: string, nationalId: string,
     phoneOrEmail: string, isEmail: boolean, password: string,
+    birthDate?: string, neighborhood?: string,
   ) => {
     if (!phoneOrEmail.trim()) throw new Error("يرجى إدخال البريد الإلكتروني أو رقم الهاتف");
 
@@ -190,8 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "user",
         ...(nationalId ? { national_id_masked: nationalId.slice(-4).padStart(nationalId.length, "*") } : {}),
       };
-      // احفظ الملف الشخصي في Firestore
-      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, { ...profileData, uid: fbUser.uid });
+      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, {
+        ...profileData, uid: fbUser.uid,
+        ...(birthDate ? { birth_date: birthDate } : {}),
+        ...(neighborhood ? { neighborhood } : {}),
+      });
       const authUser = fbUserToAuth(fbUser, profileData);
       setUser(authUser);
       setToken(await fbUser.getIdToken());
@@ -202,9 +206,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Express API → للهاتف
     const body: Record<string, string> = { name, password };
-    if (nationalId) body.national_id = nationalId;
-    if (isEmail) body.email = phoneOrEmail;
-    else body.phone = phoneOrEmail;
+    if (nationalId)   body.national_id  = nationalId;
+    if (isEmail)      body.email        = phoneOrEmail;
+    else              body.phone        = phoneOrEmail;
+    if (birthDate)    body.birth_date   = birthDate;
+    if (neighborhood) body.neighborhood = neighborhood;
     const res = await fetch(apiUrl("/api/auth/register"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
