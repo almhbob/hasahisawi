@@ -2,15 +2,79 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View, Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
+import { DrawerProvider, useDrawer } from "@/lib/drawer-context";
+import DrawerMenu from "@/components/DrawerMenu";
 
-// التبويبات المرئية في الشريط: 5 فقط
-// بقية الأقسام متاحة من الشاشة الرئيسية
+// ── شريط تبويب مخصص ─────────────────────────────────────────────
+type TabItem = {
+  name: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+};
 
+const TAB_ITEMS: TabItem[] = [
+  { name: "index",        label: "الرئيسية", icon: "home-outline",     activeIcon: "home"       },
+  { name: "search",       label: "بحث",      icon: "search-outline",   activeIcon: "search"     },
+  { name: "medical",      label: "الطب",     icon: "medkit-outline",   activeIcon: "medkit"     },
+  { name: "reports",      label: "بلاغات",   icon: "megaphone-outline",activeIcon: "megaphone"  },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-outline", activeIcon: "calendar"   },
+];
+
+function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
+  const insets = useSafeAreaInsets();
+  const { open } = useDrawer();
+  const isWeb = Platform.OS === "web";
+
+  return (
+    <View style={[
+      styles.tabBar,
+      { paddingBottom: isWeb ? 8 : Math.max(insets.bottom, 8) }
+    ]}>
+      {TAB_ITEMS.map((item, idx) => {
+        const focused = state.index === idx;
+        return (
+          <Pressable
+            key={item.name}
+            style={styles.tabItem}
+            onPress={() => {
+              const event = navigation.emit({ type: "tabPress", target: state.routes[idx]?.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigation.navigate(item.name);
+            }}
+            accessibilityRole="button"
+          >
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons
+                name={focused ? item.activeIcon : item.icon}
+                size={22}
+                color={focused ? Colors.primary : "#8BBDA2"}
+              />
+            </View>
+            <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+
+      {/* زر القائمة الجانبية */}
+      <Pressable style={styles.tabItem} onPress={open}>
+        <View style={styles.menuBtn}>
+          <Ionicons name="menu" size={22} color={Colors.primary} />
+        </View>
+        <Text style={[styles.tabLabel, styles.tabLabelActive]}>القائمة</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Native iOS tabs (Liquid Glass) ───────────────────────────────
 function NativeTabLayout() {
   const { t } = useLang();
   return (
@@ -39,80 +103,18 @@ function NativeTabLayout() {
   );
 }
 
+// ── Classic (Android / Web) ──────────────────────────────────────
 function ClassicTabLayout() {
-  const { t } = useLang();
-  const isWeb = Platform.OS === "web";
-  const isIOS = Platform.OS === "ios";
-
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: "#8BBDA2",
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : "#0F1E16",
-          borderTopWidth: 1,
-          borderTopColor: Colors.primary + "40",
-          elevation: 0,
-          height: isWeb ? 68 : 62,
-          paddingBottom: isWeb ? 10 : 8,
-          paddingTop: 8,
-        },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#0F1E16" }]} />
-          ),
-        tabBarLabelStyle: {
-          fontFamily: "Cairo_500Medium",
-          fontSize: 11,
-        },
-        tabBarIconStyle: {
-          marginBottom: -2,
-        },
-      }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      {/* ── التبويبات الظاهرة ── */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tabs", "home"),
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: "بحث",
-          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="medical"
-        options={{
-          title: t("tabs", "medical"),
-          tabBarIcon: ({ color, size }) => <Ionicons name="medkit" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: "بلاغات",
-          tabBarIcon: ({ color, size }) => <Ionicons name="megaphone" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="appointments"
-        options={{
-          title: "مواعيد",
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
-        }}
-      />
-
-      {/* ── التبويبات المخفية من الشريط — متاحة من الرئيسية ── */}
+      <Tabs.Screen name="index"        />
+      <Tabs.Screen name="search"       />
+      <Tabs.Screen name="medical"      />
+      <Tabs.Screen name="reports"      />
+      <Tabs.Screen name="appointments" />
       <Tabs.Screen name="missing"      options={{ href: null }} />
       <Tabs.Screen name="student"      options={{ href: null }} />
       <Tabs.Screen name="jobs"         options={{ href: null }} />
@@ -129,9 +131,61 @@ function ClassicTabLayout() {
   );
 }
 
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+// ── Root with drawer ─────────────────────────────────────────────
+function LayoutWithDrawer() {
+  return (
+    <>
+      {isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />}
+      <DrawerMenu />
+    </>
+  );
 }
+
+export default function TabLayout() {
+  return (
+    <DrawerProvider>
+      <LayoutWithDrawer />
+    </DrawerProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "#0F1E16",
+    borderTopWidth: 1,
+    borderTopColor: Colors.primary + "30",
+    paddingTop: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 3,
+  },
+  iconWrap: {
+    width: 36, height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapActive: {
+    backgroundColor: Colors.primary + "18",
+  },
+  menuBtn: {
+    width: 36, height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primary + "18",
+    borderWidth: 1,
+    borderColor: Colors.primary + "40",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabLabel: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 10,
+    color: "#8BBDA2",
+  },
+  tabLabelActive: {
+    color: Colors.primary,
+  },
+});
