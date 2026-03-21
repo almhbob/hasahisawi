@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
-  KeyboardAvoidingView, Pressable,
+  KeyboardAvoidingView, Pressable, Dimensions,
 } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,8 +12,10 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 
-const LOGO      = require("@/assets/images/logo.png");
-const CITY_IMG  = require("@/assets/images/hasahisa-city.jpg");
+const LOGO        = require("@/assets/images/logo.png");
+const CITY_IMG    = require("@/assets/images/hasahisa-city.jpg");
+const CITY_CREST  = require("@/assets/images/city-crest.png");
+const { height: SCREEN_H } = Dimensions.get("window");
 
 type Mode = "login" | "register";
 
@@ -91,24 +93,31 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* ─── Hero ─────────────────────────────────────── */}
-      <Animated.View entering={FadeIn.duration(500)} style={styles.hero}>
-        <Image source={CITY_IMG} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        {/* Gradient overlay */}
+      <View style={styles.hero}>
+        {/* خلفية كريمية */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "#F2EBD8" }]} />
+
+        {/* ── شعار المدينة يملأ الـ Hero ── */}
+        <Animated.View
+          entering={FadeIn.delay(60).duration(800)}
+          style={[styles.crestZone, { paddingTop: insets.top }]}
+        >
+          <Image source={CITY_CREST} style={styles.crestImg} resizeMode="contain" />
+        </Animated.View>
+
+        {/* تدرج سفلي يذوب نحو داكن */}
         <LinearGradient
-          colors={["rgba(13,26,18,0.35)", "rgba(13,26,18,0.70)", Colors.bg]}
-          style={StyleSheet.absoluteFill}
+          colors={["transparent", "rgba(13,26,18,0.55)", Colors.bg]}
+          locations={[0.5, 0.82, 1]}
+          style={styles.heroFade}
         />
-        {/* Status bar space */}
-        <View style={{ height: insets.top + 12 }} />
-        {/* Logo + name */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.heroContent}>
-          <View style={styles.logoWrap}>
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-          </View>
+
+        {/* اسم التطبيق أسفل */}
+        <Animated.View entering={FadeInUp.delay(300).springify().damping(18)} style={styles.heroBottom}>
           <Text style={styles.appName}>حصاحيصاوي</Text>
           <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
         </Animated.View>
-      </Animated.View>
+      </View>
 
       {/* ─── Form card ────────────────────────────────── */}
       <Animated.View entering={FadeInUp.delay(180).springify().damping(18)} style={styles.card}>
@@ -348,36 +357,52 @@ const styles = StyleSheet.create({
   },
   /* Hero */
   hero: {
-    height: 220,
-    justifyContent: "flex-end",
-  },
-  heroContent: {
-    alignItems: "center",
-    paddingBottom: 20,
-  },
-  logoWrap: {
-    width: 72, height: 72, borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 2, borderColor: Colors.primary + "80",
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6, shadowRadius: 16, elevation: 12,
+    height: SCREEN_H * 0.62,
     overflow: "hidden",
-    marginBottom: 10,
   },
-  logo: { width: "100%", height: "100%" },
+  /* منطقة الشعار — تملأ الـ hero مع ترك مسافة سفلية للنص */
+  crestZone: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    bottom: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  crestImg: {
+    width: "92%",
+    height: "92%",
+  },
+  /* تدرج سفلي */
+  heroFade: {
+    position: "absolute",
+    left: 0, right: 0, bottom: 0,
+    height: 200,
+  },
+  /* اسم التطبيق */
+  heroBottom: {
+    position: "absolute",
+    bottom: 14,
+    left: 0, right: 0,
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
   appName: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 26,
+    fontSize: 28,
     color: Colors.textPrimary,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   tagline: {
     fontFamily: "Cairo_400Regular",
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 
   /* Card */
