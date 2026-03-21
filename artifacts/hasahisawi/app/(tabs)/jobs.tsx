@@ -21,6 +21,7 @@ import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
+import GuestGate from "@/components/GuestGate";
 import { useFsJobs, FsJob } from "@/lib/firebase/hooks";
 import { isFirebaseConfigured } from "@/lib/firebase/index";
 import { requireNetwork } from "@/lib/network";

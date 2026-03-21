@@ -68,7 +68,7 @@ function categoryList(type: EntityType) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function apiBase() { return getApiUrl(); }
 
-async function apiFetch(path: string, opts?: RequestInit) {
+async function apiFetch(path: string, opts?: Parameters<typeof fetch>[1]) {
   const url = new URL(path, apiBase()).toString();
   const res = await fetch(url, opts);
   return res;

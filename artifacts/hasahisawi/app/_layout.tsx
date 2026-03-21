@@ -37,7 +37,7 @@ function AuthGate() {
       if (!inLogin) router.replace("/login");
     } else {
       // المستخدم مسجّل → ابتعد عن صفحة الدخول
-      if (inLogin) router.replace("/(tabs)/");
+      if (inLogin) router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
 

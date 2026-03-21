@@ -9,6 +9,7 @@ import {
   Dimensions,
   Image,
   Linking,
+  TouchableOpacity,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, FadeInUp, FadeInRight,

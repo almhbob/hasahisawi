@@ -13,7 +13,7 @@ import { useLang } from "@/lib/lang-context";
 type Feature = { icon: keyof typeof Ionicons.glyphMap; text: string };
 
 type Props = {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /** ما يظهر للزائر فوق الغلاف كمعاينة — عناوين فقط */
   preview?: React.ReactNode;
   /** عنوان المحتوى المقفل */
@@ -34,7 +34,7 @@ export default function GuestGate({ children, preview, title, features }: Props)
   const { isGuest, logout } = useAuth();
   const { isRTL, tr } = useLang();
 
-  if (!isGuest) return <>{children}</>;
+  if (!isGuest) return children ? <>{children}</> : null;
 
   const handleRegister = async () => {
     await logout();       // تسجيل الخروج من وضع الزائر → AuthGate يوجه لـ /login تلقائياً

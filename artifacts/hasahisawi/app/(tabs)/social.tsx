@@ -348,7 +348,7 @@ function CommentsModal({
     if (!post) return;
     setLoading(true);
     try {
-      const data = await apiFetchComments(post.id);
+      const data = await apiFetchComments(Number(post.id));
       setComments(data);
     } catch {}
     finally { setLoading(false); }
@@ -369,7 +369,7 @@ function CommentsModal({
     setSending(true);
     try {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await apiCreateComment(post.id, { author_name: name.trim() || tr("مجهول", "Anonymous"), content: text.trim() });
+      await apiCreateComment(Number(post.id), { author_name: name.trim() || tr("مجهول", "Anonymous"), content: text.trim() });
       setText("");
       await load();
     } catch (e: any) {
@@ -501,9 +501,9 @@ function PostCard({
   post: Post;
   index: number;
   isAdmin: boolean;
-  onLike: (id: number) => void;
+  onLike: (id: string | number) => void;
   onComment: (post: Post) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string | number) => void;
 }) {
   const { t, isRTL } = useLang();
   const catColor = CATEGORY_COLORS[post.category] || Colors.primary;
