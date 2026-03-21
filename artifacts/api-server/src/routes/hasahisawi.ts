@@ -128,16 +128,85 @@ export async function initHasahisawiDb() {
   await query("DELETE FROM user_sessions WHERE expires_at < NOW()");
 
   await query(`
+    CREATE TABLE IF NOT EXISTS rated_entities (
+      id SERIAL PRIMARY KEY,
+      type VARCHAR(50) NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      subtitle VARCHAR(200),
+      category VARCHAR(100),
+      phone VARCHAR(30),
+      district VARCHAR(100),
+      notes TEXT,
+      submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS ratings (
       id SERIAL PRIMARY KEY,
-      target_type VARCHAR(50) NOT NULL,
-      target_id VARCHAR(100) NOT NULL,
+      entity_id INTEGER REFERENCES rated_entities(id) ON DELETE CASCADE,
+      target_type VARCHAR(50),
+      target_id VARCHAR(100),
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      device_id VARCHAR(200),
       rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
       comment TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await query(`ALTER TABLE ratings ADD COLUMN IF NOT EXISTS entity_id INTEGER REFERENCES rated_entities(id) ON DELETE CASCADE`);
+  await query(`ALTER TABLE ratings ADD COLUMN IF NOT EXISTS device_id VARCHAR(200)`);
+  await (async () => {
+    const seedCheck = await query(`SELECT COUNT(*)::int as c FROM rated_entities`);
+    if (seedCheck.rows[0].c === 0) {
+      const seeds = [
+        ["institution","محكمة الحصاحيصا","جهاز حكومي","محاكم","وسط المدينة","خدمات قانونية وقضائية"],
+        ["institution","مستشفى الحصاحيصا","مستشفى","صحة","حي المستشفى","رعاية صحية شاملة"],
+        ["institution","مدرسة الحصاحيصا الأساسية","مدرسة","تعليم","حي الشرق","تعليم ابتدائي وإعدادي"],
+        ["institution","بريد الحصاحيصا","جهاز حكومي","بريد وخدمات","السوق المركزي","خدمات البريد والحوالات"],
+        ["institution","بنك الخرطوم — فرع الحصاحيصا","مصرف","بنوك","شارع النيل","خدمات مصرفية"],
+        ["institution","سوق الحصاحيصا المركزي","سوق","تجارة","وسط المدينة","سوق تجاري مركزي"],
+        ["employee","أحمد عبدالله النور","مدير مستشفى الحصاحيصا","إدارة","مستشفى الحصاحيصا",""],
+        ["employee","فاطمة إبراهيم","طبيبة أطفال","طب","مستشفى الحصاحيصا",""],
+        ["employee","موسى محمد أحمد","مدير مدرسة الحصاحيصا","تعليم","مدرسة الحصاحيصا الأساسية",""],
+        ["service_seeker","عمر الفاضل","مقاول بناء","بناء","الحصاحيصا","تشطيبات وبناء"],
+        ["service_seeker","مصطفى التوم","كهربائي","كهرباء","الحصاحيصا","تمديد وإصلاح كهربائي"],
+        ["service_seeker","إبراهيم سليمان","سباك","سباكة","الحصاحيصا","تركيب وإصلاح سباكة"],
+        ["service_seeker","يوسف عبدالرحمن","نجار","نجارة","الحصاحيصا","أثاث وأبواب خشبية"],
+        ["service_seeker","علي الشيخ","ميكانيكي","سيارات","ورشة السوق","إصلاح سيارات وشاحنات"],
+      ];
+      for (const [type, name, subtitle, category, district, notes] of seeds) {
+        await query(
+          `INSERT INTO rated_entities (type, name, subtitle, category, district, notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [type, name, subtitle, category, district, notes]
+        );
+      }
+      const entities = await query(`SELECT id FROM rated_entities ORDER BY id`);
+      const sampleRatings: [number, number, string][] = [
+        [entities.rows[0].id, 3, "خدمة مقبولة لكن بطيئة"],
+        [entities.rows[0].id, 4, "تحسّنت الخدمة مؤخراً"],
+        [entities.rows[1].id, 5, "أطباء ممتازون ومتفانون"],
+        [entities.rows[1].id, 4, "نظيف ومنظّم"],
+        [entities.rows[1].id, 3, "يحتاج معدات أحدث"],
+        [entities.rows[2].id, 4, "مدرسة جيدة وهيئة تدريس محترمة"],
+        [entities.rows[4].id, 5, "خدمة سريعة واحترافية"],
+        [entities.rows[5].id, 4, "أسعار معقولة وتنوع جيد"],
+        [entities.rows[6].id, 5, "مدير نشيط ومتعاون"],
+        [entities.rows[9].id, 5, "عمل ممتاز ودقيق في المواعيد"],
+        [entities.rows[10].id, 4, "محترف وأسعاره مناسبة"],
+        [entities.rows[11].id, 3, "جيد لكن يتأخر أحياناً"],
+        [entities.rows[12].id, 5, "خشبه عالي الجودة ونظيف"],
+        [entities.rows[13].id, 4, "ميكانيكي ماهر وأمين"],
+      ];
+      for (const [eid, stars, comment] of sampleRatings) {
+        await query(
+          `INSERT INTO ratings (entity_id, rating, comment, target_type, target_id) VALUES ($1,$2,$3,'entity',$4)`,
+          [eid, stars, comment, String(eid)]
+        );
+      }
+    }
+  })();
   await query(`
     CREATE TABLE IF NOT EXISTS appointments (
       id SERIAL PRIMARY KEY,
@@ -696,6 +765,141 @@ router.delete("/news/:id", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM city_news WHERE id=$1`, [req.params.id]);
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// RATINGS — Entities + Reviews
+// ══════════════════════════════════════════════════════════════════
+
+router.get("/ratings/entities", async (req: Request, res: Response) => {
+  try {
+    const { type, search, category } = req.query;
+    let sql = `
+      SELECT e.*,
+        COALESCE(AVG(r.rating),0)::numeric(3,2)   AS avg_rating,
+        COUNT(r.id)::int                           AS review_count
+      FROM rated_entities e
+      LEFT JOIN ratings r ON r.entity_id = e.id
+      WHERE 1=1
+    `;
+    const params: unknown[] = [];
+    if (type) { params.push(type); sql += ` AND e.type = $${params.length}`; }
+    if (category) { params.push(category); sql += ` AND e.category = $${params.length}`; }
+    if (search) { params.push(`%${search}%`); sql += ` AND (e.name ILIKE $${params.length} OR e.subtitle ILIKE $${params.length} OR e.category ILIKE $${params.length})`; }
+    sql += ` GROUP BY e.id ORDER BY avg_rating DESC, review_count DESC, e.name`;
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/ratings/entities", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { type, name, subtitle, category, phone, district, notes } = req.body;
+    if (!type || !name || !category) return res.status(400).json({ error: "type, name, category مطلوبة" });
+    const result = await query(
+      `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes, submitted_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [type, name, subtitle || null, category, phone || null, district || null, notes || null, user?.id || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/ratings/entities/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const [entityRes, ratingsRes] = await Promise.all([
+      query(`
+        SELECT e.*,
+          COALESCE(AVG(r.rating),0)::numeric(3,2) AS avg_rating,
+          COUNT(r.id)::int AS review_count
+        FROM rated_entities e
+        LEFT JOIN ratings r ON r.entity_id = e.id
+        WHERE e.id = $1
+        GROUP BY e.id
+      `, [id]),
+      query(`
+        SELECT r.*, u.name AS user_name
+        FROM ratings r
+        LEFT JOIN users u ON u.id = r.user_id
+        WHERE r.entity_id = $1
+        ORDER BY r.created_at DESC
+        LIMIT 50
+      `, [id]),
+    ]);
+    if (!entityRes.rows[0]) return res.status(404).json({ error: "غير موجود" });
+    res.json({ entity: entityRes.rows[0], ratings: ratingsRes.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/ratings/entities/:id/rate", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await getSessionUser(req);
+    const { rating, comment, device_id } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: "التقييم يجب أن يكون بين 1 و 5" });
+    if (!user && !device_id) return res.status(400).json({ error: "يجب تسجيل الدخول أو تقديم device_id" });
+
+    const entityRes = await query(`SELECT id, type FROM rated_entities WHERE id = $1`, [id]);
+    if (!entityRes.rows[0]) return res.status(404).json({ error: "الكيان غير موجود" });
+
+    if (user) {
+      const exists = await query(`SELECT id FROM ratings WHERE entity_id=$1 AND user_id=$2`, [id, user.id]);
+      if (exists.rows[0]) {
+        await query(`UPDATE ratings SET rating=$1, comment=$2, created_at=NOW() WHERE entity_id=$3 AND user_id=$4`,
+          [rating, comment || null, id, user.id]);
+        return res.json({ success: true, updated: true });
+      }
+    } else if (device_id) {
+      const exists = await query(`SELECT id FROM ratings WHERE entity_id=$1 AND device_id=$2`, [id, device_id]);
+      if (exists.rows[0]) {
+        await query(`UPDATE ratings SET rating=$1, comment=$2, created_at=NOW() WHERE entity_id=$3 AND device_id=$4`,
+          [rating, comment || null, id, device_id]);
+        return res.json({ success: true, updated: true });
+      }
+    }
+
+    await query(
+      `INSERT INTO ratings (entity_id, user_id, device_id, rating, comment, target_type, target_id)
+       VALUES ($1,$2,$3,$4,$5,'entity',$6)`,
+      [id, user?.id || null, device_id || null, rating, comment || null, id]
+    );
+    res.status(201).json({ success: true, updated: false });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/ratings/leaderboard", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = `
+      SELECT e.*,
+        COALESCE(AVG(r.rating),0)::numeric(3,2) AS avg_rating,
+        COUNT(r.id)::int AS review_count
+      FROM rated_entities e
+      LEFT JOIN ratings r ON r.entity_id = e.id
+    `;
+    const params: unknown[] = [];
+    if (type) { params.push(type); sql += ` WHERE e.type = $1`; }
+    sql += ` GROUP BY e.id HAVING COUNT(r.id) > 0 ORDER BY avg_rating DESC, review_count DESC LIMIT 20`;
+    const result = await query(sql, params);
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });

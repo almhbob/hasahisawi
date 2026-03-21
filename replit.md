@@ -91,6 +91,27 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/hasahisawi` (`@workspace/hasahisawi`)
+
+Expo React Native mobile app "حصاحيصاوي" — community services platform for Al-Hasahisa, Sudan.
+
+- Port: 20706 (web preview)
+- Auth: custom JWT via API server (raw pg Pool, bcryptjs). Admin PIN: 4444
+- Firebase: optional (6 EXPO_PUBLIC_FIREBASE_* vars) — Firestore for social/jobs if configured, Express API fallback
+- API base: `EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN` (all API routes at `/api/...`)
+
+**Key screens (tabs + drawer):** home, social, jobs, medical, reports, missing, orgs, ratings, appointments, market, sports, culture, student, women, calendar, numbers, settings
+
+**Features:**
+- GuestGate on social/jobs/reports/missing/medical screens
+- Ratings system (`/api/ratings/entities`, `/api/ratings/leaderboard`) — 3 entity types: institution, employee, service_seeker
+- Real-time social posts via Firestore hooks (`useFsPosts`)
+- Arabic/English localization via lang-context
+- NetworkBanner connectivity checking
+
+**DB Tables (raw pg in `api-server/src/routes/hasahisawi.ts`):**
+`users`, `user_sessions`, `social_posts`, `social_likes`, `social_comments`, `ratings`, `rated_entities`, `appointments`, `notifications`, `city_news`, `organizations`, `women_services`
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

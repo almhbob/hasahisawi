@@ -124,6 +124,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="social"       options={{ href: null }} />
       <Tabs.Screen name="women"        options={{ href: null }} />
       <Tabs.Screen name="orgs"         options={{ href: null }} />
+      <Tabs.Screen name="ratings"      options={{ href: null }} />
       <Tabs.Screen name="calendar"     options={{ href: null }} />
       <Tabs.Screen name="numbers"      options={{ href: null }} />
       <Tabs.Screen name="settings"     options={{ href: null }} />
