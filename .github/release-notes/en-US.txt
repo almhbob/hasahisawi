@@ -1,5 +1,16 @@
-What's new in this release:
-• Improved real-time chat system
-• Better and faster UI
-• Multiple bug fixes
-• Enhanced app performance
+Version 1.2.0 — Bug Fixes & Security Improvements
+
+🔐 Authentication & Security Fixes:
+• Critical fix: Adding/deleting notifications and news in the admin panel was failing — now fixed
+• Fixed admin PIN change functionality that was not working
+• Removed legacy insecure code from the community section
+
+🎨 UI Improvements:
+• Unified fonts across all app screens for a consistent look
+
+⚡ Performance Fixes:
+• Fixed ratings screen stuck in infinite loading when connection fails
+• Improved error handling across multiple screens to prevent freezing
+
+🐛 General Fixes:
+• Higher stability and better overall user experience
