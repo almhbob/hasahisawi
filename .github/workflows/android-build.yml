@@ -58,67 +58,6 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
             > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
 
-      - name: Write keystore.properties
-        run: |
-          printf 'storeFile=hasahisawi-release.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
-            '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
-            '${{ secrets.ANDROID_KEY_ALIAS }}' \
-            '${{ secrets.ANDROID_KEY_PASSWORD }}' \
-            > artifacts/hasahisawi/android/keystore.properties
-
-      - name: Patch build.gradle for signing
-        working-directory: artifacts/hasahisawi/android
-        run: |
-          node - << 'JSEOF'
-            const fs = require('fs');
-            const file = 'app/build.gradle';
-            let c = fs.readFileSync(file, 'utf8');
-
-            // Inject keystoreProps reader at top
-            const header = 'def keystoreProps = new Properties()\n' +
-              'def ksPropFile = rootProject.file("keystore.properties")\n' +
-              'if (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }\n\n';
-            if (!c.includes('keystoreProps')) c = header + c;
-
-            const releaseBlock =
-              '\n        release {\n' +
-              '            storeFile keystoreProps["storeFile"] ? file(keystoreProps["storeFile"]) : null\n' +
-              '            storePassword keystoreProps["storePassword"]\n' +
-              '            keyAlias keystoreProps["keyAlias"]\n' +
-              '            keyPassword keystoreProps["keyPassword"]\n' +
-              '        }';
-
-            // Check if release signingConfig already exists
-            const hasReleaseSigningConfig = /signingConfigs\s*\{[\s\S]*?release\s*\{/.test(c);
-
-            if (!c.includes('signingConfigs')) {
-              // No signingConfigs block at all - create one with release
-              c = c.replace('android {',
-                'android {\n    signingConfigs {' + releaseBlock + '\n    }');
-            } else if (!hasReleaseSigningConfig) {
-              // signingConfigs exists (likely with debug only) - inject release into it
-              c = c.replace(/signingConfigs\s*\{/, 'signingConfigs {' + releaseBlock);
-            }
-
-            // Add signingConfig reference in buildTypes.release if missing
-            if (!c.includes('signingConfig signingConfigs.release')) {
-              c = c.replace(
-                /buildTypes\s*\{([\s\S]*?)release\s*\{/,
-                function(m) { return m + '\n            signingConfig signingConfigs.release'; }
-              );
-            }
-
-            fs.writeFileSync(file, c);
-            console.log('build.gradle patched successfully');
-            // Print lines around signingConfigs for verification
-            const lines = c.split('\n');
-            const idx = lines.findIndex(l => l.includes('signingConfigs'));
-            if (idx >= 0) {
-              console.log('--- signingConfigs block ---');
-              lines.slice(Math.max(0, idx-1), idx+12).forEach(l => console.log(l));
-            }
-          JSEOF
-
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
         with:
@@ -130,11 +69,20 @@ jobs:
 
       - name: Build AAB
         working-directory: artifacts/hasahisawi/android
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease \
             --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
@@ -147,4 +95,3 @@ jobs:
         if: always()
         run: |
           rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          rm -f artifacts/hasahisawi/android/keystore.properties
