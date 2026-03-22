@@ -29,7 +29,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
 import { useFsPosts, FsPost } from "@/lib/firebase/hooks";
-import { isFirebaseConfigured } from "@/lib/firebase/index";
+import { isFirestoreEnabled } from "@/lib/firebase/index";
 import { fsUpdateDoc, COLLECTIONS } from "@/lib/firebase/firestore";
 import { requireNetwork } from "@/lib/network";
 
@@ -578,7 +578,7 @@ export default function SocialScreen() {
   const { posts: fsPosts, loading: fsLoading, addPost: fsAddPost, deletePost: fsDeletePost } = useFsPosts();
 
   const [apiPosts, setApiPosts] = useState<Post[]>([]);
-  const [loading, setLoading]   = useState(!isFirebaseConfigured);
+  const [loading, setLoading]   = useState(!isFirestoreEnabled);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [deviceId, setDeviceId] = useState("");
@@ -589,7 +589,7 @@ export default function SocialScreen() {
   const [catFilter, setCatFilter] = useState("الكل");
 
   // when Firestore is active, derive posts from it; otherwise use Express API
-  const posts: Post[] = isFirebaseConfigured
+  const posts: Post[] = isFirestoreEnabled
     ? fsPosts.map(fsPostToPost)
     : apiPosts;
 
@@ -605,7 +605,7 @@ export default function SocialScreen() {
   }, [auth.user]);
 
   const loadFromApi = useCallback(async (quiet = false) => {
-    if (isFirebaseConfigured) return; // Firestore handles it
+    if (isFirestoreEnabled) return; // Firestore handles it
     if (!quiet) setLoading(true);
     setError("");
     try {
@@ -628,7 +628,7 @@ export default function SocialScreen() {
 
   // Sync Firestore loading state
   useEffect(() => {
-    if (isFirebaseConfigured) setLoading(fsLoading);
+    if (isFirestoreEnabled) setLoading(fsLoading);
   }, [fsLoading]);
 
   const handlePost = async (content: string, category: string, name: string) => {
@@ -641,9 +641,9 @@ export default function SocialScreen() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
-    if (isFirebaseConfigured) {
+    if (isFirestoreEnabled) {
       await fsAddPost({
-        authorId:   auth.user?.firebaseUid ?? "anonymous",
+        authorId:   String(auth.user?.id ?? "anonymous"),
         authorName: name,
         content,
         category,
@@ -658,7 +658,7 @@ export default function SocialScreen() {
 
   const handleLike = async (postId: string | number) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isFirebaseConfigured) {
+    if (isFirestoreEnabled) {
       // Optimistic update in Firestore
       const post = fsPosts.find(p => p.id === postId);
       if (post) {
@@ -682,7 +682,7 @@ export default function SocialScreen() {
         text: t('common', 'delete'), style: "destructive",
         onPress: async () => {
           try {
-            if (isFirebaseConfigured) {
+            if (isFirestoreEnabled) {
               await fsDeletePost(String(postId));
             } else {
               await apiDeletePost(postId, auth.token);

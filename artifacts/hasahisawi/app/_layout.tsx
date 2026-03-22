@@ -35,8 +35,7 @@ function AuthGate() {
   // تسجيل الإشعارات عند تسجيل الدخول
   useEffect(() => {
     if (!user || isGuest) return;
-    const uid = user.firebaseUid ?? String(user.id);
-    registerForPushNotifications(uid).catch(() => {});
+    registerForPushNotifications(String(user.id)).catch(() => {});
     const unsub = addNotificationListener(
       (_n) => {},
       (data) => {

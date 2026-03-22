@@ -275,12 +275,12 @@ export async function initHasahisawiDb() {
   console.log("Hasahisawi DB initialized");
 }
 
-async function getSessionUser(req: Request): Promise<{ id: number; name: string; role: string } | null> {
+async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   const token = auth.slice(7);
   const result = await query(`
-    SELECT u.id, u.name, u.role FROM users u
+    SELECT u.* FROM users u
     JOIN user_sessions s ON s.user_id = u.id
     WHERE s.token = $1 AND s.expires_at > NOW()
   `, [token]);
@@ -390,10 +390,11 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
 
 router.get("/auth/me", async (req: Request, res: Response) => {
   try {
-    const user = await getSessionUser(req);
-    if (!user) return res.status(401).json({ error: "غير مصرح" });
-    const permsResult = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [user.id]);
-    return res.json({ ...user, permissions: permsResult.rows.map((r: any) => r.section) });
+    const rawUser = await getSessionUser(req);
+    if (!rawUser) return res.status(401).json({ error: "غير مصرح" });
+    const safeUser = safeUserPayload(rawUser);
+    const permsResult = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [rawUser.id]);
+    return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) } });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
