@@ -1,0 +1,53 @@
+workflows:
+  android-production:
+    name: حصاحيصاوي — Android Production (Native Build)
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      node: 22.13.1
+      java: 17
+      vars:
+        PACKAGE_NAME: com.almhbob.hasahisawi
+        EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+        EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+        EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+        EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+        EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
+        EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
+      android_signing:
+        - hasahisawi_keystore
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+
+    scripts:
+      - name: Install pnpm and dependencies
+        script: |
+          npm install -g pnpm @expo/cli
+          pnpm install
+
+      - name: Generate native Android project
+        script: |
+          cd artifacts/hasahisawi
+          npx expo prebuild --platform android --clean
+
+      - name: Build Android AAB
+        script: |
+          cd artifacts/hasahisawi/android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+
+    artifacts:
+      - artifacts/hasahisawi/android/app/build/outputs/bundle/release/*.aab
+      - artifacts/hasahisawi/android/app/build/outputs/apk/release/*.apk
+
+    publishing:
+      google_play:
+        credentials_json: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
