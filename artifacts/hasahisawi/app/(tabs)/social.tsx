@@ -24,7 +24,6 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useFocusEffect } from "expo-router";
 import { getApiUrl } from "@/lib/query-client";
-import { getAdminPin } from "./settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
@@ -139,13 +138,11 @@ async function apiCreatePost(data: { author_name: string; content: string; categ
 }
 
 async function apiDeletePost(id: string | number, token?: string | null): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["x-admin-pin"] = await getAdminPin();
-  }
-  const res = await fetch(apiUrl(`/api/posts/${id}`), { method: "DELETE", headers });
+  if (!token) throw new Error("غير مصرح");
+  const res = await fetch(apiUrl(`/api/posts/${id}`), {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error("Failed to delete");
 }
 
@@ -167,13 +164,11 @@ async function apiCreateComment(postId: number, data: { author_name: string; con
 }
 
 async function apiDeleteComment(id: number, token?: string | null): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["x-admin-pin"] = await getAdminPin();
-  }
-  const res = await fetch(apiUrl(`/api/comments/${id}`), { method: "DELETE", headers });
+  if (!token) throw new Error("غير مصرح");
+  const res = await fetch(apiUrl(`/api/comments/${id}`), {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error("Failed to delete");
 }
 
@@ -350,7 +345,7 @@ function CommentsModal({
     try {
       const data = await apiFetchComments(Number(post.id));
       setComments(data);
-    } catch {}
+    } catch { setComments([]); }
     finally { setLoading(false); }
   }, [post?.id]);
 
@@ -867,7 +862,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.divider,
   },
   headerRight: { alignItems: "center", gap: 8 },
-  headerTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 22, color: Colors.textPrimary },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   adminBadge: {
     backgroundColor: Colors.accent + "15",
     paddingHorizontal: 8,

@@ -233,7 +233,8 @@ export default function RatingsScreen() {
       if (q) params.set("search", q);
       const res = await apiFetch(`/api/ratings/entities?${params}`);
       if (res.ok) setEntities(await res.json());
-    } catch {}
+      else setEntities([]);
+    } catch { setEntities([]); }
     setLoading(false);
   }, []);
 
@@ -255,7 +256,7 @@ export default function RatingsScreen() {
         setDetailEntity(data.entity);
         setDetailReviews(data.ratings);
       }
-    } catch {}
+    } catch { console.error("Failed to load entity detail"); }
     setDetailLoading(false);
   };
 

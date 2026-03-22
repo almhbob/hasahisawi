@@ -1102,8 +1102,8 @@ router.post("/chats", async (req: Request, res: Response) => {
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     const { other_user_id } = req.body;
     if (!other_user_id) return res.status(400).json({ error: "other_user_id مطلوب" });
-    const u1 = Math.min(me.id, other_user_id);
-    const u2 = Math.max(me.id, other_user_id);
+    const u1 = Math.min(Number(me.id), Number(other_user_id));
+    const u2 = Math.max(Number(me.id), Number(other_user_id));
     await query(
       `INSERT INTO chats (user1_id, user2_id) VALUES ($1,$2) ON CONFLICT (user1_id, user2_id) DO NOTHING`,
       [u1, u2]
