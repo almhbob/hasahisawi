@@ -12,6 +12,8 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import GuestGate from "@/components/GuestGate";
+import { useAuth } from "@/lib/auth-context";
 
 // ══════════════════════════════════════════════════════════
 // TYPES
@@ -175,6 +177,7 @@ const STATUS_LABELS: Record<AppStatus, { label: string; color: string; icon: str
 type Step = "category" | "facility" | "service" | "datetime" | "info" | "confirm";
 
 export default function AppointmentsScreen() {
+  const { isGuest } = useAuth();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -253,6 +256,20 @@ export default function AppointmentsScreen() {
 
   const healthFacilities = FACILITIES.filter(f => f.category === "health");
   const govFacilities = FACILITIES.filter(f => f.category === "government");
+
+  if (isGuest) {
+    return (
+      <GuestGate
+        title="حجز المواعيد للأعضاء فقط"
+        features={[
+          { icon: "calendar-outline",    text: "احجز مواعيد في المرافق الصحية" },
+          { icon: "business-outline",    text: "تعامل مع الدوائر الحكومية بسهولة" },
+          { icon: "notifications-outline", text: "تلقّ تذكيرات بمواعيدك" },
+          { icon: "list-outline",        text: "تابع حالة طلباتك ومواعيدك" },
+        ]}
+      />
+    );
+  }
 
   return (
     <View style={s.root}>

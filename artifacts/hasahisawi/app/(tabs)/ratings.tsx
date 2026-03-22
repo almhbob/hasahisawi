@@ -336,7 +336,10 @@ export default function RatingsScreen() {
             <Text style={s.headerTitle}>التقييمات</Text>
             <Text style={s.headerSub}>{currentTab.sub}</Text>
           </View>
-          <AnimatedPress onPress={() => setShowAddEntity(true)}>
+          <AnimatedPress onPress={() => {
+            if (isGuest) { Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب لإضافة جهة جديدة."); return; }
+            setShowAddEntity(true);
+          }}>
             <View style={[s.addBtn, { borderColor: cfg.color + "60", backgroundColor: cfg.color + "14" }]}>
               <Ionicons name="add" size={22} color={cfg.color} />
             </View>
@@ -417,7 +420,10 @@ export default function RatingsScreen() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 8 }}>
           <MaterialCommunityIcons name={cfg.icon as any} size={52} color={Colors.textMuted} />
           <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 15 }}>لا توجد نتائج</Text>
-          <TouchableOpacity onPress={() => setShowAddEntity(true)} style={[s.emptyAddBtn, { borderColor: cfg.color }]}>
+          <TouchableOpacity onPress={() => {
+            if (isGuest) { Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب لإضافة جهة جديدة."); return; }
+            setShowAddEntity(true);
+          }} style={[s.emptyAddBtn, { borderColor: cfg.color }]}>
             <Ionicons name="add-circle-outline" size={18} color={cfg.color} />
             <Text style={[s.emptyAddText, { color: cfg.color }]}>أضف {currentTab.label.slice(0, -1)}</Text>
           </TouchableOpacity>
@@ -515,7 +521,10 @@ export default function RatingsScreen() {
           </ScrollView>
 
           <View style={[s.detailFooter, { paddingBottom: insets.bottom + 12 }]}>
-            <AnimatedPress style={{ flex: 1 }} onPress={() => { setRateStars(0); setRateComment(""); setShowRate(true); }}>
+            <AnimatedPress style={{ flex: 1 }} onPress={() => {
+              if (isGuest) { Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب لتقييم الخدمات."); return; }
+              setRateStars(0); setRateComment(""); setShowRate(true);
+            }}>
               <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.rateBtn}>
                 <Ionicons name="star-outline" size={18} color="#fff" />
                 <Text style={s.rateBtnText}>قيّم الآن</Text>
