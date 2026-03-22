@@ -21,17 +21,16 @@ import { FirebaseProvider } from "@/lib/firebase/context";
 import { I18nManager, Platform, View } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
-import { useTotalUnread } from "@/lib/firebase/chat";
+import { useApiUnread } from "@/lib/api-chat";
 
 SplashScreen.preventAutoHideAsync();
 
 // ── بوابة المصادقة — تحجب التطبيق حتى يسجّل المستخدم دخوله ─────
 function AuthGate() {
-  const { user, isLoading, isGuest } = useAuth();
+  const { user, token, isLoading, isGuest } = useAuth();
   const router   = useRouter();
   const segments = useSegments();
-  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
-  const unread = useTotalUnread(isGuest ? null : myUid);
+  const unread = useApiUnread(isGuest ? null : (token ?? null));
 
   // تسجيل الإشعارات عند تسجيل الدخول
   useEffect(() => {
