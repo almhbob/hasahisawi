@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   build:
     name: Build Android AAB
@@ -20,7 +24,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -31,13 +34,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: pnpm
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install Expo CLI
-        run: npm install -g @expo/cli@54.0.23
 
       - name: Expo prebuild
         working-directory: artifacts/hasahisawi
@@ -58,12 +58,11 @@ jobs:
 
       - name: Write keystore.properties
         run: |
-          cat > artifacts/hasahisawi/android/keystore.properties <<'ENDOFFILE'
-          storeFile=hasahisawi-release.keystore
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          ENDOFFILE
+          printf 'storeFile=hasahisawi-release.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
+            '${{ secrets.ANDROID_KEY_ALIAS }}' \
+            '${{ secrets.ANDROID_KEY_PASSWORD }}' \
+            > artifacts/hasahisawi/android/keystore.properties
 
       - name: Patch build.gradle for signing
         working-directory: artifacts/hasahisawi/android
@@ -77,16 +76,29 @@ jobs:
             if (!c.includes('signingConfigs')) {
               c = c.replace('android {', 'android {\n    signingConfigs {\n        release {\n            storeFile keystoreProps[\"storeFile\"] ? file(keystoreProps[\"storeFile\"]) : null\n            storePassword keystoreProps[\"storePassword\"]\n            keyAlias keystoreProps[\"keyAlias\"]\n            keyPassword keystoreProps[\"keyPassword\"]\n        }\n    }');
             }
-            c = c.replace(/buildTypes\s*\{([\s\S]*?)release\s*\{/, function(m) { return m + '\n            signingConfig signingConfigs.release'; });
+            if (!c.includes('signingConfig signingConfigs.release')) {
+              c = c.replace(/buildTypes\s*\{([\s\S]*?)release\s*\{/, function(m) { return m + '\n            signingConfig signingConfigs.release'; });
+            }
             fs.writeFileSync(file, c);
-            console.log('build.gradle patched');
+            console.log('build.gradle patched successfully');
           "
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*', 'artifacts/hasahisawi/android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
 
       - name: Build AAB
         working-directory: artifacts/hasahisawi/android
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+          ./gradlew bundleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
