@@ -1,0 +1,5 @@
+What's new in this release:
+• Improved real-time chat system
+• Better and faster UI
+• Multiple bug fixes
+• Enhanced app performance

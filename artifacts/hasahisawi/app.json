@@ -38,15 +38,17 @@
       "bundler": "metro"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
+          "cameraPermission": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية"
+        }
+      ],
       [
         "expo-notifications",
         {

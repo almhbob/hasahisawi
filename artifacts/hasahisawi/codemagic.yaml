@@ -1,6 +1,7 @@
 workflows:
+
   android-production:
-    name: حصاحيصاوي — Android Production (Native Build)
+    name: 🚀 حصاحيصاوي — Android Production
     max_build_duration: 60
     instance_type: linux_x2
 
@@ -15,8 +16,12 @@ workflows:
         EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
         EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
         EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-      android_signing:
-        - hasahisawi_keystore
+
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - $CM_BUILD_DIR/artifacts/hasahisawi/node_modules
+        - ~/.pnpm-store
 
     triggering:
       events:
@@ -26,21 +31,72 @@ workflows:
           include: true
 
     scripts:
-      - name: Install pnpm and dependencies
-        script: |
-          npm install -g pnpm @expo/cli
-          pnpm install
+      - name: Install pnpm
+        script: npm install -g pnpm@9
+
+      - name: Install Expo CLI
+        script: npm install -g @expo/cli@54.0.23
+
+      - name: Install monorepo dependencies
+        script: pnpm install --frozen-lockfile
 
       - name: Generate native Android project
         script: |
           cd artifacts/hasahisawi
           npx expo prebuild --platform android --clean
 
+      - name: Write signing keystore
+        script: |
+          cd artifacts/hasahisawi/android
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/hasahisawi-release.keystore
+          cat > keystore.properties << EOF
+          storeFile=hasahisawi-release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Patch build.gradle with signing config
+        script: |
+          node -e "
+          const fs = require('fs');
+          const path = 'artifacts/hasahisawi/android/app/build.gradle';
+          let content = fs.readFileSync(path, 'utf8');
+          const header = \`def keystoreProperties = new Properties()
+          def keystorePropertiesFile = rootProject.file('keystore.properties')
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+          }\n\n\`;
+          if (!content.includes('keystoreProperties')) {
+              content = header + content;
+              content = content.replace(
+                'android {',
+                \`android {
+              signingConfigs {
+                  release {
+                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                      storePassword keystoreProperties['storePassword']
+                      keyAlias keystoreProperties['keyAlias']
+                      keyPassword keystoreProperties['keyPassword']
+                  }
+              }\`
+              );
+          }
+          fs.writeFileSync(path, content);
+          console.log('build.gradle patched');
+          "
+
       - name: Build Android AAB
         script: |
           cd artifacts/hasahisawi/android
           chmod +x gradlew
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      - name: Cleanup sensitive files
+        script: |
+          rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          rm -f artifacts/hasahisawi/android/keystore.properties
 
     artifacts:
       - artifacts/hasahisawi/android/app/build/outputs/bundle/release/*.aab
@@ -51,3 +107,4 @@ workflows:
         credentials_json: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
+        changes_not_sent_for_review: false
