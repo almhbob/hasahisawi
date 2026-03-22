@@ -771,6 +771,7 @@ function EmptySection({ icon, text }: { icon: string; text: string }) {
 /// ─── Notifications Admin Section ────────────────────────────────────────────
 
 function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: string }) {
+  const { token } = useAuth();
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showAdd, setShowAdd] = React.useState(false);
@@ -778,6 +779,11 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
   const [newBody, setNewBody] = React.useState("");
   const [newType, setNewType] = React.useState("general");
   const [saving, setSaving] = React.useState(false);
+
+  const authHeaders = React.useMemo(() => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }), [token]);
 
   const load = async () => {
     setLoading(true);
@@ -796,24 +802,28 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setSaving(true);
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/notifications`, {
+      const res = await fetch(`${base}api/notifications`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), body: newBody.trim(), type: newType }),
-        credentials: "include",
       });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error || "فشل الإضافة"); return; }
       setNewTitle(""); setNewBody(""); setNewType("general"); setShowAdd(false);
       await load();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     setSaving(false);
   };
 
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/notifications/${id}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${base}api/notifications/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error || "فشل الحذف"); return; }
       setNotifications(prev => prev.filter(n => n.id !== id));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
   };
 
   const TYPES = ["general", "medical", "news", "alert", "event"];
@@ -882,6 +892,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
 // ─── News Admin Section ───────────────────────────────────────────────────────
 
 function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: string }) {
+  const { token } = useAuth();
   const [news, setNews] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showAdd, setShowAdd] = React.useState(false);
@@ -891,6 +902,11 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
   const [newAuthor, setNewAuthor] = React.useState("");
   const [newPinned, setNewPinned] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+
+  const authHeaders = React.useMemo(() => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }), [token]);
 
   const load = async () => {
     setLoading(true);
@@ -909,24 +925,28 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setSaving(true);
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/news`, {
+      const res = await fetch(`${base}api/news`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim(), category: newCategory, author_name: newAuthor.trim() || undefined, is_pinned: newPinned }),
-        credentials: "include",
       });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error || "فشل الإضافة"); return; }
       setNewTitle(""); setNewContent(""); setNewCategory("general"); setNewAuthor(""); setNewPinned(false); setShowAdd(false);
       await load();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     setSaving(false);
   };
 
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/news/${id}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${base}api/news/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error || "فشل الحذف"); return; }
       setNews(prev => prev.filter(n => n.id !== id));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
   };
 
   const CATEGORIES = ["general", "health", "education", "sports", "culture", "economy", "security"];
@@ -1179,8 +1199,11 @@ export default function SettingsScreen() {
       const url = apiBase()("/api/admin/change-pin");
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPin: currentPinInput, newPin: newPinInput }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+        },
+        body: JSON.stringify({ new_pin: newPinInput }),
       });
       const json = await res.json();
       if (!res.ok) {
