@@ -1,26 +1,9 @@
-name: 🚀 Android Production Build
+name: Android Build
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      track:
-        description: 'Google Play track to upload to'
-        required: true
-        default: 'internal'
-        type: choice
-        options:
-          - internal
-          - alpha
-          - beta
-          - production
-
-env:
-  JAVA_VERSION: '17'
-  NODE_VERSION: '22'
-  PNPM_VERSION: '9'
-  EXPO_SDK: '54'
 
 jobs:
   build:
@@ -29,55 +12,34 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      # ─── Checkout ─────────────────────────────────────────────────────────────
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ─── Setup Java ───────────────────────────────────────────────────────────
-      - name: Set up Java ${{ env.JAVA_VERSION }}
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: '17'
           cache: gradle
 
-      # ─── Setup Node + pnpm ────────────────────────────────────────────────────
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
+          version: '9'
 
-      - name: Set up Node.js ${{ env.NODE_VERSION }}
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '22'
           cache: pnpm
 
-      # ─── Cache ────────────────────────────────────────────────────────────────
-      - name: Cache Expo prebuild
-        uses: actions/cache@v4
-        with:
-          path: artifacts/hasahisawi/.expo
-          key: expo-${{ runner.os }}-${{ hashFiles('artifacts/hasahisawi/app.json') }}
-
-      - name: Cache Gradle build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
-
-      # ─── Dependencies ─────────────────────────────────────────────────────────
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Expo CLI globally
+      - name: Install Expo CLI
         run: npm install -g @expo/cli@54.0.23
 
-      # ─── Generate Native Android Project ──────────────────────────────────────
-      - name: Run expo prebuild
+      - name: Expo prebuild
         working-directory: artifacts/hasahisawi
         env:
           EXPO_PUBLIC_DOMAIN: ${{ secrets.EXPO_PUBLIC_DOMAIN }}
@@ -89,99 +51,51 @@ jobs:
           EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
         run: npx expo prebuild --platform android --clean
 
-      # ─── Signing ──────────────────────────────────────────────────────────────
       - name: Decode keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
             > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
 
-      - name: Write signing config
+      - name: Write keystore.properties
         run: |
-          cat > artifacts/hasahisawi/android/keystore.properties << EOF
+          cat > artifacts/hasahisawi/android/keystore.properties <<'ENDOFFILE'
           storeFile=hasahisawi-release.keystore
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          ENDOFFILE
 
-      # ─── Patch build.gradle to read signing from keystore.properties ──────────
-      - name: Patch app/build.gradle with signing config
+      - name: Patch build.gradle for signing
         working-directory: artifacts/hasahisawi/android
         run: |
           node -e "
-          const fs = require('fs');
-          const path = 'app/build.gradle';
-          let content = fs.readFileSync(path, 'utf8');
-
-          // Add keystoreProperties loader at the top if not present
-          if (!content.includes('keystoreProperties')) {
-            const header = \`def keystoreProperties = new Properties()
-          def keystorePropertiesFile = rootProject.file('keystore.properties')
-          if (keystorePropertiesFile.exists()) {
-              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-          }
-
-          \`;
-            content = header + content;
-          }
-
-          // Replace or add signingConfigs release block
-          if (!content.includes('signingConfigs')) {
-            content = content.replace(
-              'android {',
-              \`android {
-              signingConfigs {
-                  release {
-                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-                      storePassword keystoreProperties['storePassword']
-                      keyAlias keystoreProperties['keyAlias']
-                      keyPassword keystoreProperties['keyPassword']
-                  }
-              }\`
-            );
-          }
-
-          // Apply signingConfig to release build type
-          content = content.replace(
-            /buildTypes\s*\{[\s\S]*?release\s*\{/,
-            (m) => m + '\n            signingConfig signingConfigs.release'
-          );
-
-          fs.writeFileSync(path, content);
-          console.log('build.gradle patched successfully');
+            const fs = require('fs');
+            const file = 'app/build.gradle';
+            let c = fs.readFileSync(file, 'utf8');
+            const header = 'def keystoreProps = new Properties()\ndef ksPropFile = rootProject.file(\"keystore.properties\")\nif (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }\n\n';
+            if (!c.includes('keystoreProps')) c = header + c;
+            if (!c.includes('signingConfigs')) {
+              c = c.replace('android {', 'android {\n    signingConfigs {\n        release {\n            storeFile keystoreProps[\"storeFile\"] ? file(keystoreProps[\"storeFile\"]) : null\n            storePassword keystoreProps[\"storePassword\"]\n            keyAlias keystoreProps[\"keyAlias\"]\n            keyPassword keystoreProps[\"keyPassword\"]\n        }\n    }');
+            }
+            c = c.replace(/buildTypes\s*\{([\s\S]*?)release\s*\{/, function(m) { return m + '\n            signingConfig signingConfigs.release'; });
+            fs.writeFileSync(file, c);
+            console.log('build.gradle patched');
           "
 
-      # ─── Build AAB ────────────────────────────────────────────────────────────
-      - name: Build Android AAB (Release)
+      - name: Build AAB
         working-directory: artifacts/hasahisawi/android
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+          ./gradlew bundleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ─── Artifacts ────────────────────────────────────────────────────────────
-      - name: Upload AAB to GitHub Artifacts
+      - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v${{ github.run_number }}-release
+          name: hasahisawi-release-${{ github.run_number }}
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      # ─── Google Play Upload ───────────────────────────────────────────────────
-      - name: Upload to Google Play
-        if: github.ref == 'refs/heads/master' && vars.ENABLE_PLAY_UPLOAD == 'true'
-        continue-on-error: true
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
-          packageName: com.almhbob.hasahisawi
-          releaseFiles: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
-          track: ${{ github.event.inputs.track || 'internal' }}
-          status: draft
-          whatsNewDirectory: .github/release-notes
-
-      # ─── Cleanup ─────────────────────────────────────────────────────────────
-      - name: Remove keystore from runner
+      - name: Cleanup keystore
         if: always()
         run: |
           rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
