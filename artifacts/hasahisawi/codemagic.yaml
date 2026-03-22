@@ -1,110 +1,91 @@
 workflows:
-
-  android-production:
-    name: 🚀 حصاحيصاوي — Android Production
+  android-release:
+    name: Android Release AAB
     max_build_duration: 60
-    instance_type: linux_x2
-
+    instance_type: mac_mini_m2
     environment:
-      node: 22.13.1
-      java: 17
+      node: 22.x
+      android_signing:
+        - hasahisawi_release
+      groups:
+        - hasahisawi_firebase
       vars:
         PACKAGE_NAME: com.almhbob.hasahisawi
-        EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-        EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-        EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-        EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-        EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
-        EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-
     cache:
       cache_paths:
-        - ~/.gradle/caches
-        - $CM_BUILD_DIR/artifacts/hasahisawi/node_modules
-        - ~/.pnpm-store
-
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
-
+        - $HOME/.gradle/caches
+        - $HOME/.npm
     scripts:
       - name: Install pnpm
-        script: npm install -g pnpm@9
+        script: npm install -g pnpm
 
-      - name: Install Expo CLI
-        script: npm install -g @expo/cli@54.0.23
-
-      - name: Install monorepo dependencies
+      - name: Install dependencies
         script: pnpm install --frozen-lockfile
 
-      - name: Generate native Android project
-        script: |
-          cd artifacts/hasahisawi
-          npx expo prebuild --platform android --clean
+      - name: Expo Prebuild (Android)
+        working_directory: artifacts/hasahisawi
+        script: npx expo prebuild --platform android --clean
 
-      - name: Write signing keystore
+      - name: Inject signing config into build.gradle
+        working_directory: artifacts/hasahisawi/android
         script: |
-          cd artifacts/hasahisawi/android
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/hasahisawi-release.keystore
+          # كتابة keystore.properties بقيم Codemagic
           cat > keystore.properties << EOF
-          storeFile=hasahisawi-release.keystore
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
           EOF
 
-      - name: Patch build.gradle with signing config
-        script: |
+          # تعديل app/build.gradle لإضافة إعداد التوقيع
           node -e "
           const fs = require('fs');
-          const path = 'artifacts/hasahisawi/android/app/build.gradle';
-          let content = fs.readFileSync(path, 'utf8');
-          const header = \`def keystoreProperties = new Properties()
-          def keystorePropertiesFile = rootProject.file('keystore.properties')
-          if (keystorePropertiesFile.exists()) {
-              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-          }\n\n\`;
-          if (!content.includes('keystoreProperties')) {
-              content = header + content;
-              content = content.replace(
-                'android {',
-                \`android {
+          const path = 'app/build.gradle';
+          let c = fs.readFileSync(path, 'utf8');
+
+          const header = \`def keystoreProps = new Properties()
+          def ksPropFile = rootProject.file('keystore.properties')
+          if (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }
+
+          \`;
+
+          if (!c.includes('keystoreProps')) c = header + c;
+
+          if (!c.includes('signingConfigs')) {
+            c = c.replace('android {', \`android {
               signingConfigs {
                   release {
-                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-                      storePassword keystoreProperties['storePassword']
-                      keyAlias keystoreProperties['keyAlias']
-                      keyPassword keystoreProperties['keyPassword']
+                      storeFile keystoreProps['storeFile'] ? file(keystoreProps['storeFile']) : null
+                      storePassword keystoreProps['storePassword']
+                      keyAlias keystoreProps['keyAlias']
+                      keyPassword keystoreProps['keyPassword']
                   }
-              }\`
-              );
+              }\`);
           }
-          fs.writeFileSync(path, content);
-          console.log('build.gradle patched');
+
+          if (!c.includes('signingConfig signingConfigs.release')) {
+            c = c.replace(/buildTypes\s*\{([^}]*release\s*\{)/, m => m + '\n            signingConfig signingConfigs.release');
+          }
+
+          fs.writeFileSync(path, c);
+          console.log('build.gradle patched with signing config');
           "
 
-      - name: Build Android AAB
+      - name: Build Android release AAB
+        working_directory: artifacts/hasahisawi/android
         script: |
-          cd artifacts/hasahisawi/android
           chmod +x gradlew
-          ./gradlew bundleRelease --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
-
-      - name: Cleanup sensitive files
-        script: |
-          rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          rm -f artifacts/hasahisawi/android/keystore.properties
+          ./gradlew bundleRelease \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            --no-daemon
 
     artifacts:
       - artifacts/hasahisawi/android/app/build/outputs/bundle/release/*.aab
-      - artifacts/hasahisawi/android/app/build/outputs/apk/release/*.apk
 
     publishing:
-      google_play:
-        credentials_json: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
-        changes_not_sent_for_review: false
+      email:
+        recipients:
+          - almhbob2026@gmail.com
+        notify:
+          success: true
+          failure: true
