@@ -169,7 +169,8 @@ jobs:
 
       # ─── Google Play Upload ───────────────────────────────────────────────────
       - name: Upload to Google Play
-        if: github.ref == 'refs/heads/master' && secrets.GOOGLE_PLAY_SERVICE_ACCOUNT != ''
+        if: github.ref == 'refs/heads/master' && vars.ENABLE_PLAY_UPLOAD == 'true'
+        continue-on-error: true
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
