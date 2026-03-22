@@ -17,5 +17,11 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "server",
+    "shared",
+    "drizzle.config.ts",
+    "node_modules"
   ]
 }

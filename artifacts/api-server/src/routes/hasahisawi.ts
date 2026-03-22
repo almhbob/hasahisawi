@@ -1001,7 +1001,7 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     const { role } = req.body;
     const allowed = ["user", "moderator", "admin"];
     if (!allowed.includes(role)) return res.status(400).json({ error: "دور غير صالح" });
-    const targetId = parseInt(req.params.id);
+    const targetId = parseInt(req.params.id as string);
     if (targetId === currentUser.id) return res.status(400).json({ error: "لا يمكنك تغيير دورك بنفسك" });
     await query(`UPDATE users SET role=$1 WHERE id=$2`, [role, targetId]);
     return res.json({ success: true });
