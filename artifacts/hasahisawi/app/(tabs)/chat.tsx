@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Modal, Pressable, ActivityIndicator,
-  Alert, Platform,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,14 +11,16 @@ import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
-import { useChats, useTotalUnread, getOrCreateChat, fetchUsers, Chat } from "@/lib/firebase/chat";
-import { isFirebaseConfigured } from "@/lib/firebase/index";
+import {
+  useApiChats, apiGetUsers, apiGetOrCreateChat,
+  getOtherUser, getMyUnread, ApiChat, ApiUser,
+} from "@/lib/api-chat";
 
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 
-function formatTime(ts: any): string {
+function formatTime(ts: string | null): string {
   if (!ts) return "";
-  const date = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+  const date = new Date(ts);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   if (diff < 60_000) return "الآن";
@@ -29,28 +31,25 @@ function formatTime(ts: any): string {
 
 // ── بطاقة محادثة ─────────────────────────────────────────────────────────────
 
-function ChatCard({ chat, myUid, onPress }: { chat: Chat; myUid: string; onPress: () => void }) {
-  const otherUid = chat.participants.find((p) => p !== myUid) ?? "";
-  const otherName = chat.participantNames?.[otherUid] ?? "مستخدم";
-  const unread = chat.unread?.[myUid] ?? 0;
-  const initial = otherName.charAt(0);
+function ChatCard({ chat, myId, onPress }: { chat: ApiChat; myId: number; onPress: () => void }) {
+  const other = getOtherUser(chat, myId);
+  const unread = getMyUnread(chat, myId);
+  const initial = other.name.charAt(0);
+  const isMe = chat.last_sender_id === myId;
 
   return (
     <TouchableOpacity style={styles.chatCard} onPress={onPress} activeOpacity={0.75}>
-      {/* الأفاتار */}
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
       </View>
-
-      {/* المعلومات */}
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
-          <Text style={styles.chatName} numberOfLines={1}>{otherName}</Text>
-          <Text style={styles.chatTime}>{formatTime(chat.lastMessageAt)}</Text>
+          <Text style={styles.chatName} numberOfLines={1}>{other.name}</Text>
+          <Text style={styles.chatTime}>{formatTime(chat.last_message_at)}</Text>
         </View>
         <View style={styles.chatRow}>
           <Text style={[styles.lastMsg, unread > 0 && styles.lastMsgUnread]} numberOfLines={1}>
-            {chat.lastSenderId === myUid ? "أنت: " : ""}{chat.lastMessage || "ابدأ المحادثة"}
+            {isMe ? "أنت: " : ""}{chat.last_message || "ابدأ المحادثة"}
           </Text>
           {unread > 0 && (
             <View style={styles.badge}>
@@ -66,40 +65,39 @@ function ChatCard({ chat, myUid, onPress }: { chat: Chat; myUid: string; onPress
 // ── مودال اختيار مستخدم ──────────────────────────────────────────────────────
 
 function NewChatModal({
-  visible,
-  onClose,
-  myUid,
-  myName,
+  visible, onClose, myId, token,
 }: {
   visible: boolean;
   onClose: () => void;
-  myUid: string;
-  myName: string;
+  myId: number;
+  token: string;
 }) {
-  const [users, setUsers] = useState<{ uid: string; name: string }[]>([]);
+  const [users, setUsers] = useState<ApiUser[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
-  const [starting, setStarting] = useState<string | null>(null);
+  const [starting, setStarting] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (!visible) return;
     setLoading(true);
-    fetchUsers().then((u) => {
-      setUsers(u.filter((x) => x.uid !== myUid));
-      setLoading(false);
-    });
-  }, [visible, myUid]);
+    apiGetUsers(token)
+      .then((u) => { setUsers(u); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [visible, token]);
 
   const filtered = users.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  async function startChat(other: { uid: string; name: string }) {
-    setStarting(other.uid);
+  async function startChat(other: ApiUser) {
+    setStarting(other.id);
     try {
-      const chatId = await getOrCreateChat(myUid, myName, other.uid, other.name);
+      const chat = await apiGetOrCreateChat(token, other.id);
       onClose();
-      router.push({ pathname: "/conversation", params: { chatId, otherName: other.name } } as any);
+      router.push({
+        pathname: "/conversation",
+        params: { chatId: String(chat.id), otherName: other.name },
+      } as any);
     } catch {
       Alert.alert("خطأ", "تعذّر بدء المحادثة");
     } finally {
@@ -134,7 +132,7 @@ function NewChatModal({
           ) : (
             <FlatList
               data={filtered}
-              keyExtractor={(i) => i.uid}
+              keyExtractor={(i) => String(i.id)}
               contentContainerStyle={{ paddingBottom: 32 }}
               ListEmptyComponent={
                 <Text style={styles.emptyText}>لا يوجد مستخدمون</Text>
@@ -143,14 +141,14 @@ function NewChatModal({
                 <TouchableOpacity
                   style={styles.userItem}
                   onPress={() => startChat(item)}
-                  disabled={starting === item.uid}
+                  disabled={starting === item.id}
                   activeOpacity={0.75}
                 >
                   <View style={styles.userAvatar}>
                     <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
                   </View>
                   <Text style={styles.userName}>{item.name}</Text>
-                  {starting === item.uid ? (
+                  {starting === item.id ? (
                     <ActivityIndicator size="small" color={Colors.primary} />
                   ) : (
                     <Ionicons name="chatbubble-outline" size={18} color={Colors.primary} />
@@ -169,47 +167,43 @@ function NewChatModal({
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isGuest } = useAuth();
+  const { user, token, isGuest } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
 
-  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
-  const myName = user?.name ?? "مستخدم";
-  const { chats, loading } = useChats(isGuest ? null : myUid);
+  const myId = user?.id ?? 0;
+  const { chats, loading, refresh } = useApiChats(isGuest ? null : token);
+
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   if (isGuest) {
     return <GuestGate title="سجّل الدخول للوصول إلى الدردشة والتواصل مع أهالي الحصاحيصا" />;
   }
 
-  if (!isFirebaseConfigured) {
+  if (!token) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, alignItems: "center", justifyContent: "center" }]}>
-        <Ionicons name="chatbubbles-outline" size={48} color={Colors.textMuted} />
-        <Text style={styles.emptyText}>الدردشة غير متاحة حالياً</Text>
+        <ActivityIndicator color={Colors.primary} />
       </View>
     );
   }
 
-  function openConversation(chat: Chat) {
-    const otherUid = chat.participants.find((p) => p !== myUid) ?? "";
-    const otherName = chat.participantNames?.[otherUid] ?? "مستخدم";
-    router.push({ pathname: "/conversation", params: { chatId: chat.id, otherName } } as any);
+  function openConversation(chat: ApiChat) {
+    const other = getOtherUser(chat, myId);
+    router.push({
+      pathname: "/conversation",
+      params: { chatId: String(chat.id), otherName: other.name },
+    } as any);
   }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* الرأس */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>الدردشة</Text>
-        <TouchableOpacity
-          style={styles.newBtn}
-          onPress={() => setModalVisible(true)}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.newBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
           <Ionicons name="create-outline" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* القائمة */}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.primary} size="large" />
@@ -227,22 +221,17 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           data={chats}
-          keyExtractor={(c) => c.id}
+          keyExtractor={(c) => String(c.id)}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
-              <ChatCard
-                chat={item}
-                myUid={myUid}
-                onPress={() => openConversation(item)}
-              />
+              <ChatCard chat={item} myId={myId} onPress={() => openConversation(item)} />
             </Animated.View>
           )}
         />
       )}
 
-      {/* زر دردشة جديدة */}
       {chats.length > 0 && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom + 20 }]}
@@ -253,12 +242,14 @@ export default function ChatScreen() {
         </TouchableOpacity>
       )}
 
-      <NewChatModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        myUid={myUid}
-        myName={myName}
-      />
+      {token && (
+        <NewChatModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          myId={myId}
+          token={token}
+        />
+      )}
     </View>
   );
 }
@@ -276,11 +267,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
-  headerTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 22,
-    color: Colors.textPrimary,
-  },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   newBtn: {
     width: 38, height: 38,
     borderRadius: 12,
@@ -308,43 +295,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.primary,
-  },
+  avatarText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.primary },
   chatInfo: { flex: 1 },
-  chatRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  chatName: {
-    flex: 1,
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  chatTime: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  lastMsg: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  lastMsgUnread: {
-    color: Colors.textPrimary,
-    fontFamily: "Cairo_600SemiBold",
-  },
+  chatRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  chatTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  lastMsg: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  lastMsgUnread: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold" },
   badge: {
-    minWidth: 20,
-    height: 20,
+    minWidth: 20, height: 20,
     borderRadius: 10,
     backgroundColor: Colors.primary,
     alignItems: "center",
@@ -352,24 +311,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     marginTop: 2,
   },
-  badgeText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 11,
-    color: "#fff",
-  },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
   separator: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 20 },
-  emptyTitle: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 17,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textMuted,
-    textAlign: "center",
-  },
+  emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary, textAlign: "center" },
+  emptyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   startBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -380,11 +325,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  startBtnText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: "#fff",
-  },
+  startBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#fff" },
   fab: {
     position: "absolute",
     right: 20,
@@ -399,12 +340,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
-  // مودال
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: "#0F1E16",
     borderTopLeftRadius: 24,
@@ -421,11 +357,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
-  modalTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -438,20 +370,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.divider,
   },
-  searchInput: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "right",
-  },
-  userItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  userItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
   userAvatar: {
     width: 42, height: 42,
     borderRadius: 21,
@@ -461,10 +381,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  userName: {
-    flex: 1,
-    fontFamily: "Cairo_500Medium",
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
+  userName: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textPrimary },
 });

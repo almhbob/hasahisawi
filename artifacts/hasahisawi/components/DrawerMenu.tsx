@@ -14,7 +14,7 @@ import Colors from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
 import BrandPattern from "@/components/BrandPattern";
-import { useTotalUnread } from "@/lib/firebase/chat";
+import { useApiUnread } from "@/lib/api-chat";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320);
@@ -83,10 +83,9 @@ const GROUPS: Group[] = [
 
 export default function DrawerMenu() {
   const { isOpen, close } = useDrawer();
-  const { user, isGuest } = useAuth();
+  const { user, token, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
-  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
-  const unreadCount = useTotalUnread(isGuest ? null : myUid);
+  const unreadCount = useApiUnread(isGuest ? null : (token ?? null));
   const progress = useSharedValue(0);
   const [visible, setVisible] = useState(false);
 

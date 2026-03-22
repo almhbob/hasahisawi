@@ -245,6 +245,33 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id SERIAL PRIMARY KEY,
+      user1_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user2_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      last_message TEXT DEFAULT '',
+      last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_sender_id INTEGER,
+      unread_user1 INTEGER NOT NULL DEFAULT 0,
+      unread_user2 INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user1_id, user2_id)
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL DEFAULT '',
+      image_url TEXT,
+      type VARCHAR(10) NOT NULL DEFAULT 'text',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_read BOOLEAN NOT NULL DEFAULT FALSE
+    )
+  `);
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -1004,6 +1031,166 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     const targetId = parseInt(req.params.id as string);
     if (targetId === currentUser.id) return res.status(400).json({ error: "لا يمكنك تغيير دورك بنفسك" });
     await query(`UPDATE users SET role=$1 WHERE id=$2`, [role, targetId]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── Chat API ──────────────────────────────────────────────────────────────────
+
+// جلب قائمة المستخدمين للدردشة
+router.get("/users/list", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const result = await query(
+      `SELECT id, name, role FROM users WHERE id != $1 AND role != 'guest' ORDER BY name LIMIT 100`,
+      [me.id]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب جميع المحادثات
+router.get("/chats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const result = await query(`
+      SELECT c.*,
+        u1.name AS user1_name,
+        u2.name AS user2_name
+      FROM chats c
+      JOIN users u1 ON u1.id = c.user1_id
+      JOIN users u2 ON u2.id = c.user2_id
+      WHERE c.user1_id = $1 OR c.user2_id = $1
+      ORDER BY c.last_message_at DESC
+    `, [me.id]);
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إجمالي الرسائل غير المقروءة
+router.get("/chats/unread", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const result = await query(`
+      SELECT COALESCE(SUM(CASE WHEN user1_id=$1 THEN unread_user1 ELSE unread_user2 END),0)::int AS total
+      FROM chats WHERE user1_id=$1 OR user2_id=$1
+    `, [me.id]);
+    return res.json({ total: result.rows[0]?.total ?? 0 });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إنشاء أو جلب محادثة مع مستخدم آخر
+router.post("/chats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const { other_user_id } = req.body;
+    if (!other_user_id) return res.status(400).json({ error: "other_user_id مطلوب" });
+    const u1 = Math.min(me.id, other_user_id);
+    const u2 = Math.max(me.id, other_user_id);
+    await query(
+      `INSERT INTO chats (user1_id, user2_id) VALUES ($1,$2) ON CONFLICT (user1_id, user2_id) DO NOTHING`,
+      [u1, u2]
+    );
+    const result = await query(`
+      SELECT c.*, u1.name AS user1_name, u2.name AS user2_name
+      FROM chats c
+      JOIN users u1 ON u1.id=c.user1_id
+      JOIN users u2 ON u2.id=c.user2_id
+      WHERE c.user1_id=$1 AND c.user2_id=$2
+    `, [u1, u2]);
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب رسائل محادثة
+router.get("/chats/:chatId/messages", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const chatId = parseInt(req.params.chatId as string);
+    const chat = await query(`SELECT * FROM chats WHERE id=$1 AND (user1_id=$2 OR user2_id=$2)`, [chatId, me.id]);
+    if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
+    const since = req.query.since as string | undefined;
+    const result = await query(
+      `SELECT m.*, u.name AS sender_name FROM chat_messages m
+       JOIN users u ON u.id=m.sender_id
+       WHERE m.chat_id=$1 ${since ? "AND m.id > $2" : ""}
+       ORDER BY m.created_at ASC LIMIT 200`,
+      since ? [chatId, parseInt(since)] : [chatId]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إرسال رسالة
+router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const chatId = parseInt(req.params.chatId as string);
+    const chat = await query(`SELECT * FROM chats WHERE id=$1 AND (user1_id=$2 OR user2_id=$2)`, [chatId, me.id]);
+    if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
+    const { content, image_url } = req.body;
+    if (!content?.trim() && !image_url) return res.status(400).json({ error: "الرسالة فارغة" });
+    const msgType = image_url ? "image" : "text";
+    const msgContent = content?.trim() || "";
+    const result = await query(
+      `INSERT INTO chat_messages (chat_id, sender_id, content, image_url, type) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [chatId, me.id, msgContent, image_url || null, msgType]
+    );
+    const c = chat.rows[0];
+    const isUser1 = me.id === c.user1_id;
+    await query(`
+      UPDATE chats SET
+        last_message=$1, last_message_at=NOW(), last_sender_id=$2,
+        unread_user1 = CASE WHEN $3 THEN unread_user1 ELSE unread_user1+1 END,
+        unread_user2 = CASE WHEN $3 THEN unread_user2+1 ELSE unread_user2 END
+      WHERE id=$4
+    `, [image_url ? "📷 صورة" : msgContent, me.id, isUser1, chatId]);
+    const msg = { ...result.rows[0], sender_name: me.name };
+    return res.json(msg);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تعليم رسائل المحادثة كمقروءة
+router.post("/chats/:chatId/read", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const chatId = parseInt(req.params.chatId as string);
+    const chat = await query(`SELECT * FROM chats WHERE id=$1 AND (user1_id=$2 OR user2_id=$2)`, [chatId, me.id]);
+    if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
+    const c = chat.rows[0];
+    const isUser1 = me.id === c.user1_id;
+    await query(
+      `UPDATE chats SET ${isUser1 ? "unread_user1=0" : "unread_user2=0"} WHERE id=$1`,
+      [chatId]
+    );
     return res.json({ success: true });
   } catch (err) {
     console.error(err);

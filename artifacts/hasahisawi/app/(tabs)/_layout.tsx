@@ -10,7 +10,7 @@ import { useLang } from "@/lib/lang-context";
 import { DrawerProvider, useDrawer } from "@/lib/drawer-context";
 import DrawerMenu from "@/components/DrawerMenu";
 import { useAuth } from "@/lib/auth-context";
-import { useTotalUnread } from "@/lib/firebase/chat";
+import { useApiUnread } from "@/lib/api-chat";
 
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 type TabItem = {
@@ -32,9 +32,8 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const insets = useSafeAreaInsets();
   const { open } = useDrawer();
   const isWeb = Platform.OS === "web";
-  const { user, isGuest } = useAuth();
-  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
-  const unread = useTotalUnread(isGuest ? null : myUid);
+  const { user, token, isGuest } = useAuth();
+  const unread = useApiUnread(isGuest ? null : (token ?? null));
 
   return (
     <View style={[

@@ -2,51 +2,47 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image,
-  Alert, Pressable,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/lib/auth-context";
 import Colors from "@/constants/colors";
-import { useMessages, sendMessage, markChatRead, ChatMessage } from "@/lib/firebase/chat";
-import { uploadFile } from "@/lib/firebase/storage";
+import { useApiMessages, apiSendMessage, apiMarkRead, ApiMessage } from "@/lib/api-chat";
 
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 
-function formatMsgTime(ts: any): string {
+function formatMsgTime(ts: string): string {
   if (!ts) return "";
-  const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+  const d = new Date(ts);
   return d.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
 }
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────────
 
-function MessageBubble({ msg, isMe }: { msg: ChatMessage; isMe: boolean }) {
+function MessageBubble({ msg, isMe }: { msg: ApiMessage; isMe: boolean }) {
   return (
     <Animated.View
       entering={FadeInUp.springify().duration(300)}
       style={[styles.bubbleWrap, isMe ? styles.bubbleWrapMe : styles.bubbleWrapOther]}
     >
       {!isMe && (
-        <Text style={styles.senderName}>{msg.senderName}</Text>
+        <Text style={styles.senderName}>{msg.sender_name}</Text>
       )}
       <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
-        {msg.type === "image" && msg.imageUrl ? (
-          <Image source={{ uri: msg.imageUrl }} style={styles.msgImage} resizeMode="cover" />
+        {msg.type === "image" && msg.image_url ? (
+          <Image source={{ uri: msg.image_url }} style={styles.msgImage} resizeMode="cover" />
         ) : null}
-        {msg.text ? (
+        {msg.content ? (
           <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>
-            {msg.text}
+            {msg.content}
           </Text>
         ) : null}
         <Text style={[styles.msgTime, isMe ? styles.msgTimeMe : styles.msgTimeOther]}>
-          {formatMsgTime(msg.createdAt)}
-          {isMe && (
-            <Text> {msg.readBy.length > 1 ? " ✓✓" : " ✓"}</Text>
-          )}
+          {formatMsgTime(msg.created_at)}
+          {isMe && <Text> {msg.is_read ? " ✓✓" : " ✓"}</Text>}
         </Text>
       </View>
     </Animated.View>
@@ -59,73 +55,41 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ chatId: string; otherName: string }>();
   const { chatId, otherName } = params;
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
-  const myUid  = user?.firebaseUid ?? String(user?.id ?? "");
-  const myName = user?.name ?? "مستخدم";
-  const otherUid = chatId?.replace(myUid, "").replace("_", "") ?? "";
+  const myId = user?.id ?? 0;
+  const chatIdNum = chatId ? parseInt(chatId) : null;
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const flatRef = useRef<FlatList>(null);
 
-  const { messages, loading } = useMessages(chatId ?? null);
+  const { messages, loading } = useApiMessages(token ?? null, chatIdNum);
 
-  // تعليم مقروءة عند الدخول
   useFocusEffect(
     useCallback(() => {
-      if (chatId && myUid) {
-        markChatRead(chatId, myUid).catch(() => {});
+      if (chatIdNum && token) {
+        apiMarkRead(token, chatIdNum).catch(() => {});
       }
-    }, [chatId, myUid]),
+    }, [chatIdNum, token]),
   );
 
-  // التمرير للأسفل عند وصول رسائل جديدة
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => {
-        flatRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
 
   async function handleSend() {
-    if (!text.trim() || !chatId || sending) return;
+    if (!text.trim() || !chatIdNum || !token || sending) return;
     setSending(true);
     const t = text.trim();
     setText("");
     try {
-      await sendMessage(chatId, myUid, myName, otherUid, t);
+      await apiSendMessage(token, chatIdNum, t);
     } catch {
       Alert.alert("خطأ", "تعذّر إرسال الرسالة");
       setText(t);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function handlePickImage() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    if (!chatId) return;
-
-    setSending(true);
-    try {
-      const uri = result.assets[0].uri;
-      const url = await uploadFile(
-        `chats/${chatId}/${Date.now()}.jpg`,
-        uri,
-        (p) => setUploadProgress(p.percent),
-      );
-      setUploadProgress(null);
-      await sendMessage(chatId, myUid, myName, otherUid, "", url);
-    } catch {
-      Alert.alert("خطأ", "تعذّر إرسال الصورة");
-      setUploadProgress(null);
     } finally {
       setSending(false);
     }
@@ -135,7 +99,6 @@ export default function ConversationScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       {/* الرأس */}
       <View style={styles.header}>
@@ -147,7 +110,7 @@ export default function ConversationScreen() {
         </View>
         <View style={styles.headerInfo}>
           <Text style={styles.headerName} numberOfLines={1}>{otherName ?? "محادثة"}</Text>
-          <Text style={styles.headerStatus}>متصل</Text>
+          <Text style={styles.headerStatus}>عضو</Text>
         </View>
       </View>
 
@@ -160,14 +123,9 @@ export default function ConversationScreen() {
         <FlatList
           ref={flatRef}
           data={messages}
-          keyExtractor={(m) => m.id}
-          contentContainerStyle={[
-            styles.msgList,
-            { paddingBottom: insets.bottom + 8 },
-          ]}
-          onContentSizeChange={() =>
-            flatRef.current?.scrollToEnd({ animated: false })
-          }
+          keyExtractor={(m) => String(m.id)}
+          contentContainerStyle={[styles.msgList, { paddingBottom: insets.bottom + 8 }]}
+          onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={styles.center}>
               <Ionicons name="chatbubble-outline" size={48} color={Colors.textMuted} />
@@ -175,28 +133,13 @@ export default function ConversationScreen() {
             </View>
           }
           renderItem={({ item }) => (
-            <MessageBubble msg={item} isMe={item.senderId === myUid} />
+            <MessageBubble msg={item} isMe={item.sender_id === myId} />
           )}
         />
       )}
 
       {/* شريط الكتابة */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        {/* زر الصورة */}
-        <TouchableOpacity
-          style={styles.attachBtn}
-          onPress={handlePickImage}
-          disabled={sending}
-          activeOpacity={0.75}
-        >
-          {uploadProgress !== null ? (
-            <Text style={styles.progressText}>{uploadProgress}%</Text>
-          ) : (
-            <Ionicons name="image-outline" size={22} color={Colors.primary} />
-          )}
-        </TouchableOpacity>
-
-        {/* حقل النص */}
         <TextInput
           style={styles.input}
           placeholder="اكتب رسالة..."
@@ -208,8 +151,6 @@ export default function ConversationScreen() {
           textAlign="right"
           onSubmitEditing={handleSend}
         />
-
-        {/* زر الإرسال */}
         <TouchableOpacity
           style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
           onPress={handleSend}
@@ -257,55 +198,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerAvatarText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.primary,
-  },
+  headerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.primary },
   headerInfo: { flex: 1 },
-  headerName: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  headerStatus: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 11,
-    color: Colors.primary,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 32,
-  },
-  msgList: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 4,
-    flexGrow: 1,
-  },
-  bubbleWrap: {
-    marginVertical: 3,
-    maxWidth: "78%",
-  },
+  headerName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  headerStatus: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.primary },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
+  msgList: { paddingHorizontal: 16, paddingTop: 12, gap: 4, flexGrow: 1 },
+  bubbleWrap: { marginVertical: 3, maxWidth: "78%" },
   bubbleWrapMe: { alignSelf: "flex-end", alignItems: "flex-end" },
   bubbleWrapOther: { alignSelf: "flex-start", alignItems: "flex-start" },
-  bubble: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    paddingBottom: 6,
-  },
-  bubbleMe: {
-    backgroundColor: Colors.primary,
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
-    backgroundColor: Colors.cardBgElevated,
-    borderBottomLeftRadius: 4,
-  },
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, paddingBottom: 6 },
+  bubbleMe: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: Colors.cardBgElevated, borderBottomLeftRadius: 4 },
   senderName: {
     fontFamily: "Cairo_500Medium",
     fontSize: 11,
@@ -313,25 +217,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     marginLeft: 4,
   },
-  msgImage: {
-    width: 200,
-    height: 160,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  msgText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 15,
-    lineHeight: 22,
-  },
+  msgImage: { width: 200, height: 160, borderRadius: 12, marginBottom: 4 },
+  msgText: { fontFamily: "Cairo_400Regular", fontSize: 15, lineHeight: 22 },
   msgTextMe: { color: "#fff" },
   msgTextOther: { color: Colors.textPrimary },
-  msgTime: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 10,
-    marginTop: 4,
-    alignSelf: "flex-end",
-  },
+  msgTime: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 4, alignSelf: "flex-end" },
   msgTimeMe: { color: "rgba(255,255,255,0.7)" },
   msgTimeOther: { color: Colors.textMuted },
   inputBar: {
@@ -343,20 +233,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.divider,
     backgroundColor: Colors.bg,
-  },
-  attachBtn: {
-    width: 40, height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 10,
-    color: Colors.primary,
   },
   input: {
     flex: 1,
@@ -385,15 +261,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  sendBtnDisabled: {
-    backgroundColor: Colors.cardBg,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  emptyText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textMuted,
-    textAlign: "center",
-  },
+  sendBtnDisabled: { backgroundColor: Colors.cardBg, shadowOpacity: 0, elevation: 0 },
+  emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center" },
 });
