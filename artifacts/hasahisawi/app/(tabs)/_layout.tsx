@@ -1,7 +1,6 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
-import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -10,6 +9,8 @@ import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { DrawerProvider, useDrawer } from "@/lib/drawer-context";
 import DrawerMenu from "@/components/DrawerMenu";
+import { useAuth } from "@/lib/auth-context";
+import { useTotalUnread } from "@/lib/firebase/chat";
 
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 type TabItem = {
@@ -20,17 +21,20 @@ type TabItem = {
 };
 
 const TAB_ITEMS: TabItem[] = [
-  { name: "index",        label: "الرئيسية", icon: "home-outline",     activeIcon: "home"       },
-  { name: "search",       label: "بحث",      icon: "search-outline",   activeIcon: "search"     },
-  { name: "medical",      label: "الطب",     icon: "medkit-outline",   activeIcon: "medkit"     },
-  { name: "reports",      label: "بلاغات",   icon: "megaphone-outline",activeIcon: "megaphone"  },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-outline", activeIcon: "calendar"   },
+  { name: "index",        label: "الرئيسية", icon: "home-outline",      activeIcon: "home"        },
+  { name: "medical",      label: "الطب",     icon: "medkit-outline",    activeIcon: "medkit"      },
+  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline",activeIcon: "chatbubbles" },
+  { name: "reports",      label: "بلاغات",   icon: "megaphone-outline", activeIcon: "megaphone"   },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",  activeIcon: "calendar"    },
 ];
 
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const insets = useSafeAreaInsets();
   const { open } = useDrawer();
   const isWeb = Platform.OS === "web";
+  const { user, isGuest } = useAuth();
+  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
+  const unread = useTotalUnread(isGuest ? null : myUid);
 
   return (
     <View style={[
@@ -39,6 +43,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
     ]}>
       {TAB_ITEMS.map((item, idx) => {
         const focused = state.index === idx;
+        const isChatTab = item.name === "chat";
         return (
           <Pressable
             key={item.name}
@@ -52,9 +57,17 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Ionicons
                 name={focused ? item.activeIcon : item.icon}
-                size={22}
+                size={21}
                 color={focused ? Colors.primary : "#8BBDA2"}
               />
+              {/* شارة عدد الرسائل غير المقروءة */}
+              {isChatTab && unread > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>
+                    {unread > 9 ? "9+" : unread}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
               {item.label}
@@ -66,7 +79,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
       {/* زر القائمة الجانبية */}
       <Pressable style={styles.tabItem} onPress={open}>
         <View style={styles.menuBtn}>
-          <Ionicons name="menu" size={22} color={Colors.primary} />
+          <Ionicons name="menu" size={21} color={Colors.primary} />
         </View>
         <Text style={[styles.tabLabel, styles.tabLabelActive]}>القائمة</Text>
       </Pressable>
@@ -83,13 +96,13 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>{t("tabs", "home")}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="search">
-        <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
-        <Label>بحث</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="medical">
         <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
         <Label>{t("tabs", "medical")}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="chat">
+        <Icon sf={{ default: "bubble.left.and.bubble.right", selected: "bubble.left.and.bubble.right.fill" }} />
+        <Label>الدردشة</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="reports">
         <Icon sf={{ default: "exclamationmark.bubble", selected: "exclamationmark.bubble.fill" }} />
@@ -111,10 +124,11 @@ function ClassicTabLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index"        />
-      <Tabs.Screen name="search"       />
       <Tabs.Screen name="medical"      />
+      <Tabs.Screen name="chat"         />
       <Tabs.Screen name="reports"      />
       <Tabs.Screen name="appointments" />
+      <Tabs.Screen name="search"       options={{ href: null }} />
       <Tabs.Screen name="missing"      options={{ href: null }} />
       <Tabs.Screen name="student"      options={{ href: null }} />
       <Tabs.Screen name="jobs"         options={{ href: null }} />
@@ -164,7 +178,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   iconWrap: {
-    width: 36, height: 36,
+    width: 34, height: 34,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -172,8 +186,28 @@ const styles = StyleSheet.create({
   iconWrapActive: {
     backgroundColor: Colors.primary + "18",
   },
+  tabBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.danger ?? "#E05567",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: "#0F1E16",
+  },
+  tabBadgeText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 9,
+    color: "#fff",
+    lineHeight: 12,
+  },
   menuBtn: {
-    width: 36, height: 36,
+    width: 34, height: 34,
     borderRadius: 10,
     backgroundColor: Colors.primary + "18",
     borderWidth: 1,
@@ -183,7 +217,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 10,
+    fontSize: 9,
     color: "#8BBDA2",
   },
   tabLabelActive: {

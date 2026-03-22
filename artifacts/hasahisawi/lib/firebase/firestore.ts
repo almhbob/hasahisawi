@@ -41,6 +41,7 @@ export const COLLECTIONS = {
   MISSING:      "missing_persons",
   NOTIFICATIONS:"notifications",
   ANALYTICS:    "analytics",
+  CHATS:        "chats",
 } as const;
 
 export async function fsGetDoc<T = DocumentData>(

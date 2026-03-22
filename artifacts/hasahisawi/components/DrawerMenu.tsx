@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
 import BrandPattern from "@/components/BrandPattern";
+import { useTotalUnread } from "@/lib/firebase/chat";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320);
@@ -50,6 +51,7 @@ const GROUPS: Group[] = [
       { title: "بلاغات",      icon: "megaphone-outline",  route: "/(tabs)/reports",     color: Colors.accent  },
       { title: "المفقودون",   icon: "eye-outline",        route: "/(tabs)/missing",     color: Colors.cyber   },
       { title: "المجتمع",     icon: "chatbubbles-outline",route: "/(tabs)/social",      color: Colors.primary },
+      { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
       { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC"      },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
       { title: "التقييمات",   icon: "star-outline",       route: "/(tabs)/ratings",     color: Colors.accent  },
@@ -83,6 +85,8 @@ export default function DrawerMenu() {
   const { isOpen, close } = useDrawer();
   const { user, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
+  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
+  const unreadCount = useTotalUnread(isGuest ? null : myUid);
   const progress = useSharedValue(0);
   const [visible, setVisible] = useState(false);
 
@@ -153,19 +157,28 @@ export default function DrawerMenu() {
           {GROUPS.map((group) => (
             <View key={group.label} style={styles.group}>
               <Text style={styles.groupLabel}>{group.label}</Text>
-              {group.items.map((item) => (
-                <Pressable
-                  key={item.route}
-                  style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-                  onPress={() => navigate(item.route)}
-                >
-                  <View style={[styles.iconBox, { backgroundColor: (item.color ?? Colors.primary) + "1A" }]}>
-                    <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />
-                  </View>
-                  <Text style={styles.itemLabel}>{item.title}</Text>
-                  <Ionicons name="chevron-back" size={16} color={Colors.textMuted} style={styles.chevron} />
-                </Pressable>
-              ))}
+              {group.items.map((item) => {
+                const isChatItem = item.route === "/(tabs)/chat";
+                const showBadge = isChatItem && unreadCount > 0;
+                return (
+                  <Pressable
+                    key={item.route}
+                    style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                    onPress={() => navigate(item.route)}
+                  >
+                    <View style={[styles.iconBox, { backgroundColor: (item.color ?? Colors.primary) + "1A" }]}>
+                      <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />
+                    </View>
+                    <Text style={styles.itemLabel}>{item.title}</Text>
+                    {showBadge && (
+                      <View style={styles.drawerBadge}>
+                        <Text style={styles.drawerBadgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-back" size={16} color={Colors.textMuted} style={styles.chevron} />
+                  </Pressable>
+                );
+              })}
             </View>
           ))}
 
@@ -291,5 +304,21 @@ const styles = StyleSheet.create({
   },
   chevron: {
     opacity: 0.5,
+  },
+  drawerBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E05567",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    marginRight: 4,
+  },
+  drawerBadgeText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 10,
+    color: "#fff",
+    lineHeight: 14,
   },
 });

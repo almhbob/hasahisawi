@@ -20,23 +20,46 @@ import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { I18nManager, Platform, View } from "react-native";
 import type { Lang } from "@/lib/translations";
+import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
+import { useTotalUnread } from "@/lib/firebase/chat";
 
 SplashScreen.preventAutoHideAsync();
 
 // ── بوابة المصادقة — تحجب التطبيق حتى يسجّل المستخدم دخوله ─────
 function AuthGate() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isGuest } = useAuth();
   const router   = useRouter();
   const segments = useSegments();
+  const myUid = user?.firebaseUid ?? String(user?.id ?? "");
+  const unread = useTotalUnread(isGuest ? null : myUid);
+
+  // تسجيل الإشعارات عند تسجيل الدخول
+  useEffect(() => {
+    if (!user || isGuest) return;
+    const uid = user.firebaseUid ?? String(user.id);
+    registerForPushNotifications(uid).catch(() => {});
+    const unsub = addNotificationListener(
+      (_n) => {},
+      (data) => {
+        if (data?.chatId) {
+          router.push({ pathname: "/conversation", params: { chatId: data.chatId, otherName: data.otherName ?? "" } } as any);
+        }
+      },
+    );
+    return unsub;
+  }, [user?.id]);
+
+  // تحديث شارة التطبيق
+  useEffect(() => {
+    setBadgeCount(unread).catch(() => {});
+  }, [unread]);
 
   useEffect(() => {
     if (isLoading) return;
     const inLogin = segments[0] === "login";
     if (!user) {
-      // لا يوجد مستخدم → انتقل لصفحة الدخول
       if (!inLogin) router.replace("/login");
     } else {
-      // المستخدم مسجّل → ابتعد عن صفحة الدخول
       if (inLogin) router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
@@ -52,7 +75,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login"  options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="report" options={{ headerShown: false }} />
-        <Stack.Screen name="admin"  options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="admin"        options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="conversation" options={{ headerShown: false, animation: "slide_from_left" }} />
       </Stack>
     </>
   );
