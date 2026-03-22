@@ -21,6 +21,7 @@
     "android": {
       "package": "com.almhbob.hasahisawi",
       "versionCode": 2,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D1A12",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

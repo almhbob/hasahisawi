@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "133656291161",
+    "project_id": "hasahisawi",
+    "storage_bucket": "hasahisawi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:133656291161:android:a4f8b2c3d1e09876",
+        "android_client_info": {
+          "package_name": "com.almhbob.hasahisawi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
