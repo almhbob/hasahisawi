@@ -1,8 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
-  KeyboardAvoidingView, Pressable, Dimensions, Modal, FlatList,
+  KeyboardAvoidingView, Pressable, Dimensions, Modal, FlatList, Alert,
 } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import BrandPattern from "@/components/BrandPattern";
 import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
+import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
 const CITY_CREST  = require("@/assets/images/city-crest.png");
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -21,7 +22,8 @@ type Mode = "login" | "register";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, register, enterAsGuest } = useAuth();
+  const { login, register, enterAsGuest, loginWithBiometrics,
+          enableBiometrics, biometricsAvailable, biometricsEnabled } = useAuth();
 
   const [mode, setMode]         = useState<Mode>("login");
   const [name, setName]         = useState("");
@@ -39,6 +41,26 @@ export default function LoginScreen() {
   const [neighborhood, setNeighborhood] = useState("");
   const [showNbrModal, setShowNbrModal] = useState(false);
   const [nbrSearch, setNbrSearch]   = useState("");
+  const [bioLabel, setBioLabel] = useState("البصمة");
+  const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
+  const [bioLoading, setBioLoading] = useState(false);
+
+  // تحميل معلومات البصمة
+  useEffect(() => {
+    (async () => {
+      const label = await getBiometricLabel();
+      const icon  = await getBiometricIcon() as keyof typeof Ionicons.glyphMap;
+      setBioLabel(label);
+      setBioIcon(icon);
+    })();
+  }, []);
+
+  // تشغيل البصمة تلقائياً عند فتح الشاشة إذا كانت مفعّلة
+  useEffect(() => {
+    if (biometricsEnabled && biometricsAvailable && mode === "login") {
+      handleBiometricLogin();
+    }
+  }, [biometricsEnabled, biometricsAvailable]);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -83,12 +105,15 @@ export default function LoginScreen() {
     if (err) { setError(err); return; }
     setLoading(true);
     try {
+      const id = identifier.trim();
       if (mode === "login") {
-        await login(identifier.trim(), password);
+        await login(id, password);
+        promptEnableBiometrics(id);
       } else {
         const isEmail = useEmail || identifier.includes("@");
         const nid = nationalId.trim().replace(/\s+/g, "");
-        await register(name.trim(), nid, identifier.trim(), isEmail, password, getBirthDateISO(), neighborhood || undefined);
+        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), neighborhood || undefined);
+        promptEnableBiometrics(id);
       }
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -105,6 +130,37 @@ export default function LoginScreen() {
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     enterAsGuest();
+  };
+
+  const handleBiometricLogin = async () => {
+    setBioLoading(true);
+    try {
+      const success = await loginWithBiometrics();
+      if (!success) {
+        if (Platform.OS !== "web")
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } else {
+        if (Platform.OS !== "web")
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } finally {
+      setBioLoading(false);
+    }
+  };
+
+  const promptEnableBiometrics = (id: string) => {
+    if (!biometricsAvailable || biometricsEnabled) return;
+    Alert.alert(
+      `تفعيل ${bioLabel}`,
+      `هل تريد استخدام ${bioLabel} لتسجيل الدخول بسرعة في المرة القادمة؟`,
+      [
+        { text: "لا شكراً", style: "cancel" },
+        {
+          text: "نعم، فعّل",
+          onPress: () => enableBiometrics(id),
+        },
+      ],
+    );
   };
 
   return (
@@ -382,6 +438,24 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* ── زر البصمة — يظهر في وضع الدخول فقط عند التفعيل ── */}
+          {mode === "login" && biometricsAvailable && biometricsEnabled && (
+            <Animated.View entering={FadeInDown.duration(300)}>
+              <TouchableOpacity
+                onPress={handleBiometricLogin}
+                disabled={bioLoading}
+                activeOpacity={0.85}
+                style={[styles.bioBtn, bioLoading && { opacity: 0.7 }]}
+              >
+                {bioLoading
+                  ? <ActivityIndicator color={Colors.primary} size="small" />
+                  : <Ionicons name={bioIcon} size={26} color={Colors.primary} />
+                }
+                <Text style={styles.bioText}>{bioLabel}</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           {/* فاصل */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -657,6 +731,14 @@ const styles = StyleSheet.create({
   dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   /* Guest */
+  bioBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+    backgroundColor: Colors.cardBgElevated, borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: Colors.primary + "44",
+  },
+  bioText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary,
+  },
   guestBtn: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: Colors.bg, borderRadius: 14, padding: 14,

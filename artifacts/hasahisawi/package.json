@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@react-native-community/netinfo": "^11.4.1",
+    "expo-local-authentication": "^17.0.8",
     "expo-localization": "^17.0.8",
     "expo-notifications": "^0.32.16",
     "firebase": "^12.10.0"

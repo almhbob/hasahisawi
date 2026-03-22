@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
   Linking,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, FadeInUp, FadeInRight,
@@ -25,6 +26,7 @@ import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
 import BrandPattern from "@/components/BrandPattern";
 import { useLang } from "@/lib/lang-context";
+import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
 const { width } = Dimensions.get("window");
 const LOGO       = require("@/assets/images/logo.png");
@@ -68,6 +70,15 @@ export default function HomeScreen() {
   const topPad  = Platform.OS === "web" ? 67 : insets.top;
   const auth    = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [bioLabel, setBioLabel] = useState("البصمة");
+  const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
+
+  useEffect(() => {
+    (async () => {
+      setBioLabel(await getBiometricLabel());
+      setBioIcon(await getBiometricIcon() as keyof typeof Ionicons.glyphMap);
+    })();
+  }, []);
 
   const SERVICES = useMemo(() => [
     { id: "medical",   label: t('home','medical').label,         sub: t('home','medical').sub,         icon: "medkit",            iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/medical"   as const },
@@ -290,12 +301,59 @@ export default function HomeScreen() {
         {/* قسم المستخدم */}
         <View style={styles.footerActions}>
           {auth.user && !auth.isGuest ? (
-            <AnimatedPress onPress={() => auth.logout()}>
-              <View style={[styles.actionStrip, { borderColor: Colors.danger + "40" }]}>
-                <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
-                <Text style={[styles.actionText, { color: Colors.danger }]}>{t('auth', 'logout')} ({auth.user.name})</Text>
-              </View>
-            </AnimatedPress>
+            <>
+              {/* زر البصمة — تفعيل / تعطيل */}
+              {auth.biometricsAvailable && (
+                <AnimatedPress onPress={() => {
+                  if (auth.biometricsEnabled) {
+                    Alert.alert(
+                      `تعطيل ${bioLabel}`,
+                      `هل تريد تعطيل ${bioLabel} لتسجيل الدخول؟`,
+                      [
+                        { text: "إلغاء", style: "cancel" },
+                        { text: "تعطيل", style: "destructive", onPress: () => auth.disableBiometrics() },
+                      ],
+                    );
+                  } else {
+                    Alert.alert(
+                      `تفعيل ${bioLabel}`,
+                      `هل تريد استخدام ${bioLabel} لتسجيل الدخول بسرعة؟`,
+                      [
+                        { text: "لا شكراً", style: "cancel" },
+                        { text: "نعم، فعّل", onPress: () => auth.enableBiometrics(auth.user?.phone || auth.user?.email || "") },
+                      ],
+                    );
+                  }
+                }}>
+                  <View style={[styles.actionStrip, {
+                    borderColor: auth.biometricsEnabled ? Colors.primary + "60" : Colors.divider,
+                    marginBottom: 8,
+                  }]}>
+                    <Ionicons name={bioIcon} size={20} color={auth.biometricsEnabled ? Colors.primary : Colors.textMuted} />
+                    <Text style={[styles.actionText, { color: auth.biometricsEnabled ? Colors.primary : Colors.textMuted, flex: 1 }]}>
+                      {auth.biometricsEnabled ? `${bioLabel} مفعّلة` : `تفعيل ${bioLabel}`}
+                    </Text>
+                    <View style={[{
+                      width: 36, height: 20, borderRadius: 10, justifyContent: "center",
+                      backgroundColor: auth.biometricsEnabled ? Colors.primary : Colors.divider,
+                      paddingHorizontal: 2,
+                    }]}>
+                      <View style={[{
+                        width: 16, height: 16, borderRadius: 8, backgroundColor: "#fff",
+                        alignSelf: auth.biometricsEnabled ? "flex-end" : "flex-start",
+                      }]} />
+                    </View>
+                  </View>
+                </AnimatedPress>
+              )}
+
+              <AnimatedPress onPress={() => auth.logout()}>
+                <View style={[styles.actionStrip, { borderColor: Colors.danger + "40" }]}>
+                  <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
+                  <Text style={[styles.actionText, { color: Colors.danger }]}>{t('auth', 'logout')} ({auth.user.name})</Text>
+                </View>
+              </AnimatedPress>
+            </>
           ) : auth.isGuest ? (
             <AnimatedPress onPress={() => { auth.logout(); setShowAuth(true); }}>
               <LinearGradient

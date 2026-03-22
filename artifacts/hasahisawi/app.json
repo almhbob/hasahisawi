@@ -30,7 +30,9 @@
       },
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -42,6 +44,12 @@
       "expo-font",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "التطبيق يستخدم معرف الوجه لتسجيل الدخول بأمان"
+        }
+      ],
       [
         "expo-image-picker",
         {

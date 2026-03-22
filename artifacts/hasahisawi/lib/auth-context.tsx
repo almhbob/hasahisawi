@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import {
+  isBiometricsAvailable,
+  isBiometricsEnabled,
+  setBiometricsEnabled,
+  saveBiometricIdentifier,
+  authenticate,
+} from "@/lib/biometrics";
 
 export type AuthUser = {
   id: number;
@@ -18,7 +25,10 @@ type AuthContextValue = {
   isLoading: boolean;
   isGuest: boolean;
   canPost: boolean;
+  biometricsAvailable: boolean;
+  biometricsEnabled: boolean;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
+  loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   register: (
     name: string,
@@ -33,6 +43,8 @@ type AuthContextValue = {
   enterAsGuest: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  enableBiometrics: (identifier: string) => Promise<void>;
+  disableBiometrics: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,8 +73,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken]     = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
 
   const canPost = !isGuest && user !== null;
+
+  // ── فحص توفر البصمة ─────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const available = await isBiometricsAvailable();
+      setBiometricsAvailable(available);
+      if (available) {
+        const enabled = await isBiometricsEnabled();
+        setBiometricsEnabledState(enabled);
+      }
+    })();
+  }, []);
 
   // ── استعادة الجلسة عند بدء التطبيق ──────────────────────────
   useEffect(() => {
@@ -82,7 +108,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (savedToken && savedUser) {
-          // تحقق من صلاحية الجلسة مع الخادم
+          // إذا كانت البصمة مفعّلة، لا نستعيد الجلسة تلقائياً (تنتظر loginWithBiometrics)
+          const bioEnabled = await isBiometricsEnabled();
+          const bioAvailable = await isBiometricsAvailable();
+
+          if (bioEnabled && bioAvailable) {
+            // نحفظ البيانات في الذاكرة دون الإعلان عن المستخدم — شاشة الدخول ستعرض زر البصمة
+            // استمر في التحقق من صلاحية الجلسة خلفياً
+            try {
+              const res = await fetch(apiUrl("/api/auth/me"), {
+                headers: { Authorization: `Bearer ${savedToken}` },
+              });
+              if (!res.ok) {
+                await clearSession();
+                await setBiometricsEnabled(false);
+                setBiometricsEnabledState(false);
+              }
+            } catch {}
+            setIsLoading(false);
+            return;
+          }
+
+          // لا بصمة — استعد الجلسة مباشرة
           try {
             const res = await fetch(apiUrl("/api/auth/me"), {
               headers: { Authorization: `Bearer ${savedToken}` },
@@ -93,11 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(json.user);
               await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
             } else {
-              // الجلسة منتهية — امسحها
               await clearSession();
             }
           } catch {
-            // لا اتصال — استخدم البيانات المحفوظة
             setToken(savedToken);
             setUser(JSON.parse(savedUser));
           }
@@ -134,6 +179,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser({ id: 0, name: "زائر", role: "guest" });
     setToken(null);
     AsyncStorage.setItem(GUEST_KEY, "1");
+  };
+
+  // ── تسجيل الدخول بالبصمة ──────────────────────────────────────
+  const loginWithBiometrics = async (): Promise<boolean> => {
+    try {
+      const success = await authenticate("تحقق من هويتك للدخول إلى حصاحيصاوي");
+      if (!success) return false;
+
+      const [savedToken, savedUser] = await Promise.all([
+        AsyncStorage.getItem(TOKEN_KEY),
+        AsyncStorage.getItem(USER_KEY),
+      ]);
+
+      if (!savedToken || !savedUser) return false;
+
+      // تحقق من الجلسة مع الخادم
+      try {
+        const res = await fetch(apiUrl("/api/auth/me"), {
+          headers: { Authorization: `Bearer ${savedToken}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setToken(savedToken);
+          setUser(json.user);
+          setIsGuest(false);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
+          return true;
+        } else {
+          // الجلسة منتهية — ألغِ البصمة وامسح الجلسة
+          await clearSession();
+          await setBiometricsEnabled(false);
+          setBiometricsEnabledState(false);
+          return false;
+        }
+      } catch {
+        // لا اتصال — استخدم البيانات المحفوظة
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        setIsGuest(false);
+        return true;
+      }
+    } catch {
+      return false;
+    }
   };
 
   // ── تسجيل الدخول ──────────────────────────────────────────
@@ -178,6 +267,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveSession(json.user, json.token);
   };
 
+  // ── تفعيل/تعطيل البصمة ────────────────────────────────────
+  const enableBiometrics = async (identifier: string) => {
+    await setBiometricsEnabled(true);
+    await saveBiometricIdentifier(identifier);
+    setBiometricsEnabledState(true);
+  };
+
+  const disableBiometrics = async () => {
+    await setBiometricsEnabled(false);
+    setBiometricsEnabledState(false);
+  };
+
   // ── تحديث بيانات المستخدم ─────────────────────────────────
   const refreshUser = async () => {
     if (!token) return;
@@ -210,8 +311,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, token, isLoading, isGuest, canPost,
-        login, loginAdmin, register, registerAdmin,
+        biometricsAvailable, biometricsEnabled,
+        login, loginWithBiometrics, loginAdmin, register, registerAdmin,
         enterAsGuest, logout, refreshUser,
+        enableBiometrics, disableBiometrics,
       }}
     >
       {children}
