@@ -44,3 +44,13 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "hasahisawi.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "hasahisawi"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "hasahisawi.firebasestorage.app"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "133656291161"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:133656291161:web:7d0a88a80d3be1af418e48"
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-8NDWWB1735"
