@@ -69,21 +69,55 @@ jobs:
       - name: Patch build.gradle for signing
         working-directory: artifacts/hasahisawi/android
         run: |
-          node -e "
+          node - << 'JSEOF'
             const fs = require('fs');
             const file = 'app/build.gradle';
             let c = fs.readFileSync(file, 'utf8');
-            const header = 'def keystoreProps = new Properties()\ndef ksPropFile = rootProject.file(\"keystore.properties\")\nif (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }\n\n';
+
+            // Inject keystoreProps reader at top
+            const header = 'def keystoreProps = new Properties()\n' +
+              'def ksPropFile = rootProject.file("keystore.properties")\n' +
+              'if (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }\n\n';
             if (!c.includes('keystoreProps')) c = header + c;
+
+            const releaseBlock =
+              '\n        release {\n' +
+              '            storeFile keystoreProps["storeFile"] ? file(keystoreProps["storeFile"]) : null\n' +
+              '            storePassword keystoreProps["storePassword"]\n' +
+              '            keyAlias keystoreProps["keyAlias"]\n' +
+              '            keyPassword keystoreProps["keyPassword"]\n' +
+              '        }';
+
+            // Check if release signingConfig already exists
+            const hasReleaseSigningConfig = /signingConfigs\s*\{[\s\S]*?release\s*\{/.test(c);
+
             if (!c.includes('signingConfigs')) {
-              c = c.replace('android {', 'android {\n    signingConfigs {\n        release {\n            storeFile keystoreProps[\"storeFile\"] ? file(keystoreProps[\"storeFile\"]) : null\n            storePassword keystoreProps[\"storePassword\"]\n            keyAlias keystoreProps[\"keyAlias\"]\n            keyPassword keystoreProps[\"keyPassword\"]\n        }\n    }');
+              // No signingConfigs block at all - create one with release
+              c = c.replace('android {',
+                'android {\n    signingConfigs {' + releaseBlock + '\n    }');
+            } else if (!hasReleaseSigningConfig) {
+              // signingConfigs exists (likely with debug only) - inject release into it
+              c = c.replace(/signingConfigs\s*\{/, 'signingConfigs {' + releaseBlock);
             }
+
+            // Add signingConfig reference in buildTypes.release if missing
             if (!c.includes('signingConfig signingConfigs.release')) {
-              c = c.replace(/buildTypes\s*\{([\s\S]*?)release\s*\{/, function(m) { return m + '\n            signingConfig signingConfigs.release'; });
+              c = c.replace(
+                /buildTypes\s*\{([\s\S]*?)release\s*\{/,
+                function(m) { return m + '\n            signingConfig signingConfigs.release'; }
+              );
             }
+
             fs.writeFileSync(file, c);
             console.log('build.gradle patched successfully');
-          "
+            // Print lines around signingConfigs for verification
+            const lines = c.split('\n');
+            const idx = lines.findIndex(l => l.includes('signingConfigs'));
+            if (idx >= 0) {
+              console.log('--- signingConfigs block ---');
+              lines.slice(Math.max(0, idx-1), idx+12).forEach(l => console.log(l));
+            }
+          JSEOF
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
