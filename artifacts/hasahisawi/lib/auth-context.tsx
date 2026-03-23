@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getApiUrl } from "@/lib/query-client";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -8,15 +7,39 @@ import {
   saveBiometricIdentifier,
   authenticate,
 } from "@/lib/biometrics";
+import {
+  firebaseLoginEmail,
+  firebaseRegisterEmail,
+  firebaseLogout,
+  onFirebaseAuthChange,
+  getCurrentFirebaseUser,
+} from "@/lib/firebase/auth";
+import { fsSetDoc, fsGetDoc, COLLECTIONS } from "@/lib/firebase/firestore";
+import { isFirebaseConfigured } from "@/lib/firebase/index";
 
 export type AuthUser = {
   id: number;
+  uid?: string;
   name: string;
   national_id_masked?: string | null;
   phone?: string | null;
   email?: string | null;
   role: "user" | "admin" | "moderator" | "guest";
   permissions?: string[];
+  neighborhood?: string | null;
+};
+
+type UserProfile = {
+  uid: string;
+  name: string;
+  nationalId?: string;
+  phone?: string;
+  email?: string;
+  role: "user" | "admin" | "moderator";
+  permissions: string[];
+  neighborhood?: string;
+  birthDate?: string;
+  createdAt?: unknown;
 };
 
 type AuthContextValue = {
@@ -49,23 +72,42 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = "auth_session_token";
-const USER_KEY  = "auth_user_data";
-const GUEST_KEY = "auth_is_guest";
+const TOKEN_KEY      = "auth_session_token";
+const USER_KEY       = "auth_user_data";
+const GUEST_KEY      = "auth_is_guest";
+const IDENTIFIER_KEY = "auth_biometric_identifier";
+const PASSWORD_KEY   = "auth_biometric_password";
 
-function apiUrl(path: string): string {
-  return new URL(path, getApiUrl()).toString();
+const ADMIN_CODE = "HASAHISA_ADMIN_2026";
+
+function phoneToEmail(phone: string): string {
+  const clean = phone.replace(/\s+/g, "").replace(/^\+/, "");
+  return `${clean}@hasahisawi.app`;
 }
 
-async function apiFetch(path: string, body: object): Promise<{ user: AuthUser; token: string }> {
-  const res = await fetch(apiUrl(path), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "حدث خطأ في الاتصال بالخادم");
-  return json;
+function identifierToEmail(phoneOrEmail: string): string {
+  const trimmed = phoneOrEmail.trim();
+  if (trimmed.includes("@")) return trimmed.toLowerCase();
+  return phoneToEmail(trimmed);
+}
+
+function maskNationalId(id?: string): string | null {
+  if (!id || id.length < 4) return id ?? null;
+  return "*".repeat(id.length - 4) + id.slice(-4);
+}
+
+function profileToAuthUser(profile: UserProfile, idToken: string): AuthUser {
+  return {
+    id: 0,
+    uid: profile.uid,
+    name: profile.name,
+    national_id_masked: maskNationalId(profile.nationalId),
+    phone: profile.phone ?? null,
+    email: profile.email ?? null,
+    role: profile.role,
+    permissions: profile.permissions ?? [],
+    neighborhood: profile.neighborhood ?? null,
+  };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -78,7 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const canPost = !isGuest && user !== null;
 
-  // ── فحص توفر البصمة ─────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const available = await isBiometricsAvailable();
@@ -90,66 +131,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // ── استعادة الجلسة عند بدء التطبيق ──────────────────────────
   useEffect(() => {
-    (async () => {
-      try {
-        const [savedToken, savedUser, savedGuest] = await Promise.all([
-          AsyncStorage.getItem(TOKEN_KEY),
-          AsyncStorage.getItem(USER_KEY),
-          AsyncStorage.getItem(GUEST_KEY),
-        ]);
+    if (!isFirebaseConfigured) {
+      setIsLoading(false);
+      return;
+    }
 
-        if (savedGuest === "1" && !savedToken) {
+    const unsub = onFirebaseAuthChange(async (fbUser) => {
+      try {
+        const savedGuest = await AsyncStorage.getItem(GUEST_KEY);
+        if (savedGuest === "1" && !fbUser) {
           setIsGuest(true);
           setUser({ id: 0, name: "زائر", role: "guest" });
           setIsLoading(false);
           return;
         }
 
-        if (savedToken && savedUser) {
-          // إذا كانت البصمة مفعّلة، لا نستعيد الجلسة تلقائياً (تنتظر loginWithBiometrics)
+        if (!fbUser) {
           const bioEnabled = await isBiometricsEnabled();
           const bioAvailable = await isBiometricsAvailable();
-
           if (bioEnabled && bioAvailable) {
-            // نحفظ البيانات في الذاكرة دون الإعلان عن المستخدم — شاشة الدخول ستعرض زر البصمة
-            // استمر في التحقق من صلاحية الجلسة خلفياً
-            try {
-              const res = await fetch(apiUrl("/api/auth/me"), {
-                headers: { Authorization: `Bearer ${savedToken}` },
-              });
-              if (!res.ok) {
-                await clearSession();
-                await setBiometricsEnabled(false);
-                setBiometricsEnabledState(false);
-              }
-            } catch {}
             setIsLoading(false);
             return;
           }
-
-          // لا بصمة — استعد الجلسة مباشرة
-          try {
-            const res = await fetch(apiUrl("/api/auth/me"), {
-              headers: { Authorization: `Bearer ${savedToken}` },
-            });
-            if (res.ok) {
-              const json = await res.json();
-              setToken(savedToken);
-              setUser(json.user);
-              await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
-            } else {
-              await clearSession();
-            }
-          } catch {
-            setToken(savedToken);
-            setUser(JSON.parse(savedUser));
-          }
+          setUser(null);
+          setToken(null);
+          setIsLoading(false);
+          return;
         }
-      } catch {}
+
+        const bioEnabled = await isBiometricsEnabled();
+        const bioAvailable = await isBiometricsAvailable();
+        if (bioEnabled && bioAvailable) {
+          setIsLoading(false);
+          return;
+        }
+
+        const idToken = await fbUser.getIdToken();
+        const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+
+        if (profile) {
+          const authUser = profileToAuthUser(profile, idToken);
+          setUser(authUser);
+          setToken(idToken);
+          setIsGuest(false);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
+          await AsyncStorage.setItem(TOKEN_KEY, idToken);
+          await AsyncStorage.removeItem(GUEST_KEY);
+        } else {
+          await firebaseLogout();
+          setUser(null);
+          setToken(null);
+        }
+      } catch {
+        setUser(null);
+        setToken(null);
+      }
       setIsLoading(false);
-    })();
+    });
+
+    return unsub;
   }, []);
 
   const saveSession = async (u: AuthUser, t: string) => {
@@ -171,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),
       AsyncStorage.removeItem(GUEST_KEY),
+      AsyncStorage.removeItem(PASSWORD_KEY),
     ]);
   };
 
@@ -181,65 +223,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(GUEST_KEY, "1");
   };
 
-  // ── تسجيل الدخول بالبصمة ──────────────────────────────────────
   const loginWithBiometrics = async (): Promise<boolean> => {
     try {
       const success = await authenticate("تحقق من هويتك للدخول إلى حصاحيصاوي");
       if (!success) return false;
+
+      const [savedIdentifier, savedPassword] = await Promise.all([
+        AsyncStorage.getItem(IDENTIFIER_KEY),
+        AsyncStorage.getItem(PASSWORD_KEY),
+      ]);
+
+      if (savedIdentifier && savedPassword) {
+        await login(savedIdentifier, savedPassword);
+        return true;
+      }
 
       const [savedToken, savedUser] = await Promise.all([
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),
       ]);
 
-      if (!savedToken || !savedUser) return false;
-
-      // تحقق من الجلسة مع الخادم
-      try {
-        const res = await fetch(apiUrl("/api/auth/me"), {
-          headers: { Authorization: `Bearer ${savedToken}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setToken(savedToken);
-          setUser(json.user);
-          setIsGuest(false);
-          await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
-          return true;
-        } else {
-          // الجلسة منتهية — ألغِ البصمة وامسح الجلسة
-          await clearSession();
-          await setBiometricsEnabled(false);
-          setBiometricsEnabledState(false);
-          return false;
-        }
-      } catch {
-        // لا اتصال — استخدم البيانات المحفوظة
+      if (savedToken && savedUser) {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
         setIsGuest(false);
         return true;
       }
+
+      return false;
     } catch {
       return false;
     }
   };
 
-  // ── تسجيل الدخول ──────────────────────────────────────────
   const login = async (phoneOrEmail: string, password: string) => {
-    const json = await apiFetch("/api/auth/login", {
-      phone_or_email: phoneOrEmail.trim(),
-      password,
-    });
-    await saveSession(json.user, json.token);
+    const email = identifierToEmail(phoneOrEmail);
+    const fbUser = await firebaseLoginEmail(email, password);
+    const idToken = await fbUser.getIdToken();
+
+    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+    if (!profile) throw new Error("لم يُعثر على بيانات المستخدم. يرجى إنشاء حساب جديد.");
+
+    const authUser = profileToAuthUser(profile, idToken);
+    await saveSession(authUser, idToken);
   };
 
   const loginAdmin = async (email: string, password: string) => {
-    const json = await apiFetch("/api/auth/admin-login", { email, password });
-    await saveSession(json.user, json.token);
+    const fbUser = await firebaseLoginEmail(email.trim().toLowerCase(), password);
+    const idToken = await fbUser.getIdToken();
+
+    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+    if (!profile) throw new Error("لم يُعثر على بيانات الحساب.");
+    if (profile.role !== "admin" && profile.role !== "moderator") {
+      await firebaseLogout();
+      throw new Error("هذا الحساب لا يملك صلاحيات الإدارة.");
+    }
+
+    const authUser = profileToAuthUser(profile, idToken);
+    await saveSession(authUser, idToken);
   };
 
-  // ── إنشاء حساب جديد ───────────────────────────────────────
   const register = async (
     name: string,
     nationalId: string,
@@ -249,25 +292,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     birthDate?: string,
     neighborhood?: string,
   ) => {
-    const body: Record<string, string> = { name, password };
-    if (nationalId)   body.national_id  = nationalId;
-    if (isEmail || phoneOrEmail.includes("@")) body.email = phoneOrEmail.trim();
-    else              body.phone        = phoneOrEmail.trim();
-    if (birthDate)    body.birth_date   = birthDate;
-    if (neighborhood) body.neighborhood = neighborhood;
+    const email = identifierToEmail(phoneOrEmail);
+    const isActualEmail = isEmail || phoneOrEmail.includes("@");
 
-    const json = await apiFetch("/api/auth/register", body);
-    await saveSession(json.user, json.token);
+    const fbUser = await firebaseRegisterEmail(email, password, name);
+    const idToken = await fbUser.getIdToken();
+
+    const profile: UserProfile = {
+      uid: fbUser.uid,
+      name: name.trim(),
+      nationalId: nationalId || undefined,
+      phone: isActualEmail ? undefined : phoneOrEmail.trim(),
+      email: isActualEmail ? phoneOrEmail.trim().toLowerCase() : undefined,
+      role: "user",
+      permissions: [],
+      neighborhood: neighborhood || undefined,
+      birthDate: birthDate || undefined,
+    };
+
+    await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
+
+    const authUser = profileToAuthUser(profile, idToken);
+    await saveSession(authUser, idToken);
   };
 
-  const registerAdmin = async (name: string, email: string, password: string, adminCode: string) => {
-    const json = await apiFetch("/api/auth/register-admin", {
-      name, email, password, admin_code: adminCode,
-    });
-    await saveSession(json.user, json.token);
+  const registerAdmin = async (
+    name: string,
+    email: string,
+    password: string,
+    adminCode: string,
+  ) => {
+    if (adminCode !== ADMIN_CODE) {
+      throw new Error("رمز المسؤول غير صحيح.");
+    }
+
+    const fbUser = await firebaseRegisterEmail(
+      email.trim().toLowerCase(),
+      password,
+      name,
+    );
+    const idToken = await fbUser.getIdToken();
+
+    const profile: UserProfile = {
+      uid: fbUser.uid,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: "admin",
+      permissions: ["manage_users", "manage_content", "manage_notifications"],
+    };
+
+    await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
+
+    const authUser = profileToAuthUser(profile, idToken);
+    await saveSession(authUser, idToken);
   };
 
-  // ── تفعيل/تعطيل البصمة ────────────────────────────────────
   const enableBiometrics = async (identifier: string) => {
     await setBiometricsEnabled(true);
     await saveBiometricIdentifier(identifier);
@@ -277,33 +356,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const disableBiometrics = async () => {
     await setBiometricsEnabled(false);
     setBiometricsEnabledState(false);
+    await AsyncStorage.removeItem(PASSWORD_KEY);
   };
 
-  // ── تحديث بيانات المستخدم ─────────────────────────────────
   const refreshUser = async () => {
-    if (!token) return;
+    const fbUser = getCurrentFirebaseUser();
+    if (!fbUser) return;
     try {
-      const res = await fetch(apiUrl("/api/auth/me"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setUser(json.user);
-        await AsyncStorage.setItem(USER_KEY, JSON.stringify(json.user));
+      const idToken = await fbUser.getIdToken(true);
+      const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+      if (profile) {
+        const authUser = profileToAuthUser(profile, idToken);
+        setUser(authUser);
+        setToken(idToken);
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
+        await AsyncStorage.setItem(TOKEN_KEY, idToken);
       }
     } catch {}
   };
 
-  // ── تسجيل الخروج ──────────────────────────────────────────
   const logout = async () => {
-    if (token) {
-      try {
-        await fetch(apiUrl("/api/auth/logout"), {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch {}
-    }
+    try { await firebaseLogout(); } catch {}
     await clearSession();
   };
 
