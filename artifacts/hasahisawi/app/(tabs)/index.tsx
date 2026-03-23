@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Linking,
   TouchableOpacity,
   Alert,
+  FlatList,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, FadeInUp, FadeInRight,
@@ -22,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
 import BrandPattern from "@/components/BrandPattern";
@@ -29,8 +31,26 @@ import { useLang } from "@/lib/lang-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
 const { width } = Dimensions.get("window");
-const LOGO       = require("@/assets/images/logo.png");
-const CITY_IMAGE = require("@/assets/images/hasahisa-city.jpg");
+const LOGO         = require("@/assets/images/logo.png");
+const CITY_IMAGE   = require("@/assets/images/hasahisa-city.jpg");
+const FERRIS_WHEEL = require("@/assets/images/ferris-wheel.jpg");
+
+type ApiLandmark = { id: number; name: string; sub: string; image_url: string };
+
+const LOCAL_IMAGES: Record<string, any> = {
+  "local:ferris-wheel":  FERRIS_WHEEL,
+  "local:hasahisa-city": CITY_IMAGE,
+};
+
+function resolveLandmarkImage(url: string) {
+  if (LOCAL_IMAGES[url]) return LOCAL_IMAGES[url];
+  return { uri: url };
+}
+
+const FALLBACK_LANDMARKS: ApiLandmark[] = [
+  { id: -1, image_url: "local:ferris-wheel",  name: "عجلة الهواء",  sub: "كورنيش الحصاحيصا" },
+  { id: -2, image_url: "local:hasahisa-city", name: "كورنيش النيل", sub: "إطلالة على النيل الأزرق" },
+];
 
 type ServiceItem = {
   id: string; label: string; sub: string; icon: any;
@@ -51,8 +71,8 @@ function ServiceGridItem({
           <View style={[styles.gridGlow, { backgroundColor: item.color + "12" }]} />
           <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
             {item.iconType === "ionicons"
-              ? <Ionicons name={item.icon} size={26} color={item.color} />
-              : <MaterialCommunityIcons name={item.icon} size={26} color={item.color} />}
+              ? <Ionicons name={item.icon} size={22} color={item.color} />
+              : <MaterialCommunityIcons name={item.icon} size={22} color={item.color} />}
           </View>
           <Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>
           <Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>
@@ -64,6 +84,22 @@ function ServiceGridItem({
   );
 }
 
+function getGreeting(): { ar: string; en: string } {
+  const h = new Date().getHours();
+  if (h < 5)  return { ar: "تصبح على خير", en: "Good Night" };
+  if (h < 12) return { ar: "صباح الخير", en: "Good Morning" };
+  if (h < 17) return { ar: "مساء الخير", en: "Good Afternoon" };
+  if (h < 21) return { ar: "مساء النور", en: "Good Evening" };
+  return { ar: "تصبح على خير", en: "Good Night" };
+}
+
+function getArabicDate(): string {
+  const now = new Date();
+  const dayNames = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+  const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  return `${dayNames[now.getDay()]} · ${now.getDate()} ${monthNames[now.getMonth()]}`;
+}
+
 export default function HomeScreen() {
   const { t, isRTL, lang, tr } = useLang();
   const insets  = useSafeAreaInsets();
@@ -72,12 +108,24 @@ export default function HomeScreen() {
   const [showAuth, setShowAuth] = useState(false);
   const [bioLabel, setBioLabel] = useState("البصمة");
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
+  const [landmarks, setLandmarks] = useState<ApiLandmark[]>(FALLBACK_LANDMARKS);
+  const greeting = useMemo(() => getGreeting(), []);
+  const arabicDate = useMemo(() => getArabicDate(), []);
 
   useEffect(() => {
     (async () => {
       setBioLabel(await getBiometricLabel());
       setBioIcon(await getBiometricIcon() as keyof typeof Ionicons.glyphMap);
     })();
+  }, []);
+
+  useEffect(() => {
+    fetch(new URL("/api/landmarks", getApiUrl()).toString())
+      .then(r => r.ok ? r.json() : null)
+      .then((data: ApiLandmark[] | null) => {
+        if (Array.isArray(data) && data.length > 0) setLandmarks(data);
+      })
+      .catch(() => {});
   }, []);
 
   const SERVICES = useMemo(() => [
@@ -112,7 +160,7 @@ export default function HomeScreen() {
     >
       {/* ═══ HERO ═══ */}
       <ImageBackground
-        source={CITY_IMAGE}
+        source={FERRIS_WHEEL}
         style={[styles.hero, { paddingTop: topPad }]}
         imageStyle={styles.heroImage}
       >
@@ -195,24 +243,37 @@ export default function HomeScreen() {
       {/* ═══ BODY ═══ */}
       <View style={styles.body}>
 
-        {/* شريط الهوية — الشعار وسط + توهج */}
-        <Animated.View entering={FadeIn.delay(100).duration(800)} style={styles.brandBanner}>
+        {/* ═══ بطاقة التحية الشخصية ═══ */}
+        <Animated.View entering={FadeInDown.delay(100).springify().damping(18)} style={styles.greetingCard}>
           <LinearGradient
-            colors={[Colors.primary + "18", Colors.accent + "10", Colors.primary + "08"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={styles.brandBannerGrad}
-          >
-            <View style={styles.brandGlowLeft} />
-            <Image source={LOGO} style={styles.brandLogo} resizeMode="contain" />
-            <View style={{ flex: 1, marginHorizontal: 14 }}>
-              <Text style={styles.brandTitle}>حصاحيصاوي</Text>
-              <Text style={styles.brandSub}>بوابتك الذكية لمدينة الحصاحيصا</Text>
+            colors={[Colors.primary + "14", Colors.cardBg]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.greetingLeft, { alignSelf: "flex-end" }]}>
+            <Text style={styles.greetingText}>
+              {lang === "ar" ? greeting.ar : greeting.en}
+              {auth.user && !auth.isGuest ? `، ${auth.user.name.split(" ")[0]}` : ""}
+            </Text>
+            <Text style={styles.greetingDate}>{arabicDate}</Text>
+          </View>
+          <View style={styles.greetingRight}>
+            <View style={styles.greetingIconWrap}>
+              {auth.user && !auth.isGuest ? (
+                <Text style={styles.greetingInitial}>
+                  {auth.user.name?.charAt(0) || "؟"}
+                </Text>
+              ) : (
+                <Ionicons name="person-outline" size={22} color={Colors.primary} />
+              )}
             </View>
-            <View style={[styles.brandBadge, { backgroundColor: Colors.primary }]}>
-              <Text style={styles.brandBadgeText}>v1.0</Text>
-            </View>
-            <View style={styles.brandGlowRight} />
-          </LinearGradient>
+            {auth.user?.role === "admin" && (
+              <View style={styles.roleBadge}>
+                <Ionicons name="shield-checkmark" size={10} color="#000" />
+                <Text style={styles.roleBadgeText}>مشرف</Text>
+              </View>
+            )}
+          </View>
         </Animated.View>
 
         {/* لافتة وضع الزائر */}
@@ -245,6 +306,52 @@ export default function HomeScreen() {
             </LinearGradient>
           </Animated.View>
         )}
+
+        {/* ═══ معالم المدينة ═══ */}
+        <Animated.View entering={FadeInDown.delay(110).springify()} style={styles.landmarksSection}>
+          <View style={styles.landmarksHeader}>
+            <View style={[styles.landmarksDot, { backgroundColor: Colors.primary }]} />
+            <Text style={styles.landmarksTitle}>معالم المدينة</Text>
+            <View style={[styles.landmarksDot, { backgroundColor: Colors.accent }]} />
+          </View>
+          <FlatList
+            data={landmarks}
+            keyExtractor={item => String(item.id)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToAlignment="center"
+            decelerationRate="fast"
+            snapToInterval={width - 48}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+            renderItem={({ item, index }) => (
+              <Animated.View
+                entering={FadeInRight.delay(150 + index * 80).springify().damping(14)}
+                style={[styles.landmarkCard, { width: width - 64 }]}
+              >
+                <ImageBackground
+                  source={resolveLandmarkImage(item.image_url)}
+                  style={styles.landmarkImage}
+                  imageStyle={{ borderRadius: 18 }}
+                >
+                  <LinearGradient
+                    colors={["transparent", "rgba(4,13,24,0.78)", "rgba(4,13,24,0.96)"]}
+                    locations={[0.35, 0.72, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.landmarkInfo}>
+                    <View style={[styles.landmarkBadge, { backgroundColor: Colors.primary + "30", borderColor: Colors.primary + "60" }]}>
+                      <Ionicons name="location-outline" size={12} color={Colors.primary} />
+                      <Text style={[styles.landmarkBadgeText, { color: Colors.primary }]}>معلم بارز</Text>
+                    </View>
+                    <Text style={styles.landmarkName}>{item.name}</Text>
+                    <Text style={styles.landmarkSub}>{item.sub}</Text>
+                  </View>
+                  <View style={[styles.landmarkGlow, { backgroundColor: Colors.primary }]} />
+                </ImageBackground>
+              </Animated.View>
+            )}
+          />
+        </Animated.View>
 
         {/* بانرات الخدمات السريعة */}
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.quickBannersRow}>
@@ -553,12 +660,15 @@ const styles = StyleSheet.create({
 
   /* ══ HERO ══ */
   hero: {
-    minHeight: 340,
+    minHeight: 360,
     justifyContent: "flex-end",
     paddingHorizontal: 18,
     paddingBottom: 24,
   },
-  heroImage: { resizeMode: "cover" },
+  heroImage: {
+    resizeMode: "cover",
+    top: -30,
+  },
 
   /* Top Bar */
   topBar: {
@@ -626,38 +736,52 @@ const styles = StyleSheet.create({
   /* ══ BODY ══ */
   body: { paddingHorizontal: 16, paddingTop: 20, backgroundColor: Colors.bg },
 
-  /* Brand Banner */
-  brandBanner: {
+  /* Greeting Card */
+  greetingCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderRadius: 20, overflow: "hidden",
-    borderWidth: 1, borderColor: Colors.primary + "30",
-    marginBottom: 28,
+    borderWidth: 1, borderColor: Colors.primary + "28",
+    marginBottom: 22,
+    paddingHorizontal: 18, paddingVertical: 16,
   },
-  brandBannerGrad: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 14,
+  greetingLeft: {
+    flex: 1,
+    gap: 4,
   },
-  brandGlowLeft: {
-    position: "absolute", left: -20, top: "50%", marginTop: -30,
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: Colors.primary, opacity: 0.12,
+  greetingText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 18, color: Colors.textPrimary,
+    textAlign: "right",
   },
-  brandGlowRight: {
-    position: "absolute", right: -20, top: "50%", marginTop: -30,
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: Colors.accent, opacity: 0.12,
+  greetingDate: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12, color: Colors.textSecondary,
+    textAlign: "right",
   },
-  brandLogo: { width: 44, height: 44, borderRadius: 10 },
-  brandTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary,
+  greetingRight: {
+    alignItems: "center",
+    gap: 4,
+    marginRight: 14,
   },
-  brandSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2,
+  greetingIconWrap: {
+    width: 48, height: 48, borderRadius: 16,
+    backgroundColor: Colors.primary + "20",
+    borderWidth: 1.5, borderColor: Colors.primary + "50",
+    alignItems: "center", justifyContent: "center",
   },
-  brandBadge: {
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+  greetingInitial: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22, color: Colors.primary,
   },
-  brandBadgeText: {
-    fontFamily: "Cairo_700Bold", fontSize: 11, color: "#000",
+  roleBadge: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: Colors.primary, borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  roleBadgeText: {
+    fontFamily: "Cairo_700Bold", fontSize: 9, color: "#000",
   },
 
   /* Section Header */
@@ -677,40 +801,41 @@ const styles = StyleSheet.create({
     width: 6, height: 6, borderRadius: 3,
   },
 
-  /* Grid */
+  /* Grid — 3 columns */
   gridContainer: {
     flexDirection: "row", flexWrap: "wrap",
-    justifyContent: "space-between", gap: 12,
+    gap: 10,
   },
   gridItemContainer: {
-    width: (width - 32 - 12) / 2, marginBottom: 4,
+    width: (width - 32 - 20) / 3, marginBottom: 2,
   },
   gridItem: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 20, padding: 16,
-    alignItems: "center", height: 148,
+    borderRadius: 18, padding: 14,
+    alignItems: "center", height: 124,
     justifyContent: "center",
     borderWidth: 1, borderColor: Colors.divider,
     overflow: "hidden",
   },
   gridGlow: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 60, borderRadius: 20,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 50, borderRadius: 18,
   },
   gridIconWrap: {
-    width: 54, height: 54, borderRadius: 16,
+    width: 46, height: 46, borderRadius: 14,
     justifyContent: "center", alignItems: "center",
-    marginBottom: 10, borderWidth: 1,
+    marginBottom: 8, borderWidth: 1,
   },
   gridLabel: {
-    fontFamily: "Cairo_700Bold", fontSize: 14,
+    fontFamily: "Cairo_700Bold", fontSize: 12,
     color: Colors.textPrimary, textAlign: "center",
   },
   gridSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 10,
+    fontFamily: "Cairo_400Regular", fontSize: 9,
     color: Colors.textSecondary, textAlign: "center", marginTop: 2,
+    lineHeight: 13,
   },
   gridBottomLine: {
-    position: "absolute", bottom: 0, left: 16, right: 16, height: 2, borderRadius: 1, opacity: 0.6,
+    position: "absolute", bottom: 0, left: 14, right: 14, height: 2, borderRadius: 1, opacity: 0.55,
   },
 
   /* Quick Banners Row */
@@ -896,5 +1021,81 @@ const styles = StyleSheet.create({
   devCopyright: {
     fontFamily: "Cairo_400Regular", fontSize: 11,
     color: Colors.textMuted, textAlign: "center", marginTop: 2,
+  },
+
+  /* ── معالم المدينة ── */
+  landmarksSection: {
+    marginBottom: 20,
+  },
+  landmarksHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  landmarksTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: Colors.text,
+    letterSpacing: 0.5,
+  },
+  landmarksDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.8,
+  },
+  landmarkCard: {
+    borderRadius: 18,
+    overflow: "hidden",
+    elevation: 6,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
+  landmarkImage: {
+    height: 190,
+    justifyContent: "flex-end",
+  },
+  landmarkInfo: {
+    padding: 14,
+    gap: 4,
+  },
+  landmarkBadge: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-end",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  landmarkBadgeText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 10,
+  },
+  landmarkName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 17,
+    color: "#fff",
+    textAlign: "right",
+  },
+  landmarkSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "right",
+  },
+  landmarkGlow: {
+    height: 2.5,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    borderRadius: 2,
+    opacity: 0.6,
   },
 });
