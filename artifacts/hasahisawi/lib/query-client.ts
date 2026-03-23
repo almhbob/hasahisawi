@@ -2,19 +2,21 @@ import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
- * @returns {string} The API base URL
+ * Gets the base URL for the Express API server.
+ * Returns null when EXPO_PUBLIC_DOMAIN is not configured.
  */
 export function getApiUrl(): string {
-  let host = process.env.EXPO_PUBLIC_DOMAIN;
-
-  if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+  const host = process.env.EXPO_PUBLIC_DOMAIN;
+  if (!host) return "";
+  try {
+    return new URL(`https://${host}`).href;
+  } catch {
+    return "";
   }
+}
 
-  let url = new URL(`https://${host}`);
-
-  return url.href;
+export function isApiConfigured(): boolean {
+  return !!process.env.EXPO_PUBLIC_DOMAIN;
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -30,6 +32,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error("لا يوجد اتصال بالخادم");
   const url = new URL(route, baseUrl);
 
   const res = await fetch(url.toString(), {
@@ -50,6 +53,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const baseUrl = getApiUrl();
+    if (!baseUrl) return null as T;
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
     const res = await fetch(url.toString(), {
