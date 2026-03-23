@@ -35,7 +35,7 @@ function AuthGate() {
   // تسجيل الإشعارات عند تسجيل الدخول
   useEffect(() => {
     if (!user || isGuest) return;
-    registerForPushNotifications(String(user.id)).catch(() => {});
+    registerForPushNotifications(user.uid ?? String(user.id)).catch(() => {});
     const unsub = addNotificationListener(
       (_n) => {},
       (data) => {
