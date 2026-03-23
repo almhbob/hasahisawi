@@ -518,7 +518,7 @@ function PostCard({
             </AnimatedPress>
           )}
           <Text style={styles.cardTime}>{timeAgo(post.created_at, t)}</Text>
-          <View style={[styles.catBadge, { backgroundColor: catColor + "18" }]}>
+          <View style={[styles.catBadge, { backgroundColor: catColor + "15", borderColor: catColor + "40" }]}>
             <Text style={[styles.catText, { color: catColor }]}>{catLabel}</Text>
           </View>
         </View>
@@ -900,45 +900,59 @@ const styles = StyleSheet.create({
   filterText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   filterTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
 
-  list: { padding: 16, gap: 16 },
+  list: { padding: 14, gap: 12 },
   card: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.divider,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  cardTop: { justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
+  cardTop: { justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
   cardAuthorRow: { alignItems: "center", gap: 10 },
   avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary + "15",
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: Colors.primary + "20",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.primary + "30",
+    borderWidth: 1.5,
+    borderColor: Colors.primary + "40",
   },
-  avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.primary },
+  avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.primary },
   cardAuthor: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  cardMeta: { alignItems: "center", gap: 8 },
-  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  catBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  cardMeta: { alignItems: "flex-end", gap: 6 },
+  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  catBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
   catText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  deleteBtn: { padding: 4 },
+  deleteBtn: { padding: 6 },
 
   cardContent: {
     fontFamily: "Cairo_400Regular",
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 24,
     color: Colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginBottom: 12 },
-  cardActions: { gap: 20 },
-  actionBtn: { alignItems: "center", gap: 6 },
-  actionCount: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  cardActions: { gap: 14 },
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", marginTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
