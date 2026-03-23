@@ -4,19 +4,25 @@ import {
   ScrollView, Platform, ActivityIndicator, Image,
   KeyboardAvoidingView, Pressable, Dimensions, Modal, FlatList, Alert,
 } from "react-native";
-import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, {
+  FadeIn, FadeInDown, FadeInUp,
+  useSharedValue, useAnimatedStyle, withSpring, withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { ImageBackground } from "react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import BrandPattern from "@/components/BrandPattern";
 import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
-const CITY_CREST  = require("@/assets/images/city-crest.png");
-const { height: SCREEN_H } = Dimensions.get("window");
+const CITY_IMAGE = require("@/assets/images/hasahisa-city.jpg");
+const FERRIS     = require("@/assets/images/ferris-wheel.jpg");
+const LOGO       = require("@/assets/images/logo.png");
+
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
 type Mode = "login" | "register";
 
@@ -25,27 +31,26 @@ export default function LoginScreen() {
   const { login, register, enterAsGuest, loginWithBiometrics,
           enableBiometrics, biometricsAvailable, biometricsEnabled } = useAuth();
 
-  const [mode, setMode]         = useState<Mode>("login");
-  const [name, setName]         = useState("");
-  const [nationalId, setNationalId] = useState("");
-  const [identifier, setIdentifier] = useState("");
-  const [useEmail, setUseEmail] = useState(false);
-  const [password, setPassword] = useState("");
-  const [confirmPwd, setConfirmPwd] = useState("");
-  const [showPwd, setShowPwd]   = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
-  const [birthDay, setBirthDay]     = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthYear, setBirthYear]   = useState("");
+  const [mode, setMode]               = useState<Mode>("login");
+  const [name, setName]               = useState("");
+  const [nationalId, setNationalId]   = useState("");
+  const [identifier, setIdentifier]   = useState("");
+  const [useEmail, setUseEmail]       = useState(false);
+  const [password, setPassword]       = useState("");
+  const [confirmPwd, setConfirmPwd]   = useState("");
+  const [showPwd, setShowPwd]         = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
+  const [birthDay, setBirthDay]       = useState("");
+  const [birthMonth, setBirthMonth]   = useState("");
+  const [birthYear, setBirthYear]     = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [showNbrModal, setShowNbrModal] = useState(false);
-  const [nbrSearch, setNbrSearch]   = useState("");
-  const [bioLabel, setBioLabel] = useState("البصمة");
-  const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
-  const [bioLoading, setBioLoading] = useState(false);
+  const [nbrSearch, setNbrSearch]     = useState("");
+  const [bioLabel, setBioLabel]       = useState("البصمة");
+  const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
+  const [bioLoading, setBioLoading]   = useState(false);
 
-  // تحميل معلومات البصمة
   useEffect(() => {
     (async () => {
       const label = await getBiometricLabel();
@@ -55,7 +60,6 @@ export default function LoginScreen() {
     })();
   }, []);
 
-  // تشغيل البصمة تلقائياً عند فتح الشاشة إذا كانت مفعّلة
   useEffect(() => {
     if (biometricsEnabled && biometricsAvailable && mode === "login") {
       handleBiometricLogin();
@@ -155,10 +159,7 @@ export default function LoginScreen() {
       `هل تريد استخدام ${bioLabel} لتسجيل الدخول بسرعة في المرة القادمة؟`,
       [
         { text: "لا شكراً", style: "cancel" },
-        {
-          text: "نعم، فعّل",
-          onPress: () => enableBiometrics(id),
-        },
+        { text: "نعم، فعّل", onPress: () => enableBiometrics(id) },
       ],
     );
   };
@@ -169,37 +170,53 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* ─── Hero ─────────────────────────────────────── */}
-      <View style={styles.hero}>
-        {/* خلفية كريمية */}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "#F2EBD8" }]} />
-
-        {/* علامة مائية بنمط الشعار */}
-        <BrandPattern variant="corner" opacity={0.04} />
-
-        {/* ── شعار المدينة يملأ الـ Hero ── */}
-        <Animated.View
-          entering={FadeIn.delay(60).duration(800)}
-          style={[styles.crestZone, { paddingTop: insets.top }]}
-        >
-          <Image source={CITY_CREST} style={styles.crestImg} resizeMode="contain" />
-        </Animated.View>
-
-        {/* تدرج سفلي يذوب نحو داكن */}
+      <ImageBackground
+        source={FERRIS}
+        style={[styles.hero, { paddingTop: insets.top }]}
+        imageStyle={styles.heroImage}
+      >
+        {/* طبقة تدرج داكنة */}
         <LinearGradient
-          colors={["transparent", "rgba(13,26,18,0.55)", Colors.bg]}
-          locations={[0.5, 0.82, 1]}
-          style={styles.heroFade}
+          colors={[
+            "rgba(9,15,12,0.25)",
+            "rgba(13,26,18,0.50)",
+            "rgba(9,15,12,0.88)",
+            Colors.bg,
+          ]}
+          locations={[0, 0.35, 0.72, 1]}
+          style={StyleSheet.absoluteFill}
         />
 
-        {/* اسم التطبيق أسفل */}
-        <Animated.View entering={FadeInUp.delay(300).springify().damping(18)} style={styles.heroBottom}>
-          <Text style={styles.appName}>حصاحيصاوي</Text>
-          <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
+        {/* محتوى الـ Hero */}
+        <Animated.View
+          entering={FadeIn.delay(80).duration(900)}
+          style={styles.heroContent}
+        >
+          {/* الشعار */}
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={[Colors.primary + "30", Colors.accent + "20"]}
+              style={styles.logoGlow}
+            />
+            <View style={styles.logoWrap}>
+              <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+            </View>
+          </View>
+
+          {/* اسم التطبيق */}
+          <Animated.View entering={FadeInUp.delay(260).springify().damping(18)} style={styles.heroTitleWrap}>
+            <Text style={styles.appName}>حصاحيصاوي</Text>
+            <View style={styles.taglineRow}>
+              <View style={styles.taglineDot} />
+              <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
+              <View style={styles.taglineDot} />
+            </View>
+          </Animated.View>
         </Animated.View>
-      </View>
+      </ImageBackground>
 
       {/* ─── Form card ────────────────────────────────── */}
-      <Animated.View entering={FadeInUp.delay(180).springify().damping(18)} style={styles.card}>
+      <Animated.View entering={FadeInUp.delay(160).springify().damping(20)} style={styles.card}>
         {/* Mode tabs */}
         <View style={styles.modeTabs}>
           <TouchableOpacity
@@ -207,9 +224,15 @@ export default function LoginScreen() {
             onPress={() => switchMode("login")}
             activeOpacity={0.8}
           >
+            {mode === "login" && (
+              <LinearGradient
+                colors={[Colors.primary + "22", Colors.primary + "0A"]}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <Ionicons
               name={mode === "login" ? "log-in" : "log-in-outline"}
-              size={16}
+              size={17}
               color={mode === "login" ? Colors.primary : Colors.textMuted}
             />
             <Text style={[styles.modeTabText, mode === "login" && styles.modeTabTextActive]}>
@@ -221,9 +244,15 @@ export default function LoginScreen() {
             onPress={() => switchMode("register")}
             activeOpacity={0.8}
           >
+            {mode === "register" && (
+              <LinearGradient
+                colors={[Colors.primary + "22", Colors.primary + "0A"]}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <Ionicons
               name={mode === "register" ? "person-add" : "person-add-outline"}
-              size={16}
+              size={17}
               color={mode === "register" ? Colors.primary : Colors.textMuted}
             />
             <Text style={[styles.modeTabText, mode === "register" && styles.modeTabTextActive]}>
@@ -274,12 +303,12 @@ export default function LoginScreen() {
           {mode === "register" && (
             <View style={styles.typeRow}>
               <TypeToggle
-                label="بريد إلكتروني" icon="mail-outline"
-                active={useEmail} onPress={() => { setUseEmail(true); setIdentifier(""); }}
-              />
-              <TypeToggle
                 label="رقم الهاتف" icon="call-outline"
                 active={!useEmail} onPress={() => { setUseEmail(false); setIdentifier(""); }}
+              />
+              <TypeToggle
+                label="بريد إلكتروني" icon="mail-outline"
+                active={useEmail} onPress={() => { setUseEmail(true); setIdentifier(""); }}
               />
             </View>
           )}
@@ -315,7 +344,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPwd}
             />
-            <Pressable onPress={() => setShowPwd(p => !p)} hitSlop={10} style={{ paddingHorizontal: 12 }}>
+            <Pressable onPress={() => setShowPwd(p => !p)} hitSlop={10} style={styles.eyeBtn}>
               <Ionicons name={showPwd ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
             </Pressable>
           </Field>
@@ -334,7 +363,7 @@ export default function LoginScreen() {
             </Field>
           )}
 
-          {/* ── تاريخ الميلاد ── */}
+          {/* تاريخ الميلاد */}
           {mode === "register" && (
             <View style={s2.fieldWrap}>
               <View style={s2.fieldHeader}>
@@ -386,7 +415,7 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* ── الحي / القرية ── */}
+          {/* الحي / القرية */}
           {mode === "register" && (
             <View style={s2.fieldWrap}>
               <View style={s2.fieldHeader}>
@@ -395,10 +424,17 @@ export default function LoginScreen() {
                 <Text style={s2.optional}>(اختياري)</Text>
               </View>
               <Pressable style={s2.pickerBtn} onPress={() => setShowNbrModal(true)}>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color={neighborhood ? Colors.primary : Colors.textMuted}
+                />
                 <Text style={neighborhood ? s2.pickerVal : s2.pickerPlaceholder}>
                   {neighborhood || "اختر من أحياء وقرى الحصاحيصا"}
                 </Text>
-                <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+                {neighborhood && (
+                  <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                )}
               </Pressable>
             </View>
           )}
@@ -406,7 +442,7 @@ export default function LoginScreen() {
           {/* خطأ */}
           {!!error && (
             <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+              <Ionicons name="alert-circle" size={18} color={Colors.danger} />
               <Text style={styles.errorText}>{error}</Text>
             </Animated.View>
           )}
@@ -416,7 +452,7 @@ export default function LoginScreen() {
             onPress={handleSubmit}
             disabled={loading}
             activeOpacity={0.88}
-            style={{ opacity: loading ? 0.75 : 1, marginTop: 8 }}
+            style={{ opacity: loading ? 0.75 : 1, marginTop: 6 }}
           >
             <LinearGradient
               colors={[Colors.primary, Colors.primaryDim]}
@@ -424,21 +460,21 @@ export default function LoginScreen() {
               style={styles.submitBtn}
             >
               {loading
-                ? <ActivityIndicator color="#000" />
+                ? <ActivityIndicator color="#000" size="small" />
                 : <>
-                    <Ionicons
-                      name={mode === "login" ? "log-in-outline" : "person-add-outline"}
-                      size={20} color="#000"
-                    />
                     <Text style={styles.submitText}>
                       {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
                     </Text>
+                    <Ionicons
+                      name={mode === "login" ? "arrow-back" : "person-add-outline"}
+                      size={19} color="#000"
+                    />
                   </>
               }
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* ── زر البصمة — يظهر في وضع الدخول فقط عند التفعيل ── */}
+          {/* زر البصمة */}
           {mode === "login" && biometricsAvailable && biometricsEnabled && (
             <Animated.View entering={FadeInDown.duration(300)}>
               <TouchableOpacity
@@ -447,10 +483,12 @@ export default function LoginScreen() {
                 activeOpacity={0.85}
                 style={[styles.bioBtn, bioLoading && { opacity: 0.7 }]}
               >
-                {bioLoading
-                  ? <ActivityIndicator color={Colors.primary} size="small" />
-                  : <Ionicons name={bioIcon} size={26} color={Colors.primary} />
-                }
+                <View style={styles.bioBtnIcon}>
+                  {bioLoading
+                    ? <ActivityIndicator color={Colors.primary} size="small" />
+                    : <Ionicons name={bioIcon} size={24} color={Colors.primary} />
+                  }
+                </View>
                 <Text style={styles.bioText}>{bioLabel}</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -465,19 +503,21 @@ export default function LoginScreen() {
 
           {/* زائر */}
           <TouchableOpacity style={styles.guestBtn} onPress={handleGuest} activeOpacity={0.8}>
-            <Ionicons name="eye-outline" size={18} color={Colors.textMuted} />
+            <Ionicons name="eye-outline" size={20} color={Colors.textSecondary} />
             <View style={{ flex: 1 }}>
               <Text style={styles.guestTitle}>متابعة كزائر</Text>
-              <Text style={styles.guestSub}>مشاهدة فقط · بدون نشر أو تعليق</Text>
+              <Text style={styles.guestSub}>تصفح بدون حساب · مشاهدة فقط</Text>
             </View>
-            <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+            <View style={styles.guestArrow}>
+              <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
+            </View>
           </TouchableOpacity>
 
-          <View style={{ height: insets.bottom + 8 }} />
+          <View style={{ height: insets.bottom + 12 }} />
         </ScrollView>
       </Animated.View>
 
-      {/* ── مودال الحي / القرية ── */}
+      {/* مودال الحي / القرية */}
       <Modal visible={showNbrModal} animationType="slide" transparent onRequestClose={() => setShowNbrModal(false)}>
         <Pressable style={s2.modalOverlay} onPress={() => setShowNbrModal(false)}>
           <Pressable style={[s2.modalSheet, { paddingBottom: insets.bottom + 12 }]} onPress={e => e.stopPropagation()}>
@@ -505,12 +545,16 @@ export default function LoginScreen() {
                   <Ionicons
                     name={item.type === "neighborhood" ? "home-outline" : "leaf-outline"}
                     size={16}
-                    color={item.type === "neighborhood" ? Colors.primary : Colors.accent}
+                    color={neighborhood === item.label ? Colors.primary : (item.type === "neighborhood" ? Colors.primary : Colors.accent)}
                   />
                   <Text style={[s2.nbrLabel, neighborhood === item.label && s2.nbrLabelActive]}>
                     {item.label}
                   </Text>
-                  <Text style={s2.nbrType}>{item.type === "neighborhood" ? "حي" : "قرية"}</Text>
+                  <View style={[s2.nbrTypeBadge, { backgroundColor: item.type === "neighborhood" ? Colors.primary + "20" : Colors.accent + "20" }]}>
+                    <Text style={[s2.nbrType, { color: item.type === "neighborhood" ? Colors.primary : Colors.accent }]}>
+                      {item.type === "neighborhood" ? "حي" : "قرية"}
+                    </Text>
+                  </View>
                 </Pressable>
               )}
             />
@@ -521,7 +565,7 @@ export default function LoginScreen() {
   );
 }
 
-/* ─── مساعدات الواجهة ─────────────────────────────── */
+/* ─── مساعدات ─────────────────────────────── */
 function Field({
   label, icon, required, optional, children,
 }: {
@@ -531,12 +575,12 @@ function Field({
   return (
     <View style={styles.fieldBlock}>
       <View style={styles.labelRow}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        {required && <Text style={styles.req}> *</Text>}
+        {required && <Text style={styles.req}>*</Text>}
         {optional && <Text style={styles.optionalTag}>اختياري</Text>}
+        <Text style={styles.fieldLabel}>{label}</Text>
       </View>
       <View style={styles.fieldWrap}>
-        <Ionicons name={icon} size={18} color={Colors.textMuted} style={{ paddingHorizontal: 12 }} />
+        <Ionicons name={icon} size={18} color={Colors.textMuted} style={styles.fieldIcon} />
         {children}
       </View>
     </View>
@@ -551,6 +595,12 @@ function TypeToggle({ label, icon, active, onPress }: {
       style={[styles.typeBtn, active && styles.typeBtnActive]}
       onPress={onPress} activeOpacity={0.8}
     >
+      {active && (
+        <LinearGradient
+          colors={[Colors.primary + "20", Colors.primary + "08"]}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <Ionicons name={icon} size={15} color={active ? Colors.primary : Colors.textMuted} />
       <Text style={[styles.typeBtnText, active && styles.typeBtnTextActive]}>{label}</Text>
     </TouchableOpacity>
@@ -562,87 +612,94 @@ const styles = StyleSheet.create({
   root: {
     flex: 1, backgroundColor: Colors.bg,
   },
+
   /* Hero */
   hero: {
-    height: SCREEN_H * 0.62,
-    overflow: "hidden",
+    height: SCREEN_H * 0.40,
+    justifyContent: "flex-end",
+    paddingBottom: 0,
   },
-  /* منطقة الشعار — تملأ الـ hero مع ترك مسافة سفلية للنص */
-  crestZone: {
-    position: "absolute",
-    top: 0, left: 0, right: 0,
-    bottom: 80,
+  heroImage: {
+    resizeMode: "cover",
+  },
+  heroContent: {
+    alignItems: "center",
+    paddingBottom: 28,
+    gap: 12,
+  },
+  logoContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
   },
-  crestImg: {
-    width: "92%",
-    height: "92%",
-  },
-  /* تدرج سفلي */
-  heroFade: {
+  logoGlow: {
     position: "absolute",
-    left: 0, right: 0, bottom: 0,
-    height: 200,
+    width: 100, height: 100, borderRadius: 50,
+    opacity: 0.6,
   },
-  /* اسم التطبيق */
-  heroBottom: {
-    position: "absolute",
-    bottom: 14,
-    left: 0, right: 0,
-    alignItems: "center",
-    paddingHorizontal: 24,
+  logoWrap: {
+    width: 72, height: 72,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    borderWidth: 2, borderColor: Colors.primary + "80",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8, shadowRadius: 20, elevation: 12,
   },
+  logoImg: { width: "100%", height: "100%" },
+  heroTitleWrap: { alignItems: "center", gap: 6 },
   appName: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 28,
-    color: Colors.textPrimary,
-    textShadowColor: "rgba(0,0,0,0.6)",
+    fontSize: 30, color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    textShadowRadius: 8,
+  },
+  taglineRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+  },
+  taglineDot: {
+    width: 4, height: 4, borderRadius: 2,
+    backgroundColor: Colors.primary,
+    opacity: 0.8,
   },
   tagline: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    textShadowColor: "rgba(0,0,0,0.4)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontSize: 13, color: "rgba(255,255,255,0.80)",
   },
 
   /* Card */
   card: {
     flex: 1,
     backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderTopWidth: 1.5,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: Colors.primary + "28",
+    borderColor: Colors.primary + "30",
     overflow: "hidden",
+    marginTop: -12,
   },
 
   /* Mode tabs */
   modeTabs: {
     flexDirection: "row",
     margin: 16,
+    marginBottom: 10,
     backgroundColor: Colors.bg,
-    borderRadius: 14,
-    padding: 3,
-    gap: 3,
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
   },
   modeTab: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 7, paddingVertical: 11, borderRadius: 11,
+    gap: 7, paddingVertical: 12, borderRadius: 13, overflow: "hidden",
   },
   modeTabActive: {
-    backgroundColor: Colors.cardBgElevated,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
+    borderWidth: 1, borderColor: Colors.primary + "40",
   },
   modeTabText: {
     fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted,
@@ -651,21 +708,25 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_700Bold", color: Colors.primary,
   },
 
-  /* Form scroll */
+  /* Form */
   formScroll: {
-    paddingHorizontal: 20, gap: 14, paddingBottom: 12,
+    paddingHorizontal: 20, gap: 12, paddingBottom: 12,
   },
-
-  /* Field */
-  fieldBlock: { gap: 6 },
-  labelRow: { flexDirection: "row", alignItems: "center" },
+  fieldBlock: { gap: 7 },
+  labelRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
   fieldLabel: {
     fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
-    textAlign: "right",
+    flex: 1, textAlign: "right",
   },
-  req: { color: Colors.danger, fontFamily: "Cairo_600SemiBold", fontSize: 13 },
+  req: {
+    color: Colors.danger, fontFamily: "Cairo_700Bold", fontSize: 16,
+    lineHeight: 20,
+  },
   optionalTag: {
-    marginRight: 8,
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
     backgroundColor: Colors.divider, borderRadius: 6,
     paddingHorizontal: 7, paddingVertical: 2,
@@ -674,75 +735,85 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1.5, borderColor: Colors.divider,
-    borderRadius: 14, backgroundColor: Colors.bg,
+    borderRadius: 16, backgroundColor: Colors.bg,
     overflow: "hidden",
+    minHeight: 52,
   },
+  fieldIcon: { paddingHorizontal: 13 },
   input: {
     flex: 1,
     fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
-    paddingVertical: 13,
+    paddingVertical: 14,
     textAlign: "right",
   },
+  eyeBtn: { paddingHorizontal: 14 },
 
   /* Type row */
   typeRow: {
-    flexDirection: "row", gap: 8,
-    backgroundColor: Colors.bg, borderRadius: 12, padding: 3,
+    flexDirection: "row-reverse", gap: 8,
+    backgroundColor: Colors.bg, borderRadius: 14, padding: 4,
   },
   typeBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 9, borderRadius: 10,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 7, paddingVertical: 10, borderRadius: 11, overflow: "hidden",
   },
   typeBtnActive: {
-    backgroundColor: Colors.cardBgElevated,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2,
+    borderWidth: 1, borderColor: Colors.primary + "40",
   },
   typeBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
   typeBtnTextActive: { color: Colors.primary, fontFamily: "Cairo_600SemiBold" },
 
   /* Error */
   errorBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: Colors.danger + "15",
-    borderRadius: 12, padding: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
+    backgroundColor: Colors.danger + "14",
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: 1, borderColor: Colors.danger + "30",
   },
   errorText: {
     fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger,
-    flex: 1, textAlign: "right",
+    flex: 1, textAlign: "right", lineHeight: 20,
   },
 
   /* Submit */
   submitBtn: {
-    borderRadius: 16, paddingVertical: 15,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderRadius: 18, paddingVertical: 15,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
   },
   submitText: {
     fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000",
   },
 
+  /* Biometric */
+  bioBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 12, borderRadius: 16, paddingVertical: 13,
+    borderWidth: 1.5, borderColor: Colors.primary + "40",
+    backgroundColor: Colors.primary + "0A",
+  },
+  bioBtnIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: Colors.primary + "18",
+    alignItems: "center", justifyContent: "center",
+  },
+  bioText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary,
+  },
+
   /* Divider */
   dividerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 4,
+    flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 2,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   /* Guest */
-  bioBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    backgroundColor: Colors.cardBgElevated, borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: Colors.primary + "44",
-  },
-  bioText: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary,
-  },
   guestBtn: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: Colors.bg, borderRadius: 14, padding: 14,
-    borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed",
+    flexDirection: "row-reverse", alignItems: "center", gap: 14,
+    backgroundColor: Colors.bg, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16,
+    borderWidth: 1.5, borderColor: Colors.divider,
   },
   guestTitle: {
     fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary,
@@ -752,44 +823,60 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
     marginTop: 2, textAlign: "right",
   },
+  guestArrow: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: Colors.divider,
+    alignItems: "center", justifyContent: "center",
+  },
 });
 
 const s2 = StyleSheet.create({
-  fieldWrap: { marginBottom: 14 },
+  fieldWrap: { marginBottom: 12 },
   fieldHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   optional: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   dateRow: { flexDirection: "row-reverse", gap: 8 },
-  dateBox: { backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, padding: 6 },
+  dateBox: {
+    backgroundColor: Colors.cardBg, borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.divider, padding: 8,
+  },
   dateLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", marginBottom: 4 },
-  dateInput: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, height: 36, textAlignVertical: "center" },
+  dateInput: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary,
+    height: 38, textAlignVertical: "center",
+  },
   pickerBtn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
-    paddingHorizontal: 14, paddingVertical: 14, gap: 8,
+    backgroundColor: Colors.bg, borderRadius: 16,
+    borderWidth: 1.5, borderColor: Colors.divider,
+    paddingHorizontal: 14, paddingVertical: 15, gap: 10, minHeight: 52,
   },
   pickerVal: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   pickerPlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
   modalSheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingTop: 12, paddingHorizontal: 0,
+    borderTopWidth: 1, borderColor: Colors.primary + "25",
   },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 12 },
+  modalHandle: { width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 14 },
   searchWrap: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: Colors.bg, borderRadius: 12, marginHorizontal: 16, marginBottom: 8,
-    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: Colors.bg, borderRadius: 14, marginHorizontal: 16, marginBottom: 8,
+    paddingHorizontal: 14, paddingVertical: 11,
+    borderWidth: 1, borderColor: Colors.divider,
   },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   nbrRow: {
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    paddingHorizontal: 20, paddingVertical: 14,
+    paddingHorizontal: 20, paddingVertical: 13,
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  nbrRowActive: { backgroundColor: Colors.primary + "15" },
+  nbrRowActive: { backgroundColor: Colors.primary + "12" },
   nbrLabel: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   nbrLabelActive: { color: Colors.primary, fontFamily: "Cairo_700Bold" },
-  nbrType: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  nbrTypeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  nbrType: { fontFamily: "Cairo_500Medium", fontSize: 11 },
 });
