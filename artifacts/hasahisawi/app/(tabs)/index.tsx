@@ -109,6 +109,7 @@ export default function HomeScreen() {
   const [bioLabel, setBioLabel] = useState("البصمة");
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>(FALLBACK_LANDMARKS);
+  const [featuredAd, setFeaturedAd] = useState<{ institution_name: string; title: string; description?: string; type: string } | null>(null);
   const greeting = useMemo(() => getGreeting(), []);
   const arabicDate = useMemo(() => getArabicDate(), []);
 
@@ -124,6 +125,15 @@ export default function HomeScreen() {
       .then(r => r.ok ? r.json() : null)
       .then((data: ApiLandmark[] | null) => {
         if (Array.isArray(data) && data.length > 0) setLandmarks(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(new URL("/api/ads", getApiUrl()).toString())
+      .then(r => r.ok ? r.json() : null)
+      .then((data: any[] | null) => {
+        if (Array.isArray(data) && data.length > 0) setFeaturedAd(data[0]);
       })
       .catch(() => {});
   }, []);
@@ -385,6 +395,30 @@ export default function HomeScreen() {
             </LinearGradient>
           </AnimatedPress>
         </Animated.View>
+
+        {/* ── بانر الإعلان المميز ── */}
+        {featuredAd && (
+          <Animated.View entering={FadeInDown.delay(120).springify()}>
+            <TouchableOpacity
+              style={styles.featuredAdBanner}
+              onPress={() => router.push("/(tabs)/ads" as any)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.featuredAdLeft}>
+                <View style={styles.featuredAdIcon}>
+                  <Ionicons name="megaphone" size={16} color={Colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.featuredAdInstitution} numberOfLines={1}>{featuredAd.institution_name}</Text>
+                  <Text style={styles.featuredAdTitle} numberOfLines={1}>{featuredAd.title}</Text>
+                </View>
+              </View>
+              <View style={styles.featuredAdChip}>
+                <Text style={styles.featuredAdChipText}>إعلان</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* عنوان قسم الخدمات */}
         <Animated.View entering={FadeInRight.delay(150).springify()} style={[styles.sectionHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -784,7 +818,31 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_700Bold", fontSize: 9, color: "#000",
   },
 
-  /* Section Header */
+  /* Featured Ad Banner */
+  featuredAdBanner: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: Colors.cardBg, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.accent + "35",
+    marginBottom: 14,
+  },
+  featuredAdLeft: { flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 },
+  featuredAdIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: Colors.accent + "18",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  featuredAdInstitution: {
+    fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right",
+  },
+  featuredAdTitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right",
+  },
+  featuredAdChip: {
+    backgroundColor: Colors.accent + "15", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0,
+  },
+  featuredAdChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.accent },
+
   sectionHeader: {
     alignItems: "center", gap: 10, marginBottom: 18,
   },

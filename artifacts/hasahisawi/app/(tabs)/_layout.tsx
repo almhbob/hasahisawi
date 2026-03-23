@@ -144,6 +144,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="calendar"     options={{ href: null }} />
       <Tabs.Screen name="numbers"      options={{ href: null }} />
       <Tabs.Screen name="settings"     options={{ href: null }} />
+      <Tabs.Screen name="ads"          options={{ href: null }} />
     </Tabs>
   );
 }

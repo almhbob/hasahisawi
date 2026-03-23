@@ -129,6 +129,49 @@ export async function initHasahisawiDb() {
   `);
   await query("DELETE FROM user_sessions WHERE expires_at < NOW()");
 
+  // ── جدول الإعلانات المدفوعة ──────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS ads (
+      id SERIAL PRIMARY KEY,
+      institution_name VARCHAR(200) NOT NULL,
+      contact_name VARCHAR(200),
+      contact_phone VARCHAR(50),
+      title VARCHAR(300) NOT NULL,
+      description TEXT,
+      type VARCHAR(50) NOT NULL DEFAULT 'promotion',
+      target_screen VARCHAR(50) NOT NULL DEFAULT 'all',
+      duration_days INTEGER NOT NULL DEFAULT 7,
+      budget VARCHAR(100),
+      status VARCHAR(50) NOT NULL DEFAULT 'pending',
+      admin_note TEXT,
+      start_date TIMESTAMPTZ,
+      end_date TIMESTAMPTZ,
+      priority INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      approved_at TIMESTAMPTZ,
+      approved_by INTEGER REFERENCES users(id)
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS city_landmarks (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      sub VARCHAR(200) NOT NULL DEFAULT '',
+      image_url VARCHAR(500) NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: lmRows } = await query(`SELECT COUNT(*) as cnt FROM city_landmarks`);
+  if (parseInt(lmRows[0].cnt, 10) === 0) {
+    await query(`
+      INSERT INTO city_landmarks (name, sub, image_url, sort_order) VALUES
+        ('عجلة الهواء',  'كورنيش الحصاحيصا',      'local:ferris-wheel',  0),
+        ('كورنيش النيل', 'إطلالة على النيل الأزرق', 'local:hasahisa-city', 1)
+    `);
+  }
+
   await query(`
     CREATE TABLE IF NOT EXISTS rated_entities (
       id SERIAL PRIMARY KEY,
@@ -1192,6 +1235,267 @@ router.post("/chats/:chatId/read", async (req: Request, res: Response) => {
       `UPDATE chats SET ${isUser1 ? "unread_user1=0" : "unread_user2=0"} WHERE id=$1`,
       [chatId]
     );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// معالم المدينة — City Landmarks
+// ══════════════════════════════════════════════════════
+
+// جلب كل المعالم (عام)
+router.get("/landmarks", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, name, sub, image_url, sort_order, created_at
+       FROM city_landmarks ORDER BY sort_order ASC, id ASC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة معلم جديد (الإدارة فقط)
+router.post("/admin/landmarks", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const { name, sub, image_url } = req.body as { name: string; sub: string; image_url: string };
+    if (!name?.trim() || !image_url?.trim()) {
+      return res.status(400).json({ error: "الاسم والصورة مطلوبان" });
+    }
+    const { rows: orderRows } = await query(`SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM city_landmarks`);
+    const sort_order = orderRows[0].next;
+    const { rows } = await query(
+      `INSERT INTO city_landmarks (name, sub, image_url, sort_order)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name.trim(), (sub || "").trim(), image_url.trim(), sort_order]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف معلم (الإدارة فقط)
+router.delete("/admin/landmarks/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    await query(`DELETE FROM city_landmarks WHERE id=$1`, [id]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// الإعلانات المدفوعة — Paid Ads
+// ══════════════════════════════════════════════════════
+
+// تنظيف الإعلانات المنتهية
+async function expireOldAds() {
+  try {
+    await query(
+      `UPDATE ads SET status='expired'
+       WHERE status='active' AND end_date IS NOT NULL AND end_date < NOW()`
+    );
+  } catch {}
+}
+
+// جلب الإعلانات النشطة (عام)
+router.get("/ads", async (_req: Request, res: Response) => {
+  try {
+    await expireOldAds();
+    const { rows } = await query(
+      `SELECT id, institution_name, title, description, type, target_screen,
+              start_date, end_date, priority, created_at
+       FROM ads WHERE status='active'
+       ORDER BY priority DESC, approved_at DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إرسال طلب إعلان (مصادقة اختيارية)
+router.post("/ads/request", async (req: Request, res: Response) => {
+  try {
+    const {
+      institution_name, contact_name, contact_phone,
+      title, description, type, target_screen, duration_days, budget,
+    } = req.body as {
+      institution_name: string; contact_name?: string; contact_phone?: string;
+      title: string; description?: string; type?: string;
+      target_screen?: string; duration_days?: number; budget?: string;
+    };
+    if (!institution_name?.trim() || !title?.trim() || !contact_phone?.trim()) {
+      return res.status(400).json({ error: "اسم المؤسسة والعنوان والهاتف مطلوبة" });
+    }
+    const validTypes = ["promotion", "announcement", "event", "surprise", "banner"];
+    const adType = validTypes.includes(type ?? "") ? type : "promotion";
+    const days = Math.min(Math.max(parseInt(String(duration_days ?? "7")), 1), 90);
+
+    const { rows } = await query(
+      `INSERT INTO ads
+        (institution_name, contact_name, contact_phone, title, description,
+         type, target_screen, duration_days, budget, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
+       RETURNING id, institution_name, title, status, created_at`,
+      [
+        institution_name.trim(),
+        (contact_name || "").trim() || null,
+        contact_phone.trim(),
+        title.trim(),
+        (description || "").trim() || null,
+        adType,
+        target_screen?.trim() || "all",
+        days,
+        (budget || "").trim() || null,
+      ]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إدارة الإعلانات (الإدارة فقط) ─────────────────────────────
+
+// جلب كل الإعلانات
+router.get("/admin/ads", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    await expireOldAds();
+    const { rows } = await query(
+      `SELECT a.*, u.name AS approved_by_name
+       FROM ads a
+       LEFT JOIN users u ON u.id = a.approved_by
+       ORDER BY
+         CASE status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END,
+         a.created_at DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة إعلان مباشرة (الإدارة)
+router.post("/admin/ads", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const {
+      institution_name, contact_name, contact_phone, title,
+      description, type, target_screen, duration_days, budget, priority,
+    } = req.body as any;
+    if (!institution_name?.trim() || !title?.trim()) {
+      return res.status(400).json({ error: "اسم المؤسسة والعنوان مطلوبان" });
+    }
+    const days = Math.min(Math.max(parseInt(String(duration_days ?? "7")), 1), 365);
+    const now = new Date();
+    const endDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const { rows } = await query(
+      `INSERT INTO ads
+        (institution_name, contact_name, contact_phone, title, description,
+         type, target_screen, duration_days, budget, status,
+         start_date, end_date, priority, approved_at, approved_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active',
+               NOW(),$10,$11,NOW(),$12)
+       RETURNING *`,
+      [
+        institution_name.trim(),
+        (contact_name || "").trim() || null,
+        (contact_phone || "").trim() || null,
+        title.trim(),
+        (description || "").trim() || null,
+        type?.trim() || "promotion",
+        target_screen?.trim() || "all",
+        days,
+        (budget || "").trim() || null,
+        endDate,
+        parseInt(String(priority ?? "0")),
+        me.id,
+      ]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة إعلان (قبول / رفض / إنهاء)
+router.put("/admin/ads/:id/status", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { status, admin_note, duration_days } = req.body as {
+      status: "active" | "rejected" | "expired"; admin_note?: string; duration_days?: number;
+    };
+    const allowed = ["active", "rejected", "expired"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+
+    let extraFields = "";
+    let params: any[] = [status, admin_note || null, id];
+
+    if (status === "active") {
+      const days = Math.min(Math.max(parseInt(String(duration_days ?? "7")), 1), 365);
+      const endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      extraFields = `, start_date=NOW(), end_date=$4, duration_days=$5, approved_at=NOW(), approved_by=$6`;
+      params = [status, admin_note || null, id, endDate, days, me.id];
+    }
+
+    const { rows } = await query(
+      `UPDATE ads SET status=$1, admin_note=$2${extraFields}
+       WHERE id=$3 RETURNING *`,
+      params
+    );
+    if (!rows.length) return res.status(404).json({ error: "الإعلان غير موجود" });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف إعلان
+router.delete("/admin/ads/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") {
+      return res.status(403).json({ error: "مديرون فقط" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    await query(`DELETE FROM ads WHERE id=$1`, [id]);
     return res.json({ success: true });
   } catch (err) {
     console.error(err);
