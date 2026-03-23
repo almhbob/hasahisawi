@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Pressable,
   ScrollView, Image, Platform, Dimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withSpring, runOnJS, interpolate, Extrapolation,
@@ -118,6 +119,8 @@ export default function DrawerMenu() {
   }
 
   const displayName = isGuest ? "زائر" : (user?.name ?? "");
+  const initial     = isGuest ? "ز" : (user?.name?.charAt(0) || "؟");
+  const roleLabel   = user?.role === "admin" ? "مشرف" : user?.role === "moderator" ? "مراقب" : null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -127,22 +130,61 @@ export default function DrawerMenu() {
       </Animated.View>
 
       {/* الدرج */}
-      <Animated.View style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 12 }]}>
-        {/* الرأس */}
+      <Animated.View style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 8 }]}>
+        {/* ── رأس الدرج ── */}
         <View style={[styles.header, { overflow: "hidden" }]}>
-          <BrandPattern variant="header" opacity={0.07} />
-          <View style={styles.headerInfo}>
+          <BrandPattern variant="header" opacity={0.06} />
+
+          {/* زر الإغلاق */}
+          <Pressable onPress={close} style={styles.closeBtn} hitSlop={12}>
+            <Ionicons name="close" size={20} color={Colors.textSecondary} />
+          </Pressable>
+
+          {/* الشعار + اسم التطبيق */}
+          <View style={styles.appRow}>
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             <View>
               <Text style={styles.appName}>حصاحيصاوي</Text>
-              {displayName ? (
-                <Text style={styles.userName}>{displayName}</Text>
-              ) : null}
+              <Text style={styles.appTagline}>مدينة الحصاحيصا · السودان</Text>
             </View>
           </View>
-          <Pressable onPress={close} style={styles.closeBtn} hitSlop={12}>
-            <Ionicons name="close" size={22} color={Colors.textSecondary} />
-          </Pressable>
+
+          {/* ملف المستخدم */}
+          <View style={styles.userCard}>
+            <LinearGradient
+              colors={[Colors.primary + "18", Colors.cardBgElevated]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[styles.avatar, isGuest && { backgroundColor: Colors.textMuted + "30", borderColor: Colors.textMuted + "40" }]}>
+              <Text style={[styles.avatarText, isGuest && { color: Colors.textMuted }]}>{initial}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
+              {user?.neighborhood ? (
+                <View style={styles.userDetail}>
+                  <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
+                  <Text style={styles.userDetailText}>{user.neighborhood}</Text>
+                </View>
+              ) : user?.phone ? (
+                <View style={styles.userDetail}>
+                  <Ionicons name="call-outline" size={11} color={Colors.textMuted} />
+                  <Text style={styles.userDetailText}>{user.phone}</Text>
+                </View>
+              ) : null}
+            </View>
+            {roleLabel && (
+              <View style={[styles.roleBadge, { backgroundColor: Colors.primary }]}>
+                <Ionicons name="shield-checkmark" size={11} color="#000" />
+                <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+              </View>
+            )}
+            {isGuest && (
+              <View style={[styles.roleBadge, { backgroundColor: Colors.textMuted + "30" }]}>
+                <Text style={[styles.roleBadgeText, { color: Colors.textMuted }]}>زائر</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.divider} />
@@ -206,58 +248,104 @@ export default function DrawerMenu() {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.60)",
   },
   drawer: {
     position: "absolute",
     top: 0, right: 0, bottom: 0,
     width: DRAWER_W,
-    backgroundColor: "#0F1E16",
+    backgroundColor: "#0D1910",
     borderLeftWidth: 1,
-    borderLeftColor: Colors.primary + "30",
+    borderLeftColor: Colors.primary + "28",
     shadowColor: "#000",
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 24,
+    shadowOffset: { width: -6, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 28,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingBottom: 16,
-  },
-  headerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  logo: {
-    width: 48, height: 48, borderRadius: 12,
-  },
-  appName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  userName: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 1,
+    gap: 14,
   },
   closeBtn: {
-    width: 34, height: 34, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 10,
     backgroundColor: Colors.cardBg,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "flex-start",
+  },
+  appRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+  logo: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "#fff",
+  },
+  appName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 17,
+    color: Colors.textPrimary,
+  },
+  appTagline: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  userCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 11,
+    borderRadius: 16, overflow: "hidden",
+    borderWidth: 1, borderColor: Colors.primary + "25",
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  avatar: {
+    width: 42, height: 42, borderRadius: 13,
+    backgroundColor: Colors.primary + "28",
+    borderWidth: 1.5, borderColor: Colors.primary + "60",
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 18, color: Colors.primary,
+  },
+  userName: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 14,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  userDetail: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  userDetailText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  roleBadgeText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 10, color: "#000",
   },
   divider: {
     height: 1,
     backgroundColor: Colors.divider,
-    marginHorizontal: 20,
-    marginBottom: 8,
+    marginHorizontal: 6,
+    marginBottom: 6,
   },
   scroll: { flex: 1 },
   group: {
