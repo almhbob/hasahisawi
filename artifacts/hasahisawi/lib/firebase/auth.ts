@@ -1,5 +1,7 @@
 import {
   getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -11,6 +13,8 @@ import {
   User,
   Auth,
 } from "firebase/auth";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { app, isFirebaseConfigured } from "./index";
 
 let _auth: Auth | null = null;
@@ -18,7 +22,17 @@ let _auth: Auth | null = null;
 function getFirebaseAuth(): Auth {
   if (_auth) return _auth;
   if (!isFirebaseConfigured) throw new Error("Firebase not configured");
-  _auth = getAuth(app);
+  try {
+    if (Platform.OS !== "web") {
+      _auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } else {
+      _auth = getAuth(app);
+    }
+  } catch {
+    _auth = getAuth(app);
+  }
   return _auth;
 }
 
