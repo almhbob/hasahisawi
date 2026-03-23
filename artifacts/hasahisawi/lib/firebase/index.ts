@@ -14,9 +14,7 @@ const firebaseConfig = {
 export const isFirebaseConfigured =
   !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
 
-// Firestore غير مُنشأ بعد — كل البيانات تذهب عبر Express API
-// عند تفعيل Firestore من Firebase Console اجعل هذا true
-export const isFirestoreEnabled = false;
+export const isFirestoreEnabled = true;
 
 let app: FirebaseApp;
 try {
