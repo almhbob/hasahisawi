@@ -222,8 +222,7 @@ export default function ChatScreen() {
         <FlatList
           data={chats}
           keyExtractor={(c) => String(c.id)}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16, paddingTop: 8 }}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
               <ChatCard chat={item} myId={myId} onPress={() => openConversation(item)} />
@@ -282,16 +281,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: Colors.bg,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    backgroundColor: Colors.cardBg,
+    marginHorizontal: 12,
+    marginVertical: 5,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   avatar: {
-    width: 50, height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary + "25",
+    width: 48, height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.primary + "20",
     borderWidth: 1.5,
-    borderColor: Colors.primary + "50",
+    borderColor: Colors.primary + "40",
     alignItems: "center",
     justifyContent: "center",
   },

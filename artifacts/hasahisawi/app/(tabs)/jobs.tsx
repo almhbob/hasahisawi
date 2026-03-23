@@ -401,6 +401,7 @@ export default function JobsScreen() {
               onPress={() => setExpandedId(isExpanded ? null : item.id)}
             >
               <View style={styles.jobCard}>
+              <View style={[styles.accentBar, { backgroundColor: color }]} />
               <View style={[styles.jobCardTop, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                 <View style={[styles.jobMeta, { alignItems: isRTL ? "flex-start" : "flex-end" }]}>
                   <Text style={styles.timeAgo}>{timeAgo(item.createdAt)}</Text>
@@ -542,10 +543,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  accentBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   jobCardTop: { flexDirection: "row-reverse", padding: 14, gap: 10 },
   jobMeta: { flexDirection: "column", alignItems: "flex-start", gap: 8, paddingTop: 2 },

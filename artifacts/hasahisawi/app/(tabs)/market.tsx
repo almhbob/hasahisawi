@@ -39,14 +39,16 @@ export type FamilyItem = {
 
 export type AuctionItem = {
   id: string;
+  sellerName: string;
   itemName: string;
   condition: "new" | "like_new" | "used";
-  category: "tools" | "electronics" | "furniture" | "appliances" | "clothing" | "other";
+  category: "tools" | "agricultural" | "construction" | "electronics" | "furniture" | "appliances" | "clothing" | "other";
   description: string;
   price: string;
   contactPhone: string;
   status: "available" | "sold";
   createdAt: string;
+  interestedCount?: number;
 };
 
 const FAMILY_KEY = "family_market_v1";
@@ -83,11 +85,24 @@ const FAMILY_CAT_ICONS: Record<FamilyItem["category"], string> = {
 
 const AUCTION_CAT_ICONS: Record<AuctionItem["category"], string> = {
   tools: "hammer-outline",
+  agricultural: "leaf-outline",
+  construction: "construct-outline",
   electronics: "phone-portrait-outline",
   furniture: "bed-outline",
   appliances: "tv-outline",
   clothing: "shirt-outline",
   other: "grid-outline",
+};
+
+const AUCTION_CAT_COLORS: Record<AuctionItem["category"], string> = {
+  tools: Colors.violet,
+  agricultural: "#27AE60",
+  construction: "#E67E22",
+  electronics: "#2980B9",
+  furniture: "#8E44AD",
+  appliances: "#16A085",
+  clothing: "#C0392B",
+  other: Colors.textSecondary,
 };
 
 const CONDITION_LABELS: Record<AuctionItem["condition"], string> = {
@@ -149,7 +164,8 @@ const FAMILY_SAMPLES: FamilyItem[] = [
 const AUCTION_SAMPLES: AuctionItem[] = [
   {
     id: "as1",
-    itemName: "مولد كهرباء",
+    sellerName: "أبو محمد",
+    itemName: "مولد كهرباء 3 كيلو",
     condition: "used",
     category: "appliances",
     description: "مولد 3 كيلو وات، يعمل بشكل ممتاز، سبب البيع شراء مولد أكبر",
@@ -157,20 +173,50 @@ const AUCTION_SAMPLES: AuctionItem[] = [
     contactPhone: "+249912346000",
     status: "available",
     createdAt: new Date(Date.now() - 864e5).toISOString(),
+    interestedCount: 5,
   },
   {
     id: "as2",
-    itemName: "طقم أدوات نجارة",
+    sellerName: "الأستاذ كمال",
+    itemName: "طقم أدوات نجارة كامل",
     condition: "like_new",
     category: "tools",
-    description: "طقم أدوات نجارة كامل، استُخدم مرتين فقط",
+    description: "طقم أدوات نجارة: منشار، مطرقة، إزميل، مقياس — استُخدم مرتين فقط",
     price: "12,000 جنيه",
     contactPhone: "+249912346001",
     status: "available",
     createdAt: new Date(Date.now() - 2 * 864e5).toISOString(),
+    interestedCount: 8,
   },
   {
     id: "as3",
+    sellerName: "إبراهيم النور",
+    itemName: "محراث حديدي مستعمل",
+    condition: "used",
+    category: "agricultural",
+    description: "محراث حديدي لجرار صغير، مناسب لزراعة الفدادين الصغيرة، الحالة جيدة",
+    price: "8,500 جنيه",
+    contactPhone: "+249912346004",
+    status: "available",
+    createdAt: new Date(Date.now() - 1 * 864e5).toISOString(),
+    interestedCount: 12,
+  },
+  {
+    id: "as4",
+    sellerName: "أبو خالد المقاول",
+    itemName: "خلاطة خرسانة صغيرة",
+    condition: "used",
+    category: "construction",
+    description: "خلاطة خرسانة 120 لتر، تعمل بالكهرباء، حالة جيدة، سبب البيع انتهاء المشروع",
+    price: "25,000 جنيه",
+    contactPhone: "+249912346005",
+    status: "available",
+    createdAt: new Date(Date.now() - 3 * 864e5).toISOString(),
+    interestedCount: 4,
+  },
+  {
+    id: "as5",
+    sellerName: "أبو عمر",
     itemName: "تلفزيون سامسونج 43 بوصة",
     condition: "used",
     category: "electronics",
@@ -179,9 +225,37 @@ const AUCTION_SAMPLES: AuctionItem[] = [
     contactPhone: "+249912346002",
     status: "available",
     createdAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+    interestedCount: 6,
   },
   {
-    id: "as4",
+    id: "as6",
+    sellerName: "الحاج عبدالرحمن",
+    itemName: "مضخة مياه للزراعة",
+    condition: "used",
+    category: "agricultural",
+    description: "مضخة مياه 2 إنش، تعمل بالديزل، مستعملة موسم واحد فقط",
+    price: "18,000 جنيه",
+    contactPhone: "+249912346006",
+    status: "available",
+    createdAt: new Date(Date.now() - 2 * 864e5).toISOString(),
+    interestedCount: 9,
+  },
+  {
+    id: "as7",
+    sellerName: "عادل الحداد",
+    itemName: "أدوات حدادة وعدة لحام",
+    condition: "like_new",
+    category: "tools",
+    description: "طقم حدادة كامل: أنبوب لحام، قواطع، مطارق — تُباع للضرورة",
+    price: "22,000 جنيه",
+    contactPhone: "+249912346007",
+    status: "available",
+    createdAt: new Date(Date.now() - 5 * 864e5).toISOString(),
+    interestedCount: 3,
+  },
+  {
+    id: "as8",
+    sellerName: "أبو صلاح",
     itemName: "طاولة وكراسي خشب",
     condition: "used",
     category: "furniture",
@@ -190,6 +264,7 @@ const AUCTION_SAMPLES: AuctionItem[] = [
     contactPhone: "+249912346003",
     status: "available",
     createdAt: new Date(Date.now() - 5 * 864e5).toISOString(),
+    interestedCount: 2,
   },
 ];
 
@@ -270,14 +345,17 @@ function AuctionCard({
   item,
   onSold,
   onDelete,
+  onInterested,
 }: {
   item: AuctionItem;
   onSold: (id: string) => void;
   onDelete: (id: string) => void;
+  onInterested: (id: string) => void;
 }) {
   const { t, isRTL, tr } = useLang();
   const isSample = item.id.startsWith("as");
   const condColor = CONDITION_COLORS[item.condition];
+  const catColor = AUCTION_CAT_COLORS[item.category] ?? Colors.violet;
 
   const conditionLabels = {
     new: t("market", "new"),
@@ -294,11 +372,15 @@ function AuctionCard({
     return tr("منذ قليل", "Just now");
   }
 
+  const interested = item.interestedCount ?? 0;
+
   return (
     <View style={[styles.card, item.status === "sold" && styles.cardSold]}>
+      {/* Colored left bar per category */}
+      <View style={[styles.auctionAccentBar, { backgroundColor: catColor }]} />
       <View style={[styles.cardTop, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <View style={[styles.cardIcon, { backgroundColor: Colors.violet + "10" }]}>
-          <Ionicons name={AUCTION_CAT_ICONS[item.category] as any} size={26} color={Colors.violet} />
+        <View style={[styles.cardIcon, { backgroundColor: catColor + "15" }]}>
+          <Ionicons name={AUCTION_CAT_ICONS[item.category] as any} size={26} color={catColor} />
         </View>
         <View style={[styles.cardBody, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
           <View style={[styles.cardTitleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -309,6 +391,11 @@ function AuctionCard({
               {item.itemName}
             </Text>
           </View>
+          {item.sellerName ? (
+            <Text style={[styles.sellerName, { textAlign: isRTL ? "right" : "left" }]}>
+              {tr("البائع: ", "Seller: ")}{item.sellerName}
+            </Text>
+          ) : null}
           <View style={[styles.condRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={[styles.condBadge, { backgroundColor: condColor + "15" }]}>
               <Text style={[styles.condBadgeText, { color: condColor }]}>
@@ -333,6 +420,19 @@ function AuctionCard({
               <Ionicons name="trash-outline" size={16} color={Colors.danger} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={[styles.interestedBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+            onPress={() => onInterested(item.id)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="hand-left-outline" size={13} color={catColor} />
+            <Text style={[styles.interestedText, { color: catColor }]}>{tr("مهتم", "Interested")}</Text>
+            {interested > 0 && (
+              <View style={[styles.interestedBadge, { backgroundColor: catColor }]}>
+                <Text style={styles.interestedBadgeText}>{interested}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.callBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Ionicons name="call-outline" size={14} color={Colors.primary} />
             <Text style={styles.callBtnText}>{t("common", "contact")}</Text>
@@ -464,28 +564,29 @@ function AddAuctionModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (item: Omit<AuctionItem, "id" | "createdAt" | "status">) => Promise<void>;
+  onSave: (item: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount">) => Promise<void>;
 }) {
   const { t, isRTL, tr } = useLang();
   const insets = useSafeAreaInsets();
+  const [sellerName, setSellerName] = useState("");
   const [itemName, setItemName] = useState("");
   const [condition, setCondition] = useState<AuctionItem["condition"]>("used");
-  const [category, setCategory] = useState<AuctionItem["category"]>("other");
+  const [category, setCategory] = useState<AuctionItem["category"]>("tools");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contactPhone, setContactPhone] = useState("");
 
   const reset = () => {
-    setItemName(""); setCondition("used"); setCategory("other");
+    setSellerName(""); setItemName(""); setCondition("used"); setCategory("tools");
     setDescription(""); setPrice(""); setContactPhone("");
   };
 
   const handleSave = async () => {
-    if (!itemName.trim() || !price.trim() || !contactPhone.trim()) {
+    if (!sellerName.trim() || !itemName.trim() || !price.trim() || !contactPhone.trim()) {
       Alert.alert(t("common", "error"), t("common", "fillAll"));
       return;
     }
-    await onSave({ itemName: itemName.trim(), condition, category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim() });
+    await onSave({ sellerName: sellerName.trim(), itemName: itemName.trim(), condition, category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim() });
     reset(); onClose();
   };
 
@@ -497,6 +598,8 @@ function AddAuctionModal({
 
   const categories = [
     { key: "tools", label: tr("أدوات", "Tools") },
+    { key: "agricultural", label: tr("زراعية", "Agricultural") },
+    { key: "construction", label: tr("بناء", "Construction") },
     { key: "electronics", label: tr("إلكترونيات", "Electronics") },
     { key: "furniture", label: tr("أثاث", "Furniture") },
     { key: "appliances", label: tr("أجهزة", "Appliances") },
@@ -537,21 +640,25 @@ function AddAuctionModal({
               <View style={styles.formField}>
                 <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{t("common", "type")}</Text>
                 <View style={[styles.catBtnRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                  {(["tools", "electronics", "furniture", "appliances", "clothing", "other"] as AuctionItem["category"][]).map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.catPickBtn, category === c && { backgroundColor: Colors.violet, borderColor: Colors.violet }]}
-                      onPress={() => setCategory(c)}
-                    >
-                      <Ionicons name={AUCTION_CAT_ICONS[c] as any} size={13} color={category === c ? "#fff" : Colors.textSecondary} />
-                      <Text style={[styles.catPickText, category === c && { color: "#fff" }]}>
-                        {categories.find(x => x.key === c)?.label ?? c}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {(["tools", "agricultural", "construction", "electronics", "furniture", "appliances", "clothing", "other"] as AuctionItem["category"][]).map((c) => {
+                    const cc = AUCTION_CAT_COLORS[c] ?? Colors.violet;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[styles.catPickBtn, category === c && { backgroundColor: cc, borderColor: cc }]}
+                        onPress={() => setCategory(c)}
+                      >
+                        <Ionicons name={AUCTION_CAT_ICONS[c] as any} size={13} color={category === c ? "#fff" : Colors.textSecondary} />
+                        <Text style={[styles.catPickText, category === c && { color: "#fff" }]}>
+                          {categories.find(x => x.key === c)?.label ?? c}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
               {[
+                { label: tr("اسم البائع *", "Seller Name *"), value: sellerName, set: setSellerName, placeholder: tr("اسمك", "Your name") },
                 { label: tr("اسم الغرض *", "Item Name *"), value: itemName, set: setItemName, placeholder: tr("مثال: مولد كهرباء 3 كيلو", "e.g. 3kW Generator") },
                 { label: t("common", "description"), value: description, set: setDescription, placeholder: tr("تفاصيل الحالة، سبب البيع...", "Condition details, reason for selling..."), multi: true },
                 { label: t("market", "price") + " *", value: price, set: setPrice, placeholder: t("market", "pricePlaceholder") },
@@ -612,11 +719,13 @@ export default function MarketScreen() {
   const AUCTION_CATS = useMemo(() => [
     { key: "all", label: t("common", "all") },
     { key: "tools", label: tr("أدوات", "Tools") },
+    { key: "agricultural", label: tr("زراعية", "Agricultural") },
+    { key: "construction", label: tr("بناء", "Construction") },
     { key: "electronics", label: tr("إلكترونيات", "Electronics") },
     { key: "furniture", label: tr("أثاث", "Furniture") },
     { key: "appliances", label: tr("أجهزة", "Appliances") },
     { key: "clothing", label: tr("ملابس", "Clothing") },
-    { key: "other", label: t("common", "all") },
+    { key: "other", label: tr("أخرى", "Other") },
   ], [t, tr]);
 
   const load = async () => {
@@ -641,9 +750,9 @@ export default function MarketScreen() {
     await load();
   };
 
-  const saveAuction = async (data: Omit<AuctionItem, "id" | "createdAt" | "status">): Promise<void> => {
+  const saveAuction = async (data: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount">): Promise<void> => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const newItem: AuctionItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString() };
+    const newItem: AuctionItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString(), interestedCount: 0 };
     const raw = await AsyncStorage.getItem(AUCTION_KEY);
     const existing: AuctionItem[] = raw ? JSON.parse(raw) : [];
     await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify([newItem, ...existing]));
@@ -674,6 +783,17 @@ export default function MarketScreen() {
     const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
     await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(saved.map(i => i.id === id ? { ...i, status: "sold" as const } : i)));
     load();
+  };
+
+  const markAuctionInterested = async (id: string) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const raw = await AsyncStorage.getItem(AUCTION_KEY);
+    const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
+    const updated = saved.map(i => i.id === id ? { ...i, interestedCount: (i.interestedCount ?? 0) + 1 } : i);
+    await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(updated));
+    setAuctionItems(prev =>
+      prev.map(i => i.id === id ? { ...i, interestedCount: (i.interestedCount ?? 0) + 1 } : i)
+    );
   };
 
   const deleteAuctionItem = (id: string) => {
@@ -789,10 +909,32 @@ export default function MarketScreen() {
           keyExtractor={i => i.id}
           contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.dalalaBanner}>
+              <View style={[styles.dalalaBannerRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <View style={styles.dalalaBannerIcon}>
+                  <Ionicons name="hammer" size={22} color={Colors.violet} />
+                </View>
+                <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+                  <Text style={[styles.dalalaBannerTitle, { textAlign: isRTL ? "right" : "left" }]}>
+                    {tr("دلالة أهل الحصاحيصا", "Hasahisa Community Auction")}
+                  </Text>
+                  <Text style={[styles.dalalaBannerSub, { textAlign: isRTL ? "right" : "left" }]}>
+                    {tr("للبيع بالتراضي · أدوات وعدة ومعدات مستعملة", "Direct sale · Used tools & equipment")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          }
           ListEmptyComponent={<EmptyState icon="hammer-outline" text={t("market", "noItems")} />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
-              <AuctionCard item={item} onSold={markAuctionSold} onDelete={deleteAuctionItem} />
+              <AuctionCard
+                item={item}
+                onSold={markAuctionSold}
+                onDelete={deleteAuctionItem}
+                onInterested={markAuctionInterested}
+              />
             </Animated.View>
           )}
         />
@@ -916,6 +1058,36 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "12", borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
   },
   callBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
+  // Auction-specific
+  auctionAccentBar: {
+    position: "absolute", top: 0, bottom: 0, left: 0,
+    width: 4, borderTopLeftRadius: 18, borderBottomLeftRadius: 18,
+  },
+  interestedBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  interestedText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  interestedBadge: {
+    borderRadius: 8, minWidth: 18, height: 18,
+    justifyContent: "center", alignItems: "center", paddingHorizontal: 4,
+  },
+  interestedBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
+  // Dalala banner
+  dalalaBanner: {
+    backgroundColor: Colors.violet + "10",
+    borderRadius: 14, borderWidth: 1, borderColor: Colors.violet + "30",
+    marginBottom: 4, padding: 12,
+  },
+  dalalaBannerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  dalalaBannerIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: Colors.violet + "18",
+    justifyContent: "center", alignItems: "center",
+  },
+  dalalaBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.violet },
+  dalalaBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   // Modal
   overlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end",

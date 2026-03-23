@@ -313,9 +313,10 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 16, overflow: "hidden",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    backgroundColor: Colors.cardBg, borderRadius: 18, overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 3,
+    borderWidth: 1, borderColor: Colors.divider,
   },
   cardHeader: { flexDirection: "row-reverse", alignItems: "center", padding: 14, gap: 12 },
   iconCircle: { width: 52, height: 52, borderRadius: 13, justifyContent: "center", alignItems: "center", flexShrink: 0 },
