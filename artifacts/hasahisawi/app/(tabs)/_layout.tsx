@@ -53,11 +53,13 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             }}
             accessibilityRole="button"
           >
+            {/* مؤشر الأعلى */}
+            <View style={[styles.topIndicator, focused && styles.topIndicatorActive]} />
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
               <Ionicons
                 name={focused ? item.activeIcon : item.icon}
-                size={21}
-                color={focused ? Colors.primary : "#8BBDA2"}
+                size={22}
+                color={focused ? Colors.primary : "#6E9E84"}
               />
               {/* شارة عدد الرسائل غير المقروءة */}
               {isChatTab && unread > 0 && (
@@ -77,8 +79,9 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
 
       {/* زر القائمة الجانبية */}
       <Pressable style={styles.tabItem} onPress={open}>
+        <View style={styles.topIndicator} />
         <View style={styles.menuBtn}>
-          <Ionicons name="menu" size={21} color={Colors.primary} />
+          <Ionicons name="menu" size={22} color={Colors.primary} />
         </View>
         <Text style={[styles.tabLabel, styles.tabLabelActive]}>القائمة</Text>
       </Pressable>
@@ -166,24 +169,34 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
-    backgroundColor: "#0F1E16",
+    backgroundColor: "#0C1A10",
     borderTopWidth: 1,
-    borderTopColor: Colors.primary + "30",
-    paddingTop: 8,
+    borderTopColor: Colors.primary + "25",
+    paddingTop: 6,
+  },
+  topIndicator: {
+    height: 3,
+    width: 22,
+    borderRadius: 2,
+    backgroundColor: "transparent",
+    marginBottom: 4,
+  },
+  topIndicatorActive: {
+    backgroundColor: Colors.primary,
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
-    gap: 3,
+    gap: 2,
   },
   iconWrap: {
-    width: 34, height: 34,
-    borderRadius: 10,
+    width: 38, height: 32,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   iconWrapActive: {
-    backgroundColor: Colors.primary + "18",
+    backgroundColor: Colors.primary + "1C",
   },
   tabBadge: {
     position: "absolute",
@@ -206,18 +219,19 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   menuBtn: {
-    width: 34, height: 34,
-    borderRadius: 10,
+    width: 38, height: 38,
+    borderRadius: 12,
     backgroundColor: Colors.primary + "18",
-    borderWidth: 1,
-    borderColor: Colors.primary + "40",
+    borderWidth: 1.5,
+    borderColor: Colors.primary + "50",
     alignItems: "center",
     justifyContent: "center",
   },
   tabLabel: {
-    fontFamily: "Cairo_500Medium",
-    fontSize: 9,
-    color: "#8BBDA2",
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 10,
+    color: "#79A890",
+    letterSpacing: 0.1,
   },
   tabLabelActive: {
     color: Colors.primary,
