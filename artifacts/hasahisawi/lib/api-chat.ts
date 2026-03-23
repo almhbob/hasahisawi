@@ -38,6 +38,7 @@ export type ApiUser = {
 
 async function apiFetch(path: string, token: string, opts?: RequestInit) {
   const base = getApiUrl().replace(/\/$/, "");
+  if (!base) throw new Error("API not configured");
   const res = await fetch(`${base}/api${path}`, {
     ...opts,
     headers: {
