@@ -55,6 +55,7 @@ const GROUPS: Group[] = [
       { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
       { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC"      },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
+      { title: "الجاليات",    icon: "earth-outline",      route: "/(tabs)/communities", color: Colors.cyber   },
       { title: "التقييمات",   icon: "star-outline",       route: "/(tabs)/ratings",     color: Colors.accent  },
     ],
   },

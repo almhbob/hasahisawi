@@ -129,6 +129,38 @@ export async function initHasahisawiDb() {
   `);
   await query("DELETE FROM user_sessions WHERE expires_at < NOW()");
 
+  // ── جدول الجاليات ────────────────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS communities (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      category VARCHAR(100) NOT NULL DEFAULT 'wafid',
+      origin VARCHAR(200),
+      description TEXT,
+      representative_name VARCHAR(200),
+      contact_phone VARCHAR(50),
+      members_count INTEGER DEFAULT 0,
+      neighborhood VARCHAR(100),
+      services TEXT,
+      meeting_schedule VARCHAR(200),
+      status VARCHAR(50) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: comRows } = await query(`SELECT COUNT(*) as cnt FROM communities`);
+  if (parseInt(comRows[0].cnt, 10) === 0) {
+    await query(`
+      INSERT INTO communities
+        (name, category, origin, description, representative_name, contact_phone, members_count, neighborhood, services, status)
+      VALUES
+        ('جالية جنوب السودان','foreign','جمهورية جنوب السودان','مجتمع المواطنين الجنوبسودانيين المقيمين بالحصاحيصا','جوزيف ماتياي','0911234567',120,'الحي الشرقي','خدمات اجتماعية · دروس لغة عربية · مساعدات إنسانية','active'),
+        ('جالية الإثيوبيين','foreign','إثيوبيا','المجموعة الإثيوبية المقيمة بالمدينة','تدله بيرهان','0922345678',85,'وسط المدينة','تجارة · خدمات صحية · مساعدات اجتماعية','active'),
+        ('وافدو ولاية الخرطوم','wafid','ولاية الخرطوم','أسر نزحت من الخرطوم إلى الحصاحيصا','المهندس عمر صالح','0933456789',340,'حي الزهور','خدمات تعليمية · توظيف · استشارات قانونية','active'),
+        ('وافدو إقليم دارفور','wafid','ولايات دارفور','أبناء دارفور المقيمون بالحصاحيصا وضواحيها','عبدالكريم آدم','0944567890',210,'حي السلام','خدمات اجتماعية · دعم نفسي · مساعدات إنسانية','active'),
+        ('أبناء الحصاحيصا بالخارج','expat','السودان وخارجه','رابطة مغتربي الحصاحيصا حول العالم','أ. عصام الدين محمد','0955678901',450,'الحصاحيصا','تحويلات مالية · دعم المشاريع · التواصل الاجتماعي','active')
+    `);
+  }
+
   // ── جدول الإعلانات المدفوعة ──────────────────────────────────────
   await query(`
     CREATE TABLE IF NOT EXISTS ads (
@@ -1295,6 +1327,141 @@ router.delete("/admin/landmarks/:id", async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
     await query(`DELETE FROM city_landmarks WHERE id=$1`, [id]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// الجاليات — Communities
+// ══════════════════════════════════════════════════════
+
+// جلب الجاليات النشطة (عام)
+router.get("/communities", async (req: Request, res: Response) => {
+  try {
+    const category = (req.query.category as string) || "";
+    const search   = (req.query.search as string) || "";
+    let sql = `SELECT * FROM communities WHERE status='active'`;
+    const params: any[] = [];
+    if (category && category !== "all") {
+      params.push(category);
+      sql += ` AND category=$${params.length}`;
+    }
+    if (search.trim()) {
+      params.push(`%${search.trim()}%`);
+      sql += ` AND (name ILIKE $${params.length} OR origin ILIKE $${params.length} OR neighborhood ILIKE $${params.length})`;
+    }
+    sql += ` ORDER BY members_count DESC, created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تسجيل جالية جديدة (طلب يُراجعه الإدارة)
+router.post("/communities/register", async (req: Request, res: Response) => {
+  try {
+    const {
+      name, category, origin, description,
+      representative_name, contact_phone,
+      members_count, neighborhood, services, meeting_schedule,
+    } = req.body as {
+      name: string; category: string; origin?: string; description?: string;
+      representative_name?: string; contact_phone?: string;
+      members_count?: number; neighborhood?: string;
+      services?: string; meeting_schedule?: string;
+    };
+    if (!name?.trim() || !contact_phone?.trim()) {
+      return res.status(400).json({ error: "اسم الجالية ورقم التواصل مطلوبان" });
+    }
+    const validCats = ["wafid", "foreign", "displaced", "expat"];
+    const cat = validCats.includes(category) ? category : "wafid";
+    const { rows } = await query(
+      `INSERT INTO communities
+        (name, category, origin, description, representative_name, contact_phone,
+         members_count, neighborhood, services, meeting_schedule, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
+       RETURNING id, name, status, created_at`,
+      [
+        name.trim(),
+        cat,
+        (origin || "").trim() || null,
+        (description || "").trim() || null,
+        (representative_name || "").trim() || null,
+        contact_phone.trim(),
+        Math.max(0, parseInt(String(members_count ?? "0"))),
+        (neighborhood || "").trim() || null,
+        (services || "").trim() || null,
+        (meeting_schedule || "").trim() || null,
+      ]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إدارة الجاليات (الإدارة فقط) ─────────────────────────────
+
+// جلب كل الجاليات
+router.get("/admin/communities", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const { rows } = await query(
+      `SELECT * FROM communities ORDER BY
+         CASE status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END,
+         created_at DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة جالية
+router.put("/admin/communities/:id/status", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { status } = req.body as { status: "active" | "rejected" };
+    if (!["active", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    }
+    const { rows } = await query(
+      `UPDATE communities SET status=$1 WHERE id=$2 RETURNING *`,
+      [status, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "الجالية غير موجودة" });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف جالية
+router.delete("/admin/communities/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") {
+      return res.status(403).json({ error: "مديرون فقط" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    await query(`DELETE FROM communities WHERE id=$1`, [id]);
     return res.json({ success: true });
   } catch (err) {
     console.error(err);
