@@ -391,11 +391,16 @@ function AuctionCard({
               {item.itemName}
             </Text>
           </View>
-          {item.sellerName ? (
-            <Text style={[styles.sellerName, { textAlign: isRTL ? "right" : "left" }]}>
-              {tr("البائع: ", "Seller: ")}{item.sellerName}
-            </Text>
-          ) : null}
+          {/* Direct-owner badge */}
+          <View style={[styles.ownerRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <View style={styles.ownerBadge}>
+              <Ionicons name="person-circle-outline" size={12} color={Colors.primary} />
+              <Text style={styles.ownerBadgeText}>{tr("مباشر من المالك", "Direct from Owner")}</Text>
+            </View>
+            {item.sellerName ? (
+              <Text style={styles.ownerName}>{item.sellerName}</Text>
+            ) : null}
+          </View>
           <View style={[styles.condRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={[styles.condBadge, { backgroundColor: condColor + "15" }]}>
               <Text style={[styles.condBadgeText, { color: condColor }]}>
@@ -658,7 +663,7 @@ function AddAuctionModal({
                 </View>
               </View>
               {[
-                { label: tr("اسم البائع *", "Seller Name *"), value: sellerName, set: setSellerName, placeholder: tr("اسمك", "Your name") },
+                { label: tr("اسم المالك *", "Owner Name *"), value: sellerName, set: setSellerName, placeholder: tr("اسمك (أنت المالك المباشر)", "Your name (you are the direct owner)") },
                 { label: tr("اسم الغرض *", "Item Name *"), value: itemName, set: setItemName, placeholder: tr("مثال: مولد كهرباء 3 كيلو", "e.g. 3kW Generator") },
                 { label: t("common", "description"), value: description, set: setDescription, placeholder: tr("تفاصيل الحالة، سبب البيع...", "Condition details, reason for selling..."), multi: true },
                 { label: t("market", "price") + " *", value: price, set: setPrice, placeholder: t("market", "pricePlaceholder") },
@@ -1058,6 +1063,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "12", borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
   },
   callBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
+  // Owner badge
+  ownerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  ownerBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    backgroundColor: Colors.primary + "12", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: Colors.primary + "25",
+  },
+  ownerBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primary },
+  ownerName: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   // Auction-specific
   auctionAccentBar: {
     position: "absolute", top: 0, bottom: 0, left: 0,
