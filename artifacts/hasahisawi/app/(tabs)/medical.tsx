@@ -35,26 +35,8 @@ export type Facility = {
 };
 
 export const MEDICAL_KEY = "medical_facilities_v1";
-const MEDICAL_INIT_KEY = "medical_facilities_initialized";
-
-const SEED_FACILITIES: Facility[] = [
-  { id: "med1", name: "صيدلية الشفاء", type: "pharmacy", address: "شارع السوق الكبير، حصاحيصا", phone: "+249912345678", isOnCall: true, hours: "24 ساعة" },
-  { id: "med2", name: "صيدلية الأمل", type: "pharmacy", address: "حي الضحى، حصاحيصا", phone: "+249912345679", isOnCall: false, hours: "8ص - 10م" },
-  { id: "med3", name: "صيدلية النيل", type: "pharmacy", address: "شارع المدارس، حصاحيصا", phone: "+249912345680", isOnCall: false, hours: "8ص - 9م" },
-  { id: "med4", name: "صيدلية الرحمة", type: "pharmacy", address: "القرية الشمالية", phone: "+249912345681", isOnCall: true, hours: "24 ساعة" },
-  { id: "med5", name: "مستشفى حصاحيصا الحكومي", type: "hospital", address: "المنطقة المركزية، حصاحيصا", phone: "+249912345682", isOnCall: true, hours: "24 ساعة", specialties: ["طوارئ", "جراحة", "أطفال", "نساء وتوليد"] },
-  { id: "med6", name: "مستشفى الخيرية الأهلي", type: "hospital", address: "حي السلام، حصاحيصا", phone: "+249912345683", isOnCall: false, hours: "7ص - 5م", specialties: ["باطنية", "أطفال"] },
-  { id: "med7", name: "عيادة الدكتور أحمد", type: "clinic", address: "شارع النيل، حصاحيصا", phone: "+249912345684", isOnCall: false, hours: "4م - 9م", specialties: ["طب عام"] },
-  { id: "med8", name: "عيادة الأطفال المتخصصة", type: "clinic", address: "الحي الغربي، حصاحيصا", phone: "+249912345685", isOnCall: false, hours: "5م - 9م", specialties: ["أطفال"] },
-];
 
 export async function loadFacilities(): Promise<Facility[]> {
-  const init = await AsyncStorage.getItem(MEDICAL_INIT_KEY);
-  if (!init) {
-    await AsyncStorage.setItem(MEDICAL_KEY, JSON.stringify(SEED_FACILITIES));
-    await AsyncStorage.setItem(MEDICAL_INIT_KEY, "1");
-    return SEED_FACILITIES;
-  }
   const raw = await AsyncStorage.getItem(MEDICAL_KEY);
   return raw ? JSON.parse(raw) : [];
 }
