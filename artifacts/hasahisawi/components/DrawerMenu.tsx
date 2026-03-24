@@ -80,7 +80,7 @@ const GROUPS: Group[] = [
     items: [
       { title: "التقويم",      icon: "calendar-number-outline", route: "/(tabs)/calendar",   color: Colors.cyber   },
       { title: "أرقام مهمة",  icon: "call-outline",            route: "/(tabs)/numbers",    color: Colors.primary },
-      { title: "المساعد الذكي",icon: "sparkles-outline",        route: "/(tabs)/ai-support", color: Colors.accent  },
+      { title: "المساعد الذكي",icon: "sparkles",                route: "/(tabs)/ai-support", color: Colors.accent  },
     ],
   },
 ];
