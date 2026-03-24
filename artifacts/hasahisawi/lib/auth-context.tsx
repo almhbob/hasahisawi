@@ -301,13 +301,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profile: UserProfile = {
       uid: fbUser.uid,
       name: name.trim(),
-      nationalId: nationalId || undefined,
-      phone: isActualEmail ? undefined : phoneOrEmail.trim(),
-      email: isActualEmail ? phoneOrEmail.trim().toLowerCase() : undefined,
       role: "user",
       permissions: [],
-      neighborhood: neighborhood || undefined,
-      birthDate: birthDate || undefined,
+      ...(nationalId ? { nationalId } : {}),
+      ...(isActualEmail
+        ? { email: phoneOrEmail.trim().toLowerCase() }
+        : { phone: phoneOrEmail.trim() }),
+      ...(neighborhood ? { neighborhood } : {}),
+      ...(birthDate ? { birthDate } : {}),
     };
 
     await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
