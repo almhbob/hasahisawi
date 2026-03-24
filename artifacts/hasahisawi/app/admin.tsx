@@ -1353,4 +1353,28 @@ const s = StyleSheet.create({
   },
   adDetailValue: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   divider: { height: 1, backgroundColor: Colors.divider, marginVertical: 12 },
+
+  /* ── Neighborhoods ── */
+  filterChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.divider, marginRight: 8,
+    backgroundColor: Colors.cardBg,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.primary + "22", borderColor: Colors.primary,
+  },
+  filterChipText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary,
+  },
+  filterChipTextActive: { color: Colors.primary },
+  modalOverlay: {
+    flex: 1, backgroundColor: "#00000099",
+    justifyContent: "center", alignItems: "center", padding: 20,
+  },
+
+  /* ── AI Settings ── */
+  overviewCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
 });
