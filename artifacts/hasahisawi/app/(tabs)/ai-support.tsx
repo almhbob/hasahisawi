@@ -273,7 +273,7 @@ const s = StyleSheet.create({
   typingRow:   { flexDirection: "row", alignItems: "center", marginTop: 8 },
   typingBubble: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12 },
   typingText:  { color: Colors.textMuted, fontSize: 13 },
-  inputBar:    { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.border },
+  inputBar:    { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.divider },
   input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.textPrimary, maxHeight: 120 },
   sendBtn:     { width: 44, height: 44 },
   sendBtnDisabled: { opacity: 0.5 },
