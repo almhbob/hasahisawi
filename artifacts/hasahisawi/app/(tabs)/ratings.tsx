@@ -69,7 +69,9 @@ function categoryList(type: EntityType) {
 function apiBase() { return getApiUrl(); }
 
 async function apiFetch(path: string, opts?: Parameters<typeof fetch>[1]) {
-  const url = new URL(path, apiBase()).toString();
+  const base = apiBase();
+  if (!base) throw new Error("API not configured");
+  const url = new URL(path, base).toString();
   const res = await fetch(url, opts);
   return res;
 }
