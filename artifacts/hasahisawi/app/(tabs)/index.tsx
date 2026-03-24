@@ -121,7 +121,9 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    fetch(new URL("/api/landmarks", getApiUrl()).toString())
+    const base = getApiUrl();
+    if (!base) return;
+    fetch(new URL("/api/landmarks", base).toString())
       .then(r => r.ok ? r.json() : null)
       .then((data: ApiLandmark[] | null) => {
         if (Array.isArray(data) && data.length > 0) setLandmarks(data);
@@ -130,7 +132,9 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    fetch(new URL("/api/ads", getApiUrl()).toString())
+    const base = getApiUrl();
+    if (!base) return;
+    fetch(new URL("/api/ads", base).toString())
       .then(r => r.ok ? r.json() : null)
       .then((data: any[] | null) => {
         if (Array.isArray(data) && data.length > 0) setFeaturedAd(data[0]);
