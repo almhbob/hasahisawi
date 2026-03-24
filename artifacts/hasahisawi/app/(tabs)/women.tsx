@@ -53,27 +53,6 @@ type Recipe = {
 // DATA
 // ══════════════════════════════════════════════════════
 const WOMEN_KEY = "women_services_v2";
-const WOMEN_INIT_KEY = "women_services_v2_initialized";
-
-const SEED_SERVICES: WomenService[] = [
-  // صالونات
-  { id: "w1", name: "صالون لمسة جمال", type: "salon", address: "حي الموظفين، حصاحيصا", phone: "+249912345601", hours: "9ص - 9م", description: "صالون متكامل للعرائس والسيدات، متخصص في تسريح الشعر والمكياج وإزالة الشعر وصبغ الشعر", rating: 4.8, tags: ["عرائس", "مكياج", "صبغ"] },
-  { id: "w2", name: "مركز حواء للتجميل", type: "salon", address: "شارع السوق، حصاحيصا", phone: "+249912345602", hours: "10ص - 10م", description: "مركز تجميل نسائي شامل يقدم خدمات العناية بالبشرة والشعر والأظافر بأحدث المعدات", rating: 4.5, tags: ["بشرة", "أظافر", "كيراتين"] },
-  { id: "w3", name: "صالون فرح النسائي", type: "salon", address: "حي الجامعة، حصاحيصا", phone: "+249912345609", hours: "9ص - 8م", description: "صالون أنيق مع فريق متخصص للعناية الكاملة بالسيدات وتنسيق عرائس المنطقة", rating: 4.7, tags: ["عرائس", "تسريح", "مكياج"] },
-  // خياطة
-  { id: "w4", name: "خياطة أم هاني", type: "sewing", address: "الحي الشمالي، حصاحيصا", phone: "+249912345605", hours: "9ص - 6م", description: "خياطة جلاليب سودانية وملابس نسائية مخصصة بخبرة 15 سنة، توزيع للمناطق المجاورة", rating: 4.9, tags: ["جلابية", "ملابس خياطة", "تفصيل"] },
-  { id: "w5", name: "أتيليه الوردة", type: "sewing", address: "شارع الخرطوم، حصاحيصا", phone: "+249912345606", hours: "8ص - 5م", description: "تصميم وخياطة فساتين سهرة وأفراح بجودة عالية، تقبل طلبات مسبقة وتوفر خدمة الزيارات المنزلية", rating: 4.6, tags: ["فساتين أفراح", "سهرة", "تطريز"] },
-  // صحة
-  { id: "w6", name: "مركز صحة المرأة", type: "health", address: "مبنى الصحة، حصاحيصا", phone: "+249912345607", hours: "8ص - 2م", description: "رعاية الأم والطفل، متابعة الحمل، تخطيط الأسرة، التطعيمات، فحوصات دورية للمرأة", rating: 4.8, tags: ["حمل", "تطعيمات", "رعاية الأم"] },
-  { id: "w7", name: "عيادة د. نادية نسائية", type: "health", address: "الحي الغربي، حصاحيصا", phone: "+249912345610", hours: "5م - 9م", description: "طبيبة نسائية متخصصة، تقديم استشارات الحمل والأمراض النسائية وخدمات ما بعد الولادة", rating: 4.9, tags: ["نسائية", "حمل", "استشارة"] },
-  // طبخ
-  { id: "w8", name: "مطبخ أم سمية — وجبات منزلية", type: "cooking", address: "منطقة الحي الجنوبي", phone: "+249912345603", hours: "من 11ص - حسب الطلب", description: "وجبات سودانية تقليدية يومية بالتوصيل: كساره، ملاح ضاني، عصيدة، كبدة، شوربة لحمة", rating: 4.9, tags: ["يومي", "توصيل", "سوداني"] },
-  { id: "w9", name: "حلويات أم منصور", type: "cooking", address: "شارع التجاري، حصاحيصا", phone: "+249912345608", hours: "8ص - 8م", description: "حلويات سودانية وعربية ومخبوزات طازجة يومياً: بسبوسة، كنافة، مقروط، حلقوم للأفراح", rating: 4.8, tags: ["حلويات", "أفراح", "طازجة"] },
-  // رعاية أطفال
-  { id: "w10", name: "روضة زهرة الربيع", type: "childcare", address: "حي السلام، حصاحيصا", phone: "+249912345611", hours: "7:30ص - 1:30م", description: "روضة أطفال معتمدة، برنامج تعليمي متطور، طاقم تربوي متخصص، بيئة آمنة وممتعة لأطفال 3-6 سنوات", rating: 4.7, tags: ["3-6 سنوات", "تعليم", "أنشطة"] },
-  // نقش حناء
-  { id: "w11", name: "خدمة نقش حناء منزلية", type: "salon", address: "متنقلة — تغطي كل حصاحيصا", phone: "+249912345604", hours: "حسب الطلب", description: "رسم حناء يدوي احترافي للأعراس والمناسبات، نقش حديث وتقليدي سوداني، خدمة منزلية", rating: 4.9, tags: ["حناء", "أعراس", "منزلية"] },
-];
 
 const HEALTH_TIPS: HealthTip[] = [
   { id: "ht1", title: "تغذية المرأة الحامل", body: "تناولي الحديد والحمض الفوليك وأوميجا-3 يومياً. تجنبي المأكولات النيئة والكافيين الزائد. شربي 8 أكواب ماء على الأقل يومياً.", icon: "heart-pulse", color: "#FF4FA3" },
@@ -149,15 +128,8 @@ export default function WomenScreen() {
   const [expandedTip, setExpandedTip] = useState<string | null>(null);
 
   const load = async () => {
-    const init = await AsyncStorage.getItem(WOMEN_INIT_KEY);
-    if (!init) {
-      await AsyncStorage.setItem(WOMEN_KEY, JSON.stringify(SEED_SERVICES));
-      await AsyncStorage.setItem(WOMEN_INIT_KEY, "1");
-      setServices(SEED_SERVICES);
-    } else {
-      const raw = await AsyncStorage.getItem(WOMEN_KEY);
-      setServices(raw ? JSON.parse(raw) : []);
-    }
+    const raw = await AsyncStorage.getItem(WOMEN_KEY);
+    setServices(raw ? JSON.parse(raw) : []);
   };
 
   useEffect(() => { load(); }, []);
