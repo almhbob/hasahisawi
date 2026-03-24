@@ -16,6 +16,7 @@ import {
 } from "@/lib/firebase/auth";
 import { fsSetDoc, fsGetDoc, COLLECTIONS } from "@/lib/firebase/firestore";
 import { isFirebaseConfigured } from "@/lib/firebase/index";
+import { getApiUrl } from "@/lib/query-client";
 
 export type AuthUser = {
   id: number;
@@ -72,11 +73,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY      = "auth_session_token";
-const USER_KEY       = "auth_user_data";
-const GUEST_KEY      = "auth_is_guest";
-const IDENTIFIER_KEY = "auth_biometric_identifier";
-const PASSWORD_KEY   = "auth_biometric_password";
+const TOKEN_KEY        = "auth_session_token";
+const BACKEND_TOKEN_KEY = "auth_backend_token";
+const USER_KEY          = "auth_user_data";
+const GUEST_KEY         = "auth_is_guest";
+const IDENTIFIER_KEY    = "auth_biometric_identifier";
+const PASSWORD_KEY      = "auth_biometric_password";
 
 const ADMIN_CODE = "HASAHISA_ADMIN_2026";
 
@@ -94,6 +96,28 @@ function identifierToEmail(phoneOrEmail: string): string {
 function maskNationalId(id?: string): string | null {
   if (!id || id.length < 4) return id ?? null;
   return "*".repeat(id.length - 4) + id.slice(-4);
+}
+
+async function exchangeForBackendToken(
+  firebase_uid: string,
+  name: string,
+  email: string | null,
+  role: string,
+): Promise<string | null> {
+  try {
+    const base = getApiUrl();
+    if (!base) return null;
+    const res = await fetch(`${base}api/auth/firebase-exchange`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firebase_uid, name, email, role }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { token?: string };
+    return data.token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function profileToAuthUser(profile: UserProfile, idToken: string): AuthUser {
@@ -193,14 +217,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsub;
   }, []);
 
-  const saveSession = async (u: AuthUser, t: string) => {
+  const saveSession = async (u: AuthUser, firebaseIdToken: string, backendTok?: string | null) => {
+    const effectiveToken = backendTok || firebaseIdToken;
     setUser(u);
-    setToken(t);
+    setToken(effectiveToken);
     setIsGuest(false);
     await Promise.all([
-      AsyncStorage.setItem(TOKEN_KEY, t),
+      AsyncStorage.setItem(TOKEN_KEY, effectiveToken),
       AsyncStorage.setItem(USER_KEY, JSON.stringify(u)),
       AsyncStorage.removeItem(GUEST_KEY),
+      backendTok
+        ? AsyncStorage.setItem(BACKEND_TOKEN_KEY, backendTok)
+        : AsyncStorage.removeItem(BACKEND_TOKEN_KEY),
     ]);
   };
 
@@ -210,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuest(false);
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
+      AsyncStorage.removeItem(BACKEND_TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),
       AsyncStorage.removeItem(GUEST_KEY),
       AsyncStorage.removeItem(PASSWORD_KEY),
@@ -265,7 +294,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!profile) throw new Error("لم يُعثر على بيانات المستخدم. يرجى إنشاء حساب جديد.");
 
     const authUser = profileToAuthUser(profile, idToken);
-    await saveSession(authUser, idToken);
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+    );
+    await saveSession(authUser, idToken, backendTok);
   };
 
   const loginAdmin = async (email: string, password: string) => {
@@ -280,7 +312,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const authUser = profileToAuthUser(profile, idToken);
-    await saveSession(authUser, idToken);
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+    );
+    await saveSession(authUser, idToken, backendTok);
   };
 
   const register = async (
@@ -314,7 +349,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
 
     const authUser = profileToAuthUser(profile, idToken);
-    await saveSession(authUser, idToken);
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, authUser.email ?? null, "user"
+    );
+    await saveSession(authUser, idToken, backendTok);
   };
 
   const registerAdmin = async (
