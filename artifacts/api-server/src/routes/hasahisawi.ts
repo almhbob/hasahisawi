@@ -82,9 +82,10 @@ export async function initHasahisawiDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30) UNIQUE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -1666,6 +1667,261 @@ router.delete("/admin/ads/:id", async (req: Request, res: Response) => {
     return res.json({ success: true });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Firebase Exchange — يحوّل Firebase UID إلى backend session token
+// ══════════════════════════════════════════════════════════════════════════════
+router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
+  try {
+    const { firebase_uid, name, email, role } = req.body as {
+      firebase_uid: string;
+      name?: string;
+      email?: string;
+      role?: string;
+    };
+    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid مطلوب" });
+
+    const safeRole = ["user", "admin", "moderator"].includes(role ?? "") ? role : "user";
+
+    // محاولة البحث عن المستخدم بـ firebase_uid أولاً
+    let userRow = (await query(
+      `SELECT * FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    )).rows[0];
+
+    if (!userRow) {
+      // البحث بالبريد الإلكتروني لتجنب التكرار
+      if (email) {
+        userRow = (await query(
+          `SELECT * FROM users WHERE email = $1`,
+          [email]
+        )).rows[0];
+        if (userRow) {
+          await query(
+            `UPDATE users SET firebase_uid=$1, role=$2 WHERE id=$3`,
+            [firebase_uid, safeRole, userRow.id]
+          );
+          userRow = { ...userRow, firebase_uid, role: safeRole };
+        }
+      }
+
+      if (!userRow) {
+        // إنشاء مستخدم جديد بدون كلمة مرور (Firebase يتولى المصادقة)
+        const hash = await bcrypt.hash(randomBytes(16).toString("hex"), 6);
+        userRow = (await query(
+          `INSERT INTO users (firebase_uid, name, email, password_hash, role)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [firebase_uid, name || "مستخدم", email || null, hash, safeRole]
+        )).rows[0];
+      }
+    } else {
+      // تحديث الدور إن تغيّر
+      if (safeRole && userRow.role !== safeRole) {
+        await query(`UPDATE users SET role=$1 WHERE id=$2`, [safeRole, userRow.id]);
+        userRow = { ...userRow, role: safeRole };
+      }
+    }
+
+    // إصدار session token جديد
+    const sessionToken = randomBytes(32).toString("hex");
+    await query(
+      `INSERT INTO user_sessions (user_id, token) VALUES ($1, $2)`,
+      [userRow.id, sessionToken]
+    );
+
+    return res.json({ user: safeUserPayload(userRow), token: sessionToken });
+  } catch (err) {
+    console.error("firebase-exchange error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// الأحياء والقرى — Neighborhoods Admin CRUD
+// ══════════════════════════════════════════════════════════════════════════════
+router.get("/admin/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key LIKE 'nbr_%' ORDER BY key`
+    );
+    const items = rows.map(r => JSON.parse(r.value));
+    return res.json(items);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/admin/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
+    if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const key = `nbr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const item = { label: label.trim(), type: type || "neighborhood", key };
+    await query(
+      `INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value=$2`,
+      [key, JSON.stringify(item)]
+    );
+    return res.json(item);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { key } = req.params;
+    if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
+    const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
+    if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const item = { label: label.trim(), type: type || "neighborhood", key };
+    await query(
+      `UPDATE admin_settings SET value=$1 WHERE key=$2`,
+      [JSON.stringify(item), key]
+    );
+    return res.json(item);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { key } = req.params;
+    if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
+    await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// إعدادات الذكاء الاصطناعي
+// ══════════════════════════════════════════════════════════════════════════════
+router.get("/admin/ai-settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('ai_api_key','ai_enabled','ai_allowed_roles','ai_system_prompt')`
+    );
+    const result: Record<string, string> = {};
+    rows.forEach(r => { result[r.key] = r.value; });
+    return res.json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.put("/admin/ai-settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { ai_api_key, ai_enabled, ai_allowed_roles, ai_system_prompt } = req.body;
+    const entries: [string, string][] = [];
+    if (ai_api_key !== undefined) entries.push(["ai_api_key", ai_api_key]);
+    if (ai_enabled !== undefined) entries.push(["ai_enabled", String(ai_enabled)]);
+    if (ai_allowed_roles !== undefined) entries.push(["ai_allowed_roles", ai_allowed_roles]);
+    if (ai_system_prompt !== undefined) entries.push(["ai_system_prompt", ai_system_prompt]);
+    for (const [k, v] of entries) {
+      await query(
+        `INSERT INTO admin_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2`,
+        [k, v]
+      );
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حالة الذكاء الاصطناعي
+router.get("/ai/status", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT value FROM admin_settings WHERE key='ai_enabled'`
+    );
+    const enabled = rows[0]?.value === "true";
+    return res.json({ enabled });
+  } catch {
+    return res.json({ enabled: false });
+  }
+});
+
+// دعم الذكاء الاصطناعي (Gemini free tier proxy)
+router.post("/ai/chat", async (req: Request, res: Response) => {
+  try {
+    const { message, history } = req.body as {
+      message: string;
+      history?: { role: string; parts: { text: string }[] }[];
+    };
+    if (!message?.trim()) return res.status(400).json({ error: "الرسالة فارغة" });
+
+    const settingsRows = (await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('ai_api_key','ai_enabled','ai_system_prompt')`
+    )).rows;
+    const settings: Record<string, string> = {};
+    settingsRows.forEach(r => { settings[r.key] = r.value; });
+
+    if (settings["ai_enabled"] !== "true") {
+      return res.status(503).json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حالياً" });
+    }
+
+    const apiKey = settings["ai_api_key"];
+    if (!apiKey) return res.status(503).json({ error: "لم يتم تكوين مفتاح API" });
+
+    const systemPrompt = settings["ai_system_prompt"] ||
+      "أنت مساعد ذكي لتطبيق حصاحيصاوي، مخصص لخدمة أهالي مدينة الحصاحيصا في السودان. أجب باللغة العربية بأسلوب ودود ومفيد. تخصصك في: المعلومات المحلية، الخدمات المتاحة في التطبيق، والإرشاد العام.";
+
+    const contents = [
+      ...(history || []),
+      { role: "user", parts: [{ text: message }] },
+    ];
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) {
+      const err = await geminiRes.text();
+      console.error("Gemini error:", err);
+      return res.status(502).json({ error: "خطأ في الاتصال بخدمة الذكاء الاصطناعي" });
+    }
+
+    const data = await geminiRes.json() as any;
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "لم أتمكن من الإجابة، يرجى المحاولة مجدداً.";
+    return res.json({ reply });
+  } catch (err) {
+    console.error("AI chat error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
