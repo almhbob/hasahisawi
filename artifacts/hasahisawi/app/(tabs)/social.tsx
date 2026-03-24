@@ -115,7 +115,9 @@ async function getDeviceId(): Promise<string> {
 }
 
 function apiUrl(path: string) {
-  return new URL(path, getApiUrl()).toString();
+  const base = getApiUrl();
+  if (!base) throw new Error("API not configured");
+  return new URL(path, base).toString();
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
