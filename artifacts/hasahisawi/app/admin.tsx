@@ -32,7 +32,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "neighborhoods" | "ai_settings";
 
 type AdRecord = {
   id: number;
@@ -181,6 +181,23 @@ export default function AdminDashboard() {
   const [approvalDays, setApprovalDays] = useState("7");
   const [adminNote, setAdminNote] = useState("");
 
+  // ── Neighborhoods state ──
+  type NbrItem = { label: string; type: "neighborhood" | "village"; key?: string };
+  const [neighborhoods, setNeighborhoods] = useState<NbrItem[]>([]);
+  const [loadingNbr, setLoadingNbr] = useState(false);
+  const [nbrForm, setNbrForm] = useState<{ label: string; type: "neighborhood" | "village" }>({ label: "", type: "neighborhood" });
+  const [addingNbr, setAddingNbr] = useState(false);
+  const [editingNbr, setEditingNbr] = useState<NbrItem | null>(null);
+  const [showAddNbr, setShowAddNbr] = useState(false);
+  const [nbrFilter, setNbrFilter] = useState<"all" | "neighborhood" | "village">("all");
+
+  // ── AI Settings state ──
+  const [aiSettings, setAiSettings] = useState<Record<string, string>>({});
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [savingAi, setSavingAi] = useState(false);
+  const [aiForm, setAiForm] = useState({ ai_api_key: "", ai_enabled: "false", ai_system_prompt: "" });
+  const [showApiKey, setShowApiKey] = useState(false);
+
   const isAdmin = user?.role === "admin";
   const isMod   = user?.role === "moderator";
 
@@ -298,6 +315,107 @@ export default function AdminDashboard() {
     } finally { setApprovingId(null); }
   };
 
+  // ── Neighborhoods CRUD ────────────────────────────────────────────
+  const loadNeighborhoods = useCallback(async () => {
+    setLoadingNbr(true);
+    try {
+      const res = await apiFetch("/api/admin/neighborhoods", token);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setNeighborhoods(data);
+        } else {
+          const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
+          setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
+        }
+      } else {
+        const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
+        setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
+      }
+    } catch {
+      const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
+      setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
+    } finally { setLoadingNbr(false); }
+  }, [token]);
+
+  const saveNeighborhood = async () => {
+    if (!nbrForm.label.trim()) { Alert.alert("تنبيه", "أدخل الاسم"); return; }
+    setAddingNbr(true);
+    try {
+      if (editingNbr?.key) {
+        const res = await apiFetch(`/api/admin/neighborhoods/${editingNbr.key}`, token, {
+          method: "PUT", body: JSON.stringify(nbrForm),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setNeighborhoods(prev => prev.map(n => n.key === editingNbr.key ? updated : n));
+        }
+      } else {
+        const res = await apiFetch("/api/admin/neighborhoods", token, {
+          method: "POST", body: JSON.stringify(nbrForm),
+        });
+        if (res.ok) {
+          const added = await res.json();
+          setNeighborhoods(prev => [...prev, added]);
+        }
+      }
+      setNbrForm({ label: "", type: "neighborhood" });
+      setEditingNbr(null);
+      setShowAddNbr(false);
+    } catch { Alert.alert("خطأ", "تعذّرت العملية"); }
+    finally { setAddingNbr(false); }
+  };
+
+  const deleteNeighborhood = (item: NbrItem) => {
+    Alert.alert("حذف", `حذف "${item.label}"؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف", style: "destructive",
+        onPress: async () => {
+          if (!item.key) {
+            setNeighborhoods(prev => prev.filter(n => n.label !== item.label));
+            return;
+          }
+          try {
+            await apiFetch(`/api/admin/neighborhoods/${item.key}`, token, { method: "DELETE" });
+            setNeighborhoods(prev => prev.filter(n => n.key !== item.key));
+          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+        },
+      },
+    ]);
+  };
+
+  // ── AI Settings ────────────────────────────────────────────────────
+  const loadAiSettings = useCallback(async () => {
+    setLoadingAi(true);
+    try {
+      const res = await apiFetch("/api/admin/ai-settings", token);
+      if (res.ok) {
+        const data = await res.json();
+        setAiSettings(data);
+        setAiForm({
+          ai_api_key: data.ai_api_key || "",
+          ai_enabled: data.ai_enabled || "false",
+          ai_system_prompt: data.ai_system_prompt || "",
+        });
+      }
+    } catch {}
+    finally { setLoadingAi(false); }
+  }, [token]);
+
+  const saveAiSettings = async () => {
+    setSavingAi(true);
+    try {
+      const res = await apiFetch("/api/admin/ai-settings", token, {
+        method: "PUT",
+        body: JSON.stringify(aiForm),
+      });
+      if (res.ok) Alert.alert("تم", "تم حفظ إعدادات الذكاء الاصطناعي");
+      else Alert.alert("خطأ", "فشل الحفظ");
+    } catch { Alert.alert("خطأ", "تعذّر الحفظ"); }
+    finally { setSavingAi(false); }
+  };
+
   const deleteAd = (ad: AdRecord) => {
     Alert.alert("حذف إعلان", `حذف إعلان "${ad.institution_name}"؟`, [
       { text: "إلغاء", style: "cancel" },
@@ -316,10 +434,12 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => {
-    if (tab !== "overview" && tab !== "landmarks" && tab !== "ads") loadUsers();
+    if (tab !== "overview" && tab !== "landmarks" && tab !== "ads" && tab !== "neighborhoods" && tab !== "ai_settings") loadUsers();
     if (tab === "landmarks") loadLandmarks();
     if (tab === "ads") loadAds();
-  }, [tab, loadUsers, loadLandmarks, loadAds]);
+    if (tab === "neighborhoods") loadNeighborhoods();
+    if (tab === "ai_settings") loadAiSettings();
+  }, [tab, loadUsers, loadLandmarks, loadAds, loadNeighborhoods, loadAiSettings]);
 
   const handleRoleChange = async (newRole: string) => {
     if (!roleModal) return;
@@ -357,7 +477,9 @@ export default function AdminDashboard() {
     { key: "admins",     label: "المديرون",  icon: "shield",                color: "#E74C3C"      },
     { key: "moderators", label: "المشرفون",  icon: "shield-half",           color: "#F0A500"      },
     { key: "landmarks",  label: "المعالم",   icon: "location",              color: "#9B59B6"      },
-    { key: "ads",        label: "إعلانات",   icon: "megaphone",             color: "#F0A500", badge: pendingAdsCount },
+    { key: "ads",           label: "إعلانات",  icon: "megaphone",             color: "#F0A500", badge: pendingAdsCount },
+    { key: "neighborhoods", label: "الأحياء",  icon: "map-outline",           color: "#3498DB"      },
+    { key: "ai_settings",   label: "الذكاء الاصطناعي", icon: "sparkles", color: Colors.cyber },
   ];
 
   const filteredAds = adsFilter === "all" ? adsList : adsList.filter(a => a.status === adsFilter);
@@ -806,6 +928,190 @@ export default function AdminDashboard() {
             </Pressable>
           </Modal>
         </View>
+
+      ) : tab === "neighborhoods" ? (
+        /* ─── إدارة الأحياء ─────── */
+        <View style={{ flex: 1 }}>
+          {/* شريط العنوان */}
+          <View style={[s.lmHeader, { justifyContent: "space-between" }]}>
+            <Text style={s.lmHeaderTitle}>الأحياء والقرى ({neighborhoods.length})</Text>
+            <TouchableOpacity
+              style={[s.lmAddBtn, { backgroundColor: "#3498DB" }]}
+              onPress={() => { setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(true); }}
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={s.lmAddTxt}>إضافة</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* فلاتر */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+            {(["all", "neighborhood", "village"] as const).map(f => (
+              <TouchableOpacity
+                key={f}
+                onPress={() => setNbrFilter(f)}
+                style={[s.filterChip, nbrFilter === f && s.filterChipActive]}
+              >
+                <Text style={[s.filterChipText, nbrFilter === f && s.filterChipTextActive]}>
+                  {f === "all" ? "الكل" : f === "neighborhood" ? "أحياء" : "قرى"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {loadingNbr ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <FlatList
+              data={nbrFilter === "all" ? neighborhoods : neighborhoods.filter(n => n.type === nbrFilter)}
+              keyExtractor={(_, i) => i.toString()}
+              contentContainerStyle={{ padding: 16, gap: 8 }}
+              renderItem={({ item }) => (
+                <View style={[s.lmCard, { justifyContent: "space-between" }]}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: item.type === "neighborhood" ? "#3498DB22" : "#9B59B622", alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name={item.type === "neighborhood" ? "home" : "leaf"} size={18} color={item.type === "neighborhood" ? "#3498DB" : "#9B59B6"} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.lmName}>{item.label}</Text>
+                      <Text style={[s.lmSub, { color: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }]}>
+                        {item.type === "neighborhood" ? "حي" : "قرية"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                      style={[s.lmDeleteBtn, { backgroundColor: "#3498DB18", borderColor: "#3498DB30" }]}
+                      onPress={() => { setEditingNbr(item); setNbrForm({ label: item.label, type: item.type }); setShowAddNbr(true); }}
+                    >
+                      <Ionicons name="pencil-outline" size={16} color="#3498DB" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.lmDeleteBtn} onPress={() => deleteNeighborhood(item)}>
+                      <Ionicons name="trash-outline" size={16} color="#E74C3C" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            />
+          )}
+
+          {/* Modal إضافة/تعديل */}
+          <Modal visible={showAddNbr} transparent animationType="fade" onRequestClose={() => setShowAddNbr(false)}>
+            <Pressable style={s.modalOverlay} onPress={() => setShowAddNbr(false)}>
+              <Pressable style={s.lmModal}>
+                <Text style={[s.sectionTitle, { textAlign: "center" }]}>
+                  {editingNbr ? "تعديل الحي/القرية" : "إضافة حي أو قرية"}
+                </Text>
+                <Text style={s.lmFieldLabel}>الاسم</Text>
+                <TextInput
+                  style={s.lmInput} value={nbrForm.label} onChangeText={t => setNbrForm(p => ({ ...p, label: t }))}
+                  placeholder="اسم الحي أو القرية" placeholderTextColor={Colors.textMuted}
+                  textAlign="right"
+                />
+                <Text style={s.lmFieldLabel}>النوع</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 4 }}>
+                  {(["neighborhood", "village"] as const).map(t => (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => setNbrForm(p => ({ ...p, type: t }))}
+                      style={[s.filterChip, nbrForm.type === t && s.filterChipActive, { flex: 1, justifyContent: "center" }]}
+                    >
+                      <Text style={[s.filterChipText, nbrForm.type === t && s.filterChipTextActive]}>
+                        {t === "neighborhood" ? "حي" : "قرية"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={[s.lmAddBtn, { backgroundColor: "#3498DB", justifyContent: "center", marginTop: 12, height: 46 }]}
+                  onPress={saveNeighborhood}
+                  disabled={addingNbr}
+                >
+                  {addingNbr ? <ActivityIndicator color="#fff" /> : <Text style={s.lmAddTxt}>{editingNbr ? "حفظ التعديل" : "إضافة"}</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity style={s.cancelBtn} onPress={() => setShowAddNbr(false)}>
+                  <Text style={s.cancelTxt}>إلغاء</Text>
+                </TouchableOpacity>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        </View>
+
+      ) : tab === "ai_settings" ? (
+        /* ─── إعدادات الذكاء الاصطناعي ─────── */
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+          <View style={[s.overviewCard, { gap: 14 }]}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.cyber + "22", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="sparkles" size={20} color={Colors.cyber} />
+              </View>
+              <Text style={s.sectionTitle}>إعدادات الذكاء الاصطناعي (Gemini)</Text>
+            </View>
+
+            {loadingAi ? <ActivityIndicator color={Colors.primary} /> : (
+              <>
+                {/* تفعيل/تعطيل */}
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.bg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary }}>تفعيل المساعد الذكي</Text>
+                  <TouchableOpacity
+                    onPress={() => setAiForm(p => ({ ...p, ai_enabled: p.ai_enabled === "true" ? "false" : "true" }))}
+                    style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: aiForm.ai_enabled === "true" ? Colors.primary : Colors.divider, justifyContent: "center", alignItems: aiForm.ai_enabled === "true" ? "flex-end" : "flex-start", paddingHorizontal: 3 }}
+                  >
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" }} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Gemini API Key */}
+                <View style={{ gap: 6 }}>
+                  <Text style={s.lmFieldLabel}>مفتاح Gemini API</Text>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                    <TextInput
+                      style={[s.lmInput, { flex: 1 }]}
+                      value={aiForm.ai_api_key}
+                      onChangeText={t => setAiForm(p => ({ ...p, ai_api_key: t }))}
+                      placeholder="AIza..."
+                      placeholderTextColor={Colors.textMuted}
+                      secureTextEntry={!showApiKey}
+                      textAlign="right"
+                    />
+                    <TouchableOpacity onPress={() => setShowApiKey(p => !p)} style={{ padding: 10 }}>
+                      <Ionicons name={showApiKey ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={s.lmHint}>الحصول على المفتاح: aistudio.google.com → Get API Key (مجاني)</Text>
+                </View>
+
+                {/* System Prompt */}
+                <View style={{ gap: 6 }}>
+                  <Text style={s.lmFieldLabel}>رسالة النظام (System Prompt)</Text>
+                  <TextInput
+                    style={[s.lmInput, { height: 100, textAlignVertical: "top", paddingTop: 10 }]}
+                    value={aiForm.ai_system_prompt}
+                    onChangeText={t => setAiForm(p => ({ ...p, ai_system_prompt: t }))}
+                    placeholder="أنت مساعد ذكي لخدمة أهل مدينة الحصاحيصا..."
+                    placeholderTextColor={Colors.textMuted}
+                    multiline
+                    numberOfLines={4}
+                    textAlign="right"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[s.lmAddBtn, { backgroundColor: Colors.primary, justifyContent: "center", height: 48, borderRadius: 14 }]}
+                  onPress={saveAiSettings}
+                  disabled={savingAi}
+                >
+                  {savingAi ? <ActivityIndicator color="#000" /> : (
+                    <>
+                      <Ionicons name="save-outline" size={18} color="#000" />
+                      <Text style={[s.lmAddTxt, { color: "#000" }]}>حفظ الإعدادات</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
 
       ) : (
         /* ─── تبويبات الأعضاء/المديرين/المشرفين ─────── */
