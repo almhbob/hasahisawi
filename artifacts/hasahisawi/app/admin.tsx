@@ -64,7 +64,9 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: keyof ty
 };
 
 function apiFetch(path: string, token: string | null, opts: Parameters<typeof fetch>[1] = {}) {
-  const url = new URL(path, getApiUrl()).toString();
+  const base = getApiUrl();
+  if (!base) return Promise.reject(new Error("API not configured"));
+  const url = new URL(path, base).toString();
   return fetch(url, {
     ...opts,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(opts as any).headers },
