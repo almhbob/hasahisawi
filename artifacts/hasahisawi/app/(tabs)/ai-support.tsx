@@ -48,7 +48,7 @@ export default function AiSupportScreen() {
     try {
       const base = getApiUrl();
       if (!base) { setEnabled(false); setCheckingEnabled(false); return; }
-      const res = await fetch(`${base}api/ai/status`);
+      const res = await fetch(`${base}/api/ai/status`);
       if (res.ok) {
         const data = await res.json() as { enabled: boolean };
         setEnabled(data.enabled);
@@ -87,7 +87,7 @@ export default function AiSupportScreen() {
           parts: [{ text: m.text }],
         }));
 
-      const res = await fetch(`${base}api/ai/chat`, {
+      const res = await fetch(`${base}/api/ai/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
