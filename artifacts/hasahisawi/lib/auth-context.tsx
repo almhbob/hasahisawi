@@ -107,7 +107,7 @@ async function exchangeForBackendToken(
   try {
     const base = getApiUrl();
     if (!base) return null;
-    const res = await fetch(`${base}api/auth/firebase-exchange`, {
+    const res = await fetch(`${base}/api/auth/firebase-exchange`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firebase_uid, name, email, role }),
