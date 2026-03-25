@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Platform, Alert, Modal, Pressable,
+  TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -33,7 +33,9 @@ const JOBS_KEY = "jobs_listings";
 const FAMILY_KEY = "family_market_v1";
 const AUCTION_KEY = "auction_market_v1";
 
-type AdminTab = "overview" | "medical" | "schools" | "institutions" | "sports" | "culture" | "lost" | "jobs" | "market" | "notifications" | "news" | "profile" | "users";
+type AdminTab = "overview" | "medical" | "schools" | "institutions" | "sports" | "culture" | "lost" | "jobs" | "market" | "notifications" | "news" | "landmarks" | "subscriptions" | "profile" | "users";
+
+type ApiLandmark = { id: number; name: string; sub: string; image_url: string; sort_order: number };
 
 type ManagedUser = {
   id: number;
@@ -789,7 +791,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/notifications`);
+      const res = await fetch(`${base}/api/notifications`);
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -802,7 +804,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/notifications`, {
+      const res = await fetch(`${base}/api/notifications`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), body: newBody.trim(), type: newType }),
@@ -817,7 +819,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/notifications/${id}`, {
+      const res = await fetch(`${base}/api/notifications/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -912,7 +914,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/news`);
+      const res = await fetch(`${base}/api/news`);
       if (res.ok) setNews(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -925,7 +927,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/news`, {
+      const res = await fetch(`${base}/api/news`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim(), category: newCategory, author_name: newAuthor.trim() || undefined, is_pinned: newPinned }),
@@ -940,7 +942,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/news/${id}`, {
+      const res = await fetch(`${base}/api/news/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -1044,6 +1046,8 @@ export default function SettingsScreen() {
     { key: "market",        label: t("admin", "market"), icon: "storefront-outline" },
     { key: "notifications", label: t("notifications", "title"), icon: "notifications-outline" },
     { key: "news",          label: t("news", "title"), icon: "newspaper-outline" },
+    { key: "landmarks",     label: "المعالم", icon: "location-outline" },
+    { key: "subscriptions", label: "الاشتراكات", icon: "card-outline" },
     { key: "profile",       label: t("admin", "profile"), icon: "person-circle-outline" },
   ];
 
@@ -1063,6 +1067,7 @@ export default function SettingsScreen() {
   }) : ALL_ADMIN_TABS;
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [loginRole, setLoginRole] = useState<"admin" | "moderator" | null>(null);
   const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -1108,6 +1113,14 @@ export default function SettingsScreen() {
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
 
+  // ── Landmarks state ──
+  const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
+  const [showAddLandmark, setShowAddLandmark] = useState(false);
+  const [lmName, setLmName] = useState("");
+  const [lmSub, setLmSub] = useState("");
+  const [lmImageUrl, setLmImageUrl] = useState("");
+  const [lmAdding, setLmAdding] = useState(false);
+
   const checkAdmin = async () => {
     if (hasAccess) loadAll();
   };
@@ -1139,6 +1152,63 @@ export default function SettingsScreen() {
     setAuctionItems(rawAuc ? JSON.parse(rawAuc) : []);
   };
 
+  const loadLandmarks = async () => {
+    try {
+      const base = getApiUrl();
+      const url = new URL("/api/landmarks", base).toString();
+      const res = await fetch(url);
+      if (res.ok) setLandmarks(await res.json());
+    } catch {}
+  };
+
+  const addLandmark = async () => {
+    if (!lmName.trim() || !lmImageUrl.trim()) {
+      Alert.alert("تنبيه", "الاسم ورابط الصورة مطلوبان");
+      return;
+    }
+    setLmAdding(true);
+    try {
+      const base = getApiUrl();
+      const url = new URL("/api/admin/landmarks", base).toString();
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+        },
+        body: JSON.stringify({ name: lmName.trim(), sub: lmSub.trim(), image_url: lmImageUrl.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر الإضافة"); return; }
+      setLandmarks(prev => [...prev, json]);
+      setLmName(""); setLmSub(""); setLmImageUrl("");
+      setShowAddLandmark(false);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setLmAdding(false); }
+  };
+
+  const deleteLandmark = (lm: ApiLandmark) => {
+    Alert.alert("حذف معلم", `هل تريد حذف "${lm.name}"؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف", style: "destructive",
+        onPress: async () => {
+          try {
+            const base = getApiUrl();
+            const url = new URL(`/api/admin/landmarks/${lm.id}`, base).toString();
+            await fetch(url, {
+              method: "DELETE",
+              headers: { ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
+            });
+            setLandmarks(prev => prev.filter(x => x.id !== lm.id));
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+        },
+      },
+    ]);
+  };
+
   useEffect(() => { checkAdmin(); }, [hasAccess]);
   useFocusEffect(useCallback(() => {
     if (hasAccess) {
@@ -1147,6 +1217,7 @@ export default function SettingsScreen() {
     }
   }, [hasAccess]));
   useEffect(() => { if (activeTab === "users" && isAdmin) loadUsers(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "landmarks" && hasAccess) loadLandmarks(); }, [activeTab]);
 
   const apiBase = () => {
     const base = getApiUrl();
@@ -1545,106 +1616,150 @@ export default function SettingsScreen() {
           <Text style={styles.headerTitle}>لوحة الإدارة</Text>
         </View>
         <ScrollView contentContainerStyle={styles.loginWrap} keyboardShouldPersistTaps="handled">
-          <View style={styles.loginCard}>
-            <View style={styles.loginIconWrap}>
-              <Ionicons name="shield-checkmark" size={36} color={Colors.primary} />
-            </View>
-            <Text style={styles.loginTitle}>
-              {loginMode === "login" ? "دخول المشرف" : "تسجيل مشرف جديد"}
-            </Text>
-            <Text style={styles.loginSub}>
-              {loginMode === "login"
-                ? "سجّل الدخول بالبريد الإلكتروني وكلمة المرور"
-                : "أنشئ حساب مشرف جديد باستخدام رمز التسجيل"}
-            </Text>
+          {/* ─── خطوة 1: اختيار الدور ─── */}
+          {!loginRole ? (
+            <View style={styles.loginCard}>
+              <View style={styles.loginIconWrap}>
+                <Ionicons name="shield-checkmark" size={40} color={Colors.primary} />
+              </View>
+              <Text style={styles.loginTitle}>لوحة الإدارة</Text>
+              <Text style={styles.loginSub}>اختر صفتك للمتابعة</Text>
 
-            {/* Mode toggle */}
-            <View style={styles.loginToggleRow}>
               <TouchableOpacity
-                style={[styles.loginToggleBtn, loginMode === "register" && styles.loginToggleBtnActive]}
-                onPress={() => { setLoginMode("register"); setLoginError(""); }}
+                style={[styles.loginBtn, { backgroundColor: "#E74C3C", marginTop: 24 }]}
+                onPress={() => { setLoginRole("admin"); setLoginMode("login"); setLoginError(""); }}
+                activeOpacity={0.85}
               >
-                <Text style={[styles.loginToggleText, loginMode === "register" && styles.loginToggleTextActive]}>تسجيل جديد</Text>
+                <Ionicons name="shield" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                <Text style={styles.loginBtnText}>دخول كمدير</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.loginToggleBtn, loginMode === "login" && styles.loginToggleBtnActive]}
-                onPress={() => { setLoginMode("login"); setLoginError(""); }}
+                style={[styles.loginBtn, { backgroundColor: "#F0A500", marginTop: 12 }]}
+                onPress={() => { setLoginRole("moderator"); setLoginMode("login"); setLoginError(""); }}
+                activeOpacity={0.85}
               >
-                <Text style={[styles.loginToggleText, loginMode === "login" && styles.loginToggleTextActive]}>دخول</Text>
+                <Ionicons name="shield-half" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                <Text style={styles.loginBtnText}>دخول كمشرف</Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            /* ─── خطوة 2: نموذج تسجيل الدخول ─── */
+            <View style={styles.loginCard}>
+              <TouchableOpacity
+                onPress={() => { setLoginRole(null); setLoginError(""); }}
+                style={{ alignSelf: "flex-end", marginBottom: 8 }}
+                hitSlop={8}
+              >
+                <Ionicons name="arrow-forward-outline" size={22} color={Colors.textMuted} />
+              </TouchableOpacity>
 
-            {loginMode === "register" && (
+              <View style={styles.loginIconWrap}>
+                <Ionicons
+                  name={loginRole === "admin" ? "shield" : "shield-half"}
+                  size={36}
+                  color={loginRole === "admin" ? "#E74C3C" : "#F0A500"}
+                />
+              </View>
+              <Text style={styles.loginTitle}>
+                {loginRole === "admin"
+                  ? (loginMode === "login" ? "دخول المدير" : "تسجيل مدير جديد")
+                  : (loginMode === "login" ? "دخول المشرف" : "تسجيل مشرف جديد")}
+              </Text>
+              <Text style={styles.loginSub}>
+                {loginMode === "login"
+                  ? "سجّل الدخول بالبريد الإلكتروني وكلمة المرور"
+                  : "أنشئ حساباً جديداً باستخدام رمز التسجيل"}
+              </Text>
+
+              {/* Mode toggle */}
+              <View style={styles.loginToggleRow}>
+                <TouchableOpacity
+                  style={[styles.loginToggleBtn, loginMode === "register" && styles.loginToggleBtnActive]}
+                  onPress={() => { setLoginMode("register"); setLoginError(""); }}
+                >
+                  <Text style={[styles.loginToggleText, loginMode === "register" && styles.loginToggleTextActive]}>تسجيل جديد</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.loginToggleBtn, loginMode === "login" && styles.loginToggleBtnActive]}
+                  onPress={() => { setLoginMode("login"); setLoginError(""); }}
+                >
+                  <Text style={[styles.loginToggleText, loginMode === "login" && styles.loginToggleTextActive]}>دخول</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loginMode === "register" && (
+                <View style={styles.loginFieldWrap}>
+                  <TextInput
+                    style={styles.loginField}
+                    placeholder="الاسم الكامل"
+                    placeholderTextColor={Colors.textMuted}
+                    value={loginName}
+                    onChangeText={setLoginName}
+                    textAlign="right"
+                    autoCapitalize="words"
+                  />
+                </View>
+              )}
+
               <View style={styles.loginFieldWrap}>
                 <TextInput
                   style={styles.loginField}
-                  placeholder="الاسم الكامل"
+                  placeholder="البريد الإلكتروني"
                   placeholderTextColor={Colors.textMuted}
-                  value={loginName}
-                  onChangeText={setLoginName}
+                  value={loginEmail}
+                  onChangeText={(v) => { setLoginEmail(v); setLoginError(""); }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                   textAlign="right"
-                  autoCapitalize="words"
                 />
               </View>
-            )}
 
-            <View style={styles.loginFieldWrap}>
-              <TextInput
-                style={styles.loginField}
-                placeholder="البريد الإلكتروني"
-                placeholderTextColor={Colors.textMuted}
-                value={loginEmail}
-                onChangeText={(v) => { setLoginEmail(v); setLoginError(""); }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                textAlign="right"
-              />
-            </View>
-
-            <View style={[styles.loginFieldWrap, { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14 }]}>
-              <TouchableOpacity onPress={() => setShowLoginPassword(p => !p)} hitSlop={8}>
-                <Ionicons name={showLoginPassword ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
-              </TouchableOpacity>
-              <TextInput
-                style={[styles.loginField, { flex: 1 }]}
-                placeholder="كلمة المرور"
-                placeholderTextColor={Colors.textMuted}
-                value={loginPassword}
-                onChangeText={(v) => { setLoginPassword(v); setLoginError(""); }}
-                secureTextEntry={!showLoginPassword}
-                textAlign="right"
-              />
-            </View>
-
-            {loginMode === "register" && (
-              <View style={styles.loginFieldWrap}>
+              <View style={[styles.loginFieldWrap, { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14 }]}>
+                <TouchableOpacity onPress={() => setShowLoginPassword(p => !p)} hitSlop={8}>
+                  <Ionicons name={showLoginPassword ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
                 <TextInput
-                  style={styles.loginField}
-                  placeholder="رمز التسجيل (admin code)"
+                  style={[styles.loginField, { flex: 1 }]}
+                  placeholder="كلمة المرور"
                   placeholderTextColor={Colors.textMuted}
-                  value={loginAdminCode}
-                  onChangeText={(v) => { setLoginAdminCode(v); setLoginError(""); }}
-                  textAlign="center"
-                  keyboardType="numeric"
-                  secureTextEntry
+                  value={loginPassword}
+                  onChangeText={(v) => { setLoginPassword(v); setLoginError(""); }}
+                  secureTextEntry={!showLoginPassword}
+                  textAlign="right"
                 />
               </View>
-            )}
 
-            {loginError ? <Text style={styles.pinError}>{loginError}</Text> : null}
+              {loginMode === "register" && (
+                <View style={styles.loginFieldWrap}>
+                  <TextInput
+                    style={styles.loginField}
+                    placeholder="رمز التسجيل"
+                    placeholderTextColor={Colors.textMuted}
+                    value={loginAdminCode}
+                    onChangeText={(v) => { setLoginAdminCode(v); setLoginError(""); }}
+                    textAlign="center"
+                    keyboardType="numeric"
+                    secureTextEntry
+                  />
+                </View>
+              )}
 
-            <TouchableOpacity
-              style={[styles.loginBtn, loginLoading && { opacity: 0.7 }]}
-              onPress={handleLogin}
-              disabled={loginLoading}
-              activeOpacity={0.85}
-            >
-              {loginLoading
-                ? <Text style={styles.loginBtnText}>جاري التحقق...</Text>
-                : <Text style={styles.loginBtnText}>{loginMode === "login" ? "دخول" : "إنشاء الحساب"}</Text>
-              }
-            </TouchableOpacity>
-          </View>
+              {loginError ? <Text style={styles.pinError}>{loginError}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.loginBtn, loginLoading && { opacity: 0.7 }, { backgroundColor: loginRole === "admin" ? "#E74C3C" : "#F0A500" }]}
+                onPress={handleLogin}
+                disabled={loginLoading}
+                activeOpacity={0.85}
+              >
+                {loginLoading
+                  ? <Text style={styles.loginBtnText}>جاري التحقق...</Text>
+                  : <Text style={styles.loginBtnText}>{loginMode === "login" ? "دخول" : "إنشاء الحساب"}</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </View>
     );
@@ -2101,6 +2216,253 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {/* ── LANDMARKS ── */}
+        {activeTab === "landmarks" && (
+          <View style={styles.section}>
+            <SectionBar
+              label={`معالم المدينة (${landmarks.length})`}
+              count={landmarks.length}
+              onAdd={() => setShowAddLandmark(true)}
+              addColor="#9B59B6"
+            />
+
+            {landmarks.length === 0 ? (
+              <EmptySection icon="location-outline" text="لا توجد معالم — اضغط + لإضافة أول معلم" />
+            ) : (
+              landmarks.map(lm => (
+                <View key={lm.id} style={ms.lmCard}>
+                  {/* معاينة الصورة */}
+                  {lm.image_url.startsWith("http") ? (
+                    <Image source={{ uri: lm.image_url }} style={ms.lmThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[ms.lmThumb, ms.lmLocalThumb]}>
+                      <Ionicons name="image-outline" size={22} color="#9B59B6" />
+                    </View>
+                  )}
+                  {/* معلومات */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={ms.lmName}>{lm.name}</Text>
+                    {lm.sub ? <Text style={ms.lmSubText}>{lm.sub}</Text> : null}
+                    <Text style={ms.lmUrlText} numberOfLines={1}>{lm.image_url}</Text>
+                  </View>
+                  {/* حذف */}
+                  <TouchableOpacity
+                    onPress={() => deleteLandmark(lm)}
+                    style={ms.lmDeleteBtn}
+                    hitSlop={10}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#E74C3C" />
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+
+            {/* نافذة إضافة معلم */}
+            <Modal visible={showAddLandmark} transparent animationType="slide" onRequestClose={() => setShowAddLandmark(false)}>
+              <Pressable style={ms.lmOverlay} onPress={() => setShowAddLandmark(false)}>
+                <Pressable style={ms.lmModal} onPress={e => e.stopPropagation()}>
+                  <Text style={ms.lmModalTitle}>إضافة معلم جديد</Text>
+
+                  <Text style={ms.lmFieldLabel}>اسم المعلم *</Text>
+                  <TextInput
+                    style={ms.lmInput}
+                    placeholder="مثال: عجلة الهواء"
+                    placeholderTextColor={Colors.textMuted}
+                    value={lmName}
+                    onChangeText={setLmName}
+                    textAlign="right"
+                  />
+
+                  <Text style={ms.lmFieldLabel}>الوصف (اختياري)</Text>
+                  <TextInput
+                    style={ms.lmInput}
+                    placeholder="مثال: كورنيش الحصاحيصا"
+                    placeholderTextColor={Colors.textMuted}
+                    value={lmSub}
+                    onChangeText={setLmSub}
+                    textAlign="right"
+                  />
+
+                  <Text style={ms.lmFieldLabel}>رابط الصورة *</Text>
+                  <TextInput
+                    style={[ms.lmInput, { height: 54 }]}
+                    placeholder="https://... أو local:ferris-wheel"
+                    placeholderTextColor={Colors.textMuted}
+                    value={lmImageUrl}
+                    onChangeText={setLmImageUrl}
+                    textAlign="right"
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                  <Text style={ms.lmHint}>
+                    للصور المحلية: local:ferris-wheel · local:hasahisa-city
+                  </Text>
+
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 12 }}>
+                    <TouchableOpacity
+                      style={[ms.lmSaveBtn, { opacity: lmAdding ? 0.6 : 1 }]}
+                      onPress={addLandmark}
+                      disabled={lmAdding}
+                    >
+                      <Text style={ms.lmSaveBtnText}>{lmAdding ? "جارٍ الإضافة..." : "إضافة"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={ms.lmCancelBtn}
+                      onPress={() => setShowAddLandmark(false)}
+                    >
+                      <Text style={ms.lmCancelBtnText}>إلغاء</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Pressable>
+              </Pressable>
+            </Modal>
+          </View>
+        )}
+
+        {/* ── SUBSCRIPTIONS ── */}
+        {activeTab === "subscriptions" && (
+          <View style={styles.section}>
+            {/* رأس القسم */}
+            <View style={sub_s.header}>
+              <Ionicons name="card-outline" size={22} color="#F0A500" />
+              <View style={{ flex: 1 }}>
+                <Text style={sub_s.headerTitle}>اشتراكات وتكاليف المنصة</Text>
+                <Text style={sub_s.headerSub}>
+                  روابط مباشرة لدفع وإدارة خدمات الاستضافة والأدوات المستخدمة في تشغيل حصاحيصاوي
+                </Text>
+              </View>
+            </View>
+
+            {/* بطاقة Replit */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#F26207" + "20" }]}>
+                <Ionicons name="server-outline" size={22} color="#F26207" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>Replit</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#F26207" + "20" }]}>
+                    <Text style={[sub_s.planText, { color: "#F26207" }]}>مدفوع</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  استضافة الخادم الخلفي وقاعدة البيانات PostgreSQL — مطلوب للحفاظ على تشغيل التطبيق
+                </Text>
+                <View style={sub_s.cardMeta}>
+                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
+                  <Text style={sub_s.cardUrl}>replit.com/pricing</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={sub_s.payBtn}
+                onPress={() => Linking.openURL("https://replit.com/pricing")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Text style={sub_s.payBtnText}>ادفع</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* بطاقة Firebase */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#FFCA28" + "25" }]}>
+                <MaterialCommunityIcons name="firebase" size={22} color="#F57F17" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>Firebase</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#27AE6820" }]}>
+                    <Text style={[sub_s.planText, { color: "#27AE68" }]}>Spark مجاني</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  نظام تسجيل الدخول والمصادقة — خطة Spark المجانية تكفي حتى 10,000 مستخدم شهرياً
+                </Text>
+                <View style={sub_s.cardMeta}>
+                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
+                  <Text style={sub_s.cardUrl}>console.firebase.google.com</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#F57F17" }]}
+                onPress={() => Linking.openURL("https://console.firebase.google.com/project/_/usage/details")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* بطاقة EAS / Expo */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#4630EB" + "15" }]}>
+                <MaterialCommunityIcons name="android" size={22} color="#4630EB" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>Expo EAS</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#4630EB" + "15" }]}>
+                    <Text style={[sub_s.planText, { color: "#4630EB" }]}>Free / Production</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  بناء ونشر تطبيق أندرويد — بناء التطبيق (AAB) وتوزيعه عبر متجر Google Play
+                </Text>
+                <View style={sub_s.cardMeta}>
+                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
+                  <Text style={sub_s.cardUrl}>expo.dev/settings/billing</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#4630EB" }]}
+                onPress={() => Linking.openURL("https://expo.dev/settings/billing")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Text style={sub_s.payBtnText}>ادفع</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* بطاقة GitHub Actions */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#24292E" + "15" }]}>
+                <MaterialCommunityIcons name="github" size={22} color="#24292E" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>GitHub Actions</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#27AE6820" }]}>
+                    <Text style={[sub_s.planText, { color: "#27AE68" }]}>مجاني</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  البناء التلقائي للتطبيق وإنتاج ملف AAB الموقّع — 2000 دقيقة شهرية مجانية على الخطة المجانية
+                </Text>
+                <View style={sub_s.cardMeta}>
+                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
+                  <Text style={sub_s.cardUrl}>github.com/settings/billing</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#24292E" }]}
+                onPress={() => Linking.openURL("https://github.com/settings/billing")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ملاحظة */}
+            <View style={sub_s.note}>
+              <Ionicons name="information-circle-outline" size={16} color={Colors.accent} />
+              <Text style={sub_s.noteText}>
+                الخدمات المجانية لا تحتاج دفعاً الآن — تأكد من البقاء ضمن الحدود المجانية أو قم بالترقية عند الحاجة
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ── PROFILE ── */}
         {activeTab === "profile" && (
           <View style={styles.section}>
@@ -2241,6 +2603,7 @@ const styles = StyleSheet.create({
   pinError: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger },
   loginBtn: {
     backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, width: "100%", alignItems: "center",
+    flexDirection: "row-reverse", justifyContent: "center",
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
@@ -2340,7 +2703,7 @@ const ac = StyleSheet.create({
   actions: { flexDirection: "column", gap: 6 },
   delBtn: { width: 32, height: 32, borderRadius: 9, backgroundColor: Colors.danger + "12", justifyContent: "center", alignItems: "center" },
   actionBtn: { width: 32, height: 32, borderRadius: 9, justifyContent: "center", alignItems: "center" },
-  info: { flex: 1, alignItems: "flex-end", gap: 3 },
+  info: { flex: 1, gap: 3 },
   titleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 7, flexWrap: "wrap" },
   dot: { width: 7, height: 7, borderRadius: 3.5, flexShrink: 0 },
   badge: { backgroundColor: Colors.accent + "20", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 1 },
@@ -2400,4 +2763,92 @@ const ms = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+
+  // ── Landmarks styles ──
+  lmCard: {
+    flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
+    borderRadius: 10, padding: 10, marginBottom: 10, gap: 10,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  lmThumb: { width: 52, height: 52, borderRadius: 8 },
+  lmLocalThumb: { backgroundColor: "#9B59B620", alignItems: "center", justifyContent: "center" },
+  lmName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  lmSubText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  lmUrlText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#9B59B6", textAlign: "right", marginTop: 2 },
+  lmDeleteBtn: { padding: 8, borderRadius: 8, backgroundColor: "#E74C3C15" },
+
+  lmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  lmModal: {
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+  },
+  lmModalTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary,
+    textAlign: "center", marginBottom: 18,
+  },
+  lmFieldLabel: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
+    textAlign: "right", marginBottom: 4, marginTop: 10,
+  },
+  lmInput: {
+    backgroundColor: Colors.cardBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+    borderWidth: 1, borderColor: Colors.divider, height: 46,
+  },
+  lmHint: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    textAlign: "right", marginTop: 4,
+  },
+  lmSaveBtn: {
+    flex: 1, backgroundColor: "#9B59B6", borderRadius: 10,
+    paddingVertical: 12, alignItems: "center",
+  },
+  lmSaveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  lmCancelBtn: {
+    flex: 1, backgroundColor: Colors.cardBg, borderRadius: 10,
+    paddingVertical: 12, alignItems: "center",
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  lmCancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+});
+
+// ─── Subscriptions Tab Styles ─────────────────────────────────────────────────
+
+const sub_s = StyleSheet.create({
+  header: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
+    backgroundColor: "#F0A50015", borderRadius: 14, padding: 14, marginBottom: 18,
+    borderWidth: 1, borderColor: "#F0A50030",
+  },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
+
+  card: {
+    flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
+    borderRadius: 14, padding: 14, marginBottom: 12, gap: 12,
+    borderWidth: 1, borderColor: Colors.divider,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  },
+  iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  cardBody: { flex: 1, gap: 4 },
+  cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  planBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  planText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
+  cardMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
+  cardUrl: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+
+  payBtn: {
+    backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0, minWidth: 58,
+  },
+  payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
+
+  note: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+    backgroundColor: Colors.accent + "12", borderRadius: 12, padding: 12, marginTop: 6,
+    borderWidth: 1, borderColor: Colors.accent + "25",
+  },
+  noteText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", flex: 1, lineHeight: 18 },
 });
