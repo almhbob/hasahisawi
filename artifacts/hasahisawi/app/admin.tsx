@@ -173,6 +173,10 @@ export default function AdminDashboard() {
   const [lmForm, setLmForm] = useState({ name: "", sub: "", image_url: "" });
   const [addingLM, setAddingLM] = useState(false);
   const [showAddLM, setShowAddLM] = useState(false);
+  const [editingLM, setEditingLM] = useState<ApiLandmark | null>(null);
+  const [editLmForm, setEditLmForm] = useState({ name: "", sub: "", image_url: "" });
+  const [showEditLM, setShowEditLM] = useState(false);
+  const [updatingLM, setUpdatingLM] = useState(false);
 
   // ── Ads state ──
   const [adsList, setAdsList] = useState<AdRecord[]>([]);
@@ -275,6 +279,27 @@ export default function AdminDashboard() {
         },
       ]
     );
+  };
+
+  const updateLandmark = async () => {
+    if (!editingLM) return;
+    if (!editLmForm.name.trim() || !editLmForm.image_url.trim()) {
+      Alert.alert("تنبيه", "الاسم ورابط الصورة مطلوبان");
+      return;
+    }
+    setUpdatingLM(true);
+    try {
+      const res = await apiFetch(`/api/admin/landmarks/${editingLM.id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify(editLmForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر التعديل"); return; }
+      setLandmarks(prev => prev.map(x => x.id === editingLM.id ? json : x));
+      setShowEditLM(false);
+      setEditingLM(null);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setUpdatingLM(false); }
   };
 
   const loadAds = useCallback(async () => {
@@ -646,18 +671,86 @@ export default function AdminDashboard() {
                     {item.sub ? <Text style={s.lmSub}>{item.sub}</Text> : null}
                     <Text style={s.lmUrl} numberOfLines={1}>{item.image_url}</Text>
                   </View>
-                  {/* زر حذف */}
-                  <TouchableOpacity
-                    onPress={() => deleteLandmark(item)}
-                    style={s.lmDeleteBtn}
-                    hitSlop={8}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#E74C3C" />
-                  </TouchableOpacity>
+                  {/* أزرار التعديل والحذف */}
+                  <View style={{ flexDirection: "column", gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => { setEditingLM(item); setEditLmForm({ name: item.name, sub: item.sub || "", image_url: item.image_url }); setShowEditLM(true); }}
+                      style={[s.lmDeleteBtn, { backgroundColor: "#3498DB18", borderColor: "#3498DB30" }]}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="pencil-outline" size={16} color="#3498DB" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => deleteLandmark(item)}
+                      style={s.lmDeleteBtn}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#E74C3C" />
+                    </TouchableOpacity>
+                  </View>
                 </Animated.View>
               )}
             />
           )}
+
+          {/* نافذة تعديل معلم */}
+          <Modal visible={showEditLM} transparent animationType="slide" onRequestClose={() => setShowEditLM(false)}>
+            <Pressable style={s.overlay} onPress={() => setShowEditLM(false)}>
+              <Pressable style={s.lmModal} onPress={e => e.stopPropagation()}>
+                <Text style={s.dialogTitle}>تعديل المعلم</Text>
+
+                <Text style={s.lmFieldLabel}>اسم المعلم *</Text>
+                <TextInput
+                  style={s.lmInput}
+                  placeholder="مثال: عجلة الهواء"
+                  placeholderTextColor={Colors.textMuted}
+                  value={editLmForm.name}
+                  onChangeText={v => setEditLmForm(f => ({ ...f, name: v }))}
+                  textAlign="right"
+                />
+
+                <Text style={s.lmFieldLabel}>الوصف (اختياري)</Text>
+                <TextInput
+                  style={s.lmInput}
+                  placeholder="مثال: كورنيش الحصاحيصا"
+                  placeholderTextColor={Colors.textMuted}
+                  value={editLmForm.sub}
+                  onChangeText={v => setEditLmForm(f => ({ ...f, sub: v }))}
+                  textAlign="right"
+                />
+
+                <Text style={s.lmFieldLabel}>رابط الصورة *</Text>
+                <TextInput
+                  style={[s.lmInput, { height: 54 }]}
+                  placeholder="https://... أو local:ferris-wheel"
+                  placeholderTextColor={Colors.textMuted}
+                  value={editLmForm.image_url}
+                  onChangeText={v => setEditLmForm(f => ({ ...f, image_url: v }))}
+                  textAlign="right"
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+
+                <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[s.lmAddBtn, { flex: 1, backgroundColor: "#3498DB", justifyContent: "center" }]}
+                    onPress={updateLandmark}
+                    disabled={updatingLM}
+                  >
+                    {updatingLM
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <Text style={s.lmAddTxt}>حفظ التعديلات</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.lmAddBtn, { flex: 1, backgroundColor: Colors.textMuted + "30", justifyContent: "center" }]}
+                    onPress={() => setShowEditLM(false)}
+                  >
+                    <Text style={[s.lmAddTxt, { color: Colors.textPrimary }]}>إلغاء</Text>
+                  </TouchableOpacity>
+                </View>
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           {/* نافذة إضافة معلم */}
           <Modal visible={showAddLM} transparent animationType="slide" onRequestClose={() => setShowAddLM(false)}>
