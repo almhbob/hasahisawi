@@ -1335,6 +1335,31 @@ router.delete("/admin/landmarks/:id", async (req: Request, res: Response) => {
   }
 });
 
+// تعديل معلم (الإدارة فقط)
+router.patch("/admin/landmarks/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { name, sub, image_url } = req.body as { name: string; sub: string; image_url: string };
+    if (!name?.trim() || !image_url?.trim()) {
+      return res.status(400).json({ error: "الاسم والصورة مطلوبان" });
+    }
+    const { rows } = await query(
+      `UPDATE city_landmarks SET name=$1, sub=$2, image_url=$3 WHERE id=$4 RETURNING *`,
+      [name.trim(), (sub || "").trim(), image_url.trim(), id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "المعلم غير موجود" });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // الجاليات — Communities
 // ══════════════════════════════════════════════════════
