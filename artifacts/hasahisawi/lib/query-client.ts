@@ -9,7 +9,7 @@ export function getApiUrl(): string {
   const host = process.env.EXPO_PUBLIC_DOMAIN;
   if (!host) return "";
   try {
-    return new URL(`https://${host}`).href;
+    return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
     return "";
   }
