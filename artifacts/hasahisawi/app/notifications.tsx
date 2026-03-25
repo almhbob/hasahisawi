@@ -76,7 +76,7 @@ export default function NotificationsScreen() {
   const loadNotifications = async () => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}api/notifications`);
+      const res = await fetch(`${base}/api/notifications`);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -99,7 +99,7 @@ export default function NotificationsScreen() {
   const markAsRead = async (id: number) => {
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/notifications/${id}/read`, { method: "PUT" });
+      await fetch(`${base}/api/notifications/${id}/read`, { method: "PUT" });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     } catch (e) {
       console.error("Failed to mark as read", e);
@@ -109,7 +109,7 @@ export default function NotificationsScreen() {
   const markAllRead = async () => {
     try {
       const base = getApiUrl();
-      await fetch(`${base}api/notifications/read-all`, { method: "PUT" });
+      await fetch(`${base}/api/notifications/read-all`, { method: "PUT" });
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch (e) {
       console.error("Failed to mark all as read", e);
