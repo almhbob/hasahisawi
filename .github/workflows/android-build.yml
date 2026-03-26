@@ -47,17 +47,19 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
-          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
           EXPO_NO_GIT_STATUS: '1'
-        run: |
-          pnpm exec expo prebuild --platform android --clean --no-install
+        run: pnpm exec expo prebuild --platform android --clean --no-install
 
-      - name: Decode keystore
+      - name: Decode keystore (KEYSTORE_BASE64)
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
             > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          echo "=== Verifying keystore fingerprint ==="
+          keytool -list -keystore artifacts/hasahisawi/android/app/hasahisawi-release.keystore \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.KEY_ALIAS }}" 2>&1 | grep -iE "SHA1|SHA256|fingerprint|alias"
 
-      - name: Cache Gradle dependencies
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -66,21 +68,13 @@ jobs:
           key: gradle-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*', 'artifacts/hasahisawi/android/**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      - name: Build AAB
+      - name: Build release AAB
         working-directory: artifacts/hasahisawi/android
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          EXPO_PUBLIC_DOMAIN: ${{ secrets.EXPO_PUBLIC_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
-          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease \
@@ -91,7 +85,7 @@ jobs:
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
-      - name: Upload AAB artifact
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: hasahisawi-release-${{ github.run_number }}
@@ -100,5 +94,4 @@ jobs:
 
       - name: Cleanup keystore
         if: always()
-        run: |
-          rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+        run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
