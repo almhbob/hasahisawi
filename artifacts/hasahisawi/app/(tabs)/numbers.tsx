@@ -127,10 +127,8 @@ function NumberCard({ entry, index, isAdmin, onDelete }: { entry: NumberEntry; i
           </View>
           {isAdmin && onDelete ? (
             <TouchableOpacity
-              onPress={() => Alert.alert("حذف", `حذف "${entry.name}"؟`, [
-                { text: "إلغاء", style: "cancel" },
-                { text: "حذف", style: "destructive", onPress: () => onDelete(entry.id) },
-              ])}
+              onPress={() => onDelete(entry.id)}
+              hitSlop={10}
               style={styles.deleteBtn}
             >
               <Ionicons name="trash-outline" size={16} color="#EF4444" />
