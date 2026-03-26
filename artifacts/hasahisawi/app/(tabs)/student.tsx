@@ -218,21 +218,18 @@ async function getAdminPin(): Promise<string> {
   return stored || DEFAULT_PIN;
 }
 
-// ─── Student Services Data ───────────────────────────────────────────────────
-const STUDENT_SERVICES = [
-  { id:"ss1",  type:"results"    as ServiceType, icon:"ribbon-outline",        color:"#2E7D9A",  title:"نتائج الشهادة السودانية",    desc:"الاستعلام عن نتائج امتحانات الشهادة الثانوية والأساسية",       contact:"وزارة التربية والتعليم – الجزيرة", phone:"+249151234567" },
-  { id:"ss2",  type:"office"     as ServiceType, icon:"document-text-outline", color:Colors.primary, title:"مكتب التربية والتعليم", desc:"التسجيل، النقل، الشهادات الرسمية، وتصحيح الأخطاء",       contact:"مكتب التربية – حصاحيصا",         phone:"+249152345678" },
-  { id:"ss3",  type:"enrollment" as ServiceType, icon:"person-add-outline",    color:"#27AE60",  title:"قيد وتسجيل التلاميذ",        desc:"قيد التلاميذ الجدد وإجراءات تسجيلهم في المدارس",              contact:"إدارة التعليم الأساسي",          phone:"+249153456789" },
-  { id:"ss4",  type:"transfer"   as ServiceType, icon:"swap-horizontal-outline",color:"#8E44AD", title:"نقل وثائق الطلاب",           desc:"إجراءات نقل الوثائق المدرسية والانتساب بين المدارس",           contact:"مكتب التربية – حصاحيصا",         phone:"+249154567890" },
-  { id:"ss5",  type:"library"    as ServiceType, icon:"library-outline",       color:"#6A5ACD",  title:"المكتبة العامة",              desc:"استعارة الكتب والمراجع الدراسية والبحثية",                     contact:"المكتبة العامة – حصاحيصا",       phone:"+249155678901" },
-  { id:"ss6",  type:"tutoring"   as ServiceType, icon:"people-outline",        color:Colors.accent, title:"الدروس الخصوصية والمراكز",desc:"دليل المدرسين والمراكز التعليمية الخاصة في المنطقة",           contact:"اتحاد المدرسين – حصاحيصا",      phone:"+249156789012" },
-  { id:"ss7",  type:"scholarship",               icon:"medal-outline",         color:"#E67E22",  title:"المنح والبعثات الدراسية",     desc:"فرص المنح المحلية والخارجية، وبرامج البعثات للطلاب المتفوقين", contact:"إدارة المنح – ولاية الجزيرة",    phone:"+249157890123" },
-  { id:"ss8",  type:"activity"   as ServiceType, icon:"trophy-outline",        color:"#C0392B",  title:"النشاط الطلابي",              desc:"الأندية الطلابية، والمسابقات العلمية والثقافية والرياضية",      contact:"مكتب النشاط المدرسي",           phone:"+249158901234" },
-  { id:"ss9",  type:"textbooks"  as ServiceType, icon:"book-outline",          color:"#1E6E8A",  title:"الكتب المدرسية المجانية",     desc:"توزيع الكتب المدرسية المجانية والمقررات الدراسية",              contact:"مخزن الكتب – مكتب التربية",      phone:"+249159012345" },
-  { id:"ss10", type:"guidance"   as ServiceType, icon:"heart-outline",         color:"#FF6B35",  title:"التوجيه والإرشاد الطلابي",   desc:"الإرشاد النفسي والاجتماعي ودعم الطلاب ذوي الاحتياجات الخاصة", contact:"قسم التوجيه – مكتب التربية",    phone:"+249150123456" },
-  { id:"ss11", type:"exam"       as ServiceType, icon:"create-outline",        color:"#E74C3C",  title:"الاستعداد للامتحانات",        desc:"جداول الامتحانات وبنوك الأسئلة ونصائح الاستذكار للطلاب",       contact:"لجنة الامتحانات – حصاحيصا",     phone:"+249151234560" },
-  { id:"ss12", type:"transport"  as ServiceType, icon:"bus-outline",           color:"#16A085",  title:"المواصلات المدرسية",          desc:"خطوط المواصلات وأسعار الحافلات المدرسية في المنطقة",           contact:"اتحاد المواصلات – حصاحيصا",     phone:"+249152345670" },
+// ─── Student Tools Data ───────────────────────────────────────────────────────
+const STUDENT_TOOLS = [
+  { id:"gpa",      icon:"calculator-outline",      color:"#2E7D9A",      title:"حاسبة المعدل",             tag:"حاسبة" },
+  { id:"countdown",icon:"timer-outline",            color:"#E74C3C",      title:"العداد التنازلي للشهادة",  tag:"الامتحانات" },
+  { id:"timer",    icon:"hourglass-outline",        color:Colors.primary, title:"مؤقت المذاكرة",            tag:"تركيز" },
+  { id:"tasks",    icon:"checkmark-circle-outline", color:"#27AE60",      title:"مهامي الدراسية",           tag:"تنظيم" },
+  { id:"shahada",  icon:"ribbon-outline",           color:"#8E44AD",      title:"حاسبة درجات الشهادة",      tag:"شهادة سودانية" },
+  { id:"tips",     icon:"bulb-outline",             color:Colors.accent,  title:"نصائح الاستذكار",          tag:"إرشادات" },
+  { id:"calendar", icon:"calendar-outline",         color:"#16A085",      title:"التقويم الدراسي",           tag:"مواعيد" },
+  { id:"schedule", icon:"time-outline",             color:"#6A5ACD",      title:"جدولي اليومي",              tag:"جدول" },
 ];
+type StudentTool = typeof STUDENT_TOOLS[0];
 
 const INST_TYPE_FILTERS: { key: "all" | InstType; label: string }[] = [
   { key:"all",          label:"الكل" },
@@ -248,53 +245,415 @@ const INST_TYPE_FILTERS: { key: "all" | InstType; label: string }[] = [
 
 const ALL_SVC_TYPES: ServiceType[] = ["results","enrollment","transfer","library","tutoring","scholarship","activity","textbooks","guidance","exam","transport","office"];
 
-// ─── Service Detail Modal ─────────────────────────────────────────────────────
-function ServiceDetailModal({ svc, visible, onClose }: { svc: typeof STUDENT_SERVICES[0] | null; visible: boolean; onClose: () => void }) {
-  if (!svc) return null;
+// ─── Tool: GPA Calculator ─────────────────────────────────────────────────────
+function GpaCalculator() {
+  const [rows, setRows] = useState([{ subject:"", grade:"" }]);
+  const validRows = rows.filter(r => r.subject.trim() && r.grade.trim() !== "" && !isNaN(Number(r.grade)));
+  const avg = validRows.length > 0 ? validRows.reduce((s,r) => s + Math.min(Number(r.grade), 100), 0) / validRows.length : 0;
+  const avgColor = avg >= 80 ? Colors.primary : avg >= 60 ? Colors.accent : "#E74C3C";
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={md.backdrop}>
-        <Animated.View entering={ZoomIn.springify().damping(18)} style={md.sheet}>
-          <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]} style={md.sheetInner}>
-            <View style={[md.iconCircle, { backgroundColor: svc.color + "20" }]}>
-              <Ionicons name={svc.icon as any} size={36} color={svc.color} />
-            </View>
-            <Text style={md.title}>{svc.title}</Text>
-            <Text style={md.desc}>{svc.desc}</Text>
-            <View style={md.contactBox}>
-              <Ionicons name="business-outline" size={14} color={Colors.textSecondary} />
-              <Text style={md.contactText}>{svc.contact}</Text>
-            </View>
-            <View style={md.actions}>
-              <AnimatedPress style={[md.callBtn, { backgroundColor: svc.color }]}
-                onPress={() => { Linking.openURL(`tel:${svc.phone}`); }}>
-                <Ionicons name="call" size={18} color="#fff" />
-                <Text style={md.callBtnText}>اتصل الآن</Text>
-              </AnimatedPress>
-              <AnimatedPress style={md.closeBtn} onPress={onClose}>
-                <Text style={md.closeBtnText}>إغلاق</Text>
-              </AnimatedPress>
-            </View>
-          </LinearGradient>
-        </Animated.View>
+    <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ paddingBottom: 20 }}>
+      {rows.map((row, i) => (
+        <View key={i} style={tl.gpaRow}>
+          <TouchableOpacity hitSlop={8} onPress={() => setRows(r => r.filter((_,j) => j !== i))}>
+            <Ionicons name="close-circle-outline" size={20} color={Colors.danger + "80"} />
+          </TouchableOpacity>
+          <TextInput style={[tl.gpaInput, { width:64 }]} value={row.grade}
+            onChangeText={v => setRows(r => r.map((x,j) => j===i ? {...x, grade:v} : x))}
+            placeholder="الدرجة" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="center" maxLength={3} />
+          <TextInput style={[tl.gpaInput, { flex:1 }]} value={row.subject}
+            onChangeText={v => setRows(r => r.map((x,j) => j===i ? {...x, subject:v} : x))}
+            placeholder="اسم المادة" placeholderTextColor={Colors.textMuted} textAlign="right" />
+        </View>
+      ))}
+      <TouchableOpacity style={tl.addRow} onPress={() => setRows(r => [...r, { subject:"", grade:"" }])}>
+        <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+        <Text style={tl.addRowText}>إضافة مادة</Text>
+      </TouchableOpacity>
+      {validRows.length > 0 && (
+        <View style={[tl.resultBox, { borderColor: avgColor+"50", backgroundColor: avgColor+"12" }]}>
+          <Text style={tl.resultLabel}>المعدل العام</Text>
+          <Text style={[tl.resultValue, { color: avgColor }]}>{avg.toFixed(1)}%</Text>
+          <Text style={[tl.resultSub, { color: avgColor }]}>
+            {avg>=85?"ممتاز":avg>=75?"جيد جداً":avg>=65?"جيد":avg>=50?"مقبول":"دون المتوسط"}
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─── Tool: Exam Countdown ─────────────────────────────────────────────────────
+function ExamCountdown() {
+  const target = new Date("2026-05-26T08:00:00");
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
+  const diff = target.getTime() - now.getTime();
+  const past = diff <= 0;
+  const days  = Math.max(0, Math.floor(diff / 86400000));
+  const hours = Math.max(0, Math.floor((diff % 86400000) / 3600000));
+  const mins  = Math.max(0, Math.floor((diff % 3600000)  / 60000));
+  const secs  = Math.max(0, Math.floor((diff % 60000)    / 1000));
+  return (
+    <View style={{ alignItems:"center", paddingVertical:12, gap:16 }}>
+      <Text style={tl.cdTitle}>امتحانات الشهادة السودانية 2026</Text>
+      {past ? <Text style={[tl.cdTitle, { color:Colors.primary }]}>انتهت الامتحانات — بالتوفيق!</Text> : (
+        <>
+          <View style={[tl.daysBox, { backgroundColor:Colors.danger+"15", borderColor:Colors.danger+"40" }]}>
+            <Text style={[tl.daysNum, { color:Colors.danger }]}>{days}</Text>
+            <Text style={tl.daysLabel}>يوم متبقٍ</Text>
+          </View>
+          <View style={tl.cdRow}>
+            {[{ v:hours, l:"ساعة" }, { v:mins, l:"دقيقة" }, { v:secs, l:"ثانية" }].map((u,i,arr) => (
+              <React.Fragment key={u.l}>
+                <View style={{ alignItems:"center", gap:4 }}>
+                  <View style={tl.cdUnit}><Text style={tl.cdUnitNum}>{String(u.v).padStart(2,"0")}</Text></View>
+                  <Text style={tl.cdUnitLabel}>{u.l}</Text>
+                </View>
+                {i < arr.length-1 && <Text style={tl.cdSep}>:</Text>}
+              </React.Fragment>
+            ))}
+          </View>
+          <Text style={tl.cdHint}>ابدأ المذاكرة الآن — كل يوم يُحدث فرقاً!</Text>
+        </>
+      )}
+    </View>
+  );
+}
+
+// ─── Tool: Study Timer (Pomodoro) ─────────────────────────────────────────────
+const POMODORO = 25 * 60;
+function StudyTimer() {
+  const [secs, setSecs]       = useState(POMODORO);
+  const [running, setRunning] = useState(false);
+  const [sessions, setSessions] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (running) {
+      intervalRef.current = setInterval(() => {
+        setSecs(s => {
+          if (s <= 1) {
+            clearInterval(intervalRef.current!);
+            setRunning(false);
+            setSessions(n => n + 1);
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            return POMODORO;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    } else { if (intervalRef.current) clearInterval(intervalRef.current); }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [running]);
+  const mm = String(Math.floor(secs/60)).padStart(2,"0");
+  const ss = String(secs%60).padStart(2,"0");
+  const progress = (POMODORO - secs) / POMODORO;
+  return (
+    <View style={{ alignItems:"center", gap:20, paddingVertical:12 }}>
+      <View style={[tl.timerCircle, { borderColor: running ? Colors.primary : Colors.divider }]}>
+        <Text style={tl.timerText}>{mm}:{ss}</Text>
+        <Text style={tl.timerSub}>{Math.round(progress*100)}% مكتمل</Text>
       </View>
+      <View style={{ flexDirection:"row-reverse", gap:12 }}>
+        <TouchableOpacity style={[tl.timerBtn, { backgroundColor:Colors.primary+"20", borderColor:Colors.primary }]}
+          onPress={() => { if (Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setRunning(r=>!r); }}>
+          <Ionicons name={running?"pause":"play"} size={20} color={Colors.primary} />
+          <Text style={[tl.timerBtnText, { color:Colors.primary }]}>{running?"إيقاف مؤقت":"ابدأ"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[tl.timerBtn, { backgroundColor:Colors.bg, borderColor:Colors.divider }]}
+          onPress={() => { setRunning(false); setSecs(POMODORO); }}>
+          <Ionicons name="refresh" size={18} color={Colors.textMuted} />
+          <Text style={[tl.timerBtnText, { color:Colors.textMuted }]}>إعادة</Text>
+        </TouchableOpacity>
+      </View>
+      {sessions > 0 && (
+        <View style={tl.sessionsRow}>
+          {Array.from({ length:sessions }).map((_,i) => <View key={i} style={tl.sessionDot} />)}
+          <Text style={tl.sessionsText}>{sessions} جلسة مكتملة</Text>
+        </View>
+      )}
+      <Text style={tl.cdHint}>اعمل 25 دقيقة ثم استرح 5 دقائق</Text>
+    </View>
+  );
+}
+
+// ─── Tool: Task List ─────────────────────────────────────────────────────────
+const TASKS_KEY = "student_tasks_v1";
+type StudentTask = { id:string; subject:string; task:string; done:boolean; createdAt:string };
+function TaskRow({ t, onToggle, onDelete }: { t:StudentTask; onToggle:(id:string)=>void; onDelete:(id:string)=>void }) {
+  return (
+    <View style={[tl.taskRow, t.done && { opacity:0.45 }]}>
+      <TouchableOpacity hitSlop={8} onPress={() => onDelete(t.id)}>
+        <Ionicons name="trash-outline" size={16} color={Colors.danger+"70"} />
+      </TouchableOpacity>
+      <View style={{ flex:1 }}>
+        <Text style={[tl.taskText, t.done && { textDecorationLine:"line-through" }]}>{t.task}</Text>
+        <Text style={tl.taskSubject}>{t.subject}</Text>
+      </View>
+      <TouchableOpacity onPress={() => onToggle(t.id)}>
+        <Ionicons name={t.done?"checkmark-circle":"ellipse-outline"} size={22} color={t.done?Colors.primary:Colors.divider} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+function TaskListTool() {
+  const [tasks, setTasks]     = useState<StudentTask[]>([]);
+  const [subject, setSubject] = useState("");
+  const [taskText, setTask]   = useState("");
+  useEffect(() => { AsyncStorage.getItem(TASKS_KEY).then(r => { if(r) setTasks(JSON.parse(r)); }); }, []);
+  const save = async (list: StudentTask[]) => { setTasks(list); await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(list)); };
+  const add  = () => {
+    if (!taskText.trim()) return;
+    save([...tasks, { id:`t_${Date.now()}`, subject:subject.trim()||"عام", task:taskText.trim(), done:false, createdAt:new Date().toISOString() }]);
+    setTask(""); setSubject("");
+  };
+  const pending = tasks.filter(t => !t.done);
+  const done    = tasks.filter(t => t.done);
+  return (
+    <View style={{ flex:1, minHeight:200 }}>
+      <View style={tl.taskInput}>
+        <TextInput style={[tl.taskInputField, { width:72 }]} value={subject} onChangeText={setSubject} placeholder="المادة" placeholderTextColor={Colors.textMuted} textAlign="right" />
+        <TextInput style={[tl.taskInputField, { flex:1 }]} value={taskText} onChangeText={setTask} placeholder="المهمة الدراسية..." placeholderTextColor={Colors.textMuted} textAlign="right" onSubmitEditing={add} returnKeyType="done" />
+        <TouchableOpacity style={tl.taskAddBtn} onPress={add}>
+          <Ionicons name="add" size={18} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={{ maxHeight:280 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        {pending.map(t => <TaskRow key={t.id} t={t} onToggle={id => save(tasks.map(x=>x.id===id?{...x,done:!x.done}:x))} onDelete={id => save(tasks.filter(x=>x.id!==id))} />)}
+        {done.length > 0 && <Text style={tl.doneSep}>✓ المنجزة</Text>}
+        {done.map(t => <TaskRow key={t.id} t={t} onToggle={id => save(tasks.map(x=>x.id===id?{...x,done:!x.done}:x))} onDelete={id => save(tasks.filter(x=>x.id!==id))} />)}
+        {tasks.length === 0 && <Text style={tl.emptyTasks}>أضف مهامك الدراسية هنا</Text>}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Tool: Shahada Calculator ─────────────────────────────────────────────────
+const SHAHADA_SUBS = [
+  { key:"arabic",   label:"اللغة العربية",        max:200 },
+  { key:"english",  label:"اللغة الإنجليزية",      max:100 },
+  { key:"math",     label:"الرياضيات",             max:200 },
+  { key:"religion", label:"التربية الإسلامية",      max:100 },
+  { key:"social",   label:"الدراسات الاجتماعية",   max:100 },
+  { key:"physics",  label:"الفيزياء",               max:100 },
+  { key:"chemistry",label:"الكيمياء",               max:100 },
+  { key:"biology",  label:"الأحياء",                max:100 },
+];
+function ShahadaCalculator() {
+  const [scores, setScores] = useState<Record<string,string>>({});
+  const valid   = SHAHADA_SUBS.filter(s => scores[s.key] && !isNaN(Number(scores[s.key])));
+  const total   = valid.reduce((s,sub) => s + Math.min(Number(scores[sub.key]), sub.max), 0);
+  const maxTotal= valid.reduce((s,sub) => s + sub.max, 0);
+  const pct     = maxTotal > 0 ? total / maxTotal * 100 : 0;
+  const pctColor= pct>=85?"#27AE60":pct>=75?Colors.primary:pct>=65?Colors.accent:pct>=50?"#E67E22":Colors.danger;
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ paddingBottom:16 }}>
+      <Text style={[tl.cdHint, { marginBottom:12, textAlign:"right" }]}>أدخل درجاتك في كل مادة:</Text>
+      {SHAHADA_SUBS.map(sub => (
+        <View key={sub.key} style={tl.shahadaRow}>
+          <Text style={tl.shahadaMax}>/{sub.max}</Text>
+          <TextInput style={tl.shahadaInput} value={scores[sub.key]||""}
+            onChangeText={v => setScores(s => ({...s, [sub.key]:v}))}
+            placeholder="0" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="center" maxLength={3} />
+          <Text style={tl.shahadaLabel}>{sub.label}</Text>
+        </View>
+      ))}
+      {valid.length > 0 && (
+        <View style={[tl.resultBox, { borderColor:pctColor+"50", backgroundColor:pctColor+"12", marginTop:12 }]}>
+          <Text style={tl.resultLabel}>المجموع الكلي</Text>
+          <Text style={[tl.resultValue, { color:pctColor }]}>{total} / {maxTotal}</Text>
+          <Text style={[tl.resultSub, { color:pctColor }]}>
+            {pct.toFixed(1)}% — {pct>=85?"ممتاز":pct>=75?"جيد جداً":pct>=65?"جيد":pct>=50?"مقبول":"دون المتوسط"}
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─── Tool: Study Tips ────────────────────────────────────────────────────────
+const TIPS_DATA: Record<string, string[]> = {
+  "تنظيم الوقت":    ["ضع جدولاً أسبوعياً وحدد وقتاً ثابتاً للمذاكرة يومياً","ابدأ بالمواد الصعبة في أول الجلسة حين يكون تركيزك أعلى","خصص وقتاً للراحة — الدماغ يحتاج استراحات منتظمة ليُرسّخ المعلومات","استخدم تقنية بومودورو: 25 دقيقة مذاكرة ثم 5 دقائق استراحة"],
+  "أساليب المذاكرة":["اشرح المعلومة بأسلوبك الخاص — هذا يُرسّخها في ذهنك","ارسم خرائط ذهنية للمفاهيم المعقدة وربطها ببعضها","راجع الدرس بعد 24 ساعة ثم بعد أسبوع ثم بعد شهر","حل أسئلة امتحانات سابقة بانتظام لتعرف نقاط ضعفك"],
+  "قبل الامتحان":   ["نم 8 ساعات ليلة الامتحان — النوم يُعزز الذاكرة ويُحسّن التركيز","تناول وجبة متوازنة قبل الامتحان ولا تدخل بمعدة فارغة","راجع ملاحظاتك القصيرة فقط — لا الكتب الكاملة في اللحظات الأخيرة","تنفس بعمق إذا شعرت بتوتر داخل القاعة — الهدوء مفتاح النجاح"],
+  "الصحة الدراسية": ["اشرب الماء بانتظام — الجفاف يُضعف التركيز بشكل ملحوظ","تحرك كل ساعة وامشِ قليلاً لتحسين الدورة الدموية للدماغ","ضع الهاتف بعيداً أثناء المذاكرة — كل إشعار يُضيع دقائق ثمينة","تذكر: التقدم التدريجي اليومي أفضل بكثير من الحفظ الليلي المتواصل"],
+};
+function StudyTips() {
+  const cats = Object.keys(TIPS_DATA);
+  const [cat, setCat] = useState(cats[0]);
+  return (
+    <View style={{ flex:1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:12 }} style={{ flexGrow:0 }}>
+        {cats.map(c => (
+          <TouchableOpacity key={c} style={[tl.tipCat, cat===c && { backgroundColor:Colors.accent+"25", borderColor:Colors.accent }]} onPress={() => setCat(c)}>
+            <Text style={[tl.tipCatText, cat===c && { color:Colors.accent, fontFamily:"Cairo_600SemiBold" }]}>{c}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        {TIPS_DATA[cat].map((tip, i) => (
+          <View key={i} style={tl.tipItem}>
+            <Text style={tl.tipNum}>{i+1}</Text>
+            <Text style={tl.tipItemText}>{tip}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Tool: Academic Calendar ──────────────────────────────────────────────────
+const CALENDAR_EVENTS = [
+  { date:"سبتمبر 2025",  event:"بداية العام الدراسي 2025–2026",      color:Colors.primary },
+  { date:"نوفمبر 2025",  event:"امتحانات الفصل الأول",                color:"#E74C3C" },
+  { date:"ديسمبر 2025",  event:"إجازة منتصف العام الدراسي",           color:"#16A085" },
+  { date:"يناير 2026",   event:"بداية الفصل الدراسي الثاني",          color:Colors.primary },
+  { date:"مارس 2026",   event:"مراجعة نهاية الفصل الثاني",           color:Colors.accent },
+  { date:"أبريل 2026",  event:"امتحانات نهاية العام للمرحلة الأساسية", color:"#E74C3C" },
+  { date:"مايو 2026",   event:"امتحانات الشهادة السودانية (ثانوي)",    color:"#8E44AD" },
+  { date:"يوليو 2026",  event:"إعلان نتائج الشهادة السودانية",        color:"#27AE60" },
+  { date:"أغسطس 2026",  event:"التسجيل للعام الدراسي 2026–2027",      color:"#2E7D9A" },
+];
+function AcademicCalendar() {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ paddingBottom:16 }}>
+      {CALENDAR_EVENTS.map((ev, i) => (
+        <View key={i} style={[tl.calRow, { borderRightColor:ev.color }]}>
+          <Text style={tl.calEvent}>{ev.event}</Text>
+          <View style={[tl.calDate, { backgroundColor:ev.color+"18" }]}>
+            <Text style={[tl.calDateText, { color:ev.color }]}>{ev.date}</Text>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ─── Tool: Daily Schedule ─────────────────────────────────────────────────────
+const SCHEDULE_KEY = "student_schedule_v1";
+const DEFAULT_SLOTS = ["06:00","07:00","08:00","09:00","10:00","11:00","14:00","15:00","16:00","20:00","21:00"].map((t,i) => ({ id:`s${i}`, time:t, subject:"" }));
+function DailySchedule() {
+  const [slots, setSlots] = useState(DEFAULT_SLOTS);
+  useEffect(() => { AsyncStorage.getItem(SCHEDULE_KEY).then(r => { if(r) setSlots(JSON.parse(r)); }); }, []);
+  const update = async (id:string, subject:string) => {
+    const next = slots.map(s => s.id===id ? {...s, subject} : s);
+    setSlots(next); await AsyncStorage.setItem(SCHEDULE_KEY, JSON.stringify(next));
+  };
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ paddingBottom:20 }}>
+      <Text style={[tl.cdHint, { textAlign:"right", marginBottom:12 }]}>أدخل المادة لكل وقت — يُحفظ تلقائياً</Text>
+      {slots.map(slot => (
+        <View key={slot.id} style={tl.scheduleRow}>
+          <TextInput style={tl.scheduleInput} value={slot.subject} onChangeText={v => update(slot.id, v)}
+            placeholder="اسم المادة أو النشاط" placeholderTextColor={Colors.textMuted} textAlign="right" />
+          <View style={tl.scheduleTime}>
+            <Text style={tl.scheduleTimeText}>{slot.time}</Text>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ─── Tool Modal (wraps all tools) ─────────────────────────────────────────────
+function ToolModal({ tool, visible, onClose }: { tool:StudentTool|null; visible:boolean; onClose:()=>void }) {
+  const insets = useSafeAreaInsets();
+  if (!tool) return null;
+  const renderContent = () => {
+    switch (tool.id) {
+      case "gpa":      return <GpaCalculator />;
+      case "countdown":return <ExamCountdown />;
+      case "timer":    return <StudyTimer />;
+      case "tasks":    return <TaskListTool />;
+      case "shahada":  return <ShahadaCalculator />;
+      case "tips":     return <StudyTips />;
+      case "calendar": return <AcademicCalendar />;
+      case "schedule": return <DailySchedule />;
+      default:         return null;
+    }
+  };
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS==="ios"?"padding":"height"}>
+        <Pressable style={tl.backdrop} onPress={onClose}>
+          <Pressable style={[tl.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={e => e.stopPropagation()}>
+            <View style={tl.handle} />
+            <View style={tl.sheetHeader}>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close-circle" size={26} color={Colors.textMuted} />
+              </TouchableOpacity>
+              <Text style={tl.sheetTitle}>{tool.title}</Text>
+              <View style={[tl.sheetIcon, { backgroundColor: tool.color+"20" }]}>
+                <Ionicons name={tool.icon as any} size={22} color={tool.color} />
+              </View>
+            </View>
+            <View style={{ flex:1 }}>
+              {renderContent()}
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
-const md = StyleSheet.create({
-  backdrop:   { flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"center", alignItems:"center", padding:24 },
-  sheet:      { width:"100%", borderRadius:24, overflow:"hidden" },
-  sheetInner: { padding:28, alignItems:"center", borderRadius:24, borderWidth:1, borderColor:Colors.divider },
-  iconCircle: { width:72, height:72, borderRadius:20, justifyContent:"center", alignItems:"center", marginBottom:16 },
-  title:      { fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textPrimary, textAlign:"center", marginBottom:8 },
-  desc:       { fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textSecondary, textAlign:"center", lineHeight:22, marginBottom:16 },
-  contactBox: { flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:Colors.bg, borderRadius:10, padding:10, marginBottom:20, width:"100%" },
-  contactText:{ fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textSecondary, textAlign:"right", flex:1 },
-  actions:    { flexDirection:"row-reverse", gap:10, width:"100%" },
-  callBtn:    { flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, paddingVertical:12, borderRadius:12 },
-  callBtnText:{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#fff" },
-  closeBtn:   { flex:1, alignItems:"center", justifyContent:"center", paddingVertical:12, borderRadius:12, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider },
-  closeBtnText:{ fontFamily:"Cairo_600SemiBold", fontSize:14, color:Colors.textSecondary },
+const tl = StyleSheet.create({
+  backdrop:     { flex:1, backgroundColor:"rgba(0,0,0,0.72)", justifyContent:"flex-end" },
+  sheet:        { backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:28, borderTopRightRadius:28, maxHeight:"88%", paddingHorizontal:20, paddingTop:8 },
+  handle:       { width:40, height:4, borderRadius:2, backgroundColor:Colors.divider, alignSelf:"center", marginBottom:16 },
+  sheetHeader:  { flexDirection:"row-reverse", alignItems:"center", gap:12, marginBottom:16 },
+  sheetIcon:    { width:42, height:42, borderRadius:12, justifyContent:"center", alignItems:"center" },
+  sheetTitle:   { fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary, flex:1, textAlign:"right" },
+  gpaRow:       { flexDirection:"row-reverse", alignItems:"center", gap:8, marginBottom:10 },
+  gpaInput:     { backgroundColor:Colors.bg, borderRadius:10, paddingHorizontal:10, paddingVertical:8, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
+  addRow:       { flexDirection:"row-reverse", alignItems:"center", gap:6, paddingVertical:8 },
+  addRowText:   { fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.primary },
+  resultBox:    { borderRadius:16, padding:16, alignItems:"center", borderWidth:1, marginTop:8 },
+  resultLabel:  { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textSecondary, marginBottom:4 },
+  resultValue:  { fontFamily:"Cairo_700Bold", fontSize:40 },
+  resultSub:    { fontFamily:"Cairo_600SemiBold", fontSize:14, marginTop:6 },
+  cdTitle:      { fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"center" },
+  cdRow:        { flexDirection:"row-reverse", alignItems:"flex-start", gap:10 },
+  cdSep:        { fontFamily:"Cairo_700Bold", fontSize:28, color:Colors.textMuted, marginTop:10 },
+  cdUnit:       { backgroundColor:Colors.bg, borderRadius:12, width:62, height:62, justifyContent:"center", alignItems:"center", borderWidth:1, borderColor:Colors.divider },
+  cdUnitNum:    { fontFamily:"Cairo_700Bold", fontSize:26, color:Colors.textPrimary },
+  cdUnitLabel:  { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted },
+  daysBox:      { borderRadius:20, paddingHorizontal:32, paddingVertical:16, alignItems:"center", borderWidth:1 },
+  daysNum:      { fontFamily:"Cairo_700Bold", fontSize:56 },
+  daysLabel:    { fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textSecondary },
+  cdHint:       { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"center" },
+  timerCircle:  { width:164, height:164, borderRadius:82, backgroundColor:Colors.bg, justifyContent:"center", alignItems:"center", borderWidth:3 },
+  timerText:    { fontFamily:"Cairo_700Bold", fontSize:42, color:Colors.textPrimary },
+  timerSub:     { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, marginTop:4 },
+  timerBtn:     { flexDirection:"row-reverse", alignItems:"center", gap:8, paddingHorizontal:20, paddingVertical:12, borderRadius:14, borderWidth:1 },
+  timerBtnText: { fontFamily:"Cairo_600SemiBold", fontSize:14 },
+  sessionsRow:  { flexDirection:"row-reverse", alignItems:"center", gap:6, flexWrap:"wrap", justifyContent:"center" },
+  sessionDot:   { width:10, height:10, borderRadius:5, backgroundColor:Colors.primary },
+  sessionsText: { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textSecondary },
+  taskInput:    { flexDirection:"row-reverse", gap:8, marginBottom:10, alignItems:"center" },
+  taskInputField:{ backgroundColor:Colors.bg, borderRadius:10, paddingHorizontal:10, paddingVertical:8, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
+  taskAddBtn:   { width:36, height:36, borderRadius:10, backgroundColor:Colors.primary, justifyContent:"center", alignItems:"center" },
+  taskRow:      { flexDirection:"row-reverse", alignItems:"center", gap:10, paddingVertical:10, borderBottomWidth:1, borderBottomColor:Colors.divider },
+  taskText:     { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textPrimary, textAlign:"right" },
+  taskSubject:  { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right", marginTop:2 },
+  doneSep:      { fontFamily:"Cairo_600SemiBold", fontSize:12, color:Colors.textMuted, textAlign:"right", paddingVertical:8 },
+  emptyTasks:   { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", paddingVertical:20 },
+  shahadaRow:   { flexDirection:"row-reverse", alignItems:"center", gap:10, paddingVertical:8, borderBottomWidth:1, borderBottomColor:Colors.divider },
+  shahadaLabel: { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textPrimary, textAlign:"right", flex:1 },
+  shahadaInput: { backgroundColor:Colors.bg, borderRadius:8, width:56, paddingVertical:8, fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"center" },
+  shahadaMax:   { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, minWidth:28, textAlign:"left" },
+  tipCat:       { paddingHorizontal:14, paddingVertical:7, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider },
+  tipCatText:   { fontFamily:"Cairo_500Medium", fontSize:12, color:Colors.textMuted },
+  tipItem:      { flexDirection:"row-reverse", gap:10, paddingVertical:10, borderBottomWidth:1, borderBottomColor:Colors.divider, alignItems:"flex-start" },
+  tipNum:       { width:24, height:24, borderRadius:12, backgroundColor:Colors.accent+"20", textAlign:"center", lineHeight:24, fontFamily:"Cairo_700Bold", fontSize:13, color:Colors.accent },
+  tipItemText:  { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, textAlign:"right", flex:1, lineHeight:20 },
+  calRow:       { flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", gap:10, paddingVertical:10, paddingRight:10, borderBottomWidth:1, borderBottomColor:Colors.divider, borderRightWidth:3 },
+  calDate:      { borderRadius:8, paddingHorizontal:8, paddingVertical:5, minWidth:100, alignItems:"center" },
+  calDateText:  { fontFamily:"Cairo_600SemiBold", fontSize:11 },
+  calEvent:     { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textPrimary, textAlign:"right", flex:1 },
+  scheduleRow:  { flexDirection:"row-reverse", alignItems:"center", gap:10, marginBottom:8 },
+  scheduleTime: { backgroundColor:Colors.primary+"18", borderRadius:8, paddingHorizontal:10, paddingVertical:9, minWidth:60, alignItems:"center" },
+  scheduleTimeText:{ fontFamily:"Cairo_700Bold", fontSize:13, color:Colors.primary },
+  scheduleInput:{ flex:1, backgroundColor:Colors.bg, borderRadius:10, paddingHorizontal:10, paddingVertical:9, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
 });
 
 // ─── Institution Card ─────────────────────────────────────────────────────────
@@ -735,8 +1094,8 @@ export default function StudentScreen() {
   const [instFilter, setInstFilter]       = useState<"all" | InstType>("all");
   const [institutions, setInstitutions]   = useState<Institution[]>([]);
   const [requests, setRequests]           = useState<JoinRequest[]>([]);
-  const [selectedSvc, setSelectedSvc]     = useState<typeof STUDENT_SERVICES[0] | null>(null);
-  const [svcModalVisible, setSvcModalVisible] = useState(false);
+  const [selectedTool, setSelectedTool]       = useState<StudentTool | null>(null);
+  const [toolModalVisible, setToolModalVisible] = useState(false);
 
   // Admin
   const [isAdmin, setIsAdmin]             = useState(false);
@@ -815,14 +1174,9 @@ export default function StudentScreen() {
   };
 
   const deleteInst = async (id: string) => {
-    Alert.alert("حذف المؤسسة", "هل أنت متأكد؟", [
-      { text:"إلغاء", style:"cancel" },
-      { text:"حذف", style:"destructive", onPress: async () => {
-        const updated = institutions.filter(i => i.id !== id);
-        await saveInstitutions(updated);
-        setInstitutions(updated);
-      }},
-    ]);
+    const updated = institutions.filter(i => i.id !== id);
+    await saveInstitutions(updated);
+    setInstitutions(updated);
   };
 
   const handleJoinSubmit = async (req: JoinRequest) => {
@@ -877,8 +1231,8 @@ export default function StudentScreen() {
       {/* Institution Form Modal */}
       <InstFormModal visible={formVisible} initial={editInst} onClose={()=>{setFormVisible(false);setEditInst(undefined);}} onSave={saveInst} />
 
-      {/* Service Detail Modal */}
-      <ServiceDetailModal svc={selectedSvc} visible={svcModalVisible} onClose={()=>setSvcModalVisible(false)} />
+      {/* Tool Modal */}
+      <ToolModal tool={selectedTool} visible={toolModalVisible} onClose={()=>setToolModalVisible(false)} />
 
       {/* Header */}
       <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]} style={[s.header, { paddingTop: topPad + 12 }]}>
@@ -936,19 +1290,22 @@ export default function StudentScreen() {
       {/* ── TAB: SERVICES ── */}
       {activeTab === "services" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={s.sectionTitle}>اختر الخدمة التي تحتاجها</Text>
+          <Text style={s.sectionTitle}>أدوات الطالب التفاعلية</Text>
           <View style={s.svcsGrid}>
-            {STUDENT_SERVICES.map((svc, i) => (
-              <Animated.View key={svc.id} entering={FadeInDown.delay(i*50).springify().damping(18)} style={s.svcCardWrap}>
-                <AnimatedPress style={s.svcCard} onPress={()=>{ setSelectedSvc(svc); setSvcModalVisible(true); }}>
-                  <LinearGradient colors={[svc.color+"15", Colors.cardBg]} style={s.svcCardInner}>
-                    <View style={[s.svcIconCircle, { backgroundColor: svc.color+"20" }]}>
-                      <Ionicons name={svc.icon as any} size={28} color={svc.color} />
+            {STUDENT_TOOLS.map((tool, i) => (
+              <Animated.View key={tool.id} entering={FadeInDown.delay(i*50).springify().damping(18)} style={s.svcCardWrap}>
+                <AnimatedPress style={s.svcCard} onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedTool(tool); setToolModalVisible(true);
+                }}>
+                  <LinearGradient colors={[tool.color+"18", Colors.cardBg]} style={s.svcCardInner}>
+                    <View style={[s.svcIconCircle, { backgroundColor: tool.color+"22" }]}>
+                      <Ionicons name={tool.icon as any} size={28} color={tool.color} />
                     </View>
-                    <Text style={s.svcTitle}>{svc.title}</Text>
-                    <Text style={s.svcDesc} numberOfLines={2}>{svc.desc}</Text>
-                    <View style={[s.svcTag, { backgroundColor: svc.color+"20" }]}>
-                      <Text style={[s.svcTagText, { color: svc.color }]}>{SVC_LABELS[svc.type as ServiceType] || ""}</Text>
+                    <Text style={s.svcTitle}>{tool.title}</Text>
+                    <View style={{ flex:1 }} />
+                    <View style={[s.svcTag, { backgroundColor: tool.color+"22" }]}>
+                      <Text style={[s.svcTagText, { color: tool.color }]}>{tool.tag}</Text>
                     </View>
                   </LinearGradient>
                 </AnimatedPress>
