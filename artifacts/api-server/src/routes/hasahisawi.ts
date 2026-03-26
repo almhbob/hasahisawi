@@ -148,18 +148,113 @@ export async function initHasahisawiDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  const { rows: comRows } = await query(`SELECT COUNT(*) as cnt FROM communities`);
-  if (parseInt(comRows[0].cnt, 10) === 0) {
-    await query(`
-      INSERT INTO communities
-        (name, category, origin, description, representative_name, contact_phone, members_count, neighborhood, services, status)
-      VALUES
-        ('جالية جنوب السودان','foreign','جمهورية جنوب السودان','مجتمع المواطنين الجنوبسودانيين المقيمين بالحصاحيصا','جوزيف ماتياي','0911234567',120,'الحي الشرقي','خدمات اجتماعية · دروس لغة عربية · مساعدات إنسانية','active'),
-        ('جالية الإثيوبيين','foreign','إثيوبيا','المجموعة الإثيوبية المقيمة بالمدينة','تدله بيرهان','0922345678',85,'وسط المدينة','تجارة · خدمات صحية · مساعدات اجتماعية','active'),
-        ('وافدو ولاية الخرطوم','wafid','ولاية الخرطوم','أسر نزحت من الخرطوم إلى الحصاحيصا','المهندس عمر صالح','0933456789',340,'حي الزهور','خدمات تعليمية · توظيف · استشارات قانونية','active'),
-        ('وافدو إقليم دارفور','wafid','ولايات دارفور','أبناء دارفور المقيمون بالحصاحيصا وضواحيها','عبدالكريم آدم','0944567890',210,'حي السلام','خدمات اجتماعية · دعم نفسي · مساعدات إنسانية','active'),
-        ('أبناء الحصاحيصا بالخارج','expat','السودان وخارجه','رابطة مغتربي الحصاحيصا حول العالم','أ. عصام الدين محمد','0955678901',450,'الحصاحيصا','تحويلات مالية · دعم المشاريع · التواصل الاجتماعي','active')
-    `);
+  // Add columns introduced after initial table creation
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS submitted_by INTEGER`);
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS submitted_by_name VARCHAR(200)`);
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS suspension_reason TEXT`);
+  // Representative personal data
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS representative_title VARCHAR(200)`);
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS representative_phone VARCHAR(50)`);
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS representative_national_id VARCHAR(100)`);
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS representative_email VARCHAR(200)`);
+  // Services management
+  await query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS services_hidden TEXT`);
+  // طلبات تعديل الخدمات
+  await query(`
+    CREATE TABLE IF NOT EXISTS community_service_requests (
+      id SERIAL PRIMARY KEY,
+      community_id INTEGER NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+      action VARCHAR(10) NOT NULL CHECK (action IN ('add','hide','show')),
+      service_name VARCHAR(200) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      submitted_by INTEGER,
+      submitted_by_name VARCHAR(200),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMPTZ,
+      reviewer_note TEXT
+    )
+  `);
+  // No default communities — they will be added by admin after official agreement with each institution
+
+  // ── تهيئة الأحياء والقرى الحقيقية (مصدر: ويكيبيديا الحصاحيصا) ──────
+  // تُضاف فقط إذا لم تكن موجودة بالفعل في قاعدة البيانات
+  {
+    const existing = await query(`SELECT key FROM admin_settings WHERE key LIKE 'nbr_%' LIMIT 1`);
+    if (existing.rows.length === 0) {
+      const realLocations: Array<{ label: string; type: "neighborhood" | "village" }> = [
+        // أحياء مدينة الحصاحيصا
+        { label: "الحي الشرقي",          type: "neighborhood" },
+        { label: "الحي الأوسط",          type: "neighborhood" },
+        { label: "حي الواحة",            type: "neighborhood" },
+        { label: "حي الصفاء",            type: "neighborhood" },
+        { label: "حي الزهور",            type: "neighborhood" },
+        { label: "حي العمدة",            type: "neighborhood" },
+        { label: "حي الموظفين",          type: "neighborhood" },
+        { label: "حي كريمة",             type: "neighborhood" },
+        { label: "حي الفيحاء",           type: "neighborhood" },
+        { label: "حي الصداقة",           type: "neighborhood" },
+        { label: "حي المايقوما",         type: "neighborhood" },
+        { label: "حي الضقالة",           type: "neighborhood" },
+        { label: "حي فور",               type: "neighborhood" },
+        { label: "الامتداد",             type: "neighborhood" },
+        { label: "الحلة الجديدة",        type: "neighborhood" },
+        { label: "المنصورة",             type: "neighborhood" },
+        { label: "المزاد",               type: "neighborhood" },
+        { label: "الكرمك",               type: "neighborhood" },
+        { label: "الكومبو",              type: "neighborhood" },
+        { label: "الجملونات",            type: "neighborhood" },
+        { label: "الطائف",               type: "neighborhood" },
+        { label: "ود الكامل",            type: "neighborhood" },
+        { label: "أركويت",               type: "neighborhood" },
+        // مناطق فرعية
+        { label: "الطالباب",             type: "neighborhood" },
+        { label: "الكشامر",              type: "neighborhood" },
+        { label: "أم دغينة",             type: "neighborhood" },
+        { label: "أم عضام",              type: "neighborhood" },
+        { label: "ود السيد",             type: "neighborhood" },
+        { label: "أبو فروع",             type: "neighborhood" },
+        { label: "عمارة أبيد",           type: "neighborhood" },
+        { label: "ود سلفاب",             type: "neighborhood" },
+        { label: "ود الفادني",           type: "neighborhood" },
+        { label: "أبو جيلي",             type: "neighborhood" },
+        { label: "ودشمو",                type: "neighborhood" },
+        { label: "أربجي",                type: "neighborhood" },
+        // قرى محلية الحصاحيصا
+        { label: "المسلمية",             type: "village" },
+        { label: "ود حبوبة",             type: "village" },
+        { label: "أبو قوتة",             type: "village" },
+        { label: "الربع",                type: "village" },
+        { label: "طابت",                 type: "village" },
+        { label: "المحيريبا",            type: "village" },
+        { label: "قرية الولي",           type: "village" },
+        { label: "ود بهاي",              type: "village" },
+        { label: "طيبة الشيخ القرشي",   type: "village" },
+        { label: "كبنة",                 type: "village" },
+        { label: "تنة",                  type: "village" },
+        { label: "بانت",                 type: "village" },
+        { label: "الجلاد",               type: "village" },
+        { label: "ود العباس",            type: "village" },
+        { label: "طابية",                type: "village" },
+        { label: "بمبان",                type: "village" },
+        { label: "هيصة",                 type: "village" },
+        { label: "ود النيل",             type: "village" },
+        { label: "أم ضباع",              type: "village" },
+        { label: "حلفاية الحصاحيصا",    type: "village" },
+        { label: "الشيخ حماد",           type: "village" },
+        { label: "الشيخ طيب",            type: "village" },
+        { label: "ود بلال",              type: "village" },
+        { label: "أبو عشر",              type: "village" },
+        { label: "أخرى / خارج الحصاحيصا", type: "village" },
+      ];
+      for (const loc of realLocations) {
+        const k = `nbr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await query(
+          `INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+          [k, JSON.stringify({ label: loc.label, type: loc.type, key: k })]
+        );
+      }
+      console.log(`✅ تم تهيئة ${realLocations.length} حياً وقرية حقيقية في قاعدة البيانات`);
+    }
   }
 
   // ── جدول الإعلانات المدفوعة ──────────────────────────────────────
@@ -451,6 +546,29 @@ router.post("/auth/admin-login", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/auth/moderator-login", async (req: Request, res: Response) => {
+  try {
+    const { phone_or_email, password } = req.body;
+    if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const result = await query(
+      `SELECT * FROM users WHERE (phone=$1 OR email=$1) AND role='moderator'`,
+      [phone_or_email]
+    );
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: "لا يوجد حساب مشرف بهذه البيانات" });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: "كلمة المرور غير صحيحة" });
+    const token = randomBytes(32).toString("hex");
+    await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
+    const permsResult = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [user.id]);
+    const safeUser = safeUserPayload(user);
+    return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) }, token });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.post("/auth/logout", async (req: Request, res: Response) => {
   try {
     const auth = req.headers.authorization;
@@ -516,66 +634,6 @@ router.post("/admin/name", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { name } = req.body;
     await query(`UPDATE admin_settings SET value=$1 WHERE key='admin_name'`, [name]);
-    return res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.get("/admin/users", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const result = await query(`SELECT id, name, national_id, phone, email, role, created_at FROM users ORDER BY created_at DESC`);
-    return res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.delete("/admin/users/:id", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    await query(`DELETE FROM users WHERE id=$1`, [req.params.id]);
-    return res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.put("/admin/users/:id/role", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { role } = req.body;
-    const result = await query(`UPDATE users SET role=$1 WHERE id=$2 RETURNING id, name, role`, [role, req.params.id]);
-    return res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const result = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
-    return res.json(result.rows.map((r: any) => r.section));
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.put("/admin/users/:id/permissions", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { sections } = req.body;
-    await query(`DELETE FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
-    for (const section of sections || []) {
-      await query(`INSERT INTO moderator_permissions (user_id, section) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, section]);
-    }
     return res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -1115,6 +1173,55 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
   }
 });
 
+router.delete("/admin/users/:id", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") {
+      return res.status(403).json({ error: "فقط المدير يمكنه حذف المستخدمين" });
+    }
+    const targetId = parseInt(req.params.id as string);
+    if (isNaN(targetId)) return res.status(400).json({ error: "معرّف غير صالح" });
+    if (targetId === currentUser.id) return res.status(400).json({ error: "لا يمكنك حذف حسابك بنفسك" });
+    await query(`DELETE FROM users WHERE id=$1`, [targetId]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const result = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
+    return res.json(result.rows.map((r: any) => r.section));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.put("/admin/users/:id/permissions", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const { sections } = req.body;
+    await query(`DELETE FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
+    for (const section of sections || []) {
+      await query(`INSERT INTO moderator_permissions (user_id, section) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, section]);
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ── Chat API ──────────────────────────────────────────────────────────────────
 
 // جلب قائمة المستخدمين للدردشة
@@ -1388,36 +1495,42 @@ router.get("/communities", async (req: Request, res: Response) => {
   }
 });
 
-// تسجيل جالية جديدة (طلب يُراجعه الإدارة)
+// تسجيل جالية/مؤسسة جديدة (طلب يُراجعه الإدارة)
 router.post("/communities/register", async (req: Request, res: Response) => {
   try {
     const {
       name, category, origin, description,
-      representative_name, contact_phone,
+      representative_name, representative_title, representative_phone,
+      representative_national_id, representative_email,
+      contact_phone,
       members_count, neighborhood, services, meeting_schedule,
-    } = req.body as {
-      name: string; category: string; origin?: string; description?: string;
-      representative_name?: string; contact_phone?: string;
-      members_count?: number; neighborhood?: string;
-      services?: string; meeting_schedule?: string;
-    };
+    } = req.body as any;
     if (!name?.trim() || !contact_phone?.trim()) {
       return res.status(400).json({ error: "اسم الجالية ورقم التواصل مطلوبان" });
     }
-    const validCats = ["wafid", "foreign", "displaced", "expat"];
+    if (!representative_name?.trim()) {
+      return res.status(400).json({ error: "اسم ممثل الجهة مطلوب" });
+    }
+    const validCats = ["wafid", "foreign", "displaced", "expat", "institution", "ngo", "business", "health", "education", "other"];
     const cat = validCats.includes(category) ? category : "wafid";
     const { rows } = await query(
       `INSERT INTO communities
-        (name, category, origin, description, representative_name, contact_phone,
-         members_count, neighborhood, services, meeting_schedule, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
+        (name, category, origin, description,
+         representative_name, representative_title, representative_phone,
+         representative_national_id, representative_email,
+         contact_phone, members_count, neighborhood, services, meeting_schedule, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
        RETURNING id, name, status, created_at`,
       [
         name.trim(),
         cat,
         (origin || "").trim() || null,
         (description || "").trim() || null,
-        (representative_name || "").trim() || null,
+        representative_name.trim(),
+        (representative_title || "").trim() || null,
+        (representative_phone || "").trim() || null,
+        (representative_national_id || "").trim() || null,
+        (representative_email || "").trim() || null,
         contact_phone.trim(),
         Math.max(0, parseInt(String(members_count ?? "0"))),
         (neighborhood || "").trim() || null,
@@ -1453,25 +1566,85 @@ router.get("/admin/communities", async (req: Request, res: Response) => {
   }
 });
 
-// تحديث حالة جالية
+// تحديث حالة جالية/مؤسسة — الإدارة فقط
 router.put("/admin/communities/:id/status", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
-      return res.status(403).json({ error: "غير مصرح" });
+    if (!me || me.role !== "admin") {
+      return res.status(403).json({ error: "الموافقة والإيقاف والرفض من صلاحيات الإدارة فقط" });
     }
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
-    const { status } = req.body as { status: "active" | "rejected" };
-    if (!["active", "rejected"].includes(status)) {
+    const { status, suspension_reason } = req.body as {
+      status: "active" | "rejected" | "suspended";
+      suspension_reason?: string;
+    };
+    if (!["active", "rejected", "suspended"].includes(status)) {
       return res.status(400).json({ error: "حالة غير صالحة" });
     }
     const { rows } = await query(
-      `UPDATE communities SET status=$1 WHERE id=$2 RETURNING *`,
-      [status, id]
+      `UPDATE communities SET status=$1, suspension_reason=$2 WHERE id=$3 RETURNING *`,
+      [status, (suspension_reason || "").trim() || null, id]
     );
     if (!rows.length) return res.status(404).json({ error: "الجالية غير موجودة" });
     return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// رفع طلب مؤسسة من قِبَل مشرف
+router.post("/moderator/communities", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "moderator" && me.role !== "admin")) {
+      return res.status(403).json({ error: "مشرفون ومديرون فقط" });
+    }
+    const {
+      name, category, origin, description,
+      representative_name, representative_title, representative_phone,
+      representative_national_id, representative_email,
+      contact_phone,
+      members_count, neighborhood, services, meeting_schedule,
+    } = req.body as any;
+    if (!name?.trim() || !contact_phone?.trim()) {
+      return res.status(400).json({ error: "اسم المؤسسة ورقم التواصل مطلوبان" });
+    }
+    if (!representative_name?.trim()) {
+      return res.status(400).json({ error: "اسم ممثل الجهة مطلوب" });
+    }
+    const validCats = ["wafid", "foreign", "displaced", "expat", "institution", "ngo", "business", "health", "education", "other"];
+    const cat = validCats.includes(category) ? category : "institution";
+    const { rows } = await query(
+      `INSERT INTO communities
+        (name, category, origin, description,
+         representative_name, representative_title, representative_phone,
+         representative_national_id, representative_email,
+         contact_phone, members_count, neighborhood, services, meeting_schedule,
+         status, submitted_by, submitted_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending',$15,$16)
+       RETURNING id, name, status, created_at`,
+      [
+        name.trim(),
+        cat,
+        (origin || "").trim() || null,
+        (description || "").trim() || null,
+        representative_name.trim(),
+        (representative_title || "").trim() || null,
+        (representative_phone || "").trim() || null,
+        (representative_national_id || "").trim() || null,
+        (representative_email || "").trim() || null,
+        contact_phone.trim(),
+        Math.max(0, parseInt(String(members_count ?? "0"))),
+        (neighborhood || "").trim() || null,
+        (services || "").trim() || null,
+        (meeting_schedule || "").trim() || null,
+        me.id,
+        me.name || me.email || me.phone || null,
+      ]
+    );
+    return res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -1489,6 +1662,152 @@ router.delete("/admin/communities/:id", async (req: Request, res: Response) => {
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
     await query(`DELETE FROM communities WHERE id=$1`, [id]);
     return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// طلبات الخدمات — Service Requests
+// ══════════════════════════════════════════════════════
+
+// جلب خدمات مؤسسة معينة (مرئية + مخفية + طلبات معلقة)
+router.get("/communities/:id/services", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { rows } = await query(`SELECT services, services_hidden FROM communities WHERE id=$1`, [id]);
+    if (!rows.length) return res.status(404).json({ error: "لم يوجد" });
+    const splitSvcs = (txt: string | null) =>
+      (txt || "").split("·").map((s: string) => s.trim()).filter(Boolean);
+    const { rows: reqs } = await query(
+      `SELECT id, action, service_name, status, created_at, submitted_by_name
+       FROM community_service_requests WHERE community_id=$1 ORDER BY created_at DESC`,
+      [id]
+    );
+    return res.json({
+      visible: splitSvcs(rows[0].services),
+      hidden: splitSvcs(rows[0].services_hidden),
+      requests: reqs,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تقديم طلب تعديل خدمة (أي مستخدم مسجّل / مشرف / إدارة)
+router.post("/communities/:id/service-requests", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { action, service_name } = req.body as any;
+    if (!["add", "hide", "show"].includes(action)) return res.status(400).json({ error: "نوع غير صالح" });
+    if (!service_name?.trim()) return res.status(400).json({ error: "اسم الخدمة مطلوب" });
+    // تحقق من عدم وجود طلب معلق لنفس الخدمة والإجراء
+    const dup = await query(
+      `SELECT id FROM community_service_requests WHERE community_id=$1 AND action=$2 AND service_name=$3 AND status='pending'`,
+      [id, action, service_name.trim()]
+    );
+    if (dup.rows.length) return res.status(409).json({ error: "يوجد طلب معلق لهذه الخدمة بالفعل" });
+    const { rows } = await query(
+      `INSERT INTO community_service_requests (community_id, action, service_name, submitted_by, submitted_by_name)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, action, service_name.trim(), me.id, me.name || me.email || me.phone || null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب طلبات الخدمات المعلقة — المشرف والإدارة
+router.get("/moderator/service-requests", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const statusFilter = (req.query.status as string) || "pending";
+    const { rows } = await query(
+      `SELECT r.*, c.name AS community_name, c.category AS community_category
+       FROM community_service_requests r
+       JOIN communities c ON c.id = r.community_id
+       WHERE r.status=$1
+       ORDER BY r.created_at DESC`,
+      [statusFilter]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// الموافقة / الرفض على طلب خدمة — المشرف والإدارة
+router.patch("/moderator/service-requests/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { decision, reviewer_note } = req.body as any;
+    if (!["approved", "rejected"].includes(decision)) return res.status(400).json({ error: "قرار غير صالح" });
+
+    // جلب الطلب
+    const { rows: reqRows } = await query(
+      `SELECT * FROM community_service_requests WHERE id=$1`, [id]
+    );
+    if (!reqRows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    const sr = reqRows[0];
+    if (sr.status !== "pending") return res.status(409).json({ error: "تمت مراجعة هذا الطلب مسبقاً" });
+
+    // تحديث حالة الطلب
+    await query(
+      `UPDATE community_service_requests SET status=$1, reviewed_at=NOW(), reviewer_note=$2 WHERE id=$3`,
+      [decision, (reviewer_note || "").trim() || null, id]
+    );
+
+    // تطبيق التغيير على جدول communities عند الموافقة
+    if (decision === "approved") {
+      const { rows: cRows } = await query(
+        `SELECT services, services_hidden FROM communities WHERE id=$1`, [sr.community_id]
+      );
+      if (cRows.length) {
+        const splitSvcs = (txt: string | null) =>
+          (txt || "").split("·").map((s: string) => s.trim()).filter(Boolean);
+        let visible = splitSvcs(cRows[0].services);
+        let hidden  = splitSvcs(cRows[0].services_hidden);
+        const svcName: string = sr.service_name;
+
+        if (sr.action === "add") {
+          if (!visible.includes(svcName)) visible.push(svcName);
+        } else if (sr.action === "hide") {
+          visible = visible.filter((s: string) => s !== svcName);
+          if (!hidden.includes(svcName)) hidden.push(svcName);
+        } else if (sr.action === "show") {
+          hidden = hidden.filter((s: string) => s !== svcName);
+          if (!visible.includes(svcName)) visible.push(svcName);
+        }
+
+        await query(
+          `UPDATE communities SET services=$1, services_hidden=$2 WHERE id=$3`,
+          [
+            visible.length ? visible.join(" · ") : null,
+            hidden.length  ? hidden.join(" · ")  : null,
+            sr.community_id,
+          ]
+        );
+      }
+    }
+
+    return res.json({ success: true, decision });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
