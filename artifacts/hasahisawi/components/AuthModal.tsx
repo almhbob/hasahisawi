@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
   Pressable, ScrollView, Platform, ActivityIndicator, Image,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -89,6 +90,10 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
       <Pressable style={s.overlay} onPress={handleClose}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ width: "100%" }}
+        >
         <Pressable style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
 
           {/* Handle */}
@@ -340,6 +345,7 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
