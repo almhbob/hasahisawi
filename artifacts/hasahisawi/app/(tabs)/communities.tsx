@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, TextInput, ScrollView, Pressable, Alert, Platform, Linking,
+  ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { getApiUrl } from "@/lib/query-client";
+import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -121,17 +123,220 @@ function CommunityCard({ c, index, onPress }: { c: Community; index: number; onP
   );
 }
 
+// ─── Service Management Modal ────────────────────────────────────
+
+type SvcRequest = {
+  id: number;
+  action: "add" | "hide" | "show";
+  service_name: string;
+  status: "pending" | "approved" | "rejected";
+  submitted_by_name?: string;
+  created_at: string;
+};
+
+function ServiceManagementModal({
+  community,
+  token,
+  onClose,
+}: {
+  community: Community;
+  token: string;
+  onClose: () => void;
+}) {
+  const meta = CATEGORIES[community.category] ?? CATEGORIES.wafid;
+  const insets = useSafeAreaInsets();
+  const [visible, setVisible] = useState<string[]>([]);
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [requests, setRequests] = useState<SvcRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [newSvc, setNewSvc] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/communities/${community.id}/services`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setVisible(d.visible || []);
+        setHidden(d.hidden || []);
+        setRequests(d.requests || []);
+      }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [community.id, token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const submitRequest = async (action: "add" | "hide" | "show", service_name: string) => {
+    if (!service_name.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/communities/${community.id}/service-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, service_name: service_name.trim() }),
+      });
+      if (res.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (action === "add") setNewSvc("");
+        await load();
+      } else {
+        const j = await res.json();
+        Alert.alert("تنبيه", j.error || "تعذّرت العملية");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSending(false); }
+  };
+
+  const pendingFor = (action: string, name: string) =>
+    requests.some(r => r.action === action && r.service_name === name && r.status === "pending");
+
+  const ACTION_LABELS: Record<string, string> = { add: "إضافة", hide: "إخفاء", show: "إظهار" };
+  const STATUS_COLORS: Record<string, string> = { pending: Colors.accent, approved: Colors.primary, rejected: "#EF4444" };
+  const STATUS_LABELS: Record<string, string> = { pending: "معلّق", approved: "مقبول", rejected: "مرفوض" };
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.svcSheet, { paddingBottom: insets.bottom + 16 }]} onPress={e => e.stopPropagation()}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.svcSheetHeader}>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.svcSheetTitle}>إدارة الخدمات</Text>
+            <View style={{ width: 22 }} />
+          </View>
+          <Text style={styles.svcSheetSub}>{community.name}</Text>
+
+          {loading ? (
+            <ActivityIndicator color={meta.color} style={{ marginTop: 40 }} />
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 16 }}>
+
+              {/* إضافة خدمة جديدة */}
+              <View style={styles.svcSection}>
+                <Text style={styles.svcSectionTitle}>إضافة خدمة جديدة</Text>
+                <View style={styles.svcAddRow}>
+                  <TouchableOpacity
+                    style={[styles.svcAddBtn, { backgroundColor: meta.color, opacity: sending || !newSvc.trim() ? 0.5 : 1 }]}
+                    onPress={() => submitRequest("add", newSvc)}
+                    disabled={sending || !newSvc.trim()}
+                  >
+                    <Ionicons name="add" size={18} color="#fff" />
+                    <Text style={styles.svcAddBtnText}>إرسال طلب</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    style={[styles.svcInput, { flex: 1 }]}
+                    placeholder="اسم الخدمة..."
+                    placeholderTextColor={Colors.textMuted}
+                    value={newSvc}
+                    onChangeText={setNewSvc}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+
+              {/* الخدمات المرئية */}
+              {visible.length > 0 && (
+                <View style={styles.svcSection}>
+                  <Text style={styles.svcSectionTitle}>الخدمات الحالية</Text>
+                  {visible.map(svc => {
+                    const isPending = pendingFor("hide", svc);
+                    return (
+                      <View key={svc} style={styles.svcRow}>
+                        <TouchableOpacity
+                          style={[styles.svcActionBtn, { borderColor: isPending ? Colors.textMuted : "#EF4444", opacity: isPending ? 0.5 : 1 }]}
+                          onPress={() => submitRequest("hide", svc)}
+                          disabled={isPending || sending}
+                        >
+                          <Ionicons name={isPending ? "time-outline" : "eye-off-outline"} size={14} color={isPending ? Colors.textMuted : "#EF4444"} />
+                          <Text style={[styles.svcActionBtnText, { color: isPending ? Colors.textMuted : "#EF4444" }]}>
+                            {isPending ? "معلّق" : "إخفاء"}
+                          </Text>
+                        </TouchableOpacity>
+                        <View style={styles.svcItemLeft}>
+                          <Ionicons name="checkmark-circle" size={14} color={meta.color} />
+                          <Text style={styles.svcItemText}>{svc}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* الخدمات المخفية */}
+              {hidden.length > 0 && (
+                <View style={styles.svcSection}>
+                  <Text style={[styles.svcSectionTitle, { color: Colors.textMuted }]}>الخدمات المخفية</Text>
+                  {hidden.map(svc => {
+                    const isPending = pendingFor("show", svc);
+                    return (
+                      <View key={svc} style={styles.svcRow}>
+                        <TouchableOpacity
+                          style={[styles.svcActionBtn, { borderColor: isPending ? Colors.textMuted : meta.color, opacity: isPending ? 0.5 : 1 }]}
+                          onPress={() => submitRequest("show", svc)}
+                          disabled={isPending || sending}
+                        >
+                          <Ionicons name={isPending ? "time-outline" : "eye-outline"} size={14} color={isPending ? Colors.textMuted : meta.color} />
+                          <Text style={[styles.svcActionBtnText, { color: isPending ? Colors.textMuted : meta.color }]}>
+                            {isPending ? "معلّق" : "إظهار"}
+                          </Text>
+                        </TouchableOpacity>
+                        <View style={styles.svcItemLeft}>
+                          <Ionicons name="eye-off-outline" size={14} color={Colors.textMuted} />
+                          <Text style={[styles.svcItemText, { color: Colors.textMuted }]}>{svc}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* سجل الطلبات */}
+              {requests.length > 0 && (
+                <View style={styles.svcSection}>
+                  <Text style={styles.svcSectionTitle}>سجل الطلبات</Text>
+                  {requests.slice(0, 10).map(r => (
+                    <View key={r.id} style={styles.svcRequestRow}>
+                      <View style={[styles.svcStatusBadge, { backgroundColor: STATUS_COLORS[r.status] + "22" }]}>
+                        <Text style={[styles.svcStatusText, { color: STATUS_COLORS[r.status] }]}>{STATUS_LABELS[r.status]}</Text>
+                      </View>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.svcRequestName}>{r.service_name}</Text>
+                        <Text style={styles.svcRequestAction}>{ACTION_LABELS[r.action]}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Detail Modal ────────────────────────────────────────────────
 
-function DetailModal({ c, onClose }: { c: Community; onClose: () => void }) {
+function DetailModal({ c, onClose, token }: { c: Community; onClose: () => void; token?: string }) {
   const { isRTL } = useLang();
   const meta = CATEGORIES[c.category] ?? CATEGORIES.wafid;
   const insets = useSafeAreaInsets();
+  const [showSvcMgmt, setShowSvcMgmt] = useState(false);
+  const canManageSvcs = !!token;
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.detailSheet, { paddingBottom: insets.bottom + 16 }]} onPress={e => e.stopPropagation()}>
           <View style={styles.sheetHandle} />
+          {showSvcMgmt && token && (
+            <ServiceManagementModal community={c} token={token} onClose={() => setShowSvcMgmt(false)} />
+          )}
 
           {/* Header */}
           <View style={[styles.detailHeader, { borderRightColor: meta.color, borderRightWidth: 4 }]}>
@@ -180,7 +385,18 @@ function DetailModal({ c, onClose }: { c: Community; onClose: () => void }) {
 
             {c.services ? (
               <View style={styles.detailSection}>
-                <Text style={styles.detailSectionTitle}>الخدمات المقدَّمة</Text>
+                <View style={styles.svcSectionHeader}>
+                  <Text style={styles.detailSectionTitle}>الخدمات المقدَّمة</Text>
+                  {canManageSvcs && (
+                    <TouchableOpacity
+                      style={[styles.svcMgmtBtn, { backgroundColor: meta.color + "22", borderColor: meta.color + "44" }]}
+                      onPress={() => setShowSvcMgmt(true)}
+                    >
+                      <Ionicons name="settings-outline" size={13} color={meta.color} />
+                      <Text style={[styles.svcMgmtBtnText, { color: meta.color }]}>إدارة الخدمات</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {c.services.split("·").map((s, i) => s.trim() ? (
                   <View key={i} style={styles.serviceItem}>
                     <Ionicons name="checkmark-circle" size={14} color={meta.color} />
@@ -188,7 +404,17 @@ function DetailModal({ c, onClose }: { c: Community; onClose: () => void }) {
                   </View>
                 ) : null)}
               </View>
-            ) : null}
+            ) : (
+              canManageSvcs ? (
+                <TouchableOpacity
+                  style={[styles.svcEmptyBtn, { borderColor: meta.color + "44" }]}
+                  onPress={() => setShowSvcMgmt(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={meta.color} />
+                  <Text style={[styles.svcEmptyBtnText, { color: meta.color }]}>إضافة خدمات للمؤسسة</Text>
+                </TouchableOpacity>
+              ) : null
+            )}
 
             {c.contact_phone ? (
               <TouchableOpacity
@@ -215,10 +441,12 @@ function DetailModal({ c, onClose }: { c: Community; onClose: () => void }) {
 function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { isRTL } = useLang();
   const insets = useSafeAreaInsets();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [form, setForm] = useState({
     name: "", category: "wafid" as CatKey, origin: "", description: "",
-    representative_name: "", contact_phone: "", members_count: "",
+    representative_name: "", representative_title: "", representative_phone: "",
+    representative_national_id: "", representative_email: "",
+    contact_phone: "", members_count: "",
     neighborhood: "", services: "", meeting_schedule: "",
   });
   const [sending, setSending] = useState(false);
@@ -227,7 +455,11 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
   const handleSend = async () => {
     if (!form.name.trim() || !form.contact_phone.trim()) {
-      Alert.alert("مطلوب", "اسم الجالية ورقم التواصل إلزاميان");
+      Alert.alert("مطلوب", "اسم الجهة ورقم التواصل إلزاميان");
+      return;
+    }
+    if (!form.representative_name.trim()) {
+      Alert.alert("مطلوب", "اسم ممثل الجهة إلزامي");
       return;
     }
     setSending(true);
@@ -260,25 +492,26 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.regTitle}>تسجيل جالية</Text>
+            <Text style={styles.regTitle}>طلب انضمام مؤسسة</Text>
             <View style={styles.stepPill}>
-              <Text style={styles.stepPillText}>{step}/2</Text>
+              <Text style={styles.stepPillText}>{step}/3</Text>
             </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.regForm}>
-            {step === 1 ? (
+            {/* ─── الخطوة ١: بيانات الجهة ─── */}
+            {step === 1 && (
               <>
-                <Text style={styles.formSectionTitle}>معلومات الجالية</Text>
+                <Text style={styles.formSectionTitle}>بيانات الجهة أو المؤسسة</Text>
 
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>اسم الجالية *</Text>
+                  <Text style={styles.formLabel}>اسم المؤسسة / الجالية *</Text>
                   <TextInput style={styles.formInput} value={form.name} onChangeText={set("name")}
-                    placeholder="مثال: جالية الإثيوبيين" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                    placeholder="الاسم الرسمي للجهة" placeholderTextColor={Colors.textMuted} textAlign="right" />
                 </View>
 
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>نوع الجالية</Text>
+                  <Text style={styles.formLabel}>نوع الجهة</Text>
                   <View style={styles.catGrid}>
                     {(Object.entries(CATEGORIES) as [CatKey, typeof CATEGORIES[CatKey]][]).map(([k, m]) => (
                       <TouchableOpacity
@@ -294,22 +527,22 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 </View>
 
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>منطقة الأصل</Text>
+                  <Text style={styles.formLabel}>الأصل / المنشأ</Text>
                   <TextInput style={styles.formInput} value={form.origin} onChangeText={set("origin")}
-                    placeholder="ولاية أو دولة المنشأ" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                    placeholder="مثال: حكومية، أهلية، دولية" placeholderTextColor={Colors.textMuted} textAlign="right" />
                 </View>
 
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>نبذة عن الجالية</Text>
+                  <Text style={styles.formLabel}>نبذة عن الجهة</Text>
                   <TextInput style={[styles.formInput, styles.formTextArea]} value={form.description} onChangeText={set("description")}
-                    placeholder="وصف مختصر عن الجالية وظروفها..." placeholderTextColor={Colors.textMuted}
+                    placeholder="وصف مختصر عن المؤسسة وأهدافها..." placeholderTextColor={Colors.textMuted}
                     multiline textAlign="right" textAlignVertical="top" />
                 </View>
 
                 <TouchableOpacity
                   style={styles.nextBtn}
                   onPress={() => {
-                    if (!form.name.trim()) { Alert.alert("مطلوب", "أدخل اسم الجالية"); return; }
+                    if (!form.name.trim()) { Alert.alert("مطلوب", "أدخل اسم المؤسسة"); return; }
                     setStep(2);
                   }}
                 >
@@ -317,16 +550,76 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                   <Ionicons name="chevron-back" size={18} color="#fff" />
                 </TouchableOpacity>
               </>
-            ) : (
+            )}
+
+            {/* ─── الخطوة ٢: بيانات الممثل ─── */}
+            {step === 2 && (
               <>
-                <Text style={styles.formSectionTitle}>معلومات التواصل والخدمات</Text>
+                <View style={{ backgroundColor: Colors.primary + "12", borderRadius: 10, padding: 12, marginBottom: 14, flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
+                  <Ionicons name="person-circle-outline" size={20} color={Colors.primary} />
+                  <Text style={[styles.formSectionTitle, { marginBottom: 0, color: Colors.primary }]}>بيانات ممثل الجهة</Text>
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>الاسم الكامل للممثل *</Text>
+                  <TextInput style={styles.formInput} value={form.representative_name} onChangeText={set("representative_name")}
+                    placeholder="الاسم الثلاثي أو الرباعي" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>المنصب / الصفة الوظيفية</Text>
+                  <TextInput style={styles.formInput} value={form.representative_title} onChangeText={set("representative_title")}
+                    placeholder="مثال: مدير عام، رئيس مجلس الإدارة" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>الهاتف الشخصي للممثل</Text>
+                  <TextInput style={styles.formInput} value={form.representative_phone} onChangeText={set("representative_phone")}
+                    placeholder="+249..." placeholderTextColor={Colors.textMuted}
+                    keyboardType="phone-pad" textAlign="right" />
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>رقم الهوية الوطنية</Text>
+                  <TextInput style={styles.formInput} value={form.representative_national_id} onChangeText={set("representative_national_id")}
+                    placeholder="رقم البطاقة الشخصية أو جواز السفر" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>البريد الإلكتروني</Text>
+                  <TextInput style={styles.formInput} value={form.representative_email} onChangeText={set("representative_email")}
+                    placeholder="example@email.com" placeholderTextColor={Colors.textMuted}
+                    keyboardType="email-address" autoCapitalize="none" textAlign="right" />
+                </View>
+
+                <View style={styles.regBtns}>
+                  <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
+                    <Text style={styles.backBtnText}>رجوع</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.nextBtn}
+                    onPress={() => {
+                      if (!form.representative_name.trim()) { Alert.alert("مطلوب", "أدخل اسم ممثل الجهة"); return; }
+                      setStep(3);
+                    }}
+                  >
+                    <Text style={styles.nextBtnText}>التالي</Text>
+                    <Ionicons name="chevron-back" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* ─── الخطوة ٣: بيانات التواصل والخدمات ─── */}
+            {step === 3 && (
+              <>
+                <Text style={styles.formSectionTitle}>بيانات التواصل والخدمات</Text>
 
                 {[
-                  { label: "اسم الممثل المسؤول", key: "representative_name" as const, placeholder: "اسم الشخص المسؤول" },
-                  { label: "رقم التواصل *", key: "contact_phone" as const, placeholder: "+249...", numeric: true },
+                  { label: "رقم تواصل المؤسسة *", key: "contact_phone" as const, placeholder: "+249...", numeric: true },
                   { label: "الحي / المنطقة", key: "neighborhood" as const, placeholder: "اسم الحي أو المنطقة" },
                   { label: "عدد الأعضاء التقريبي", key: "members_count" as const, placeholder: "مثال: 150", numeric: true },
-                  { label: "مواعيد التجمع", key: "meeting_schedule" as const, placeholder: "مثال: كل جمعة الساعة 4م" },
+                  { label: "مواعيد التجمع أو العمل", key: "meeting_schedule" as const, placeholder: "مثال: يومياً من ٨ص - ٤م" },
                 ].map(f => (
                   <View key={f.key} style={styles.formField}>
                     <Text style={styles.formLabel}>{f.label}</Text>
@@ -345,12 +638,12 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 <View style={styles.formField}>
                   <Text style={styles.formLabel}>الخدمات المقدَّمة</Text>
                   <TextInput style={[styles.formInput, styles.formTextArea]} value={form.services} onChangeText={set("services")}
-                    placeholder="مثال: دروس لغة · مساعدات · خدمات صحية" placeholderTextColor={Colors.textMuted}
+                    placeholder="مثال: رعاية صحية · تعليم · خدمات اجتماعية" placeholderTextColor={Colors.textMuted}
                     multiline textAlign="right" textAlignVertical="top" />
                 </View>
 
                 <View style={styles.regBtns}>
-                  <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
+                  <TouchableOpacity style={styles.backBtn} onPress={() => setStep(2)}>
                     <Text style={styles.backBtnText}>رجوع</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -399,6 +692,8 @@ export default function CommunitiesScreen() {
   const { isRTL } = useLang();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const auth = useAuth();
+  const canManageServices = !auth.isGuest && !!auth.token && (auth.user?.role === "admin" || auth.user?.role === "moderator");
 
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
@@ -519,7 +814,7 @@ export default function CommunitiesScreen() {
         />
       )}
 
-      {selected && <DetailModal c={selected} onClose={() => setSelected(null)} />}
+      {selected && <DetailModal c={selected} onClose={() => setSelected(null)} token={canManageServices ? auth.token ?? undefined : undefined} />}
       {showRegister && (
         <RegisterModal
           onClose={() => setShowRegister(false)}
@@ -733,4 +1028,62 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  // Service management
+  svcSectionHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  svcMgmtBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  svcMgmtBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  svcEmptyBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+    borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14,
+  },
+  svcEmptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  svcSheet: {
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%",
+  },
+  svcSheetHeader: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  svcSheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  svcSheetSub: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 6 },
+  svcSection: {
+    backgroundColor: Colors.bg, borderRadius: 14, padding: 14, gap: 10,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  svcSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  svcAddRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  svcAddBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+  },
+  svcAddBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
+  svcInput: {
+    backgroundColor: Colors.cardBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  svcRow: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
+    paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  svcActionBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 0,
+  },
+  svcActionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  svcItemLeft: { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  svcItemText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textPrimary, textAlign: "right", flex: 1 },
+  svcRequestRow: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  svcStatusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
+  svcStatusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  svcRequestName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  svcRequestAction: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
 });
