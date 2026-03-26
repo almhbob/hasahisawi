@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -88,6 +89,7 @@ function AddJobModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -118,6 +120,7 @@ function AddJobModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -158,6 +161,7 @@ function AddFacilityModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -192,6 +196,7 @@ function AddFacilityModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -233,6 +238,7 @@ function AddSchoolModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -262,6 +268,7 @@ function AddSchoolModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -314,6 +321,7 @@ function AddInstitutionModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -347,6 +355,7 @@ function AddInstitutionModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -391,6 +400,7 @@ function AddSportClubModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -424,6 +434,7 @@ function AddSportClubModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -468,6 +479,7 @@ function AddSportEventModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -501,6 +513,7 @@ function AddSportEventModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -545,6 +558,7 @@ function AddCulturalCenterModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -578,6 +592,7 @@ function AddCulturalCenterModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -622,6 +637,7 @@ function AddCulturalEventModal({ visible, onClose, onSave }: {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={ms.overlay} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
         <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={ms.handle} />
           <View style={ms.sheetHead}>
@@ -655,6 +671,7 @@ function AddCulturalEventModal({ visible, onClose, onSave }: {
             </View>
           </ScrollView>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -712,17 +729,61 @@ function AdminCard({
   onDelete?: () => void;
   onAction?: () => void; actionLabel?: string; actionIcon?: string; actionColor?: string;
 }) {
+  const [confirming, setConfirming] = React.useState(false);
+
+  const handleDeletePress = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setConfirming(true);
+  };
+
+  const handleConfirm = () => {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setConfirming(false);
+    onDelete?.();
+  };
+
+  const handleCancel = () => {
+    setConfirming(false);
+  };
+
+  if (confirming) {
+    return (
+      <View style={[ac.card, { borderColor: Colors.danger + "60" }]}>
+        <View style={{ padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+          <Ionicons name="warning-outline" size={18} color={Colors.danger} />
+          <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.danger, textAlign: "right" }}>
+            حذف "{title}"؟
+          </Text>
+          <TouchableOpacity
+            hitSlop={10}
+            onPress={handleConfirm}
+            style={{ backgroundColor: Colors.danger, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 }}
+          >
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>حذف</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            hitSlop={10}
+            onPress={handleCancel}
+            style={{ backgroundColor: Colors.divider, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 }}
+          >
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary }}>إلغاء</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={ac.card}>
       <View style={ac.row}>
         <View style={ac.actions}>
           {onDelete && (
-            <TouchableOpacity style={ac.delBtn} onPress={onDelete}>
-              <Ionicons name="trash-outline" size={15} color={Colors.danger} />
+            <TouchableOpacity style={ac.delBtn} onPress={handleDeletePress} hitSlop={10}>
+              <Ionicons name="trash-outline" size={16} color={Colors.danger} />
             </TouchableOpacity>
           )}
           {onAction && actionIcon && (
-            <TouchableOpacity style={[ac.actionBtn, { backgroundColor: (actionColor ?? Colors.success) + "15" }]} onPress={onAction}>
+            <TouchableOpacity style={[ac.actionBtn, { backgroundColor: (actionColor ?? Colors.success) + "15" }]} onPress={onAction} hitSlop={8}>
               <Ionicons name={actionIcon as any} size={15} color={actionColor ?? Colors.success} />
             </TouchableOpacity>
           )}
@@ -1188,25 +1249,17 @@ export default function SettingsScreen() {
     finally { setLmAdding(false); }
   };
 
-  const deleteLandmark = (lm: ApiLandmark) => {
-    Alert.alert("حذف معلم", `هل تريد حذف "${lm.name}"؟`, [
-      { text: "إلغاء", style: "cancel" },
-      {
-        text: "حذف", style: "destructive",
-        onPress: async () => {
-          try {
-            const base = getApiUrl();
-            const url = new URL(`/api/admin/landmarks/${lm.id}`, base).toString();
-            await fetch(url, {
-              method: "DELETE",
-              headers: { ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
-            });
-            setLandmarks(prev => prev.filter(x => x.id !== lm.id));
-            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
-        },
-      },
-    ]);
+  const deleteLandmark = async (lm: ApiLandmark) => {
+    try {
+      const base = getApiUrl();
+      const url = new URL(`/api/admin/landmarks/${lm.id}`, base).toString();
+      await fetch(url, {
+        method: "DELETE",
+        headers: { ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
+      });
+      setLandmarks(prev => prev.filter(x => x.id !== lm.id));
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
   useEffect(() => { checkAdmin(); }, [hasAccess]);
@@ -1226,13 +1279,18 @@ export default function SettingsScreen() {
 
   const handleLogin = async () => {
     setLoginError("");
-    if (!loginEmail.trim()) { setLoginError("أدخل البريد الإلكتروني"); return; }
+    if (!loginEmail.trim()) {
+      setLoginError(loginRole === "moderator" ? "أدخل رقم الهاتف أو البريد الإلكتروني" : "أدخل البريد الإلكتروني");
+      return;
+    }
     if (!loginPassword) { setLoginError("أدخل كلمة المرور"); return; }
-    if (loginMode === "register" && !loginName.trim()) { setLoginError("أدخل الاسم"); return; }
-    if (loginMode === "register" && !loginAdminCode.trim()) { setLoginError("أدخل رمز التسجيل"); return; }
+    if (loginRole === "admin" && loginMode === "register" && !loginName.trim()) { setLoginError("أدخل الاسم"); return; }
+    if (loginRole === "admin" && loginMode === "register" && !loginAdminCode.trim()) { setLoginError("أدخل رمز التسجيل"); return; }
     setLoginLoading(true);
     try {
-      if (loginMode === "login") {
+      if (loginRole === "moderator") {
+        await auth.loginModerator(loginEmail.trim(), loginPassword);
+      } else if (loginMode === "login") {
         await auth.loginAdmin(loginEmail.trim(), loginPassword);
       } else {
         await auth.registerAdmin(loginName.trim(), loginEmail.trim(), loginPassword, loginAdminCode.trim());
@@ -1299,15 +1357,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteFacility = (id: string) => {
-    Alert.alert("حذف", "حذف هذه المنشأة؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadFacilities();
-        await AsyncStorage.setItem(MEDICAL_KEY, JSON.stringify(current.filter(f => f.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteFacility = async (id: string) => {
+    const current = await loadFacilities();
+    await AsyncStorage.setItem(MEDICAL_KEY, JSON.stringify(current.filter(f => f.id !== id)));
+    loadAll();
   };
 
   const toggleOnCall = async (id: string) => {
@@ -1325,15 +1378,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteSchool = (id: string) => {
-    Alert.alert("حذف", "حذف هذه المدرسة؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadSchools();
-        await AsyncStorage.setItem(SCHOOLS_KEY, JSON.stringify(current.filter((s: School) => s.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteSchool = async (id: string) => {
+    const current = await loadSchools();
+    await AsyncStorage.setItem(SCHOOLS_KEY, JSON.stringify(current.filter((s: School) => s.id !== id)));
+    loadAll();
   };
 
   // ── Institutions ──
@@ -1345,15 +1393,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteInstitution = (id: string) => {
-    Alert.alert("حذف", "حذف هذه المؤسسة التعليمية؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadInstitutions();
-        await AsyncStorage.setItem(INSTITUTIONS_KEY, JSON.stringify(current.filter((i: Institution) => i.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteInstitution = async (id: string) => {
+    const current = await loadInstitutions();
+    await AsyncStorage.setItem(INSTITUTIONS_KEY, JSON.stringify(current.filter((i: Institution) => i.id !== id)));
+    loadAll();
   };
 
   // ── Sports ──
@@ -1365,15 +1408,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteSportClub = (id: string) => {
-    Alert.alert("حذف", "حذف هذا النادي الرياضي؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadSportClubs();
-        await AsyncStorage.setItem(SPORT_CLUBS_KEY, JSON.stringify(current.filter(c => c.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteSportClub = async (id: string) => {
+    const current = await loadSportClubs();
+    await AsyncStorage.setItem(SPORT_CLUBS_KEY, JSON.stringify(current.filter(c => c.id !== id)));
+    loadAll();
   };
 
   const addSportEvent = async (data: Omit<SportEvent, "id">) => {
@@ -1384,15 +1422,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteSportEvent = (id: string) => {
-    Alert.alert("حذف", "حذف هذه الفعالية؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadSportEvents();
-        await AsyncStorage.setItem(SPORT_EVENTS_KEY, JSON.stringify(current.filter(e => e.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteSportEvent = async (id: string) => {
+    const current = await loadSportEvents();
+    await AsyncStorage.setItem(SPORT_EVENTS_KEY, JSON.stringify(current.filter(e => e.id !== id)));
+    loadAll();
   };
 
   // ── Culture ──
@@ -1404,15 +1437,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteCulturalCenter = (id: string) => {
-    Alert.alert("حذف", "حذف هذا المركز الثقافي؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadCulturalCenters();
-        await AsyncStorage.setItem(CULTURAL_CENTERS_KEY, JSON.stringify(current.filter(c => c.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteCulturalCenter = async (id: string) => {
+    const current = await loadCulturalCenters();
+    await AsyncStorage.setItem(CULTURAL_CENTERS_KEY, JSON.stringify(current.filter(c => c.id !== id)));
+    loadAll();
   };
 
   const addCulturalEvent = async (data: Omit<CulturalEvent, "id">) => {
@@ -1423,15 +1451,10 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteCulturalEvent = (id: string) => {
-    Alert.alert("حذف", "حذف هذه الفعالية الثقافية؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const current = await loadCulturalEvents();
-        await AsyncStorage.setItem(CULTURAL_EVENTS_KEY, JSON.stringify(current.filter(e => e.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteCulturalEvent = async (id: string) => {
+    const current = await loadCulturalEvents();
+    await AsyncStorage.setItem(CULTURAL_EVENTS_KEY, JSON.stringify(current.filter(e => e.id !== id)));
+    loadAll();
   };
 
   // ── Lost Items ──
@@ -1442,16 +1465,11 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteLostItem = (id: string) => {
-    Alert.alert("حذف", "حذف هذا الإعلان؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-        const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteLostItem = async (id: string) => {
+    const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
+    const saved: LostItem[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
+    loadAll();
   };
 
   // ── Jobs ──
@@ -1463,29 +1481,19 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem(JOBS_KEY, JSON.stringify([newJ, ...saved]));
     loadAll();
   };
-  const deleteJob = (id: string) => {
-    Alert.alert("حذف", "حذف هذه الوظيفة؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(JOBS_KEY);
-        const saved: Job[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(saved.filter(j => j.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteJob = async (id: string) => {
+    const raw = await AsyncStorage.getItem(JOBS_KEY);
+    const saved: Job[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(saved.filter(j => j.id !== id)));
+    loadAll();
   };
 
   // ── Market ──
-  const deleteFamilyItem = (id: string) => {
-    Alert.alert("حذف", "حذف هذا المنتج؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(FAMILY_KEY);
-        const saved: FamilyItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(FAMILY_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteFamilyItem = async (id: string) => {
+    const raw = await AsyncStorage.getItem(FAMILY_KEY);
+    const saved: FamilyItem[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(FAMILY_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
+    loadAll();
   };
 
   const markFamilySold = async (id: string) => {
@@ -1495,16 +1503,11 @@ export default function SettingsScreen() {
     loadAll();
   };
 
-  const deleteAuctionItem = (id: string) => {
-    Alert.alert("حذف", "حذف هذا الإعلان؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(AUCTION_KEY);
-        const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        loadAll();
-      }},
-    ]);
+  const deleteAuctionItem = async (id: string) => {
+    const raw = await AsyncStorage.getItem(AUCTION_KEY);
+    const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
+    loadAll();
   };
 
   const markAuctionSold = async (id: string) => {
@@ -1664,31 +1667,35 @@ export default function SettingsScreen() {
               <Text style={styles.loginTitle}>
                 {loginRole === "admin"
                   ? (loginMode === "login" ? "دخول المدير" : "تسجيل مدير جديد")
-                  : (loginMode === "login" ? "دخول المشرف" : "تسجيل مشرف جديد")}
+                  : "دخول المشرف"}
               </Text>
               <Text style={styles.loginSub}>
-                {loginMode === "login"
-                  ? "سجّل الدخول بالبريد الإلكتروني وكلمة المرور"
-                  : "أنشئ حساباً جديداً باستخدام رمز التسجيل"}
+                {loginRole === "moderator"
+                  ? "سجّل الدخول بنفس بيانات حسابك في التطبيق"
+                  : loginMode === "login"
+                    ? "سجّل الدخول بالبريد الإلكتروني وكلمة المرور"
+                    : "أنشئ حساباً جديداً باستخدام رمز التسجيل"}
               </Text>
 
-              {/* Mode toggle */}
-              <View style={styles.loginToggleRow}>
-                <TouchableOpacity
-                  style={[styles.loginToggleBtn, loginMode === "register" && styles.loginToggleBtnActive]}
-                  onPress={() => { setLoginMode("register"); setLoginError(""); }}
-                >
-                  <Text style={[styles.loginToggleText, loginMode === "register" && styles.loginToggleTextActive]}>تسجيل جديد</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.loginToggleBtn, loginMode === "login" && styles.loginToggleBtnActive]}
-                  onPress={() => { setLoginMode("login"); setLoginError(""); }}
-                >
-                  <Text style={[styles.loginToggleText, loginMode === "login" && styles.loginToggleTextActive]}>دخول</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Mode toggle — للمدير فقط */}
+              {loginRole === "admin" && (
+                <View style={styles.loginToggleRow}>
+                  <TouchableOpacity
+                    style={[styles.loginToggleBtn, loginMode === "register" && styles.loginToggleBtnActive]}
+                    onPress={() => { setLoginMode("register"); setLoginError(""); }}
+                  >
+                    <Text style={[styles.loginToggleText, loginMode === "register" && styles.loginToggleTextActive]}>تسجيل جديد</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.loginToggleBtn, loginMode === "login" && styles.loginToggleBtnActive]}
+                    onPress={() => { setLoginMode("login"); setLoginError(""); }}
+                  >
+                    <Text style={[styles.loginToggleText, loginMode === "login" && styles.loginToggleTextActive]}>دخول</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              {loginMode === "register" && (
+              {loginRole === "admin" && loginMode === "register" && (
                 <View style={styles.loginFieldWrap}>
                   <TextInput
                     style={styles.loginField}
@@ -1705,11 +1712,11 @@ export default function SettingsScreen() {
               <View style={styles.loginFieldWrap}>
                 <TextInput
                   style={styles.loginField}
-                  placeholder="البريد الإلكتروني"
+                  placeholder={loginRole === "moderator" ? "رقم الهاتف أو البريد الإلكتروني" : "البريد الإلكتروني"}
                   placeholderTextColor={Colors.textMuted}
                   value={loginEmail}
                   onChangeText={(v) => { setLoginEmail(v); setLoginError(""); }}
-                  keyboardType="email-address"
+                  keyboardType={loginRole === "moderator" ? "default" : "email-address"}
                   autoCapitalize="none"
                   textAlign="right"
                 />
@@ -1730,7 +1737,7 @@ export default function SettingsScreen() {
                 />
               </View>
 
-              {loginMode === "register" && (
+              {loginRole === "admin" && loginMode === "register" && (
                 <View style={styles.loginFieldWrap}>
                   <TextInput
                     style={styles.loginField}
@@ -1755,7 +1762,9 @@ export default function SettingsScreen() {
               >
                 {loginLoading
                   ? <Text style={styles.loginBtnText}>جاري التحقق...</Text>
-                  : <Text style={styles.loginBtnText}>{loginMode === "login" ? "دخول" : "إنشاء الحساب"}</Text>
+                  : <Text style={styles.loginBtnText}>
+                      {loginRole === "moderator" ? "دخول كمشرف" : loginMode === "login" ? "دخول كمدير" : "إنشاء الحساب"}
+                    </Text>
                 }
               </TouchableOpacity>
             </View>
