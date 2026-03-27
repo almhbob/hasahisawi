@@ -1801,7 +1801,7 @@ export default function SettingsScreen() {
             style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Ionicons name={tab.icon as any} size={14} color={activeTab === tab.key ? Colors.primary : Colors.textMuted} />
+            <Ionicons name={tab.icon as any} size={16} color={activeTab === tab.key ? Colors.primary : Colors.textSecondary} />
             <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
@@ -2637,11 +2637,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14,
   },
   tabBar: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  tabBarContent: { flexDirection: "row-reverse", paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  tabBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-  tabBtnActive: { backgroundColor: Colors.primary + "12" },
-  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
-  tabBtnTextActive: { fontFamily: "Cairo_600SemiBold", color: Colors.primary },
+  tabBarContent: { flexDirection: "row", paddingHorizontal: 12, paddingVertical: 6, gap: 4 },
+  tabBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: "transparent",
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.primary + "18",
+    borderColor: Colors.primary + "40",
+  },
+  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  tabBtnTextActive: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   body: { padding: 16, gap: 10 },
   section: { gap: 10 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
