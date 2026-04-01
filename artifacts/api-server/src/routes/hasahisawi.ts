@@ -443,6 +443,26 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ── تحديث جدول الإعلانات — إضافة image_url إن لم تكن موجودة ──
+  await query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS website_url TEXT`);
+
+  // ── إعدادات الإعلانات الافتراضية ──
+  const adsDefaults: [string, string][] = [
+    ["ad_price_per_day",    "500"],
+    ["ad_contact_phone",    "+249000000000"],
+    ["ad_contact_whatsapp", "+249000000000"],
+    ["ad_promo_text",       "انضم إلى منصة حصاحيصاوي وأوصل إعلانك لآلاف أبناء المدينة مباشرةً"],
+    ["ad_partner_email",    ""],
+    ["ad_bank_info",        ""],
+  ];
+  for (const [k, v] of adsDefaults) {
+    await query(
+      `INSERT INTO admin_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO NOTHING`,
+      [k, v],
+    );
+  }
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -1828,13 +1848,49 @@ async function expireOldAds() {
   } catch {}
 }
 
+// جلب إعدادات الإعلانات (عام — لعرض السعر وبيانات التواصل في الشاشة)
+router.get("/ads/settings", async (_req: Request, res: Response) => {
+  try {
+    const keys = ["ad_price_per_day", "ad_contact_phone", "ad_contact_whatsapp", "ad_promo_text", "ad_partner_email", "ad_bank_info"];
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key = ANY($1)`,
+      [keys]
+    );
+    const settings: Record<string, string> = {};
+    for (const r of rows) settings[r.key] = r.value;
+    return res.json(settings);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث إعدادات الإعلانات (الإدارة فقط)
+router.put("/admin/ads-settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+
+    const allowed = ["ad_price_per_day", "ad_contact_phone", "ad_contact_whatsapp", "ad_promo_text", "ad_partner_email", "ad_bank_info"];
+    const updates = req.body as Record<string, string>;
+    for (const [k, v] of Object.entries(updates)) {
+      if (!allowed.includes(k)) continue;
+      await query(`UPDATE admin_settings SET value=$1 WHERE key=$2`, [String(v), k]);
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // جلب الإعلانات النشطة (عام)
 router.get("/ads", async (_req: Request, res: Response) => {
   try {
     await expireOldAds();
     const { rows } = await query(
       `SELECT id, institution_name, title, description, type, target_screen,
-              start_date, end_date, priority, created_at
+              start_date, end_date, priority, created_at, image_url, website_url
        FROM ads WHERE status='active'
        ORDER BY priority DESC, approved_at DESC`
     );
@@ -1851,10 +1907,12 @@ router.post("/ads/request", async (req: Request, res: Response) => {
     const {
       institution_name, contact_name, contact_phone,
       title, description, type, target_screen, duration_days, budget,
+      image_url, website_url,
     } = req.body as {
       institution_name: string; contact_name?: string; contact_phone?: string;
       title: string; description?: string; type?: string;
       target_screen?: string; duration_days?: number; budget?: string;
+      image_url?: string; website_url?: string;
     };
     if (!institution_name?.trim() || !title?.trim() || !contact_phone?.trim()) {
       return res.status(400).json({ error: "اسم المؤسسة والعنوان والهاتف مطلوبة" });
@@ -1866,8 +1924,8 @@ router.post("/ads/request", async (req: Request, res: Response) => {
     const { rows } = await query(
       `INSERT INTO ads
         (institution_name, contact_name, contact_phone, title, description,
-         type, target_screen, duration_days, budget, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
+         type, target_screen, duration_days, budget, status, image_url, website_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11)
        RETURNING id, institution_name, title, status, created_at`,
       [
         institution_name.trim(),
@@ -1879,6 +1937,8 @@ router.post("/ads/request", async (req: Request, res: Response) => {
         target_screen?.trim() || "all",
         days,
         (budget || "").trim() || null,
+        image_url?.trim() || null,
+        website_url?.trim() || null,
       ]
     );
     return res.status(201).json(rows[0]);

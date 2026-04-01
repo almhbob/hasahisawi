@@ -56,6 +56,8 @@ type AdRecord = {
   created_at: string;
   approved_at?: string;
   approved_by_name?: string;
+  image_url?: string;
+  website_url?: string;
 };
 
 type ApiLandmark = { id: number; name: string; sub: string; image_url: string; sort_order: number };
@@ -247,6 +249,14 @@ export default function AdminDashboard() {
   const [approvalDays, setApprovalDays] = useState("7");
   const [adminNote, setAdminNote] = useState("");
 
+  // ── Ads Settings ──
+  const [adsSettings, setAdsSettings] = useState({
+    ad_price_per_day: "500", ad_contact_phone: "", ad_contact_whatsapp: "",
+    ad_promo_text: "", ad_partner_email: "", ad_bank_info: "",
+  });
+  const [savingAdsSettings, setSavingAdsSettings] = useState(false);
+  const [showAdsSettingsModal, setShowAdsSettingsModal] = useState(false);
+
   // ── Neighborhoods ──
   const [neighborhoods, setNeighborhoods] = useState<NbrItem[]>([]);
   const [loadingNbr, setLoadingNbr] = useState(false);
@@ -365,6 +375,35 @@ export default function AdminDashboard() {
     finally { setLoadingAi(false); }
   }, [token]);
 
+  const loadAdsSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/ads/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        setAdsSettings({
+          ad_price_per_day:    data.ad_price_per_day    || "500",
+          ad_contact_phone:    data.ad_contact_phone    || "",
+          ad_contact_whatsapp: data.ad_contact_whatsapp || "",
+          ad_promo_text:       data.ad_promo_text        || "",
+          ad_partner_email:    data.ad_partner_email    || "",
+          ad_bank_info:        data.ad_bank_info        || "",
+        });
+      }
+    } catch {}
+  }, []);
+
+  const saveAdsSettings = async () => {
+    setSavingAdsSettings(true);
+    try {
+      const res = await apiFetch("/api/admin/ads-settings", token, {
+        method: "PUT", body: JSON.stringify(adsSettings),
+      });
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات الإعلانات");
+      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingAdsSettings(false); }
+  };
+
   const loadSecurity = useCallback(async () => {
     setLoadingSecurity(true);
     try {
@@ -472,7 +511,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
     if (tab === "landmarks")    loadLandmarks();
-    if (tab === "ads")          loadAds();
+    if (tab === "ads")          { loadAds(); loadAdsSettings(); }
     if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); }
     if (tab === "neighborhoods") loadNeighborhoods();
     if (tab === "ai_settings")   loadAiSettings();
@@ -1002,10 +1041,18 @@ export default function AdminDashboard() {
             <Text style={s.pageHeaderTitle}>
               الإعلانات ({adsList.length}){pendingAdsCount > 0 ? ` · ${pendingAdsCount} معلق` : ""}
             </Text>
-            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#F0A50015", borderWidth: 1, borderColor: "#F0A500" }]} onPress={loadAds}>
-              <Ionicons name="refresh" size={14} color="#F0A500" />
-              <Text style={[s.addBtnTxt, { color: "#F0A500" }]}>تحديث</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {isAdmin && (
+                <TouchableOpacity style={[s.addBtn, { backgroundColor: Colors.primary + "15", borderWidth: 1, borderColor: Colors.primary }]} onPress={() => setShowAdsSettingsModal(true)}>
+                  <Ionicons name="settings-outline" size={14} color={Colors.primary} />
+                  <Text style={[s.addBtnTxt, { color: Colors.primary }]}>الإعدادات</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[s.addBtn, { backgroundColor: "#F0A50015", borderWidth: 1, borderColor: "#F0A500" }]} onPress={loadAds}>
+                <Ionicons name="refresh" size={14} color="#F0A500" />
+                <Text style={[s.addBtnTxt, { color: "#F0A500" }]}>تحديث</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
@@ -1079,6 +1126,97 @@ export default function AdminDashboard() {
             />
           )}
 
+          {/* Ads Settings Modal */}
+          {isAdmin && (
+            <Modal visible={showAdsSettingsModal} transparent animationType="slide" onRequestClose={() => setShowAdsSettingsModal(false)}>
+              <Pressable style={s.overlay} onPress={() => setShowAdsSettingsModal(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "90%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 16, gap: 10 }}>
+                      <Ionicons name="settings" size={22} color={Colors.primary} />
+                      <Text style={[s.modalTitle, { flex: 1, marginBottom: 0 }]}>إعدادات الإعلانات</Text>
+                    </View>
+
+                    {/* إحصائية الإيرادات */}
+                    <View style={[s.infoBlock, { backgroundColor: Colors.accent + "10", borderColor: Colors.accent + "30" }]}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <Ionicons name="cash" size={16} color={Colors.accent} />
+                        <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.accent, fontSize: 14 }}>إحصائيات الإيرادات</Text>
+                      </View>
+                      <InfoRow label="الإعلانات النشطة" value={String(adsList.filter(a => a.status === "active").length)} />
+                      <InfoRow label="مجموع الطلبات" value={String(adsList.length)} />
+                      <InfoRow
+                        label="إجمالي الإيرادات (تقديري)"
+                        value={`${adsList.filter(a => a.status === "active" || a.status === "expired").reduce((sum, a) => sum + (a.duration_days || 0) * parseInt(adsSettings.ad_price_per_day || "500"), 0).toLocaleString()} جنيه`}
+                      />
+                    </View>
+
+                    <View style={s.divider} />
+                    <Text style={[s.fieldLabel, { marginBottom: 10 }]}>إعدادات التسعير والتواصل</Text>
+
+                    {[
+                      { label: "سعر اليوم الواحد (جنيه)", key: "ad_price_per_day", numeric: true, placeholder: "500" },
+                      { label: "رقم التواصل للإعلانات", key: "ad_contact_phone", placeholder: "+249..." },
+                      { label: "رقم واتساب للإعلانات", key: "ad_contact_whatsapp", placeholder: "+249..." },
+                      { label: "البريد الإلكتروني (اختياري)", key: "ad_partner_email", placeholder: "ads@..." },
+                    ].map(f => (
+                      <View key={f.key} style={{ marginBottom: 12 }}>
+                        <Text style={s.fieldLabel}>{f.label}</Text>
+                        <TextInput
+                          style={s.fieldInput}
+                          value={(adsSettings as any)[f.key]}
+                          onChangeText={v => setAdsSettings(prev => ({ ...prev, [f.key]: v }))}
+                          keyboardType={f.numeric ? "numeric" : "default"}
+                          placeholder={f.placeholder}
+                          placeholderTextColor={Colors.textMuted}
+                          textAlign="right"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    ))}
+
+                    <Text style={s.fieldLabel}>نص ترويجي مخصص</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 80 }]}
+                      value={adsSettings.ad_promo_text}
+                      onChangeText={v => setAdsSettings(prev => ({ ...prev, ad_promo_text: v }))}
+                      multiline
+                      textAlign="right"
+                      textAlignVertical="top"
+                      placeholder="نص يظهر في شاشة الإعلانات لتحفيز المؤسسات..."
+                      placeholderTextColor={Colors.textMuted}
+                    />
+
+                    <Text style={[s.fieldLabel, { marginTop: 12 }]}>معلومات الدفع / البنك (اختياري)</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 72 }]}
+                      value={adsSettings.ad_bank_info}
+                      onChangeText={v => setAdsSettings(prev => ({ ...prev, ad_bank_info: v }))}
+                      multiline
+                      textAlign="right"
+                      textAlignVertical="top"
+                      placeholder="رقم الحساب / اسم البنك / طريقة الدفع..."
+                      placeholderTextColor={Colors.textMuted}
+                    />
+
+                    <View style={[s.modalBtns, { marginTop: 16 }]}>
+                      <ActionButton
+                        label={savingAdsSettings ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                        color={Colors.primary}
+                        icon="save-outline"
+                        onPress={saveAdsSettings}
+                        disabled={savingAdsSettings}
+                      />
+                    </View>
+                    <TouchableOpacity style={[s.cancelBtn, { marginTop: 10 }]} onPress={() => setShowAdsSettingsModal(false)}>
+                      <Text style={s.cancelTxt}>إغلاق</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </Modal>
+          )}
+
           {/* Ad Detail Modal */}
           <Modal visible={!!adDetailModal} transparent animationType="slide" onRequestClose={() => setAdDetailModal(null)}>
             <Pressable style={s.overlay} onPress={() => setAdDetailModal(null)}>
@@ -1096,12 +1234,20 @@ export default function AdminDashboard() {
                           </View>
                         </View>
 
+                        {ad.image_url && (
+                          <Image
+                            source={{ uri: ad.image_url }}
+                            style={{ width: "100%", height: 160, borderRadius: 12, marginBottom: 12 }}
+                            resizeMode="cover"
+                          />
+                        )}
                         <View style={s.infoBlock}>
                           <InfoRow label="عنوان الإعلان" value={ad.title} />
                           <InfoRow label="تفاصيل"         value={ad.description} />
                           <InfoRow label="نوع الإعلان"    value={ad.type} />
                           <InfoRow label="شخص التواصل"    value={ad.contact_name} />
                           <InfoRow label="رقم التواصل"    value={ad.contact_phone} />
+                          <InfoRow label="الموقع الإلكتروني" value={ad.website_url} />
                           <InfoRow label="الميزانية"      value={ad.budget} />
                           <InfoRow label="مدة مطلوبة"     value={`${ad.duration_days} يوم`} />
                           <InfoRow label="ملاحظة الإدارة" value={ad.admin_note} />

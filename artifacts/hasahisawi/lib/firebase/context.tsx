@@ -30,11 +30,17 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
       setIsFirebaseReady(true);
       return;
     }
-    const unsub = onFirebaseAuthChange((user) => {
-      setFirebaseUser(user);
+    let unsub: (() => void) | undefined;
+    try {
+      unsub = onFirebaseAuthChange((user) => {
+        setFirebaseUser(user);
+        setIsFirebaseReady(true);
+      });
+    } catch (e) {
+      console.warn("Firebase auth init failed:", e);
       setIsFirebaseReady(true);
-    });
-    return unsub;
+    }
+    return () => unsub?.();
   }, []);
 
   return (

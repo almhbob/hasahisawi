@@ -78,6 +78,14 @@ export async function uploadReportImage(
   return uploadFile(`reports/${reportId}/${name}`, uri, onProgress);
 }
 
+export async function uploadAdImage(
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+  return uploadFile(`ads/${name}`, uri, onProgress);
+}
+
 export async function deleteFile(path: string): Promise<void> {
   const fileRef = ref(getStore(), path);
   await deleteObject(fileRef);

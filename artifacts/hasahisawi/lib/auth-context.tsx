@@ -161,7 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const unsub = onFirebaseAuthChange(async (fbUser) => {
+    let unsub: (() => void) | undefined;
+    try {
+      unsub = onFirebaseAuthChange(async (fbUser) => {
       try {
         const savedGuest = await AsyncStorage.getItem(GUEST_KEY);
         if (savedGuest === "1" && !fbUser) {
@@ -212,9 +214,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(null);
       }
       setIsLoading(false);
-    });
+      });
+    } catch (e) {
+      console.warn("Firebase auth listener failed:", e);
+      setIsLoading(false);
+    }
 
-    return unsub;
+    return () => unsub?.();
   }, []);
 
   const saveSession = async (u: AuthUser, firebaseIdToken: string, backendTok?: string | null) => {
