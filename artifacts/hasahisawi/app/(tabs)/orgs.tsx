@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
+import JoinOrgBanner from "@/components/JoinOrgBanner";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -279,6 +280,9 @@ export default function OrgsScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+            {/* ── دعوة المؤسسات للانضمام ── */}
+            <JoinOrgBanner />
+
             {filtered.map((org, i) => {
               const cfg = TYPE_CONFIG[org.type];
               const isExpanded = expandedOrg === org.id;
