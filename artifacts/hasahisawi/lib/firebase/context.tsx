@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import { isFirebaseConfigured } from "./index";
-import { onFirebaseAuthChange } from "./auth";
+import { onFirebaseAuthChange, isFirebaseAvailable } from "./auth";
 import type { User } from "firebase/auth";
 
 type FirebaseContextValue = {
@@ -26,10 +26,12 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   useEffect(() => {
+    // إذا لم يكن Firebase مُهيَّئاً أو فشل سابقاً، تجاوزه فوراً
     if (!isFirebaseConfigured) {
       setIsFirebaseReady(true);
       return;
     }
+
     let unsub: (() => void) | undefined;
     try {
       unsub = onFirebaseAuthChange((user) => {
@@ -37,15 +39,23 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
         setIsFirebaseReady(true);
       });
     } catch (e) {
-      console.warn("Firebase auth init failed:", e);
+      // Firebase فشل في التهيئة — نتجاهل ونكمل
+      console.warn("[Firebase] Provider init failed:", e);
       setIsFirebaseReady(true);
     }
-    return () => unsub?.();
+
+    return () => {
+      try { unsub?.(); } catch {}
+    };
   }, []);
 
   return (
     <FirebaseContext.Provider
-      value={{ firebaseUser, isFirebaseReady, isConfigured: isFirebaseConfigured }}
+      value={{
+        firebaseUser,
+        isFirebaseReady,
+        isConfigured: isFirebaseAvailable(),
+      }}
     >
       {children}
     </FirebaseContext.Provider>

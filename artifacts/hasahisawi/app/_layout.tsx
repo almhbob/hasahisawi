@@ -23,20 +23,51 @@ import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { useApiUnread } from "@/lib/api-chat";
 
-// ── تجاهل تحذيرات Firebase عند عدم توفر مفتاح صالح ──────────────
+// ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
 LogBox.ignoreLogs([
-  "Firebase: Error (auth/invalid-api-key)",
-  "Firebase: Error (auth/",
-  "Firebase:",
+  "Firebase: Error",
   "@firebase/auth:",
+  "Firebase Auth",
+  "auth/invalid-api-key",
+  "auth/network-request-failed",
 ]);
 
-// ── معالجة رفض الـ Promises غير المُعالَجة من Firebase ───────────
+// ── معالج أخطاء React Native (Hermes) العالمي ───────────────────
+// يمنع Firebase من كسر التطبيق عند وجود مفتاح API غير صالح
+try {
+  const EU = (global as any).ErrorUtils;
+  if (EU?.getGlobalHandler && EU?.setGlobalHandler) {
+    const prev = EU.getGlobalHandler();
+    EU.setGlobalHandler((error: Error, isFatal: boolean) => {
+      const msg = error?.message ?? String(error);
+      if (
+        msg.includes("auth/invalid-api-key") ||
+        msg.includes("Firebase") ||
+        msg.includes("@firebase")
+      ) {
+        console.warn("[Firebase global error suppressed]", msg);
+        // نُعطّل Firebase لبقية جلسة التطبيق
+        try {
+          const { markFirebaseRuntimeFailed } = require("@/lib/firebase/auth");
+          markFirebaseRuntimeFailed?.();
+        } catch {}
+        return; // لا نُعيد رميه → لا كراش
+      }
+      prev?.(error, isFatal);
+    });
+  }
+} catch {}
+
+// ── معالجة رفض الـ Promises غير المُعالَجة (web) ────────────────
 if (typeof globalThis !== "undefined") {
   const origHandler = (globalThis as any).onunhandledrejection;
   (globalThis as any).onunhandledrejection = (event: any) => {
     const msg = String(event?.reason?.message ?? event?.reason ?? "");
-    if (msg.includes("Firebase") || msg.includes("auth/invalid-api-key")) {
+    if (
+      msg.includes("Firebase") ||
+      msg.includes("auth/invalid-api-key") ||
+      msg.includes("@firebase")
+    ) {
       event?.preventDefault?.();
       return;
     }

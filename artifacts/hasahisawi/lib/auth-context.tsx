@@ -155,72 +155,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // ── استعادة الجلسة المحفوظة في التخزين المحلي ──────────────────
+  const restoreLocalSession = async () => {
+    try {
+      const [savedGuest, savedToken, savedUser] = await Promise.all([
+        AsyncStorage.getItem(GUEST_KEY),
+        AsyncStorage.getItem(TOKEN_KEY),
+        AsyncStorage.getItem(USER_KEY),
+      ]);
+      if (savedGuest === "1") {
+        setIsGuest(true);
+        setUser({ id: 0, name: "زائر", role: "guest" });
+      } else if (savedToken && savedUser) {
+        setUser(JSON.parse(savedUser));
+        setToken(savedToken);
+        setIsGuest(false);
+      }
+    } catch {}
+    setIsLoading(false);
+  };
+
   useEffect(() => {
+    // إذا لم يكن Firebase مُهيَّئاً → استعِد الجلسة المحلية مباشرة
     if (!isFirebaseConfigured) {
-      setIsLoading(false);
+      restoreLocalSession();
       return;
     }
 
     let unsub: (() => void) | undefined;
     try {
       unsub = onFirebaseAuthChange(async (fbUser) => {
-      try {
-        const savedGuest = await AsyncStorage.getItem(GUEST_KEY);
-        if (savedGuest === "1" && !fbUser) {
-          setIsGuest(true);
-          setUser({ id: 0, name: "زائر", role: "guest" });
-          setIsLoading(false);
-          return;
-        }
+        try {
+          const savedGuest = await AsyncStorage.getItem(GUEST_KEY);
 
-        if (!fbUser) {
+          if (savedGuest === "1" && !fbUser) {
+            setIsGuest(true);
+            setUser({ id: 0, name: "زائر", role: "guest" });
+            setIsLoading(false);
+            return;
+          }
+
+          if (!fbUser) {
+            // Firebase لا يوجد مستخدم — هل يوجد جلسة محفوظة؟
+            const [savedToken, savedUser] = await Promise.all([
+              AsyncStorage.getItem(TOKEN_KEY),
+              AsyncStorage.getItem(USER_KEY),
+            ]);
+            if (savedToken && savedUser) {
+              // جلسة بكند محفوظة → استعدها دون Firebase
+              setUser(JSON.parse(savedUser));
+              setToken(savedToken);
+              setIsGuest(false);
+              setIsLoading(false);
+              return;
+            }
+            // تحقق من البيومترية
+            const bioEnabled = await isBiometricsEnabled();
+            const bioAvailable = await isBiometricsAvailable();
+            if (bioEnabled && bioAvailable) {
+              setIsLoading(false);
+              return;
+            }
+            setUser(null);
+            setToken(null);
+            setIsLoading(false);
+            return;
+          }
+
           const bioEnabled = await isBiometricsEnabled();
           const bioAvailable = await isBiometricsAvailable();
           if (bioEnabled && bioAvailable) {
             setIsLoading(false);
             return;
           }
-          setUser(null);
-          setToken(null);
-          setIsLoading(false);
+
+          const idToken = await fbUser.getIdToken();
+          const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+
+          if (profile) {
+            const authUser = profileToAuthUser(profile, idToken);
+            setUser(authUser);
+            setToken(idToken);
+            setIsGuest(false);
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
+            await AsyncStorage.setItem(TOKEN_KEY, idToken);
+            await AsyncStorage.removeItem(GUEST_KEY);
+          } else {
+            await firebaseLogout();
+            setUser(null);
+            setToken(null);
+          }
+        } catch {
+          // فشل داخلي — استعِد الجلسة المحلية كبديل
+          await restoreLocalSession();
           return;
         }
-
-        const bioEnabled = await isBiometricsEnabled();
-        const bioAvailable = await isBiometricsAvailable();
-        if (bioEnabled && bioAvailable) {
-          setIsLoading(false);
-          return;
-        }
-
-        const idToken = await fbUser.getIdToken();
-        const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
-
-        if (profile) {
-          const authUser = profileToAuthUser(profile, idToken);
-          setUser(authUser);
-          setToken(idToken);
-          setIsGuest(false);
-          await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
-          await AsyncStorage.setItem(TOKEN_KEY, idToken);
-          await AsyncStorage.removeItem(GUEST_KEY);
-        } else {
-          await firebaseLogout();
-          setUser(null);
-          setToken(null);
-        }
-      } catch {
-        setUser(null);
-        setToken(null);
-      }
-      setIsLoading(false);
+        setIsLoading(false);
       });
     } catch (e) {
-      console.warn("Firebase auth listener failed:", e);
-      setIsLoading(false);
+      console.warn("[Auth] Firebase listener setup failed:", e);
+      // Firebase فشل كلياً → استعِد الجلسة المحلية
+      restoreLocalSession();
     }
 
-    return () => unsub?.();
+    return () => { try { unsub?.(); } catch {} };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveSession = async (u: AuthUser, firebaseIdToken: string, backendTok?: string | null) => {
