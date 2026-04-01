@@ -20,13 +20,18 @@ import {
   Firestore,
 } from "firebase/firestore";
 import { app, isFirebaseConfigured } from "./index";
+import { isFirebaseAvailable } from "./auth";
 
 let _db: Firestore | null = null;
 
 function getDB(): Firestore {
   if (_db) return _db;
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
-  _db = getFirestore(app);
+  if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
+  try {
+    _db = getFirestore(app);
+  } catch (e) {
+    throw new Error(`Firestore init failed: ${e}`);
+  }
   return _db;
 }
 
@@ -102,13 +107,20 @@ export function fsListen<T = DocumentData>(
   cb: (items: (T & { id: string })[]) => void,
   ...constraints: QueryConstraint[]
 ) {
-  if (!isFirebaseConfigured) return () => {};
-  const q = constraints.length
-    ? query(collection(getDB(), col), ...constraints)
-    : collection(getDB(), col);
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
-  });
+  if (!isFirebaseAvailable()) return () => {};
+  try {
+    const q = constraints.length
+      ? query(collection(getDB(), col), ...constraints)
+      : collection(getDB(), col);
+    return onSnapshot(
+      q,
+      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))),
+      (err) => { console.warn("[Firestore] snapshot error:", err.message); },
+    );
+  } catch (e) {
+    console.warn("[Firestore] fsListen failed:", e);
+    return () => {};
+  }
 }
 
 export function fsListenDoc<T = DocumentData>(
@@ -116,10 +128,17 @@ export function fsListenDoc<T = DocumentData>(
   id: string,
   cb: (data: (T & { id: string }) | null) => void,
 ) {
-  if (!isFirebaseConfigured) return () => {};
-  return onSnapshot(doc(getDB(), col, id), (snap) => {
-    cb(snap.exists() ? { id: snap.id, ...(snap.data() as T) } : null);
-  });
+  if (!isFirebaseAvailable()) return () => {};
+  try {
+    return onSnapshot(
+      doc(getDB(), col, id),
+      (snap) => cb(snap.exists() ? { id: snap.id, ...(snap.data() as T) } : null),
+      (err) => { console.warn("[Firestore] doc snapshot error:", err.message); },
+    );
+  } catch (e) {
+    console.warn("[Firestore] fsListenDoc failed:", e);
+    return () => {};
+  }
 }
 
 export { where, orderBy, limit, serverTimestamp, Timestamp };

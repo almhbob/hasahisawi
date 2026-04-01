@@ -11,7 +11,7 @@ import {
   orderBy,
   limit,
 } from "./firestore";
-import { isFirebaseConfigured } from "./index";
+import { isFirebaseAvailable } from "./auth";
 
 export type FsPost = {
   id: string;
@@ -67,7 +67,7 @@ export function useFsPosts(category?: string) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) { setLoading(false); return; }
+    if (!isFirebaseAvailable()) { setLoading(false); return; }
     const constraints = [
       orderBy("createdAt", "desc"),
       limit(50),
@@ -96,7 +96,7 @@ export function useFsAnnouncements() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) { setLoading(false); return; }
+    if (!isFirebaseAvailable()) { setLoading(false); return; }
     const unsub = fsListen<FsAnnouncement>(
       COLLECTIONS.ANNOUNCEMENTS,
       (data) => { setItems(data); setLoading(false); },
@@ -114,7 +114,7 @@ export function useFsJobs() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) { setLoading(false); return; }
+    if (!isFirebaseAvailable()) { setLoading(false); return; }
     const unsub = fsListen<FsJob>(
       COLLECTIONS.JOBS,
       (data) => { setJobs(data); setLoading(false); },
@@ -136,7 +136,7 @@ export function useFsMissing() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) { setLoading(false); return; }
+    if (!isFirebaseAvailable()) { setLoading(false); return; }
     const unsub = fsListen<FsMissing>(
       COLLECTIONS.MISSING,
       (data) => { setItems(data); setLoading(false); },
@@ -162,7 +162,7 @@ export function useFsDoc<T>(col: string, id: string | null) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id || !isFirebaseConfigured) { setLoading(false); return; }
+    if (!id || !isFirebaseAvailable()) { setLoading(false); return; }
     const unsub = fsListenDoc<T>(col, id, (doc) => {
       setData(doc);
       setLoading(false);

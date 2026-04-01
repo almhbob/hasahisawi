@@ -18,6 +18,7 @@ import { queryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
+import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { I18nManager, Platform, View, LogBox } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -46,11 +47,7 @@ try {
         msg.includes("@firebase")
       ) {
         console.warn("[Firebase global error suppressed]", msg);
-        // نُعطّل Firebase لبقية جلسة التطبيق
-        try {
-          const { markFirebaseRuntimeFailed } = require("@/lib/firebase/auth");
-          markFirebaseRuntimeFailed?.();
-        } catch {}
+        try { markFirebaseRuntimeFailed(); } catch {}
         return; // لا نُعيد رميه → لا كراش
       }
       prev?.(error, isFatal);

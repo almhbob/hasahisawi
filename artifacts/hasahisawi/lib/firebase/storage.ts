@@ -6,14 +6,19 @@ import {
   deleteObject,
   FirebaseStorage,
 } from "firebase/storage";
-import { app, isFirebaseConfigured } from "./index";
+import { app } from "./index";
+import { isFirebaseAvailable } from "./auth";
 
 let _storage: FirebaseStorage | null = null;
 
 function getStore(): FirebaseStorage {
   if (_storage) return _storage;
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
-  _storage = getStorage(app);
+  if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
+  try {
+    _storage = getStorage(app);
+  } catch (e) {
+    throw new Error(`Firebase Storage init failed: ${e}`);
+  }
   return _storage;
 }
 
