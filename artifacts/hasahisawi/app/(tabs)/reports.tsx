@@ -15,6 +15,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
+import { getApiUrl } from "@/lib/query-client";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -216,7 +217,21 @@ const REPORTS_KEY = "citizen_reports_v1";
 // ══════════════════════════════════════════════════════
 // SCREEN
 // ══════════════════════════════════════════════════════
-type Tab = "report" | "myReports";
+type Tab = "report" | "myReports" | "feedback";
+type FeedbackType = "suggestion" | "complaint" | "general";
+type FeedbackStatus = "new" | "read" | "replied";
+type FeedbackItem = {
+  id: number;
+  type: FeedbackType;
+  title: string;
+  body: string;
+  sender_name: string;
+  phone?: string;
+  category: string;
+  status: FeedbackStatus;
+  admin_reply?: string;
+  created_at: string;
+};
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
@@ -233,18 +248,77 @@ export default function ReportsScreen() {
   const [phone, setPhone] = useState("");
   const [urgent, setUrgent] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("الكل");
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
   const [step, setStep] = useState<"agency" | "details" | "confirm">("agency");
   const [searchAgency, setSearchAgency] = useState("");
 
+  // مقترحات وشكاوى
+  const [fbType, setFbType] = useState<FeedbackType>("suggestion");
+  const [fbTitle, setFbTitle] = useState("");
+  const [fbBody, setFbBody] = useState("");
+  const [fbName, setFbName] = useState("");
+  const [fbPhone, setFbPhone] = useState("");
+  const [fbCategory, setFbCategory] = useState("عام");
+  const [fbList, setFbList] = useState<FeedbackItem[]>([]);
+  const [fbSubmitting, setFbSubmitting] = useState(false);
+  const [fbSent, setFbSent] = useState(false);
+
   const loadReports = async () => {
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = {};
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+      const url = auth.token ? `${base}/api/reports` : `${base}/api/reports?phone=${encodeURIComponent(phone)}`;
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: Report[] = data.map((r: any) => ({
+          id: String(r.id),
+          agencyId: r.agency_id,
+          agencyName: r.agency_name,
+          agencyColor: r.agency_color || "#27AE68",
+          issue: r.issue,
+          description: r.description || "",
+          location: r.location,
+          reporterName: r.reporter_name,
+          phone: r.phone,
+          status: r.status as ReportStatus,
+          createdAt: r.created_at,
+          urgent: r.urgent,
+        }));
+        setReports(mapped);
+        return;
+      }
+    } catch {}
+    // Fallback to AsyncStorage
     const raw = await AsyncStorage.getItem(REPORTS_KEY);
     setReports(raw ? JSON.parse(raw) : []);
   };
 
-  useEffect(() => { loadReports(); }, []);
-  useFocusEffect(useCallback(() => { loadReports(); }, []));
+  const loadFeedback = async () => {
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = {};
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+      const phoneQ = !auth.token && fbPhone ? `?phone=${encodeURIComponent(fbPhone)}` : "";
+      const res = await fetch(`${base}/api/feedback/mine${phoneQ}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setFbList(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadReports();
+    if (auth.user) {
+      setReporterName(auth.user.name || "");
+      setFbName(auth.user.name || "");
+    }
+  }, [auth.user]);
+  useFocusEffect(useCallback(() => { loadReports(); loadFeedback(); }, [auth.token]));
 
   const categories = ["الكل", ...Array.from(new Set(AGENCIES.map(a => a.category)))];
 
@@ -265,8 +339,41 @@ export default function ReportsScreen() {
     if (!phone.trim()) { Alert.alert("تنبيه", "يرجى إدخال رقم هاتفك"); return; }
     if (!location.trim()) { Alert.alert("تنبيه", "يرجى تحديد الموقع"); return; }
 
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSubmitting(true);
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
 
+      const body = {
+        agency_id: selectedAgency!.id,
+        agency_name: selectedAgency!.name,
+        agency_color: selectedAgency!.color,
+        issue: selectedIssue,
+        description: description.trim() || undefined,
+        location: location.trim(),
+        reporter_name: reporterName.trim(),
+        phone: phone.trim(),
+        urgent,
+      };
+
+      const res = await fetch(`${base}/api/reports`, { method: "POST", headers, body: JSON.stringify(body) });
+
+      if (res.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await loadReports();
+        resetForm();
+        setTab("myReports");
+        Alert.alert(
+          "✅ تم إرسال البلاغ",
+          `بلاغك بخصوص "${selectedIssue}" وصل للجهة المختصة\nسيتم التواصل معك على رقم ${phone.trim()} خلال 24-48 ساعة`,
+        );
+        return;
+      }
+    } catch {}
+
+    // Fallback: save locally
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const newReport: Report = {
       id: Date.now().toString(),
       agencyId: selectedAgency!.id,
@@ -281,7 +388,6 @@ export default function ReportsScreen() {
       createdAt: new Date().toISOString(),
       urgent,
     };
-
     const existing = await AsyncStorage.getItem(REPORTS_KEY);
     const all: Report[] = existing ? JSON.parse(existing) : [];
     all.unshift(newReport);
@@ -289,11 +395,48 @@ export default function ReportsScreen() {
     setReports(all);
     resetForm();
     setTab("myReports");
+    Alert.alert("✅ تم إرسال البلاغ", `بلاغك بخصوص "${selectedIssue}" تم حفظه محلياً`);
+    setSubmitting(false);
+  };
 
-    Alert.alert(
-      "✅ تم إرسال البلاغ",
-      `بلاغك بخصوص "${selectedIssue}" تم إرساله إلى ${selectedAgency!.name}\nسيتم التواصل معك على رقم ${phone} خلال 24-48 ساعة`,
-    );
+  const submitFeedback = async () => {
+    if (!fbName.trim()) { Alert.alert("تنبيه", "يرجى إدخال اسمك"); return; }
+    if (!fbTitle.trim()) { Alert.alert("تنبيه", "يرجى كتابة عنوان"); return; }
+    if (!fbBody.trim()) { Alert.alert("تنبيه", "يرجى كتابة التفاصيل"); return; }
+
+    setFbSubmitting(true);
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+
+      const res = await fetch(`${base}/api/feedback`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          type: fbType,
+          title: fbTitle.trim(),
+          body: fbBody.trim(),
+          sender_name: fbName.trim(),
+          phone: fbPhone.trim() || undefined,
+          category: fbCategory,
+        }),
+      });
+
+      if (res.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setFbTitle(""); setFbBody(""); setFbCategory("عام");
+        setFbSent(true);
+        await loadFeedback();
+        Alert.alert("✅ شكراً لك!", "وصل اقتراحك/شكواك للإدارة وسيُرَد عليك قريباً");
+      } else {
+        Alert.alert("خطأ", "تعذّر إرسال البلاغ، يرجى المحاولة لاحقاً");
+      }
+    } catch {
+      Alert.alert("خطأ في الاتصال", "تأكد من اتصالك بالإنترنت وحاول مجدداً");
+    } finally {
+      setFbSubmitting(false);
+    }
   };
 
   const handleDirectContact = (agency: Agency) => {
@@ -335,7 +478,11 @@ export default function ReportsScreen() {
 
         {/* Tabs */}
         <View style={s.tabRow}>
-          {([["report", "إرسال بلاغ", "megaphone-outline"], ["myReports", "بلاغاتي", "list-outline"]] as [Tab, string, string][]).map(([k, label, icon]) => (
+          {([
+            ["report",    "إرسال بلاغ",       "megaphone-outline"],
+            ["myReports", "بلاغاتي",           "list-outline"],
+            ["feedback",  "مقترحات وشكاوى",   "chatbubble-ellipses-outline"],
+          ] as [Tab, string, string][]).map(([k, label, icon]) => (
             <TouchableOpacity key={k} style={[s.tabBtn, tab === k && s.tabBtnActive]} onPress={() => setTab(k)}>
               {tab === k && <LinearGradient colors={[Colors.danger, Colors.danger + "CC"]} style={StyleSheet.absoluteFill} />}
               <View style={{ position: "relative" }}>
@@ -344,7 +491,7 @@ export default function ReportsScreen() {
                   <View style={s.badge}><Text style={s.badgeText}>{pendingCount}</Text></View>
                 )}
               </View>
-              <Text style={[s.tabBtnText, tab === k && { color: "#fff" }]}>{label}</Text>
+              <Text style={[s.tabBtnText, tab === k && { color: "#fff" }]} numberOfLines={1}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -657,10 +804,10 @@ export default function ReportsScreen() {
                 <Text style={s.privacyNoteText}>بياناتك محفوظة ولن تُشارَك إلا مع الجهة المختصة فقط</Text>
               </View>
 
-              <TouchableOpacity onPress={submitReport}>
-                <LinearGradient colors={[Colors.danger, Colors.danger + "CC"]} style={s.submitBtn}>
+              <TouchableOpacity onPress={submitReport} disabled={submitting}>
+                <LinearGradient colors={[Colors.danger, Colors.danger + "CC"]} style={[s.submitBtn, submitting && { opacity: 0.7 }]}>
                   <MaterialCommunityIcons name="bullhorn" size={20} color="#fff" />
-                  <Text style={s.submitBtnText}>إرسال البلاغ</Text>
+                  <Text style={s.submitBtnText}>{submitting ? "جارٍ الإرسال..." : "إرسال البلاغ"}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -743,6 +890,177 @@ export default function ReportsScreen() {
             })}
           </ScrollView>
         </View>
+      )}
+
+      {/* ════════ TAB: FEEDBACK ════════ */}
+      {!auth.isGuest && tab === "feedback" && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 20 }} showsVerticalScrollIndicator={false}>
+
+          {/* نوع المقترح */}
+          <Animated.View entering={FadeIn.duration(300)} style={{ gap: 14 }}>
+            <Text style={s.stepTitle}>مقترح أو شكوى؟</Text>
+
+            {/* نوع */}
+            <View style={fb.typeRow}>
+              {([
+                ["suggestion", "مقترح",  "lightbulb-outline",      "#F0A500"],
+                ["complaint",  "شكوى",   "warning-outline",         Colors.danger],
+                ["general",    "استفسار","help-circle-outline",     "#3E9CBF"],
+              ] as [FeedbackType, string, string, string][]).map(([key, label, icon, color]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[fb.typeBtn, fbType === key && { borderColor: color, backgroundColor: color + "18" }]}
+                  onPress={() => setFbType(key)}
+                >
+                  <Ionicons name={icon as any} size={22} color={fbType === key ? color : Colors.textMuted} />
+                  <Text style={[fb.typeBtnText, fbType === key && { color }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* الفئة */}
+            <View style={{ gap: 6 }}>
+              <Text style={s.fieldLabel}>الفئة</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row" }}>
+                {["عام", "الخدمات", "البنية التحتية", "التعليم", "الصحة", "الأمن", "البيئة", "النظافة", "الطرق"].map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[s.catChip, fbCategory === cat && { borderColor: Colors.danger, backgroundColor: Colors.danger + "15" }]}
+                    onPress={() => setFbCategory(cat)}
+                  >
+                    <Text style={[s.catChipText, fbCategory === cat && { color: Colors.danger }]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* حقل الاسم */}
+            <View style={s.fieldBlock}>
+              <Text style={s.fieldLabel}>اسمك الكامل *</Text>
+              <View style={s.fieldWithIcon}>
+                <Ionicons name="person-outline" size={18} color={Colors.textMuted} style={{ paddingHorizontal: 12 }} />
+                <TextInput
+                  style={s.fieldInner}
+                  placeholder="أدخل اسمك"
+                  placeholderTextColor={Colors.textMuted}
+                  value={fbName}
+                  onChangeText={setFbName}
+                  textAlign="right"
+                />
+              </View>
+            </View>
+
+            {/* حقل الهاتف (اختياري) */}
+            <View style={s.fieldBlock}>
+              <Text style={s.fieldLabel}>رقم هاتفك (اختياري — للرد عليك)</Text>
+              <View style={s.fieldWithIcon}>
+                <Ionicons name="call-outline" size={18} color={Colors.textMuted} style={{ paddingHorizontal: 12 }} />
+                <TextInput
+                  style={s.fieldInner}
+                  placeholder="09xxxxxxxx"
+                  placeholderTextColor={Colors.textMuted}
+                  value={fbPhone}
+                  onChangeText={setFbPhone}
+                  keyboardType="phone-pad"
+                  textAlign="right"
+                />
+              </View>
+            </View>
+
+            {/* العنوان */}
+            <View style={s.fieldBlock}>
+              <Text style={s.fieldLabel}>العنوان *</Text>
+              <View style={s.fieldWithIcon}>
+                <Ionicons name="create-outline" size={18} color={Colors.textMuted} style={{ paddingHorizontal: 12 }} />
+                <TextInput
+                  style={s.fieldInner}
+                  placeholder="عنوان مختصر..."
+                  placeholderTextColor={Colors.textMuted}
+                  value={fbTitle}
+                  onChangeText={setFbTitle}
+                  maxLength={200}
+                  textAlign="right"
+                />
+              </View>
+            </View>
+
+            {/* التفاصيل */}
+            <View style={s.fieldBlock}>
+              <Text style={s.fieldLabel}>التفاصيل *</Text>
+              <TextInput
+                style={[s.fieldArea]}
+                placeholder="اشرح مقترحك أو شكواك بتفصيل..."
+                placeholderTextColor={Colors.textMuted}
+                value={fbBody}
+                onChangeText={setFbBody}
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+                textAlign="right"
+              />
+            </View>
+
+            {/* زر الإرسال */}
+            <TouchableOpacity onPress={submitFeedback} disabled={fbSubmitting}>
+              <LinearGradient
+                colors={fbType === "complaint" ? [Colors.danger, Colors.danger + "CC"] : fbType === "suggestion" ? ["#F0A500", "#E69500"] : ["#3E9CBF", "#359AB0"]}
+                style={s.submitBtn}
+              >
+                <Ionicons name={fbType === "complaint" ? "warning-outline" : fbType === "suggestion" ? "lightbulb-outline" : "help-circle-outline"} size={20} color="#fff" />
+                <Text style={s.submitBtnText}>
+                  {fbSubmitting ? "جارٍ الإرسال..." : fbType === "suggestion" ? "إرسال المقترح" : fbType === "complaint" ? "إرسال الشكوى" : "إرسال الاستفسار"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* قائمة مقترحاتي */}
+            {fbList.length > 0 && (
+              <View style={{ gap: 10, marginTop: 8 }}>
+                <Text style={[s.stepTitle, { fontSize: 16 }]}>مقترحاتي وشكاواي</Text>
+                {fbList.map((item, i) => {
+                  const typeColor = item.type === "complaint" ? Colors.danger : item.type === "suggestion" ? "#F0A500" : "#3E9CBF";
+                  const typeLabel = item.type === "complaint" ? "شكوى" : item.type === "suggestion" ? "مقترح" : "استفسار";
+                  const statusLabel = item.status === "replied" ? "تم الرد" : item.status === "read" ? "قُرئ" : "جديد";
+                  const statusColor = item.status === "replied" ? Colors.primary : item.status === "read" ? Colors.accent : Colors.textMuted;
+                  return (
+                    <Animated.View key={item.id} entering={FadeInDown.delay(i * 50).springify()}>
+                      <View style={[fb.card, { borderColor: typeColor + "30" }]}>
+                        <LinearGradient colors={[typeColor + "08", "transparent"]} style={StyleSheet.absoluteFill} />
+                        <View style={fb.cardHeader}>
+                          <View style={[fb.typePill, { borderColor: typeColor + "40", backgroundColor: typeColor + "15" }]}>
+                            <Text style={[fb.typePillText, { color: typeColor }]}>{typeLabel}</Text>
+                          </View>
+                          <View style={[fb.typePill, { borderColor: statusColor + "40", backgroundColor: statusColor + "15" }]}>
+                            <Text style={[fb.typePillText, { color: statusColor }]}>{statusLabel}</Text>
+                          </View>
+                          <Text style={fb.dateText}>{new Date(item.created_at).toLocaleDateString("ar-SD")}</Text>
+                        </View>
+                        <Text style={fb.cardTitle}>{item.title}</Text>
+                        <Text style={fb.cardBody} numberOfLines={3}>{item.body}</Text>
+                        {item.admin_reply ? (
+                          <View style={fb.replyBox}>
+                            <View style={fb.replyHeader}>
+                              <Ionicons name="chatbubble-outline" size={14} color={Colors.primary} />
+                              <Text style={fb.replyLabel}>رد الإدارة</Text>
+                            </View>
+                            <Text style={fb.replyText}>{item.admin_reply}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
+
+            {fbList.length === 0 && fbSent === false && (
+              <View style={[s.emptyState, { paddingTop: 20 }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={48} color={Colors.danger + "50"} />
+                <Text style={s.emptySub}>لم تُرسل أي مقترح أو شكوى بعد</Text>
+              </View>
+            )}
+          </Animated.View>
+        </ScrollView>
       )}
     </View>
   );
@@ -879,4 +1197,44 @@ const s = StyleSheet.create({
   emptySub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary },
   emptyBtn: { borderRadius: 16, paddingHorizontal: 28, paddingVertical: 14, marginTop: 6 },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+
+  // Textarea
+  fieldArea: {
+    backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider,
+    color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 15,
+    padding: 14, minHeight: 120, lineHeight: 24,
+  },
+});
+
+// ── styles مقترحات وشكاوى ──
+const fb = StyleSheet.create({
+  typeRow: { flexDirection: "row", gap: 10 },
+  typeBtn: {
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 14, borderRadius: 16, borderWidth: 1.5,
+    borderColor: Colors.divider, backgroundColor: Colors.cardBg,
+  },
+  typeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+
+  card: {
+    backgroundColor: Colors.cardBg, borderRadius: 18, padding: 14,
+    borderWidth: 1, gap: 8, overflow: "hidden",
+  },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "flex-end" },
+  typePill: {
+    flexDirection: "row", alignItems: "center", borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1,
+  },
+  typePillText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  dateText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginLeft: "auto" as any },
+  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  cardBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
+
+  replyBox: {
+    backgroundColor: Colors.primary + "12", borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.primary + "30", padding: 12, gap: 6,
+  },
+  replyHeader: { flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "flex-end" },
+  replyLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+  replyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
 });

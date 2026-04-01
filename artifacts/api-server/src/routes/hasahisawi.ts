@@ -473,6 +473,43 @@ export async function initHasahisawiDb() {
     );
   }
 
+  // ── جدول بلاغات المواطنين ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS citizen_reports (
+      id SERIAL PRIMARY KEY,
+      agency_id VARCHAR(20) NOT NULL,
+      agency_name VARCHAR(200) NOT NULL,
+      agency_color VARCHAR(20) NOT NULL DEFAULT '#27AE68',
+      issue VARCHAR(200) NOT NULL,
+      description TEXT,
+      location VARCHAR(300) NOT NULL,
+      reporter_name VARCHAR(200) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      urgent BOOLEAN NOT NULL DEFAULT false,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','received','inProgress','resolved')),
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ── جدول المقترحات والشكاوى ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY,
+      type VARCHAR(20) NOT NULL CHECK (type IN ('suggestion','complaint','general')),
+      title VARCHAR(200) NOT NULL,
+      body TEXT NOT NULL,
+      sender_name VARCHAR(200) NOT NULL,
+      phone VARCHAR(50),
+      category VARCHAR(100) NOT NULL DEFAULT 'عام',
+      status VARCHAR(20) NOT NULL DEFAULT 'new' CHECK (status IN ('new','read','replied')),
+      admin_reply TEXT,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -2377,6 +2414,165 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     return res.json({ reply });
   } catch (err) {
     console.error("AI chat error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// بلاغات المواطنين — Citizen Reports
+// ══════════════════════════════════════════════════════
+
+// إرسال بلاغ جديد
+router.post("/reports", async (req: Request, res: Response) => {
+  try {
+    const { agency_id, agency_name, agency_color, issue, description, location, reporter_name, phone, urgent } = req.body;
+    if (!agency_id || !agency_name || !issue || !location || !reporter_name || !phone) {
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    }
+    const user = await getSessionUser(req);
+    const result = await query(
+      `INSERT INTO citizen_reports (agency_id, agency_name, agency_color, issue, description, location, reporter_name, phone, urgent, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [agency_id, agency_name, agency_color || "#27AE68", issue, description || null, location, reporter_name, phone, !!urgent, user?.id || null]
+    );
+    return res.json({ report: result.rows[0] });
+  } catch (err) {
+    console.error("POST /reports error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب البلاغات — للمستخدم المسجّل أو بالهاتف
+router.get("/reports", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const phone = req.query.phone as string | undefined;
+    let rows;
+    if (user) {
+      const r = await query(
+        `SELECT * FROM citizen_reports WHERE user_id = $1 ORDER BY created_at DESC`,
+        [user.id]
+      );
+      rows = r.rows;
+    } else if (phone) {
+      const r = await query(
+        `SELECT * FROM citizen_reports WHERE phone = $1 ORDER BY created_at DESC`,
+        [phone]
+      );
+      rows = r.rows;
+    } else {
+      return res.json([]);
+    }
+    return res.json(rows);
+  } catch (err) {
+    console.error("GET /reports error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة البلاغ — للأدمن فقط
+router.patch("/reports/:id/status", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const allowed = ["pending", "received", "inProgress", "resolved"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    await query(
+      `UPDATE citizen_reports SET status=$1, updated_at=NOW() WHERE id=$2`,
+      [status, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب كل البلاغات — للأدمن
+router.get("/admin/reports", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const result = await query(`SELECT * FROM citizen_reports ORDER BY created_at DESC`);
+    return res.json(result.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// مقترحات وشكاوى — Feedback
+// ══════════════════════════════════════════════════════
+
+// إرسال مقترح أو شكوى
+router.post("/feedback", async (req: Request, res: Response) => {
+  try {
+    const { type, title, body, sender_name, phone, category } = req.body;
+    if (!type || !title || !body || !sender_name) {
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    }
+    const allowedTypes = ["suggestion", "complaint", "general"];
+    if (!allowedTypes.includes(type)) return res.status(400).json({ error: "نوع غير صالح" });
+    const user = await getSessionUser(req);
+    const result = await query(
+      `INSERT INTO feedback (type, title, body, sender_name, phone, category, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [type, title, body, sender_name, phone || null, category || "عام", user?.id || null]
+    );
+    return res.json({ feedback: result.rows[0] });
+  } catch (err) {
+    console.error("POST /feedback error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب مقترحات المستخدم
+router.get("/feedback/mine", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const phone = req.query.phone as string | undefined;
+    let rows;
+    if (user) {
+      const r = await query(
+        `SELECT * FROM feedback WHERE user_id = $1 ORDER BY created_at DESC`,
+        [user.id]
+      );
+      rows = r.rows;
+    } else if (phone) {
+      const r = await query(
+        `SELECT * FROM feedback WHERE phone = $1 ORDER BY created_at DESC`,
+        [phone]
+      );
+      rows = r.rows;
+    } else {
+      return res.json([]);
+    }
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب كل المقترحات — للأدمن
+router.get("/admin/feedback", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const result = await query(`SELECT * FROM feedback ORDER BY created_at DESC`);
+    return res.json(result.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// رد الأدمن على مقترح
+router.patch("/admin/feedback/:id/reply", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { reply, status } = req.body;
+    await query(
+      `UPDATE feedback SET admin_reply=$1, status=COALESCE($2,status) WHERE id=$3`,
+      [reply, status || "replied", req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
 });
