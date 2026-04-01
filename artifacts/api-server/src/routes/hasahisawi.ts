@@ -26,7 +26,11 @@ function maskNationalId(id: string | null | undefined): string | null {
 
 function safeUserPayload(user: Record<string, unknown>) {
   const { password_hash, national_id, ...rest } = user;
-  return { ...rest, national_id_masked: maskNationalId(national_id as string) };
+  return {
+    ...rest,
+    national_id_masked: maskNationalId(national_id as string),
+    avatar_url: user.avatar_url ?? null,
+  };
 }
 
 export async function initHasahisawiDb() {
@@ -43,6 +47,7 @@ export async function initHasahisawiDb() {
   `);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url TEXT`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS author_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
   await query(`
     CREATE TABLE IF NOT EXISTS social_comments (
       id SERIAL PRIMARY KEY,
@@ -90,6 +95,7 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -501,6 +507,13 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     const user = result.rows[0];
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
+    // منشور ترحيبي تلقائي
+    try {
+      await query(
+        `INSERT INTO social_posts (author_id, author_name, content, category) VALUES ($1,$2,$3,'عام')`,
+        [user.id, user.name, `🎉 مرحباً بـ ${user.name} في مجتمع حصاحيصاوي! نسعد بانضمامك وتشاركنا أخبار مدينتنا الحبيبة الحصاحيصا.`]
+      );
+    } catch {}
     return res.json({ user: safeUserPayload(user), token });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "المستخدم موجود بالفعل" });
@@ -527,6 +540,29 @@ router.post("/auth/register-admin", async (req: Request, res: Response) => {
     return res.json({ user, token });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "البريد موجود بالفعل" });
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث الملف الشخصي (الاسم + الصورة الشخصية)
+router.put("/auth/profile", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const { name, avatar_url } = req.body;
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    if (name?.trim()) { updates.push(`name=$${params.length + 1}`); params.push(name.trim()); }
+    if (avatar_url !== undefined) { updates.push(`avatar_url=$${params.length + 1}`); params.push(avatar_url || null); }
+    if (updates.length === 0) return res.status(400).json({ error: "لا توجد تحديثات" });
+    params.push(me.id);
+    const result = await query(
+      `UPDATE users SET ${updates.join(",")} WHERE id=$${params.length} RETURNING *`,
+      params
+    );
+    return res.json({ user: safeUserPayload(result.rows[0]) });
+  } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
@@ -734,16 +770,18 @@ router.get("/posts", async (req: Request, res: Response) => {
     const sql = `
       SELECT
         p.*,
+        u.avatar_url AS author_avatar,
         COUNT(DISTINCT l.id)::int AS likes_count,
         COUNT(DISTINCT c.id)::int AS comments_count,
         CASE WHEN EXISTS(
           SELECT 1 FROM social_likes dl WHERE dl.post_id=p.id AND dl.device_id=${deviceParam}
         ) THEN true ELSE false END AS liked_by_me
       FROM social_posts p
+      LEFT JOIN users u ON u.id = p.author_id
       LEFT JOIN social_likes l ON l.post_id=p.id
       LEFT JOIN social_comments c ON c.post_id=p.id
       ${whereClause}
-      GROUP BY p.id
+      GROUP BY p.id, u.avatar_url
       ORDER BY p.created_at DESC
     `;
     const result = await query(sql, params);
@@ -760,8 +798,9 @@ router.post("/posts", async (req: Request, res: Response) => {
     const { content, category, author_name, image_url, video_url } = req.body;
     if (!content?.trim() && !image_url && !video_url) return res.status(400).json({ error: "المحتوى مطلوب" });
     const result = await query(
-      `INSERT INTO social_posts (author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      `INSERT INTO social_posts (author_id, author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [
+        user?.id || null,
         author_name || user?.name || "مجهول",
         content?.trim() || "",
         category || "عام",
@@ -1260,7 +1299,7 @@ router.get("/users/list", async (req: Request, res: Response) => {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     const result = await query(
-      `SELECT id, name, role FROM users WHERE id != $1 AND role != 'guest' ORDER BY name LIMIT 100`,
+      `SELECT id, name, role, avatar_url FROM users WHERE id != $1 AND role != 'guest' ORDER BY name LIMIT 100`,
       [me.id]
     );
     return res.json(result.rows);
@@ -1277,8 +1316,8 @@ router.get("/chats", async (req: Request, res: Response) => {
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     const result = await query(`
       SELECT c.*,
-        u1.name AS user1_name,
-        u2.name AS user2_name
+        u1.name AS user1_name, u1.avatar_url AS user1_avatar,
+        u2.name AS user2_name, u2.avatar_url AS user2_avatar
       FROM chats c
       JOIN users u1 ON u1.id = c.user1_id
       JOIN users u2 ON u2.id = c.user2_id
@@ -1322,7 +1361,9 @@ router.post("/chats", async (req: Request, res: Response) => {
       [u1, u2]
     );
     const result = await query(`
-      SELECT c.*, u1.name AS user1_name, u2.name AS user2_name
+      SELECT c.*,
+        u1.name AS user1_name, u1.avatar_url AS user1_avatar,
+        u2.name AS user2_name, u2.avatar_url AS user2_avatar
       FROM chats c
       JOIN users u1 ON u1.id=c.user1_id
       JOIN users u2 ON u2.id=c.user2_id

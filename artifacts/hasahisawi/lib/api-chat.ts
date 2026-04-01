@@ -9,6 +9,8 @@ export type ApiChat = {
   user2_id: number;
   user1_name: string;
   user2_name: string;
+  user1_avatar: string | null;
+  user2_avatar: string | null;
   last_message: string;
   last_message_at: string;
   last_sender_id: number | null;
@@ -32,6 +34,7 @@ export type ApiUser = {
   id: number;
   name: string;
   role: string;
+  avatar_url: string | null;
 };
 
 // ── دالة fetch مساعدة ─────────────────────────────────────────────────────────
@@ -187,8 +190,8 @@ export function useApiUnread(token: string | null): number {
 
 export function getOtherUser(chat: ApiChat, myId: number) {
   return myId === chat.user1_id
-    ? { id: chat.user2_id, name: chat.user2_name }
-    : { id: chat.user1_id, name: chat.user1_name };
+    ? { id: chat.user2_id, name: chat.user2_name, avatar: chat.user2_avatar }
+    : { id: chat.user1_id, name: chat.user1_name, avatar: chat.user1_avatar };
 }
 
 export function getMyUnread(chat: ApiChat, myId: number) {

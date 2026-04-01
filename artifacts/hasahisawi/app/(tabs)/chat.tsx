@@ -11,6 +11,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
+import UserAvatar from "@/components/UserAvatar";
 import {
   useApiChats, apiGetUsers, apiGetOrCreateChat,
   getOtherUser, getMyUnread, ApiChat, ApiUser,
@@ -34,14 +35,11 @@ function formatTime(ts: string | null): string {
 function ChatCard({ chat, myId, onPress }: { chat: ApiChat; myId: number; onPress: () => void }) {
   const other = getOtherUser(chat, myId);
   const unread = getMyUnread(chat, myId);
-  const initial = other.name.charAt(0);
   const isMe = chat.last_sender_id === myId;
 
   return (
     <TouchableOpacity style={styles.chatCard} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initial}</Text>
-      </View>
+      <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
           <Text style={styles.chatName} numberOfLines={1}>{other.name}</Text>
@@ -144,9 +142,7 @@ function NewChatModal({
                   disabled={starting === item.id}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.userAvatar}>
-                    <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-                  </View>
+                  <UserAvatar name={item.name} avatarUrl={item.avatar_url} size={42} borderRadius={13} />
                   <Text style={styles.userName}>{item.name}</Text>
                   {starting === item.id ? (
                     <ActivityIndicator size="small" color={Colors.primary} />
@@ -191,7 +187,7 @@ export default function ChatScreen() {
     const other = getOtherUser(chat, myId);
     router.push({
       pathname: "/conversation",
-      params: { chatId: String(chat.id), otherName: other.name },
+      params: { chatId: String(chat.id), otherName: other.name, otherAvatar: other.avatar ?? "" },
     } as any);
   }
 

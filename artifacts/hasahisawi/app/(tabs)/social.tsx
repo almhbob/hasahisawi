@@ -43,6 +43,7 @@ import { fsUpdateDoc, COLLECTIONS } from "@/lib/firebase/firestore";
 import { isFirebaseAvailable } from "@/lib/firebase/auth";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork } from "@/lib/network";
+import UserAvatar from "@/components/UserAvatar";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const MEDIA_H = Math.min(340, SCREEN_W * 0.65);
@@ -52,6 +53,7 @@ const MEDIA_H = Math.min(340, SCREEN_W * 0.65);
 type Post = {
   id: string | number;
   author_name: string;
+  author_avatar?: string | null;
   content: string;
   category: string;
   likes_count: number;
@@ -853,8 +855,6 @@ function PostCard({
   const catColor = CATEGORY_COLORS[post.category] || Colors.primary;
   const catIcon = (CATEGORY_ICONS[post.category] || "globe-outline") as any;
   const textStyle = { textAlign: isRTL ? ("right" as const) : ("left" as const) };
-  const ac = avatarColor(post.author_name);
-  const initial = post.author_name.charAt(0) || "م";
   const hasMedia = !!(post.image_url || post.video_url);
 
   return (
@@ -862,9 +862,12 @@ function PostCard({
       <View style={styles.card}>
         {/* Top row: avatar + author + category + time + delete */}
         <View style={[styles.cardHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={[styles.avatarCircle, { backgroundColor: ac + "22", borderColor: ac + "55" }]}>
-            <Text style={[styles.avatarLetter, { color: ac }]}>{initial}</Text>
-          </View>
+          <UserAvatar
+            name={post.author_name}
+            avatarUrl={post.author_avatar}
+            size={44}
+            borderRadius={14}
+          />
 
           <View style={{ flex: 1, marginHorizontal: 10 }}>
             <Text style={[styles.authorName, textStyle]}>{post.author_name}</Text>

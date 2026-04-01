@@ -29,6 +29,7 @@ export type AuthUser = {
   role: "user" | "admin" | "moderator" | "guest";
   permissions?: string[];
   neighborhood?: string | null;
+  avatar_url?: string | null;
 };
 
 type UserProfile = {
@@ -70,6 +71,7 @@ type AuthContextValue = {
   refreshUser: () => Promise<void>;
   enableBiometrics: (identifier: string) => Promise<void>;
   disableBiometrics: () => Promise<void>;
+  updateProfile: (updates: { name?: string; avatar_url?: string | null }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -118,6 +120,7 @@ async function backendLogin(phoneOrEmail: string, password: string): Promise<{ u
     role: u.role ?? "user",
     neighborhood: u.neighborhood ?? null,
     national_id_masked: u.national_id_masked ?? null,
+    avatar_url: u.avatar_url ?? null,
   };
   return { user: authUser, token: json.token };
 }
@@ -157,6 +160,7 @@ async function backendRegister(
     role: u.role ?? "user",
     neighborhood: u.neighborhood ?? null,
     national_id_masked: u.national_id_masked ?? null,
+    avatar_url: u.avatar_url ?? null,
   };
   return { user: authUser, token: json.token };
 }
@@ -194,6 +198,7 @@ function profileToAuthUser(profile: UserProfile, idToken: string): AuthUser {
     role: profile.role,
     permissions: profile.permissions ?? [],
     neighborhood: profile.neighborhood ?? null,
+    avatar_url: null,
   };
 }
 
@@ -558,6 +563,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearSession();
   };
 
+  const updateProfile = async (updates: { name?: string; avatar_url?: string | null }) => {
+    const backendToken = token;
+    if (!backendToken) throw new Error("غير مصرح");
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const res = await fetch(`${base}/api/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${backendToken}` },
+      body: JSON.stringify(updates),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "فشل التحديث");
+    const u = json.user;
+    const updated: AuthUser = {
+      ...(user ?? { id: 0, name: "", role: "user" }),
+      ...u,
+      avatar_url: u.avatar_url ?? null,
+    };
+    setUser(updated);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -566,6 +593,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login, loginWithBiometrics, loginAdmin, register, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
+        updateProfile,
       }}
     >
       {children}

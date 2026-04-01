@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -25,6 +26,9 @@ import { CULTURAL_CENTERS_KEY, CULTURAL_EVENTS_KEY, loadCulturalCenters, loadCul
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
+import UserAvatar from "@/components/UserAvatar";
+import { uploadAvatar } from "@/lib/firebase/storage";
+import { isFirebaseAvailable } from "@/lib/firebase/index";
 
 const DEFAULT_ADMIN_PIN = "4444";
 const ADMIN_PIN_KEY = "admin_pin";
@@ -1139,6 +1143,51 @@ export default function SettingsScreen() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   const [editName, setEditName] = useState(auth.user?.name || "المسؤول");
+
+  // ── حالة تعديل الملف الشخصي ──
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [profileName, setProfileName] = useState(auth.user?.name || "");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const handlePickAvatar = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    if (!isFirebaseAvailable()) {
+      Alert.alert("غير متاح", "رفع الصورة يتطلب Firebase. سيتم الاستمرار بدون صورة.");
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const url = await uploadAvatar(String(auth.user?.id ?? "guest"), result.assets[0].uri);
+      await auth.updateProfile({ avatar_url: url });
+      Alert.alert("تم", "تم تحديث الصورة الشخصية");
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message || "فشل رفع الصورة");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileName.trim()) { Alert.alert("", "الاسم مطلوب"); return; }
+    setProfileSaving(true);
+    try {
+      await auth.updateProfile({ name: profileName.trim() });
+      setShowProfileEdit(false);
+      Alert.alert("تم", "تم تحديث الملف الشخصي");
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message || "فشل الحفظ");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const [currentPinInput, setCurrentPinInput] = useState("");
   const [newPinInput, setNewPinInput] = useState("");
   const [confirmPinInput, setConfirmPinInput] = useState("");
@@ -1616,9 +1665,101 @@ export default function SettingsScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={styles.headerTitle}>لوحة الإدارة</Text>
+          <Text style={styles.headerTitle}>الإعدادات</Text>
         </View>
-        <ScrollView contentContainerStyle={styles.loginWrap} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.loginWrap, { paddingTop: 8 }]} keyboardShouldPersistTaps="handled">
+
+          {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
+          {auth.user && !auth.isGuest && (
+            <View style={profileSty.card}>
+              <View style={profileSty.avatarWrap}>
+                <UserAvatar
+                  name={auth.user.name}
+                  avatarUrl={auth.user.avatar_url}
+                  size={82}
+                  borderRadius={26}
+                />
+                <TouchableOpacity
+                  style={profileSty.cameraBtn}
+                  onPress={handlePickAvatar}
+                  disabled={avatarUploading}
+                  activeOpacity={0.8}
+                >
+                  {avatarUploading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="camera" size={16} color="#fff" />}
+                </TouchableOpacity>
+              </View>
+
+              {showProfileEdit ? (
+                <View style={profileSty.editWrap}>
+                  <TextInput
+                    style={profileSty.nameInput}
+                    value={profileName}
+                    onChangeText={setProfileName}
+                    placeholder="اسمك الكامل"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                    autoFocus
+                  />
+                  <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                    <TouchableOpacity
+                      style={[profileSty.saveBtn, profileSaving && { opacity: 0.6 }]}
+                      onPress={handleSaveProfile}
+                      disabled={profileSaving}
+                    >
+                      {profileSaving
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={profileSty.saveBtnText}>حفظ</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={profileSty.cancelBtn}
+                      onPress={() => { setShowProfileEdit(false); setProfileName(auth.user?.name || ""); }}
+                    >
+                      <Text style={profileSty.cancelBtnText}>إلغاء</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Text style={profileSty.name}>{auth.user.name}</Text>
+                  {(auth.user.phone || auth.user.email) && (
+                    <Text style={profileSty.contact}>{auth.user.phone || auth.user.email}</Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                    <TouchableOpacity
+                      style={profileSty.editBtn}
+                      onPress={() => { setProfileName(auth.user?.name || ""); setShowProfileEdit(true); }}
+                    >
+                      <Ionicons name="pencil-outline" size={14} color={Colors.primary} />
+                      <Text style={profileSty.editBtnText}>تعديل الاسم</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[profileSty.editBtn, { borderColor: Colors.danger + "50", backgroundColor: Colors.danger + "10" }]}
+                      onPress={() => Alert.alert("تسجيل الخروج", "هل تريد الخروج؟", [
+                        { text: "إلغاء" },
+                        { text: "خروج", style: "destructive", onPress: async () => { await auth.logout(); } }
+                      ])}
+                    >
+                      <Ionicons name="log-out-outline" size={14} color={Colors.danger} />
+                      <Text style={[profileSty.editBtnText, { color: Colors.danger }]}>خروج</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* ─── فاصل ─── */}
+          {auth.user && !auth.isGuest && (
+            <View style={profileSty.dividerWrap}>
+              <View style={profileSty.divider} />
+              <Text style={profileSty.dividerText}>لوحة الإدارة</Text>
+              <View style={profileSty.divider} />
+            </View>
+          )}
+
+
           {/* ─── خطوة 1: اختيار الدور ─── */}
           {!loginRole ? (
             <View style={styles.loginCard}>
@@ -2867,4 +3008,128 @@ const sub_s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.accent + "25",
   },
   noteText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", flex: 1, lineHeight: 18 },
+});
+
+const profileSty = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#0F1E16",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  avatarWrap: {
+    position: "relative",
+    marginBottom: 14,
+  },
+  cameraBtn: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#0F1E16",
+  },
+  name: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 20,
+    color: Colors.textPrimary,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  contact: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  editWrap: {
+    width: "100%",
+    alignItems: "center",
+  },
+  nameInput: {
+    width: "100%",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontFamily: "Cairo_400Regular",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  saveBtnText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 14,
+    color: "#fff",
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  cancelBtnText: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + "50",
+    backgroundColor: Colors.primary + "10",
+  },
+  editBtnText: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 13,
+    color: Colors.primary,
+  },
+  dividerWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    gap: 10,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.divider,
+  },
+  dividerText: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
 });
