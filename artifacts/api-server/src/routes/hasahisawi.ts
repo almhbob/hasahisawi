@@ -473,6 +473,48 @@ export async function initHasahisawiDb() {
     );
   }
 
+  // ── جدول طلبات انضمام المؤسسات ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS institution_applications (
+      id SERIAL PRIMARY KEY,
+      -- بيانات المؤسسة
+      inst_name VARCHAR(300) NOT NULL,
+      inst_type VARCHAR(100) NOT NULL,
+      inst_category VARCHAR(100) NOT NULL,
+      inst_description TEXT NOT NULL,
+      inst_address VARCHAR(400) NOT NULL,
+      inst_neighborhood VARCHAR(200),
+      inst_phone VARCHAR(80) NOT NULL,
+      inst_email VARCHAR(200),
+      inst_website VARCHAR(300),
+      inst_registration_no VARCHAR(100),
+      inst_founded_year VARCHAR(10),
+      -- الخدمات المقدمة
+      selected_services TEXT NOT NULL DEFAULT '[]',
+      custom_services TEXT,
+      -- بيانات الممثل
+      rep_name VARCHAR(300) NOT NULL,
+      rep_title VARCHAR(200) NOT NULL,
+      rep_national_id VARCHAR(100) NOT NULL,
+      rep_phone VARCHAR(80) NOT NULL,
+      rep_email VARCHAR(200),
+      -- العهد والتوقيع
+      signed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      signed_ip VARCHAR(80),
+      commitment_version VARCHAR(20) NOT NULL DEFAULT 'v1.0',
+      -- الحالة
+      status VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','under_review','approved','rejected','suspended')),
+      admin_note TEXT,
+      reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reviewed_at TIMESTAMPTZ,
+      -- الربط
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // ── جدول بلاغات المواطنين ──
   await query(`
     CREATE TABLE IF NOT EXISTS citizen_reports (
@@ -2414,6 +2456,123 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     return res.json({ reply });
   } catch (err) {
     console.error("AI chat error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// طلبات انضمام المؤسسات — Institution Applications
+// ══════════════════════════════════════════════════════
+
+// تقديم طلب انضمام
+router.post("/institution-applications", async (req: Request, res: Response) => {
+  try {
+    const {
+      inst_name, inst_type, inst_category, inst_description, inst_address,
+      inst_neighborhood, inst_phone, inst_email, inst_website,
+      inst_registration_no, inst_founded_year,
+      selected_services, custom_services,
+      rep_name, rep_title, rep_national_id, rep_phone, rep_email,
+    } = req.body;
+
+    if (!inst_name || !inst_type || !inst_category || !inst_description || !inst_address || !inst_phone) {
+      return res.status(400).json({ error: "بيانات المؤسسة ناقصة" });
+    }
+    if (!rep_name || !rep_title || !rep_national_id || !rep_phone) {
+      return res.status(400).json({ error: "بيانات الممثل ناقصة" });
+    }
+    if (!selected_services || !Array.isArray(JSON.parse(selected_services || "[]")) || JSON.parse(selected_services || "[]").length === 0) {
+      return res.status(400).json({ error: "يرجى تحديد خدمة واحدة على الأقل" });
+    }
+
+    const user = await getSessionUser(req);
+    const ip = req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || null;
+
+    const result = await query(
+      `INSERT INTO institution_applications (
+        inst_name, inst_type, inst_category, inst_description, inst_address,
+        inst_neighborhood, inst_phone, inst_email, inst_website,
+        inst_registration_no, inst_founded_year,
+        selected_services, custom_services,
+        rep_name, rep_title, rep_national_id, rep_phone, rep_email,
+        signed_ip, user_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      RETURNING id, inst_name, status, created_at`,
+      [
+        inst_name, inst_type, inst_category, inst_description, inst_address,
+        inst_neighborhood || null, inst_phone, inst_email || null, inst_website || null,
+        inst_registration_no || null, inst_founded_year || null,
+        selected_services, custom_services || null,
+        rep_name, rep_title, rep_national_id, rep_phone, rep_email || null,
+        ip, user?.id || null,
+      ]
+    );
+
+    return res.json({ application: result.rows[0] });
+  } catch (err) {
+    console.error("POST /institution-applications error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب طلب بالـ id لعرض وثيقة العهد
+router.get("/institution-applications/:id", async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT id, inst_name, inst_type, inst_category, rep_name, rep_title, rep_national_id,
+              rep_phone, selected_services, signed_at, status, commitment_version
+       FROM institution_applications WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "لم يوجد" });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب طلبات المستخدم
+router.get("/institution-applications/mine/list", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.json([]);
+    const result = await query(
+      `SELECT id, inst_name, inst_type, status, created_at FROM institution_applications WHERE user_id = $1 ORDER BY created_at DESC`,
+      [user.id]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب كل الطلبات — للأدمن
+router.get("/admin/institution-applications", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const result = await query(
+      `SELECT * FROM institution_applications ORDER BY created_at DESC`
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة الطلب — للأدمن
+router.patch("/admin/institution-applications/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_note } = req.body;
+    const allowed = ["pending", "under_review", "approved", "rejected", "suspended"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const reviewer = await getSessionUser(req);
+    await query(
+      `UPDATE institution_applications SET status=$1, admin_note=$2, reviewed_by=$3, reviewed_at=NOW(), updated_at=NOW() WHERE id=$4`,
+      [status, admin_note || null, reviewer?.id || null, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
 });

@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 
 // أنواع المؤسسات المدعوة للانضمام
@@ -32,15 +33,21 @@ const CONTACT_WHATSAPP = "+249912345600";
 
 export default function JoinOrgBanner() {
   const pulse = useSharedValue(1);
+  const router = useRouter();
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
   }));
 
-  const handleWhatsApp = () => {
+  const handleJoinForm = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     pulse.value = withSequence(withSpring(0.94), withSpring(1));
-    const msg = encodeURIComponent("السلام عليكم، أود تسجيل مؤسستي في تطبيق حصاحيصاوي");
+    router.push("/org-join" as any);
+  };
+
+  const handleWhatsApp = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const msg = encodeURIComponent("السلام عليكم، أود الاستفسار عن تسجيل مؤسستي في تطبيق حصاحيصاوي");
     Linking.openURL(`https://wa.me/${CONTACT_WHATSAPP.replace(/\D/g, "")}?text=${msg}`).catch(() =>
       Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
     );
@@ -129,14 +136,14 @@ export default function JoinOrgBanner() {
       <View style={styles.stepsSection}>
         <View style={styles.sectionHeader}>
           <LinearGradient colors={["#3E9CBF", "#3E9CBF40"]} style={styles.sectionBar} />
-          <Text style={styles.sectionTitle}>كيف أسجّل مؤسستي؟</Text>
+          <Text style={styles.sectionTitle}>كيف يتم التسجيل؟</Text>
         </View>
         <View style={styles.stepsWrap}>
           {[
-            { step: "١", text: "تواصل معنا عبر واتساب أو الاتصال المباشر" },
-            { step: "٢", text: "أرسل بيانات المؤسسة (الاسم، النوع، جهة التواصل)" },
-            { step: "٣", text: "يتم المراجعة والتحقق خلال ٢٤ ساعة فقط" },
-            { step: "٤", text: "تظهر مؤسستك لجميع مستخدمي التطبيق فوراً" },
+            { step: "١", text: "اضغط على 'قدّم طلب الانضمام' وأدخل بيانات مؤسستك" },
+            { step: "٢", text: "حدد الخدمات التي تقدمها لمواطني المنطقة" },
+            { step: "٣", text: "وقّع إلكترونياً على عهد الشراكة والالتزام" },
+            { step: "٤", text: "يُراجَع الطلب ويُعتمد خلال ٣–٥ أيام عمل" },
           ].map((s, i) => (
             <View key={i} style={styles.stepRow}>
               <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={styles.stepBubble}>
@@ -152,24 +159,34 @@ export default function JoinOrgBanner() {
       {/* ── أزرار التواصل ── */}
       <View style={styles.ctaSection}>
         <Text style={styles.ctaTitle}>ابدأ الآن — التسجيل مجاني</Text>
-        <Text style={styles.ctaSub}>فريقنا جاهز للمساعدة طوال اليوم</Text>
+        <Text style={styles.ctaSub}>قدّم طلبك إلكترونياً في أقل من ٥ دقائق</Text>
 
-        <Animated.View style={[styles.btnRow, pulseStyle]}>
-          <TouchableOpacity onPress={handleWhatsApp} style={{ flex: 1 }} activeOpacity={0.85}>
-            <LinearGradient colors={["#25D366", "#1DB954"]} style={styles.whatsappBtn}>
-              <MaterialCommunityIcons name="whatsapp" size={22} color="#fff" />
-              <Text style={styles.btnText}>سجّل عبر واتساب</Text>
+        <Animated.View style={[{ width: "100%", gap: 10 }, pulseStyle]}>
+          <TouchableOpacity onPress={handleJoinForm} style={{ width: "100%" }} activeOpacity={0.85}>
+            <LinearGradient colors={[Colors.primary, Colors.primary + "CC"]} style={styles.joinFormBtn}>
+              <MaterialCommunityIcons name="domain-plus" size={22} color="#fff" />
+              <Text style={styles.btnText}>قدّم طلب الانضمام الآن</Text>
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleCall} style={styles.callBtn} activeOpacity={0.85}>
-            <Ionicons name="call" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.btnRow}>
+            <TouchableOpacity onPress={handleWhatsApp} style={{ flex: 1 }} activeOpacity={0.85}>
+              <View style={styles.whatsappBtn}>
+                <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                <Text style={styles.whatsappBtnText}>استفسار عبر واتساب</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleCall} style={styles.callBtn} activeOpacity={0.85}>
+              <Ionicons name="call" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         <Text style={styles.freeNote}>
           <Ionicons name="checkmark-circle" size={13} color={Colors.primary} />
-          {"  "}التسجيل مجاني تماماً · لا رسوم مخفية
+          {"  "}التسجيل مجاني تماماً · توقيع إلكتروني مُعتمَد
         </Text>
       </View>
     </Animated.View>
@@ -266,15 +283,21 @@ const styles = StyleSheet.create({
   ctaTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, marginBottom: 4, textAlign: "center" },
   ctaSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginBottom: 16, textAlign: "center" },
 
+  joinFormBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, paddingVertical: 16, borderRadius: 14, width: "100%",
+  },
   btnRow: { flexDirection: "row", gap: 10, width: "100%" },
   whatsappBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 14, borderRadius: 14,
+    gap: 8, paddingVertical: 12, borderRadius: 14,
+    borderWidth: 1, borderColor: "#25D36640", backgroundColor: "#25D36612",
   },
-  btnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  whatsappBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   callBtn: {
-    width: 52, height: 52, borderRadius: 14, backgroundColor: Colors.primary + "15",
+    width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.primary + "15",
     borderWidth: 1, borderColor: Colors.primary + "40",
     justifyContent: "center", alignItems: "center",
   },
