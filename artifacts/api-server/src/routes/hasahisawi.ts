@@ -36,9 +36,13 @@ export async function initHasahisawiDb() {
       author_name VARCHAR(100) NOT NULL DEFAULT 'مجهول',
       content TEXT NOT NULL,
       category VARCHAR(50) NOT NULL DEFAULT 'عام',
+      image_url TEXT,
+      video_url TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_url TEXT`);
   await query(`
     CREATE TABLE IF NOT EXISTS social_comments (
       id SERIAL PRIMARY KEY,
@@ -753,11 +757,17 @@ router.get("/posts", async (req: Request, res: Response) => {
 router.post("/posts", async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
-    const { content, category, author_name } = req.body;
-    if (!content) return res.status(400).json({ error: "المحتوى مطلوب" });
+    const { content, category, author_name, image_url, video_url } = req.body;
+    if (!content?.trim() && !image_url && !video_url) return res.status(400).json({ error: "المحتوى مطلوب" });
     const result = await query(
-      `INSERT INTO social_posts (author_name, content, category) VALUES ($1,$2,$3) RETURNING *`,
-      [author_name || user?.name || "مجهول", content, category || "عام"]
+      `INSERT INTO social_posts (author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [
+        author_name || user?.name || "مجهول",
+        content?.trim() || "",
+        category || "عام",
+        image_url || null,
+        video_url || null,
+      ]
     );
     return res.json(result.rows[0]);
   } catch (err) {

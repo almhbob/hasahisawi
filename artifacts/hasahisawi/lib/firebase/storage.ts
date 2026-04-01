@@ -74,6 +74,15 @@ export async function uploadPostImage(
   return uploadFile(`posts/${userId}/${name}`, uri, onProgress);
 }
 
+export async function uploadPostVideo(
+  userId: string,
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`;
+  return uploadFile(`posts_videos/${userId}/${name}`, uri, onProgress);
+}
+
 export async function uploadReportImage(
   reportId: string,
   uri: string,
