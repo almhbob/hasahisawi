@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "حصاحيصاوي",
+    "slug": "al-hasahisa-service",
+    "version": "2.2.2",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "hasahisawi",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/city-crest.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#F2EBD8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.almhbob.hasahisawi",
+      "buildNumber": "4"
+    },
+    "android": {
+      "package": "com.almhbob.hasahisawi",
+      "versionCode": 17,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      "expo-localization",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "التطبيق يستخدم معرف الوجه لتسجيل الدخول بأمان"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
+          "cameraPermission": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#27AE68",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"
+      }
+    },
+    "owner": "almhbob2026"
+  }
+}
