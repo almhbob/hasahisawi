@@ -18,10 +18,31 @@ import { queryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
-import { I18nManager, Platform, View } from "react-native";
+import { I18nManager, Platform, View, LogBox } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { useApiUnread } from "@/lib/api-chat";
+
+// ── تجاهل تحذيرات Firebase عند عدم توفر مفتاح صالح ──────────────
+LogBox.ignoreLogs([
+  "Firebase: Error (auth/invalid-api-key)",
+  "Firebase: Error (auth/",
+  "Firebase:",
+  "@firebase/auth:",
+]);
+
+// ── معالجة رفض الـ Promises غير المُعالَجة من Firebase ───────────
+if (typeof globalThis !== "undefined") {
+  const origHandler = (globalThis as any).onunhandledrejection;
+  (globalThis as any).onunhandledrejection = (event: any) => {
+    const msg = String(event?.reason?.message ?? event?.reason ?? "");
+    if (msg.includes("Firebase") || msg.includes("auth/invalid-api-key")) {
+      event?.preventDefault?.();
+      return;
+    }
+    if (origHandler) origHandler(event);
+  };
+}
 
 SplashScreen.preventAutoHideAsync();
 

@@ -33,9 +33,23 @@ function getFirebaseAuth(): Auth {
       });
     }
   } catch {
-    _auth = getAuth(app);
+    try {
+      _auth = getAuth(app);
+    } catch (e2) {
+      throw new Error(`Firebase Auth init failed: ${e2}`);
+    }
   }
   return _auth;
+}
+
+export function isFirebaseAuthAvailable(): boolean {
+  if (!isFirebaseConfigured) return false;
+  try {
+    getFirebaseAuth();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function firebaseLoginEmail(email: string, password: string) {

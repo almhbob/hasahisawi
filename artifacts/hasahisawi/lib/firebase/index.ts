@@ -11,16 +11,32 @@ const firebaseConfig = {
   measurementId:     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID     ?? "",
 };
 
-export const isFirebaseConfigured =
-  !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
+// مفاتيح Firebase للويب دائماً تبدأ بـ AIza
+// إذا لم يكن المفتاح بهذه الصيغة فهو غير صالح
+const isApiKeyValid =
+  !!firebaseConfig.apiKey &&
+  firebaseConfig.apiKey.startsWith("AIza") &&
+  firebaseConfig.apiKey.length > 20;
 
-export const isFirestoreEnabled = true;
+export const isFirebaseConfigured =
+  isApiKeyValid && !!firebaseConfig.projectId;
+
+export const isFirestoreEnabled = isFirebaseConfigured;
 
 let app: FirebaseApp;
-try {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-} catch (e) {
-  app = getApp();
+if (isFirebaseConfigured) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  } catch (e) {
+    try {
+      app = getApp();
+    } catch {
+      // Firebase غير متاح — سيتم استخدام المصادقة الخلفية فقط
+      app = {} as FirebaseApp;
+    }
+  }
+} else {
+  app = {} as FirebaseApp;
 }
 
 export { app };
