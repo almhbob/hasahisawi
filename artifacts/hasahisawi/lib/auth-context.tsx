@@ -399,32 +399,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (phoneOrEmail: string, password: string) => {
-    // إذا Firebase غير متاح → استخدم backend API مباشرة
-    if (!isFirebaseAvailable()) {
-      const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
-      await saveSession(authUser, backendTok, backendTok);
-      return;
-    }
-    // Firebase متاح → جرّب Firebase أولاً، مع fallback للـ backend
-    try {
-      const email = identifierToEmail(phoneOrEmail);
-      const fbUser = await firebaseLoginEmail(email, password);
-      const idToken = await fbUser.getIdToken();
-      const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
-      if (!profile) throw new Error("لم يُعثر على بيانات المستخدم. يرجى إنشاء حساب جديد.");
-      const authUser = profileToAuthUser(profile, idToken);
-      const backendTok = await exchangeForBackendToken(
-        fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
-      );
-      await saveSession(authUser, idToken, backendTok);
-    } catch (firebaseErr: any) {
-      // إذا كان الخطأ من Firebase (وليس من بيانات المستخدم)، جرّب backend
-      if (firebaseErr?.message?.includes("Firebase") || firebaseErr?.code?.startsWith("auth/")) {
-        const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
-        await saveSession(authUser, backendTok, backendTok);
-        return;
+    // Backend هو المصدر الأساسي للمصادقة دائماً
+    const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
+    await saveSession(authUser, backendTok, backendTok);
+    // Firebase اختياري — نجرّبه في الخلفية فقط لمزامنة البيانات
+    if (isFirebaseAvailable()) {
+      try {
+        const email = identifierToEmail(phoneOrEmail);
+        const fbUser = await firebaseLoginEmail(email, password);
+        const idToken = await fbUser.getIdToken();
+        const backendTok2 = await exchangeForBackendToken(
+          fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+        );
+        if (backendTok2) {
+          setToken(backendTok2);
+          await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
+        }
+      } catch {
+        // Firebase فشل — لا بأس، جلسة backend نشطة
       }
-      throw firebaseErr;
     }
   };
 
@@ -455,47 +448,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     birthDate?: string,
     neighborhood?: string,
   ) => {
-    // إذا Firebase غير متاح → استخدم backend API مباشرة
-    if (!isFirebaseAvailable()) {
-      const { user: authUser, token: backendTok } = await backendRegister(
-        name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood
-      );
-      await saveSession(authUser, backendTok, backendTok);
-      return;
-    }
-    // Firebase متاح → جرّب Firebase مع fallback للـ backend
-    try {
-      const email = identifierToEmail(phoneOrEmail);
-      const isActualEmail = isEmail || phoneOrEmail.includes("@");
-      const fbUser = await firebaseRegisterEmail(email, password, name);
-      const idToken = await fbUser.getIdToken();
-      const profile: UserProfile = {
-        uid: fbUser.uid,
-        name: name.trim(),
-        role: "user",
-        permissions: [],
-        ...(nationalId ? { nationalId } : {}),
-        ...(isActualEmail
-          ? { email: phoneOrEmail.trim().toLowerCase() }
-          : { phone: phoneOrEmail.trim() }),
-        ...(neighborhood ? { neighborhood } : {}),
-        ...(birthDate ? { birthDate } : {}),
-      };
-      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
-      const authUser = profileToAuthUser(profile, idToken);
-      const backendTok = await exchangeForBackendToken(
-        fbUser.uid, authUser.name, authUser.email ?? null, "user"
-      );
-      await saveSession(authUser, idToken, backendTok);
-    } catch (firebaseErr: any) {
-      if (firebaseErr?.message?.includes("Firebase") || firebaseErr?.code?.startsWith("auth/")) {
-        const { user: authUser, token: backendTok } = await backendRegister(
-          name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood
+    // Backend هو المصدر الأساسي للتسجيل دائماً
+    const { user: authUser, token: backendTok } = await backendRegister(
+      name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood
+    );
+    await saveSession(authUser, backendTok, backendTok);
+    // Firebase اختياري — نجرّبه في الخلفية للمزامنة فقط
+    if (isFirebaseAvailable()) {
+      try {
+        const email = identifierToEmail(phoneOrEmail);
+        const isActualEmail = isEmail || phoneOrEmail.includes("@");
+        const fbUser = await firebaseRegisterEmail(email, password, name);
+        const idToken = await fbUser.getIdToken();
+        const profile: UserProfile = {
+          uid: fbUser.uid,
+          name: name.trim(),
+          role: "user",
+          permissions: [],
+          ...(nationalId ? { nationalId } : {}),
+          ...(isActualEmail
+            ? { email: phoneOrEmail.trim().toLowerCase() }
+            : { phone: phoneOrEmail.trim() }),
+          ...(neighborhood ? { neighborhood } : {}),
+          ...(birthDate ? { birthDate } : {}),
+        };
+        await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
+        const backendTok2 = await exchangeForBackendToken(
+          fbUser.uid, authUser.name, authUser.email ?? null, "user"
         );
-        await saveSession(authUser, backendTok, backendTok);
-        return;
+        if (backendTok2) {
+          setToken(backendTok2);
+          await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
+        }
+      } catch {
+        // Firebase فشل — لا بأس، جلسة backend نشطة
       }
-      throw firebaseErr;
     }
   };
 
