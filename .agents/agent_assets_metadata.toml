@@ -24,6 +24,24 @@ uri = "file://artifacts/mockup-sandbox/src/assets/images/emerald-gold-bg.png"
 type = "image"
 title = "Emerald gold background"
 
+[[generated]]
+id = "LRj5bUiX-sjMoeoKdP6Oc"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/hasahisa-aerial.png"
+type = "image"
+title = "aerial view of Hasahisa"
+
+[[generated]]
+id = "9GPmd2-eEQOeUGu2fFwbh"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/diaspora.png"
+type = "image"
+title = "young Sudanese man at night"
+
+[[generated]]
+id = "HmmHpsL3O3WlwyELcgmpW"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/hasahisa-street.png"
+type = "image"
+title = "empty street in Hasahisa"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
@@ -41,3 +59,9 @@ id = "OJhXtg4zEllatjYWuD3kG"
 uri = "file://attached_assets/generated_videos/hasahisawi_cinematic_bg.mp4"
 type = "video"
 title = "مقطع خلفية الفيديو السينمائي"
+
+[[outputs]]
+id = "uJNQcE6MWaBvJCkID7wMo"
+uri = "file://attached_assets/hasahisawi_complete_profile.md"
+type = "text"
+title = "الملف الكامل لتطبيق حصاحيصاوي"
