@@ -292,7 +292,7 @@ async function drawCard(
   const STAT_Y = CON_Y + chipH + T.sp(3);
   const stats = [
     { val: "16+", label: "Certificates", color: T.c.primary },
-    { val: "1",   label: "App on Store",  color: T.c.gold    },
+    { val: "4",   label: "Apps on Store",  color: T.c.gold    },
     { val: "34",  label: "Years Old",     color: T.c.accent  },
   ];
   const statW2 = (CARD1_W - T.sp(4)) / 3;
