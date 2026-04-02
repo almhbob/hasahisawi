@@ -186,7 +186,7 @@ async function draw(canvas: HTMLCanvasElement, logo: HTMLImageElement, photo: HT
   // Location — right aligned
   ctx.direction="rtl"; ctx.textAlign="right";
   ctx.font = F(400,28); ctx.fillStyle=C.w2;
-  ctx.fillText("📍  ولاية الجزيرة · محلية حي فور", W-NX, Y+37);
+  ctx.fillText("📍  ولاية الجزيرة · محلية الحصاحيصا · حي فور", W-NX, Y+37);
 
   Y += 88;
 
