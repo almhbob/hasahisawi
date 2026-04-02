@@ -35,3 +35,9 @@ id = "PnpljIeYA5oJYCSai9T1z"
 uri = "file://attached_assets/generated_images/hasahisawi_whatsapp_status.png"
 type = "image"
 title = "حالة واتس آب (عمودي 9:16)"
+
+[[outputs]]
+id = "OJhXtg4zEllatjYWuD3kG"
+uri = "file://attached_assets/generated_videos/hasahisawi_cinematic_bg.mp4"
+type = "video"
+title = "مقطع خلفية الفيديو السينمائي"
