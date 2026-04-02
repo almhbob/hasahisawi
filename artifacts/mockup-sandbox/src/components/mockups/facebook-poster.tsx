@@ -278,7 +278,7 @@ async function drawPoster(
   ctx.font      = "400 14px Cairo, Arial";
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.letterSpacing = "0.15em";
-  ctx.fillText("الحصاحيصا · ولاية سنار · السودان", tx, 530);
+  ctx.fillText("الحصاحيصا · ولاية الجزيرة · السودان", tx, 530);
   (ctx as any).letterSpacing = "0";
 
   // ── 15. Bottom gradient bar ───────────────────────────────────────────────────
