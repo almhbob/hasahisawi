@@ -278,7 +278,14 @@ async function drawPoster(
   ctx.font      = "400 14px Cairo, Arial";
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.letterSpacing = "0.15em";
-  ctx.fillText("الحصاحيصا · ولاية الجزيرة · السودان", tx, 530);
+  ctx.fillText("الحصاحيصا · ولاية الجزيرة · السودان", tx, 518);
+
+  // ── Developer credit ──────────────────────────────────────────────────────────
+  ctx.direction = "ltr";
+  ctx.textAlign = "right";
+  ctx.font      = "400 12px Cairo, Arial";
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillText("Dev: Asim Abdulrahman Mohammed  |  Almhbob.iii@gmail.com", tx, 546);
   (ctx as any).letterSpacing = "0";
 
   // ── 15. Bottom gradient bar ───────────────────────────────────────────────────
