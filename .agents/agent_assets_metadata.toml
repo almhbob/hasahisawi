@@ -4,7 +4,7 @@ uploads = []
 id = "RQZIigCwE-TvRh3bRmrGy"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
 type = "image"
-title = "hasahisawi app launch poster square"
+title = "hasahisawi promotional poster square"
 
 [[generated]]
 id = "KpYb76G-ex4s7nzxRlFZl"
@@ -42,11 +42,17 @@ uri = "file://artifacts/mockup-sandbox/src/assets/images/hasahisa-street.png"
 type = "image"
 title = "empty street in Hasahisa"
 
+[[generated]]
+id = "wc-yR81hZkN0ZdYCZdvGA"
+uri = "file://attached_assets/generated_images/hasahisawi_poster_story.png"
+type = "image"
+title = "hasahisawi promotional story poster"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
 type = "image"
-title = "بوستر سوشيال ميديا (مربع 1:1)"
+title = "بوستر مربع — سوشيال ميديا (1:1)"
 
 [[outputs]]
 id = "PnpljIeYA5oJYCSai9T1z"
@@ -71,3 +77,9 @@ id = "tnxlC22pTk8UZx0bv9U7b"
 uri = "file://attached_assets/release_guide_hasahisawi.md"
 type = "text"
 title = "دليل الإصدار الاحترافي الكامل"
+
+[[outputs]]
+id = "SJgx7Rsdgm4GfzOiFqVty"
+uri = "file://attached_assets/generated_images/hasahisawi_poster_story.png"
+type = "image"
+title = "بوستر ستوري — واتساب وإنستغرام (9:16)"
