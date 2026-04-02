@@ -22,87 +22,182 @@ const SCENE_DURATIONS = [
 const TOTAL_DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 
 // ─── Cinematic Audio Engine ───────────────────────────────────────────────────
+
+/** Build a synthetic convolution reverb impulse response (large hall, ~4s decay) */
+function makeReverbIR(ctx: AudioContext, duration = 4, decay = 3.5): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = rate * duration;
+  const ir = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      // Exponential decay envelope on random noise
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return ir;
+}
+
 function buildAudio(ctx: AudioContext): { masterGain: GainNode; stop: () => void } {
+  const t = ctx.currentTime;
+  const allNodes: AudioNode[] = [];
+
+  // ── Master bus ──
   const masterGain = ctx.createGain();
-  masterGain.gain.setValueAtTime(0, ctx.currentTime);
-  masterGain.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 3);
-  masterGain.connect(ctx.destination);
+  masterGain.gain.setValueAtTime(0, t);
+  masterGain.gain.linearRampToValueAtTime(0.72, t + 4); // slow fade-in
+  const masterCompressor = ctx.createDynamicsCompressor();
+  masterCompressor.threshold.value = -18;
+  masterCompressor.knee.value = 12;
+  masterCompressor.ratio.value = 4;
+  masterCompressor.attack.value = 0.05;
+  masterCompressor.release.value = 0.4;
+  masterGain.connect(masterCompressor);
+  masterCompressor.connect(ctx.destination);
 
-  const nodes: AudioNode[] = [];
+  // ── Hall Reverb (convolution) ──
+  const reverb = ctx.createConvolver();
+  reverb.buffer = makeReverbIR(ctx, 4.5, 3.2);
+  const reverbGain = ctx.createGain();
+  reverbGain.gain.value = 0.55;
+  reverb.connect(reverbGain);
+  reverbGain.connect(masterGain);
+  allNodes.push(reverb, reverbGain);
 
-  const makeOsc = (freq: number, type: OscillatorType, gain: number, detune = 0) => {
+  // Helper: connect osc through optional filter → dry bus + reverb send
+  const addOsc = (
+    freq: number,
+    type: OscillatorType,
+    gainVal: number,
+    detuneVal = 0,
+    lpFreq?: number,
+    reverbSend = 0.4,
+  ) => {
     const osc = ctx.createOscillator();
-    const g = ctx.createGain();
     osc.type = type;
     osc.frequency.value = freq;
-    osc.detune.value = detune;
-    g.gain.value = gain;
+    osc.detune.value = detuneVal;
+    const g = ctx.createGain();
+    g.gain.value = gainVal;
     osc.connect(g);
-    g.connect(masterGain);
+
+    if (lpFreq) {
+      const lpf = ctx.createBiquadFilter();
+      lpf.type = "lowpass";
+      lpf.frequency.value = lpFreq;
+      lpf.Q.value = 0.5;
+      g.connect(lpf);
+      lpf.connect(masterGain);
+      // Reverb send
+      const rSend = ctx.createGain();
+      rSend.gain.value = reverbSend;
+      lpf.connect(rSend);
+      rSend.connect(reverb);
+      allNodes.push(osc, g, lpf, rSend);
+    } else {
+      g.connect(masterGain);
+      const rSend = ctx.createGain();
+      rSend.gain.value = reverbSend;
+      g.connect(rSend);
+      rSend.connect(reverb);
+      allNodes.push(osc, g, rSend);
+    }
     osc.start();
-    nodes.push(osc, g);
-    return { osc, g };
+    return osc;
   };
 
-  // Deep cinematic drone — A0 + octave layers
-  makeOsc(27.5, "sine", 0.45);          // A0 sub
-  makeOsc(55, "sine", 0.30);            // A1 bass
-  makeOsc(110, "triangle", 0.18);       // A2 mid-low
-  makeOsc(165, "sine", 0.10, 3);        // E3 fifth (slightly detuned)
-  makeOsc(220, "sine", 0.07, -2);       // A3 upper (slightly detuned)
-  makeOsc(330, "triangle", 0.04, 5);    // E4 shimmer
+  // ── LAYER 1: Sub Bass (A0 + A1) — felt not heard ──
+  addOsc(27.5, "sine",     0.50, 0,   100, 0.15);
+  addOsc(55,   "sine",     0.35, 0,   160, 0.20);
 
-  // Noise layer — atmospheric texture
-  const bufLen = ctx.sampleRate * 3;
-  const noiseBuffer = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-  const data = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
-  noise.loop = true;
-  const noiseLPF = ctx.createBiquadFilter();
-  noiseLPF.type = "lowpass";
-  noiseLPF.frequency.value = 180;
+  // ── LAYER 2: String Pad — Am chord, 8 detuned sawtooths through LP ──
+  // Am chord: A2(110), C3(130.8), E3(164.8), G3(196), A3(220), C4(261.6), E4(329.6)
+  const padFreqs = [110, 130.8, 164.8, 196, 220, 261.6, 329.6, 440];
+  const padDetunes = [-14, 7, -9, 12, -6, 10, -11, 8];
+  padFreqs.forEach((f, i) => {
+    addOsc(f, "sawtooth", 0.022, padDetunes[i], 680, 0.60);
+    // Slightly detuned twin for chorus thickness
+    addOsc(f, "sawtooth", 0.016, padDetunes[i] * -1.3, 720, 0.55);
+  });
+
+  // ── LAYER 3: Moving filter on pad (LFO sweeps LP cutoff 350→1100 Hz) ──
+  const filterLFOOsc = ctx.createOscillator();
+  filterLFOOsc.frequency.value = 0.065; // very slow sweep ~15s cycle
+  const filterLFOGain = ctx.createGain();
+  filterLFOGain.gain.value = 350;
+  filterLFOOsc.connect(filterLFOGain);
+  // We'll re-filter the master with a shelf
+  const masterLP = ctx.createBiquadFilter();
+  masterLP.type = "lowpass";
+  masterLP.frequency.value = 720;
+  masterLP.Q.value = 0.6;
+  filterLFOGain.connect(masterLP.frequency);
+  filterLFOOsc.start();
+  allNodes.push(filterLFOOsc, filterLFOGain, masterLP);
+
+  // ── LAYER 4: Atmospheric noise breath ──
+  const noiseLen = ctx.sampleRate * 4;
+  const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) nd[i] = Math.random() * 2 - 1;
+  const noiseSource = ctx.createBufferSource();
+  noiseSource.buffer = noiseBuf;
+  noiseSource.loop = true;
+
+  const noiseBPF = ctx.createBiquadFilter();
+  noiseBPF.type = "bandpass";
+  noiseBPF.frequency.value = 1800;
+  noiseBPF.Q.value = 1.8;
+
+  const noiseAmpLFO = ctx.createOscillator();
+  noiseAmpLFO.frequency.value = 0.08;
+  const noiseAmpLFOGain = ctx.createGain();
+  noiseAmpLFOGain.gain.value = 0.008;
+  noiseAmpLFO.connect(noiseAmpLFOGain);
+
   const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.03;
-  noise.connect(noiseLPF);
-  noiseLPF.connect(noiseGain);
+  noiseGain.gain.value = 0.012;
+  noiseAmpLFOGain.connect(noiseGain.gain);
+
+  noiseSource.connect(noiseBPF);
+  noiseBPF.connect(noiseGain);
   noiseGain.connect(masterGain);
-  noise.start();
-  nodes.push(noise, noiseLPF, noiseGain);
+  const noiseRevSend = ctx.createGain();
+  noiseRevSend.gain.value = 0.7;
+  noiseGain.connect(noiseRevSend);
+  noiseRevSend.connect(reverb);
 
-  // LFO — slow breathing on the drone
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.frequency.value = 0.12;
-  lfoGain.gain.value = 0.12;
-  lfo.connect(lfoGain);
-  lfoGain.connect(masterGain.gain);
-  lfo.start();
-  nodes.push(lfo, lfoGain);
+  noiseSource.start();
+  noiseAmpLFO.start();
+  allNodes.push(noiseSource, noiseBPF, noiseAmpLFO, noiseAmpLFOGain, noiseGain, noiseRevSend);
 
-  // Delay reverb — hall effect
-  const delay = ctx.createDelay(2.5);
-  delay.delayTime.value = 0.38;
-  const delayFeedback = ctx.createGain();
-  delayFeedback.gain.value = 0.42;
-  const delayGain = ctx.createGain();
-  delayGain.gain.value = 0.15;
-  delay.connect(delayFeedback);
-  delayFeedback.connect(delay);
-  masterGain.connect(delayGain);
-  delayGain.connect(delay);
-  delay.connect(masterGain);
-  nodes.push(delay, delayFeedback, delayGain);
+  // ── LAYER 5: Shimmer high overtones (A5, E5) ──
+  addOsc(880,  "sine", 0.008, -5,  undefined, 0.85);
+  addOsc(1320, "sine", 0.004,  8,  undefined, 0.90);
+
+  // ── LAYER 6: Gentle rhythmic pulse (very subtle, 0.25Hz = 4s cycle) ──
+  const pulseOsc = ctx.createOscillator();
+  pulseOsc.frequency.value = 0.25;
+  const pulseMod = ctx.createGain();
+  pulseMod.gain.value = 0.05;
+  pulseOsc.connect(pulseMod);
+  pulseMod.connect(masterGain.gain);
+  pulseOsc.start();
+  allNodes.push(pulseOsc, pulseMod);
 
   return {
     masterGain,
     stop() {
-      masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
+      masterGain.gain.cancelScheduledValues(ctx.currentTime);
+      masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
+      masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.5);
       setTimeout(() => {
-        nodes.forEach(n => { try { (n as OscillatorNode).stop?.(); n.disconnect(); } catch (_) {} });
+        allNodes.forEach(n => {
+          try { (n as OscillatorNode | AudioBufferSourceNode).stop?.(); } catch (_) {}
+          try { n.disconnect(); } catch (_) {}
+        });
         ctx.close();
-      }, 1800);
+      }, 3000);
     },
   };
 }
