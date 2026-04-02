@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 17,
+      "versionCode": 18,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
