@@ -124,6 +124,7 @@ function RootLayoutNav() {
         <Stack.Screen name="report" options={{ headerShown: false }} />
         <Stack.Screen name="admin"        options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="conversation" options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="org-join"     options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
