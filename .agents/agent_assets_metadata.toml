@@ -65,3 +65,9 @@ id = "uJNQcE6MWaBvJCkID7wMo"
 uri = "file://attached_assets/hasahisawi_complete_profile.md"
 type = "text"
 title = "الملف الكامل لتطبيق حصاحيصاوي"
+
+[[outputs]]
+id = "tnxlC22pTk8UZx0bv9U7b"
+uri = "file://attached_assets/release_guide_hasahisawi.md"
+type = "text"
+title = "دليل الإصدار الاحترافي الكامل"
