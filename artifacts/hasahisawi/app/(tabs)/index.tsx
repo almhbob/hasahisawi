@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
   featuredAdChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.accent },
 
   sectionHeader: {
-    alignItems: "center", gap: 10, marginBottom: 18,
+    alignItems: "center", gap: 10, marginTop: 4, marginBottom: 18,
   },
   sectionAccentBar: {
     width: 4, height: 22, borderRadius: 2,
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
   },
 
   /* Quick Banners Row */
-  quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 6 },
   quickBanner: {
     borderRadius: 18, padding: 16, borderWidth: 1,
     overflow: "hidden", alignItems: "center", gap: 8,
