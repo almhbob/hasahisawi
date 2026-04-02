@@ -370,29 +370,22 @@ export default function DevBio() {
     }, 100);
   };
 
-  const DW=360, DH=640;
+  const DW=540, DH=990;
 
   return (
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",
       alignItems:"center",justifyContent:"center",gap:24,padding:32}}>
 
-      <div style={{position:"relative",width:DW+28,borderRadius:46,
-        background:"linear-gradient(160deg,#1c1c1e,#0a0a0a)",padding:"46px 14px 38px",
-        boxShadow:"0 0 0 1.5px #1e1e1e,0 0 70px rgba(0,230,118,0.08),0 50px 120px rgba(0,0,0,0.95)"}}>
-        <div style={{position:"absolute",top:15,left:"50%",transform:"translateX(-50%)",
-          width:105,height:22,borderRadius:11,background:"#111"}}/>
-        <div style={{position:"absolute",bottom:11,left:"50%",transform:"translateX(-50%)",
-          width:82,height:5,borderRadius:3,background:"#222"}}/>
-        <div style={{width:DW,height:DH,borderRadius:28,overflow:"hidden",position:"relative"}}>
-          {loading && (
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",
-              justifyContent:"center",background:C.bg,zIndex:10}}>
-              <span style={{color:C.green,fontSize:16,fontFamily:"Cairo,sans-serif"}}>جاري الرسم…</span>
-            </div>
-          )}
-          <canvas ref={ref} style={{width:DW,height:DH,display:"block",
-            opacity:loading?0:1,transition:"opacity .5s"}}/>
-        </div>
+      <div style={{position:"relative",width:DW,borderRadius:16,overflow:"hidden",
+        boxShadow:"0 0 60px rgba(0,230,118,0.10),0 40px 100px rgba(0,0,0,0.8)"}}>
+        {loading && (
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",
+            justifyContent:"center",background:C.bg,zIndex:10}}>
+            <span style={{color:C.green,fontSize:16,fontFamily:"Cairo,sans-serif"}}>جاري الرسم…</span>
+          </div>
+        )}
+        <canvas ref={ref} style={{width:DW,height:DH,display:"block",
+          opacity:loading?0:1,transition:"opacity .5s"}}/>
       </div>
 
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
