@@ -393,11 +393,44 @@ async function drawCard(
   ctx.strokeStyle = footDiv; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(T.sp(5), FOOT_Y); ctx.lineTo(T.W - T.sp(5), FOOT_Y); ctx.stroke();
 
+  // ── Dedication card ───────────────────────────────────────────────────────────
+  const DED_X = CARD1_X, DED_Y = FOOT_Y + T.sp(1);
+  const DED_W = CARD1_W, DED_H = 118;
+
+  rrect(ctx, DED_X, DED_Y, DED_W, DED_H, 22);
+  const dedGrad = ctx.createLinearGradient(DED_X, DED_Y, DED_X + DED_W, DED_Y + DED_H);
+  dedGrad.addColorStop(0, "rgba(255,179,0,0.09)");
+  dedGrad.addColorStop(1, "rgba(255,100,150,0.06)");
+  ctx.fillStyle = dedGrad; ctx.fill();
+  rrect(ctx, DED_X, DED_Y, DED_W, DED_H, 22);
+  ctx.strokeStyle = "rgba(255,179,0,0.25)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Heart icon
+  ctx.font = "44px Arial"; ctx.textAlign = "center"; ctx.direction = "ltr";
+  ctx.fillText("❤️", DED_X + 52, DED_Y + 62);
+
+  // Dedication text
+  ctx.direction = "rtl"; ctx.textAlign = "right";
+  ctx.font = T.fnt(400, 24); ctx.fillStyle = "rgba(255,179,0,0.55)";
+  ctx.fillText("إهـداء", T.W - T.sp(6), DED_Y + 36);
+
+  ctx.font = T.fnt(700, 30); ctx.fillStyle = T.c.text1;
+  ctx.fillText("إلى زوجتي العزيزة وابنتي", T.W - T.sp(6), DED_Y + 72);
+
+  const jGrad = ctx.createLinearGradient(CX, 0, T.W - T.sp(6), 0);
+  jGrad.addColorStop(0, "#FFB300"); jGrad.addColorStop(1, "#FF8A80");
+  ctx.font = T.fnt(900, 36); ctx.fillStyle = jGrad;
+  ctx.shadowColor = "rgba(255,179,0,0.4)"; ctx.shadowBlur = 16;
+  ctx.fillText("✨ جمان ✨", T.W - T.sp(6), DED_Y + 108);
+  ctx.shadowBlur = 0;
+
+  // Footer credits
+  const CREDIT_Y = DED_Y + DED_H + T.sp(3);
   ctx.direction = "ltr"; ctx.textAlign = "center";
-  ctx.font = T.fnt(400, 21); ctx.fillStyle = T.c.text3;
-  ctx.fillText("almhbob.iii@gmail.com  ·  credly.com/users/asim-abdulrahman", CX, FOOT_Y + 42);
-  ctx.font = T.fnt(400, 19); ctx.fillStyle = T.c.text3;
-  ctx.fillText("© 2026 Asim Abdulrahman Mohammed — All rights reserved", CX, FOOT_Y + 72);
+  ctx.font = T.fnt(400, 20); ctx.fillStyle = T.c.text3;
+  ctx.fillText("almhbob.iii@gmail.com  ·  credly.com/users/asim-abdulrahman", CX, CREDIT_Y);
+  ctx.font = T.fnt(400, 18); ctx.fillStyle = T.c.text3;
+  ctx.fillText("© 2026 Asim Abdulrahman Mohammed — All rights reserved", CX, CREDIT_Y + 34);
 
   // ═══════════════════════════════════════════════════════════════
   // FRAME — Neon border system (Figma: stroke layers)
