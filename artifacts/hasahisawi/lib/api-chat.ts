@@ -50,7 +50,15 @@ async function apiFetch(path: string, token: string, opts?: RequestInit) {
       ...(opts?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    try {
+      const json = await res.json();
+      if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض المحتوى من نظام المراقبة"}`);
+      throw new Error(json.error || `HTTP ${res.status}`);
+    } catch (e) {
+      throw e instanceof Error ? e : new Error(`HTTP ${res.status}`);
+    }
+  }
   return res.json();
 }
 

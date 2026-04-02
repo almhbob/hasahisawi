@@ -188,7 +188,10 @@ async function apiCreatePost(data: {
     body: JSON.stringify(data),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "Failed to post");
+  if (!res.ok) {
+    if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض المنشور من نظام المراقبة"}`);
+    throw new Error(json.error || "Failed to post");
+  }
   return json;
 }
 
@@ -217,7 +220,10 @@ async function apiCreateComment(
     body: JSON.stringify(data),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "Failed to comment");
+  if (!res.ok) {
+    if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض التعليق من نظام المراقبة"}`);
+    throw new Error(json.error || "Failed to comment");
+  }
   return json;
 }
 

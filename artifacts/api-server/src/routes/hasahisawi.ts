@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { checkContent } from "../lib/content-moderator";
 
 const router = Router();
 
@@ -881,6 +882,19 @@ router.post("/posts", async (req: Request, res: Response) => {
     const user = await getSessionUser(req);
     const { content, category, author_name, image_url, video_url } = req.body;
     if (!content?.trim() && !image_url && !video_url) return res.status(400).json({ error: "المحتوى مطلوب" });
+
+    if (content?.trim()) {
+      const mod = await checkContent(content.trim());
+      if (!mod.allowed) {
+        return res.status(422).json({
+          error: "تم رفض المنشور",
+          reason: mod.reason ?? "يحتوي المنشور على محتوى مخالف لسياسة المنصة",
+          category: mod.category,
+          blocked: true,
+        });
+      }
+    }
+
     const result = await query(
       `INSERT INTO social_posts (author_id, author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [
@@ -928,6 +942,17 @@ router.post("/posts/:id/comments", async (req: Request, res: Response) => {
     const user = await getSessionUser(req);
     const { content, author_name } = req.body;
     if (!content) return res.status(400).json({ error: "المحتوى مطلوب" });
+
+    const mod = await checkContent(content);
+    if (!mod.allowed) {
+      return res.status(422).json({
+        error: "تم رفض التعليق",
+        reason: mod.reason ?? "يحتوي التعليق على محتوى مخالف لسياسة المنصة",
+        category: mod.category,
+        blocked: true,
+      });
+    }
+
     const result = await query(
       `INSERT INTO social_comments (post_id, author_name, content) VALUES ($1,$2,$3) RETURNING *`,
       [req.params.id, author_name || user?.name || "مجهول", content]
@@ -1493,6 +1518,19 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
     const { content, image_url } = req.body;
     if (!content?.trim() && !image_url) return res.status(400).json({ error: "الرسالة فارغة" });
+
+    if (content?.trim()) {
+      const mod = await checkContent(content.trim());
+      if (!mod.allowed) {
+        return res.status(422).json({
+          error: "تم رفض الرسالة",
+          reason: mod.reason ?? "تحتوي الرسالة على محتوى مخالف لسياسة المنصة",
+          category: mod.category,
+          blocked: true,
+        });
+      }
+    }
+
     const msgType = image_url ? "image" : "text";
     const msgContent = content?.trim() || "";
     const result = await query(
