@@ -114,15 +114,16 @@ async function draw(canvas: HTMLCanvasElement, logo: HTMLImageElement, photo: HT
   if (ph < PHOTO_H) { ph = PHOTO_H; pw = ph * pr; }
   ctx.drawImage(photo, (W-pw)/2, 0, pw, ph);
 
-  // Gradient overlays
-  const ov1 = ctx.createLinearGradient(0, PHOTO_H*0.30, 0, PHOTO_H);
+  // Gradient overlays — lighter to keep face visible
+  const ov1 = ctx.createLinearGradient(0, PHOTO_H*0.55, 0, PHOTO_H);
   ov1.addColorStop(0,"transparent"); ov1.addColorStop(1,C.bg);
   ctx.fillStyle=ov1; ctx.fillRect(0,0,W,PHOTO_H);
-  const ov2 = ctx.createLinearGradient(0,0,W*0.30,0);
-  ov2.addColorStop(0,"rgba(4,8,10,0.60)"); ov2.addColorStop(1,"transparent");
+  // Very subtle side fades
+  const ov2 = ctx.createLinearGradient(0,0,W*0.18,0);
+  ov2.addColorStop(0,"rgba(4,8,10,0.40)"); ov2.addColorStop(1,"transparent");
   ctx.fillStyle=ov2; ctx.fillRect(0,0,W,PHOTO_H);
-  const ov3 = ctx.createLinearGradient(W*0.70,0,W,0);
-  ov3.addColorStop(0,"transparent"); ov3.addColorStop(1,"rgba(4,8,10,0.60)");
+  const ov3 = ctx.createLinearGradient(W*0.82,0,W,0);
+  ov3.addColorStop(0,"transparent"); ov3.addColorStop(1,"rgba(4,8,10,0.40)");
   ctx.fillStyle=ov3; ctx.fillRect(0,0,W,PHOTO_H);
   ctx.restore();
 
