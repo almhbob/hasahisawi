@@ -409,10 +409,10 @@ async function drawCard(
   ctx.font = "44px Arial"; ctx.textAlign = "center"; ctx.direction = "ltr";
   ctx.fillText("❤️", DED_X + 52, DED_Y + 62);
 
-  // Dedication text
+  // Dedication text — family
   ctx.direction = "rtl"; ctx.textAlign = "right";
   ctx.font = T.fnt(400, 24); ctx.fillStyle = "rgba(255,179,0,0.55)";
-  ctx.fillText("إهـداء", T.W - T.sp(6), DED_Y + 36);
+  ctx.fillText("إهـداء خاص", T.W - T.sp(6), DED_Y + 36);
 
   ctx.font = T.fnt(700, 30); ctx.fillStyle = T.c.text1;
   ctx.fillText("إلى زوجتي العزيزة وابنتي", T.W - T.sp(6), DED_Y + 72);
@@ -424,8 +424,39 @@ async function drawCard(
   ctx.fillText("✨ جمان ✨", T.W - T.sp(6), DED_Y + 108);
   ctx.shadowBlur = 0;
 
+  // ── General dedication card ───────────────────────────────────────────────────
+  const DED2_X = CARD1_X, DED2_Y = DED_Y + DED_H + T.sp(2);
+  const DED2_W = CARD1_W, DED2_H = 130;
+
+  rrect(ctx, DED2_X, DED2_Y, DED2_W, DED2_H, 22);
+  const ded2Grad = ctx.createLinearGradient(DED2_X, DED2_Y, DED2_X + DED2_W, DED2_Y + DED2_H);
+  ded2Grad.addColorStop(0, "rgba(0,230,118,0.08)");
+  ded2Grad.addColorStop(1, "rgba(0,100,255,0.05)");
+  ctx.fillStyle = ded2Grad; ctx.fill();
+  rrect(ctx, DED2_X, DED2_Y, DED2_W, DED2_H, 22);
+  ctx.strokeStyle = "rgba(0,230,118,0.22)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Icon
+  ctx.font = "44px Arial"; ctx.textAlign = "center"; ctx.direction = "ltr";
+  ctx.fillText("🌍", DED2_X + 52, DED2_Y + 68);
+
+  // Text
+  ctx.direction = "rtl"; ctx.textAlign = "right";
+  ctx.font = T.fnt(400, 24); ctx.fillStyle = "rgba(0,230,118,0.55)";
+  ctx.fillText("إهـداء عام", T.W - T.sp(6), DED2_Y + 38);
+
+  ctx.font = T.fnt(700, 30); ctx.fillStyle = T.c.text1;
+  ctx.fillText("إلى كل مواطني", T.W - T.sp(6), DED2_Y + 76);
+
+  const cityGrad = ctx.createLinearGradient(CX - 100, 0, T.W - T.sp(6), 0);
+  cityGrad.addColorStop(0, T.c.primary); cityGrad.addColorStop(1, "#80FFB8");
+  ctx.font = T.fnt(900, 34); ctx.fillStyle = cityGrad;
+  ctx.shadowColor = "rgba(0,230,118,0.4)"; ctx.shadowBlur = 16;
+  ctx.fillText("الحصاحيصا وضواحيها 🏘️", T.W - T.sp(6), DED2_Y + 116);
+  ctx.shadowBlur = 0;
+
   // Footer credits
-  const CREDIT_Y = DED_Y + DED_H + T.sp(3);
+  const CREDIT_Y = DED2_Y + DED2_H + T.sp(3);
   ctx.direction = "ltr"; ctx.textAlign = "center";
   ctx.font = T.fnt(400, 20); ctx.fillStyle = T.c.text3;
   ctx.fillText("almhbob.iii@gmail.com  ·  credly.com/users/asim-abdulrahman", CX, CREDIT_Y);
