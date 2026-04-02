@@ -411,48 +411,59 @@ const SFX_MAP: Record<number, (ctx: AudioContext) => void> = {
   8: sfxGooglePlayLaunch,
 };
 
-// ─── Download via MediaRecorder ───────────────────────────────────────────────
+// ─── Video Recording via screen capture ──────────────────────────────────────
+/** Returns true when running inside an <iframe> (e.g. Replit preview pane) */
+function isInsideIframe(): boolean {
+  try { return window.self !== window.top; } catch { return true; }
+}
+
 async function recordAndDownload(
   audioCtx: AudioContext,
-  masterGain: GainNode,
   durationMs: number,
   onProgress: (pct: number) => void,
-  onDone: () => void
+  onDone: (err?: string) => void
 ) {
   try {
+    // Capture the current browser tab
     const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
-      video: { displaySurface: "browser", frameRate: 30 },
+      video: { displaySurface: "browser", frameRate: 30, width: 1920, height: 1080 },
       audio: false,
       selfBrowserSurface: "include",
+      preferCurrentTab: true,
     });
+
+    // Tap audio from Web Audio context
     const audioDest = audioCtx.createMediaStreamDestination();
-    masterGain.connect(audioDest);
+    const tapGain = audioCtx.createGain();
+    tapGain.gain.value = 1;
+    tapGain.connect(audioDest);
     const audioTrack = audioDest.stream.getAudioTracks()[0];
     if (audioTrack) displayStream.addTrack(audioTrack);
+
     const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
       ? "video/webm;codecs=vp9,opus" : "video/webm";
-    const recorder = new MediaRecorder(displayStream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+    const recorder = new MediaRecorder(displayStream, { mimeType: mime, videoBitsPerSecond: 10_000_000 });
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.onstop = () => {
       const blob = new Blob(chunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
       a.href = url; a.download = "hasahisawi-launch.webm"; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
       displayStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
       onDone();
     };
-    recorder.start(100);
+
+    recorder.start(200);
     const start = Date.now();
     const tick = setInterval(() => {
       const pct = Math.min(100, Math.round(((Date.now() - start) / durationMs) * 100));
       onProgress(pct);
       if (pct >= 100) { clearInterval(tick); recorder.stop(); }
-    }, 500);
-  } catch (err) {
-    onDone();
-    alert("استخدم أداة تسجيل الشاشة لتحميل الفيديو.");
+    }, 800);
+  } catch (err: any) {
+    onDone(err?.message ?? "فشل التسجيل");
   }
 }
 
@@ -518,13 +529,25 @@ export function HasahisawiVideo() {
     return () => { mountedRef.current = false; };
   }, []);
 
+  const inIframe = isInsideIframe();
+
+  const openInNewTab = () => {
+    window.open(window.location.href, "_blank", "noopener,noreferrer");
+  };
+
   const handleDownload = async () => {
-    if (!audioCtxRef.current || !masterGainRef.current) return;
+    if (!audioCtxRef.current) return;
     setRecording(true);
+    setRecordProgress(0);
     await recordAndDownload(
-      audioCtxRef.current, masterGainRef.current,
-      TOTAL_DURATION + 2000, setRecordProgress,
-      () => { setRecording(false); setRecordProgress(0); }
+      audioCtxRef.current,
+      TOTAL_DURATION + 2000,
+      setRecordProgress,
+      (err) => {
+        setRecording(false);
+        setRecordProgress(0);
+        if (err) alert("لم يتمكن المتصفح من التسجيل.\nاستخدم برنامج تسجيل الشاشة مثل OBS أو Loom.");
+      }
     );
   };
 
@@ -808,7 +831,9 @@ export function HasahisawiVideo() {
       </AnimatePresence>
 
       {/* ── Controls ── */}
-      <div className="absolute bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
+      <div className="absolute bottom-5 right-5 z-[60] flex flex-col items-end gap-3">
+
+        {/* Audio toggle */}
         {!audioReady && (
           <motion.button
             className="flex items-center gap-2 bg-[#27AE68]/90 hover:bg-[#27AE68] text-white font-arabic font-bold px-5 py-2.5 rounded-full text-sm backdrop-blur-md shadow-xl border border-[#27AE68]/50 cursor-pointer"
@@ -818,33 +843,70 @@ export function HasahisawiVideo() {
             🔊 تشغيل المؤثرات الصوتية
           </motion.button>
         )}
+
+        {/* Download controls — different UI depending on context */}
         {audioReady && !recording && (
-          <motion.button
-            className="flex items-center gap-2 bg-[#F0A500]/90 hover:bg-[#F0A500] text-[#0D1A12] font-arabic font-bold px-5 py-2.5 rounded-full text-sm backdrop-blur-md shadow-xl cursor-pointer"
-            onClick={e => { e.stopPropagation(); handleDownload(); }}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            whileTap={{ scale: 0.96 }}>
-            ⬇️ تحميل الفيديو
-          </motion.button>
+          inIframe ? (
+            /* ── Inside iframe: open in new tab first ── */
+            <motion.div
+              className="flex flex-col items-end gap-2"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <motion.button
+                className="flex items-center gap-2 bg-[#F0A500] hover:bg-yellow-400 text-[#0D1A12] font-arabic font-black px-5 py-2.5 rounded-full text-sm shadow-xl cursor-pointer"
+                onClick={e => { e.stopPropagation(); openInNewTab(); }}
+                whileTap={{ scale: 0.96 }}
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}>
+                🔗 افتح في تبويب جديد للتحميل
+              </motion.button>
+              <p className="font-arabic text-white/40 text-xs text-right leading-relaxed max-w-[180px]">
+                افتح في تبويب جديد ثم اضغط زر التسجيل
+              </p>
+            </motion.div>
+          ) : (
+            /* ── Standalone tab: screen-capture recording ── */
+            <motion.div
+              className="flex flex-col items-end gap-2"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <motion.button
+                className="flex items-center gap-2 bg-[#F0A500] hover:bg-yellow-400 text-[#0D1A12] font-arabic font-black px-5 py-2.5 rounded-full text-sm shadow-xl cursor-pointer"
+                onClick={e => { e.stopPropagation(); handleDownload(); }}
+                whileTap={{ scale: 0.96 }}>
+                ⏺ تسجيل وتحميل الفيديو
+              </motion.button>
+              <p className="font-arabic text-white/40 text-xs text-right leading-relaxed max-w-[200px]">
+                سيطلب منك اختيار التبويب الحالي للتصوير
+              </p>
+            </motion.div>
+          )
         )}
+
+        {/* Recording progress */}
         {recording && (
-          <motion.div className="bg-black/80 text-white font-arabic text-sm px-5 py-3 rounded-2xl border border-[#F0A500]/60 backdrop-blur-md min-w-[200px]"
+          <motion.div
+            className="bg-black/85 text-white font-arabic text-sm px-5 py-3 rounded-2xl border border-red-500/50 backdrop-blur-md min-w-[210px]"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="flex items-center gap-3 mb-2">
-              <motion.div className="w-2 h-2 bg-red-500 rounded-full"
-                animate={{ opacity: [1, 0] }} transition={{ duration: 0.8, repeat: Infinity }} />
-              <span>جاري التسجيل... {recordProgress}%</span>
+              <motion.div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                animate={{ opacity: [1, 0.2] }} transition={{ duration: 0.6, repeat: Infinity }} />
+              <span className="font-bold">جاري التسجيل... {recordProgress}%</span>
             </div>
-            <div className="w-full bg-white/10 rounded-full h-1">
-              <motion.div className="bg-[#F0A500] h-1 rounded-full" style={{ width: `${recordProgress}%` }} />
+            <div className="w-full bg-white/10 rounded-full h-1.5">
+              <motion.div
+                className="bg-gradient-to-r from-[#27AE68] to-[#F0A500] h-1.5 rounded-full"
+                style={{ width: `${recordProgress}%` }}
+                transition={{ duration: 0.5 }} />
             </div>
+            <p className="text-white/40 text-xs mt-2">لا تغلق هذا التبويب</p>
           </motion.div>
         )}
       </div>
 
+      {/* Top hint */}
       {!audioReady && (
-        <motion.div className="absolute top-6 left-1/2 -translate-x-1/2 z-[60] font-arabic text-white/40 text-[1vw] pointer-events-none"
-          animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
+        <motion.div
+          className="absolute top-5 left-1/2 -translate-x-1/2 z-[60] font-arabic text-white/35 text-[1vw] pointer-events-none"
+          animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 2.5, repeat: Infinity }}>
           اضغط في أي مكان لتشغيل المؤثرات الصوتية
         </motion.div>
       )}
