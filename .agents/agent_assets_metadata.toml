@@ -60,6 +60,30 @@ uri = "file://attached_assets/generated_images/hasahisawi_pro_poster_2.png"
 type = "image"
 title = "hasahisawi premium pro poster square"
 
+[[generated]]
+id = "h_xwyHx-qV5JfFhR183V8"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/sudan-map-glow.png"
+type = "image"
+title = "Glowing map of Sudan on dark bg"
+
+[[generated]]
+id = "hU6xCWJY3ukA6w6tGRClP"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/disconnected-people.png"
+type = "image"
+title = "Abstract disconnected people in city"
+
+[[generated]]
+id = "qpejUvqVi6uQgjpQSRXyo"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/connected-people.png"
+type = "image"
+title = "Connected people glowing green lines"
+
+[[generated]]
+id = "jll-Cyk1qfawXBUOKAm6L"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/sudan-map-expand.png"
+type = "image"
+title = "Map of Sudan lighting up"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
