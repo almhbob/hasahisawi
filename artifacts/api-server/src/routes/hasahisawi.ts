@@ -833,15 +833,20 @@ router.get("/organizations", async (_req: Request, res: Response) => {
 
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const { category, device_id } = req.query as { category?: string; device_id?: string };
+    const { category, device_id, user_id } = req.query as { category?: string; device_id?: string; user_id?: string };
     const params: unknown[] = [];
     let paramIndex = 1;
 
-    let whereClause = "";
+    const conditions: string[] = [];
     if (category) {
-      whereClause = ` WHERE p.category=$${paramIndex++}`;
+      conditions.push(`p.category=$${paramIndex++}`);
       params.push(category);
     }
+    if (user_id) {
+      conditions.push(`p.author_id=$${paramIndex++}`);
+      params.push(Number(user_id));
+    }
+    let whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
     const deviceParam = `$${paramIndex++}`;
     params.push(device_id || "");
@@ -2731,6 +2736,126 @@ router.patch("/admin/feedback/:id/reply", async (req: Request, res: Response) =>
       [reply, status || "replied", req.params.id]
     );
     return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── بحث شامل ─────────────────────────────────────────────────────────────────
+router.get("/search", async (req: Request, res: Response) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+    if (!q || q.length < 2) return res.json({ users: [], posts: [], orgs: [], communities: [] });
+
+    const like = `%${q}%`;
+
+    const [usersR, postsR, orgsR, commR] = await Promise.all([
+      query(
+        `SELECT id, name, role, avatar_url, created_at FROM users
+         WHERE (name ILIKE $1 OR phone ILIKE $1) AND role != 'guest' LIMIT 15`,
+        [like]
+      ),
+      query(
+        `SELECT p.id, p.content, p.image_url, p.created_at, u.name AS user_name, u.avatar_url AS user_avatar,
+                (SELECT COUNT(*) FROM social_likes WHERE post_id=p.id)::int AS likes_count
+         FROM social_posts p JOIN users u ON u.id=p.author_id
+         WHERE p.content ILIKE $1 LIMIT 15`,
+        [like]
+      ),
+      query(
+        `SELECT id, name, description, category, phone FROM organizations
+         WHERE name ILIKE $1 OR description ILIKE $1 OR category ILIKE $1 LIMIT 10`,
+        [like]
+      ),
+      query(
+        `SELECT id, name, description, city FROM communities
+         WHERE name ILIKE $1 OR description ILIKE $1 LIMIT 10`,
+        [like]
+      ),
+    ]);
+
+    return res.json({
+      users: usersR.rows,
+      posts: postsR.rows,
+      orgs: orgsR.rows,
+      communities: commR.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── ملف المستخدم العام ────────────────────────────────────────────────────────
+router.get("/users/:id/profile", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userR = await query(
+      `SELECT id, name, role, avatar_url, created_at, bio FROM users WHERE id=$1`,
+      [id]
+    );
+    if (!userR.rows.length) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+    const user = userR.rows[0];
+
+    const [postsR, reportsR] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS cnt FROM social_posts WHERE author_id=$1`, [id]),
+      query(`SELECT COUNT(*)::int AS cnt FROM citizen_reports WHERE user_id=$1`, [id]),
+    ]);
+
+    return res.json({
+      ...user,
+      posts_count: postsR.rows[0]?.cnt ?? 0,
+      reports_count: reportsR.rows[0]?.cnt ?? 0,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── تحديث ملف المستخدم (bio) ─────────────────────────────────────────────────
+router.patch("/users/me/bio", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const { bio } = req.body;
+    await query(`UPDATE users SET bio=$1 WHERE id=$2`, [bio ?? "", me.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── استعادة كلمة المرور ───────────────────────────────────────────────────────
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  try {
+    const { phone, new_password } = req.body;
+    if (!phone || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف وكلمة المرور الجديدة" });
+    if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+
+    const userR = await query(`SELECT id FROM users WHERE phone=$1`, [phone]);
+    if (!userR.rows.length) return res.status(404).json({ error: "لم يتم العثور على حساب بهذا الرقم" });
+
+    const bcrypt = await import("bcrypt");
+    const hashed = await bcrypt.hash(new_password, 10);
+    await query(`UPDATE users SET password_hash=$1 WHERE phone=$2`, [hashed, phone]);
+
+    return res.json({ ok: true, message: "تم تغيير كلمة المرور بنجاح" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── تحقق من وجود رقم الهاتف ──────────────────────────────────────────────────
+router.post("/auth/check-phone", async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: "أدخل رقم الهاتف" });
+    const userR = await query(`SELECT id, name FROM users WHERE phone=$1`, [phone]);
+    if (!userR.rows.length) return res.json({ exists: false });
+    return res.json({ exists: true, name: userR.rows[0].name });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import AnimatedPress from "@/components/AnimatedPress";
+import { getApiUrl } from "@/lib/query-client";
+import UserAvatar from "@/components/UserAvatar";
 import { MEDICAL_KEY } from "./(tabs)/medical";
 import { LOST_ITEMS_KEY } from "./(tabs)/missing";
 import { SCHOOLS_KEY } from "./(tabs)/student";
@@ -35,6 +37,9 @@ type SearchResult = {
   color: string;
   phone?: string;
   route?: string;
+  userId?: number;
+  avatarUrl?: string | null;
+  isApiResult?: boolean;
 };
 
 function contactOptions(phone: string) {
@@ -247,6 +252,82 @@ export default function SearchScreen() {
         }
       }
 
+      // ── API Search (users, posts, orgs, communities) ──
+      try {
+        const base = getApiUrl();
+        const apiRes = await fetch(`${base}/api/search?q=${encodeURIComponent(q.trim())}`);
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+
+          // Users
+          for (const u of (apiData.users ?? [])) {
+            if (!found.find((r) => r.id === "user_" + u.id)) {
+              found.unshift({
+                id: "user_" + u.id,
+                title: u.name,
+                subtitle: lang === "ar" ? (u.role === "admin" ? "مشرف" : u.role === "org" ? "مؤسسة" : "مواطن") : u.role,
+                section: "users",
+                sectionLabel: lang === "ar" ? "المستخدمون" : "Users",
+                icon: "person-circle-outline",
+                color: Colors.primary,
+                route: undefined,
+                userId: u.id,
+                avatarUrl: u.avatar_url,
+                isApiResult: true,
+              });
+            }
+          }
+
+          // Posts
+          for (const p of (apiData.posts ?? [])) {
+            found.push({
+              id: "post_" + p.id,
+              title: p.user_name,
+              subtitle: (p.content ?? "").slice(0, 80),
+              section: "posts",
+              sectionLabel: lang === "ar" ? "المنشورات" : "Posts",
+              icon: "document-text-outline",
+              color: Colors.accent,
+              route: "/(tabs)/social",
+              isApiResult: true,
+            });
+          }
+
+          // Organizations
+          for (const o of (apiData.orgs ?? [])) {
+            found.push({
+              id: "org_" + o.id,
+              title: o.name,
+              subtitle: (o.description ?? o.category ?? "").slice(0, 60),
+              section: "orgs",
+              sectionLabel: lang === "ar" ? "المؤسسات" : "Organizations",
+              icon: "business-outline",
+              color: "#3E9CBF",
+              phone: o.phone,
+              route: "/(tabs)/orgs",
+              isApiResult: true,
+            });
+          }
+
+          // Communities
+          for (const c of (apiData.communities ?? [])) {
+            found.push({
+              id: "comm_" + c.id,
+              title: c.name,
+              subtitle: (c.description ?? "").slice(0, 60),
+              section: "communities",
+              sectionLabel: lang === "ar" ? "المجتمعات" : "Communities",
+              icon: "people-outline",
+              color: "#8B72BE",
+              route: "/(tabs)/communities",
+              isApiResult: true,
+            });
+          }
+        }
+      } catch (_apiErr) {
+        // API search failed silently
+      }
+
     } catch (e) {
       console.error("Search error:", e);
     }
@@ -260,16 +341,29 @@ export default function SearchScreen() {
     doSearch(text);
   };
 
+  const handleItemPress = (item: SearchResult) => {
+    if (item.section === "users" && item.userId) {
+      router.push({ pathname: "/profile" as any, params: { id: String(item.userId) } });
+    } else if (item.route) {
+      router.push(item.route as any);
+    }
+  };
+
   const renderItem = ({ item, index }: { item: SearchResult; index: number }) => (
     <Animated.View entering={FadeInDown.delay(index * 40).springify().damping(18)}>
-      <AnimatedPress onPress={() => item.route ? router.push(item.route as any) : undefined}>
+      <AnimatedPress onPress={() => handleItemPress(item)}>
         <View style={[styles.resultCard, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={[styles.resultIcon, { backgroundColor: item.color + "18" }]}>
-            <Ionicons name={item.icon as any} size={22} color={item.color} />
-          </View>
+          {/* Icon or Avatar */}
+          {item.section === "users" ? (
+            <UserAvatar name={item.title} avatarUrl={item.avatarUrl ?? null} size={46} borderRadius={13} />
+          ) : (
+            <View style={[styles.resultIcon, { backgroundColor: item.color + "18" }]}>
+              <Ionicons name={item.icon as any} size={22} color={item.color} />
+            </View>
+          )}
           <View style={[styles.resultContent, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
             <Text style={[styles.resultTitle, { textAlign: isRTL ? "right" : "left" }]}>{item.title}</Text>
-            <Text style={[styles.resultSub, { textAlign: isRTL ? "right" : "left" }]}>{item.subtitle}</Text>
+            <Text style={[styles.resultSub, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={2}>{item.subtitle}</Text>
             <View style={[styles.resultBadge, { backgroundColor: item.color + "15", borderColor: item.color + "30" }]}>
               <Text style={[styles.resultBadgeText, { color: item.color }]}>{item.sectionLabel}</Text>
             </View>
@@ -281,6 +375,11 @@ export default function SearchScreen() {
             >
               <Ionicons name="call-outline" size={18} color={Colors.primary} />
             </TouchableOpacity>
+          )}
+          {item.section === "users" && (
+            <View style={styles.profileArrow}>
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={Colors.textMuted} />
+            </View>
           )}
         </View>
       </AnimatedPress>
@@ -481,4 +580,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  profileArrow: {
+    width: 28, height: 28,
+    justifyContent: "center", alignItems: "center",
+    flexShrink: 0,
+  },
 });

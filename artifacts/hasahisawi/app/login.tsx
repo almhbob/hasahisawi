@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
@@ -473,6 +474,18 @@ export default function LoginScreen() {
               }
             </LinearGradient>
           </TouchableOpacity>
+
+          {/* نسيت كلمة المرور */}
+          {mode === "login" && (
+            <TouchableOpacity
+              onPress={() => router.push("/forgot-password" as any)}
+              style={{ alignSelf: "center", marginTop: 2, paddingVertical: 4 }}
+            >
+              <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted }}>
+                نسيت كلمة المرور؟
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* زر البصمة */}
           {mode === "login" && biometricsAvailable && biometricsEnabled && (

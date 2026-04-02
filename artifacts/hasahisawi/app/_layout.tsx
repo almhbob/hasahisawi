@@ -23,6 +23,8 @@ import { I18nManager, Platform, View, LogBox } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { useApiUnread } from "@/lib/api-chat";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ONBOARDING_KEY } from "./onboarding";
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
 LogBox.ignoreLogs([
@@ -104,10 +106,20 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
     const inLogin = segments[0] === "login";
+    const inOnboarding = segments[0] === "onboarding";
     if (!user) {
-      if (!inLogin) router.replace("/login");
+      if (!inLogin && !inOnboarding) {
+        // فحص إذا كان المستخدم شاهد شاشة الترحيب من قبل
+        AsyncStorage.getItem(ONBOARDING_KEY).then((done) => {
+          if (!done) {
+            router.replace("/onboarding" as any);
+          } else {
+            router.replace("/login");
+          }
+        });
+      }
     } else {
-      if (inLogin) router.replace("/(tabs)/" as any);
+      if (inLogin || inOnboarding) router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
 
@@ -119,12 +131,15 @@ function RootLayoutNav() {
     <>
       <AuthGate />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login"  options={{ headerShown: false, animation: "fade" }} />
-        <Stack.Screen name="report" options={{ headerShown: false }} />
-        <Stack.Screen name="admin"        options={{ headerShown: false, animation: "slide_from_left" }} />
-        <Stack.Screen name="conversation" options={{ headerShown: false, animation: "slide_from_left" }} />
-        <Stack.Screen name="org-join"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
+        <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="report"          options={{ headerShown: false }} />
+        <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin"           options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
