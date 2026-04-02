@@ -1,8 +1,32 @@
 import React, { useRef, useEffect, useState } from "react";
-import logoSrc from "../../assets/hasahisawi-logo.png";
+import logoSrc  from "../../assets/hasahisawi-logo.png";
+import photoSrc from "../../assets/asim-photo.jpg";
 
-const W = 1080;
-const H = 1920;
+/* ─── Design Tokens (8px grid) ──────────────────────────────────────────────── */
+const T = {
+  W: 1080, H: 1920,
+  // Spacing (multiples of 8)
+  sp: (n: number) => n * 8,
+  // Color palette
+  c: {
+    bg:       "#04080A",
+    surface:  "rgba(255,255,255,0.04)",
+    border:   "rgba(255,255,255,0.08)",
+    primary:  "#00E676",
+    pDim:     "#00A854",
+    gold:     "#FFB300",
+    goldDim:  "#CC8F00",
+    accent:   "#00BCD4",
+    white:    "#FFFFFF",
+    text1:    "rgba(255,255,255,0.92)",
+    text2:    "rgba(255,255,255,0.55)",
+    text3:    "rgba(255,255,255,0.28)",
+  },
+  // Typography
+  fnt: (w: number, s: number) => `${w} ${s}px Cairo, Arial`,
+};
+
+const CX = T.W / 2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
@@ -14,247 +38,403 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
+  ctx.arcTo(x+w, y, x+w, y+r, r); ctx.lineTo(x+w, y+h-r);
+  ctx.arcTo(x+w, y+h, x+w-r, y+h, r); ctx.lineTo(x+r, y+h);
+  ctx.arcTo(x, y+h, x, y+h-r, r); ctx.lineTo(x, y+r);
+  ctx.arcTo(x, y, x+r, y, r); ctx.closePath();
 }
 
+/* ─── SECTION: Badge pill ────────────────────────────────────────────────────── */
+function drawPill(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number,
+  bg: string, fg: string, fontSize = 24) {
+  ctx.direction = "ltr"; ctx.textAlign = "center";
+  ctx.font = T.fnt(700, fontSize);
+  const tw = ctx.measureText(text).width;
+  const ph = fontSize * 1.8, pw = tw + T.sp(4);
+  rrect(ctx, cx - pw/2, cy - ph/2, pw, ph, ph/2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.fillText(text, cx, cy + fontSize * 0.36);
+}
+
+/* ─── Google Play mini icon ──────────────────────────────────────────────────── */
+function gplay(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
+  const k = s / 48;
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  ctx.fillStyle="#00D4FF"; ctx.beginPath(); ctx.moveTo(4.5,3.5); ctx.lineTo(26.5,24); ctx.lineTo(4.5,44.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#FFD700"; ctx.beginPath(); ctx.moveTo(36,16.5); ctx.lineTo(26.5,24); ctx.lineTo(36,31.5); ctx.lineTo(43.5,27.5); ctx.lineTo(43.5,20.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#4CAF50"; ctx.beginPath(); ctx.moveTo(4.5,3.5); ctx.lineTo(26.5,24); ctx.lineTo(36,16.5); ctx.lineTo(12,2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#F44336"; ctx.beginPath(); ctx.moveTo(4.5,44.5); ctx.lineTo(26.5,24); ctx.lineTo(36,31.5); ctx.lineTo(12,46); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ─── Cert row data ──────────────────────────────────────────────────────────── */
 const CERTS = [
-  { org: "Google",  icon: "G", color: "#4285F4", label: "Advanced Data Analytics",     sub: "Professional Certificate · 2026" },
-  { org: "IBM",     icon: "I", color: "#1F70C1", label: "Cybersecurity Specialist",     sub: "Professional Certificate · 2026" },
-  { org: "IBM",     icon: "I", color: "#1F70C1", label: "Cybersecurity Fundamentals",   sub: "IBM SkillsBuild · 2024"          },
-  { org: "Cisco",   icon: "C", color: "#00BCEB", label: "Introduction to Data Science", sub: "Cisco · 2025"                    },
-  { org: "Intel",   icon: "⚡", color: "#0071C5", label: "Cloud DevOps",                 sub: "Intel · 2025"                    },
-  { org: "Fortinet",icon: "F", color: "#EE3124", label: "Threat Landscape 2.0",         sub: "Fortinet · 2025"                 },
-  { org: "VCU",     icon: "V", color: "#F0A500", label: "Introduction to Design Thinking", sub: "Virginia Commonwealth · 2025" },
-  { org: "Agile",   icon: "A", color: "#27AE68", label: "Agile Explorer",               sub: "IBM SkillsBuild · 2025"          },
+  { color: "#4285F4", icon: "G", label: "Advanced Data Analytics",         org: "Google / Coursera · 2026"      },
+  { color: "#1565C0", icon: "I", label: "Cybersecurity Specialist",         org: "IBM / Coursera · 2026"         },
+  { color: "#1565C0", icon: "I", label: "Cybersecurity Fundamentals",       org: "IBM SkillsBuild · 2024"        },
+  { color: "#00BCEB", icon: "C", label: "Introduction to Data Science",      org: "Cisco · 2025"                  },
+  { color: "#0071C5", icon: "⚡", label: "Cloud DevOps",                     org: "Intel · 2025"                  },
+  { color: "#EE3124", icon: "F", label: "Threat Landscape 2.0",             org: "Fortinet · 2025"               },
+  { color: "#7B1FA2", icon: "V", label: "Introduction to Design Thinking",  org: "Virginia Commonwealth · 2025"  },
+  { color: "#00A854", icon: "A", label: "Agile Explorer",                   org: "IBM SkillsBuild · 2025"        },
 ];
 
-async function drawCard(canvas: HTMLCanvasElement, logo: HTMLImageElement) {
+/* ─── Main draw ──────────────────────────────────────────────────────────────── */
+async function drawCard(
+  canvas: HTMLCanvasElement,
+  logo: HTMLImageElement,
+  photo: HTMLImageElement
+) {
   const ctx = canvas.getContext("2d")!;
-  canvas.width = W; canvas.height = H;
+  canvas.width = T.W; canvas.height = T.H;
 
-  await document.fonts.load("900 100px Cairo");
-  await document.fonts.load("700 44px Cairo");
-  await document.fonts.load("400 30px Cairo");
+  // Preload fonts
+  await Promise.all([
+    document.fonts.load(T.fnt(900, 110)),
+    document.fonts.load(T.fnt(900,  72)),
+    document.fonts.load(T.fnt(700,  36)),
+    document.fonts.load(T.fnt(400,  28)),
+  ]);
 
-  const CX = W / 2;
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 1 — Background
+  // ═══════════════════════════════════════════════════════════════
+  ctx.fillStyle = T.c.bg;
+  ctx.fillRect(0, 0, T.W, T.H);
 
-  // ── 1. Background ────────────────────────────────────────────────────────────
-  ctx.fillStyle = "#050A07"; ctx.fillRect(0, 0, W, H);
+  // Mesh gradient (4-stop)
+  const mesh = ctx.createRadialGradient(T.W * 0.15, T.H * 0.08, 0, T.W * 0.15, T.H * 0.08, T.W * 0.85);
+  mesh.addColorStop(0, "rgba(0,80,40,0.55)");
+  mesh.addColorStop(0.4, "rgba(0,30,20,0.15)");
+  mesh.addColorStop(1, "transparent");
+  ctx.fillStyle = mesh; ctx.fillRect(0, 0, T.W, T.H);
 
-  // Subtle green-to-black gradient top
-  const bgTop = ctx.createLinearGradient(0, 0, 0, H * 0.45);
-  bgTop.addColorStop(0, "rgba(0,80,35,0.55)"); bgTop.addColorStop(1, "transparent");
-  ctx.fillStyle = bgTop; ctx.fillRect(0, 0, W, H);
+  const mesh2 = ctx.createRadialGradient(T.W * 0.88, T.H * 0.72, 0, T.W * 0.88, T.H * 0.72, T.W * 0.6);
+  mesh2.addColorStop(0, "rgba(255,179,0,0.12)");
+  mesh2.addColorStop(1, "transparent");
+  ctx.fillStyle = mesh2; ctx.fillRect(0, 0, T.W, T.H);
 
-  // Gold glow bottom
-  const bgBot = ctx.createRadialGradient(CX, H * 0.88, 0, CX, H * 0.88, 600);
-  bgBot.addColorStop(0, "rgba(240,165,0,0.12)"); bgBot.addColorStop(1, "transparent");
-  ctx.fillStyle = bgBot; ctx.fillRect(0, 0, W, H);
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 2 — Dot-grid texture
+  // ═══════════════════════════════════════════════════════════════
+  ctx.fillStyle = "rgba(0,230,118,0.035)";
+  for (let y = T.sp(6); y < T.H; y += T.sp(7))
+    for (let x = T.sp(6); x < T.W; x += T.sp(7)) {
+      ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI*2); ctx.fill();
+    }
 
-  // ── 2. Dot grid ───────────────────────────────────────────────────────────────
-  ctx.fillStyle = "rgba(39,174,104,0.04)";
-  for (let y = 50; y < H; y += 55) for (let x = 50; x < W; x += 55) {
-    ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI*2); ctx.fill();
-  }
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 3 — TOP PHOTO SECTION (full-width hero, 780px tall)
+  // ═══════════════════════════════════════════════════════════════
+  const HERO_H = 780;
 
-  // ── 3. Header bar (top green stripe) ─────────────────────────────────────────
-  const hdrGrad = ctx.createLinearGradient(0, 0, W, 0);
-  hdrGrad.addColorStop(0, "#00FF88"); hdrGrad.addColorStop(0.5, "#00CC6A"); hdrGrad.addColorStop(1, "#F0A500");
-  ctx.fillStyle = hdrGrad; ctx.fillRect(0, 0, W, 8);
-  ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 18; ctx.fillRect(0, 0, W, 8); ctx.shadowBlur = 0;
+  // Clip to top area
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, T.W, HERO_H); ctx.clip();
 
-  // ── 4. Avatar circle ──────────────────────────────────────────────────────────
-  const AV_Y = 200, AV_R = 160;
+  // Draw photo — cover-fit
+  const pr = photo.width / photo.height;
+  let pw2 = T.W, ph2 = pw2 / pr;
+  if (ph2 < HERO_H) { ph2 = HERO_H; pw2 = ph2 * pr; }
+  const pox = (T.W - pw2) / 2, poy = 0;
+  ctx.drawImage(photo, pox, poy, pw2, ph2);
 
-  // Glow ring
-  ctx.beginPath(); ctx.arc(CX, AV_Y, AV_R + 22, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(0,255,136,0.18)"; ctx.lineWidth = 18; ctx.stroke();
-  ctx.beginPath(); ctx.arc(CX, AV_Y, AV_R + 8, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(0,255,136,0.55)"; ctx.lineWidth = 3;
-  ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 22; ctx.stroke(); ctx.shadowBlur = 0;
+  // Dark gradient fade — bottom of hero
+  const heroFade = ctx.createLinearGradient(0, HERO_H * 0.35, 0, HERO_H);
+  heroFade.addColorStop(0, "transparent");
+  heroFade.addColorStop(0.6, "rgba(4,8,10,0.82)");
+  heroFade.addColorStop(1, T.c.bg);
+  ctx.fillStyle = heroFade; ctx.fillRect(0, 0, T.W, HERO_H);
 
-  // Avatar fill — gradient
-  const avFill = ctx.createRadialGradient(CX - 50, AV_Y - 60, 0, CX, AV_Y, AV_R);
-  avFill.addColorStop(0, "#0D3A1F"); avFill.addColorStop(1, "#060E08");
-  ctx.beginPath(); ctx.arc(CX, AV_Y, AV_R, 0, Math.PI*2);
-  ctx.fillStyle = avFill; ctx.fill();
+  // Right-side dark overlay (leaves face visible)
+  const heroRight = ctx.createLinearGradient(T.W * 0.55, 0, T.W, 0);
+  heroRight.addColorStop(0, "transparent");
+  heroRight.addColorStop(1, "rgba(4,8,10,0.75)");
+  ctx.fillStyle = heroRight; ctx.fillRect(0, 0, T.W, HERO_H);
 
-  // Initials "AA" inside circle
-  ctx.direction = "ltr"; ctx.textAlign = "center";
-  ctx.font = "900 140px Cairo, Arial"; ctx.fillStyle = "#00FF88";
-  ctx.shadowColor = "rgba(0,255,136,0.4)"; ctx.shadowBlur = 25;
-  ctx.fillText("AA", CX, AV_Y + 50); ctx.shadowBlur = 0;
+  // Left-side dark overlay
+  const heroLeft = ctx.createLinearGradient(0, 0, T.W * 0.28, 0);
+  heroLeft.addColorStop(0, "rgba(4,8,10,0.65)");
+  heroLeft.addColorStop(1, "transparent");
+  ctx.fillStyle = heroLeft; ctx.fillRect(0, 0, T.W, HERO_H);
 
-  // App logo badge — small circle bottom-right of avatar
-  const BX = CX + AV_R * 0.68, BY = AV_Y + AV_R * 0.68;
-  ctx.beginPath(); ctx.arc(BX, BY, 50, 0, Math.PI*2);
-  ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 15;
-  ctx.fill(); ctx.shadowBlur = 0;
-  ctx.drawImage(logo, BX - 38, BY - 38, 76, 76);
+  // Top vignette
+  const heroTop = ctx.createLinearGradient(0, 0, 0, HERO_H * 0.3);
+  heroTop.addColorStop(0, "rgba(4,8,10,0.55)");
+  heroTop.addColorStop(1, "transparent");
+  ctx.fillStyle = heroTop; ctx.fillRect(0, 0, T.W, HERO_H);
 
-  // ── 5. Name + title ───────────────────────────────────────────────────────────
-  const NAME_Y = AV_Y + AV_R + 80;
+  ctx.restore();
 
-  ctx.direction = "ltr"; ctx.textAlign = "center";
-  ctx.font = "900 62px Cairo, Arial"; ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 15;
-  ctx.fillText("Asim Abdulrahman Mohammed", CX, NAME_Y); ctx.shadowBlur = 0;
+  // ── App logo badge (top-left, floating over photo) ────────────────────────────
+  const LGX = T.sp(4), LGY = T.sp(4), LGS = 96;
+  ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.arc(LGX + LGS/2, LGY + LGS/2, LGS/2, 0, Math.PI*2);
+  ctx.fillStyle = "#fff"; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(LGX + LGS/2, LGY + LGS/2, LGS/2, 0, Math.PI*2); ctx.clip();
+  ctx.drawImage(logo, LGX, LGY, LGS, LGS);
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(LGX + LGS/2, LGY + LGS/2, LGS/2, 0, Math.PI*2);
+  ctx.strokeStyle = "rgba(0,230,118,0.7)"; ctx.lineWidth = 3;
+  ctx.shadowColor = T.c.primary; ctx.shadowBlur = 15; ctx.stroke(); ctx.shadowBlur = 0;
 
-  // Title pill
-  const title = "Full-Stack Mobile Developer";
-  ctx.font = "600 28px Cairo, Arial";
-  const tW = ctx.measureText(title).width + 50;
-  const tH = 50, tX = CX - tW/2, tY = NAME_Y + 18;
-  roundRect(ctx, tX, tY, tW, tH, tH/2);
-  const tGrad = ctx.createLinearGradient(tX, tY, tX+tW, tY);
-  tGrad.addColorStop(0, "rgba(0,255,100,0.18)"); tGrad.addColorStop(1, "rgba(0,180,70,0.08)");
-  ctx.fillStyle = tGrad; ctx.fill();
-  roundRect(ctx, tX, tY, tW, tH, tH/2);
-  ctx.strokeStyle = "rgba(0,255,100,0.45)"; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = "#00FF88"; ctx.textAlign = "center";
-  ctx.fillText(title, CX, tY + 32);
+  // ── "VERIFIED DEVELOPER" badge (top-right) ────────────────────────────────────
+  drawPill(ctx, "✦  VERIFIED DEVELOPER  ✦",
+    T.W - T.sp(17), T.sp(5) + 20,
+    "rgba(0,230,118,0.15)", T.c.primary, 20);
+  ctx.strokeStyle = "rgba(0,230,118,0.35)"; ctx.lineWidth = 1;
+  ctx.direction = "ltr"; ctx.font = T.fnt(700, 20);
+  const vw = ctx.measureText("✦  VERIFIED DEVELOPER  ✦").width + T.sp(4);
+  rrect(ctx, T.W - T.sp(17) - vw/2, T.sp(5) + 20 - 20, vw, 36, 18);
+  ctx.stroke();
 
-  // ── 6. Project row (حصاحيصاوي) ───────────────────────────────────────────────
-  const PROJ_Y = tY + tH + 52;
-  ctx.direction = "rtl"; ctx.textAlign = "center";
-  ctx.font = "700 30px Cairo, Arial"; ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.fillText("مطوّر تطبيق", CX, PROJ_Y);
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 4 — Name + identity block (overlapping hero bottom)
+  // ═══════════════════════════════════════════════════════════════
+  const ID_Y = HERO_H - 190;
 
-  const appGrad = ctx.createLinearGradient(CX-220, 0, CX+220, 0);
-  appGrad.addColorStop(0, "#00FF88"); appGrad.addColorStop(1, "#A8FFD0");
-  ctx.font = "900 72px Cairo, Arial"; ctx.fillStyle = appGrad;
-  ctx.shadowColor = "rgba(0,255,136,0.45)"; ctx.shadowBlur = 22;
-  ctx.fillText("حصاحيصاوي", CX, PROJ_Y + 82); ctx.shadowBlur = 0;
+  // Name
+  ctx.direction = "ltr"; ctx.textAlign = "left";
+  ctx.font = T.fnt(900, 68); ctx.fillStyle = T.c.white;
+  ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 20;
+  ctx.fillText("Asim", T.sp(5), ID_Y);
+  ctx.fillStyle = T.c.primary;
+  ctx.shadowColor = "rgba(0,230,118,0.4)"; ctx.shadowBlur = 25;
+  ctx.fillText("Abdulrahman", T.sp(5), ID_Y + 78);
+  ctx.fillStyle = T.c.white;
+  ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 20;
+  ctx.fillText("Mohammed", T.sp(5), ID_Y + 156);
+  ctx.shadowBlur = 0;
 
-  // ── 7. Contact row ────────────────────────────────────────────────────────────
-  const CON_Y = PROJ_Y + 82 + 50;
+  // Title tag
+  drawPill(ctx, "Full-Stack Mobile Developer",
+    T.sp(5) + 230, ID_Y + 200,
+    "rgba(0,230,118,0.12)", T.c.primary, 26);
+
+  // Birthplace + origin row
+  const originY = ID_Y + 244;
+  ctx.direction = "rtl"; ctx.textAlign = "right";
+  ctx.font = T.fnt(400, 27); ctx.fillStyle = T.c.text2;
+  ctx.fillText("📍  ولاية الجزيرة · محلية حي فور · السودان", T.W - T.sp(5), originY);
+
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 5 — App card (Figma: card with auto-layout)
+  // ═══════════════════════════════════════════════════════════════
+  const CARD1_Y = HERO_H + T.sp(2);
+  const CARD1_X = T.sp(4), CARD1_W = T.W - T.sp(8), CARD1_H = 170;
+
+  // Figma-style card: subtle border + blur-bg
+  rrect(ctx, CARD1_X, CARD1_Y, CARD1_W, CARD1_H, 28);
+  ctx.fillStyle = T.c.surface; ctx.fill();
+  rrect(ctx, CARD1_X, CARD1_Y, CARD1_W, CARD1_H, 28);
+  ctx.strokeStyle = T.c.border; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Left green accent strip
+  rrect(ctx, CARD1_X, CARD1_Y, 6, CARD1_H, 3);
+  const stripGrad = ctx.createLinearGradient(0, CARD1_Y, 0, CARD1_Y + CARD1_H);
+  stripGrad.addColorStop(0, T.c.primary); stripGrad.addColorStop(1, T.c.pDim);
+  ctx.fillStyle = stripGrad; ctx.fill();
+
+  // "مطوّر تطبيق" label
+  ctx.direction = "rtl"; ctx.textAlign = "right";
+  ctx.font = T.fnt(400, 26); ctx.fillStyle = T.c.text2;
+  ctx.fillText("مطوّر تطبيق", T.W - T.sp(6), CARD1_Y + 48);
+
+  // App name big
+  const appGrad = ctx.createLinearGradient(CX - 300, 0, CX + 300, 0);
+  appGrad.addColorStop(0, T.c.primary); appGrad.addColorStop(1, "#80FFB8");
+  ctx.direction = "rtl"; ctx.textAlign = "right";
+  ctx.font = T.fnt(900, 76); ctx.fillStyle = appGrad;
+  ctx.shadowColor = "rgba(0,230,118,0.4)"; ctx.shadowBlur = 22;
+  ctx.fillText("حصاحيصاوي", T.W - T.sp(6), CARD1_Y + 128);
+  ctx.shadowBlur = 0;
+
+  // Google Play mini badge
+  const gp_x = CARD1_X + T.sp(3);
+  gplay(ctx, gp_x, CARD1_Y + CARD1_H/2 - 22, 44);
+  ctx.direction = "ltr"; ctx.textAlign = "left";
+  ctx.font = T.fnt(700, 28); ctx.fillStyle = T.c.text1;
+  ctx.fillText("Google Play", gp_x + 54, CARD1_Y + CARD1_H/2 + 10);
+  ctx.font = T.fnt(400, 22); ctx.fillStyle = T.c.text3;
+  ctx.fillText("Published App", gp_x + 54, CARD1_Y + CARD1_H/2 + 38);
+
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 6 — Contact row (Figma: horizontal chips)
+  // ═══════════════════════════════════════════════════════════════
+  const CON_Y = CARD1_Y + CARD1_H + T.sp(3);
   const contacts = [
-    { icon: "✉", val: "almhbob.iii@gmail.com" },
-    { icon: "🏅", val: "credly.com/users/asim-abdulrahman" },
+    { icon: "✉", text: "almhbob.iii@gmail.com",              color: T.c.gold },
+    { icon: "🏅", text: "credly.com/users/asim-abdulrahman", color: T.c.accent },
   ];
+  const chipH = 72, chipGap = T.sp(2);
+  const chipW = (CARD1_W - chipGap) / 2;
+
   contacts.forEach((c, i) => {
-    const cy = CON_Y + i * 64;
-    ctx.direction = "ltr"; ctx.textAlign = "center";
-    ctx.font = "400 26px Cairo, Arial"; ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(`${c.icon}  ${c.val}`, CX, cy);
+    const cx2 = CARD1_X + i * (chipW + chipGap);
+    rrect(ctx, cx2, CON_Y, chipW, chipH, 16);
+    ctx.fillStyle = T.c.surface; ctx.fill();
+    rrect(ctx, cx2, CON_Y, chipW, chipH, 16);
+    ctx.strokeStyle = T.c.border; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.direction = "ltr"; ctx.textAlign = "left";
+    ctx.font = T.fnt(400, 18); ctx.fillStyle = T.c.text3;
+    ctx.fillText(c.icon + "  " + c.text, cx2 + T.sp(2), CON_Y + chipH/2 + 7);
   });
 
-  // ── 8. Section title: Certifications ─────────────────────────────────────────
-  const SEC_Y = CON_Y + contacts.length * 64 + 52;
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 7 — Stats row (Figma: 3-column component)
+  // ═══════════════════════════════════════════════════════════════
+  const STAT_Y = CON_Y + chipH + T.sp(3);
+  const stats = [
+    { val: "16+", label: "Certificates", color: T.c.primary },
+    { val: "1",   label: "App on Store",  color: T.c.gold    },
+    { val: "34",  label: "Years Old",     color: T.c.accent  },
+  ];
+  const statW2 = (CARD1_W - T.sp(4)) / 3;
+  const statH  = 120;
 
-  // Divider with label
-  const divMid = SEC_Y - 12;
-  const dl = ctx.createLinearGradient(80, divMid, CX - 140, divMid);
-  dl.addColorStop(0, "transparent"); dl.addColorStop(1, "rgba(240,165,0,0.5)");
-  ctx.strokeStyle = dl; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(80, divMid); ctx.lineTo(CX - 150, divMid); ctx.stroke();
+  stats.forEach((s, i) => {
+    const sx = CARD1_X + i * (statW2 + T.sp(2));
+    rrect(ctx, sx, STAT_Y, statW2, statH, 20);
+    ctx.fillStyle = T.c.surface; ctx.fill();
+    rrect(ctx, sx, STAT_Y, statW2, statH, 20);
+    ctx.strokeStyle = s.color + "44"; ctx.lineWidth = 1.5; ctx.stroke();
 
-  const dr = ctx.createLinearGradient(CX + 140, divMid, W - 80, divMid);
-  dr.addColorStop(0, "rgba(240,165,0,0.5)"); dr.addColorStop(1, "transparent");
-  ctx.strokeStyle = dr;
-  ctx.beginPath(); ctx.moveTo(CX + 150, divMid); ctx.lineTo(W - 80, divMid); ctx.stroke();
+    // Top accent line
+    rrect(ctx, sx + 20, STAT_Y, statW2 - 40, 3, 2);
+    ctx.fillStyle = s.color; ctx.fill();
 
-  ctx.direction = "ltr"; ctx.textAlign = "center";
-  ctx.font = "700 28px Cairo, Arial"; ctx.fillStyle = "#F0A500";
-  ctx.fillText("CERTIFICATIONS", CX, SEC_Y);
+    ctx.direction = "ltr"; ctx.textAlign = "center";
+    ctx.font = T.fnt(900, 52); ctx.fillStyle = s.color;
+    ctx.shadowColor = s.color + "55"; ctx.shadowBlur = 18;
+    ctx.fillText(s.val, sx + statW2/2, STAT_Y + 68); ctx.shadowBlur = 0;
+    ctx.font = T.fnt(400, 22); ctx.fillStyle = T.c.text2;
+    ctx.fillText(s.label, sx + statW2/2, STAT_Y + 98);
+  });
 
-  // ── 9. Cert cards ─────────────────────────────────────────────────────────────
-  const CARD_W = 920, CARD_H = 88, CARD_X = (W - CARD_W) / 2;
-  const CARD_GAP = 20;
-  const CARDS_Y = SEC_Y + 36;
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 8 — Certifications section
+  // ═══════════════════════════════════════════════════════════════
+  const CERT_SEC_Y = STAT_Y + statH + T.sp(4);
+
+  // Section header (Figma: label with divider)
+  const LABEL_X = CARD1_X;
+  ctx.direction = "ltr"; ctx.textAlign = "left";
+  ctx.font = T.fnt(700, 24); ctx.fillStyle = T.c.gold;
+  ctx.fillText("CERTIFICATIONS  (" + CERTS.length + ")", LABEL_X, CERT_SEC_Y + 2);
+
+  const divSY = CERT_SEC_Y + 10;
+  const labelW = ctx.measureText("CERTIFICATIONS  (" + CERTS.length + ")").width + T.sp(2);
+  const divL = ctx.createLinearGradient(LABEL_X + labelW, divSY, CARD1_X + CARD1_W, divSY);
+  divL.addColorStop(0, T.c.gold + "88"); divL.addColorStop(1, "transparent");
+  ctx.strokeStyle = divL; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(LABEL_X + labelW, divSY); ctx.lineTo(CARD1_X + CARD1_W, divSY); ctx.stroke();
+
+  // Cert cards — 2-column grid (Figma auto-layout)
+  const CERTS_Y = CERT_SEC_Y + T.sp(3);
+  const certCols = 2;
+  const certGap  = T.sp(2);
+  const certW    = (CARD1_W - certGap) / certCols;
+  const certH2   = 98;
+  const certRowH = certH2 + T.sp(2);
 
   CERTS.forEach((cert, i) => {
-    const cy = CARDS_Y + i * (CARD_H + CARD_GAP);
+    const col = i % certCols, row = Math.floor(i / certCols);
+    const cx3 = CARD1_X + col * (certW + certGap);
+    const cy3 = CERTS_Y + row * certRowH;
 
-    // Card bg
-    roundRect(ctx, CARD_X, cy, CARD_W, CARD_H, 18);
-    const cg = ctx.createLinearGradient(CARD_X, cy, CARD_X + CARD_W, cy);
-    cg.addColorStop(0, "rgba(255,255,255,0.05)"); cg.addColorStop(1, "rgba(255,255,255,0.02)");
-    ctx.fillStyle = cg; ctx.fill();
-    roundRect(ctx, CARD_X, cy, CARD_W, CARD_H, 18);
-    ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.stroke();
+    rrect(ctx, cx3, cy3, certW, certH2, 16);
+    const cgr = ctx.createLinearGradient(cx3, cy3, cx3 + certW, cy3 + certH2);
+    cgr.addColorStop(0, cert.color + "12"); cgr.addColorStop(1, "rgba(4,8,10,0.4)");
+    ctx.fillStyle = cgr; ctx.fill();
+    rrect(ctx, cx3, cy3, certW, certH2, 16);
+    ctx.strokeStyle = cert.color + "30"; ctx.lineWidth = 1; ctx.stroke();
 
-    // Left accent stripe
-    roundRect(ctx, CARD_X, cy, 6, CARD_H, 3);
+    // Left accent
+    rrect(ctx, cx3, cy3, 4, certH2, 2);
     ctx.fillStyle = cert.color; ctx.fill();
 
-    // Org icon circle
-    ctx.beginPath(); ctx.arc(CARD_X + 52, cy + CARD_H/2, 28, 0, Math.PI*2);
-    ctx.fillStyle = cert.color + "22"; ctx.fill();
-    ctx.beginPath(); ctx.arc(CARD_X + 52, cy + CARD_H/2, 28, 0, Math.PI*2);
-    ctx.strokeStyle = cert.color + "66"; ctx.lineWidth = 1.5; ctx.stroke();
+    // Icon circle
+    const ic_cx = cx3 + T.sp(4), ic_cy = cy3 + certH2/2;
+    ctx.beginPath(); ctx.arc(ic_cx, ic_cy, 24, 0, Math.PI*2);
+    ctx.fillStyle = cert.color + "20"; ctx.fill();
+    ctx.beginPath(); ctx.arc(ic_cx, ic_cy, 24, 0, Math.PI*2);
+    ctx.strokeStyle = cert.color + "60"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.direction = "ltr"; ctx.textAlign = "center";
-    ctx.font = "700 26px Cairo, Arial"; ctx.fillStyle = cert.color;
-    ctx.fillText(cert.icon, CARD_X + 52, cy + CARD_H/2 + 9);
+    ctx.font = T.fnt(700, 22); ctx.fillStyle = cert.color;
+    ctx.fillText(cert.icon, ic_cx, ic_cy + 8);
 
-    // Label
+    // Text
     ctx.textAlign = "left";
-    ctx.font = "700 28px Cairo, Arial"; ctx.fillStyle = "rgba(255,255,255,0.90)";
-    ctx.fillText(cert.label, CARD_X + 95, cy + 36);
-
-    // Sub
-    ctx.font = "400 22px Cairo, Arial"; ctx.fillStyle = "rgba(255,255,255,0.38)";
-    ctx.fillText(cert.sub, CARD_X + 95, cy + 65);
+    ctx.font = T.fnt(700, 24); ctx.fillStyle = T.c.text1;
+    ctx.fillText(cert.label.length > 22 ? cert.label.slice(0, 20) + "…" : cert.label,
+      cx3 + T.sp(8), cy3 + 38);
+    ctx.font = T.fnt(400, 19); ctx.fillStyle = T.c.text3;
+    ctx.fillText(cert.org, cx3 + T.sp(8), cy3 + 65);
   });
 
-  // ── 10. Stats strip ───────────────────────────────────────────────────────────
-  const STAT_Y = CARDS_Y + CERTS.length * (CARD_H + CARD_GAP) + 40;
-  const stats = [
-    { val: "16+", label: "Certifications" },
-    { val: "1",   label: "App Published"  },
-    { val: "2026",label: "Active Year"    },
-  ];
-  const statW = (CARD_W - 40) / stats.length;
-  stats.forEach((s, i) => {
-    const sx = CARD_X + i * (statW + 20);
-    roundRect(ctx, sx, STAT_Y, statW, 110, 20);
-    const sg = ctx.createLinearGradient(sx, STAT_Y, sx, STAT_Y + 110);
-    sg.addColorStop(0, "rgba(0,255,100,0.10)"); sg.addColorStop(1, "rgba(0,100,40,0.05)");
-    ctx.fillStyle = sg; ctx.fill();
-    roundRect(ctx, sx, STAT_Y, statW, 110, 20);
-    ctx.strokeStyle = "rgba(0,255,100,0.20)"; ctx.lineWidth = 1.5; ctx.stroke();
+  // ═══════════════════════════════════════════════════════════════
+  // LAYER 9 — Footer
+  // ═══════════════════════════════════════════════════════════════
+  const CERTS_ROWS = Math.ceil(CERTS.length / certCols);
+  const FOOT_Y = CERTS_Y + CERTS_ROWS * certRowH + T.sp(3);
 
-    ctx.direction = "ltr"; ctx.textAlign = "center";
-    ctx.font = "900 52px Cairo, Arial"; ctx.fillStyle = "#00FF88";
-    ctx.shadowColor = "rgba(0,255,136,0.4)"; ctx.shadowBlur = 15;
-    ctx.fillText(s.val, sx + statW/2, STAT_Y + 62); ctx.shadowBlur = 0;
+  // Thin divider
+  const footDiv = ctx.createLinearGradient(T.sp(5), FOOT_Y, T.W - T.sp(5), FOOT_Y);
+  footDiv.addColorStop(0, "transparent");
+  footDiv.addColorStop(0.3, T.c.border);
+  footDiv.addColorStop(0.7, T.c.border);
+  footDiv.addColorStop(1, "transparent");
+  ctx.strokeStyle = footDiv; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(T.sp(5), FOOT_Y); ctx.lineTo(T.W - T.sp(5), FOOT_Y); ctx.stroke();
 
-    ctx.font = "400 22px Cairo, Arial"; ctx.fillStyle = "rgba(255,255,255,0.40)";
-    ctx.fillText(s.label, sx + statW/2, STAT_Y + 90);
-  });
+  ctx.direction = "ltr"; ctx.textAlign = "center";
+  ctx.font = T.fnt(400, 21); ctx.fillStyle = T.c.text3;
+  ctx.fillText("almhbob.iii@gmail.com  ·  credly.com/users/asim-abdulrahman", CX, FOOT_Y + 42);
+  ctx.font = T.fnt(400, 19); ctx.fillStyle = T.c.text3;
+  ctx.fillText("© 2026 Asim Abdulrahman Mohammed — All rights reserved", CX, FOOT_Y + 72);
 
-  // ── 11. Bottom bar ────────────────────────────────────────────────────────────
-  const botGrad = ctx.createLinearGradient(0, 0, W, 0);
-  botGrad.addColorStop(0, "transparent"); botGrad.addColorStop(0.3, "#00FF88");
-  botGrad.addColorStop(0.5, "#F0A500");   botGrad.addColorStop(0.7, "#00FF88");
-  botGrad.addColorStop(1, "transparent");
-  ctx.fillStyle = botGrad;
-  ctx.shadowColor = "#00FF88"; ctx.shadowBlur = 18;
-  ctx.fillRect(0, H - 6, W, 6); ctx.shadowBlur = 0;
+  // ═══════════════════════════════════════════════════════════════
+  // FRAME — Neon border system (Figma: stroke layers)
+  // ═══════════════════════════════════════════════════════════════
+  // Top bar
+  const topG = ctx.createLinearGradient(0, 0, T.W, 0);
+  topG.addColorStop(0, "transparent"); topG.addColorStop(0.3, T.c.primary);
+  topG.addColorStop(0.7, T.c.gold);   topG.addColorStop(1, "transparent");
+  ctx.fillStyle = topG;
+  ctx.shadowColor = T.c.primary; ctx.shadowBlur = 20;
+  ctx.fillRect(0, 0, T.W, 5); ctx.shadowBlur = 0;
 
-  // ── 12. Corner brackets ───────────────────────────────────────────────────────
-  const cs = 80, cw = 4;
+  // Bottom bar
+  const botG = ctx.createLinearGradient(0, 0, T.W, 0);
+  botG.addColorStop(0, "transparent"); botG.addColorStop(0.3, T.c.gold);
+  botG.addColorStop(0.7, T.c.primary); botG.addColorStop(1, "transparent");
+  ctx.fillStyle = botG;
+  ctx.shadowColor = T.c.gold; ctx.shadowBlur = 20;
+  ctx.fillRect(0, T.H - 5, T.W, 5); ctx.shadowBlur = 0;
+
+  // Corner marks (Figma: frame corners)
+  const CM = 72, CW = 4;
   [
-    { x: 0, y: 0, dx:  1, dy:  1, c: "rgba(0,255,100,0.7)"  },
-    { x: W, y: 0, dx: -1, dy:  1, c: "rgba(0,255,100,0.7)"  },
-    { x: 0, y: H, dx:  1, dy: -1, c: "rgba(240,165,0,0.7)"  },
-    { x: W, y: H, dx: -1, dy: -1, c: "rgba(240,165,0,0.7)"  },
+    { x: 0,   y: 0,   dx:  1, dy:  1, c: T.c.primary },
+    { x: T.W, y: 0,   dx: -1, dy:  1, c: T.c.primary },
+    { x: 0,   y: T.H, dx:  1, dy: -1, c: T.c.gold    },
+    { x: T.W, y: T.H, dx: -1, dy: -1, c: T.c.gold    },
   ].forEach(({ x, y, dx, dy, c }) => {
-    ctx.strokeStyle = c; ctx.lineWidth = cw;
-    ctx.shadowColor = c; ctx.shadowBlur = 12;
-    ctx.beginPath(); ctx.moveTo(x, y+dy*cw/2); ctx.lineTo(x+dx*cs, y+dy*cw/2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x+dx*cw/2, y); ctx.lineTo(x+dx*cw/2, y+dy*cs); ctx.stroke();
+    ctx.strokeStyle = c; ctx.lineWidth = CW;
+    ctx.shadowColor = c; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.moveTo(x, y + dy*CW/2); ctx.lineTo(x + dx*CM, y + dy*CW/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + dx*CW/2, y); ctx.lineTo(x + dx*CW/2, y + dy*CM); ctx.stroke();
     ctx.shadowBlur = 0;
   });
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+/* ─── React Component ────────────────────────────────────────────────────────── */
 export default function DevBio() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const [ready,     setReady]    = useState(false);
@@ -262,17 +442,17 @@ export default function DevBio() {
   const [dlLoading, setDlLoading] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+    let alive = true;
     (async () => {
       try {
-        const logo = await loadImage(logoSrc);
-        if (!mounted || !canvasRef.current) return;
-        await drawCard(canvasRef.current, logo);
+        const [logo, photo] = await Promise.all([loadImage(logoSrc), loadImage(photoSrc)]);
+        if (!alive || !canvasRef.current) return;
+        await drawCard(canvasRef.current, logo, photo);
         setReady(true);
       } catch (e) { console.error(e); }
-      finally { if (mounted) setLoading(false); }
+      finally { if (alive) setLoading(false); }
     })();
-    return () => { mounted = false; };
+    return () => { alive = false; };
   }, []);
 
   const download = () => {
@@ -286,51 +466,55 @@ export default function DevBio() {
     }, 100);
   };
 
-  const dispW = 360, dispH = 640;
+  const DW = 360, DH = 640;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#050A07", display: "flex",
+    <div style={{ minHeight: "100vh", background: T.c.bg, display: "flex",
       flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, padding: 32 }}>
 
-      {/* Phone frame */}
+      {/* Phone shell */}
       <div style={{
-        position: "relative", width: dispW + 28, borderRadius: 44,
-        background: "linear-gradient(145deg,#1a1a1a,#0a0a0a)",
-        padding: "44px 14px 36px",
-        boxShadow: "0 0 0 1.5px #222, 0 0 60px rgba(0,255,100,0.10), 0 40px 100px rgba(0,0,0,0.9)",
+        position: "relative", width: DW + 28, borderRadius: 46,
+        background: "linear-gradient(160deg,#1c1c1e,#0a0a0a)",
+        padding: "46px 14px 38px",
+        boxShadow: "0 0 0 1.5px #1e1e1e, 0 0 70px rgba(0,230,118,0.08), 0 50px 120px rgba(0,0,0,0.95)",
       }}>
-        <div style={{ position:"absolute", top:14, left:"50%", transform:"translateX(-50%)",
-          width:100, height:20, borderRadius:10, background:"#111" }} />
-        <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)",
-          width:80, height:5, borderRadius:3, background:"#222" }} />
-
-        <div style={{ width: dispW, height: dispH, borderRadius: 26, overflow: "hidden", position: "relative" }}>
+        <div style={{ position:"absolute", top:15, left:"50%", transform:"translateX(-50%)",
+          width:105, height:22, borderRadius:11, background:"#111" }} />
+        <div style={{ position:"absolute", bottom:11, left:"50%", transform:"translateX(-50%)",
+          width:82, height:5, borderRadius:3, background:"#222" }} />
+        <div style={{ width:DW, height:DH, borderRadius:28, overflow:"hidden", position:"relative" }}>
           {loading && (
             <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
-              justifyContent:"center", background:"#050A07", zIndex:10 }}>
-              <span style={{ color:"#00FF88", fontSize:16, fontFamily:"Cairo, sans-serif" }}>جاري الرسم…</span>
+              justifyContent:"center", background:T.c.bg, zIndex:10 }}>
+              <span style={{ color:T.c.primary, fontSize:16, fontFamily:"Cairo,sans-serif",
+                animation:"pulse 1s infinite" }}>جاري الرسم…</span>
             </div>
           )}
           <canvas ref={canvasRef}
-            style={{ width: dispW, height: dispH, display: "block",
-              opacity: loading ? 0 : 1, transition: "opacity 0.5s" }} />
+            style={{ width:DW, height:DH, display:"block",
+              opacity: loading ? 0 : 1, transition:"opacity 0.5s" }} />
         </div>
       </div>
 
+      {/* CTA */}
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
         <button onClick={download} disabled={!ready || dlLoading}
           style={{
-            background: "linear-gradient(135deg,#00CC6A,#00FF88)",
-            color: "#050A07", fontFamily:"Cairo, sans-serif", fontWeight:900,
-            fontSize:16, padding:"14px 36px", borderRadius:50, border:"none",
+            background: ready && !dlLoading
+              ? "linear-gradient(135deg,#00A854,#00E676)"
+              : "#1a2e20",
+            color: "#040A07", fontFamily:"Cairo,sans-serif", fontWeight:900,
+            fontSize:16, padding:"14px 40px", borderRadius:50, border:"none",
             cursor: ready ? "pointer" : "default",
             opacity: ready && !dlLoading ? 1 : 0.45,
-            boxShadow: ready ? "0 0 30px rgba(0,255,100,0.35)" : "none",
+            boxShadow: ready ? "0 0 32px rgba(0,230,118,0.35)" : "none",
+            transition:"all .25s",
           }} dir="rtl">
-          {dlLoading ? "⏳ جاري التحميل..." : "⬇️ تحميل البطاقة PNG — 1080×1920"}
+          {dlLoading ? "⏳ جاري التحميل..." : "⬇️ تحميل PNG — 1080×1920"}
         </button>
-        <p style={{ color:"rgba(255,255,255,0.2)", fontSize:12, fontFamily:"Cairo, sans-serif" }} dir="rtl">
-          بطاقة تعريف المطور · حالة واتساب · ستوري
+        <p style={{ color:"rgba(255,255,255,0.18)", fontSize:12, fontFamily:"Cairo,sans-serif" }} dir="rtl">
+          بطاقة المطور · جودة عالية · بدون تشويه
         </p>
       </div>
     </div>
