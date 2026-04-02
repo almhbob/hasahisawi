@@ -1,0 +1,37 @@
+uploads = []
+
+[[generated]]
+id = "RQZIigCwE-TvRh3bRmrGy"
+uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
+type = "image"
+title = "hasahisawi app launch poster square"
+
+[[generated]]
+id = "KpYb76G-ex4s7nzxRlFZl"
+uri = "file://attached_assets/generated_images/hasahisawi_whatsapp_status.png"
+type = "image"
+title = "hasahisawi whatsapp status"
+
+[[generated]]
+id = "VwgrAoZNoYAX8Yd7lselU"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/city-dawn.png"
+type = "image"
+title = "Hasahisa city dawn"
+
+[[generated]]
+id = "Am2nw2kGeoBb6AfksJJ8g"
+uri = "file://artifacts/mockup-sandbox/src/assets/images/emerald-gold-bg.png"
+type = "image"
+title = "Emerald gold background"
+
+[[outputs]]
+id = "XEg4GdBAjCSdY7gXoWqhF"
+uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
+type = "image"
+title = "بوستر سوشيال ميديا (مربع 1:1)"
+
+[[outputs]]
+id = "PnpljIeYA5oJYCSai9T1z"
+uri = "file://attached_assets/generated_images/hasahisawi_whatsapp_status.png"
+type = "image"
+title = "حالة واتس آب (عمودي 9:16)"
