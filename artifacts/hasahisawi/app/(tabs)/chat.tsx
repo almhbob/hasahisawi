@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Modal, Pressable, ActivityIndicator,
-  Alert,
+  Alert, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -105,6 +105,10 @@ function NewChatModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
@@ -122,6 +126,9 @@ function NewChatModal({
               placeholderTextColor={Colors.textMuted}
               value={search}
               onChangeText={setSearch}
+              cursorColor={Colors.primary}
+              selectionColor={Colors.primary + "60"}
+              autoCorrect={false}
             />
           </View>
 
@@ -155,6 +162,7 @@ function NewChatModal({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -370,12 +378,12 @@ const styles = StyleSheet.create({
     margin: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.cardBgElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: Colors.primary + "50",
   },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", includeFontPadding: false },
   userItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
   userAvatar: {
     width: 42, height: 42,
