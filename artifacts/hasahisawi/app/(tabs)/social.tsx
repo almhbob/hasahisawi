@@ -39,7 +39,7 @@ import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
 import { useFsPosts, FsPost } from "@/lib/firebase/hooks";
 import { isFirestoreEnabled } from "@/lib/firebase/index";
-import { fsUpdateDoc, COLLECTIONS } from "@/lib/firebase/firestore";
+import { fsUpdateDoc, fsAddDoc, fsGetCollection, fsGetDoc, fsDeleteDoc, COLLECTIONS, orderBy as fsOrderBy } from "@/lib/firebase/firestore";
 import { isFirebaseAvailable } from "@/lib/firebase/auth";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork } from "@/lib/network";
@@ -204,6 +204,45 @@ async function apiDeletePost(id: string | number, token?: string | null): Promis
   if (!res.ok) throw new Error("Failed to delete");
 }
 
+function isFsPost(post: Post): boolean {
+  return typeof post.id === "string" && isNaN(Number(post.id));
+}
+
+async function fsFetchComments(postId: string): Promise<Comment[]> {
+  const items = await fsGetCollection<{ postId: string; author_name: string; content: string; created_at: string }>(
+    COLLECTIONS.COMMENTS,
+    fsOrderBy("created_at", "asc"),
+  );
+  const filtered = items.filter((c) => c.postId === postId);
+  return filtered.map((c, i) => ({
+    id: i + 1,
+    post_id: 0,
+    author_name: c.author_name,
+    content: c.content,
+    created_at: c.created_at,
+    _fsId: (c as any).id,
+  })) as any[];
+}
+
+async function fsCreateComment(postId: string, data: { author_name: string; content: string }): Promise<void> {
+  await fsAddDoc(COLLECTIONS.COMMENTS, {
+    postId,
+    author_name: data.author_name,
+    content: data.content,
+    created_at: new Date().toISOString(),
+  });
+  try {
+    const post = await fsGetDoc<{ comments: number }>(COLLECTIONS.POSTS, postId);
+    if (post) {
+      await fsUpdateDoc(COLLECTIONS.POSTS, postId, { comments: (post.comments ?? 0) + 1 });
+    }
+  } catch { }
+}
+
+async function fsDeleteFsComment(fsId: string): Promise<void> {
+  await fsDeleteDoc(COLLECTIONS.COMMENTS, fsId);
+}
+
 async function apiFetchComments(postId: number): Promise<Comment[]> {
   const res = await fetch(apiUrl(`/api/posts/${postId}/comments`));
   if (!res.ok) throw new Error("Failed to fetch comments");
@@ -219,7 +258,13 @@ async function apiCreateComment(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  const json = await res.json();
+  const text = await res.text();
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(res.ok ? "خطأ في معالجة البيانات" : `خطأ في الخادم (${res.status})`);
+  }
   if (!res.ok) {
     if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض التعليق من نظام المراقبة"}`);
     throw new Error(json.error || "Failed to comment");
@@ -670,7 +715,9 @@ function CommentsModal({
     if (!post) return;
     setLoading(true);
     try {
-      const data = await apiFetchComments(Number(post.id));
+      const data = isFsPost(post)
+        ? await fsFetchComments(String(post.id))
+        : await apiFetchComments(Number(post.id));
       setComments(data);
     } catch {
       setComments([]);
@@ -696,10 +743,15 @@ function CommentsModal({
     setSending(true);
     try {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await apiCreateComment(Number(post.id), {
+      const commentData = {
         author_name: name.trim() || tr("مجهول", "Anonymous"),
         content: text.trim(),
-      });
+      };
+      if (isFsPost(post)) {
+        await fsCreateComment(String(post.id), commentData);
+      } else {
+        await apiCreateComment(Number(post.id), commentData);
+      }
       setText("");
       await load();
     } catch (e: any) {
@@ -709,7 +761,7 @@ function CommentsModal({
     }
   };
 
-  const handleDeleteComment = (id: number) => {
+  const handleDeleteComment = (id: number, fsId?: string) => {
     Alert.alert(t("common", "delete"), t("social", "deleteComment"), [
       { text: t("common", "cancel"), style: "cancel" },
       {
@@ -717,7 +769,11 @@ function CommentsModal({
         style: "destructive",
         onPress: async () => {
           try {
-            await apiDeleteComment(id, adminToken);
+            if (post && isFsPost(post) && fsId) {
+              await fsDeleteFsComment(fsId);
+            } else {
+              await apiDeleteComment(id, adminToken);
+            }
             setComments((prev) => prev.filter((c) => c.id !== id));
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (e: any) {
@@ -793,7 +849,7 @@ function CommentsModal({
                           </View>
                         </View>
                         {isAdmin && (
-                          <TouchableOpacity onPress={() => handleDeleteComment(item.id)} style={{ padding: 4 }}>
+                          <TouchableOpacity onPress={() => handleDeleteComment(item.id, (item as any)._fsId)} style={{ padding: 4 }}>
                             <Ionicons name="trash-outline" size={14} color={Colors.danger} />
                           </TouchableOpacity>
                         )}

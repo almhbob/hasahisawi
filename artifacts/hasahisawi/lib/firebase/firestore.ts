@@ -38,6 +38,7 @@ function getDB(): Firestore {
 export const COLLECTIONS = {
   USERS:        "users",
   POSTS:        "posts",
+  COMMENTS:     "post_comments",
   REPORTS:      "reports",
   APPOINTMENTS: "appointments",
   JOBS:         "jobs",
