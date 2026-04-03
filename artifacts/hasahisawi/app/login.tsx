@@ -479,9 +479,11 @@ export default function LoginScreen() {
           {mode === "login" && (
             <TouchableOpacity
               onPress={() => router.push("/forgot-password" as any)}
-              style={{ alignSelf: "center", marginTop: 2, paddingVertical: 4 }}
+              activeOpacity={0.7}
+              style={{ alignSelf: "center", marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
             >
-              <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted }}>
+              <Ionicons name="lock-open-outline" size={15} color={Colors.primary} />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary, textDecorationLine: "underline" }}>
                 نسيت كلمة المرور؟
               </Text>
             </TouchableOpacity>
