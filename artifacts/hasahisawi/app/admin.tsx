@@ -228,6 +228,9 @@ export default function AdminDashboard() {
   const [permModal, setPermModal] = useState<AdminUser | null>(null);
   const [permSections, setPermSections] = useState<string[]>([]);
   const [savingPerms, setSavingPerms] = useState(false);
+  const [memberSort, setMemberSort] = useState<"newest" | "oldest" | "name">("newest");
+  const [memberNbrFilter, setMemberNbrFilter] = useState<string>("all");
+  const [promotingId, setPromotingId] = useState<number | null>(null);
 
   // ── Landmarks ──
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
@@ -534,6 +537,34 @@ export default function AdminDashboard() {
     finally { setRoleChanging(false); }
   };
 
+  const handleQuickPromote = (u: AdminUser) => {
+    Alert.alert(
+      "ترقية إلى مشرف",
+      `هل تريد ترقية "${u.name}" إلى مشرف؟\nسيتمكن من إدارة أقسام محددة في لوحة الإدارة.`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "ترقية",
+          style: "default",
+          onPress: async () => {
+            setPromotingId(u.id);
+            try {
+              const res = await apiFetch(`/api/admin/users/${u.id}/role`, token, {
+                method: "PATCH", body: JSON.stringify({ role: "moderator" }),
+              });
+              if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
+              setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: "moderator" } : x));
+              loadStats();
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert("تم", `تم ترقية "${u.name}" إلى مشرف بنجاح`);
+            } catch { Alert.alert("خطأ", "تعذّر الترقية"); }
+            finally { setPromotingId(null); }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteUser = async (u: AdminUser) => {
     try {
       const res = await apiFetch(`/api/admin/users/${u.id}`, token, { method: "DELETE" });
@@ -700,14 +731,39 @@ export default function AdminDashboard() {
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────
-  const filteredUsers = users.filter(u => {
-    const q = search.trim().toLowerCase();
-    const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.neighborhood || "").toLowerCase().includes(q);
-    if (tab === "members")    return matchSearch && u.role === "user";
-    if (tab === "admins")     return matchSearch && u.role === "admin";
-    if (tab === "moderators") return matchSearch && u.role === "moderator";
-    return matchSearch;
+  const allMembers = users.filter(u => u.role === "user");
+  const now = new Date();
+  const thisMonth = allMembers.filter(u => {
+    const d = new Date(u.created_at);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
+  const thisWeek = allMembers.filter(u => {
+    const d = new Date(u.created_at);
+    return (now.getTime() - d.getTime()) < 7 * 86400000;
+  });
+  const membersByNbr = allMembers.reduce<Record<string, number>>((acc, u) => {
+    const key = u.neighborhood || "غير محدد";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const topNbrs = Object.entries(membersByNbr).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const filteredUsers = users
+    .filter(u => {
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.phone || "").includes(q) || (u.neighborhood || "").toLowerCase().includes(q);
+      const matchNbr = tab !== "members" || memberNbrFilter === "all" || (u.neighborhood || "غير محدد") === memberNbrFilter;
+      if (tab === "members")    return matchSearch && matchNbr && u.role === "user";
+      if (tab === "admins")     return matchSearch && u.role === "admin";
+      if (tab === "moderators") return matchSearch && u.role === "moderator";
+      return matchSearch;
+    })
+    .sort((a, b) => {
+      if (tab !== "members") return 0;
+      if (memberSort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (memberSort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return a.name.localeCompare(b.name, "ar");
+    });
 
   const pendingAdsCount       = adsList.filter(a => a.status === "pending").length;
   const pendingCommunitiesCount = communitiesList.filter(c => c.status === "pending").length;
@@ -772,6 +828,19 @@ export default function AdminDashboard() {
 
         {isAdmin && (
           <View style={s.userActions}>
+            {u.role === "user" && (
+              <TouchableOpacity
+                style={[s.userActionBtn, { borderColor: "#F0A50040", backgroundColor: "#F0A50015", flex: 1 }]}
+                onPress={() => handleQuickPromote(u)}
+                disabled={promotingId === u.id}
+              >
+                {promotingId === u.id
+                  ? <ActivityIndicator size="small" color="#F0A500" />
+                  : <Ionicons name="arrow-up-circle-outline" size={14} color="#F0A500" />
+                }
+                <Text style={[s.userActionTxt, { color: "#F0A500" }]}>ترقية لمشرف</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={s.userActionBtn} onPress={() => setRoleModal(u)}>
               <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
               <Text style={[s.userActionTxt, { color: Colors.primary }]}>تغيير الصفة</Text>
@@ -906,21 +975,94 @@ export default function AdminDashboard() {
       {/* Members / Admins / Moderators */}
       {(tab === "members" || tab === "admins" || tab === "moderators") && (
         <View style={{ flex: 1 }}>
-          <View style={s.searchBar}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="ابحث باسم أو حي..."
-              placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              textAlign="right"
-            />
-            {search ? (
-              <Pressable onPress={() => setSearch("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-              </Pressable>
-            ) : null}
+          {/* جدول متابعة الأعضاء - فقط في تبويب الأعضاء */}
+          {tab === "members" && !loadingUsers && (
+            <Animated.View entering={FadeInDown.duration(300)} style={sm.trackingPanel}>
+              {/* إحصائيات سريعة */}
+              <View style={sm.trackingRow}>
+                <View style={[sm.trackingStat, { borderColor: Colors.primary + "40" }]}>
+                  <Text style={[sm.trackingNum, { color: Colors.primary }]}>{allMembers.length}</Text>
+                  <Text style={sm.trackingLabel}>إجمالي الأعضاء</Text>
+                </View>
+                <View style={[sm.trackingStat, { borderColor: "#3498DB40" }]}>
+                  <Text style={[sm.trackingNum, { color: "#3498DB" }]}>{thisMonth.length}</Text>
+                  <Text style={sm.trackingLabel}>هذا الشهر</Text>
+                </View>
+                <View style={[sm.trackingStat, { borderColor: Colors.cyber + "40" }]}>
+                  <Text style={[sm.trackingNum, { color: Colors.cyber }]}>{thisWeek.length}</Text>
+                  <Text style={sm.trackingLabel}>هذا الأسبوع</Text>
+                </View>
+              </View>
+
+              {/* أعلى الأحياء */}
+              {topNbrs.length > 0 && (
+                <View style={sm.nbrSection}>
+                  <Text style={sm.nbrTitle}>توزيع الأعضاء بالأحياء</Text>
+                  {topNbrs.map(([nbr, count]) => (
+                    <TouchableOpacity
+                      key={nbr}
+                      style={sm.nbrRow}
+                      onPress={() => setMemberNbrFilter(memberNbrFilter === nbr ? "all" : nbr)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[sm.nbrBar, {
+                        width: `${Math.round((count / (topNbrs[0]?.[1] || 1)) * 100)}%` as any,
+                        backgroundColor: memberNbrFilter === nbr ? Colors.primary : Colors.primary + "30",
+                      }]} />
+                      <View style={sm.nbrInfo}>
+                        <Text style={[sm.nbrName, memberNbrFilter === nbr && { color: Colors.primary }]}>{nbr}</Text>
+                        <Text style={sm.nbrCount}>{count} عضو</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                  {memberNbrFilter !== "all" && (
+                    <TouchableOpacity onPress={() => setMemberNbrFilter("all")} style={sm.clearFilter}>
+                      <Ionicons name="close-circle" size={13} color={Colors.textMuted} />
+                      <Text style={sm.clearFilterTxt}>إلغاء الفلتر</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </Animated.View>
+          )}
+
+          {/* شريط البحث والترتيب */}
+          <View style={{ paddingHorizontal: 14, paddingTop: 8, gap: 8 }}>
+            <View style={s.searchBar}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={s.searchInput}
+                placeholder={tab === "members" ? "ابحث باسم أو هاتف أو حي..." : "ابحث باسم..."}
+                placeholderTextColor={Colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+                textAlign="right"
+              />
+              {search ? (
+                <Pressable onPress={() => setSearch("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* أزرار الترتيب - فقط للأعضاء */}
+            {tab === "members" && (
+              <View style={sm.sortRow}>
+                <Text style={sm.sortLabel}>ترتيب:</Text>
+                {([ ["newest", "الأحدث"], ["oldest", "الأقدم"], ["name", "الاسم"] ] as const).map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[sm.sortBtn, memberSort === key && sm.sortBtnActive]}
+                    onPress={() => setMemberSort(key)}
+                  >
+                    <Text style={[sm.sortBtnTxt, memberSort === key && sm.sortBtnTxtActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+                <Text style={[sm.sortLabel, { marginRight: "auto" as any }]}>
+                  {filteredUsers.length} عضو
+                </Text>
+              </View>
+            )}
           </View>
 
           {loadingUsers ? (
@@ -2289,4 +2431,132 @@ const s = StyleSheet.create({
 
   /* Empty state */
   empty: { fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textMuted, textAlign: "center", marginTop: 70, marginBottom: 20 },
+});
+
+// ─── Member Tracking Styles ──────────────────────────────────────────────────
+const sm = StyleSheet.create({
+  trackingPanel: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 12,
+  },
+  trackingRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+  },
+  trackingStat: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: Colors.bg,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    gap: 4,
+  },
+  trackingNum: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+  },
+  trackingLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  nbrSection: {
+    gap: 6,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    paddingTop: 10,
+  },
+  nbrTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  nbrRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    height: 28,
+    position: "relative",
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  nbrBar: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 6,
+  },
+  nbrInfo: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    zIndex: 1,
+  },
+  nbrName: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 12,
+    color: Colors.textPrimary,
+  },
+  nbrCount: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  clearFilter: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-end",
+    marginTop: 2,
+  },
+  clearFilterTxt: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  sortRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  sortLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  sortBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    backgroundColor: Colors.cardBg,
+  },
+  sortBtnActive: {
+    borderColor: Colors.primary + "60",
+    backgroundColor: Colors.primary + "15",
+  },
+  sortBtnTxt: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  sortBtnTxtActive: {
+    color: Colors.primary,
+    fontFamily: "Cairo_600SemiBold",
+  },
 });
