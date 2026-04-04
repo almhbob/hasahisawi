@@ -35,7 +35,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: |
+          echo "shamefully-hoist=true" >> .npmrc
+          pnpm install --no-frozen-lockfile
+          echo "node_modules hoisted ✓"
 
       - name: Create .env file with Firebase config
         working-directory: artifacts/hasahisawi
@@ -86,6 +89,7 @@ jobs:
       - name: Build release AAB
         env:
           NODE_ENV: production
+          NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/artifacts/hasahisawi/node_modules
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
