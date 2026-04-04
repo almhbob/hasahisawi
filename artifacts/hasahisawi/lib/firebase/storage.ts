@@ -28,13 +28,24 @@ export type UploadProgress = {
   percent: number;
 };
 
+// تحويل URI المحلي إلى Blob عبر XMLHttpRequest (يعمل على Android وiOS)
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload  = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error("فشل تحميل الملف المحلي"));
+    xhr.responseType = "blob";
+    xhr.open("GET", uri, true);
+    xhr.send(null);
+  });
+}
+
 export async function uploadFile(
   path: string,
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  const blob = await uriToBlob(uri);
   const storageRef = ref(getStore(), path);
   const task = uploadBytesResumable(storageRef, blob);
 
@@ -43,17 +54,21 @@ export async function uploadFile(
       "state_changed",
       (snapshot) => {
         if (onProgress) {
+          const total = snapshot.totalBytes || 1;
           onProgress({
             bytesTransferred: snapshot.bytesTransferred,
-            totalBytes: snapshot.totalBytes,
-            percent: Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100,
-            ),
+            totalBytes:       total,
+            percent: Math.round((snapshot.bytesTransferred / total) * 100),
           });
         }
       },
-      reject,
+      (err) => {
+        // تحرير الذاكرة بعد الفشل
+        try { (blob as any).close?.(); } catch {}
+        reject(err);
+      },
       async () => {
+        try { (blob as any).close?.(); } catch {}
         const url = await getDownloadURL(task.snapshot.ref);
         resolve(url);
       },
