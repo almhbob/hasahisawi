@@ -1390,7 +1390,7 @@ export default function SettingsScreen() {
           "Content-Type": "application/json",
           ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
         },
-        body: JSON.stringify({ new_pin: newPinInput }),
+        body: JSON.stringify({ new_pin: newPinInput, current_pin: currentPinInput }),
       });
       const json = await res.json();
       if (!res.ok) {

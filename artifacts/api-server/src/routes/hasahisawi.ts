@@ -956,8 +956,15 @@ router.post("/admin/validate-pin", async (req: Request, res: Response) => {
 
 router.post("/admin/change-pin", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { new_pin } = req.body;
+    const { new_pin, current_pin } = req.body;
+    const isAdmin = await isAdminRequest(req);
+    if (!isAdmin) {
+      if (!current_pin) return res.status(403).json({ error: "غير مصرح" });
+      const stored = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+      const storedPin = stored.rows[0]?.value || DEFAULT_ADMIN_PIN;
+      if (current_pin !== storedPin) return res.status(403).json({ error: "الرمز الحالي غير صحيح" });
+    }
+    if (!new_pin || new_pin.length < 4) return res.status(400).json({ error: "يجب أن يكون الرمز الجديد 4 أرقام على الأقل" });
     await query(`UPDATE admin_settings SET value=$1 WHERE key='admin_pin'`, [new_pin]);
     return res.json({ success: true });
   } catch (err) {
