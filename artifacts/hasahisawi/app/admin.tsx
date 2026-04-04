@@ -11,9 +11,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import { uploadLandmarkImage } from "@/lib/firebase/storage";
 import BrandPattern from "@/components/BrandPattern";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -240,10 +242,12 @@ export default function AdminDashboard() {
   const [lmForm, setLmForm] = useState({ name: "", sub: "", image_url: "" });
   const [addingLM, setAddingLM] = useState(false);
   const [showAddLM, setShowAddLM] = useState(false);
+  const [lmAddImgUploading, setLmAddImgUploading] = useState(false);
   const [editingLM, setEditingLM] = useState<ApiLandmark | null>(null);
   const [editLmForm, setEditLmForm] = useState({ name: "", sub: "", image_url: "" });
   const [showEditLM, setShowEditLM] = useState(false);
   const [updatingLM, setUpdatingLM] = useState(false);
+  const [lmEditImgUploading, setLmEditImgUploading] = useState(false);
 
   // ── Ads ──
   const [adsList, setAdsList] = useState<AdRecord[]>([]);
@@ -651,6 +655,38 @@ export default function AdminDashboard() {
       await apiFetch(`/api/admin/landmarks/${lm.id}`, token, { method: "DELETE" });
       setLandmarks(prev => prev.filter(x => x.id !== lm.id));
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+  };
+
+  const pickLandmarkImageForAdd = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setLmAddImgUploading(true);
+    try {
+      const url = await uploadLandmarkImage(uri);
+      setLmForm(f => ({ ...f, image_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة، تأكد من اتصالك بالإنترنت"); }
+    finally { setLmAddImgUploading(false); }
+  };
+
+  const pickLandmarkImageForEdit = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setLmEditImgUploading(true);
+    try {
+      const url = await uploadLandmarkImage(uri);
+      setEditLmForm(f => ({ ...f, image_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة، تأكد من اتصالك بالإنترنت"); }
+    finally { setLmEditImgUploading(false); }
   };
 
   // ── Ads actions ──────────────────────────────────────────────────────────
@@ -1185,10 +1221,39 @@ export default function AdminDashboard() {
                   <TextInput style={s.fieldInput} value={editLmForm.name} onChangeText={v => setEditLmForm(f => ({ ...f, name: v }))} placeholder="مثال: عجلة الهواء" placeholderTextColor={Colors.textMuted} textAlign="right" />
                   <Text style={s.fieldLabel}>الوصف (اختياري)</Text>
                   <TextInput style={s.fieldInput} value={editLmForm.sub} onChangeText={v => setEditLmForm(f => ({ ...f, sub: v }))} placeholder="وصف قصير" placeholderTextColor={Colors.textMuted} textAlign="right" />
-                  <Text style={s.fieldLabel}>رابط الصورة *</Text>
+
+                  <Text style={s.fieldLabel}>صورة المعلم *</Text>
+                  {/* معاينة الصورة */}
+                  {editLmForm.image_url.startsWith("http") ? (
+                    <Image source={{ uri: editLmForm.image_url }} style={s.lmImgPreview} resizeMode="cover" />
+                  ) : editLmForm.image_url ? (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="image-outline" size={28} color="#9B59B6" />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{editLmForm.image_url}</Text>
+                    </View>
+                  ) : (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>لم تُختر صورة بعد</Text>
+                    </View>
+                  )}
+                  {/* زر رفع الصورة */}
+                  <TouchableOpacity
+                    onPress={pickLandmarkImageForEdit}
+                    disabled={lmEditImgUploading}
+                    style={[s.lmPickBtn, { borderColor: "#9B59B6" + "50", backgroundColor: "#9B59B6" + "12" }]}
+                  >
+                    {lmEditImgUploading
+                      ? <><ActivityIndicator size="small" color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>جاري الرفع...</Text></>
+                      : <><Ionicons name="cloud-upload-outline" size={18} color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>{editLmForm.image_url ? "تغيير الصورة" : "رفع صورة من الجهاز"}</Text></>
+                    }
+                  </TouchableOpacity>
+                  {/* رابط يدوي (اختياري) */}
+                  <Text style={[s.fieldLabel, { marginTop: 8 }]}>أو أدخل رابط الصورة يدوياً</Text>
                   <TextInput style={s.fieldInput} value={editLmForm.image_url} onChangeText={v => setEditLmForm(f => ({ ...f, image_url: v }))} placeholder="https://..." placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" keyboardType="url" />
+
                   <View style={s.modalBtns}>
-                    <ActionButton label="حفظ التعديلات" color="#3498DB" icon="save-outline" onPress={updateLandmark} disabled={updatingLM} />
+                    <ActionButton label="حفظ التعديلات" color="#3498DB" icon="save-outline" onPress={updateLandmark} disabled={updatingLM || lmEditImgUploading} />
                     <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowEditLM(false)} outline />
                   </View>
                 </Pressable>
@@ -1206,11 +1271,40 @@ export default function AdminDashboard() {
                   <TextInput style={s.fieldInput} value={lmForm.name} onChangeText={v => setLmForm(f => ({ ...f, name: v }))} placeholder="مثال: عجلة الهواء" placeholderTextColor={Colors.textMuted} textAlign="right" />
                   <Text style={s.fieldLabel}>الوصف (اختياري)</Text>
                   <TextInput style={s.fieldInput} value={lmForm.sub} onChangeText={v => setLmForm(f => ({ ...f, sub: v }))} placeholder="وصف قصير" placeholderTextColor={Colors.textMuted} textAlign="right" />
-                  <Text style={s.fieldLabel}>رابط الصورة *</Text>
+
+                  <Text style={s.fieldLabel}>صورة المعلم *</Text>
+                  {/* معاينة الصورة */}
+                  {lmForm.image_url.startsWith("http") ? (
+                    <Image source={{ uri: lmForm.image_url }} style={s.lmImgPreview} resizeMode="cover" />
+                  ) : lmForm.image_url ? (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="image-outline" size={28} color="#9B59B6" />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{lmForm.image_url}</Text>
+                    </View>
+                  ) : (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة المعلم</Text>
+                    </View>
+                  )}
+                  {/* زر رفع الصورة */}
+                  <TouchableOpacity
+                    onPress={pickLandmarkImageForAdd}
+                    disabled={lmAddImgUploading}
+                    style={[s.lmPickBtn, { borderColor: "#9B59B6" + "50", backgroundColor: "#9B59B6" + "12" }]}
+                  >
+                    {lmAddImgUploading
+                      ? <><ActivityIndicator size="small" color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>جاري الرفع...</Text></>
+                      : <><Ionicons name="cloud-upload-outline" size={18} color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>{lmForm.image_url ? "تغيير الصورة" : "رفع صورة من الجهاز"}</Text></>
+                    }
+                  </TouchableOpacity>
+                  {/* رابط يدوي (اختياري) */}
+                  <Text style={[s.fieldLabel, { marginTop: 8 }]}>أو أدخل رابط الصورة يدوياً</Text>
                   <TextInput style={s.fieldInput} value={lmForm.image_url} onChangeText={v => setLmForm(f => ({ ...f, image_url: v }))} placeholder="https://... أو local:ferris-wheel" placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" keyboardType="url" />
                   <Text style={s.fieldHint}>للصور المحلية: local:ferris-wheel أو local:hasahisa-city</Text>
+
                   <View style={s.modalBtns}>
-                    <ActionButton label="إضافة المعلم" color="#9B59B6" icon="add-circle-outline" onPress={addLandmark} disabled={addingLM} />
+                    <ActionButton label="إضافة المعلم" color="#9B59B6" icon="add-circle-outline" onPress={addLandmark} disabled={addingLM || lmAddImgUploading} />
                     <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddLM(false)} outline />
                   </View>
                 </Pressable>
@@ -2522,6 +2616,20 @@ const s = StyleSheet.create({
   lmName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   lmSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   lmUrl: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+  lmImgPreview: {
+    width: "100%", height: 140, borderRadius: 12, marginBottom: 10, overflow: "hidden",
+  },
+  lmImgPlaceholder: {
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
+    alignItems: "center", justifyContent: "center",
+  },
+  lmPickBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 11, borderRadius: 12, borderWidth: 1, marginBottom: 4,
+  },
+  lmPickBtnText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14,
+  },
 
   /* Icon button */
   iconBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
