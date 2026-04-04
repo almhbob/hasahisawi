@@ -718,6 +718,48 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ── جداول ترحال والتوصيل ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_drivers (
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name         VARCHAR(100) NOT NULL,
+      phone        VARCHAR(25) NOT NULL,
+      vehicle_type VARCHAR(40) NOT NULL,
+      vehicle_desc VARCHAR(200) NOT NULL DEFAULT '',
+      plate        VARCHAR(30) NOT NULL DEFAULT '',
+      area         VARCHAR(100) NOT NULL DEFAULT '',
+      status       VARCHAR(20) NOT NULL DEFAULT 'pending',
+      admin_note   TEXT NOT NULL DEFAULT '',
+      is_online    BOOLEAN NOT NULL DEFAULT FALSE,
+      total_trips  INTEGER NOT NULL DEFAULT 0,
+      rating       NUMERIC(3,2) NOT NULL DEFAULT 0,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_trips (
+      id             SERIAL PRIMARY KEY,
+      user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      user_name      VARCHAR(100) NOT NULL,
+      user_phone     VARCHAR(25) NOT NULL,
+      trip_type      VARCHAR(20) NOT NULL DEFAULT 'ride',
+      from_location  VARCHAR(200) NOT NULL,
+      to_location    VARCHAR(200) NOT NULL,
+      notes          TEXT NOT NULL DEFAULT '',
+      status         VARCHAR(20) NOT NULL DEFAULT 'pending',
+      driver_id      INTEGER REFERENCES transport_drivers(id) ON DELETE SET NULL,
+      driver_name    VARCHAR(100),
+      rating         INTEGER,
+      rating_note    TEXT,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('transport_enabled', 'false')
+    ON CONFLICT (key) DO NOTHING
+  `);
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -4167,6 +4209,247 @@ router.post("/inst/logout", async (req: Request, res: Response) => {
   } catch {
     return res.json({ ok: true });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ترحال والتوصيل — Transport & Delivery
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/transport/status — حالة الخدمة (عام)
+router.get("/transport/status", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT value FROM admin_settings WHERE key='transport_enabled'`);
+    return res.json({ enabled: rows[0]?.value === "true" });
+  } catch { return res.json({ enabled: false }); }
+});
+
+// GET /api/admin/transport/settings — إعدادات الخدمة (مدير)
+router.get("/admin/transport/settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_note','transport_phone')`
+    );
+    const result: Record<string, string> = {};
+    rows.forEach((r: any) => { result[r.key] = r.value; });
+    return res.json(result);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/transport/settings — تحديث إعدادات الخدمة (مدير)
+router.put("/admin/transport/settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { transport_enabled, transport_note, transport_phone } = req.body;
+    const entries: [string, string][] = [];
+    if (transport_enabled !== undefined) entries.push(["transport_enabled", String(transport_enabled)]);
+    if (transport_note !== undefined) entries.push(["transport_note", transport_note]);
+    if (transport_phone !== undefined) entries.push(["transport_phone", transport_phone]);
+    for (const [k, v] of entries) {
+      await query(
+        `INSERT INTO admin_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2`,
+        [k, v]
+      );
+    }
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/drivers — السائقون المعتمدون (عام)
+router.get("/transport/drivers", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, name, vehicle_type, vehicle_desc, area, is_online, total_trips, rating
+       FROM transport_drivers WHERE status='approved' ORDER BY is_online DESC, rating DESC, total_trips DESC`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/transport/drivers/register — تسجيل كسائق
+router.post("/transport/drivers/register", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const { name, phone, vehicle_type, vehicle_desc, plate, area } = req.body;
+    if (!name || !phone || !vehicle_type) return res.status(400).json({ error: "بيانات ناقصة" });
+    // تحقق من عدم وجود طلب سابق
+    if (me?.id) {
+      const exist = await query(`SELECT id FROM transport_drivers WHERE user_id=$1`, [me.id]);
+      if (exist.rows.length > 0) return res.status(409).json({ error: "لديك طلب تسجيل مسبق" });
+    }
+    const r = await query(
+      `INSERT INTO transport_drivers (user_id,name,phone,vehicle_type,vehicle_desc,plate,area)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [me?.id ?? null, name, phone, vehicle_type, vehicle_desc ?? "", plate ?? "", area ?? ""]
+    );
+    return res.status(201).json({ id: r.rows[0].id });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/trips — الرحلات النشطة
+router.get("/transport/trips", async (req: Request, res: Response) => {
+  try {
+    const { status } = req.query;
+    const s = status || "pending";
+    const { rows } = await query(
+      `SELECT t.*, d.name AS driver_name_actual FROM transport_trips t
+       LEFT JOIN transport_drivers d ON d.id=t.driver_id
+       WHERE t.status=$1 ORDER BY t.created_at DESC LIMIT 50`,
+      [s]
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/transport/trips — طلب رحلة أو توصيل
+router.post("/transport/trips", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const { user_name, user_phone, trip_type, from_location, to_location, notes } = req.body;
+    if (!user_name || !user_phone || !from_location || !to_location)
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    const r = await query(
+      `INSERT INTO transport_trips (user_id,user_name,user_phone,trip_type,from_location,to_location,notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [me?.id ?? null, user_name, user_phone, trip_type ?? "ride", from_location, to_location, notes ?? ""]
+    );
+    return res.status(201).json({ id: r.rows[0].id });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/transport/trips/:id — تحديث حالة الرحلة
+router.patch("/transport/trips/:id", async (req: Request, res: Response) => {
+  try {
+    const { status, driver_id, driver_name, rating, rating_note } = req.body;
+    await query(
+      `UPDATE transport_trips SET
+        status=COALESCE($1,status),
+        driver_id=COALESCE($2,driver_id),
+        driver_name=COALESCE($3,driver_name),
+        rating=COALESCE($4,rating),
+        rating_note=COALESCE($5,rating_note)
+       WHERE id=$6`,
+      [status, driver_id, driver_name, rating, rating_note, req.params.id]
+    );
+    if (status === "completed" && driver_id) {
+      await query(`UPDATE transport_drivers SET total_trips=total_trips+1 WHERE id=$1`, [driver_id]);
+    }
+    if (rating && driver_id) {
+      await query(
+        `UPDATE transport_drivers SET rating=ROUND((rating*total_trips+$1)/(total_trips+1),2) WHERE id=$2`,
+        [rating, driver_id]
+      );
+    }
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/my-trips — رحلاتي
+router.get("/transport/my-trips", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows } = await query(
+      `SELECT * FROM transport_trips WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30`,
+      [me.id]
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/transport/drivers/:id/online — تبديل حالة الإتاحة للسائق
+router.patch("/transport/drivers/:id/online", async (req: Request, res: Response) => {
+  try {
+    const { is_online } = req.body;
+    await query(`UPDATE transport_drivers SET is_online=$1 WHERE id=$2`, [!!is_online, req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin Transport Routes ──
+
+// GET /api/admin/transport/stats — إحصائيات الخدمة
+router.get("/admin/transport/stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const [drivers, trips, pending] = await Promise.all([
+      query(`SELECT status, COUNT(*) as cnt FROM transport_drivers GROUP BY status`),
+      query(`SELECT status, COUNT(*) as cnt FROM transport_trips GROUP BY status`),
+      query(`SELECT COUNT(*) as cnt FROM transport_drivers WHERE status='pending'`),
+    ]);
+    return res.json({
+      drivers: drivers.rows,
+      trips: trips.rows,
+      pendingDrivers: parseInt(pending.rows[0]?.cnt ?? "0"),
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/drivers — جميع السائقين
+router.get("/admin/transport/drivers", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { status } = req.query;
+    let q = `SELECT d.*, u.name AS user_name_ref FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id`;
+    const params: any[] = [];
+    if (status && status !== "all") { q += ` WHERE d.status=$1`; params.push(status); }
+    q += ` ORDER BY d.created_at DESC`;
+    const { rows } = await query(q, params);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق
+router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { status, admin_note } = req.body;
+    await query(
+      `UPDATE transport_drivers SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note) WHERE id=$3`,
+      [status, admin_note, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/drivers/:id — حذف سائق
+router.delete("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    await query(`DELETE FROM transport_drivers WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/trips — جميع الرحلات
+router.get("/admin/transport/trips", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { status } = req.query;
+    let q = `SELECT t.*, d.name AS driver_name_ref, d.phone AS driver_phone FROM transport_trips t LEFT JOIN transport_drivers d ON d.id=t.driver_id`;
+    const params: any[] = [];
+    if (status && status !== "all") { q += ` WHERE t.status=$1`; params.push(status); }
+    q += ` ORDER BY t.created_at DESC LIMIT 100`;
+    const { rows } = await query(q, params);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/trips/:id — حذف رحلة
+router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    await query(`DELETE FROM transport_trips WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 export default router;
