@@ -92,10 +92,11 @@ const GROUPS: Group[] = [
   {
     label: "أدوات",
     items: [
-      { title: "التقويم",      icon: "calendar-number-outline", route: "/(tabs)/calendar",   color: Colors.cyber   },
-      { title: "أرقام مهمة",  icon: "call-outline",            route: "/(tabs)/numbers",    color: Colors.primary },
-      { title: "المساعد الذكي",icon: "sparkles",                route: "/(tabs)/ai-support", color: Colors.accent  },
-      { title: "الإعدادات",   icon: "settings-outline",        route: "/(tabs)/settings",   color: Colors.textMuted },
+      { title: "خريطة المدينة", icon: "map-outline",              route: "/(tabs)/map",        color: "#0EA5E9"       },
+      { title: "التقويم",        icon: "calendar-number-outline",  route: "/(tabs)/calendar",   color: Colors.cyber   },
+      { title: "أرقام مهمة",    icon: "call-outline",             route: "/(tabs)/numbers",    color: Colors.primary },
+      { title: "المساعد الذكي", icon: "sparkles",                  route: "/(tabs)/ai-support", color: Colors.accent  },
+      { title: "الإعدادات",     icon: "settings-outline",          route: "/(tabs)/settings",   color: Colors.textMuted },
     ],
   },
 ];

@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
-import { isFirebaseConfigured } from "./index";
-import { fsSetDoc, fsUpdateDoc, COLLECTIONS } from "./firestore";
+import { getApiUrl } from "@/lib/query-client";
 
 // ── نوع الإشعار ───────────────────────────────────────────────────────────────
 export type PushNotification = {
@@ -9,10 +8,11 @@ export type PushNotification = {
   data?: Record<string, unknown>;
 };
 
-// ── تسجيل Push Token ──────────────────────────────────────────────────────────
+// ── تسجيل Push Token وحفظه في API Server ────────────────────────────────────
 
 export async function registerForPushNotifications(
-  userId: string,
+  _userId: string,
+  authToken?: string,
 ): Promise<string | null> {
   if (Platform.OS === "web") return null;
   try {
@@ -43,12 +43,17 @@ export async function registerForPushNotifications(
     }).catch(() => null);
 
     const token = tokenData?.data ?? null;
+    if (!token) return null;
 
-    if (token && isFirebaseConfigured) {
-      await fsUpdateDoc(COLLECTIONS.USERS, userId, {
-        pushToken: token,
-        pushTokenUpdatedAt: new Date().toISOString(),
-        platform: Platform.OS,
+    // حفظ التوكن في API Server
+    if (authToken) {
+      fetch(`${getApiUrl()}/api/push-tokens`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ token, platform: Platform.OS }),
       }).catch(() => {});
     }
 

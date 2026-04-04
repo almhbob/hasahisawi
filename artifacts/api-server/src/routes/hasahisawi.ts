@@ -8,6 +8,32 @@ const router = Router();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// ══════════════════════════════════════════════════════
+// إرسال Push Notification عبر Expo Push Service
+// ══════════════════════════════════════════════════════
+async function sendPushToUser(
+  userId: number,
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const { rows } = await query(
+      `SELECT token FROM push_tokens WHERE user_id=$1`,
+      [userId]
+    );
+    if (!rows[0]?.token) return;
+    const token = rows[0].token as string;
+    if (!token.startsWith("ExponentPushToken[")) return;
+
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ to: token, title, body, data, sound: "default", badge: 1 }),
+    }).catch(() => {});
+  } catch {}
+}
+
 async function query(sql: string, params: unknown[] = []) {
   const client = await pool.connect();
   try {
@@ -469,6 +495,57 @@ export async function initHasahisawiDb() {
       is_read BOOLEAN NOT NULL DEFAULT FALSE
     )
   `);
+
+  // ── جدول push tokens لإشعارات الجهاز ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      platform VARCHAR(10) NOT NULL DEFAULT 'android',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id)
+    )
+  `);
+
+  // ── جدول أماكن خريطة المدينة ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS map_places (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      category VARCHAR(50) NOT NULL DEFAULT 'other',
+      address VARCHAR(300),
+      phone VARCHAR(50),
+      lat DOUBLE PRECISION NOT NULL,
+      lng DOUBLE PRECISION NOT NULL,
+      icon VARCHAR(50) NOT NULL DEFAULT 'location',
+      color VARCHAR(10) NOT NULL DEFAULT '#3EFF9C',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // بيانات أولية لأماكن الحصاحيصا
+  const { rows: mapRows } = await query(`SELECT COUNT(*) as cnt FROM map_places`);
+  if (parseInt(mapRows[0].cnt, 10) === 0) {
+    await query(`
+      INSERT INTO map_places (name, category, address, phone, lat, lng, icon, color) VALUES
+        ('مركز مدينة الحصاحيصا',  'landmark',  'وسط الحصاحيصا',             NULL,          14.6839, 33.3833, 'star',        '#D4AF37'),
+        ('مستشفى الحصاحيصا',      'medical',   'شارع المستشفى، الحصاحيصا', '0111000001',  14.6855, 33.3845, 'hospital',    '#E74C6F'),
+        ('عيادة أم سلمة',         'medical',   'حي الوسط، الحصاحيصا',      '0111000002',  14.6831, 33.3820, 'hospital',    '#E74C6F'),
+        ('مدرسة الحصاحيصا الثانوية','school',  'حي الشمال، الحصاحيصا',     NULL,          14.6862, 33.3810, 'school',      '#3B82F6'),
+        ('مدرسة النيل الأساسية',   'school',   'حي النيل، الحصاحيصا',      NULL,          14.6820, 33.3855, 'school',      '#3B82F6'),
+        ('سوق الحصاحيصا المركزي', 'market',   'منطقة السوق، الحصاحيصا',   NULL,          14.6825, 33.3828, 'cart',        '#F59E0B'),
+        ('مسجد التقوى',           'mosque',   'حي الوسط، الحصاحيصا',      NULL,          14.6844, 33.3838, 'moon',        '#10B981'),
+        ('مسجد النور',            'mosque',   'حي الجنوب، الحصاحيصا',     NULL,          14.6815, 33.3842, 'moon',        '#10B981'),
+        ('كورنيش النيل',          'landmark', 'شاطئ النيل الأزرق',         NULL,          14.6870, 33.3870, 'water',       '#0EA5E9'),
+        ('إدارة مدينة الحصاحيصا', 'gov',      'مبنى الإدارة، وسط المدينة', '0111000010', 14.6835, 33.3830, 'business',    '#8B5CF6'),
+        ('صيدلية الشفاء',         'pharmacy', 'شارع الرئيسي، الحصاحيصا',  '0111000011', 14.6841, 33.3825, 'medical',     '#06B6D4'),
+        ('بنك السودان - فرع الحصاحيصا','bank','حي البنوك، الحصاحيصا',     '0111000012', 14.6828, 33.3835, 'card',        '#6366F1'),
+        ('محطة الوقود المركزية',  'gas',      'مدخل المدينة الشمالي',      NULL,          14.6880, 33.3800, 'car',         '#F97316'),
+        ('مركز الشباب والرياضة',  'sports',   'حي الرياضة، الحصاحيصا',    NULL,          14.6810, 33.3860, 'football',    '#EF4444'),
+        ('مكتبة الحصاحيصا',       'culture',  'وسط المدينة',               NULL,          14.6837, 33.3843, 'book',        '#A855F7')
+    `);
+  }
 
   // ── تحديث جدول الإعلانات — إضافة image_url إن لم تكن موجودة ──
   await query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS image_url TEXT`);
@@ -1084,6 +1161,81 @@ router.post("/posts/:id/like", async (req: Request, res: Response) => {
   }
 });
 
+// ══════════════════════════════════════════════════════
+// Push Tokens — تسجيل وتحديث رمز الإشعارات
+// ══════════════════════════════════════════════════════
+
+router.post("/push-tokens", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const { token, platform } = req.body as { token: string; platform?: string };
+    if (!token || !token.startsWith("ExponentPushToken[")) {
+      return res.status(400).json({ error: "رمز إشعار غير صالح" });
+    }
+    await query(
+      `INSERT INTO push_tokens (user_id, token, platform, updated_at)
+       VALUES ($1,$2,$3,NOW())
+       ON CONFLICT (user_id) DO UPDATE SET token=$2, platform=$3, updated_at=NOW()`,
+      [me.id, token, platform || "android"]
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// خريطة المدينة — أماكن الخدمات
+// ══════════════════════════════════════════════════════
+
+router.get("/map/places", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, name, category, address, phone, lat, lng, icon, color
+       FROM map_places ORDER BY category, name`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/map/places", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { name, category, address, phone, lat, lng, icon, color } = req.body;
+    if (!name || !lat || !lng) return res.status(400).json({ error: "بيانات ناقصة" });
+    const { rows } = await query(
+      `INSERT INTO map_places (name, category, address, phone, lat, lng, icon, color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name, category || "other", address || null, phone || null, lat, lng,
+       icon || "location", color || "#3EFF9C"]
+    );
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.delete("/map/places/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    await query(`DELETE FROM map_places WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+
 router.get("/notifications", async (_req: Request, res: Response) => {
   try {
     const result = await query(`SELECT * FROM notifications ORDER BY created_at DESC`);
@@ -1635,6 +1787,17 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
       WHERE id=$4
     `, [image_url ? "📷 صورة" : msgContent, me.id, isUser1, chatId]);
     const msg = { ...result.rows[0], sender_name: me.name };
+
+    // ── إرسال إشعار Push للمستقبِل ──
+    const recipientId = isUser1 ? c.user2_id : c.user1_id;
+    const notifBody = image_url ? "📷 أرسل لك صورة" : (msgContent.length > 60 ? msgContent.slice(0, 60) + "…" : msgContent);
+    sendPushToUser(
+      recipientId,
+      `رسالة من ${me.name as string}`,
+      notifBody,
+      { chatId, otherName: me.name, screen: "chat" }
+    );
+
     return res.json(msg);
   } catch (err) {
     console.error(err);
