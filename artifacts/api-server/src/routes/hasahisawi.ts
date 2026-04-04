@@ -2790,28 +2790,50 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
       { role: "user", parts: [{ text: message }] },
     ];
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-        }),
-      }
-    );
+    // جرّب الموديلات بالترتيب حتى ينجح أحدها
+    const MODELS = [
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash-8b",
+      "gemini-2.0-flash",
+    ];
 
-    if (!geminiRes.ok) {
-      const err = await geminiRes.text();
-      console.error("Gemini error:", err);
-      return res.status(502).json({ error: "خطأ في الاتصال بخدمة الذكاء الاصطناعي" });
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+    });
+
+    let lastStatus = 500;
+    let lastErrBody = "";
+
+    for (const model of MODELS) {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body }
+      );
+
+      if (geminiRes.ok) {
+        const data = await geminiRes.json() as any;
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text
+          || "لم أتمكن من الإجابة، يرجى المحاولة مجدداً.";
+        return res.json({ reply });
+      }
+
+      lastStatus = geminiRes.status;
+      lastErrBody = await geminiRes.text();
+      console.error(`Gemini error (${model}):`, lastErrBody);
+
+      // لا فائدة من المحاولة التالية إذا كان خطأ في المفتاح
+      if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) break;
     }
 
-    const data = await geminiRes.json() as any;
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "لم أتمكن من الإجابة، يرجى المحاولة مجدداً.";
-    return res.json({ reply });
+    // رسالة خطأ واضحة حسب نوع الخطأ
+    if (lastStatus === 429) {
+      return res.status(503).json({
+        error: "الخدمة مشغولة حالياً بسبب كثرة الطلبات، حاول مرة أخرى بعد دقيقة."
+      });
+    }
+    return res.status(502).json({ error: "خطأ في الاتصال بخدمة الذكاء الاصطناعي" });
   } catch (err) {
     console.error("AI chat error:", err);
     return res.status(500).json({ error: "Server error" });
