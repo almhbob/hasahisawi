@@ -77,9 +77,10 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    label: "المناسبات",
+    label: "المناسبات والتكريم",
     items: [
-      { title: "مناسبتي",          icon: "sparkles-outline",  route: "/(tabs)/occasions", color: "#D97706" },
+      { title: "مناسبتي",          icon: "sparkles-outline",  route: "/(tabs)/occasions", color: "#D97706"  },
+      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#D4AF37"  },
     ],
   },
   {

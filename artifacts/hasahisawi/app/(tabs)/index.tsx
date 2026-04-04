@@ -357,10 +357,14 @@ export default function HomeScreen() {
                 <Ionicons name="trophy" size={15} color="#D4AF37" />
                 <Text style={styles.honorTitle}>قاعة التكريم</Text>
               </View>
-              <View style={styles.honorDotGroup}>
-                <View style={[styles.honorDot, { width: 5, height: 5, backgroundColor: "#D4AF3770" }]} />
-                <View style={[styles.honorDot, { backgroundColor: "#D4AF37" }]} />
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/honored" as any)}
+                style={styles.honorSeeAll}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.honorSeeAllText}>عرض الكل</Text>
+                <Ionicons name="chevron-back" size={13} color="#D4AF37" />
+              </TouchableOpacity>
             </View>
             <HonorCard figure={honoredFigure} />
           </Animated.View>
@@ -1146,10 +1150,26 @@ const styles = StyleSheet.create({
   honorHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     gap: 10,
     marginBottom: 12,
     paddingHorizontal: 16,
+  },
+  honorSeeAll: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#D4AF3718",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D4AF3730",
+  },
+  honorSeeAllText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 11,
+    color: "#D4AF37",
   },
   honorDotGroup: {
     flexDirection: "row",

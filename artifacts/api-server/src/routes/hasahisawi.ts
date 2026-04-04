@@ -1772,6 +1772,28 @@ router.get("/honored-figure", async (_req: Request, res: Response) => {
   }
 });
 
+// قائمة عامة بجميع الشخصيات المكرّمة (مرئية للجميع)
+router.get("/honored-figures", async (req: Request, res: Response) => {
+  try {
+    const page  = Math.max(1, parseInt(String(req.query.page  ?? 1)));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? 20))));
+    const offset = (page - 1) * limit;
+    const { rows } = await query(`
+      SELECT id, name, title, city_role, photo_url, tribute, start_date, end_date, created_at,
+             (end_date >= CURRENT_DATE AND start_date <= CURRENT_DATE) AS is_current
+      FROM honored_figures
+      WHERE is_visible = TRUE
+      ORDER BY start_date DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    const { rows: countRows } = await query(`SELECT COUNT(*) FROM honored_figures WHERE is_visible = TRUE`);
+    return res.json({ figures: rows, total: parseInt(countRows[0].count) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // جلب كل الشخصيات المكرّمة (الإدارة)
 router.get("/admin/honored-figures", async (req: Request, res: Response) => {
   try {

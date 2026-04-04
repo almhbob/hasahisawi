@@ -149,6 +149,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="ai-support"  options={{ href: null }} />
       <Tabs.Screen name="transport"   options={{ href: null }} />
       <Tabs.Screen name="occasions"   options={{ href: null }} />
+      <Tabs.Screen name="honored"     options={{ href: null }} />
     </Tabs>
   );
 }
