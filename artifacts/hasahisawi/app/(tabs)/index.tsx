@@ -55,6 +55,7 @@ const FALLBACK_LANDMARKS: ApiLandmark[] = [
 type ServiceItem = {
   id: string; label: string; sub: string; icon: any;
   color: string; bg: string; route: any; iconType: "ionicons" | "material";
+  soon?: boolean;
 };
 
 function ServiceGridItem({
@@ -66,7 +67,7 @@ function ServiceGridItem({
       style={styles.gridItemContainer}
     >
       <AnimatedPress onPress={onPress}>
-        <View style={styles.gridItem}>
+        <View style={[styles.gridItem, item.soon && { opacity: 0.88 }]}>
           {/* توهج خلفي للبطاقة */}
           <View style={[styles.gridGlow, { backgroundColor: item.color + "12" }]} />
           <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
@@ -76,6 +77,13 @@ function ServiceGridItem({
           </View>
           <Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>
           <Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>
+          {/* شارة "قريباً" */}
+          {item.soon && (
+            <View style={styles.soonBadge}>
+              <MaterialCommunityIcons name="clock-fast" size={9} color="#FBBF24" />
+              <Text style={styles.soonBadgeText}>قريباً</Text>
+            </View>
+          )}
           {/* حد نيوني سفلي */}
           <View style={[styles.gridBottomLine, { backgroundColor: item.color + "80" }]} />
         </View>
@@ -158,6 +166,7 @@ export default function HomeScreen() {
     { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
+    { id: "transport", label: "الترحال والتوصيل",                  sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, soon: true },
   ], [lang]);
 
   const handlePress = (route: string) => {
@@ -899,6 +908,15 @@ const styles = StyleSheet.create({
   },
   gridBottomLine: {
     position: "absolute", bottom: 0, left: 14, right: 14, height: 2, borderRadius: 1, opacity: 0.55,
+  },
+  soonBadge: {
+    position: "absolute", top: 7, left: 7,
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#FBBF2420", borderWidth: 1, borderColor: "#FBBF2450",
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
+  },
+  soonBadgeText: {
+    fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FBBF24",
   },
 
   /* Quick Banners Row */
