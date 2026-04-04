@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Linking, Platform, Alert, Modal,
-  KeyboardAvoidingView, ActivityIndicator, Switch,
+  KeyboardAvoidingView, ActivityIndicator, Switch, Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { fsGetCollection, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import { useFocusEffect, useRouter } from "expo-router";
 import Colors from "@/constants/colors";
@@ -17,6 +18,7 @@ import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
+import { uploadPaymentProof } from "@/lib/firebase/storage";
 
 // ══════════════════════════════════════════════════════
 // الأنواع
@@ -240,6 +242,12 @@ function AppointmentsTab({ auth }: { auth: any }) {
   const [aptPhone, setAptPhone]   = useState(auth.user?.phone || "");
   const [aptNotes, setAptNotes]   = useState("");
   const [booking, setBooking]     = useState(false);
+  // الدفع
+  const [payMethod, setPayMethod]   = useState<"cash" | "transfer" | "">("");
+  const [proofUri,  setProofUri]    = useState<string | null>(null);
+  const [proofUrl,  setProofUrl]    = useState<string | null>(null);
+  const [uploading, setUploading]   = useState(false);
+  const [uploadPct, setUploadPct]   = useState(0);
 
   const base = getApiUrl();
 
@@ -253,13 +261,47 @@ function AppointmentsTab({ auth }: { auth: any }) {
 
   useEffect(() => { loadAppointments(); }, []);
 
+  const pickProofImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") { Alert.alert("صلاحية مطلوبة", "يرجى السماح بالوصول إلى الصور"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8, allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setProofUri(result.assets[0].uri);
+      setProofUrl(null);
+      if (Platform.OS !== "web") Haptics.selectionAsync();
+    }
+  };
+
+  const uploadProof = async (): Promise<string | null> => {
+    if (!proofUri || !auth.user) return null;
+    setUploading(true); setUploadPct(0);
+    try {
+      const url = await uploadPaymentProof(String(auth.user.id), proofUri, p => setUploadPct(p.percent));
+      setProofUrl(url);
+      return url;
+    } catch { Alert.alert("خطأ", "تعذّر رفع الإشعار، تحقق من اتصالك"); return null; }
+    finally { setUploading(false); }
+  };
+
   const bookAppointment = async () => {
     if (!facilityName.trim() || !aptDate.trim() || !aptTime) {
       Alert.alert("خطأ", "يرجى ملء اسم المنشأة والتاريخ والوقت"); return;
     }
+    if (!payMethod) { Alert.alert("خطأ", "يرجى اختيار طريقة الدفع"); return; }
+    if (payMethod === "transfer" && !proofUri) {
+      Alert.alert("خطأ", "يرجى رفع صورة إشعار التحويل"); return;
+    }
     if (!base) return;
     setBooking(true);
     try {
+      let finalProofUrl = proofUrl;
+      if (payMethod === "transfer" && proofUri && !proofUrl) {
+        finalProofUrl = await uploadProof();
+        if (!finalProofUrl) { setBooking(false); return; }
+      }
       const res = await fetch(`${base}/api/appointments/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
@@ -267,12 +309,14 @@ function AppointmentsTab({ auth }: { auth: any }) {
           target_type: "facility", target_id: "manual",
           facility_name: facilityName.trim(), appointment_date: aptDate.trim(),
           appointment_time: aptTime, user_phone: aptPhone.trim(), notes: aptNotes.trim(),
+          payment_method: payMethod, payment_proof_url: finalProofUrl || undefined,
         }),
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowBook(false);
         setFacilityName(""); setAptDate(""); setAptTime(""); setAptNotes("");
+        setPayMethod(""); setProofUri(null); setProofUrl(null);
         loadAppointments();
       } else {
         const err = await res.json() as any;
@@ -412,9 +456,100 @@ function AppointmentsTab({ auth }: { auth: any }) {
                 placeholder="أي تفاصيل إضافية..." placeholderTextColor={Colors.textMuted}
                 textAlign="right" multiline />
             </View>
+
+            {/* ══ طريقة الدفع ══ */}
+            <View style={aptSty.paySection}>
+              <View style={aptSty.payHeader}>
+                <MaterialCommunityIcons name="cash-multiple" size={17} color={Colors.accent} />
+                <Text style={aptSty.paySectionTitle}>طريقة الدفع</Text>
+              </View>
+              <View style={aptSty.payMethods}>
+                {/* كاش */}
+                <TouchableOpacity
+                  style={[aptSty.payMethodBtn, payMethod === "cash" && aptSty.payMethodBtnActive]}
+                  onPress={() => { setPayMethod("cash"); setProofUri(null); setProofUrl(null); }}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="cash" size={22}
+                    color={payMethod === "cash" ? Colors.primary : Colors.textMuted} />
+                  <Text style={[aptSty.payMethodLabel, payMethod === "cash" && { color: Colors.primary }]}>
+                    نقداً
+                  </Text>
+                  {payMethod === "cash" && (
+                    <View style={aptSty.payMethodCheck}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {/* تحويل */}
+                <TouchableOpacity
+                  style={[aptSty.payMethodBtn, payMethod === "transfer" && aptSty.payMethodBtnActiveTransfer]}
+                  onPress={() => setPayMethod("transfer")}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="bank-transfer" size={22}
+                    color={payMethod === "transfer" ? Colors.accent : Colors.textMuted} />
+                  <Text style={[aptSty.payMethodLabel, payMethod === "transfer" && { color: Colors.accent }]}>
+                    تحويل بنكي
+                  </Text>
+                  {payMethod === "transfer" && (
+                    <View style={aptSty.payMethodCheck}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.accent} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* رفع إشعار التحويل */}
+              {payMethod === "transfer" && (
+                <Animated.View entering={FadeInDown.springify()} style={aptSty.proofBox}>
+                  <View style={aptSty.proofBoxHeader}>
+                    <Ionicons name="document-attach-outline" size={15} color={Colors.accent} />
+                    <Text style={aptSty.proofBoxTitle}>إشعار التحويل <Text style={{ color: Colors.danger }}>*</Text></Text>
+                  </View>
+                  <Text style={aptSty.proofBoxSub}>الرجاء رفع صورة إشعار تحويل المبلغ</Text>
+
+                  <TouchableOpacity style={aptSty.proofPicker} onPress={pickProofImage} activeOpacity={0.8}>
+                    {proofUri
+                      ? <Image source={{ uri: proofUri }} style={aptSty.proofThumb} />
+                      : <>
+                          <Ionicons name="cloud-upload-outline" size={28} color={Colors.textMuted} />
+                          <Text style={aptSty.proofPickerText}>اضغط لاختيار الصورة</Text>
+                        </>
+                    }
+                  </TouchableOpacity>
+
+                  {proofUri && !proofUrl && (
+                    <TouchableOpacity
+                      style={[aptSty.uploadBtn, uploading && { opacity: 0.6 }]}
+                      onPress={uploadProof} disabled={uploading} activeOpacity={0.8}
+                    >
+                      {uploading
+                        ? <>
+                            <ActivityIndicator size="small" color={Colors.accent} />
+                            <Text style={aptSty.uploadBtnText}>جارٍ الرفع {Math.round(uploadPct)}%</Text>
+                          </>
+                        : <>
+                            <Ionicons name="cloud-upload-outline" size={16} color={Colors.accent} />
+                            <Text style={aptSty.uploadBtnText}>رفع الإشعار</Text>
+                          </>
+                      }
+                    </TouchableOpacity>
+                  )}
+
+                  {proofUrl && (
+                    <View style={aptSty.uploadDone}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.accent} />
+                      <Text style={aptSty.uploadDoneText}>تم رفع الإشعار بنجاح</Text>
+                    </View>
+                  )}
+                </Animated.View>
+              )}
+            </View>
+
             {/* زر الإرسال */}
-            <TouchableOpacity onPress={bookAppointment} disabled={booking} activeOpacity={0.85}>
-              <LinearGradient colors={booking ? [Colors.divider, Colors.divider] : [Colors.primary, Colors.primaryDim]} style={aptSty.submitBtn}>
+            <TouchableOpacity onPress={bookAppointment} disabled={booking || uploading} activeOpacity={0.85}>
+              <LinearGradient colors={(booking || uploading) ? [Colors.divider, Colors.divider] : [Colors.primary, Colors.primaryDim]} style={aptSty.submitBtn}>
                 {booking ? <ActivityIndicator color="#fff" /> : <>
                   <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                   <Text style={aptSty.submitBtnText}>تأكيد الحجز</Text>
@@ -1055,6 +1190,52 @@ const aptSty = StyleSheet.create({
   timeChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   submitBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: 14, marginTop: 8 },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  /* ══ الدفع ══ */
+  paySection: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: Colors.accent + "30", gap: 12,
+  },
+  payHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  paySectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+  payMethods: { flexDirection: "row-reverse", gap: 10 },
+  payMethodBtn: {
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14,
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    backgroundColor: Colors.bg, position: "relative",
+  },
+  payMethodBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + "10" },
+  payMethodBtnActiveTransfer: { borderColor: Colors.accent, backgroundColor: Colors.accent + "10" },
+  payMethodLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  payMethodCheck: { position: "absolute", top: 7, left: 7 },
+
+  proofBox: {
+    backgroundColor: Colors.accent + "08", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.accent + "25", gap: 10,
+  },
+  proofBoxHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  proofBoxTitle: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.accent },
+  proofBoxSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+
+  proofPicker: {
+    height: 110, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed",
+    borderColor: Colors.divider, backgroundColor: Colors.bg,
+    justifyContent: "center", alignItems: "center", gap: 6, overflow: "hidden",
+  },
+  proofThumb: { width: "100%", height: 110, borderRadius: 12 },
+  proofPickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
+
+  uploadBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.accent + "50", backgroundColor: Colors.accent + "10",
+  },
+  uploadBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.accent },
+  uploadDone: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.accent + "15",
+  },
+  uploadDoneText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.accent },
 });
 
 const cSty = StyleSheet.create({

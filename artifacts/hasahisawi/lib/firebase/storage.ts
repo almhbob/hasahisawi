@@ -116,6 +116,15 @@ export async function uploadHonorImage(
   return uploadFile(`honored-figures/${name}`, uri, onProgress);
 }
 
+export async function uploadPaymentProof(
+  userId: string,
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+  return uploadFile(`payment-proofs/${userId}/${name}`, uri, onProgress);
+}
+
 export async function deleteFile(path: string): Promise<void> {
   const fileRef = ref(getStore(), path);
   await deleteObject(fileRef);

@@ -3715,6 +3715,9 @@ router.post("/medical-consultations/:id/reply", async (req: Request, res: Respon
 (async () => {
   try {
     await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS services_availability JSONB DEFAULT '{}'`);
+    await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS payment_settings JSONB DEFAULT '{}'`);
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30)`);
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_proof_url TEXT`);
     await query(`
       CREATE TABLE IF NOT EXISTS institution_portal_sessions (
         id SERIAL PRIMARY KEY,
@@ -3789,7 +3792,7 @@ router.get("/inst/my-info", async (req: Request, res: Response) => {
       `SELECT id, inst_name, inst_type, inst_category, inst_description,
               inst_address, inst_phone, inst_email, inst_website,
               rep_name, rep_title, rep_photo_url, rep_phone,
-              selected_services, services_availability, status,
+              selected_services, services_availability, payment_settings, status,
               signed_contract_url, created_at
        FROM institution_applications WHERE id = $1`,
       [sess.institutionId]
@@ -3817,6 +3820,35 @@ router.put("/inst/services-availability", async (req: Request, res: Response) =>
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
+});
+
+// PUT /api/inst/payment-settings — إعدادات الدفع
+router.put("/inst/payment-settings", async (req: Request, res: Response) => {
+  try {
+    const sess = await getInstitutionSession(req);
+    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
+    const { payment_settings } = req.body as { payment_settings?: Record<string, any> };
+    if (!payment_settings || typeof payment_settings !== "object") {
+      return res.status(400).json({ error: "بيانات غير صالحة" });
+    }
+    await query(
+      `UPDATE institution_applications SET payment_settings = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(payment_settings), sess.institutionId]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/inst/payment-settings-public/:id — إعدادات دفع مؤسسة (عامة)
+router.get("/inst/payment-settings-public/:id", async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT payment_settings FROM institution_applications WHERE id=$1 AND status='approved'`,
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "لم توجد" });
+    return res.json({ payment_settings: result.rows[0].payment_settings || {} });
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 // POST /api/inst/logout — تسجيل الخروج

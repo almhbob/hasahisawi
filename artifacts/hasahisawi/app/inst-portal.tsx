@@ -65,6 +65,13 @@ const ALL_SERVICES: { id: string; label: string; icon: string; cat: string }[] =
   { id: "s28", label: "التوعية المجتمعية",               icon: "bullhorn",                 cat: "إعلام" },
 ];
 
+type PaymentSettings = {
+  cash: boolean;
+  transfer: boolean;
+  account_number: string;
+  bank_name: string;
+};
+
 type InstData = {
   id: number;
   inst_name: string;
@@ -79,6 +86,7 @@ type InstData = {
   rep_photo_url?: string;
   selected_services: string;
   services_availability: Record<string, boolean>;
+  payment_settings: PaymentSettings;
   status: string;
   created_at: string;
 };
@@ -105,6 +113,14 @@ export default function InstPortalScreen() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
+
+  // إعدادات الدفع
+  const [paymentCash,     setPaymentCash]     = useState(true);
+  const [paymentTransfer, setPaymentTransfer] = useState(false);
+  const [accountNumber,   setAccountNumber]   = useState("");
+  const [bankName,        setBankName]        = useState("");
+  const [savingPayment,   setSavingPayment]   = useState(false);
+  const [savedPayment,    setSavedPayment]    = useState(false);
 
   // ── تحقق من وجود جلسة مخزنة ──
   useEffect(() => {
@@ -134,6 +150,14 @@ export default function InstPortalScreen() {
     setAvailability(avail);
   };
 
+  const initPaymentSettings = (data: InstData) => {
+    const ps: PaymentSettings = data.payment_settings || { cash: true, transfer: false, account_number: "", bank_name: "" };
+    setPaymentCash(ps.cash !== false);
+    setPaymentTransfer(!!ps.transfer);
+    setAccountNumber(ps.account_number || "");
+    setBankName(ps.bank_name || "");
+  };
+
   const refreshMyInfo = async (tok: string) => {
     try {
       const base = getApiUrl();
@@ -145,11 +169,43 @@ export default function InstPortalScreen() {
         const data = await res.json() as { institution: InstData };
         setInst(data.institution);
         initAvailability(data.institution);
+        initPaymentSettings(data.institution);
         await AsyncStorage.setItem(INST_KEY, JSON.stringify(data.institution));
       } else {
         await doLogout();
       }
     } catch {}
+  };
+
+  const savePaymentSettings = async () => {
+    if (!token) return;
+    if (paymentTransfer && !accountNumber.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال رقم الحساب البنكي لتفعيل التحويل");
+      return;
+    }
+    setSavingPayment(true);
+    try {
+      const base = getApiUrl();
+      if (!base) { Alert.alert("خطأ", "الخدمة غير متاحة"); return; }
+      const ps: PaymentSettings = {
+        cash: paymentCash, transfer: paymentTransfer,
+        account_number: accountNumber.trim(), bank_name: bankName.trim(),
+      };
+      const res = await fetch(`${base}/api/inst/payment-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `InstBearer ${token}` },
+        body: JSON.stringify({ payment_settings: ps }),
+      });
+      if (res.ok) {
+        setSavedPayment(true);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setTimeout(() => setSavedPayment(false), 3000);
+      } else {
+        const err = await res.json() as any;
+        Alert.alert("خطأ", err.error || "تعذّر الحفظ");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingPayment(false); }
   };
 
   const doLogin = async () => {
@@ -172,6 +228,7 @@ export default function InstPortalScreen() {
       setToken(data.token);
       setInst(data.institution);
       initAvailability(data.institution);
+      initPaymentSettings(data.institution);
       await AsyncStorage.setItem(TOKEN_KEY, data.token);
       await AsyncStorage.setItem(INST_KEY, JSON.stringify(data.institution));
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -408,6 +465,116 @@ export default function InstPortalScreen() {
           </View>
         </Animated.View>
 
+        {/* ══ إعدادات الدفع ══ */}
+        <Animated.View entering={FadeInDown.delay(250).springify()}>
+          <View style={ps.card}>
+            <View style={ps.cardHeader}>
+              <MaterialCommunityIcons name="bank-transfer" size={18} color={Colors.accent} />
+              <Text style={ps.cardTitle}>إعدادات الدفع</Text>
+            </View>
+            <Text style={ps.cardDesc}>
+              حدّد طرق الدفع التي تقبلها مؤسستك من المستفيدين
+            </Text>
+            <View style={ps.divider} />
+
+            {/* كاش */}
+            <View style={ps.methodRow}>
+              <Switch
+                value={paymentCash}
+                onValueChange={v => { setPaymentCash(v); setSavedPayment(false); }}
+                trackColor={{ false: Colors.divider, true: Colors.primary + "60" }}
+                thumbColor={paymentCash ? Colors.primary : Colors.textMuted}
+              />
+              <View style={{ flex: 1, alignItems: "flex-end", gap: 2 }}>
+                <Text style={ps.methodLabel}>الدفع النقدي (كاش)</Text>
+                <Text style={ps.methodSub}>يدفع المستفيد نقداً عند الحضور</Text>
+              </View>
+              <View style={[ps.methodIcon, { backgroundColor: Colors.primary + "15" }]}>
+                <MaterialCommunityIcons name="cash" size={22} color={Colors.primary} />
+              </View>
+            </View>
+
+            {/* تحويل بنكي */}
+            <View style={ps.methodRow}>
+              <Switch
+                value={paymentTransfer}
+                onValueChange={v => { setPaymentTransfer(v); setSavedPayment(false); }}
+                trackColor={{ false: Colors.divider, true: Colors.accent + "60" }}
+                thumbColor={paymentTransfer ? Colors.accent : Colors.textMuted}
+              />
+              <View style={{ flex: 1, alignItems: "flex-end", gap: 2 }}>
+                <Text style={ps.methodLabel}>التحويل البنكي</Text>
+                <Text style={ps.methodSub}>يحوّل المستفيد ويرفع صورة الإشعار</Text>
+              </View>
+              <View style={[ps.methodIcon, { backgroundColor: Colors.accent + "15" }]}>
+                <MaterialCommunityIcons name="bank-transfer" size={22} color={Colors.accent} />
+              </View>
+            </View>
+
+            {/* بيانات الحساب — تظهر عند تفعيل التحويل */}
+            {paymentTransfer && (
+              <Animated.View entering={FadeInDown.springify()} style={ps.accountBox}>
+                <View style={ps.accountHeader}>
+                  <MaterialCommunityIcons name="credit-card-outline" size={16} color={Colors.accent} />
+                  <Text style={ps.accountHeaderText}>بيانات الحساب البنكي</Text>
+                </View>
+                <View style={ps.field}>
+                  <Text style={ps.fieldLabel}>اسم البنك</Text>
+                  <TextInput
+                    style={ps.fieldInput}
+                    value={bankName}
+                    onChangeText={t => { setBankName(t); setSavedPayment(false); }}
+                    placeholder="مثال: بنك الخرطوم"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                  />
+                </View>
+                <View style={ps.field}>
+                  <Text style={ps.fieldLabel}>رقم الحساب / رقم الهاتف <Text style={{ color: Colors.danger }}>*</Text></Text>
+                  <TextInput
+                    style={ps.fieldInput}
+                    value={accountNumber}
+                    onChangeText={t => { setAccountNumber(t); setSavedPayment(false); }}
+                    placeholder="رقم حساب المؤسسة"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={ps.noteBox}>
+                  <Ionicons name="information-circle-outline" size={14} color={Colors.cyber} />
+                  <Text style={ps.noteText}>
+                    سيظهر هذا الرقم للمستفيدين عند اختيار التحويل ويمكنهم رفع إشعار التحويل
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* تنبيه الحفظ */}
+            {savedPayment && (
+              <Animated.View entering={ZoomIn.springify()} style={ds.savedBanner}>
+                <Ionicons name="checkmark-circle" size={18} color={Colors.accent} />
+                <Text style={[ds.savedText, { color: Colors.accent }]}>تم حفظ إعدادات الدفع</Text>
+              </Animated.View>
+            )}
+
+            <TouchableOpacity onPress={savePaymentSettings} disabled={savingPayment} activeOpacity={0.85}>
+              <LinearGradient
+                colors={savingPayment ? [Colors.divider, Colors.divider] : [Colors.accent, Colors.accent + "CC"]}
+                style={ds.saveBtn}
+              >
+                {savingPayment
+                  ? <ActivityIndicator color="#fff" />
+                  : <>
+                      <Ionicons name="save-outline" size={20} color="#fff" />
+                      <Text style={ds.saveBtnText}>حفظ إعدادات الدفع</Text>
+                    </>
+                }
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
         {/* أزرار الإجراءات */}
         <Animated.View entering={FadeInDown.delay(300).springify()} style={{ gap: 10 }}>
           <TouchableOpacity onPress={saveAvailability} disabled={saving} activeOpacity={0.85}>
@@ -419,7 +586,7 @@ export default function InstPortalScreen() {
                 ? <ActivityIndicator color="#fff" />
                 : <>
                     <Ionicons name="save-outline" size={20} color="#fff" />
-                    <Text style={ds.saveBtnText}>حفظ الإعدادات</Text>
+                    <Text style={ds.saveBtnText}>حفظ إعدادات الخدمات</Text>
                   </>
               }
             </LinearGradient>
@@ -733,4 +900,45 @@ const ls = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
     flex: 1, textAlign: "right", lineHeight: 20,
   },
+});
+
+const ps = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: Colors.accent + "30", gap: 14,
+  },
+  cardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
+  divider: { height: 1, backgroundColor: Colors.divider },
+  methodRow: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    backgroundColor: Colors.bg, borderRadius: 14, padding: 12,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  methodIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    justifyContent: "center", alignItems: "center",
+  },
+  methodLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+  methodSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  accountBox: {
+    backgroundColor: Colors.accent + "08", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.accent + "25", gap: 12,
+  },
+  accountHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  accountHeaderText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.accent },
+  field: { gap: 6 },
+  fieldLabel: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  fieldInput: {
+    backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
+    paddingHorizontal: 14, paddingVertical: 11,
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+  },
+  noteBox: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+    backgroundColor: Colors.cyber + "10", borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: Colors.cyber + "25",
+  },
+  noteText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
 });
