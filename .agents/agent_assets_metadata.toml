@@ -131,3 +131,9 @@ id = "lr_4esKmZSdR3fAtHI-qe"
 uri = "file://attached_assets/generated_images/hasahisawi_pro_poster_2.png"
 type = "image"
 title = "تصميم مربع — سوشيال ميديا (1:1)"
+
+[[outputs]]
+id = "ac6FyfS8D0fn8g1CC2NiQ"
+uri = "file://exports/hasahisawi-app-document.pdf"
+type = "pdf"
+title = "حصاحيصاوي — وثيقة التطبيق الرسمية"
