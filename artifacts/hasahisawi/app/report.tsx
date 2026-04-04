@@ -12,12 +12,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import type { LostItem } from "./(tabs)/missing";
-import { LOST_ITEMS_KEY } from "./(tabs)/missing";
+import { fsAddDoc, COLLECTIONS, isFirebaseAvailable } from "@/lib/firebase/firestore";
 
 const CATEGORIES: { key: LostItem["category"]; label: string; icon: string }[] = [
   { key: "phone", label: "هاتف", icon: "phone-portrait-outline" },
@@ -49,19 +48,19 @@ export default function ReportScreen() {
     setSaving(true);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
-      const newItem: LostItem = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      if (!isFirebaseAvailable()) {
+        Alert.alert("خطأ", "خدمة Firebase غير متاحة حالياً"); setSaving(false); return;
+      }
+      await fsAddDoc(COLLECTIONS.MISSING, {
         itemName: itemName.trim(),
         category,
         description: description.trim() || "لا يوجد وصف إضافي",
         lastSeen: lastSeen.trim(),
         contactPhone: contactPhone.trim(),
         status: "lost",
+        postedBy: auth.user?.uid ?? null,
         createdAt: new Date().toISOString(),
-      };
-      const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-      const existing: LostItem[] = raw ? JSON.parse(raw) : [];
-      await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify([newItem, ...existing]));
+      });
       Alert.alert("تم الإرسال", "تم نشر إعلانك بنجاح. نتمنى العثور على غرضك!", [
         { text: "حسناً", onPress: () => router.back() },
       ]);

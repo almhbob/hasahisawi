@@ -48,6 +48,11 @@ export const COLLECTIONS = {
   NOTIFICATIONS:"notifications",
   ANALYTICS:    "analytics",
   CHATS:        "chats",
+  MEDICAL:      "medical_facilities",
+  CULTURAL:     "cultural_centers",
+  SPORTS_CLUBS: "sports_clubs",
+  SPORTS_POSTS: "sports_posts",
+  NUMBERS:      "emergency_numbers",
 } as const;
 
 export async function fsGetDoc<T = DocumentData>(

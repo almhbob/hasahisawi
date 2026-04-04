@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import { fsGetCollection, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -34,11 +34,18 @@ export type Facility = {
   specialties?: string[];
 };
 
-export const MEDICAL_KEY = "medical_facilities_v1";
+export const MEDICAL_KEY = "medical_facilities_v1"; // kept for search.tsx compat
 
 export async function loadFacilities(): Promise<Facility[]> {
-  const raw = await AsyncStorage.getItem(MEDICAL_KEY);
-  return raw ? JSON.parse(raw) : [];
+  try {
+    if (isFirebaseAvailable()) {
+      const docs = await fsGetCollection<Facility>(COLLECTIONS.MEDICAL, orderBy("name"));
+      return docs;
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 const FILTER_OPTIONS = [

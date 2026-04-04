@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -59,12 +60,20 @@ type KouraMatch   = {
 
 // ─── Exported helpers ─────────────────────────────────────────────────────────
 export async function loadSportClubs(): Promise<SportClub[]> {
-  const raw = await AsyncStorage.getItem(SPORT_CLUBS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  try {
+    if (isFirebaseAvailable()) {
+      return await fsGetCollection<SportClub>(COLLECTIONS.SPORTS_CLUBS, orderBy("name"));
+    }
+    return [];
+  } catch { return []; }
 }
 export async function loadSportEvents(): Promise<SportEvent[]> {
-  const raw = await AsyncStorage.getItem(SPORT_EVENTS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  try {
+    if (isFirebaseAvailable()) {
+      return await fsGetCollection<SportEvent>("sport_events", orderBy("date", "desc"));
+    }
+    return [];
+  } catch { return []; }
 }
 export function getSportLabel(sport: SportClub["sport"]) {
   const m: Record<SportClub["sport"],string> = { football:"كرة قدم", basketball:"كرة سلة", volleyball:"كرة طائرة", athletics:"ألعاب قوى", swimming:"سباحة", boxing:"ملاكمة", other:"رياضة أخرى" };
@@ -899,16 +908,18 @@ export default function SportsScreen() {
   const [featModal, setFeatModal] = useState(false);
 
   const load = async () => {
-    const [rp,rpl,rm,rc,adm] = await Promise.all([
+    const [rp, rpl, rm, adm] = await Promise.all([
       AsyncStorage.getItem(POSTS_KEY), AsyncStorage.getItem(PLAYERS_KEY),
-      AsyncStorage.getItem(MATCHES_KEY), AsyncStorage.getItem(SPORT_CLUBS_KEY),
+      AsyncStorage.getItem(MATCHES_KEY),
       AsyncStorage.getItem(ADMIN_KEY),
     ]);
-    setPosts(rp?JSON.parse(rp):[]);
-    setPlayers(rpl?JSON.parse(rpl):[]);
-    setMatches(rm?JSON.parse(rm):[]);
-    setClubs(rc?JSON.parse(rc):[]);
-    setIsAdmin(adm==="true");
+    setPosts(rp ? JSON.parse(rp) : []);
+    setPlayers(rpl ? JSON.parse(rpl) : []);
+    setMatches(rm ? JSON.parse(rm) : []);
+    setIsAdmin(adm === "true");
+    // Clubs from Firestore
+    const fsClubs = await loadSportClubs();
+    setClubs(fsClubs);
   };
   useEffect(()=>{ load(); },[]);
   useFocusEffect(useCallback(()=>{ load(); },[]));
@@ -964,9 +975,21 @@ export default function SportsScreen() {
   const saveMatch = async (m:KouraMatch) => { const u=[m,...matches]; setMatches(u); await AsyncStorage.setItem(MATCHES_KEY,JSON.stringify(u)); };
   const deleteMatch = async (id:string) => { const u=matches.filter(m=>m.id!==id); setMatches(u); await AsyncStorage.setItem(MATCHES_KEY,JSON.stringify(u)); };
 
-  // Clubs
-  const saveClub = async (c:SportClub) => { const u=[c,...clubs]; setClubs(u); await AsyncStorage.setItem(SPORT_CLUBS_KEY,JSON.stringify(u)); };
-  const deleteClub = async (id:string) => { const u=clubs.filter(c=>c.id!==id); setClubs(u); await AsyncStorage.setItem(SPORT_CLUBS_KEY,JSON.stringify(u)); };
+  // Clubs — Firestore
+  const saveClub = async (c: SportClub) => {
+    try {
+      const { id, ...data } = c;
+      await fsAddDoc(COLLECTIONS.SPORTS_CLUBS, { ...data, createdAt: new Date().toISOString() });
+      const updated = await loadSportClubs();
+      setClubs(updated);
+    } catch { const u = [c, ...clubs]; setClubs(u); }
+  };
+  const deleteClub = async (id: string) => {
+    try {
+      await fsDeleteDoc(COLLECTIONS.SPORTS_CLUBS, id);
+      setClubs(prev => prev.filter(c => c.id !== id));
+    } catch { setClubs(prev => prev.filter(c => c.id !== id)); }
+  };
 
   // Derived
   const featuredPlayers  = players.filter(p=>isFeaturedActive(p));

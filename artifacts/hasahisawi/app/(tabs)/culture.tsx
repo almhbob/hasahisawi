@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import { fsGetCollection, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import { useFocusEffect } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -42,17 +42,25 @@ export type CulturalEvent = {
   contactPhone?: string;
 };
 
-export const CULTURAL_CENTERS_KEY = "cultural_centers_v1";
+export const CULTURAL_CENTERS_KEY = "cultural_centers_v1"; // kept for search.tsx compat
 export const CULTURAL_EVENTS_KEY = "cultural_events_v1";
 
 export async function loadCulturalCenters(): Promise<CulturalCenter[]> {
-  const raw = await AsyncStorage.getItem(CULTURAL_CENTERS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  try {
+    if (isFirebaseAvailable()) {
+      return await fsGetCollection<CulturalCenter>(COLLECTIONS.CULTURAL, orderBy("name"));
+    }
+    return [];
+  } catch { return []; }
 }
 
 export async function loadCulturalEvents(): Promise<CulturalEvent[]> {
-  const raw = await AsyncStorage.getItem(CULTURAL_EVENTS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  try {
+    if (isFirebaseAvailable()) {
+      return await fsGetCollection<CulturalEvent>("cultural_events", orderBy("date", "desc"));
+    }
+    return [];
+  } catch { return []; }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

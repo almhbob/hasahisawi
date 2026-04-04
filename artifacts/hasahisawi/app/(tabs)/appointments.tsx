@@ -5,8 +5,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
+import { fsGetCollection, fsAddDoc, fsUpdateDoc, COLLECTIONS, orderBy, where, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
@@ -147,7 +147,7 @@ const TIME_SLOTS = [
 
 const DAYS = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 
-const APPTS_KEY = "appointments_v2";
+const APPTS_KEY = "appointments_v2_legacy";
 
 function getNextDates(): { label: string; value: string }[] {
   const dates: { label: string; value: string }[] = [];
@@ -200,8 +200,15 @@ export default function AppointmentsScreen() {
   const [apptFilter, setApptFilter] = useState<AppStatus | "all">("all");
 
   const loadAppointments = async () => {
-    const raw = await AsyncStorage.getItem(APPTS_KEY);
-    setAppointments(raw ? JSON.parse(raw) : []);
+    if (!auth.user?.uid || !isFirebaseAvailable()) { setAppointments([]); return; }
+    try {
+      const docs = await fsGetCollection<Appointment>(
+        COLLECTIONS.APPOINTMENTS,
+        where("userId", "==", auth.user.uid),
+        orderBy("createdAt", "desc"),
+      );
+      setAppointments(docs);
+    } catch { setAppointments([]); }
   };
 
   useEffect(() => { loadAppointments(); }, []);
@@ -219,24 +226,24 @@ export default function AppointmentsScreen() {
 
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const newAppt: Appointment = {
-      id: Date.now().toString(),
-      facilityId: facility!.id,
-      facilityName: facility!.name,
-      facilityCategory: facility!.category,
-      service, patientName: patientName.trim(),
-      phone: phone.trim(), date, time, notes: notes.trim(),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-    const existing = await AsyncStorage.getItem(APPTS_KEY);
-    const all: Appointment[] = existing ? JSON.parse(existing) : [];
-    all.unshift(newAppt);
-    await AsyncStorage.setItem(APPTS_KEY, JSON.stringify(all));
-    setAppointments(all);
-    resetBooking();
-    setTab("my");
-    Alert.alert("✅ تم الحجز!", `تم إرسال طلب موعدك في ${facility!.name}\nيوم ${date} الساعة ${time}\nسيتم التواصل معك للتأكيد`);
+    try {
+      await fsAddDoc(COLLECTIONS.APPOINTMENTS, {
+        facilityId: facility!.id,
+        facilityName: facility!.name,
+        facilityCategory: facility!.category,
+        service, patientName: patientName.trim(),
+        phone: phone.trim(), date, time, notes: notes.trim(),
+        status: "pending",
+        userId: auth.user?.uid ?? null,
+        createdAt: new Date().toISOString(),
+      });
+      await loadAppointments();
+      resetBooking();
+      setTab("my");
+      Alert.alert("✅ تم الحجز!", `تم إرسال طلب موعدك في ${facility!.name}\nيوم ${date} الساعة ${time}\nسيتم التواصل معك للتأكيد`);
+    } catch {
+      Alert.alert("خطأ", "تعذّر حفظ الموعد، تحقق من الاتصال");
+    }
   };
 
   const cancelAppointment = async (id: string) => {
@@ -244,9 +251,10 @@ export default function AppointmentsScreen() {
       { text: "لا", style: "cancel" },
       {
         text: "نعم، ألغِ", style: "destructive", onPress: async () => {
-          const updated = appointments.map(a => a.id === id ? { ...a, status: "cancelled" as AppStatus } : a);
-          setAppointments(updated);
-          await AsyncStorage.setItem(APPTS_KEY, JSON.stringify(updated));
+          try {
+            await fsUpdateDoc(COLLECTIONS.APPOINTMENTS, id, { status: "cancelled" });
+            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled" as AppStatus } : a));
+          } catch { Alert.alert("خطأ", "تعذّر الإلغاء"); }
         }
       }
     ]);

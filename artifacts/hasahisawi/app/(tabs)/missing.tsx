@@ -13,11 +13,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
+import {
+  fsGetCollection, fsUpdateDoc, fsDeleteDoc,
+  COLLECTIONS, orderBy, isFirebaseAvailable,
+} from "@/lib/firebase/firestore";
 
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
@@ -209,9 +212,16 @@ export default function LostItemsScreen() {
   const [filterStatus, setFilterStatus] = useState<"all" | "lost" | "found">("all");
 
   const load = async () => {
-    const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-    const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-    setItems([...saved, ...SAMPLE_ITEMS]);
+    try {
+      if (isFirebaseAvailable()) {
+        const docs = await fsGetCollection<LostItem>(COLLECTIONS.MISSING, orderBy("createdAt", "desc"));
+        setItems(docs.length > 0 ? docs : SAMPLE_ITEMS);
+      } else {
+        setItems(SAMPLE_ITEMS);
+      }
+    } catch {
+      setItems(SAMPLE_ITEMS);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -219,22 +229,24 @@ export default function LostItemsScreen() {
 
   const markFound = async (id: string) => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-    const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.map(i => i.id === id ? { ...i, status: "found" as const } : i)));
-    load();
+    try {
+      await fsUpdateDoc(COLLECTIONS.MISSING, id, { status: "found" });
+      load();
+    } catch { load(); }
   };
 
   const deleteItem = (id: string) => {
+    const isSample = id.startsWith("s");
+    if (isSample) return;
     Alert.alert(t('missing', 'deleteConfirm'), t('missing', 'deleteConfirm'), [
       { text: t('common', 'cancel'), style: "cancel" },
       {
         text: t('common', 'delete'), style: "destructive",
         onPress: async () => {
-          const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-          const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-          await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-          load();
+          try {
+            await fsDeleteDoc(COLLECTIONS.MISSING, id);
+            load();
+          } catch { Alert.alert(t("common", "error"), "تعذّر الحذف"); }
         },
       },
     ]);

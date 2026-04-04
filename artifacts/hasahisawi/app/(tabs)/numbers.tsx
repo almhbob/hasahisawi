@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
+import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 
@@ -97,12 +98,12 @@ function groupByCategory(entries: NumberEntry[]): Category[] {
 }
 
 async function loadNumbers(): Promise<NumberEntry[]> {
-  const raw = await AsyncStorage.getItem(NUMBERS_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
-
-async function saveNumbers(nums: NumberEntry[]): Promise<void> {
-  await AsyncStorage.setItem(NUMBERS_KEY, JSON.stringify(nums));
+  try {
+    if (isFirebaseAvailable()) {
+      return await fsGetCollection<NumberEntry>(COLLECTIONS.NUMBERS, orderBy("category"), orderBy("name"));
+    }
+    return [];
+  } catch { return []; }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -303,15 +304,21 @@ export default function NumbersScreen() {
   const total = allCategories.reduce((s, c) => s + c.numbers.length, 0);
 
   const handleDelete = async (id: string) => {
-    const updated = customNumbers.filter(n => n.id !== id);
-    await saveNumbers(updated);
-    setCustomNumbers(updated);
+    try {
+      await fsDeleteDoc(COLLECTIONS.NUMBERS, id);
+      setCustomNumbers(prev => prev.filter(n => n.id !== id));
+    } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
   const handleAdd = async (entry: NumberEntry) => {
-    const updated = [...customNumbers, entry];
-    await saveNumbers(updated);
-    setCustomNumbers(updated);
+    try {
+      const newId = await fsAddDoc(COLLECTIONS.NUMBERS, {
+        name: entry.name, number: entry.number,
+        icon: entry.icon, color: entry.color,
+        category: entry.category, note: entry.note ?? null,
+      });
+      setCustomNumbers(prev => [...prev, { ...entry, id: newId }]);
+    } catch { Alert.alert("خطأ", "تعذّر الحفظ"); }
   };
 
   const handleAdminLogin = async () => {
