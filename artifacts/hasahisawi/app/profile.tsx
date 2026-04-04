@@ -9,11 +9,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import UserAvatar from "@/components/UserAvatar";
 import AnimatedPress from "@/components/AnimatedPress";
+import { uploadAvatar } from "@/lib/firebase/storage";
+import { isFirebaseAvailable } from "@/lib/firebase/auth";
 
 type UserProfile = {
   id: number;
@@ -69,6 +72,7 @@ export default function ProfileScreen() {
   const [editingBio, setEditingBio] = useState(false);
   const [bioText, setBioText] = useState("");
   const [savingBio, setSavingBio] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId) return;
@@ -100,6 +104,58 @@ export default function ProfileScreen() {
   }, [profileId, token]);
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+
+  const handlePickAvatar = async () => {
+    if (!isOwn || !token || !user) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const uri = result.assets[0].uri;
+    setUploadingAvatar(true);
+    try {
+      let avatarUrl: string;
+      if (isFirebaseAvailable()) {
+        avatarUrl = await uploadAvatar(String(user.id), uri);
+      } else {
+        const base = getApiUrl();
+        const form = new FormData();
+        form.append("file", { uri, type: "image/jpeg", name: "avatar.jpg" } as any);
+        const res = await fetch(`${base}/api/auth/upload-avatar`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: form,
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const data = await res.json();
+        avatarUrl = data.url;
+      }
+      const base = getApiUrl();
+      const res = await fetch(`${base}/api/auth/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ avatar_url: avatarUrl }),
+      });
+      if (res.ok) {
+        setProfile((p) => p ? { ...p, avatar_url: avatarUrl } : p);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("خطأ", "تعذّر تحديث صورة الملف الشخصي");
+      }
+    } catch (e) {
+      Alert.alert("خطأ", "حدث خطأ أثناء رفع الصورة");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const saveBio = async () => {
     if (!token) return;
@@ -195,12 +251,28 @@ export default function ProfileScreen() {
 
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <UserAvatar
-              name={profile.name}
-              avatarUrl={profile.avatar_url}
-              size={90}
-              borderRadius={28}
-            />
+            <TouchableOpacity
+              onPress={isOwn ? handlePickAvatar : undefined}
+              activeOpacity={isOwn ? 0.75 : 1}
+              disabled={uploadingAvatar}
+              style={styles.avatarBtn}
+            >
+              <UserAvatar
+                name={profile.name}
+                avatarUrl={profile.avatar_url}
+                size={96}
+                borderRadius={30}
+              />
+              {isOwn && (
+                <View style={styles.avatarEditOverlay}>
+                  {uploadingAvatar ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="camera" size={20} color="#fff" />
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={[styles.rolePill, { backgroundColor: roleInfo.color + "20", borderColor: roleInfo.color + "40" }]}>
               <Ionicons name={roleInfo.icon as any} size={12} color={roleInfo.color} />
               <Text style={[styles.rolePillText, { color: roleInfo.color }]}>{roleInfo.label}</Text>
@@ -387,6 +459,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   avatarContainer: { alignItems: "center", marginBottom: 4 },
+  avatarBtn: { position: "relative" },
+  avatarEditOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.cardBg,
+  },
   rolePill: {
     flexDirection: "row-reverse",
     alignItems: "center",

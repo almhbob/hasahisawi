@@ -46,7 +46,8 @@ import { requireNetwork } from "@/lib/network";
 import UserAvatar from "@/components/UserAvatar";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const MEDIA_H = Math.min(340, SCREEN_W * 0.65);
+const IMG_MAX_W = SCREEN_W - 28;
+const IMG_MAX_H = SCREEN_W * 1.25;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -305,10 +306,10 @@ async function pickMedia(type: "image" | "video"): Promise<MediaAsset | null> {
     mediaTypes: type === "image"
       ? ImagePicker.MediaTypeOptions.Images
       : ImagePicker.MediaTypeOptions.Videos,
-    allowsEditing: type === "image",
-    aspect: [4, 3],
-    quality: 0.85,
+    allowsEditing: false,
+    quality: 1.0,
     videoMaxDuration: 60,
+    exif: false,
   });
   if (result.canceled || !result.assets[0]) return null;
   return { uri: result.assets[0].uri, type };
@@ -357,7 +358,7 @@ function MediaPreview({ uri, type, onRemove }: { uri: string; type: "image" | "v
 }
 
 const mp = StyleSheet.create({
-  wrap: { borderRadius: 16, overflow: "hidden", height: 200, marginTop: 8, backgroundColor: "#000" },
+  wrap: { borderRadius: 16, overflow: "hidden", height: 260, marginTop: 8, backgroundColor: "#000" },
   img: { width: "100%", height: "100%" },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -385,17 +386,28 @@ const mp = StyleSheet.create({
 function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null; video_url?: string | null }) {
   const url = image_url || video_url;
   const isVideo = !!video_url && !image_url;
+  const [imgH, setImgH] = useState(IMG_MAX_W * 0.75);
+
+  useEffect(() => {
+    if (image_url) {
+      Image.getSize(
+        image_url,
+        (w, h) => {
+          const ratio = h / w;
+          setImgH(Math.min(IMG_MAX_W * ratio, IMG_MAX_H));
+        },
+        () => {},
+      );
+    }
+  }, [image_url]);
+
   if (!url) return null;
 
-  const handleVideoPress = () => {
-    Linking.openURL(url);
-  };
-
   return (
-    <View style={pmd.wrap}>
-      <Image source={{ uri: url }} style={pmd.img} resizeMode="cover" />
+    <View style={[pmd.wrap, { height: isVideo ? IMG_MAX_W * 0.65 : imgH }]}>
+      <Image source={{ uri: url }} style={pmd.img} resizeMode={isVideo ? "cover" : "contain"} />
       {isVideo && (
-        <TouchableOpacity style={pmd.videoOverlay} onPress={handleVideoPress} activeOpacity={0.8}>
+        <TouchableOpacity style={pmd.videoOverlay} onPress={() => Linking.openURL(url)} activeOpacity={0.8}>
           <View style={pmd.playCircle}>
             <Ionicons name="play" size={32} color="#fff" />
           </View>
@@ -410,8 +422,9 @@ const pmd = StyleSheet.create({
   wrap: {
     borderRadius: 18,
     overflow: "hidden",
-    marginVertical: 12,
-    height: MEDIA_H,
+    marginVertical: 10,
+    width: IMG_MAX_W,
+    alignSelf: "center",
     backgroundColor: Colors.divider,
   },
   img: { width: "100%", height: "100%" },
