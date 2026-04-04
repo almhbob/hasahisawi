@@ -23,7 +23,7 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 ├── artifacts/
 │   ├── hasahisawi/        # تطبيق React Native (Expo) — previewPath: /
 │   │   ├── app/           # شاشات Expo Router
-│   │   │   ├── (tabs)/    # 23 شاشة رئيسية
+│   │   │   ├── (tabs)/    # 24 شاشة رئيسية (occasions.tsx أضيفت)
 │   │   │   ├── login.tsx
 │   │   │   ├── admin.tsx
 │   │   │   ├── conversation.tsx

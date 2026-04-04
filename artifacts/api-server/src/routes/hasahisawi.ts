@@ -580,6 +580,53 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ── جداول مناسبتي ──────────────────────────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS occasion_shops (
+      id SERIAL PRIMARY KEY,
+      owner_name VARCHAR(100) NOT NULL,
+      shop_name  VARCHAR(150) NOT NULL,
+      phone      VARCHAR(25) NOT NULL UNIQUE,
+      whatsapp   VARCHAR(25),
+      city_area  VARCHAR(100) NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      social_link TEXT NOT NULL DEFAULT '',
+      status     VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      notes      TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS occasion_items (
+      id         SERIAL PRIMARY KEY,
+      shop_id    INTEGER NOT NULL REFERENCES occasion_shops(id) ON DELETE CASCADE,
+      name       VARCHAR(150) NOT NULL,
+      category   VARCHAR(60) NOT NULL DEFAULT 'other',
+      icon       VARCHAR(80) NOT NULL DEFAULT 'package-variant',
+      price_hint VARCHAR(100) NOT NULL DEFAULT '',
+      quantity   INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 99,
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS occasion_transport (
+      id           SERIAL PRIMARY KEY,
+      owner_name   VARCHAR(100) NOT NULL,
+      vehicle_type VARCHAR(40) NOT NULL,
+      vehicle_desc VARCHAR(200) NOT NULL DEFAULT '',
+      capacity     INTEGER NOT NULL DEFAULT 0,
+      phone        VARCHAR(25) NOT NULL,
+      whatsapp     VARCHAR(25) NOT NULL DEFAULT '',
+      area         VARCHAR(100) NOT NULL DEFAULT '',
+      notes        TEXT NOT NULL DEFAULT '',
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
+      is_visible   BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -3201,6 +3248,224 @@ router.post("/auth/check-phone", async (req: Request, res: Response) => {
     const userR = await query(`SELECT id, name FROM users WHERE phone=$1`, [phone]);
     if (!userR.rows.length) return res.json({ exists: false });
     return res.json({ exists: true, name: userR.rows[0].name });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// مناسبتي — محلات الأدوات + المواصلات
+// ══════════════════════════════════════════════════════════════════════════════
+
+// قائمة المحلات المعتمدة مع أصنافها
+router.get("/occasions/shops", async (_req: Request, res: Response) => {
+  try {
+    const shopsR = await query(
+      `SELECT * FROM occasion_shops WHERE status='approved' ORDER BY shop_name ASC`
+    );
+    const shops = shopsR.rows;
+    if (!shops.length) return res.json([]);
+    const ids = shops.map((s: any) => s.id);
+    const itemsR = await query(
+      `SELECT * FROM occasion_items WHERE shop_id = ANY($1) ORDER BY shop_id, is_available DESC, sort_order ASC, name ASC`,
+      [ids]
+    );
+    const grouped: Record<number, any[]> = {};
+    for (const item of itemsR.rows) {
+      if (!grouped[item.shop_id]) grouped[item.shop_id] = [];
+      grouped[item.shop_id].push(item);
+    }
+    return res.json(shops.map((s: any) => ({ ...s, items: grouped[s.id] ?? [] })));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// طلب انضمام محل جديد
+router.post("/occasions/join-request", async (req: Request, res: Response) => {
+  try {
+    const { owner_name, shop_name, phone, whatsapp, city_area, description, social_link } = req.body;
+    if (!owner_name || !shop_name || !phone)
+      return res.status(400).json({ error: "الاسم واسم المحل والهاتف مطلوبة" });
+    const existing = await query(`SELECT id FROM occasion_shops WHERE phone=$1`, [phone]);
+    if (existing.rows.length) return res.status(409).json({ error: "هذا الرقم مسجّل بالفعل" });
+    const r = await query(
+      `INSERT INTO occasion_shops (owner_name,shop_name,phone,whatsapp,city_area,description,social_link,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id`,
+      [owner_name, shop_name, phone, whatsapp ?? phone, city_area ?? "", description ?? "", social_link ?? ""]
+    );
+    return res.json({ ok: true, id: r.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة صنف لمحل
+router.post("/occasions/items", async (req: Request, res: Response) => {
+  try {
+    const { shop_phone, name, category, price_hint, icon, quantity, sort_order } = req.body;
+    if (!shop_phone || !name || !category)
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1 AND status='approved'`, [shop_phone]);
+    if (!shopR.rows.length) return res.status(403).json({ error: "المحل غير موجود أو لم يُعتمد بعد" });
+    const shop_id = shopR.rows[0].id;
+    const r = await query(
+      `INSERT INTO occasion_items (shop_id,name,category,price_hint,icon,quantity,sort_order,is_available)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
+      [shop_id, name, category, price_hint ?? "", icon ?? "package-variant", quantity ?? 0, sort_order ?? 99]
+    );
+    return res.json({ ok: true, id: r.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تبديل توفر صنف
+router.patch("/occasions/items/:id/toggle", async (req: Request, res: Response) => {
+  try {
+    const { shop_phone } = req.body;
+    const { id } = req.params;
+    if (!shop_phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1`, [shop_phone]);
+    if (!shopR.rows.length) return res.status(403).json({ error: "غير مصرح" });
+    const shop_id = shopR.rows[0].id;
+    const r = await query(
+      `UPDATE occasion_items SET is_available = NOT is_available WHERE id=$1 AND shop_id=$2 RETURNING is_available`,
+      [id, shop_id]
+    );
+    if (!r.rows.length) return res.status(403).json({ error: "الصنف غير موجود أو لا تملك صلاحية" });
+    return res.json({ ok: true, is_available: r.rows[0].is_available });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف صنف
+router.delete("/occasions/items/:id", async (req: Request, res: Response) => {
+  try {
+    const { shop_phone } = req.body;
+    const { id } = req.params;
+    if (!shop_phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1`, [shop_phone]);
+    if (!shopR.rows.length) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM occasion_items WHERE id=$1 AND shop_id=$2`, [id, shopR.rows[0].id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: قائمة كل الطلبات
+router.get("/occasions/shops/all", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator"))
+      return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM occasion_shops ORDER BY created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: تغيير حالة محل
+router.patch("/occasions/shops/:id/status", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin")
+      return res.status(403).json({ error: "غير مصرح" });
+    const { status, notes } = req.body;
+    if (!["approved", "rejected", "pending"].includes(status))
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    await query(`UPDATE occasion_shops SET status=$1, notes=$2 WHERE id=$3`, [status, notes ?? "", req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: حذف محل
+router.delete("/occasions/shops/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM occasion_items WHERE shop_id=$1`, [req.params.id]);
+    await query(`DELETE FROM occasion_shops WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── قائمة المواصلات ──────────────────────────────────────────────────────────
+router.get("/occasions/transport", async (_req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT * FROM occasion_transport WHERE is_visible=true ORDER BY is_available DESC, owner_name ASC`
+    );
+    return res.json(r.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة مزود مواصلات (admin فقط أو طلب)
+router.post("/occasions/transport", async (req: Request, res: Response) => {
+  try {
+    const { owner_name, vehicle_type, vehicle_desc, capacity, phone, whatsapp, area, notes } = req.body;
+    if (!owner_name || !vehicle_type || !phone)
+      return res.status(400).json({ error: "الاسم والنوع والهاتف مطلوبة" });
+    const r = await query(
+      `INSERT INTO occasion_transport (owner_name,vehicle_type,vehicle_desc,capacity,phone,whatsapp,area,notes,is_available,is_visible)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,false) RETURNING id`,
+      [owner_name, vehicle_type, vehicle_desc ?? "", capacity ?? 0, phone, whatsapp ?? phone, area ?? "", notes ?? ""]
+    );
+    return res.json({ ok: true, id: r.rows[0].id, message: "تم إرسال طلبك وسيُراجع من قِبل الإدارة" });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: قائمة كل مزودي المواصلات (بما فيهم غير المرئيين)
+router.get("/occasions/transport/all", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator"))
+      return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM occasion_transport ORDER BY created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: تعديل مزود مواصلات
+router.patch("/occasions/transport/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const { is_visible, is_available } = req.body;
+    await query(
+      `UPDATE occasion_transport SET is_visible=COALESCE($1,is_visible), is_available=COALESCE($2,is_available) WHERE id=$3`,
+      [is_visible ?? null, is_available ?? null, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إدارة: حذف مزود مواصلات
+router.delete("/occasions/transport/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM occasion_transport WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
