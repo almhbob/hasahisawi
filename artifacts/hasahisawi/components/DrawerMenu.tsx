@@ -94,6 +94,7 @@ const GROUPS: Group[] = [
       { title: "التقويم",      icon: "calendar-number-outline", route: "/(tabs)/calendar",   color: Colors.cyber   },
       { title: "أرقام مهمة",  icon: "call-outline",            route: "/(tabs)/numbers",    color: Colors.primary },
       { title: "المساعد الذكي",icon: "sparkles",                route: "/(tabs)/ai-support", color: Colors.accent  },
+      { title: "الإعدادات",   icon: "settings-outline",        route: "/(tabs)/settings",   color: Colors.textMuted },
     ],
   },
 ];
