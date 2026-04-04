@@ -3519,6 +3519,195 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
 });
 
 // ══════════════════════════════════════════════════════
+// الأخصائيون والاستشارات الطبية — Medical Specialists & Consultations
+// ══════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    // جدول الأخصائيين
+    await query(`
+      CREATE TABLE IF NOT EXISTS specialists (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        specialty VARCHAR(100) NOT NULL,
+        bio TEXT,
+        clinic VARCHAR(200),
+        phone VARCHAR(80),
+        photo_url TEXT,
+        available_days TEXT DEFAULT '[]',
+        fees VARCHAR(80),
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        order_num INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    // جدول الاستشارات الطبية
+    await query(`
+      CREATE TABLE IF NOT EXISTS medical_consultations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(200),
+        specialty VARCHAR(100),
+        question TEXT NOT NULL,
+        is_anonymous BOOLEAN NOT NULL DEFAULT FALSE,
+        replies_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    // جدول ردود الاستشارات
+    await query(`
+      CREATE TABLE IF NOT EXISTS consultation_replies (
+        id SERIAL PRIMARY KEY,
+        consultation_id INTEGER NOT NULL REFERENCES medical_consultations(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(200),
+        is_specialist BOOLEAN NOT NULL DEFAULT FALSE,
+        specialist_title VARCHAR(200),
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    // عمود إضافي في appointments
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS user_name VARCHAR(200)`);
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS user_phone VARCHAR(80)`);
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS facility_name VARCHAR(300)`);
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
+  } catch {}
+})();
+
+// GET /api/specialists
+router.get("/specialists", async (_req: Request, res: Response) => {
+  try {
+    const result = await query(`SELECT * FROM specialists WHERE is_active=TRUE ORDER BY order_num, name`);
+    return res.json({ specialists: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/specialists (admin only)
+router.post("/specialists", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { name, specialty, bio, clinic, phone, photo_url, available_days, fees } = req.body;
+    if (!name || !specialty) return res.status(400).json({ error: "الاسم والتخصص مطلوبان" });
+    const result = await query(
+      `INSERT INTO specialists (name, specialty, bio, clinic, phone, photo_url, available_days, fees)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name, specialty, bio||null, clinic||null, phone||null, photo_url||null,
+       JSON.stringify(available_days||[]), fees||null]
+    );
+    return res.json({ specialist: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/appointments/mine
+router.get("/appointments/mine", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const result = await query(
+      `SELECT * FROM appointments WHERE user_id=$1 ORDER BY appointment_date DESC, appointment_time DESC`,
+      [user.id]
+    );
+    return res.json({ appointments: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/appointments (extended)
+router.post("/appointments/book", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { target_type, target_id, facility_name, appointment_date, appointment_time, notes, user_phone } = req.body;
+    if (!target_type || !target_id || !appointment_date || !appointment_time) {
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    }
+    const result = await query(
+      `INSERT INTO appointments
+         (user_id, user_name, user_phone, target_type, target_id, facility_name, appointment_date, appointment_time, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [user.id, user.name, user_phone||null, target_type, target_id,
+       facility_name||null, appointment_date, appointment_time, notes||null]
+    );
+    return res.json({ appointment: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/appointments/:id/cancel
+router.patch("/appointments/:id/cancel", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    await query(
+      `UPDATE appointments SET status='cancelled', cancelled_at=NOW() WHERE id=$1 AND user_id=$2`,
+      [req.params.id, user.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/medical-consultations
+router.get("/medical-consultations", async (req: Request, res: Response) => {
+  try {
+    const { specialty } = req.query as { specialty?: string };
+    let sql = `SELECT * FROM medical_consultations`;
+    const params: unknown[] = [];
+    if (specialty) { sql += ` WHERE specialty=$1`; params.push(specialty); }
+    sql += ` ORDER BY created_at DESC LIMIT 50`;
+    const result = await query(sql, params);
+    return res.json({ consultations: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/medical-consultations
+router.post("/medical-consultations", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { specialty, question, is_anonymous } = req.body;
+    if (!question?.trim()) return res.status(400).json({ error: "السؤال مطلوب" });
+    const result = await query(
+      `INSERT INTO medical_consultations (user_id, user_name, specialty, question, is_anonymous)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [user.id, is_anonymous ? "مجهول" : user.name, specialty||null, question.trim(), !!is_anonymous]
+    );
+    return res.json({ consultation: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/medical-consultations/:id/replies
+router.get("/medical-consultations/:id/replies", async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT * FROM consultation_replies WHERE consultation_id=$1 ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    return res.json({ replies: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/medical-consultations/:id/reply
+router.post("/medical-consultations/:id/reply", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { body, is_specialist, specialist_title } = req.body;
+    if (!body?.trim()) return res.status(400).json({ error: "الرد مطلوب" });
+    await query(`BEGIN`);
+    const result = await query(
+      `INSERT INTO consultation_replies (consultation_id, user_id, user_name, is_specialist, specialist_title, body)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.params.id, user.id, user.name, !!is_specialist, specialist_title||null, body.trim()]
+    );
+    await query(
+      `UPDATE medical_consultations SET replies_count=replies_count+1 WHERE id=$1`,
+      [req.params.id]
+    );
+    await query(`COMMIT`);
+    return res.json({ reply: result.rows[0] });
+  } catch { await query(`ROLLBACK`); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
 // بوابة المؤسسات — Institution Portal
 // ══════════════════════════════════════════════════════
 
