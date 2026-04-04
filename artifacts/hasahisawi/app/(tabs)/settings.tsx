@@ -1142,13 +1142,21 @@ export default function SettingsScreen() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  const [editName, setEditName] = useState(auth.user?.name || "المسؤول");
+  const [editName, setEditName] = useState(auth.user?.name || "");
 
   // ── حالة تعديل الملف الشخصي ──
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileName, setProfileName] = useState(auth.user?.name || "");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+
+  // تحديث حقول الاسم عند تغيّر بيانات المستخدم (مهم عند تسجيل الدخول بعد الضيف)
+  useEffect(() => {
+    if (auth.user?.name) {
+      setEditName(auth.user.name);
+      if (!showProfileEdit) setProfileName(auth.user.name);
+    }
+  }, [auth.user?.name]);
 
   const handlePickAvatar = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
