@@ -1,37 +1,47 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const firebaseConfig = {
-  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY            ?? "",
-  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN        ?? "",
-  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID         ?? "",
-  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET     ?? "",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
-  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID             ?? "",
-  measurementId:     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID     ?? "",
+// ─── استخراج قيمة من نص إعداد Firebase إذا كان السر يحتوي على الكود كاملاً ───
+function extractFirebaseValue(envKey: string, configKey: string, fallback: string): string {
+  const raw = process.env[envKey] ?? "";
+  // إذا كانت القيمة تبدأ مباشرة بالقيمة المطلوبة (مثل AIza...)
+  if (raw && !raw.includes("initializeApp") && !raw.includes("//")) return raw;
+  // محاولة استخراجها من snippet كاملة
+  const match = raw.match(new RegExp(`${configKey}:\\s*["']([^"']+)["']`));
+  if (match) return match[1];
+  return fallback;
+}
+
+// القيم المستخرجة من مستودع الأسرار
+const FIREBASE_CONFIG = {
+  apiKey:            extractFirebaseValue("EXPO_PUBLIC_FIREBASE_API_KEY",            "apiKey",            "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8"),
+  authDomain:        extractFirebaseValue("EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",        "authDomain",        "hasahisawi.firebaseapp.com"),
+  projectId:         extractFirebaseValue("EXPO_PUBLIC_FIREBASE_PROJECT_ID",         "projectId",         "hasahisawi"),
+  storageBucket:     extractFirebaseValue("EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",     "storageBucket",     "hasahisawi.firebasestorage.app"),
+  messagingSenderId: extractFirebaseValue("EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID","messagingSenderId", "133656291161"),
+  appId:             extractFirebaseValue("EXPO_PUBLIC_FIREBASE_APP_ID",             "appId",             "1:133656291161:web:7d0a88a80d3be1af418e48"),
+  measurementId:     "G-8NDWWB1735",
 };
 
 // مفاتيح Firebase للويب دائماً تبدأ بـ AIza
-// إذا لم يكن المفتاح بهذه الصيغة فهو غير صالح
 const isApiKeyValid =
-  !!firebaseConfig.apiKey &&
-  firebaseConfig.apiKey.startsWith("AIza") &&
-  firebaseConfig.apiKey.length > 20;
+  !!FIREBASE_CONFIG.apiKey &&
+  FIREBASE_CONFIG.apiKey.startsWith("AIza") &&
+  FIREBASE_CONFIG.apiKey.length > 20;
 
 export const isFirebaseConfigured =
-  isApiKeyValid && !!firebaseConfig.projectId;
+  isApiKeyValid && !!FIREBASE_CONFIG.projectId;
 
 export const isFirestoreEnabled = isFirebaseConfigured;
 
 let app: FirebaseApp;
 if (isFirebaseConfigured) {
   try {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApp();
   } catch (e) {
     try {
       app = getApp();
     } catch {
-      // Firebase غير متاح — سيتم استخدام المصادقة الخلفية فقط
       app = {} as FirebaseApp;
     }
   }
