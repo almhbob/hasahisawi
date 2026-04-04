@@ -3518,4 +3518,130 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
   }
 });
 
+// ══════════════════════════════════════════════════════
+// بوابة المؤسسات — Institution Portal
+// ══════════════════════════════════════════════════════
+
+// تهيئة جدول الجلسات وعمود توافر الخدمات (يُنفَّذ عند الاستيراد)
+(async () => {
+  try {
+    await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS services_availability JSONB DEFAULT '{}'`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS institution_portal_sessions (
+        id SERIAL PRIMARY KEY,
+        institution_id INTEGER NOT NULL REFERENCES institution_applications(id) ON DELETE CASCADE,
+        token VARCHAR(80) UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '90 days'
+      )
+    `);
+  } catch {}
+})();
+
+// دالة التحقق من جلسة المؤسسة
+async function getInstitutionSession(req: Request): Promise<{ institutionId: number; instName: string } | null> {
+  const auth = req.headers["authorization"] as string | undefined;
+  if (!auth?.startsWith("InstBearer ")) return null;
+  const token = auth.slice(11);
+  const result = await query(
+    `SELECT s.institution_id, a.inst_name FROM institution_portal_sessions s
+     JOIN institution_applications a ON a.id = s.institution_id
+     WHERE s.token = $1 AND s.expires_at > NOW()`,
+    [token]
+  );
+  if (!result.rows[0]) return null;
+  return { institutionId: result.rows[0].institution_id, instName: result.rows[0].inst_name };
+}
+
+// POST /api/inst/login — تسجيل دخول المؤسسة
+router.post("/inst/login", async (req: Request, res: Response) => {
+  try {
+    const { phone, national_id } = req.body as { phone?: string; national_id?: string };
+    if (!phone?.trim() || !national_id?.trim()) {
+      return res.status(400).json({ error: "رقم الهاتف والرقم الوطني مطلوبان" });
+    }
+    const cleanPhone = phone.trim().replace(/\s+/g, "");
+    const cleanId = national_id.trim();
+    const result = await query(
+      `SELECT id, inst_name, inst_type, inst_category, inst_description,
+              inst_address, inst_phone, inst_email, inst_website,
+              rep_name, rep_title, rep_photo_url, rep_phone,
+              selected_services, services_availability, status,
+              signed_contract_url, created_at
+       FROM institution_applications
+       WHERE (inst_phone = $1 OR rep_phone = $1)
+         AND rep_national_id = $2
+         AND status = 'approved'
+       LIMIT 1`,
+      [cleanPhone, cleanId]
+    );
+    if (!result.rows[0]) {
+      return res.status(401).json({ error: "بيانات غير صحيحة أو المؤسسة لم تُعتمد بعد" });
+    }
+    const inst = result.rows[0];
+    const token = randomBytes(32).toString("hex");
+    await query(
+      `INSERT INTO institution_portal_sessions (institution_id, token) VALUES ($1, $2)`,
+      [inst.id, token]
+    );
+    return res.json({ token, institution: inst });
+  } catch (err) {
+    console.error("inst/login error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/inst/my-info — معلومات المؤسسة الحالية
+router.get("/inst/my-info", async (req: Request, res: Response) => {
+  try {
+    const sess = await getInstitutionSession(req);
+    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
+    const result = await query(
+      `SELECT id, inst_name, inst_type, inst_category, inst_description,
+              inst_address, inst_phone, inst_email, inst_website,
+              rep_name, rep_title, rep_photo_url, rep_phone,
+              selected_services, services_availability, status,
+              signed_contract_url, created_at
+       FROM institution_applications WHERE id = $1`,
+      [sess.institutionId]
+    );
+    return res.json({ institution: result.rows[0] });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /api/inst/services-availability — تحديث توافر الخدمات
+router.put("/inst/services-availability", async (req: Request, res: Response) => {
+  try {
+    const sess = await getInstitutionSession(req);
+    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
+    const { services_availability } = req.body as { services_availability?: Record<string, boolean> };
+    if (!services_availability || typeof services_availability !== "object") {
+      return res.status(400).json({ error: "بيانات غير صالحة" });
+    }
+    await query(
+      `UPDATE institution_applications SET services_availability = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(services_availability), sess.institutionId]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/inst/logout — تسجيل الخروج
+router.post("/inst/logout", async (req: Request, res: Response) => {
+  try {
+    const auth = req.headers["authorization"] as string | undefined;
+    if (auth?.startsWith("InstBearer ")) {
+      const token = auth.slice(11);
+      await query(`DELETE FROM institution_portal_sessions WHERE token = $1`, [token]);
+    }
+    return res.json({ ok: true });
+  } catch {
+    return res.json({ ok: true });
+  }
+});
+
 export default router;

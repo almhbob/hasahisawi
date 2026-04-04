@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import type { LostItem } from "./missing";
 import type { Job } from "./jobs";
@@ -1117,6 +1117,7 @@ export default function SettingsScreen() {
   ];
 
   const auth = useAuth();
+  const router = useRouter();
   const isAdmin = auth.user?.role === "admin";
   const isModerator = auth.user?.role === "moderator";
   const hasAccess = isAdmin || isModerator;
@@ -1757,6 +1758,24 @@ export default function SettingsScreen() {
               )}
             </View>
           )}
+
+          {/* ─── بوابة المؤسسات ─── */}
+          <TouchableOpacity
+            style={instPortalSty.card}
+            onPress={() => router.push("/inst-portal")}
+            activeOpacity={0.82}
+          >
+            <View style={instPortalSty.textCol}>
+              <Text style={instPortalSty.title}>بوابة المؤسسات</Text>
+              <Text style={instPortalSty.sub}>إدارة خدمات مؤسستك المعتمدة</Text>
+            </View>
+            <View style={instPortalSty.iconCol}>
+              <View style={instPortalSty.iconBox}>
+                <MaterialCommunityIcons name="office-building-cog" size={26} color={Colors.primary} />
+              </View>
+              <Ionicons name="arrow-back" size={16} color={Colors.textMuted} style={{ marginTop: 4 }} />
+            </View>
+          </TouchableOpacity>
 
           {/* ─── فاصل ─── */}
           {auth.user && !auth.isGuest && (
@@ -3139,5 +3158,29 @@ const profileSty = StyleSheet.create({
     fontFamily: "Cairo_500Medium",
     fontSize: 12,
     color: Colors.textMuted,
+  },
+});
+
+const instPortalSty = StyleSheet.create({
+  card: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + "30",
+    padding: 14,
+    marginHorizontal: 0,
+    gap: 12,
+  },
+  textCol: { flex: 1, alignItems: "flex-end", gap: 3 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  iconCol: { alignItems: "center", gap: 4 },
+  iconBox: {
+    width: 50, height: 50, borderRadius: 14,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: Colors.primary + "15",
+    borderWidth: 1, borderColor: Colors.primary + "30",
   },
 });
