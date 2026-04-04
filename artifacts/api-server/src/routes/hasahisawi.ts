@@ -312,6 +312,22 @@ export async function initHasahisawiDb() {
   }
 
   await query(`
+    CREATE TABLE IF NOT EXISTS honored_figures (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      title VARCHAR(200) NOT NULL DEFAULT '',
+      city_role VARCHAR(200) NOT NULL DEFAULT '',
+      photo_url VARCHAR(500) NOT NULL,
+      tribute TEXT NOT NULL DEFAULT '',
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS rated_entities (
       id SERIAL PRIMARY KEY,
       type VARCHAR(50) NOT NULL,
@@ -1660,6 +1676,143 @@ router.patch("/admin/landmarks/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "المعلم غير موجود" });
     return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// قاعة التكريم — Honored Figures
+// ══════════════════════════════════════════════════════
+
+// جلب الشخصية المكرّمة النشطة حالياً (عام)
+router.get("/honored-figure", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`
+      SELECT id, name, title, city_role, photo_url, tribute, start_date, end_date, is_visible, created_at
+      FROM honored_figures
+      WHERE is_visible = TRUE
+        AND start_date <= CURRENT_DATE
+        AND end_date >= CURRENT_DATE
+      ORDER BY start_date DESC
+      LIMIT 1
+    `);
+    if (!rows.length) return res.json(null);
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// جلب كل الشخصيات المكرّمة (الإدارة)
+router.get("/admin/honored-figures", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`
+      SELECT id, name, title, city_role, photo_url, tribute, start_date, end_date, is_visible, created_at
+      FROM honored_figures
+      ORDER BY created_at DESC
+    `);
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة شخصية مكرّمة (الإدارة)
+router.post("/admin/honored-figures", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const { name, title, city_role, photo_url, tribute, start_date, end_date } =
+      req.body as { name: string; title: string; city_role: string; photo_url: string; tribute: string; start_date: string; end_date: string };
+    if (!name?.trim() || !photo_url?.trim() || !start_date || !end_date) {
+      return res.status(400).json({ error: "الاسم والصورة والتاريخان مطلوبة" });
+    }
+    const { rows } = await query(
+      `INSERT INTO honored_figures (name, title, city_role, photo_url, tribute, start_date, end_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name.trim(), (title || "").trim(), (city_role || "").trim(), photo_url.trim(), (tribute || "").trim(), start_date, end_date, me.id]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تعديل شخصية مكرّمة (الإدارة)
+router.patch("/admin/honored-figures/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { name, title, city_role, photo_url, tribute, start_date, end_date, is_visible } =
+      req.body as { name?: string; title?: string; city_role?: string; photo_url?: string; tribute?: string; start_date?: string; end_date?: string; is_visible?: boolean };
+    const { rows } = await query(
+      `UPDATE honored_figures SET
+        name = COALESCE($1, name),
+        title = COALESCE($2, title),
+        city_role = COALESCE($3, city_role),
+        photo_url = COALESCE($4, photo_url),
+        tribute = COALESCE($5, tribute),
+        start_date = COALESCE($6::date, start_date),
+        end_date = COALESCE($7::date, end_date),
+        is_visible = COALESCE($8, is_visible)
+       WHERE id = $9 RETURNING *`,
+      [
+        name?.trim() ?? null,
+        title?.trim() ?? null,
+        city_role?.trim() ?? null,
+        photo_url?.trim() ?? null,
+        tribute?.trim() ?? null,
+        start_date ?? null,
+        end_date ?? null,
+        is_visible !== undefined ? is_visible : null,
+        id,
+      ]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "السجل غير موجود" });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تبديل حالة الظهور (الإدارة)
+router.patch("/admin/honored-figures/:id/visibility", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { rows } = await query(
+      `UPDATE honored_figures SET is_visible = NOT is_visible WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "السجل غير موجود" });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف شخصية مكرّمة (الإدارة)
+router.delete("/admin/honored-figures/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    await query(`DELETE FROM honored_figures WHERE id = $1`, [id]);
+    return res.json({ success: true });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });

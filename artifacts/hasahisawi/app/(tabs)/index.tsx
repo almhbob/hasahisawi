@@ -27,6 +27,7 @@ import { getApiUrl } from "@/lib/query-client";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
 import BrandPattern from "@/components/BrandPattern";
+import HonorCard, { HonoredFigure } from "@/components/HonorCard";
 import { useLang } from "@/lib/lang-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
@@ -118,6 +119,7 @@ export default function HomeScreen() {
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>(FALLBACK_LANDMARKS);
   const [featuredAd, setFeaturedAd] = useState<{ institution_name: string; title: string; description?: string; type: string } | null>(null);
+  const [honoredFigure, setHonoredFigure] = useState<HonoredFigure | null>(null);
   const greeting = useMemo(() => getGreeting(), []);
   const arabicDate = useMemo(() => getArabicDate(), []);
 
@@ -146,6 +148,17 @@ export default function HomeScreen() {
       .then(r => r.ok ? r.json() : null)
       .then((data: any[] | null) => {
         if (Array.isArray(data) && data.length > 0) setFeaturedAd(data[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const base = getApiUrl();
+    if (!base) return;
+    fetch(new URL("/api/honored-figure", base).toString())
+      .then(r => r.ok ? r.json() : null)
+      .then((data: HonoredFigure | null) => {
+        if (data && data.id) setHonoredFigure(data);
       })
       .catch(() => {});
   }, []);
@@ -328,6 +341,28 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </LinearGradient>
+          </Animated.View>
+        )}
+
+        {/* ═══ قاعة التكريم ═══ */}
+        {honoredFigure && (
+          <Animated.View entering={FadeInDown.delay(105).springify()} style={styles.honorSection}>
+            {/* Header */}
+            <View style={styles.honorHeader}>
+              <View style={styles.honorDotGroup}>
+                <View style={[styles.honorDot, { backgroundColor: "#D4AF37" }]} />
+                <View style={[styles.honorDot, { width: 5, height: 5, backgroundColor: "#D4AF3770" }]} />
+              </View>
+              <View style={styles.honorTitleRow}>
+                <Ionicons name="trophy" size={15} color="#D4AF37" />
+                <Text style={styles.honorTitle}>قاعة التكريم</Text>
+              </View>
+              <View style={styles.honorDotGroup}>
+                <View style={[styles.honorDot, { width: 5, height: 5, backgroundColor: "#D4AF3770" }]} />
+                <View style={[styles.honorDot, { backgroundColor: "#D4AF37" }]} />
+              </View>
+            </View>
+            <HonorCard figure={honoredFigure} />
           </Animated.View>
         )}
 
@@ -1104,7 +1139,41 @@ const styles = StyleSheet.create({
     color: Colors.textMuted, textAlign: "center", marginTop: 2,
   },
 
-  /* ── معالم المدينة ── */
+  /* ─ قاعة التكريم ─ */
+  honorSection: {
+    marginBottom: 22,
+  },
+  honorHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  honorDotGroup: {
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+  },
+  honorDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    opacity: 0.9,
+  },
+  honorTitleRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  honorTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: "#D4AF37",
+    letterSpacing: 0.8,
+  },
+
   landmarksSection: {
     marginBottom: 20,
   },

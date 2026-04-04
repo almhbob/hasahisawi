@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored";
 
 type AdRecord = {
   id: number;
@@ -63,6 +63,18 @@ type AdRecord = {
 };
 
 type ApiLandmark = { id: number; name: string; sub: string; image_url: string; sort_order: number };
+type HonoredFigure = {
+  id: number;
+  name: string;
+  title: string;
+  city_role: string;
+  photo_url: string;
+  tribute: string;
+  start_date: string;
+  end_date: string;
+  is_visible: boolean;
+  created_at: string;
+};
 type NbrItem = { label: string; type: "neighborhood" | "village"; key?: string };
 type CommunityRecord = {
   id: number;
@@ -248,6 +260,20 @@ export default function AdminDashboard() {
   const [showEditLM, setShowEditLM] = useState(false);
   const [updatingLM, setUpdatingLM] = useState(false);
   const [lmEditImgUploading, setLmEditImgUploading] = useState(false);
+
+  // ── Honored Figures ──
+  const [honoredList, setHonoredList]       = useState<HonoredFigure[]>([]);
+  const [loadingHonored, setLoadingHonored] = useState(false);
+  const [showAddHonor, setShowAddHonor]     = useState(false);
+  const [addingHonor, setAddingHonor]       = useState(false);
+  const [honorImgUploading, setHonorImgUploading] = useState(false);
+  const [editingHonor, setEditingHonor]     = useState<HonoredFigure | null>(null);
+  const [showEditHonor, setShowEditHonor]   = useState(false);
+  const [updatingHonor, setUpdatingHonor]   = useState(false);
+  const [editHonorImgUploading, setEditHonorImgUploading] = useState(false);
+  const HONOR_FORM_INIT = { name: "", title: "", city_role: "", photo_url: "", tribute: "", start_date: "", end_date: "" };
+  const [honorForm, setHonorForm]           = useState(HONOR_FORM_INIT);
+  const [editHonorForm, setEditHonorForm]   = useState(HONOR_FORM_INIT);
 
   // ── Ads ──
   const [adsList, setAdsList] = useState<AdRecord[]>([]);
@@ -543,6 +569,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
     if (tab === "landmarks")    loadLandmarks();
+    if (tab === "honored")      loadHonoredFigures();
     if (tab === "ads")          { loadAds(); loadAdsSettings(); }
     if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); loadContractSettings(); }
     if (tab === "neighborhoods") loadNeighborhoods();
@@ -689,6 +716,106 @@ export default function AdminDashboard() {
     finally { setLmEditImgUploading(false); }
   };
 
+  // ── Honored Figures actions ───────────────────────────────────────────────
+  const loadHonoredFigures = async () => {
+    setLoadingHonored(true);
+    try {
+      const res = await apiFetch("/api/admin/honored-figures", token);
+      const json = await res.json();
+      if (res.ok) setHonoredList(json);
+    } catch { }
+    finally { setLoadingHonored(false); }
+  };
+
+  const addHonoredFigure = async () => {
+    if (!honorForm.name.trim() || !honorForm.photo_url.trim() || !honorForm.start_date || !honorForm.end_date) {
+      Alert.alert("تنبيه", "الاسم والصورة والتاريخان مطلوبة");
+      return;
+    }
+    setAddingHonor(true);
+    try {
+      const res = await apiFetch("/api/admin/honored-figures", token, {
+        method: "POST", body: JSON.stringify(honorForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error); return; }
+      setHonoredList(prev => [json, ...prev]);
+      setHonorForm(HONOR_FORM_INIT);
+      setShowAddHonor(false);
+    } catch { Alert.alert("خطأ", "تعذّر الإضافة"); }
+    finally { setAddingHonor(false); }
+  };
+
+  const updateHonoredFigure = async () => {
+    if (!editingHonor) return;
+    if (!editHonorForm.name.trim() || !editHonorForm.photo_url.trim() || !editHonorForm.start_date || !editHonorForm.end_date) {
+      Alert.alert("تنبيه", "الاسم والصورة والتاريخان مطلوبة");
+      return;
+    }
+    setUpdatingHonor(true);
+    try {
+      const res = await apiFetch(`/api/admin/honored-figures/${editingHonor.id}`, token, {
+        method: "PATCH", body: JSON.stringify(editHonorForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر التعديل"); return; }
+      setHonoredList(prev => prev.map(x => x.id === editingHonor.id ? json : x));
+      setShowEditHonor(false); setEditingHonor(null);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setUpdatingHonor(false); }
+  };
+
+  const toggleHonoredVisibility = async (figure: HonoredFigure) => {
+    try {
+      const res = await apiFetch(`/api/admin/honored-figures/${figure.id}/visibility`, token, { method: "PATCH" });
+      const json = await res.json();
+      if (res.ok) setHonoredList(prev => prev.map(x => x.id === figure.id ? json : x));
+    } catch { Alert.alert("خطأ", "تعذّر تغيير الحالة"); }
+  };
+
+  const deleteHonoredFigure = async (figure: HonoredFigure) => {
+    Alert.alert("حذف التكريم", `هل أنت متأكد من حذف "${figure.name}"؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف", style: "destructive",
+        onPress: async () => {
+          try {
+            await apiFetch(`/api/admin/honored-figures/${figure.id}`, token, { method: "DELETE" });
+            setHonoredList(prev => prev.filter(x => x.id !== figure.id));
+          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+        },
+      },
+    ]);
+  };
+
+  const pickHonorImageForAdd = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled || !result.assets?.[0]) return;
+    setHonorImgUploading(true);
+    try {
+      const { uploadHonorImage } = await import("@/lib/firebase/storage");
+      const url = await uploadHonorImage(result.assets[0].uri);
+      setHonorForm(f => ({ ...f, photo_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة"); }
+    finally { setHonorImgUploading(false); }
+  };
+
+  const pickHonorImageForEdit = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled || !result.assets?.[0]) return;
+    setEditHonorImgUploading(true);
+    try {
+      const { uploadHonorImage } = await import("@/lib/firebase/storage");
+      const url = await uploadHonorImage(result.assets[0].uri);
+      setEditHonorForm(f => ({ ...f, photo_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة"); }
+    finally { setEditHonorImgUploading(false); }
+  };
+
   // ── Ads actions ──────────────────────────────────────────────────────────
   const updateAdStatus = async (ad: AdRecord, status: "active" | "rejected" | "expired", days?: string, note?: string) => {
     setApprovingId(ad.id);
@@ -829,6 +956,7 @@ export default function AdminDashboard() {
     { key: "admins",         label: "المديرون",          icon: "shield",             color: "#E05567",      adminOnly: true               },
     { key: "moderators",     label: "المشرفون",          icon: "shield-half",        color: "#F0A500",      adminOnly: true               },
     { key: "communities",    label: "المؤسسات",          icon: "business",           color: "#16A085", badge: pendingCommunitiesCount, modPerm: "communities" },
+    { key: "honored",        label: "قاعة التكريم",      icon: "trophy",             color: "#D4AF37",      adminOnly: true               },
     { key: "landmarks",      label: "المعالم",           icon: "location",           color: "#9B59B6",      modPerm: "landmarks"          },
     { key: "ads",            label: "الإعلانات",         icon: "megaphone",          color: "#F0A500", badge: pendingAdsCount, modPerm: "ads" },
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
@@ -1156,6 +1284,247 @@ export default function AdminDashboard() {
               renderItem={({ item }) => renderUserCard(item)}
             />
           )}
+        </View>
+      )}
+
+      {/* ═══ قاعة التكريم ═══ */}
+      {tab === "honored" && (
+        <View style={{ flex: 1 }}>
+          <View style={s.pageHeader}>
+            <Text style={s.pageHeaderTitle}>قاعة التكريم ({honoredList.length})</Text>
+            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#D4AF37" }]} onPress={() => { setHonorForm(HONOR_FORM_INIT); setShowAddHonor(true); }}>
+              <Ionicons name="add" size={16} color="#000" />
+              <Text style={[s.addBtnTxt, { color: "#000" }]}>إضافة</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingHonored ? (
+            <ActivityIndicator color="#D4AF37" style={{ marginTop: 40 }} />
+          ) : honoredList.length === 0 ? (
+            <View style={s.emptyState}>
+              <Ionicons name="trophy-outline" size={44} color="#D4AF3760" />
+              <Text style={s.emptyStateText}>لا توجد شخصيات مكرّمة بعد</Text>
+              <Text style={[s.emptyStateText, { fontSize: 12, marginTop: 4 }]}>اضغط "إضافة" لتكريم أول شخصية من أبناء المدينة</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={honoredList}
+              keyExtractor={item => String(item.id)}
+              contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
+              renderItem={({ item }) => {
+                const now = new Date(); now.setHours(0, 0, 0, 0);
+                const start = new Date(item.start_date); const end = new Date(item.end_date);
+                const isActive = item.is_visible && start <= now && now <= end;
+                const isPast   = end < now;
+                return (
+                  <Animated.View entering={FadeInDown.springify().damping(16)} style={hs.honorCard}>
+                    {/* Photo + Name row */}
+                    <View style={hs.honorCardTop}>
+                      {item.photo_url ? (
+                        <Image source={{ uri: item.photo_url }} style={hs.honorThumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[hs.honorThumb, hs.honorThumbPlaceholder]}>
+                          <Ionicons name="person" size={22} color="#D4AF37" />
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={hs.honorName}>{item.name}</Text>
+                        {!!item.title && <Text style={hs.honorTitle}>{item.title}</Text>}
+                        {!!item.city_role && <Text style={hs.honorRole}>{item.city_role}</Text>}
+                      </View>
+                      {/* Visibility badge */}
+                      <View style={[hs.visChip, { backgroundColor: isActive ? "#D4AF3720" : isPast ? "#E0556720" : "#3E9CBF20", borderColor: isActive ? "#D4AF3750" : isPast ? "#E0556750" : "#3E9CBF50" }]}>
+                        <View style={[hs.visDot, { backgroundColor: isActive ? "#D4AF37" : isPast ? "#E05567" : "#3E9CBF" }]} />
+                        <Text style={[hs.visText, { color: isActive ? "#D4AF37" : isPast ? "#E05567" : "#3E9CBF" }]}>
+                          {isActive ? "نشط" : isPast ? "منتهي" : "مجدوَل"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Dates */}
+                    <View style={hs.datesRow}>
+                      <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
+                      <Text style={hs.datesText}>
+                        {new Date(item.start_date).toLocaleDateString("ar-SD", { day: "numeric", month: "short" })} ←
+                        {new Date(item.end_date).toLocaleDateString("ar-SD", { day: "numeric", month: "short", year: "numeric" })}
+                      </Text>
+                    </View>
+
+                    {!!item.tribute && (
+                      <Text style={hs.tributePreview} numberOfLines={2}>{item.tribute}</Text>
+                    )}
+
+                    {/* Actions */}
+                    <View style={hs.honorActions}>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: item.is_visible ? "#D4AF3740" : "#3E9CBF40", backgroundColor: item.is_visible ? "#D4AF3712" : "#3E9CBF12" }]}
+                        onPress={() => toggleHonoredVisibility(item)}
+                      >
+                        <Ionicons name={item.is_visible ? "eye" : "eye-off"} size={14} color={item.is_visible ? "#D4AF37" : "#3E9CBF"} />
+                        <Text style={[hs.honorActionTxt, { color: item.is_visible ? "#D4AF37" : "#3E9CBF" }]}>{item.is_visible ? "إخفاء" : "إظهار"}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: "#3498DB40", backgroundColor: "#3498DB12" }]}
+                        onPress={() => {
+                          setEditingHonor(item);
+                          setEditHonorForm({ name: item.name, title: item.title, city_role: item.city_role, photo_url: item.photo_url, tribute: item.tribute, start_date: item.start_date.slice(0, 10), end_date: item.end_date.slice(0, 10) });
+                          setShowEditHonor(true);
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={14} color="#3498DB" />
+                        <Text style={[hs.honorActionTxt, { color: "#3498DB" }]}>تعديل</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "12" }]}
+                        onPress={() => deleteHonoredFigure(item)}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+                        <Text style={[hs.honorActionTxt, { color: Colors.danger }]}>حذف</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                );
+              }}
+            />
+          )}
+
+          {/* ── Add Modal ── */}
+          <Modal visible={showAddHonor} transparent animationType="slide" onRequestClose={() => setShowAddHonor(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+              <Pressable style={s.overlay} onPress={() => setShowAddHonor(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "95%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                    <View style={hs.modalHeaderRow}>
+                      <Ionicons name="trophy" size={20} color="#D4AF37" />
+                      <Text style={[s.modalTitle, { color: "#D4AF37", marginBottom: 0 }]}>إضافة شخصية مكرّمة</Text>
+                    </View>
+
+                    <Text style={s.fieldLabel}>الاسم الكامل *</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.name} onChangeText={v => setHonorForm(f => ({ ...f, name: v }))} placeholder="اسم الشخصية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>اللقب / المنصب</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.title} onChangeText={v => setHonorForm(f => ({ ...f, title: v }))} placeholder="مثال: رائد أعمال · شاعر · معلم" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>دوره في المدينة</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.city_role} onChangeText={v => setHonorForm(f => ({ ...f, city_role: v }))} placeholder="مثال: خدم المجتمع لأكثر من ٣٠ عاماً" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>الصورة الشخصية *</Text>
+                    {honorForm.photo_url ? (
+                      <Image source={{ uri: honorForm.photo_url }} style={hs.honorPhotoPreview} resizeMode="cover" />
+                    ) : (
+                      <View style={[hs.honorPhotoPreview, hs.honorPhotoPlaceholder]}>
+                        <Ionicons name="person-circle-outline" size={44} color="#D4AF37" />
+                        <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة شخصية</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      onPress={pickHonorImageForAdd}
+                      disabled={honorImgUploading}
+                      style={[s.lmPickBtn, { borderColor: "#D4AF3750", backgroundColor: "#D4AF3712" }]}
+                    >
+                      {honorImgUploading
+                        ? <><ActivityIndicator size="small" color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>جاري الرفع...</Text></>
+                        : <><Ionicons name="cloud-upload-outline" size={18} color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>{honorForm.photo_url ? "تغيير الصورة" : "رفع صورة"}</Text></>
+                      }
+                    </TouchableOpacity>
+
+                    <Text style={s.fieldLabel}>شهادة التكريم</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 90, textAlignVertical: "top", paddingTop: 10 }]}
+                      value={honorForm.tribute} onChangeText={v => setHonorForm(f => ({ ...f, tribute: v }))}
+                      placeholder="اكتب كلمة التكريم أو شهادة وجيزة..."
+                      placeholderTextColor={Colors.textMuted} textAlign="right" multiline
+                    />
+
+                    <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
+                        <TextInput style={s.fieldInput} value={honorForm.start_date} onChangeText={v => setHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
+                        <TextInput style={s.fieldInput} value={honorForm.end_date} onChangeText={v => setHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                    </View>
+                    <Text style={s.fieldHint}>يتم إخفاء الشخصية تلقائياً بعد تاريخ الانتهاء</Text>
+
+                    <View style={[s.modalBtns, { marginTop: 8 }]}>
+                      <ActionButton label="إضافة التكريم" color="#D4AF37" icon="trophy-outline" onPress={addHonoredFigure} disabled={addingHonor || honorImgUploading} />
+                      <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddHonor(false)} outline />
+                    </View>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* ── Edit Modal ── */}
+          <Modal visible={showEditHonor} transparent animationType="slide" onRequestClose={() => setShowEditHonor(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+              <Pressable style={s.overlay} onPress={() => setShowEditHonor(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "95%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                    <View style={hs.modalHeaderRow}>
+                      <Ionicons name="create" size={20} color="#3498DB" />
+                      <Text style={[s.modalTitle, { color: "#3498DB", marginBottom: 0 }]}>تعديل التكريم</Text>
+                    </View>
+
+                    <Text style={s.fieldLabel}>الاسم الكامل *</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.name} onChangeText={v => setEditHonorForm(f => ({ ...f, name: v }))} placeholder="اسم الشخصية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>اللقب / المنصب</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.title} onChangeText={v => setEditHonorForm(f => ({ ...f, title: v }))} placeholder="مثال: رائد أعمال · شاعر · معلم" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>دوره في المدينة</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.city_role} onChangeText={v => setEditHonorForm(f => ({ ...f, city_role: v }))} placeholder="مثال: خدم المجتمع لأكثر من ٣٠ عاماً" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>الصورة الشخصية *</Text>
+                    {editHonorForm.photo_url ? (
+                      <Image source={{ uri: editHonorForm.photo_url }} style={hs.honorPhotoPreview} resizeMode="cover" />
+                    ) : (
+                      <View style={[hs.honorPhotoPreview, hs.honorPhotoPlaceholder]}>
+                        <Ionicons name="person-circle-outline" size={44} color="#D4AF37" />
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      onPress={pickHonorImageForEdit}
+                      disabled={editHonorImgUploading}
+                      style={[s.lmPickBtn, { borderColor: "#D4AF3750", backgroundColor: "#D4AF3712" }]}
+                    >
+                      {editHonorImgUploading
+                        ? <><ActivityIndicator size="small" color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>جاري الرفع...</Text></>
+                        : <><Ionicons name="cloud-upload-outline" size={18} color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>{editHonorForm.photo_url ? "تغيير الصورة" : "رفع صورة"}</Text></>
+                      }
+                    </TouchableOpacity>
+
+                    <Text style={s.fieldLabel}>شهادة التكريم</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 90, textAlignVertical: "top", paddingTop: 10 }]}
+                      value={editHonorForm.tribute} onChangeText={v => setEditHonorForm(f => ({ ...f, tribute: v }))}
+                      placeholder="اكتب كلمة التكريم أو شهادة وجيزة..."
+                      placeholderTextColor={Colors.textMuted} textAlign="right" multiline
+                    />
+
+                    <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
+                        <TextInput style={s.fieldInput} value={editHonorForm.start_date} onChangeText={v => setEditHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
+                        <TextInput style={s.fieldInput} value={editHonorForm.end_date} onChangeText={v => setEditHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                    </View>
+
+                    <View style={[s.modalBtns, { marginTop: 8 }]}>
+                      <ActionButton label="حفظ التعديلات" color="#D4AF37" icon="save-outline" onPress={updateHonoredFigure} disabled={updatingHonor || editHonorImgUploading} />
+                      <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowEditHonor(false)} outline />
+                    </View>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </KeyboardAvoidingView>
+          </Modal>
         </View>
       )}
 
@@ -3077,5 +3446,133 @@ const ps = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
     color: Colors.textMuted,
+  },
+});
+
+const hs = StyleSheet.create({
+  honorCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#D4AF3722",
+    padding: 14,
+    gap: 10,
+  },
+  honorCardTop: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+  },
+  honorThumb: {
+    width: 62,
+    height: 74,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#D4AF3740",
+  },
+  honorThumbPlaceholder: {
+    backgroundColor: "#D4AF3715",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  honorName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  honorTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+    color: "#D4AF37",
+    textAlign: "right",
+    marginTop: 2,
+  },
+  honorRole: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: "right",
+    marginTop: 2,
+  },
+  visChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+  },
+  visDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  visText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 11,
+  },
+  datesRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+  },
+  datesText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  tributePreview: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    fontStyle: "italic",
+    borderRightWidth: 2,
+    borderRightColor: "#D4AF3740",
+    paddingRight: 8,
+  },
+  honorActions: {
+    flexDirection: "row-reverse",
+    gap: 8,
+    marginTop: 2,
+  },
+  honorAction: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+  },
+  honorActionTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+  },
+  honorPhotoPreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  honorPhotoPlaceholder: {
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: "#D4AF3730",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalHeaderRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
   },
 });
