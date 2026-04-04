@@ -1,26 +1,4 @@
-import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  deleteObject,
-  FirebaseStorage,
-} from "firebase/storage";
-import { app } from "./index";
-import { isFirebaseAvailable } from "./auth";
-
-let _storage: FirebaseStorage | null = null;
-
-function getStore(): FirebaseStorage {
-  if (_storage) return _storage;
-  if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
-  try {
-    _storage = getStorage(app);
-  } catch (e) {
-    throw new Error(`Firebase Storage init failed: ${e}`);
-  }
-  return _storage;
-}
+import { getApiUrl } from "@/lib/query-client";
 
 export type UploadProgress = {
   bytesTransferred: number;
@@ -28,51 +6,57 @@ export type UploadProgress = {
   percent: number;
 };
 
-// تحويل URI المحلي إلى Blob عبر XMLHttpRequest (يعمل على Android وiOS)
-function uriToBlob(uri: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.onload  = () => resolve(xhr.response as Blob);
-    xhr.onerror = () => reject(new Error("فشل تحميل الملف المحلي"));
-    xhr.responseType = "blob";
-    xhr.open("GET", uri, true);
-    xhr.send(null);
-  });
-}
-
-export async function uploadFile(
-  path: string,
+/**
+ * رفع ملف إلى API Server عبر XMLHttpRequest مع تقارير التقدم.
+ * يعمل بشكل موثوق على Android وiOS دون الحاجة لـ Firebase Auth.
+ */
+export function uploadFile(
+  _path: string,
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
-  const blob = await uriToBlob(uri);
-  const storageRef = ref(getStore(), path);
-  const task = uploadBytesResumable(storageRef, blob);
-
   return new Promise((resolve, reject) => {
-    task.on(
-      "state_changed",
-      (snapshot) => {
-        if (onProgress) {
-          const total = snapshot.totalBytes || 1;
-          onProgress({
-            bytesTransferred: snapshot.bytesTransferred,
-            totalBytes:       total,
-            percent: Math.round((snapshot.bytesTransferred / total) * 100),
-          });
+    const xhr = new XMLHttpRequest();
+
+    // تقارير تقدم الرفع
+    xhr.upload.onprogress = (e) => {
+      if (onProgress && e.lengthComputable) {
+        onProgress({
+          bytesTransferred: e.loaded,
+          totalBytes: e.total,
+          percent: Math.round((e.loaded / e.total) * 100),
+        });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const json = JSON.parse(xhr.responseText);
+          resolve(json.url as string);
+        } catch {
+          reject(new Error("استجابة غير صالحة من الخادم"));
         }
-      },
-      (err) => {
-        // تحرير الذاكرة بعد الفشل
-        try { (blob as any).close?.(); } catch {}
-        reject(err);
-      },
-      async () => {
-        try { (blob as any).close?.(); } catch {}
-        const url = await getDownloadURL(task.snapshot.ref);
-        resolve(url);
-      },
-    );
+      } else {
+        reject(new Error(`فشل الرفع: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("تعذّر الاتصال بالخادم أثناء الرفع"));
+    xhr.ontimeout = () => reject(new Error("انتهت مهلة الرفع"));
+    xhr.timeout = 120_000; // دقيقتان
+
+    xhr.open("POST", `${getApiUrl()}/api/upload`);
+
+    // بناء FormData مع الملف
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      name: `upload_${Date.now()}.jpg`,
+      type: "image/jpeg",
+    } as any);
+
+    xhr.send(formData);
   });
 }
 
@@ -140,7 +124,6 @@ export async function uploadPaymentProof(
   return uploadFile(`payment-proofs/${userId}/${name}`, uri, onProgress);
 }
 
-export async function deleteFile(path: string): Promise<void> {
-  const fileRef = ref(getStore(), path);
-  await deleteObject(fileRef);
+export async function deleteFile(_path: string): Promise<void> {
+  // الحذف غير مطلوب في هذه المرحلة
 }
