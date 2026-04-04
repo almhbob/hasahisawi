@@ -20,8 +20,9 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 19,
+      "versionCode": 20,
       "googleServicesFile": "./google-services.json",
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,6 +44,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-localization",
+      "./plugins/withResizeableActivity",
       [
         "expo-local-authentication",
         {

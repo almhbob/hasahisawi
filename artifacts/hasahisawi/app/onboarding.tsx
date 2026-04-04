@@ -1,8 +1,9 @@
 import React, { useRef, useState } from "react";
 import {
   View, Text, StyleSheet, Dimensions, TouchableOpacity,
-  Platform, StatusBar,
+  Platform,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import Animated, {
   FadeInDown, FadeInUp, useSharedValue, useAnimatedStyle,
   withTiming, interpolate, Extrapolation,
@@ -100,7 +101,7 @@ export default function OnboardingScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
+      <StatusBar style="light" />
 
       {/* Skip */}
       {!isLast && (

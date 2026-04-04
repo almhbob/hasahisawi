@@ -8,6 +8,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -129,6 +130,7 @@ function AuthGate() {
 function RootLayoutNav() {
   return (
     <>
+      <StatusBar style="light" />
       <AuthGate />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
