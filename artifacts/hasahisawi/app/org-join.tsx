@@ -866,39 +866,66 @@ export default function OrgJoinScreen() {
                 ))}
               </View>
 
+              {/* المادة 4: التزامات المنصة */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>٤ — التزامات المنصة</Text>
+                {[
+                  "توفير مساحة ظاهرة للمؤسسة داخل التطبيق لعرض خدماتها واستقبال طلبات المواطنين.",
+                  "توفير نظام متابعة الشكاوى والحفاظ على سرية بيانات المؤسسة.",
+                  "إشعار المؤسسة بأي تحديثات تطال سياسات المنصة قبل تطبيقها بـ 14 يوماً.",
+                ].map((item, i) => (
+                  <View key={i} style={s.contractBullet}>
+                    <Text style={[s.contractBulletDot, { color: Colors.cyber }]}>•</Text>
+                    <Text style={s.contractBulletText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+
               {/* المادة 5: الجزاءات */}
               <View style={s.contractSection}>
                 <Text style={s.contractSectionTitle}>٥ — الجزاءات والعقوبات</Text>
                 <View style={s.contractPenalties}>
-                  <View style={s.penaltyItem}>
+                  <View style={[s.penaltyItem, { borderColor: Colors.accent + "40", backgroundColor: Colors.accent + "0A" }]}>
                     <Text style={s.penaltyIcon}>⚠️</Text>
                     <Text style={s.penaltyTitle}>إنذار رسمي</Text>
-                    <Text style={s.penaltyDesc}>عند المخالفة الأولى</Text>
+                    <Text style={s.penaltyDesc}>عند المخالفة الأولى مع إمهال المؤسسة لتصحيح وضعها</Text>
                   </View>
-                  <View style={s.penaltyItem}>
-                    <Text style={s.penaltyIcon}>⏸</Text>
-                    <Text style={s.penaltyTitle}>تعليق مؤقت</Text>
-                    <Text style={s.penaltyDesc}>عند تكرار المخالفة</Text>
+                  <View style={[s.penaltyItem, { borderColor: "#F9731640", backgroundColor: "#F9731608" }]}>
+                    <Text style={s.penaltyIcon}>⏸️</Text>
+                    <Text style={[s.penaltyTitle, { color: "#F97316" }]}>تعليق مؤقت</Text>
+                    <Text style={s.penaltyDesc}>عند تكرار المخالفة أو عدم الاستجابة للإنذار</Text>
                   </View>
-                  <View style={s.penaltyItem}>
+                  <View style={[s.penaltyItem, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]}>
                     <Text style={s.penaltyIcon}>🚫</Text>
-                    <Text style={s.penaltyTitle}>إيقاف نهائي</Text>
-                    <Text style={s.penaltyDesc}>عند الإخلال الجسيم</Text>
+                    <Text style={[s.penaltyTitle, { color: Colors.danger }]}>إيقاف نهائي</Text>
+                    <Text style={s.penaltyDesc}>عند الإخلال الجسيم أو المتكرر وإلغاء العقد بالكامل</Text>
                   </View>
                 </View>
               </View>
 
-              {/* المادة 6: المدة */}
+              {/* المادة 6: المدة والإنهاء وفض النزاعات */}
               <View style={s.contractSection}>
-                <Text style={s.contractSectionTitle}>٦ — مدة العقد والإنهاء</Text>
-                <Text style={s.contractBody}>
-                  سنة كاملة من تاريخ التوقيع، تُجدَّد تلقائياً ما لم يُبلَّغ الطرف الآخر بالرغبة في الإنهاء قبل 30 يوماً. يحق لأي طرف الإنهاء بإشعار كتابي مسبق.
-                </Text>
+                <Text style={s.contractSectionTitle}>٦ — مدة العقد والإنهاء وفض النزاعات</Text>
+                <View style={s.contractInfoGrid}>
+                  <View style={s.contractInfoCell}>
+                    <Text style={s.contractInfoLabel}>⏱ مدة العقد</Text>
+                    <Text style={s.contractInfoText}>سنة كاملة من تاريخ التوقيع، تُجدَّد تلقائياً ما لم يُبلَّغ الطرف الآخر قبل 30 يوماً.</Text>
+                  </View>
+                  <View style={[s.contractInfoCell, { borderTopWidth: 1, borderColor: Colors.cyber + "20" }]}>
+                    <Text style={s.contractInfoLabel}>⚖️ فض النزاعات</Text>
+                    <Text style={s.contractInfoText}>يُسعى أولاً للحل بالتراضي، فإن تعذّر يُحال النزاع للجهات القضائية المختصة في جمهورية السودان.</Text>
+                  </View>
+                  <View style={[s.contractInfoCell, { borderTopWidth: 1, borderColor: Colors.cyber + "20" }]}>
+                    <Text style={s.contractInfoLabel}>📄 نسخ العقد</Text>
+                    <Text style={s.contractInfoText}>محرَّر من نسختين أصليتين متساويتين في الحجية القانونية، يحتفظ كل طرف بنسخة.</Text>
+                  </View>
+                </View>
               </View>
 
               <View style={[s.documentDivider, { backgroundColor: Colors.cyber + "30" }]} />
               <Text style={s.documentFooter}>
                 هذا العقد ملزم قانونياً لكلا الطرفين فور التوقيع عليه{"\n"}
+                أي تعديل يستلزم موافقة خطية من الطرفين{"\n"}
                 وثيقة رسمية صادرة عن منصة حصاحيصاوي © 2026
               </Text>
             </View>
@@ -1375,10 +1402,14 @@ const s = StyleSheet.create({
   contractBulletDot: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, marginTop: 2 },
   contractBulletText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
   contractPenalties: { flexDirection: "row", gap: 8 },
-  penaltyItem: { flex: 1, alignItems: "center", gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg },
+  penaltyItem: { flex: 1, alignItems: "center", gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   penaltyIcon: { fontSize: 18 },
   penaltyTitle: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textPrimary, textAlign: "center" },
-  penaltyDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center" },
+  penaltyDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", lineHeight: 15 },
+  contractInfoGrid: { borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: Colors.cyber + "25", backgroundColor: Colors.bg },
+  contractInfoCell: { padding: 12, gap: 4 },
+  contractInfoLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.cyber, textAlign: "right" },
+  contractInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
 
   // بطاقة حالة الطلب
   statusCard: {

@@ -14,10 +14,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { fsGetCollection, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Colors from "@/constants/colors";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
@@ -80,6 +81,141 @@ export function getTypeLabel(type: Facility["type"], t: any) {
   }
 }
 
+// ══════════════════════════════════════════════════════
+// مكوّن: زر انضمام المنشأة الطبية
+// ══════════════════════════════════════════════════════
+function MedicalJoinBanner() {
+  const router = useRouter();
+  const handleJoin = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/org-join" as any);
+  };
+
+  return (
+    <Animated.View entering={FadeIn.delay(150).duration(400)} style={mj.wrapper}>
+      <LinearGradient
+        colors={["#0E2B18", "#0B2215", "#091C12"]}
+        style={mj.bg}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      >
+        {/* دوائر زخرفية */}
+        <View style={mj.dot1} />
+        <View style={mj.dot2} />
+
+        {/* رأس البطاقة */}
+        <View style={mj.topRow}>
+          <View style={mj.iconBox}>
+            <MaterialCommunityIcons name="hospital-building" size={28} color="#E74C6F" />
+          </View>
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <View style={mj.badge}>
+              <Ionicons name="shield-checkmark" size={11} color="#E74C6F" />
+              <Text style={mj.badgeText}>انضمام رسمي موثّق</Text>
+            </View>
+            <Text style={mj.title}>سجِّل منشأتك الطبية{"\n"}في حصاحيصاوي</Text>
+          </View>
+        </View>
+
+        {/* مميزات */}
+        <View style={mj.featuresList}>
+          {[
+            { icon: "people-outline",           text: "وصول مباشر لآلاف المرضى في الحصاحيصا" },
+            { icon: "calendar-outline",          text: "نظام حجز مواعيد إلكتروني متكامل" },
+            { icon: "shield-checkmark-outline",  text: "ختم التحقق الرسمي على صفحتك الطبية" },
+          ].map((f, i) => (
+            <View key={i} style={mj.featureRow}>
+              <Ionicons name={f.icon as any} size={15} color="#E74C6F" />
+              <Text style={mj.featureText}>{f.text}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* أنواع المنشآت */}
+        <View style={mj.typesRow}>
+          {[
+            { icon: "hospital-building", label: "مستشفيات", color: "#E74C6F" },
+            { icon: "stethoscope",       label: "عيادات",   color: "#F97316" },
+            { icon: "medical-bag",       label: "صيدليات",  color: "#3E9CBF" },
+          ].map((t, i) => (
+            <View key={i} style={[mj.typeChip, { borderColor: t.color + "40", backgroundColor: t.color + "12" }]}>
+              <MaterialCommunityIcons name={t.icon as any} size={15} color={t.color} />
+              <Text style={[mj.typeLabel, { color: t.color }]}>{t.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* زر الانضمام */}
+        <TouchableOpacity onPress={handleJoin} activeOpacity={0.85} style={mj.joinBtnWrap}>
+          <LinearGradient colors={["#E74C6F", "#C43057"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <Ionicons name="arrow-back" size={18} color="#fff" />
+            <Text style={mj.joinBtnText}>قدّم طلب انضمام منشأتك</Text>
+            <View style={mj.joinBtnIcon}>
+              <MaterialCommunityIcons name="domain-plus" size={18} color="#E74C6F" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <Text style={mj.freeNote}>التسجيل مجاني · عقد رسمي موثّق · موافقة خلال ٣-٥ أيام</Text>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+const mj = StyleSheet.create({
+  wrapper: {
+    borderRadius: 20, overflow: "hidden", marginBottom: 4,
+    borderWidth: 1, borderColor: "#E74C6F30",
+    shadowColor: "#E74C6F", shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 5,
+  },
+  bg: { padding: 18, gap: 14, position: "relative", overflow: "hidden" },
+  dot1: { position: "absolute", width: 160, height: 160, borderRadius: 80, backgroundColor: "#E74C6F08", top: -50, left: -50 },
+  dot2: { position: "absolute", width: 100, height: 100, borderRadius: 50, backgroundColor: "#3E9CBF06", bottom: -20, right: 20 },
+
+  topRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
+  iconBox: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30",
+    justifyContent: "center", alignItems: "center",
+  },
+  badge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30",
+    paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, marginBottom: 8, alignSelf: "flex-end",
+  },
+  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#E74C6F" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right", lineHeight: 27 },
+
+  featuresList: { gap: 8, paddingRight: 4 },
+  featureRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  featureText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+
+  typesRow: { flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" },
+  typeChip: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
+  },
+  typeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+
+  joinBtnWrap: { borderRadius: 14, overflow: "hidden", marginTop: 2 },
+  joinBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    paddingVertical: 15, paddingHorizontal: 20, gap: 10,
+  },
+  joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
+  joinBtnIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "#fff", justifyContent: "center", alignItems: "center",
+  },
+  freeNote: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    textAlign: "center", marginTop: -4,
+  },
+});
+
+// ══════════════════════════════════════════════════════
+// الشاشة الرئيسية
+// ══════════════════════════════════════════════════════
 export default function MedicalScreen() {
   const { t, isRTL, lang, tr } = useLang();
   const auth = useAuth();
@@ -206,6 +342,9 @@ export default function MedicalScreen() {
             <Text style={styles.emptyText}>{t('medical', 'noResults')}</Text>
           </View>
         )}
+        {/* ══ زر انضمام المنشآت الطبية ══ */}
+        <MedicalJoinBanner />
+
         {filtered.map((facility, index) => {
           const color = getTypeColor(facility.type);
           return (
