@@ -231,6 +231,8 @@ export default function AdminDashboard() {
   const [memberSort, setMemberSort] = useState<"newest" | "oldest" | "name">("newest");
   const [memberNbrFilter, setMemberNbrFilter] = useState<string>("all");
   const [promotingId, setPromotingId] = useState<number | null>(null);
+  const [promoTarget, setPromoTarget] = useState<AdminUser | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
 
   // ── Landmarks ──
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
@@ -538,31 +540,23 @@ export default function AdminDashboard() {
   };
 
   const handleQuickPromote = (u: AdminUser) => {
-    Alert.alert(
-      "ترقية إلى مشرف",
-      `هل تريد ترقية "${u.name}" إلى مشرف؟\nسيتمكن من إدارة أقسام محددة في لوحة الإدارة.`,
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "ترقية",
-          style: "default",
-          onPress: async () => {
-            setPromotingId(u.id);
-            try {
-              const res = await apiFetch(`/api/admin/users/${u.id}/role`, token, {
-                method: "PATCH", body: JSON.stringify({ role: "moderator" }),
-              });
-              if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
-              setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: "moderator" } : x));
-              loadStats();
-              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("تم", `تم ترقية "${u.name}" إلى مشرف بنجاح`);
-            } catch { Alert.alert("خطأ", "تعذّر الترقية"); }
-            finally { setPromotingId(null); }
-          },
-        },
-      ]
-    );
+    setPromoTarget(u);
+  };
+
+  const executePromote = async () => {
+    if (!promoTarget) return;
+    setPromoLoading(true);
+    try {
+      const res = await apiFetch(`/api/admin/users/${promoTarget.id}/role`, token, {
+        method: "PATCH", body: JSON.stringify({ role: "moderator" }),
+      });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
+      setUsers(prev => prev.map(x => x.id === promoTarget.id ? { ...x, role: "moderator" } : x));
+      loadStats();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPromoTarget(null);
+    } catch { Alert.alert("خطأ", "تعذّر الترقية"); }
+    finally { setPromoLoading(false); }
   };
 
   const handleDeleteUser = async (u: AdminUser) => {
@@ -790,73 +784,100 @@ export default function AdminDashboard() {
   });
 
   // ─── Render helpers ────────────────────────────────────────────────────────
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "اليوم";
+    if (days < 7) return `منذ ${days} يوم`;
+    if (days < 30) return `منذ ${Math.floor(days / 7)} أسبوع`;
+    if (days < 365) return `منذ ${Math.floor(days / 30)} شهر`;
+    return `منذ ${Math.floor(days / 365)} سنة`;
+  }
+
   function renderUserCard(u: AdminUser) {
-    const joinDate = u.created_at
-      ? new Date(u.created_at).toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" })
-      : "—";
+    const roleColor = ROLE_LABELS[u.role]?.color ?? Colors.primary;
+    const joinAgo   = u.created_at ? timeAgo(u.created_at) : "—";
     return (
-      <Animated.View entering={FadeInDown.springify().damping(18)} key={u.id} style={s.userCard}>
-        <View style={s.userCardRow}>
-          <View style={s.avatarCircle}>
-            <Text style={s.avatarLetter}>{u.name.charAt(0)}</Text>
+      <Animated.View entering={FadeInDown.springify().damping(18)} key={u.id} style={uc.card}>
+        {/* Top row */}
+        <View style={uc.topRow}>
+          {/* Avatar */}
+          <View style={[uc.avatar, { backgroundColor: roleColor + "22", borderColor: roleColor + "44" }]}>
+            <Text style={[uc.avatarLetter, { color: roleColor }]}>{u.name.charAt(0)}</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.userName}>{u.name}</Text>
-            <Text style={s.userContact}>{u.phone || u.email || "—"}</Text>
+
+          {/* Name + meta */}
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={uc.name}>{u.name}</Text>
+            <View style={uc.metaRow}>
+              {u.phone ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="call-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.phone}</Text>
+                </View>
+              ) : u.email ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="mail-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.email}</Text>
+                </View>
+              ) : null}
+              {u.neighborhood ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.neighborhood}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
-          <RoleBadge role={u.role} />
+
+          {/* Role badge + join time */}
+          <View style={{ alignItems: "flex-end", gap: 5 }}>
+            <RoleBadge role={u.role} />
+            <Text style={uc.joinAgo}>{joinAgo}</Text>
+          </View>
         </View>
 
-        <View style={s.chipRow}>
-          {u.neighborhood ? (
-            <View style={s.chip}>
-              <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
-              <Text style={s.chipText}>{u.neighborhood}</Text>
-            </View>
-          ) : null}
-          <View style={s.chip}>
-            <Ionicons name="time-outline" size={11} color={Colors.textMuted} />
-            <Text style={s.chipText}>{joinDate}</Text>
-          </View>
-          {u.national_id_masked ? (
-            <View style={s.chip}>
-              <Ionicons name="id-card-outline" size={11} color={Colors.textMuted} />
-              <Text style={s.chipText}>{u.national_id_masked}</Text>
-            </View>
-          ) : null}
-        </View>
-
+        {/* Action bar - only for admin */}
         {isAdmin && (
-          <View style={s.userActions}>
+          <View style={uc.actionBar}>
+            {/* Primary action: Promote (only for regular users) */}
             {u.role === "user" && (
               <TouchableOpacity
-                style={[s.userActionBtn, { borderColor: "#F0A50040", backgroundColor: "#F0A50015", flex: 1 }]}
+                style={uc.promoteBtn}
                 onPress={() => handleQuickPromote(u)}
-                disabled={promotingId === u.id}
+                activeOpacity={0.78}
               >
-                {promotingId === u.id
-                  ? <ActivityIndicator size="small" color="#F0A500" />
-                  : <Ionicons name="arrow-up-circle-outline" size={14} color="#F0A500" />
-                }
-                <Text style={[s.userActionTxt, { color: "#F0A500" }]}>ترقية لمشرف</Text>
+                <Ionicons name="arrow-up-circle" size={15} color="#fff" />
+                <Text style={uc.promoteBtnTxt}>ترقية لمشرف</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={s.userActionBtn} onPress={() => setRoleModal(u)}>
-              <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
-              <Text style={[s.userActionTxt, { color: Colors.primary }]}>تغيير الصفة</Text>
-            </TouchableOpacity>
+
+            {/* Permissions (only for moderators) */}
             {u.role === "moderator" && (
-              <TouchableOpacity style={[s.userActionBtn, { borderColor: "#F0A50030", backgroundColor: "#F0A50010" }]} onPress={() => openPermModal(u)}>
+              <TouchableOpacity
+                style={[uc.secBtn, { borderColor: "#F0A50040", backgroundColor: "#F0A50012" }]}
+                onPress={() => openPermModal(u)}
+              >
                 <Ionicons name="key-outline" size={14} color="#F0A500" />
-                <Text style={[s.userActionTxt, { color: "#F0A500" }]}>الصلاحيات</Text>
+                <Text style={[uc.secBtnTxt, { color: "#F0A500" }]}>الصلاحيات</Text>
               </TouchableOpacity>
             )}
+
+            {/* Change role */}
             <TouchableOpacity
-              style={[s.userActionBtn, { borderColor: "#E0556730", backgroundColor: "#E0556710" }]}
+              style={[uc.secBtn, { borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "12" }]}
+              onPress={() => setRoleModal(u)}
+            >
+              <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
+              <Text style={[uc.secBtnTxt, { color: Colors.primary }]}>الصفة</Text>
+            </TouchableOpacity>
+
+            {/* Delete */}
+            <TouchableOpacity
+              style={[uc.secBtn, { borderColor: "#E0556730", backgroundColor: "#E0556710" }]}
               onPress={() => handleDeleteUser(u)}
             >
               <Ionicons name="trash-outline" size={14} color="#E05567" />
-              <Text style={[s.userActionTxt, { color: "#E05567" }]}>حذف</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -2174,6 +2195,93 @@ export default function AdminDashboard() {
         </ScrollView>
       )}
 
+      {/* ─── Promote-to-Moderator Sheet ─────────────────────────────────── */}
+      <Modal visible={!!promoTarget} transparent animationType="slide" onRequestClose={() => setPromoTarget(null)}>
+        <Pressable style={ps.backdrop} onPress={() => !promoLoading && setPromoTarget(null)}>
+          <Animated.View entering={FadeInDown.springify().damping(20)} style={ps.sheet}>
+            {/* Handle */}
+            <View style={ps.handle} />
+
+            {/* Icon header */}
+            <View style={ps.iconWrap}>
+              <LinearGradient colors={["#F0A500", "#E8900A"]} style={ps.iconGrad}>
+                <Ionicons name="arrow-up-circle" size={34} color="#fff" />
+              </LinearGradient>
+              <Text style={ps.sheetTitle}>ترقية إلى مشرف</Text>
+              <Text style={ps.sheetSub}>تغيير صفة العضو وإعطاؤه صلاحيات الإشراف</Text>
+            </View>
+
+            {/* Member info card */}
+            {promoTarget && (
+              <View style={ps.memberCard}>
+                <View style={[ps.memberAvatar, { backgroundColor: Colors.primary + "25" }]}>
+                  <Text style={ps.memberLetter}>{promoTarget.name.charAt(0)}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={ps.memberName}>{promoTarget.name}</Text>
+                  {(promoTarget.phone || promoTarget.email) ? (
+                    <Text style={ps.memberSub}>{promoTarget.phone || promoTarget.email}</Text>
+                  ) : null}
+                  {promoTarget.neighborhood ? (
+                    <View style={ps.nbrChip}>
+                      <Ionicons name="location-outline" size={10} color={Colors.textMuted} />
+                      <Text style={ps.nbrChipTxt}>{promoTarget.neighborhood}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={ps.roleFlow}>
+                  <RoleBadge role="user" />
+                  <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
+                  <RoleBadge role="moderator" />
+                </View>
+              </View>
+            )}
+
+            {/* Permissions preview */}
+            <View style={ps.permBlock}>
+              <Text style={ps.permBlockTitle}>سيكون بإمكانه بعد الترقية:</Text>
+              {[
+                { icon: "people-outline",   label: "متابعة الأعضاء ومراجعة طلباتهم" },
+                { icon: "business-outline", label: "مراجعة طلبات المؤسسات والمجتمعات" },
+                { icon: "megaphone-outline",label: "إدارة الإعلانات وقبولها أو رفضها"   },
+                { icon: "location-outline", label: "إضافة وتعديل المعالم السياحية"       },
+              ].map(p => (
+                <View key={p.icon} style={ps.permRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                  <Ionicons name={p.icon as any} size={14} color={Colors.textMuted} />
+                  <Text style={ps.permLabel}>{p.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[ps.confirmBtn, promoLoading && { opacity: 0.7 }]}
+              onPress={executePromote}
+              disabled={promoLoading}
+              activeOpacity={0.8}
+            >
+              {promoLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="arrow-up-circle" size={18} color="#fff" />
+                  <Text style={ps.confirmBtnTxt}>تأكيد الترقية</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={ps.cancelBtn}
+              onPress={() => setPromoTarget(null)}
+              disabled={promoLoading}
+            >
+              <Text style={ps.cancelBtnTxt}>إلغاء</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
       {/* Role Change Modal */}
       <Modal visible={!!roleModal} transparent animationType="fade" onRequestClose={() => setRoleModal(null)}>
         <Pressable style={s.overlay} onPress={() => setRoleModal(null)}>
@@ -2558,5 +2666,246 @@ const sm = StyleSheet.create({
   sortBtnTxtActive: {
     color: Colors.primary,
     fontFamily: "Cairo_600SemiBold",
+  },
+});
+
+// ─── User Card Styles ────────────────────────────────────────────────────────
+const uc = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 12,
+  },
+  topRow: {
+    flexDirection: "row-reverse",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 20,
+  },
+  name: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  metaRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+  metaChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+  },
+  metaText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  joinAgo: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: Colors.textMuted,
+    textAlign: "right",
+  },
+  actionBar: {
+    flexDirection: "row-reverse",
+    gap: 7,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    paddingTop: 10,
+  },
+  promoteBtn: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#F0A500",
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  promoteBtnTxt: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 13,
+    color: "#fff",
+  },
+  secBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    borderWidth: 1,
+  },
+  secBtnTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+  },
+});
+
+// ─── Promote Sheet Styles ────────────────────────────────────────────────────
+const ps = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 36,
+    gap: 14,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.divider,
+    alignSelf: "center",
+    marginBottom: 4,
+  },
+  iconWrap: {
+    alignItems: "center",
+    gap: 8,
+  },
+  iconGrad: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 20,
+    color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  sheetSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  memberCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.bg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 12,
+  },
+  memberAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  memberLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+    color: Colors.primary,
+  },
+  memberName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  memberSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: "right",
+  },
+  nbrChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  nbrChipTxt: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  roleFlow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+  },
+  permBlock: {
+    backgroundColor: Colors.bg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 10,
+  },
+  permBlockTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  permRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+  },
+  permLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 13,
+    color: Colors.textPrimary,
+    flex: 1,
+    textAlign: "right",
+  },
+  confirmBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F0A500",
+    borderRadius: 16,
+    paddingVertical: 15,
+  },
+  confirmBtnTxt: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: "#fff",
+  },
+  cancelBtn: {
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  cancelBtnTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 14,
+    color: Colors.textMuted,
   },
 });
