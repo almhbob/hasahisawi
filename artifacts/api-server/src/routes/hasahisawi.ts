@@ -1591,6 +1591,56 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
   }
 });
 
+// إحصائيات مستخدم محدد — للمدير والمشرف
+router.get("/admin/users/:id/stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const uid = parseInt(req.params.id);
+    if (isNaN(uid)) return res.status(400).json({ error: "معرف غير صالح" });
+
+    const [userR, postsR, commentsR, likesR, reportsR, msgsR, adsR, apptR, sessionsR] =
+      await Promise.all([
+        query(
+          `SELECT id, name, role, avatar_url, bio, phone, email, neighborhood,
+                  created_at, is_banned
+           FROM users WHERE id=$1`,
+          [uid]
+        ),
+        query(`SELECT COUNT(*)::int AS cnt FROM social_posts     WHERE author_id=$1`, [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM social_comments  WHERE author_id=$1`, [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM social_likes     WHERE user_id=$1`,   [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM citizen_reports  WHERE user_id=$1`,   [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM chat_messages    WHERE sender_id=$1`, [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM ads              WHERE user_id=$1`,   [uid]),
+        query(`SELECT COUNT(*)::int AS cnt FROM appointments     WHERE user_id=$1`,   [uid]),
+        query(
+          `SELECT MAX(created_at) AS last_seen FROM user_sessions WHERE user_id=$1`,
+          [uid]
+        ),
+      ]);
+
+    if (!userR.rows.length) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+    return res.json({
+      user:          userR.rows[0],
+      posts_count:   postsR.rows[0]?.cnt   ?? 0,
+      comments_count: commentsR.rows[0]?.cnt ?? 0,
+      likes_count:   likesR.rows[0]?.cnt    ?? 0,
+      reports_count: reportsR.rows[0]?.cnt  ?? 0,
+      messages_count: msgsR.rows[0]?.cnt    ?? 0,
+      ads_count:     adsR.rows[0]?.cnt      ?? 0,
+      appointments_count: apptR.rows[0]?.cnt ?? 0,
+      last_seen:     sessionsR.rows[0]?.last_seen ?? null,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.delete("/admin/users/:id", async (req: Request, res: Response) => {
   try {
     const currentUser = await getSessionUser(req);

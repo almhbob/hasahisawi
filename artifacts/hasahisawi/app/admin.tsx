@@ -248,6 +248,16 @@ export default function AdminDashboard() {
   const [promoTarget, setPromoTarget] = useState<AdminUser | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
+  // ── User Stats Modal ──
+  const [statsUser, setStatsUser] = useState<AdminUser | null>(null);
+  const [userStats, setUserStats] = useState<null | {
+    user: AdminUser & { bio?: string; is_banned?: boolean };
+    posts_count: number; comments_count: number; likes_count: number;
+    reports_count: number; messages_count: number; ads_count: number;
+    appointments_count: number; last_seen: string | null;
+  }>(null);
+  const [loadingUserStats, setLoadingUserStats] = useState(false);
+
   // ── Landmarks ──
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
   const [loadingLM, setLoadingLM] = useState(false);
@@ -690,6 +700,17 @@ export default function AdminDashboard() {
     } catch { setPermSections([]); }
   };
 
+  const openUserStats = async (u: AdminUser) => {
+    setStatsUser(u);
+    setUserStats(null);
+    setLoadingUserStats(true);
+    try {
+      const res = await apiFetch(`/api/admin/users/${u.id}/stats`, token);
+      if (res.ok) setUserStats(await res.json());
+    } catch {}
+    finally { setLoadingUserStats(false); }
+  };
+
   const savePerms = async () => {
     if (!permModal) return;
     setSavingPerms(true);
@@ -1041,6 +1062,13 @@ export default function AdminDashboard() {
     const joinAgo   = u.created_at ? timeAgo(u.created_at) : "—";
     return (
       <Animated.View entering={FadeInDown.springify().damping(18)} key={u.id} style={uc.card}>
+        {/* اضغط على البطاقة لرؤية الإحصائيات */}
+        <TouchableOpacity onPress={() => openUserStats(u)} activeOpacity={0.85} style={{ position: "absolute", top: 10, left: 12, zIndex: 5 }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.primary + "30" }}>
+            <Ionicons name="bar-chart-outline" size={12} color={Colors.primary} />
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary }}>إحصائيات</Text>
+          </View>
+        </TouchableOpacity>
         {/* Top row */}
         <View style={uc.topRow}>
           {/* Avatar */}
@@ -2911,6 +2939,195 @@ export default function AdminDashboard() {
           </View>
         </ScrollView>
       )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          ── مودال إحصائيات المستخدم
+      ═══════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={!!statsUser}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setStatsUser(null); setUserStats(null); }}
+      >
+        <Pressable style={ps.backdrop} onPress={() => { setStatsUser(null); setUserStats(null); }}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={[ps.sheet, { maxHeight: "92%" }]}>
+            <Pressable onPress={e => e.stopPropagation()}>
+
+              {/* Handle */}
+              <View style={ps.handle} />
+
+              {/* Header — اسم المستخدم */}
+              {statsUser && (() => {
+                const roleColor = ROLE_LABELS[statsUser.role]?.color ?? Colors.primary;
+                return (
+                  <View style={{ alignItems: "center", marginBottom: 16 }}>
+                    <View style={[ps.memberAvatar, {
+                      backgroundColor: roleColor + "25",
+                      width: 64, height: 64, borderRadius: 32,
+                      marginBottom: 8,
+                    }]}>
+                      <Text style={[ps.memberLetter, { fontSize: 26 }]}>{statsUser.name.charAt(0)}</Text>
+                    </View>
+                    <Text style={[ps.memberName, { fontSize: 18 }]}>{statsUser.name}</Text>
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
+                      <RoleBadge role={statsUser.role} />
+                      {statsUser.neighborhood ? (
+                        <View style={ps.nbrChip}>
+                          <Ionicons name="location-outline" size={10} color={Colors.textMuted} />
+                          <Text style={ps.nbrChipTxt}>{statsUser.neighborhood}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    {(statsUser.phone || statsUser.email) ? (
+                      <Text style={[ps.memberSub, { marginTop: 4 }]}>{statsUser.phone || statsUser.email}</Text>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
+              {/* Loading */}
+              {loadingUserStats && (
+                <View style={{ alignItems: "center", paddingVertical: 32, gap: 10 }}>
+                  <ActivityIndicator color={Colors.cyber} size="large" />
+                  <Text style={ps.permLabel}>جارٍ تحميل الإحصائيات…</Text>
+                </View>
+              )}
+
+              {/* Stats Grid */}
+              {!loadingUserStats && userStats && (() => {
+                const st = userStats;
+                const joinDate = st.user.created_at
+                  ? new Date(st.user.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+                  : "—";
+                const lastSeen = st.last_seen
+                  ? timeAgo(st.last_seen)
+                  : "غير متاح";
+
+                const statItems = [
+                  { icon: "newspaper-outline",     label: "المنشورات",    value: st.posts_count,        color: Colors.primary  },
+                  { icon: "chatbubble-outline",     label: "التعليقات",    value: st.comments_count,     color: "#3B82F6"       },
+                  { icon: "heart-outline",          label: "الإعجابات",   value: st.likes_count,        color: "#E74C6F"       },
+                  { icon: "megaphone-outline",      label: "البلاغات",     value: st.reports_count,      color: "#F59E0B"       },
+                  { icon: "chatbubbles-outline",    label: "الرسائل",      value: st.messages_count,     color: "#06B6D4"       },
+                  { icon: "pricetag-outline",       label: "الإعلانات",    value: st.ads_count,          color: "#F0A500"       },
+                  { icon: "calendar-outline",       label: "المواعيد",     value: st.appointments_count, color: "#8B5CF6"       },
+                ];
+
+                return (
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+                    {/* شبكة الإحصائيات */}
+                    <Text style={[ps.permBlockTitle, { marginBottom: 10 }]}>نشاط المستخدم</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+                      {statItems.map(item => (
+                        <View key={item.label} style={{
+                          width: "30%", flex: 1, minWidth: "28%",
+                          backgroundColor: item.color + "12",
+                          borderRadius: 12, borderWidth: 1,
+                          borderColor: item.color + "30",
+                          padding: 12, alignItems: "center", gap: 5,
+                        }}>
+                          <Ionicons name={item.icon as any} size={20} color={item.color} />
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: item.color }}>
+                            {item.value}
+                          </Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+                            {item.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* معلومات الحساب */}
+                    <Text style={[ps.permBlockTitle, { marginBottom: 8 }]}>معلومات الحساب</Text>
+                    <View style={[ps.permBlock, { gap: 10, marginBottom: 16 }]}>
+                      {[
+                        { icon: "calendar-number-outline", label: "تاريخ الانضمام", val: joinDate  },
+                        { icon: "time-outline",            label: "آخر دخول",       val: lastSeen  },
+                        { icon: "phone-portrait-outline",  label: "رقم الهاتف",     val: st.user.phone || "—"  },
+                        { icon: "mail-outline",            label: "البريد",          val: st.user.email || "—"  },
+                        { icon: "home-outline",            label: "الحي",            val: st.user.neighborhood || "—"  },
+                      ].map(row => (
+                        <View key={row.label} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                          <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
+                            <Ionicons name={row.icon as any} size={15} color={Colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{row.label}</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>{row.val}</Text>
+                          </View>
+                        </View>
+                      ))}
+                      {st.user.bio ? (
+                        <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 }}>
+                          <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center", marginTop: 2 }}>
+                            <Ionicons name="person-outline" size={15} color={Colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>نبذة</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, lineHeight: 20 }}>{st.user.bio}</Text>
+                          </View>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* أزرار الإجراءات */}
+                    {isAdmin && statsUser && (
+                      <View style={{ gap: 10, paddingBottom: 20 }}>
+                        {statsUser.role === "user" && (
+                          <TouchableOpacity
+                            style={[ps.confirmBtn, { backgroundColor: "#F0A500" }]}
+                            onPress={() => { setStatsUser(null); setUserStats(null); handleQuickPromote(statsUser); }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="arrow-up-circle" size={18} color="#fff" />
+                            <Text style={ps.confirmBtnTxt}>ترقية إلى مشرف</Text>
+                          </TouchableOpacity>
+                        )}
+                        {statsUser.role === "moderator" && (
+                          <TouchableOpacity
+                            style={[ps.confirmBtn, { backgroundColor: "#F0A50090" }]}
+                            onPress={() => { setStatsUser(null); setUserStats(null); openPermModal(statsUser); }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="key-outline" size={18} color="#fff" />
+                            <Text style={ps.confirmBtnTxt}>تعديل صلاحيات المشرف</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={[ps.confirmBtn, { backgroundColor: Colors.primary + "CC" }]}
+                          onPress={() => { setStatsUser(null); setUserStats(null); setRoleModal(statsUser); }}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="swap-horizontal-outline" size={18} color="#fff" />
+                          <Text style={ps.confirmBtnTxt}>تغيير الصفة</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[ps.cancelBtn, { backgroundColor: "#E0556715", borderWidth: 1, borderColor: "#E0556740", borderRadius: 12 }]}
+                          onPress={() => {
+                            Alert.alert("حذف المستخدم", `هل تريد حذف حساب "${statsUser.name}" نهائياً؟`, [
+                              { text: "إلغاء", style: "cancel" },
+                              { text: "حذف", style: "destructive", onPress: () => { setStatsUser(null); setUserStats(null); handleDeleteUser(statsUser); } },
+                            ]);
+                          }}
+                        >
+                          <Text style={[ps.cancelBtnTxt, { color: "#E05567" }]}>حذف الحساب</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </ScrollView>
+                );
+              })()}
+
+              {/* Close button if not loading */}
+              {!loadingUserStats && !userStats && (
+                <TouchableOpacity style={ps.cancelBtn} onPress={() => { setStatsUser(null); setUserStats(null); }}>
+                  <Text style={ps.cancelBtnTxt}>إغلاق</Text>
+                </TouchableOpacity>
+              )}
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       {/* ─── Promote-to-Moderator Sheet ─────────────────────────────────── */}
       <Modal visible={!!promoTarget} transparent animationType="slide" onRequestClose={() => setPromoTarget(null)}>
