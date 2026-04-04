@@ -21,6 +21,7 @@ export default function ForgotPasswordScreen() {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [userName, setUserName] = useState("");
+  const isEmailInput = phone.includes("@");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -38,11 +39,11 @@ export default function ForgotPasswordScreen() {
       const res = await fetch(`${base}/api/auth/check-phone`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({ identifier: phone.trim() }),
       });
       const data = await res.json();
       if (!data.exists) {
-        Alert.alert("غير موجود", "لا يوجد حساب مسجّل بهذا الرقم");
+        Alert.alert("غير موجود", "لا يوجد حساب مسجّل بهذا الرقم أو البريد الإلكتروني");
         return;
       }
       setUserName(data.name);
@@ -74,7 +75,7 @@ export default function ForgotPasswordScreen() {
       const res = await fetch(`${base}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim(), new_password: newPassword }),
+        body: JSON.stringify({ identifier: phone.trim(), new_password: newPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -130,7 +131,7 @@ export default function ForgotPasswordScreen() {
           ))}
         </View>
         <View style={styles.stepsLabelRow}>
-          <Text style={styles.stepLabel}>رقم الهاتف</Text>
+          <Text style={styles.stepLabel}>الهاتف / البريد</Text>
           <Text style={styles.stepLabel}>كلمة المرور</Text>
           <Text style={styles.stepLabel}>تم</Text>
         </View>
@@ -141,18 +142,24 @@ export default function ForgotPasswordScreen() {
             <View style={styles.iconWrap}>
               <Ionicons name="phone-portrait-outline" size={36} color={Colors.primary} />
             </View>
-            <Text style={styles.cardTitle}>أدخل رقم هاتفك</Text>
+            <Text style={styles.cardTitle}>أدخل رقم هاتفك أو بريدك</Text>
             <Text style={styles.cardSub}>سنتحقق من وجود الحساب ثم نسمح لك بتغيير كلمة المرور</Text>
 
             <View style={styles.inputWrap}>
-              <Ionicons name="call-outline" size={18} color={Colors.textMuted} style={styles.inputIcon} />
+              <Ionicons
+                name={isEmailInput ? "mail-outline" : "call-outline"}
+                size={18}
+                color={Colors.textMuted}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="09XXXXXXXX"
+                placeholder="09XXXXXXXX أو البريد الإلكتروني"
                 placeholderTextColor={Colors.textMuted}
-                keyboardType="phone-pad"
+                keyboardType={isEmailInput ? "email-address" : "phone-pad"}
+                autoCapitalize="none"
                 textAlign="right"
                 returnKeyType="done"
                 onSubmitEditing={handleCheckPhone}

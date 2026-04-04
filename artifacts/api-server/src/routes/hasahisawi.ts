@@ -3589,16 +3589,20 @@ router.patch("/users/me/bio", async (req: Request, res: Response) => {
 // ── استعادة كلمة المرور ───────────────────────────────────────────────────────
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
   try {
-    const { phone, new_password } = req.body;
-    if (!phone || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف وكلمة المرور الجديدة" });
+    const { phone, email, identifier, new_password } = req.body;
+    const lookup = (identifier || phone || email || "").trim();
+    if (!lookup || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني وكلمة المرور الجديدة" });
     if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
 
-    const userR = await query(`SELECT id FROM users WHERE phone=$1`, [phone]);
-    if (!userR.rows.length) return res.status(404).json({ error: "لم يتم العثور على حساب بهذا الرقم" });
+    const isEmail = lookup.includes("@");
+    const userR = isEmail
+      ? await query(`SELECT id FROM users WHERE email=$1`, [lookup])
+      : await query(`SELECT id FROM users WHERE phone=$1`, [lookup]);
+    if (!userR.rows.length) return res.status(404).json({ error: "لم يتم العثور على حساب بهذا الرقم أو البريد" });
 
     const bcrypt = await import("bcrypt");
     const hashed = await bcrypt.hash(new_password, 10);
-    await query(`UPDATE users SET password_hash=$1 WHERE phone=$2`, [hashed, phone]);
+    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, userR.rows[0].id]);
 
     return res.json({ ok: true, message: "تم تغيير كلمة المرور بنجاح" });
   } catch (err) {
@@ -3607,12 +3611,16 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
   }
 });
 
-// ── تحقق من وجود رقم الهاتف ──────────────────────────────────────────────────
+// ── تحقق من وجود رقم الهاتف أو البريد الإلكتروني ────────────────────────────
 router.post("/auth/check-phone", async (req: Request, res: Response) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: "أدخل رقم الهاتف" });
-    const userR = await query(`SELECT id, name FROM users WHERE phone=$1`, [phone]);
+    const { phone, email, identifier } = req.body;
+    const lookup = (identifier || phone || email || "").trim();
+    if (!lookup) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
+    const isEmail = lookup.includes("@");
+    const userR = isEmail
+      ? await query(`SELECT id, name FROM users WHERE email=$1`, [lookup])
+      : await query(`SELECT id, name FROM users WHERE phone=$1`, [lookup]);
     if (!userR.rows.length) return res.json({ exists: false });
     return res.json({ exists: true, name: userR.rows[0].name });
   } catch (err) {
