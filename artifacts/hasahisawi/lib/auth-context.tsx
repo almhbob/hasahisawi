@@ -104,25 +104,36 @@ function maskNationalId(id?: string): string | null {
 async function backendLogin(phoneOrEmail: string, password: string): Promise<{ user: AuthUser; token: string }> {
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
-  const res = await fetch(`${base}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone_or_email: phoneOrEmail, password }),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "بيانات غير صحيحة");
-  const u = json.user;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone_or_email: phoneOrEmail, password }),
+    });
+  } catch (err) {
+    throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
+  }
+  const text = await res.text();
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
+  }
+  if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
+  const u = json.user as Record<string, unknown>;
   const authUser: AuthUser = {
-    id: u.id,
-    name: u.name,
-    phone: u.phone ?? null,
-    email: u.email ?? null,
-    role: u.role ?? "user",
-    neighborhood: u.neighborhood ?? null,
-    national_id_masked: u.national_id_masked ?? null,
-    avatar_url: u.avatar_url ?? null,
+    id: u.id as number,
+    name: u.name as string,
+    phone: (u.phone as string | null) ?? null,
+    email: (u.email as string | null) ?? null,
+    role: (u.role as AuthUser["role"]) ?? "user",
+    neighborhood: (u.neighborhood as string | null) ?? null,
+    national_id_masked: (u.national_id_masked as string | null) ?? null,
+    avatar_url: (u.avatar_url as string | null) ?? null,
   };
-  return { user: authUser, token: json.token };
+  return { user: authUser, token: json.token as string };
 }
 
 async function backendRegister(
@@ -136,33 +147,44 @@ async function backendRegister(
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
   const isEmail = phoneOrEmail.includes("@");
-  const res = await fetch(`${base}/api/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      phone: isEmail ? undefined : phoneOrEmail,
-      email: isEmail ? phoneOrEmail : undefined,
-      password,
-      national_id: nationalId || undefined,
-      birth_date: birthDate || undefined,
-      neighborhood: neighborhood || undefined,
-    }),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "فشل إنشاء الحساب");
-  const u = json.user;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        phone: isEmail ? undefined : phoneOrEmail,
+        email: isEmail ? phoneOrEmail : undefined,
+        password,
+        national_id: nationalId || undefined,
+        birth_date: birthDate || undefined,
+        neighborhood: neighborhood || undefined,
+      }),
+    });
+  } catch {
+    throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
+  }
+  const text = await res.text();
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
+  }
+  if (!res.ok) throw new Error((json.error as string) || "فشل إنشاء الحساب");
+  const u = json.user as Record<string, unknown>;
   const authUser: AuthUser = {
-    id: u.id,
-    name: u.name,
-    phone: u.phone ?? null,
-    email: u.email ?? null,
-    role: u.role ?? "user",
-    neighborhood: u.neighborhood ?? null,
-    national_id_masked: u.national_id_masked ?? null,
-    avatar_url: u.avatar_url ?? null,
+    id: u.id as number,
+    name: u.name as string,
+    phone: (u.phone as string | null) ?? null,
+    email: (u.email as string | null) ?? null,
+    role: (u.role as AuthUser["role"]) ?? "user",
+    neighborhood: (u.neighborhood as string | null) ?? null,
+    national_id_masked: (u.national_id_masked as string | null) ?? null,
+    avatar_url: (u.avatar_url as string | null) ?? null,
   };
-  return { user: authUser, token: json.token };
+  return { user: authUser, token: json.token as string };
 }
 
 async function exchangeForBackendToken(
@@ -399,26 +421,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (phoneOrEmail: string, password: string) => {
-    // Backend هو المصدر الأساسي للمصادقة دائماً
-    const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
-    await saveSession(authUser, backendTok, backendTok);
-    // Firebase اختياري — نجرّبه في الخلفية فقط لمزامنة البيانات
-    if (isFirebaseAvailable()) {
+    const isServerUnavailable = (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "";
+      return msg.includes("غير متاح") || msg.includes("تعذّر") || msg.includes("مؤقتاً");
+    };
+
+    let backendFailed = false;
+    let backendFailReason = "";
+
+    try {
+      // Backend هو المصدر الأساسي
+      const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
+      await saveSession(authUser, backendTok, backendTok);
+      // Firebase اختياري في الخلفية لمزامنة البيانات فقط
+      if (isFirebaseAvailable()) {
+        try {
+          const email = identifierToEmail(phoneOrEmail);
+          const fbUser = await firebaseLoginEmail(email, password);
+          const backendTok2 = await exchangeForBackendToken(
+            fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+          );
+          if (backendTok2) {
+            setToken(backendTok2);
+            await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
+          }
+        } catch {
+          // Firebase فشل — لا بأس، جلسة backend نشطة
+        }
+      }
+      return;
+    } catch (err) {
+      if (isServerUnavailable(err)) {
+        backendFailed = true;
+        backendFailReason = err instanceof Error ? err.message : "الخادم غير متاح";
+      } else {
+        throw err; // كلمة مرور خاطئة أو خطأ حقيقي
+      }
+    }
+
+    // Fallback: Firebase مباشرة إذا كان الـ backend غير متاح
+    if (backendFailed && isFirebaseAvailable()) {
       try {
         const email = identifierToEmail(phoneOrEmail);
         const fbUser = await firebaseLoginEmail(email, password);
         const idToken = await fbUser.getIdToken();
-        const backendTok2 = await exchangeForBackendToken(
-          fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
-        );
-        if (backendTok2) {
-          setToken(backendTok2);
-          await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
+        const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+        if (!profile) throw new Error("لم يُعثر على بيانات الحساب في Firebase");
+        const authUser = profileToAuthUser(profile, idToken);
+        await saveSession(authUser, idToken, null);
+        return;
+      } catch (fbErr) {
+        const msg = fbErr instanceof Error ? fbErr.message : "";
+        if (msg.includes("wrong-password") || msg.includes("user-not-found") || msg.includes("invalid-credential")) {
+          throw new Error("بيانات الدخول غير صحيحة");
         }
-      } catch {
-        // Firebase فشل — لا بأس، جلسة backend نشطة
+        throw new Error(backendFailReason || "تعذّر تسجيل الدخول");
       }
     }
+
+    if (backendFailed) throw new Error(backendFailReason || "الخادم غير متاح");
   };
 
   const loginAdmin = async (email: string, password: string) => {
