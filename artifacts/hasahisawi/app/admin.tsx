@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -262,6 +262,10 @@ export default function AdminDashboard() {
   const [savingAdsSettings, setSavingAdsSettings] = useState(false);
   const [showAdsSettingsModal, setShowAdsSettingsModal] = useState(false);
 
+  // ── Contract Settings ──
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [savingContractSettings, setSavingContractSettings] = useState(false);
+
   // ── Neighborhoods ──
   const [neighborhoods, setNeighborhoods] = useState<NbrItem[]>([]);
   const [loadingNbr, setLoadingNbr] = useState(false);
@@ -409,6 +413,25 @@ export default function AdminDashboard() {
     finally { setSavingAdsSettings(false); }
   };
 
+  const loadContractSettings = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/admin/contract-settings", token);
+      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966530658285"); }
+    } catch {}
+  }, [token]);
+
+  const saveContractSettings = async () => {
+    setSavingContractSettings(true);
+    try {
+      const res = await apiFetch("/api/admin/contract-settings", token, {
+        method: "PUT", body: JSON.stringify({ contract_whatsapp: contractWhatsapp }),
+      });
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث رقم واتساب عقود المؤسسات");
+      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingContractSettings(false); }
+  };
+
   const loadSecurity = useCallback(async () => {
     setLoadingSecurity(true);
     try {
@@ -517,7 +540,7 @@ export default function AdminDashboard() {
     if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
     if (tab === "landmarks")    loadLandmarks();
     if (tab === "ads")          { loadAds(); loadAdsSettings(); }
-    if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); }
+    if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); loadContractSettings(); }
     if (tab === "neighborhoods") loadNeighborhoods();
     if (tab === "ai_settings")   loadAiSettings();
     if (tab === "security")      loadSecurity();
@@ -1485,6 +1508,45 @@ export default function AdminDashboard() {
               <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 12, flex: 1, textAlign: "right" }}>
                 صلاحيتك: رفع طلبات مؤسسات جديدة للمراجعة. الموافقة والإيقاف والحذف من صلاحية الإدارة فقط.
               </Text>
+            </View>
+          )}
+
+          {/* ── إعداد رقم واتساب عقود المؤسسات ── */}
+          {isAdmin && (
+            <View style={{ marginHorizontal: 14, marginBottom: 12, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#25D36620", justifyContent: "center", alignItems: "center" }}>
+                  <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                </View>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>رقم واتساب عقود المؤسسات</Text>
+              </View>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
+                هذا الرقم يُرسَل إليه عقد الانضمام الموقع من المؤسسات عبر واتساب
+              </Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TextInput
+                  value={contractWhatsapp}
+                  onChangeText={setContractWhatsapp}
+                  placeholder="+966530658285"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="phone-pad"
+                  style={{
+                    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
+                    backgroundColor: Colors.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={saveContractSettings}
+                  disabled={savingContractSettings}
+                  style={{ backgroundColor: "#25D366", borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" }}
+                >
+                  {savingContractSettings
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>حفظ</Text>
+                  }
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 

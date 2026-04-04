@@ -1,17 +1,19 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  Alert, Platform, KeyboardAvoidingView,
+  Alert, Platform, KeyboardAvoidingView, Image, Linking, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import { uploadFile } from "@/lib/firebase/storage";
 
 // ══════════════════════════════════════════════════════
 // CONSTANTS
@@ -181,7 +183,7 @@ function Field({
 // ══════════════════════════════════════════════════════
 // MAIN SCREEN
 // ══════════════════════════════════════════════════════
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 export default function OrgJoinScreen() {
   const insets = useSafeAreaInsets();
@@ -193,8 +195,15 @@ export default function OrgJoinScreen() {
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [appId, setAppId] = useState<number | null>(null);
+  const [appStatus, setAppStatus] = useState<string>("pending");
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [commitmentScrolled, setCommitmentScrolled] = useState(false);
   const [serviceCatFilter, setServiceCatFilter] = useState("الكل");
+
+  // إعدادات العقد
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
+  const [signedContractUrl, setSignedContractUrl] = useState<string | null>(null);
 
   // ── Step 1: بيانات المؤسسة ──
   const [instName, setInstName] = useState("");
@@ -213,12 +222,24 @@ export default function OrgJoinScreen() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [customServices, setCustomServices] = useState("");
 
-  // ── Step 3: بيانات الممثل ──
+  // ── Step 3: بيانات الممثل + الصورة ──
   const [repName, setRepName] = useState(auth.user?.name || "");
   const [repTitle, setRepTitle] = useState("");
   const [repNationalId, setRepNationalId] = useState("");
   const [repPhone, setRepPhone] = useState("");
   const [repEmail, setRepEmail] = useState("");
+  const [repPhotoUri, setRepPhotoUri] = useState<string | null>(null);
+  const [repPhotoUploading, setRepPhotoUploading] = useState(false);
+  const [repPhotoUrl, setRepPhotoUrl] = useState<string | null>(null);
+
+  // جلب رقم واتساب العقود عند التحميل
+  useEffect(() => {
+    const base = getApiUrl().replace(/\/$/, "");
+    fetch(`${base}/api/institution-applications/contract-settings`)
+      .then(r => r.json())
+      .then(d => { if (d.contract_whatsapp) setContractWhatsapp(d.contract_whatsapp); })
+      .catch(() => {});
+  }, []);
 
   const toggleService = (id: string) => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
@@ -232,6 +253,123 @@ export default function OrgJoinScreen() {
     : ALL_SERVICES.filter(s => s.cat === serviceCatFilter);
 
   const instTypeObj = INST_TYPES.find(t => t.key === instType);
+
+  // رفع صورة هوية الممثل
+  const pickRepPhoto = async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى المعرض لرفع الصورة");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [3, 2],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setRepPhotoUri(uri);
+    if (auth.user) {
+      setRepPhotoUploading(true);
+      try {
+        const name = `${Date.now()}_rep_id.jpg`;
+        const url = await uploadFile(`institution_applications/${auth.user.id}/${name}`, uri);
+        setRepPhotoUrl(url);
+      } catch {
+        Alert.alert("تحذير", "تعذّر رفع الصورة، يمكن الاستمرار وإرسالها لاحقاً");
+      } finally {
+        setRepPhotoUploading(false);
+      }
+    }
+  };
+
+  // التحقق من حالة الطلب
+  const checkAppStatus = async () => {
+    if (!appId) return;
+    setCheckingStatus(true);
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = {};
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+      const res = await fetch(`${base}/api/institution-applications/${appId}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setAppStatus(data.status || "pending");
+        if (data.signed_contract_url) setSignedContractUrl(data.signed_contract_url);
+      }
+    } catch {}
+    finally { setCheckingStatus(false); }
+  };
+
+  // تحميل العقد الرسمي
+  const downloadContract = () => {
+    const base = getApiUrl().replace(/\/$/, "");
+    const pdfUrl = `${base}/api/institution-applications/contract-pdf`;
+    Linking.openURL(pdfUrl).catch(() =>
+      Alert.alert("خطأ", "تعذّر فتح ملف العقد")
+    );
+  };
+
+  // إرسال العقد عبر الواتساب
+  const sendViaWhatsApp = () => {
+    const phone = contractWhatsapp.replace(/\D/g, "");
+    const msg = encodeURIComponent(
+      `السلام عليكم،\nأنا ${repName} — ممثل مؤسسة: ${instName}\nأرغب في إرسال عقد انضمام المؤسسة الموقّع.\nرقم الطلب: #${appId}`
+    );
+    Linking.openURL(`whatsapp://send?phone=${phone}&text=${msg}`).catch(() =>
+      Linking.openURL(`https://wa.me/${phone}?text=${msg}`).catch(() =>
+        Alert.alert("واتساب", "تعذّر فتح واتساب. يرجى تثبيت التطبيق أو التواصل مباشرة على: " + contractWhatsapp)
+      )
+    );
+  };
+
+  // رفع العقد الموقع
+  const uploadSignedContract = async () => {
+    if (!appId) return;
+    if (appStatus !== "approved") {
+      Alert.alert("غير متاح", "يمكن رفع العقد الموقع فقط بعد الموافقة على الطلب");
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى الملفات");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: false,
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setUploadingSignedContract(true);
+    try {
+      const name = `${Date.now()}_signed_contract.jpg`;
+      const url = await uploadFile(`signed_contracts/${appId}/${name}`, uri);
+      const base = getApiUrl().replace(/\/$/, "");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+      const res = await fetch(`${base}/api/institution-applications/${appId}/signed-contract`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ signed_contract_url: url }),
+      });
+      if (res.ok) {
+        setSignedContractUrl(url);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("تم الرفع", "تم رفع العقد الموقع بنجاح. سيتم مراجعته من قِبل الإدارة.");
+      } else {
+        const err = await res.json();
+        Alert.alert("خطأ", err.error || "تعذّر رفع العقد");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذّر رفع الملف، تأكد من الاتصال وحاول مجدداً");
+    } finally {
+      setUploadingSignedContract(false);
+    }
+  };
 
   const goNext = () => {
     if (step === 1) {
@@ -250,9 +388,12 @@ export default function OrgJoinScreen() {
       if (!repTitle.trim()) return Alert.alert("تنبيه", "يرجى إدخال المسمى الوظيفي للممثل");
       if (!repNationalId.trim()) return Alert.alert("تنبيه", "يرجى إدخال الرقم الوطني للممثل");
       if (!repPhone.trim()) return Alert.alert("تنبيه", "يرجى إدخال رقم هاتف الممثل");
+      if (!repPhotoUri && !repPhotoUrl) {
+        return Alert.alert("تنبيه", "يرجى إرفاق صورة هوية الممثل الرسمي");
+      }
     }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setStep(s => Math.min(s + 1, 5) as Step);
+    setStep(s => Math.min(s + 1, 6) as Step);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
@@ -294,14 +435,16 @@ export default function OrgJoinScreen() {
           rep_national_id: repNationalId.trim(),
           rep_phone: repPhone.trim(),
           rep_email: repEmail.trim() || undefined,
+          rep_photo_url: repPhotoUrl || undefined,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
         setAppId(data.application?.id ?? null);
+        setAppStatus("pending");
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setStep(5);
+        setStep(6);
         scrollRef.current?.scrollTo({ y: 0, animated: true });
       } else {
         const err = await res.json();
@@ -318,8 +461,8 @@ export default function OrgJoinScreen() {
     { n: 1, label: "المؤسسة" },
     { n: 2, label: "الخدمات" },
     { n: 3, label: "الممثل" },
-    { n: 4, label: "العهد" },
-    { n: 5, label: "التأكيد" },
+    { n: 4, label: "العقد" },
+    { n: 5, label: "العهد" },
   ];
 
   return (
@@ -346,9 +489,9 @@ export default function OrgJoinScreen() {
         </View>
 
         {/* Progress */}
-        {step < 5 && (
+        {step < 6 && (
           <View style={s.progressRow}>
-            {STEPS.slice(0, 4).map((st, i) => {
+            {STEPS.map((st, i) => {
               const done = step > st.n;
               const active = step === st.n;
               return (
@@ -356,13 +499,13 @@ export default function OrgJoinScreen() {
                   <View style={s.progressItem}>
                     <View style={[s.progressDot, done && s.progressDone, active && s.progressActive]}>
                       {done
-                        ? <Ionicons name="checkmark" size={11} color="#fff" />
+                        ? <Ionicons name="checkmark" size={10} color="#fff" />
                         : <Text style={[s.progressNum, active && { color: "#fff" }]}>{st.n}</Text>
                       }
                     </View>
                     <Text style={[s.progressLabel, active && { color: Colors.primary }]}>{st.label}</Text>
                   </View>
-                  {i < 3 && (
+                  {i < 4 && (
                     <View style={[s.progressLine, done && { backgroundColor: Colors.primary }]} />
                   )}
                 </React.Fragment>
@@ -582,6 +725,52 @@ export default function OrgJoinScreen() {
             <Field label="البريد الإلكتروني الشخصي" value={repEmail} onChange={setRepEmail}
               placeholder="للتواصل الرسمي (اختياري)" keyboardType="email-address" icon="mail-outline" />
 
+            {/* صورة هوية الممثل */}
+            <View style={fi.block}>
+              <Text style={fi.label}>
+                صورة هوية الممثل الرسمي <Text style={{ color: Colors.danger }}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={[s.photoPicker, repPhotoUri && s.photoPickerDone]}
+                onPress={pickRepPhoto}
+                disabled={repPhotoUploading}
+                activeOpacity={0.8}
+              >
+                {repPhotoUri ? (
+                  <View style={s.photoPreviewRow}>
+                    <Image source={{ uri: repPhotoUri }} style={s.photoPreview} />
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        {repPhotoUploading ? (
+                          <ActivityIndicator size="small" color={Colors.primary} />
+                        ) : (
+                          <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                        )}
+                        <Text style={s.photoPickerDoneText}>
+                          {repPhotoUploading ? "جارٍ الرفع..." : "تم رفع الصورة"}
+                        </Text>
+                      </View>
+                      <Text style={s.photoPickerChange}>اضغط لتغيير الصورة</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={s.photoPickerEmpty}>
+                    <View style={s.photoPickerIcon}>
+                      <MaterialCommunityIcons name="card-account-details-outline" size={28} color={Colors.textMuted} />
+                    </View>
+                    <View>
+                      <Text style={s.photoPickerTitle}>إرفاق صورة الهوية</Text>
+                      <Text style={s.photoPickerSub}>صورة واضحة لبطاقة الهوية الوطنية أو جواز السفر</Text>
+                    </View>
+                    <Ionicons name="cloud-upload-outline" size={20} color={Colors.textMuted} />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={s.photoNote}>
+                ⚠ الصورة مشفّرة ومحمية — تُستخدم للتحقق من الهوية فقط ولا تُنشر علناً
+              </Text>
+            </View>
+
             {/* ملخص المؤسسة */}
             <View style={s.summaryBox}>
               <Text style={s.summaryTitle}>ملخص طلبك</Text>
@@ -603,8 +792,129 @@ export default function OrgJoinScreen() {
           </Animated.View>
         )}
 
-        {/* ══════════════════ STEP 4: العهد والالتزام ══════════════════ */}
+        {/* ══════════════════ STEP 4: معاينة العقد الرسمي ══════════════════ */}
         {step === 4 && (
+          <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
+            <View style={s.stepHeader}>
+              <View style={[s.stepIcon, { backgroundColor: Colors.cyber + "20" }]}>
+                <MaterialCommunityIcons name="file-document-outline" size={24} color={Colors.cyber} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.stepTitle}>عقد انضمام المؤسسة</Text>
+                <Text style={s.stepSub}>اطّلع على بنود العقد الرسمي قبل التوقيع</Text>
+              </View>
+            </View>
+
+            <LinearGradient colors={[Colors.cyber + "18", Colors.bg]} style={s.repNote}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={Colors.cyber} />
+              <Text style={[s.repNoteText, { color: Colors.cyber + "CC" }]}>
+                هذا العقد رسمي وملزم قانونياً. اقرأه بعناية — ستتمكن من تحميله وتوقيعه بعد الموافقة.
+              </Text>
+            </LinearGradient>
+
+            {/* وثيقة العقد */}
+            <View style={[s.documentCard, { borderColor: Colors.cyber + "40" }]}>
+              <MaterialCommunityIcons name="seal-variant" size={40} color={Colors.cyber + "60"} />
+              <Text style={[s.documentHeader, { color: Colors.cyber }]}>منصة حصاحيصاوي</Text>
+              <Text style={s.documentSubHeader}>عقد انضمام مؤسسة لتقديم الخدمات</Text>
+              <Text style={s.documentSubHeader}>الطرف الأول — المنصة · الطرف الثاني — المؤسسة</Text>
+              <View style={[s.documentDivider, { borderColor: Colors.cyber + "40", backgroundColor: Colors.cyber + "30" }]} />
+
+              {/* المادة 1: أطراف العقد */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>١ — أطراف العقد</Text>
+                <View style={s.contractParties}>
+                  <View style={s.contractParty}>
+                    <Text style={s.contractPartyTitle}>الطرف الأول — المنصة</Text>
+                    <Text style={s.contractPartyText}>Almhbob.iii@gmail.com</Text>
+                    <Text style={s.contractPartyText}>{contractWhatsapp}</Text>
+                    <Text style={s.contractPartyText}>مدينة الحصاحيصا</Text>
+                  </View>
+                  <View style={[s.contractPartyDivider]} />
+                  <View style={s.contractParty}>
+                    <Text style={s.contractPartyTitle}>الطرف الثاني — المؤسسة</Text>
+                    <Text style={[s.contractPartyText, { color: Colors.textPrimary }]}>{instName || "—"}</Text>
+                    <Text style={s.contractPartyText}>{instType || "—"}</Text>
+                    <Text style={s.contractPartyText}>{repName || "—"} ({repTitle || "—"})</Text>
+                    <Text style={s.contractPartyText}>{repNationalId ? `****${repNationalId.slice(-4)}` : "—"}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* المادة 2: موضوع العقد */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>٢ — موضوع العقد</Text>
+                <Text style={s.contractBody}>
+                  انضمام المؤسسة إلى منصة حصاحيصاوي الرقمية وتقديم خدماتها لمواطني مدينة الحصاحيصا عبر التطبيق، وفق الشروط والأحكام المنصوص عليها في هذا العقد.
+                </Text>
+              </View>
+
+              {/* المادة 3: التزامات المؤسسة */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>٣ — التزامات المؤسسة</Text>
+                {[
+                  "تقديم الخدمات المعلنة بصورة منتظمة ومستمرة دون انقطاع.",
+                  "الإفصاح الكامل عن طبيعة الخدمات وشروطها وتكاليفها.",
+                  "الرد على شكاوى المواطنين خلال 48 ساعة من تاريخ تسجيلها.",
+                  "معالجة الشكاوى في مدة لا تتجاوز 7 أيام عمل.",
+                  "الالتزام بقوانين وأنظمة جمهورية السودان.",
+                ].map((item, i) => (
+                  <View key={i} style={s.contractBullet}>
+                    <Text style={s.contractBulletDot}>•</Text>
+                    <Text style={s.contractBulletText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* المادة 5: الجزاءات */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>٥ — الجزاءات والعقوبات</Text>
+                <View style={s.contractPenalties}>
+                  <View style={s.penaltyItem}>
+                    <Text style={s.penaltyIcon}>⚠️</Text>
+                    <Text style={s.penaltyTitle}>إنذار رسمي</Text>
+                    <Text style={s.penaltyDesc}>عند المخالفة الأولى</Text>
+                  </View>
+                  <View style={s.penaltyItem}>
+                    <Text style={s.penaltyIcon}>⏸</Text>
+                    <Text style={s.penaltyTitle}>تعليق مؤقت</Text>
+                    <Text style={s.penaltyDesc}>عند تكرار المخالفة</Text>
+                  </View>
+                  <View style={s.penaltyItem}>
+                    <Text style={s.penaltyIcon}>🚫</Text>
+                    <Text style={s.penaltyTitle}>إيقاف نهائي</Text>
+                    <Text style={s.penaltyDesc}>عند الإخلال الجسيم</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* المادة 6: المدة */}
+              <View style={s.contractSection}>
+                <Text style={s.contractSectionTitle}>٦ — مدة العقد والإنهاء</Text>
+                <Text style={s.contractBody}>
+                  سنة كاملة من تاريخ التوقيع، تُجدَّد تلقائياً ما لم يُبلَّغ الطرف الآخر بالرغبة في الإنهاء قبل 30 يوماً. يحق لأي طرف الإنهاء بإشعار كتابي مسبق.
+                </Text>
+              </View>
+
+              <View style={[s.documentDivider, { backgroundColor: Colors.cyber + "30" }]} />
+              <Text style={s.documentFooter}>
+                هذا العقد ملزم قانونياً لكلا الطرفين فور التوقيع عليه{"\n"}
+                وثيقة رسمية صادرة عن منصة حصاحيصاوي © 2026
+              </Text>
+            </View>
+
+            {/* تنبيه */}
+            <View style={s.warningBox}>
+              <MaterialCommunityIcons name="download-circle-outline" size={20} color={Colors.accent} />
+              <Text style={s.warningText}>
+                بعد الموافقة على طلبك ستتمكن من تحميل هذا العقد بصيغة PDF لملئه وتوقيعه ورفعه أو إرساله عبر الواتساب للإدارة.
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ══════════════════ STEP 5: العهد والالتزام ══════════════════ */}
+        {step === 5 && (
           <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
             <View style={s.stepHeader}>
               <View style={[s.stepIcon, { backgroundColor: Colors.danger + "20" }]}>
@@ -690,8 +1000,8 @@ export default function OrgJoinScreen() {
           </Animated.View>
         )}
 
-        {/* ══════════════════ STEP 5: التأكيد ══════════════════ */}
-        {step === 5 && (
+        {/* ══════════════════ STEP 6: التأكيد والإجراءات ══════════════════ */}
+        {step === 6 && (
           <Animated.View entering={FadeInUp.springify()} style={{ gap: 20, alignItems: "center", paddingTop: 20 }}>
             <Animated.View entering={ZoomIn.delay(200).springify()}>
               <LinearGradient colors={[Colors.primary, Colors.primary + "CC"]} style={s.successIcon}>
@@ -703,12 +1013,124 @@ export default function OrgJoinScreen() {
               <Text style={s.successTitle}>تم تقديم طلب الانضمام بنجاح!</Text>
               <Text style={s.successSub}>رقم الطلب: #{appId ?? "—"}</Text>
               <Text style={s.successDesc}>
-                سيتواصل معك فريق حصاحيصاوي خلال ٣–٥ أيام عمل للمراجعة والاعتماد النهائي.
+                سيراجع فريق حصاحيصاوي طلبك خلال ٣–٥ أيام عمل. بعد الموافقة ستتمكن من تحميل عقد الانضمام الرسمي وتوقيعه.
               </Text>
             </Animated.View>
 
-            {/* نسخة من الوثيقة */}
-            <Animated.View entering={FadeInDown.delay(600).springify()} style={{ width: "100%" }}>
+            {/* بطاقة حالة الطلب */}
+            <Animated.View entering={FadeInDown.delay(500).springify()} style={{ width: "100%" }}>
+              <View style={s.statusCard}>
+                <View style={s.statusCardTop}>
+                  <Text style={s.statusCardTitle}>حالة طلب الانضمام</Text>
+                  <TouchableOpacity onPress={checkAppStatus} disabled={checkingStatus} style={s.refreshBtn}>
+                    {checkingStatus
+                      ? <ActivityIndicator size="small" color={Colors.primary} />
+                      : <Ionicons name="refresh" size={18} color={Colors.primary} />
+                    }
+                  </TouchableOpacity>
+                </View>
+                <View style={s.statusBadgeRow}>
+                  {appStatus === "pending" && (
+                    <View style={[s.statusBadge, { backgroundColor: Colors.accent + "25", borderColor: Colors.accent + "60" }]}>
+                      <MaterialCommunityIcons name="clock-outline" size={16} color={Colors.accent} />
+                      <Text style={[s.statusBadgeText, { color: Colors.accent }]}>قيد المراجعة</Text>
+                    </View>
+                  )}
+                  {appStatus === "under_review" && (
+                    <View style={[s.statusBadge, { backgroundColor: Colors.cyber + "25", borderColor: Colors.cyber + "60" }]}>
+                      <MaterialCommunityIcons name="eye-check-outline" size={16} color={Colors.cyber} />
+                      <Text style={[s.statusBadgeText, { color: Colors.cyber }]}>تحت المراجعة</Text>
+                    </View>
+                  )}
+                  {appStatus === "approved" && (
+                    <View style={[s.statusBadge, { backgroundColor: Colors.primary + "25", borderColor: Colors.primary + "60" }]}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                      <Text style={[s.statusBadgeText, { color: Colors.primary }]}>تمت الموافقة ✓</Text>
+                    </View>
+                  )}
+                  {appStatus === "rejected" && (
+                    <View style={[s.statusBadge, { backgroundColor: Colors.danger + "25", borderColor: Colors.danger + "60" }]}>
+                      <Ionicons name="close-circle" size={16} color={Colors.danger} />
+                      <Text style={[s.statusBadgeText, { color: Colors.danger }]}>مرفوض</Text>
+                    </View>
+                  )}
+                </View>
+                {appStatus !== "approved" && (
+                  <Text style={s.statusHint}>
+                    اضغط على زر التحديث للاطلاع على آخر حالة طلبك
+                  </Text>
+                )}
+              </View>
+            </Animated.View>
+
+            {/* إجراءات العقد */}
+            <Animated.View entering={FadeInDown.delay(650).springify()} style={{ width: "100%", gap: 12 }}>
+              <Text style={s.contractActionsTitle}>إجراءات عقد الانضمام الرسمي</Text>
+
+              {/* تحميل العقد */}
+              <TouchableOpacity
+                onPress={appStatus === "approved" ? downloadContract : () => Alert.alert("غير متاح بعد", "ستتمكن من تحميل العقد بعد الموافقة على طلبك")}
+                style={[s.contractActionBtn, appStatus !== "approved" && s.contractActionBtnDisabled]}
+                activeOpacity={0.8}
+              >
+                <View style={[s.contractActionIcon, { backgroundColor: appStatus === "approved" ? Colors.primary + "20" : Colors.divider }]}>
+                  <MaterialCommunityIcons name="download-circle-outline" size={24} color={appStatus === "approved" ? Colors.primary : Colors.textMuted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.contractActionTitle, appStatus !== "approved" && { color: Colors.textMuted }]}>تحميل العقد الرسمي (PDF)</Text>
+                  <Text style={s.contractActionSub}>{appStatus === "approved" ? "اضغط لتحميل عقد الانضمام لملئه وتوقيعه" : "متاح بعد الموافقة على الطلب"}</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={appStatus === "approved" ? Colors.textSecondary : Colors.divider} />
+              </TouchableOpacity>
+
+              {/* إرسال عبر واتساب */}
+              <TouchableOpacity
+                onPress={appStatus === "approved" ? sendViaWhatsApp : () => Alert.alert("غير متاح بعد", "ستتمكن من إرسال العقد الموقع بعد الموافقة")}
+                style={[s.contractActionBtn, appStatus !== "approved" && s.contractActionBtnDisabled]}
+                activeOpacity={0.8}
+              >
+                <View style={[s.contractActionIcon, { backgroundColor: appStatus === "approved" ? "#25D36620" : Colors.divider }]}>
+                  <MaterialCommunityIcons name="whatsapp" size={24} color={appStatus === "approved" ? "#25D366" : Colors.textMuted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.contractActionTitle, appStatus !== "approved" && { color: Colors.textMuted }]}>إرسال العقد عبر واتساب</Text>
+                  <Text style={s.contractActionSub}>{appStatus === "approved" ? `إرسال العقد الموقع إلى: ${contractWhatsapp}` : "متاح بعد الموافقة على الطلب"}</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={appStatus === "approved" ? Colors.textSecondary : Colors.divider} />
+              </TouchableOpacity>
+
+              {/* رفع العقد الموقع */}
+              <TouchableOpacity
+                onPress={uploadSignedContract}
+                style={[s.contractActionBtn, appStatus !== "approved" && s.contractActionBtnDisabled]}
+                disabled={uploadingSignedContract}
+                activeOpacity={0.8}
+              >
+                <View style={[s.contractActionIcon, { backgroundColor: appStatus === "approved" ? Colors.accent + "20" : Colors.divider }]}>
+                  {uploadingSignedContract
+                    ? <ActivityIndicator size="small" color={Colors.accent} />
+                    : <MaterialCommunityIcons name="cloud-upload-outline" size={24} color={appStatus === "approved" ? Colors.accent : Colors.textMuted} />
+                  }
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.contractActionTitle, appStatus !== "approved" && { color: Colors.textMuted }]}>
+                    {signedContractUrl ? "تم رفع العقد الموقع ✓" : "رفع العقد بعد التوقيع"}
+                  </Text>
+                  <Text style={s.contractActionSub}>
+                    {signedContractUrl
+                      ? "يمكنك رفع نسخة محدّثة"
+                      : appStatus === "approved"
+                        ? "ارفع صورة أو صورة مسح ضوئي للعقد الموقع"
+                        : "متاح بعد الموافقة على الطلب"
+                    }
+                  </Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={appStatus === "approved" ? Colors.textSecondary : Colors.divider} />
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* وثيقة الاستلام */}
+            <Animated.View entering={FadeInDown.delay(750).springify()} style={{ width: "100%" }}>
               <View style={s.documentCard}>
                 <View style={s.documentStamp}>
                   <MaterialCommunityIcons name="seal-variant" size={40} color={Colors.primary + "60"} />
@@ -717,17 +1139,14 @@ export default function OrgJoinScreen() {
                 <Text style={s.documentSubHeader}>إشعار استلام طلب الانضمام</Text>
                 <Text style={s.receiptNo}>رقم الطلب: #{appId ?? "—"}</Text>
                 <View style={s.documentDivider} />
-
                 {[
                   { k: "المؤسسة",           v: instName },
                   { k: "النوع",              v: instTypeObj?.label || instType },
-                  { k: "التصنيف",            v: instCategory },
                   { k: "الممثل الرسمي",      v: repName },
                   { k: "الصفة",              v: repTitle },
-                  { k: "هاتف الممثل",        v: repPhone },
                   { k: "الخدمات المحددة",    v: `${selectedServices.length} خدمة` },
                   { k: "تاريخ التقديم",      v: new Date().toLocaleDateString("ar-SD") },
-                  { k: "حالة الطلب",         v: "قيد المراجعة" },
+                  { k: "صورة الهوية",        v: repPhotoUrl ? "مرفقة ✓" : "غير مرفقة" },
                   { k: "إصدار العهد",        v: COMMITMENT_VERSION },
                 ].map(r => (
                   <View key={r.k} style={s.sigRow}>
@@ -735,22 +1154,14 @@ export default function OrgJoinScreen() {
                     <Text style={s.sigKey}>{r.k}</Text>
                   </View>
                 ))}
-
-                <View style={s.documentDivider} />
-                <View style={s.signLine}>
-                  <Text style={s.signLineText}>وقّع إلكترونياً</Text>
-                  <Text style={s.signLineVal}>✦ {repName} ✦</Text>
-                </View>
-
-                <View style={[s.documentDivider, { marginTop: 12 }]} />
+                <View style={[s.documentDivider, { marginTop: 8 }]} />
                 <Text style={s.documentFooter}>
-                  هذه الوثيقة سارية المفعول وتُثبت تقديم الطلب وقبول بنود عهد الشراكة المؤسسية
-                  {"\n"}الإصدار {COMMITMENT_VERSION} — {COMMITMENT_DATE}
+                  وثيقة استلام رسمية — الإصدار {COMMITMENT_VERSION} — {COMMITMENT_DATE}
                 </Text>
               </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(800).springify()} style={{ width: "100%", gap: 12 }}>
+            <Animated.View entering={FadeInDown.delay(900).springify()} style={{ width: "100%", gap: 12 }}>
               <TouchableOpacity onPress={() => router.back()}>
                 <LinearGradient colors={[Colors.primary, Colors.primary + "CC"]} style={s.doneBtn}>
                   <Ionicons name="home-outline" size={20} color="#fff" />
@@ -763,7 +1174,7 @@ export default function OrgJoinScreen() {
       </ScrollView>
 
       {/* ── Bottom Nav Bar ── */}
-      {step < 5 && (
+      {step < 6 && (
         <Animated.View entering={FadeInUp.delay(100).springify()} style={[s.navBar, { paddingBottom: insets.bottom + 12 }]}>
           {step > 1 ? (
             <TouchableOpacity style={s.navBackBtn} onPress={goBack}>
@@ -772,7 +1183,7 @@ export default function OrgJoinScreen() {
             </TouchableOpacity>
           ) : <View style={{ flex: 1 }} />}
 
-          {step < 4 ? (
+          {step < 5 ? (
             <TouchableOpacity style={{ flex: 2 }} onPress={goNext}>
               <LinearGradient colors={[Colors.primary, Colors.primary + "CC"]} style={s.navNextBtn}>
                 <Text style={s.navNextText}>التالي</Text>
@@ -931,6 +1342,67 @@ const s = StyleSheet.create({
   navBackText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
   navNextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, paddingVertical: 15 },
   navNextText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  // صورة هوية الممثل
+  photoPicker: {
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed",
+    backgroundColor: Colors.cardBg, overflow: "hidden",
+  },
+  photoPickerDone: { borderColor: Colors.primary, borderStyle: "solid" },
+  photoPickerEmpty: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
+  photoPickerIcon: {
+    width: 52, height: 52, borderRadius: 12, backgroundColor: Colors.bg,
+    justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider,
+  },
+  photoPickerTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+  photoPickerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
+  photoPreview: { width: 72, height: 48, borderRadius: 10, backgroundColor: Colors.divider },
+  photoPickerDoneText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
+  photoPickerChange: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  photoNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+
+  // معاينة العقد
+  contractSection: { width: "100%", gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  contractSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  contractBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
+  contractParties: { flexDirection: "row", gap: 0 },
+  contractParty: { flex: 1, gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg },
+  contractPartyDivider: { width: 1, backgroundColor: Colors.divider, marginVertical: 4 },
+  contractPartyTitle: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary, textAlign: "center", marginBottom: 4 },
+  contractPartyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+  contractBullet: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  contractBulletDot: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, marginTop: 2 },
+  contractBulletText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+  contractPenalties: { flexDirection: "row", gap: 8 },
+  penaltyItem: { flex: 1, alignItems: "center", gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg },
+  penaltyIcon: { fontSize: 18 },
+  penaltyTitle: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textPrimary, textAlign: "center" },
+  penaltyDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center" },
+
+  // بطاقة حالة الطلب
+  statusCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, gap: 12,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  statusCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statusCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  refreshBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primary + "18", justifyContent: "center", alignItems: "center" },
+  statusBadgeRow: { flexDirection: "row" },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  statusBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  statusHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+
+  // أزرار إجراءات العقد
+  contractActionsTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
+  contractActionBtn: {
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
+    borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
+  },
+  contractActionBtnDisabled: { opacity: 0.55 },
+  contractActionIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center" },
+  contractActionTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  contractActionSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
 });
 
 const fi = StyleSheet.create({

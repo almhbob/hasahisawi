@@ -460,12 +460,13 @@ export async function initHasahisawiDb() {
 
   // ── إعدادات الإعلانات الافتراضية ──
   const adsDefaults: [string, string][] = [
-    ["ad_price_per_day",    "500"],
-    ["ad_contact_phone",    "+249000000000"],
-    ["ad_contact_whatsapp", "+249000000000"],
-    ["ad_promo_text",       "انضم إلى منصة حصاحيصاوي وأوصل إعلانك لآلاف أبناء المدينة مباشرةً"],
-    ["ad_partner_email",    ""],
-    ["ad_bank_info",        ""],
+    ["ad_price_per_day",      "500"],
+    ["ad_contact_phone",      "+249000000000"],
+    ["ad_contact_whatsapp",   "+249000000000"],
+    ["ad_promo_text",         "انضم إلى منصة حصاحيصاوي وأوصل إعلانك لآلاف أبناء المدينة مباشرةً"],
+    ["ad_partner_email",      ""],
+    ["ad_bank_info",          ""],
+    ["contract_whatsapp",     "+966530658285"],
   ];
   for (const [k, v] of adsDefaults) {
     await query(
@@ -515,6 +516,11 @@ export async function initHasahisawiDb() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  // ── ترقيات جدول طلبات المؤسسات ──
+  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_photo_url TEXT`);
+  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_url TEXT`);
+  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_at TIMESTAMPTZ`);
 
   // ── جدول بلاغات المواطنين ──
   await query(`
@@ -2057,6 +2063,47 @@ router.put("/admin/ads-settings", async (req: Request, res: Response) => {
   }
 });
 
+// جلب إعدادات العقود (للإدارة)
+router.get("/admin/contract-settings", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key = 'contract_whatsapp'`
+    );
+    const settings: Record<string, string> = {};
+    for (const r of rows) settings[r.key] = r.value;
+    return res.json({ contract_whatsapp: settings["contract_whatsapp"] || "+966530658285" });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث إعدادات العقود (الإدارة فقط)
+router.put("/admin/contract-settings", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { contract_whatsapp } = req.body;
+    if (!contract_whatsapp || typeof contract_whatsapp !== "string") {
+      return res.status(400).json({ error: "رقم الواتساب مطلوب" });
+    }
+    // تحقق بسيط من شكل الرقم
+    const cleaned = contract_whatsapp.replace(/\s/g, "");
+    if (!/^\+?\d{7,15}$/.test(cleaned)) {
+      return res.status(400).json({ error: "صيغة رقم الواتساب غير صحيحة" });
+    }
+    await query(
+      `INSERT INTO admin_settings (key, value) VALUES ('contract_whatsapp', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [cleaned]
+    );
+    return res.json({ success: true, contract_whatsapp: cleaned });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // جلب الإعلانات النشطة (عام)
 router.get("/ads", async (_req: Request, res: Response) => {
   try {
@@ -2507,6 +2554,35 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
 // طلبات انضمام المؤسسات — Institution Applications
 // ══════════════════════════════════════════════════════
 
+// إعدادات العقد العامة (رقم الواتساب)
+router.get("/institution-applications/contract-settings", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key = 'contract_whatsapp'`
+    );
+    const settings: Record<string, string> = {};
+    for (const r of rows) settings[r.key] = r.value;
+    return res.json({
+      contract_whatsapp: settings["contract_whatsapp"] || "+966530658285",
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحميل ملف العقد الرسمي PDF
+router.get("/institution-applications/contract-pdf", (_req: Request, res: Response) => {
+  const { join } = require("path");
+  const { createReadStream, existsSync } = require("fs");
+  const pdfPath = join(__dirname, "../public/institution-contract.pdf");
+  if (!existsSync(pdfPath)) {
+    return res.status(404).json({ error: "ملف العقد غير متاح" });
+  }
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", 'attachment; filename="institution-contract.pdf"');
+  createReadStream(pdfPath).pipe(res);
+});
+
 // تقديم طلب انضمام
 router.post("/institution-applications", async (req: Request, res: Response) => {
   try {
@@ -2516,6 +2592,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
       inst_registration_no, inst_founded_year,
       selected_services, custom_services,
       rep_name, rep_title, rep_national_id, rep_phone, rep_email,
+      rep_photo_url,
     } = req.body;
 
     if (!inst_name || !inst_type || !inst_category || !inst_description || !inst_address || !inst_phone) {
@@ -2524,12 +2601,13 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
     if (!rep_name || !rep_title || !rep_national_id || !rep_phone) {
       return res.status(400).json({ error: "بيانات الممثل ناقصة" });
     }
-    if (!selected_services || !Array.isArray(JSON.parse(selected_services || "[]")) || JSON.parse(selected_services || "[]").length === 0) {
+    const parsedServices = JSON.parse(selected_services || "[]");
+    if (!Array.isArray(parsedServices) || parsedServices.length === 0) {
       return res.status(400).json({ error: "يرجى تحديد خدمة واحدة على الأقل" });
     }
 
     const user = await getSessionUser(req);
-    const ip = req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || null;
+    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || null;
 
     const result = await query(
       `INSERT INTO institution_applications (
@@ -2538,8 +2616,8 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
         inst_registration_no, inst_founded_year,
         selected_services, custom_services,
         rep_name, rep_title, rep_national_id, rep_phone, rep_email,
-        signed_ip, user_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+        rep_photo_url, signed_ip, user_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
       RETURNING id, inst_name, status, created_at`,
       [
         inst_name, inst_type, inst_category, inst_description, inst_address,
@@ -2547,7 +2625,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
         inst_registration_no || null, inst_founded_year || null,
         selected_services, custom_services || null,
         rep_name, rep_title, rep_national_id, rep_phone, rep_email || null,
-        ip, user?.id || null,
+        rep_photo_url || null, ip, user?.id || null,
       ]
     );
 
@@ -2558,18 +2636,55 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
   }
 });
 
-// جلب طلب بالـ id لعرض وثيقة العهد
+// جلب طلب بالـ id (مع التحقق من ملكية المستخدم)
 router.get("/institution-applications/:id", async (req: Request, res: Response) => {
   try {
+    const user = await getSessionUser(req);
     const result = await query(
       `SELECT id, inst_name, inst_type, inst_category, rep_name, rep_title, rep_national_id,
-              rep_phone, selected_services, signed_at, status, commitment_version
+              rep_phone, selected_services, signed_at, status, admin_note, commitment_version,
+              rep_photo_url, signed_contract_url, signed_contract_at, user_id
        FROM institution_applications WHERE id = $1`,
       [req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: "لم يوجد" });
-    return res.json(result.rows[0]);
+    const row = result.rows[0];
+    // يحق للمستخدم الاطلاع على طلبه فقط أو للأدمن الاطلاع على الكل
+    if (row.user_id && user?.id !== row.user_id && !(await isAdminRequest(req))) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    return res.json(row);
   } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// رفع العقد الموقع — للمؤسسة بعد الموافقة
+router.patch("/institution-applications/:id/signed-contract", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { signed_contract_url } = req.body;
+    if (!signed_contract_url || typeof signed_contract_url !== "string" || !signed_contract_url.startsWith("https://")) {
+      return res.status(400).json({ error: "رابط العقد الموقع غير صالح" });
+    }
+    // تحقق: الطلب للمستخدم نفسه وحالته approved
+    const check = await query(
+      `SELECT id, user_id, status FROM institution_applications WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!check.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (check.rows[0].user_id !== user.id) return res.status(403).json({ error: "غير مصرح" });
+    if (check.rows[0].status !== "approved") {
+      return res.status(400).json({ error: "لا يمكن رفع العقد الموقع إلا بعد الموافقة على الطلب" });
+    }
+    await query(
+      `UPDATE institution_applications SET signed_contract_url=$1, signed_contract_at=NOW(), updated_at=NOW() WHERE id=$2`,
+      [signed_contract_url, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("PATCH /institution-applications/:id/signed-contract error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
