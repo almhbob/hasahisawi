@@ -2827,6 +2827,46 @@ router.post("/admin/neighborhoods", async (req: Request, res: Response) => {
   }
 });
 
+// حفظ قائمة أحياء دفعة واحدة (seed / استعادة الافتراضيات)
+router.post("/admin/neighborhoods/seed", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+
+    const { items, replace } = req.body as {
+      items: { label: string; type: "neighborhood" | "village" }[];
+      replace?: boolean;
+    };
+
+    if (!Array.isArray(items) || items.length === 0)
+      return res.status(400).json({ error: "قائمة فارغة" });
+
+    // إذا طُلب الاستبدال الكامل: احذف القديمة أولاً
+    if (replace) {
+      await query(`DELETE FROM admin_settings WHERE key LIKE 'nbr_%'`);
+    }
+
+    const saved: { label: string; type: string; key: string }[] = [];
+    const now = Date.now();
+    for (let i = 0; i < items.length; i++) {
+      const { label, type } = items[i];
+      if (!label?.trim()) continue;
+      const key = `nbr_${now + i}_${Math.random().toString(36).slice(2, 7)}`;
+      const item = { label: label.trim(), type: type || "neighborhood", key };
+      await query(
+        `INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value=$2`,
+        [key, JSON.stringify(item)]
+      );
+      saved.push(item);
+    }
+
+    return res.json({ inserted: saved.length, items: saved });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);

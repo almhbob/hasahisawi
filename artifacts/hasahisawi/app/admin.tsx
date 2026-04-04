@@ -299,11 +299,13 @@ export default function AdminDashboard() {
   // ── Neighborhoods ──
   const [neighborhoods, setNeighborhoods] = useState<NbrItem[]>([]);
   const [loadingNbr, setLoadingNbr] = useState(false);
+  const [seedingNbr, setSeedingNbr] = useState(false);
   const [nbrForm, setNbrForm] = useState<{ label: string; type: "neighborhood" | "village" }>({ label: "", type: "neighborhood" });
   const [addingNbr, setAddingNbr] = useState(false);
   const [editingNbr, setEditingNbr] = useState<NbrItem | null>(null);
   const [showAddNbr, setShowAddNbr] = useState(false);
   const [nbrFilter, setNbrFilter] = useState<"all" | "neighborhood" | "village">("all");
+  const [nbrSearch, setNbrSearch] = useState("");
 
   // ── AI Settings ──
   const [loadingAi, setLoadingAi] = useState(false);
@@ -392,14 +394,67 @@ export default function AdminDashboard() {
       const res = await apiFetch("/api/admin/neighborhoods", token);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) { setNeighborhoods(data); return; }
+        if (Array.isArray(data) && data.length > 0) {
+          setNeighborhoods(data);
+          setLoadingNbr(false);
+          return;
+        }
       }
+      // قاعدة البيانات فارغة — زرع الأحياء الافتراضية تلقائياً
       const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
-      setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
+      setSeedingNbr(true);
+      const seedRes = await apiFetch("/api/admin/neighborhoods/seed", token, {
+        method: "POST",
+        body: JSON.stringify({ items: DEFAULT_HASAHISA_LOCATIONS, replace: false }),
+      });
+      if (seedRes.ok) {
+        const { items } = await seedRes.json();
+        setNeighborhoods(items);
+      } else {
+        setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
+      }
     } catch {
       const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
       setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
-    } finally { setLoadingNbr(false); }
+    } finally {
+      setLoadingNbr(false);
+      setSeedingNbr(false);
+    }
+  }, [token]);
+
+  const restoreDefaultNeighborhoods = useCallback(() => {
+    Alert.alert(
+      "استعادة الافتراضيات",
+      `سيتم حذف جميع الأحياء الحالية وإعادة تحميل القائمة الافتراضية (${57} حياً وقرية). هل أنت متأكد؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "استعادة",
+          style: "destructive",
+          onPress: async () => {
+            setSeedingNbr(true);
+            try {
+              const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
+              const res = await apiFetch("/api/admin/neighborhoods/seed", token, {
+                method: "POST",
+                body: JSON.stringify({ items: DEFAULT_HASAHISA_LOCATIONS, replace: true }),
+              });
+              if (res.ok) {
+                const { items } = await res.json();
+                setNeighborhoods(items);
+                Alert.alert("تم", `تم استعادة ${items.length} حياً وقرية بنجاح`);
+              } else {
+                Alert.alert("خطأ", "فشلت الاستعادة");
+              }
+            } catch {
+              Alert.alert("خطأ", "تعذّرت العملية");
+            } finally {
+              setSeedingNbr(false);
+            }
+          },
+        },
+      ]
+    );
   }, [token]);
 
   const loadAiSettings = useCallback(async () => {
@@ -2533,72 +2588,209 @@ export default function AdminDashboard() {
       {/* Neighborhoods */}
       {tab === "neighborhoods" && (
         <View style={{ flex: 1 }}>
+
+          {/* Header */}
           <View style={s.pageHeader}>
-            <Text style={s.pageHeaderTitle}>الأحياء والقرى ({neighborhoods.length})</Text>
-            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#3498DB" }]} onPress={() => { setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(true); }}>
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={s.addBtnTxt}>إضافة</Text>
-            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pageHeaderTitle}>الأحياء والقرى</Text>
+              <Text style={[s.filterChipTxt, { marginTop: 2 }]}>
+                {neighborhoods.length} عنصر — {neighborhoods.filter(n => n.type === "neighborhood").length} حي، {neighborhoods.filter(n => n.type === "village").length} قرية
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+              <TouchableOpacity
+                style={[s.iconBtn, { backgroundColor: "#E0556715", borderColor: "#E0556730", width: 36, height: 36 }]}
+                onPress={restoreDefaultNeighborhoods}
+                disabled={seedingNbr}
+              >
+                {seedingNbr
+                  ? <ActivityIndicator size={14} color="#E05567" />
+                  : <Ionicons name="refresh-outline" size={16} color="#E05567" />}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.addBtn, { backgroundColor: "#3498DB" }]}
+                onPress={() => { setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(true); }}
+              >
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={s.addBtnTxt}>إضافة</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
+          {/* Search */}
+          <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 }}>
+            <View style={[s.filterChip, { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, borderRadius: 12 }]}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#fff", textAlign: "right" }}
+                placeholder="ابحث عن حي أو قرية..."
+                placeholderTextColor={Colors.textMuted}
+                value={nbrSearch}
+                onChangeText={setNbrSearch}
+              />
+              {nbrSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setNbrSearch("")}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Filter chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.filterRow, { paddingTop: 8 }]} style={{ flexGrow: 0 }}>
             {(["all", "neighborhood", "village"] as const).map(f => (
-              <TouchableOpacity key={f} style={[s.filterChip, nbrFilter === f && { backgroundColor: "#3498DB20", borderColor: "#3498DB" }]} onPress={() => setNbrFilter(f)}>
+              <TouchableOpacity
+                key={f}
+                style={[s.filterChip, nbrFilter === f && { backgroundColor: "#3498DB20", borderColor: "#3498DB" }]}
+                onPress={() => setNbrFilter(f)}
+              >
+                <Ionicons
+                  name={f === "all" ? "apps-outline" : f === "neighborhood" ? "home-outline" : "leaf-outline"}
+                  size={13}
+                  color={nbrFilter === f ? "#3498DB" : Colors.textMuted}
+                />
                 <Text style={[s.filterChipTxt, nbrFilter === f && { color: "#3498DB", fontFamily: "Cairo_700Bold" }]}>
-                  {f === "all" ? "الكل" : f === "neighborhood" ? "أحياء" : "قرى"}
+                  {f === "all" ? `الكل (${neighborhoods.length})` : f === "neighborhood" ? `أحياء (${neighborhoods.filter(n => n.type === "neighborhood").length})` : `قرى (${neighborhoods.filter(n => n.type === "village").length})`}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {loadingNbr ? (
-            <ActivityIndicator color="#3498DB" style={{ marginTop: 60 }} />
+          {/* List */}
+          {loadingNbr || seedingNbr ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+              <ActivityIndicator color="#3498DB" size="large" />
+              <Text style={[s.filterChipTxt, { textAlign: "center" }]}>
+                {seedingNbr ? "جارٍ حفظ الأحياء في قاعدة البيانات…" : "تحميل…"}
+              </Text>
+            </View>
           ) : (
             <FlatList
-              data={nbrFilter === "all" ? neighborhoods : neighborhoods.filter(n => n.type === nbrFilter)}
-              keyExtractor={(_, i) => i.toString()}
-              contentContainerStyle={{ padding: 14, gap: 8, paddingBottom: 60 }}
-              ListEmptyComponent={<Text style={s.empty}>لا توجد أحياء</Text>}
-              renderItem={({ item }) => (
-                <View style={s.nbrCard}>
-                  <View style={[s.nbrIcon, { backgroundColor: item.type === "neighborhood" ? "#3498DB15" : "#9B59B615" }]}>
-                    <Ionicons name={item.type === "neighborhood" ? "home" : "leaf"} size={18} color={item.type === "neighborhood" ? "#3498DB" : "#9B59B6"} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.nbrName}>{item.label}</Text>
-                    <Text style={[s.nbrType, { color: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }]}>{item.type === "neighborhood" ? "حي" : "قرية"}</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TouchableOpacity style={[s.iconBtn, { backgroundColor: "#3498DB15", borderColor: "#3498DB30" }]} onPress={() => { setEditingNbr(item); setNbrForm({ label: item.label, type: item.type }); setShowAddNbr(true); }}>
-                      <Ionicons name="pencil-outline" size={15} color="#3498DB" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.iconBtn, { backgroundColor: "#E0556715", borderColor: "#E0556730" }]} onPress={() => deleteNeighborhood(item)}>
-                      <Ionicons name="trash-outline" size={15} color="#E05567" />
-                    </TouchableOpacity>
-                  </View>
+              data={(() => {
+                let list = nbrFilter === "all" ? neighborhoods : neighborhoods.filter(n => n.type === nbrFilter);
+                if (nbrSearch.trim()) list = list.filter(n => n.label.includes(nbrSearch.trim()));
+                return list;
+              })()}
+              keyExtractor={(item, i) => item.key ?? i.toString()}
+              contentContainerStyle={{ padding: 14, gap: 8, paddingBottom: 100 }}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", marginTop: 40, gap: 8 }}>
+                  <Ionicons name="search-outline" size={32} color={Colors.textMuted} />
+                  <Text style={s.empty}>{nbrSearch ? "لا نتائج للبحث" : "لا توجد أحياء"}</Text>
                 </View>
+              }
+              renderItem={({ item, index }) => (
+                <Animated.View entering={FadeInDown.delay(index * 20).springify()}>
+                  <View style={s.nbrCard}>
+                    <View style={[s.nbrIcon, { backgroundColor: item.type === "neighborhood" ? "#3498DB15" : "#9B59B615" }]}>
+                      <Ionicons
+                        name={item.type === "neighborhood" ? "home" : "leaf"}
+                        size={18}
+                        color={item.type === "neighborhood" ? "#3498DB" : "#9B59B6"}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.nbrName}>{item.label}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }} />
+                        <Text style={[s.nbrType, { color: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }]}>
+                          {item.type === "neighborhood" ? "حي" : "قرية"}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TouchableOpacity
+                        style={[s.iconBtn, { backgroundColor: "#3498DB15", borderColor: "#3498DB30" }]}
+                        onPress={() => { setEditingNbr(item); setNbrForm({ label: item.label, type: item.type }); setShowAddNbr(true); }}
+                      >
+                        <Ionicons name="pencil-outline" size={15} color="#3498DB" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[s.iconBtn, { backgroundColor: "#E0556715", borderColor: "#E0556730" }]}
+                        onPress={() => {
+                          Alert.alert(
+                            "حذف",
+                            `هل تريد حذف "${item.label}"؟`,
+                            [
+                              { text: "إلغاء", style: "cancel" },
+                              { text: "حذف", style: "destructive", onPress: () => deleteNeighborhood(item) },
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={15} color="#E05567" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Animated.View>
               )}
             />
           )}
 
-          <Modal visible={showAddNbr} transparent animationType="fade" onRequestClose={() => setShowAddNbr(false)}>
+          {/* Add/Edit Modal */}
+          <Modal visible={showAddNbr} transparent animationType="slide" onRequestClose={() => setShowAddNbr(false)}>
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
               <Pressable style={s.overlay} onPress={() => setShowAddNbr(false)}>
                 <Pressable style={s.modalCard} onPress={e => e.stopPropagation()}>
-                  <Text style={s.modalTitle}>{editingNbr ? "تعديل الحي/القرية" : "إضافة حي أو قرية"}</Text>
+
+                  {/* Modal header */}
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 16 }}>
+                    <View style={[s.nbrIcon, { backgroundColor: "#3498DB20", marginLeft: 10 }]}>
+                      <Ionicons name={editingNbr ? "pencil" : "add-circle"} size={18} color="#3498DB" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.modalTitle}>{editingNbr ? "تعديل الحي / القرية" : "إضافة حي أو قرية"}</Text>
+                      {editingNbr && <Text style={[s.filterChipTxt, { marginTop: 2 }]}>{editingNbr.label}</Text>}
+                    </View>
+                  </View>
+
+                  {/* Name */}
                   <Text style={s.fieldLabel}>الاسم *</Text>
-                  <TextInput style={s.fieldInput} value={nbrForm.label} onChangeText={t => setNbrForm(p => ({ ...p, label: t }))} placeholder="اسم الحي أو القرية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                  <TextInput
+                    style={s.fieldInput}
+                    value={nbrForm.label}
+                    onChangeText={t => setNbrForm(p => ({ ...p, label: t }))}
+                    placeholder="مثال: حي الأمل"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                    autoFocus
+                  />
+
+                  {/* Type */}
                   <Text style={s.fieldLabel}>النوع</Text>
                   <View style={{ flexDirection: "row-reverse", gap: 10, marginVertical: 8 }}>
                     {(["neighborhood", "village"] as const).map(t => (
-                      <TouchableOpacity key={t} onPress={() => setNbrForm(p => ({ ...p, type: t }))} style={[s.filterChip, { flex: 1, justifyContent: "center" }, nbrForm.type === t && { backgroundColor: "#3498DB20", borderColor: "#3498DB" }]}>
-                        <Text style={[s.filterChipTxt, nbrForm.type === t && { color: "#3498DB" }]}>{t === "neighborhood" ? "حي" : "قرية"}</Text>
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setNbrForm(p => ({ ...p, type: t }))}
+                        style={[
+                          s.filterChip,
+                          { flex: 1, justifyContent: "center", gap: 6 },
+                          nbrForm.type === t && { backgroundColor: "#3498DB20", borderColor: "#3498DB" },
+                        ]}
+                      >
+                        <Ionicons
+                          name={t === "neighborhood" ? "home-outline" : "leaf-outline"}
+                          size={15}
+                          color={nbrForm.type === t ? "#3498DB" : Colors.textMuted}
+                        />
+                        <Text style={[s.filterChipTxt, nbrForm.type === t && { color: "#3498DB" }]}>
+                          {t === "neighborhood" ? "حي" : "قرية"}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <View style={s.modalBtns}>
-                    <ActionButton label={editingNbr ? "حفظ التعديل" : "إضافة"} color="#3498DB" icon={editingNbr ? "save-outline" : "add-circle-outline"} onPress={saveNeighborhood} disabled={addingNbr} />
-                    <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddNbr(false)} outline />
+
+                  {/* Actions */}
+                  <View style={[s.modalBtns, { marginTop: 8 }]}>
+                    <ActionButton
+                      label={editingNbr ? "حفظ التعديل" : "إضافة"}
+                      color="#3498DB"
+                      icon={editingNbr ? "save-outline" : "add-circle-outline"}
+                      onPress={saveNeighborhood}
+                      disabled={addingNbr || !nbrForm.label.trim()}
+                    />
+                    <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => { setShowAddNbr(false); setEditingNbr(null); }} outline />
                   </View>
                 </Pressable>
               </Pressable>
