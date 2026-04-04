@@ -558,6 +558,11 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ── إضافة أعمدة الصورة والموقع الجغرافي لبلاغات المواطنين ──
+  await query(`ALTER TABLE citizen_reports ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE citizen_reports ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION`);
+  await query(`ALTER TABLE citizen_reports ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION`);
+
   // ── جدول المقترحات والشكاوى ──
   await query(`
     CREATE TABLE IF NOT EXISTS feedback (
@@ -2915,15 +2920,29 @@ router.patch("/admin/institution-applications/:id", async (req: Request, res: Re
 // إرسال بلاغ جديد
 router.post("/reports", async (req: Request, res: Response) => {
   try {
-    const { agency_id, agency_name, agency_color, issue, description, location, reporter_name, phone, urgent } = req.body;
+    const {
+      agency_id, agency_name, agency_color, issue, description,
+      location, reporter_name, phone, urgent,
+      image_url, location_lat, location_lng,
+    } = req.body;
     if (!agency_id || !agency_name || !issue || !location || !reporter_name || !phone) {
       return res.status(400).json({ error: "بيانات ناقصة" });
     }
     const user = await getSessionUser(req);
     const result = await query(
-      `INSERT INTO citizen_reports (agency_id, agency_name, agency_color, issue, description, location, reporter_name, phone, urgent, user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [agency_id, agency_name, agency_color || "#27AE68", issue, description || null, location, reporter_name, phone, !!urgent, user?.id || null]
+      `INSERT INTO citizen_reports
+         (agency_id, agency_name, agency_color, issue, description,
+          location, reporter_name, phone, urgent, user_id,
+          image_url, location_lat, location_lng)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [
+        agency_id, agency_name, agency_color || "#27AE68",
+        issue, description || null, location, reporter_name, phone,
+        !!urgent, user?.id || null,
+        image_url || null,
+        location_lat != null ? Number(location_lat) : null,
+        location_lng != null ? Number(location_lng) : null,
+      ]
     );
     return res.json({ report: result.rows[0] });
   } catch (err) {

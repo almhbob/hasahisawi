@@ -32,7 +32,9 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -44,6 +46,13 @@
       "expo-font",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ",
+          "locationWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ"
+        }
+      ],
       "./plugins/withResizeableActivity",
       [
         "expo-local-authentication",

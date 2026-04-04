@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Platform, Alert, Modal, Linking,
+  TextInput, Platform, Alert, Modal, Linking, Image, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -9,8 +9,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
+import { uploadReportImage } from "@/lib/firebase/storage";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
@@ -51,6 +54,9 @@ type Report = {
   status: ReportStatus;
   createdAt: string;
   urgent: boolean;
+  imageUrl?: string;
+  locationLat?: number;
+  locationLng?: number;
 };
 
 // ══════════════════════════════════════════════════════
@@ -249,6 +255,10 @@ export default function ReportsScreen() {
   const [urgent, setUrgent] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [reportImageUri, setReportImageUri] = useState<string | null>(null);
+  const [imgUploadProgress, setImgUploadProgress] = useState<number | null>(null);
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("الكل");
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
   const [step, setStep] = useState<"agency" | "details" | "confirm">("agency");
@@ -287,6 +297,9 @@ export default function ReportsScreen() {
           status: r.status as ReportStatus,
           createdAt: r.created_at,
           urgent: r.urgent,
+          imageUrl: r.image_url || undefined,
+          locationLat: r.location_lat ?? undefined,
+          locationLng: r.location_lng ?? undefined,
         }));
         setReports(mapped);
         return;
@@ -332,6 +345,40 @@ export default function ReportsScreen() {
     setSelectedAgency(null); setSelectedIssue(""); setDescription("");
     setLocation(""); setReporterName(""); setPhone(""); setUrgent(false);
     setStep("agency"); setSearchAgency(""); setCategoryFilter("الكل");
+    setReportImageUri(null); setImgUploadProgress(null);
+    setLocationCoords(null); setFetchingLocation(false);
+  };
+
+  const pickReportImage = async (fromCamera = false) => {
+    if (fromCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") { Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول إلى الكاميرا من الإعدادات"); return; }
+      const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.85 });
+      if (!r.canceled && r.assets[0]) setReportImageUri(r.assets[0].uri);
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول إلى الصور من الإعدادات"); return; }
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.85 });
+      if (!r.canceled && r.assets[0]) setReportImageUri(r.assets[0].uri);
+    }
+  };
+
+  const fetchGPSLocation = async () => {
+    setFetchingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول إلى موقعك من إعدادات الجهاز");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocationCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("خطأ", "تعذّر تحديد موقعك. تأكد من تفعيل GPS وحاول مجدداً");
+    } finally {
+      setFetchingLocation(false);
+    }
   };
 
   const submitReport = async () => {
@@ -340,7 +387,24 @@ export default function ReportsScreen() {
     if (!location.trim()) { Alert.alert("تنبيه", "يرجى تحديد الموقع"); return; }
 
     setSubmitting(true);
+    let uploadedImageUrl: string | undefined;
+
     try {
+      // Upload image if selected
+      if (reportImageUri) {
+        setImgUploadProgress(0);
+        try {
+          uploadedImageUrl = await uploadReportImage(
+            `temp_${Date.now()}`,
+            reportImageUri,
+            p => setImgUploadProgress(p.percent),
+          );
+        } catch {
+          Alert.alert("تنبيه", "تعذّر رفع الصورة — سيُرسل البلاغ بدونها");
+        }
+        setImgUploadProgress(null);
+      }
+
       const base = getApiUrl().replace(/\/$/, "");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
@@ -355,6 +419,9 @@ export default function ReportsScreen() {
         reporter_name: reporterName.trim(),
         phone: phone.trim(),
         urgent,
+        image_url: uploadedImageUrl,
+        location_lat: locationCoords?.lat,
+        location_lng: locationCoords?.lng,
       };
 
       const res = await fetch(`${base}/api/reports`, { method: "POST", headers, body: JSON.stringify(body) });
@@ -387,6 +454,9 @@ export default function ReportsScreen() {
       status: "pending",
       createdAt: new Date().toISOString(),
       urgent,
+      imageUrl: uploadedImageUrl,
+      locationLat: locationCoords?.lat,
+      locationLng: locationCoords?.lng,
     };
     const existing = await AsyncStorage.getItem(REPORTS_KEY);
     const all: Report[] = existing ? JSON.parse(existing) : [];
@@ -719,6 +789,79 @@ export default function ReportsScreen() {
                 </View>
               </View>
 
+              {/* ── صورة الحادثة ── */}
+              <View style={s.fieldBlock}>
+                <Text style={s.fieldLabel}>صورة الحادثة (اختياري)</Text>
+
+                {reportImageUri ? (
+                  <View style={s.reportImgPreviewWrap}>
+                    <Image source={{ uri: reportImageUri }} style={s.reportImgPreview} resizeMode="cover" />
+                    <TouchableOpacity style={s.reportImgRemove} onPress={() => setReportImageUri(null)}>
+                      <Ionicons name="close-circle" size={28} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {imgUploadProgress !== null && (
+                  <View style={s.uploadBar}>
+                    <View style={[s.uploadBarFill, { width: `${imgUploadProgress}%` as any, backgroundColor: selectedAgency?.color ?? Colors.danger }]} />
+                    <Text style={s.uploadBarText}>جاري رفع الصورة... {imgUploadProgress}%</Text>
+                  </View>
+                )}
+
+                <View style={s.imgBtnsRow}>
+                  <TouchableOpacity style={s.imgPickBtn} onPress={() => pickReportImage(false)} activeOpacity={0.85}>
+                    <Ionicons name="images-outline" size={18} color={selectedAgency?.color ?? Colors.danger} />
+                    <Text style={[s.imgPickBtnText, { color: selectedAgency?.color ?? Colors.danger }]}>من المعرض</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.imgPickBtn} onPress={() => pickReportImage(true)} activeOpacity={0.85}>
+                    <Ionicons name="camera-outline" size={18} color={selectedAgency?.color ?? Colors.danger} />
+                    <Text style={[s.imgPickBtnText, { color: selectedAgency?.color ?? Colors.danger }]}>التقاط صورة</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* ── موقع الحادثة GPS ── */}
+              <View style={s.fieldBlock}>
+                <Text style={s.fieldLabel}>موقع الحادثة على الخريطة (اختياري)</Text>
+                {locationCoords ? (
+                  <View style={[s.locSuccessCard, { borderColor: (selectedAgency?.color ?? Colors.danger) + "40" }]}>
+                    <View style={[s.locSuccessIcon, { backgroundColor: (selectedAgency?.color ?? Colors.danger) + "18" }]}>
+                      <Ionicons name="location" size={22} color={selectedAgency?.color ?? Colors.danger} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.locSuccessTitle}>تم تحديد الموقع بنجاح</Text>
+                      <Text style={s.locSuccessCoords}>
+                        {locationCoords.lat.toFixed(5)}°N, {locationCoords.lng.toFixed(5)}°E
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setLocationCoords(null)}>
+                      <Ionicons name="close-circle-outline" size={22} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[s.gpsBtn, { borderColor: (selectedAgency?.color ?? Colors.danger) + "50" }]}
+                    onPress={fetchGPSLocation}
+                    disabled={fetchingLocation}
+                    activeOpacity={0.85}
+                  >
+                    {fetchingLocation ? (
+                      <ActivityIndicator size="small" color={selectedAgency?.color ?? Colors.danger} />
+                    ) : (
+                      <Ionicons name="navigate-outline" size={20} color={selectedAgency?.color ?? Colors.danger} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.gpsBtnText, { color: selectedAgency?.color ?? Colors.danger }]}>
+                        {fetchingLocation ? "جاري تحديد موقعك..." : "أرسل موقعي الحالي"}
+                      </Text>
+                      <Text style={s.gpsBtnSub}>يساعد الجهة المختصة في الوصول بسرعة</Text>
+                    </View>
+                    <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
               {/* Urgency toggle */}
               <TouchableOpacity
                 style={[s.urgentToggle, urgent && { borderColor: Colors.danger + "60", backgroundColor: Colors.danger + "10" }]}
@@ -775,6 +918,8 @@ export default function ReportsScreen() {
                 </View>
                 {location ? <><View style={s.summaryDivider} /><View style={s.summaryRow}><Text style={s.summaryVal}>{location}</Text><Text style={s.summaryKey}>الموقع</Text></View></> : null}
                 {urgent && <><View style={s.summaryDivider} /><View style={s.summaryRow}><Text style={[s.summaryVal, { color: Colors.danger }]}>⚠️ بلاغ عاجل</Text><Text style={s.summaryKey}>الأولوية</Text></View></>}
+                {reportImageUri && <><View style={s.summaryDivider} /><View style={s.summaryRow}><Text style={[s.summaryVal, { color: Colors.primary }]}>✓ صورة مرفقة</Text><Text style={s.summaryKey}>صورة الحادثة</Text></View></>}
+                {locationCoords && <><View style={s.summaryDivider} /><View style={s.summaryRow}><Text style={[s.summaryVal, { color: Colors.primary }]}>✓ موقع GPS مُرسَل</Text><Text style={s.summaryKey}>الموقع الجغرافي</Text></View></>}
               </LinearGradient>
 
               {/* Reporter info */}
@@ -883,6 +1028,26 @@ export default function ReportsScreen() {
 
                     {report.description ? (
                       <Text style={s.reportDesc}>{report.description}</Text>
+                    ) : null}
+
+                    {/* صورة البلاغ */}
+                    {report.imageUrl ? (
+                      <Image source={{ uri: report.imageUrl }} style={s.reportCardImage} resizeMode="cover" />
+                    ) : null}
+
+                    {/* زر عرض الموقع على الخريطة */}
+                    {report.locationLat && report.locationLng ? (
+                      <TouchableOpacity
+                        style={[s.mapLinkBtn, { borderColor: report.agencyColor + "40" }]}
+                        onPress={() => Linking.openURL(
+                          `https://www.google.com/maps?q=${report.locationLat},${report.locationLng}`
+                        )}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="map-outline" size={15} color={report.agencyColor} />
+                        <Text style={[s.mapLinkText, { color: report.agencyColor }]}>عرض موقع الحادثة على الخريطة</Text>
+                        <Ionicons name="open-outline" size={13} color={report.agencyColor} />
+                      </TouchableOpacity>
                     ) : null}
                   </View>
                 </Animated.View>
@@ -1204,6 +1369,68 @@ const s = StyleSheet.create({
     color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 15,
     padding: 14, minHeight: 120, lineHeight: 24,
   },
+
+  // Image upload
+  reportImgPreviewWrap: {
+    borderRadius: 14, overflow: "hidden", marginBottom: 8, position: "relative",
+  },
+  reportImgPreview: { width: "100%", height: 180, borderRadius: 14 },
+  reportImgRemove: {
+    position: "absolute", top: 8, left: 8,
+    backgroundColor: "#00000055", borderRadius: 14,
+  },
+  uploadBar: {
+    height: 28, backgroundColor: Colors.bg, borderRadius: 8,
+    overflow: "hidden", position: "relative", marginBottom: 8,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  uploadBarFill: {
+    position: "absolute", left: 0, top: 0, bottom: 0,
+  },
+  uploadBarText: {
+    position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+    textAlign: "center", textAlignVertical: "center",
+    fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textPrimary,
+  },
+  imgBtnsRow: { flexDirection: "row", gap: 10 },
+  imgPickBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.divider,
+    paddingVertical: 12,
+  },
+  imgPickBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+
+  // GPS location
+  gpsBtn: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1.5,
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  gpsBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" },
+  gpsBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  locSuccessCard: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1.5,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  locSuccessIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    justifyContent: "center", alignItems: "center", flexShrink: 0,
+  },
+  locSuccessTitle: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  locSuccessCoords: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+
+  // Report card image & map link
+  reportCardImage: {
+    width: "100%", height: 160, borderRadius: 12, marginTop: 4,
+  },
+  mapLinkBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: Colors.bg, marginTop: 6, alignSelf: "flex-end",
+  },
+  mapLinkText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "right" },
 });
 
 // ── styles مقترحات وشكاوى ──
