@@ -85,7 +85,7 @@ const GROUPS: Group[] = [
   {
     label: "نقل وتوصيل",
     items: [
-      { title: "الترحال والتوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", soon: true },
+      { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", soon: true },
     ],
   },
   {

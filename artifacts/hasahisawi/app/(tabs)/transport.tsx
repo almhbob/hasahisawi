@@ -82,7 +82,7 @@ export default function TransportScreen() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert(
       "✅ شكراً لاهتمامك",
-      "سنُعلمك فور إطلاق خدمة الترحال. ترقّب التحديثات القادمة!",
+      "سنُعلمك فور إطلاق مشاويرك علينا وخدمات التوصيل. ترقّب التحديثات القادمة!",
       [{ text: "حسناً" }],
     );
   };
@@ -135,7 +135,7 @@ export default function TransportScreen() {
           </Animated.View>
 
           <Animated.Text entering={FadeInDown.delay(280).springify()} style={s.heroTitle}>
-            خدمة الترحال{"\n"}والتوصيل
+            مشاويرك علينا{"\n"}وخدمات التوصيل
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={s.heroSub}>
             منصة ربط بين السكان وأصحاب السيارات والركشات{"\n"}
@@ -166,7 +166,7 @@ export default function TransportScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.notifyTitle}>نُعلمك عند الإطلاق</Text>
-                <Text style={s.notifySub}>كن أول من يستخدم خدمة الترحال في حصاحيصا</Text>
+                <Text style={s.notifySub}>كن أول من يستخدم مشاويرك علينا في حصاحيصا</Text>
               </View>
               <TouchableOpacity onPress={handleNotifyMe} style={s.notifyBtn}>
                 <Text style={s.notifyBtnText}>أبلّغني</Text>
@@ -177,7 +177,7 @@ export default function TransportScreen() {
           {/* ── مميزات الخدمة ── */}
           <Animated.View entering={FadeInDown.delay(150).springify()} style={s.sectionHeader}>
             <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.sectionBar} />
-            <Text style={s.sectionTitle}>ما الذي يقدمه الترحال؟</Text>
+            <Text style={s.sectionTitle}>ما الذي تقدمه الخدمة؟</Text>
           </Animated.View>
 
           <View style={s.featuresGrid}>
@@ -248,7 +248,7 @@ export default function TransportScreen() {
               <MaterialCommunityIcons name="clock-time-four-outline" size={36} color={ACCENT} style={{ marginBottom: 10 }} />
               <Text style={s.ctaTitle}>الخدمة تحت التطوير</Text>
               <Text style={s.ctaSub}>
-                فريقنا يعمل على إطلاق خدمة الترحال والتوصيل قريباً.{"\n"}
+                فريقنا يعمل على إطلاق خدمة مشاويرك علينا وخدمات التوصيل قريباً.{"\n"}
                 سيتم إشعارك فور التفعيل الرسمي.
               </Text>
               <TouchableOpacity onPress={handleNotifyMe} style={s.ctaBtn} activeOpacity={0.85}>
