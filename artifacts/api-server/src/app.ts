@@ -34,8 +34,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // تقديم الملفات المرفوعة كـ static
-const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+const publicDir = path.join(__dirname, "..", "public");
+const uploadsDir = path.join(publicDir, "uploads");
 app.use("/uploads", express.static(uploadsDir));
+app.use(express.static(publicDir));
 
 app.use("/api", router);
 
