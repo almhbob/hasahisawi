@@ -2746,10 +2746,12 @@ router.get("/ai/status", async (_req: Request, res: Response) => {
     const { rows } = await query(
       `SELECT value FROM admin_settings WHERE key='ai_enabled'`
     );
-    const enabled = rows[0]?.value === "true";
+    const dbEnabled = rows[0]?.value === "true";
+    // مفعّل تلقائيًا إذا كان GOOGLE_API_KEY موجودًا في البيئة
+    const enabled = dbEnabled || !!process.env["GOOGLE_API_KEY"];
     return res.json({ enabled });
   } catch {
-    return res.json({ enabled: false });
+    return res.json({ enabled: !!process.env["GOOGLE_API_KEY"] });
   }
 });
 
@@ -2768,11 +2770,16 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
-    if (settings["ai_enabled"] !== "true") {
+    // يُستخدم GOOGLE_API_KEY من البيئة كاحتياطي إذا لم يكن المفتاح محفوظًا في الإعدادات
+    const envApiKey = process.env["GOOGLE_API_KEY"];
+    const apiKey = settings["ai_api_key"] || envApiKey;
+
+    // إذا كان المفتاح البيئي متاحًا تُعامَل الخدمة كمفعّلة تلقائيًا
+    const aiEnabled = settings["ai_enabled"] === "true" || !!envApiKey;
+    if (!aiEnabled) {
       return res.status(503).json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حالياً" });
     }
 
-    const apiKey = settings["ai_api_key"];
     if (!apiKey) return res.status(503).json({ error: "لم يتم تكوين مفتاح API" });
 
     const systemPrompt = settings["ai_system_prompt"] ||
