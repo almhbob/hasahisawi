@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Linking, Platform, Alert, Dimensions,
+  Modal, ActivityIndicator, KeyboardAvoidingView, Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -12,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
+import { getApiUrl } from "@/lib/query-client";
 
 const { width } = Dimensions.get("window");
 
@@ -104,7 +106,7 @@ const sh = StyleSheet.create({
 });
 
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
-  salon:     { label: "صالون تجميل", icon: "face-woman",     color: "#FF4FA3" },
+  salon:     { label: "كوفيرة",      icon: "face-woman",     color: "#FF4FA3" },
   sewing:    { label: "خياطة",       icon: "needle",          color: "#A855F7" },
   health:    { label: "صحة المرأة", icon: "heart-pulse",     color: "#3E9CBF" },
   cooking:   { label: "طبخ ومطبخ",  icon: "pot-steam",       color: Colors.accent },
@@ -125,7 +127,58 @@ export default function WomenScreen() {
   const [services, setServices] = useState<WomenService[]>([]);
   const [subTab, setSubTab] = useState<SubTab>("services");
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
-  const [expandedTip, setExpandedTip] = useState<string | null>(null);
+  const [expandedTip, setExpandedTip]       = useState<string | null>(null);
+
+  // ── نموذج الانضمام ──────────────────────────────────────────────────────
+  const [joinModal,    setJoinModal]   = useState(false);
+  const [joinDone,     setJoinDone]    = useState(false);
+  const [joinSending,  setJoinSending] = useState(false);
+  const [joinName,     setJoinName]    = useState("");
+  const [joinType,     setJoinType]    = useState<ServiceType>("salon");
+  const [joinPhone,    setJoinPhone]   = useState("");
+  const [joinAddress,  setJoinAddress] = useState("");
+  const [joinDesc,     setJoinDesc]    = useState("");
+
+  const JOIN_TYPES: { key: ServiceType; label: string; icon: string }[] = [
+    { key: "salon",     label: "كوفيرة",        icon: "face-woman"       },
+    { key: "sewing",    label: "خياطة",          icon: "needle"           },
+    { key: "health",    label: "صحة المرأة",    icon: "heart-pulse"      },
+    { key: "cooking",   label: "مطبخ منزلي",    icon: "pot-steam"        },
+    { key: "childcare", label: "رعاية أطفال",   icon: "baby-face-outline"},
+  ];
+
+  function resetJoin() {
+    setJoinName(""); setJoinPhone(""); setJoinAddress(""); setJoinDesc(""); setJoinType("salon");
+  }
+
+  async function submitJoinRequest() {
+    if (!joinName.trim() || !joinPhone.trim())
+      return Alert.alert("بيانات ناقصة", "الاسم ورقم الهاتف مطلوبان");
+    Keyboard.dismiss();
+    setJoinSending(true);
+    try {
+      const base = getApiUrl().replace(/\/$/, "");
+      const res = await fetch(`${base}/api/women/join-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_name:   joinName.trim(),
+          service_type: joinType,
+          phone:        joinPhone.trim(),
+          address:      joinAddress.trim(),
+          description:  joinDesc.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return Alert.alert("خطأ", data.error ?? "حدث خطأ");
+      resetJoin();
+      setJoinDone(true);
+    } catch {
+      Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم، حاولي مجدداً");
+    } finally {
+      setJoinSending(false);
+    }
+  }
 
   const load = async () => {
     const raw = await AsyncStorage.getItem(WOMEN_KEY);
@@ -169,7 +222,7 @@ export default function WomenScreen() {
         {/* Stats */}
         <View style={s.statsRow}>
           {[
-            { num: `${servicesByType("salon").length}`, label: "صالون", color: "#FF4FA3" },
+            { num: `${servicesByType("salon").length}`, label: "كوفيرة", color: "#FF4FA3" },
             { num: `${servicesByType("sewing").length}`, label: "خياطة", color: "#A855F7" },
             { num: `${servicesByType("cooking").length}`, label: "مطبخ", color: Colors.accent },
             { num: `${servicesByType("health").length}`, label: "صحة", color: "#3E9CBF" },
@@ -210,13 +263,34 @@ export default function WomenScreen() {
               />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
-              {([["all", "الكل"], ["salon", "صالونات"], ["sewing", "خياطة"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
+              {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: "#FF4FA3", borderColor: "#FF4FA3" }]} onPress={() => setFilter(k)}>
                   <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
+
+          {/* ── بانر طلب الانضمام ── */}
+          <Animated.View entering={FadeIn.duration(400)} style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+            <TouchableOpacity
+              style={jm.joinBanner}
+              activeOpacity={0.88}
+              onPress={() => { setJoinDone(false); setJoinModal(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <LinearGradient colors={["#FF4FA330", "#A855F720", "transparent"]} style={StyleSheet.absoluteFill} />
+              <View style={jm.joinBannerIcon}>
+                <MaterialCommunityIcons name="store-plus-outline" size={26} color="#FF4FA3" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={jm.joinBannerTitle}>انضمي معنا!</Text>
+                <Text style={jm.joinBannerSub}>سجّلي كوفيرتك أو خدمتك وابدئي العمل</Text>
+              </View>
+              <View style={jm.joinBannerArrow}>
+                <Ionicons name="chevron-back" size={18} color="#FF4FA3" />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
             {filtered.map((item, idx) => {
@@ -329,7 +403,7 @@ export default function WomenScreen() {
           ))}
 
           <SectionHeader title="مراكز صحة المرأة" sub="في حصاحيصا" color="#3E9CBF" />
-          {services.filter(s => s.type === "health").map((item, i) => {
+          {services.filter((sv) => sv.type === "health").map((item, i) => {
             const cfg = TYPE_CONFIG[item.type];
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(i * 60)}>
@@ -418,7 +492,7 @@ export default function WomenScreen() {
 
           {/* مطابخ منزلية */}
           <SectionHeader title="مطابخ منزلية للطلب" sub="وجبات سودانية يومية" color={Colors.primary} />
-          {services.filter(sv => sv.type === "cooking").map((item, i) => {
+          {services.filter((sv) => sv.type === "cooking").map((item, i) => {
             const cfg = TYPE_CONFIG[item.type];
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(i * 60)}>
@@ -453,6 +527,138 @@ export default function WomenScreen() {
           })}
         </ScrollView>
       )}
+
+      {/* ══ زر الانضمام العائم ══════════════════════════════════════════════ */}
+      <TouchableOpacity
+        style={jm.fab}
+        activeOpacity={0.88}
+        onPress={() => { setJoinDone(false); setJoinModal(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+      >
+        <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jm.fabGrad}>
+          <MaterialCommunityIcons name="store-plus-outline" size={20} color="#fff" />
+          <Text style={jm.fabText}>طلب الانضمام</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* ══ مودال الانضمام ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={joinModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setJoinModal(false)}
+      >
+        <View style={jm.overlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setJoinModal(false)} />
+
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={jm.sheet}>
+            <LinearGradient colors={["#1A0830", "#0A1A10"]} style={jm.sheetInner}>
+
+              {/* رأس المودال */}
+              <View style={jm.sheetHeader}>
+                <TouchableOpacity onPress={() => setJoinModal(false)} style={jm.closeBtn}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <View style={jm.sheetTitleWrap}>
+                  <MaterialCommunityIcons name="store-plus-outline" size={24} color="#FF4FA3" />
+                  <Text style={jm.sheetTitle}>طلب الانضمام لركن المرأة</Text>
+                </View>
+              </View>
+
+              {joinDone ? (
+                /* ── شاشة النجاح ── */
+                <Animated.View entering={FadeIn} style={jm.successBox}>
+                  <LinearGradient colors={["#FF4FA320", "#A855F710"]} style={jm.successIconWrap}>
+                    <Ionicons name="checkmark-circle" size={56} color="#FF4FA3" />
+                  </LinearGradient>
+                  <Text style={jm.successTitle}>تم إرسال طلبك بنجاح!</Text>
+                  <Text style={jm.successSub}>
+                    سيتم مراجعة طلبك من قِبل الإدارة والتواصل معكِ قريباً عبر الهاتف.
+                  </Text>
+                  <TouchableOpacity
+                    style={jm.successBtn}
+                    onPress={() => { setJoinModal(false); setJoinDone(false); }}
+                  >
+                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.successBtnGrad}>
+                      <Text style={jm.successBtnText}>حسناً، شكراً!</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+                  {/* ── نوع الخدمة ── */}
+                  <Text style={jm.fieldLabel}>نوع الخدمة *</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                    {JOIN_TYPES.map(jt => (
+                      <TouchableOpacity
+                        key={jt.key}
+                        style={[jm.typeChip, joinType === jt.key && { borderColor: "#FF4FA3", backgroundColor: "#FF4FA318" }]}
+                        onPress={() => setJoinType(jt.key)}
+                      >
+                        <MaterialCommunityIcons name={jt.icon as any} size={16} color={joinType === jt.key ? "#FF4FA3" : Colors.textMuted} />
+                        <Text style={[jm.typeChipText, joinType === jt.key && { color: "#FF4FA3" }]}>{jt.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {/* ── الحقول ── */}
+                  {[
+                    { label: "الاسم الكامل *",          val: joinName,    set: setJoinName,    placeholder: "فاطمة أحمد"        },
+                    { label: "رقم الهاتف *",             val: joinPhone,   set: setJoinPhone,   placeholder: "0912345678", kb: "phone-pad" as const },
+                    { label: "الحي / المنطقة",           val: joinAddress, set: setJoinAddress, placeholder: "حصاحيصا — الحي الشرقي" },
+                  ].map(f => (
+                    <View key={f.label} style={{ marginBottom: 12 }}>
+                      <Text style={jm.fieldLabel}>{f.label}</Text>
+                      <TextInput
+                        style={jm.input}
+                        value={f.val}
+                        onChangeText={f.set}
+                        placeholder={f.placeholder}
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType={f.kb ?? "default"}
+                        textAlign="right"
+                      />
+                    </View>
+                  ))}
+
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={jm.fieldLabel}>وصف الخدمة</Text>
+                    <TextInput
+                      style={[jm.input, { minHeight: 85, textAlignVertical: "top" }]}
+                      value={joinDesc}
+                      onChangeText={setJoinDesc}
+                      placeholder="اكتبي نبذة عن خدمتك، أوقات العمل، الأسعار..."
+                      placeholderTextColor={Colors.textMuted}
+                      multiline
+                      textAlign="right"
+                    />
+                  </View>
+
+                  {/* ── زر الإرسال ── */}
+                  <TouchableOpacity
+                    style={[jm.sendBtn, joinSending && { opacity: 0.6 }]}
+                    onPress={submitJoinRequest}
+                    disabled={joinSending}
+                  >
+                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.sendBtnGrad}>
+                      {joinSending ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <>
+                          <MaterialCommunityIcons name="send-outline" size={18} color="#fff" />
+                          <Text style={jm.sendBtnText}>إرسال طلب الانضمام</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <View style={{ height: 24 }} />
+                </ScrollView>
+              )}
+            </LinearGradient>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -528,4 +734,101 @@ const s = StyleSheet.create({
   stepNum: { width: 24, height: 24, borderRadius: 12, justifyContent: "center", alignItems: "center", flexShrink: 0, marginTop: 2 },
   stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#000" },
   stepText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
+});
+
+// ── أنماط نموذج الانضمام ─────────────────────────────────────────────────────
+const jm = StyleSheet.create({
+  // بانر في قائمة الخدمات
+  joinBanner: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.cardBg, borderRadius: 18,
+    borderWidth: 1.5, borderColor: "#FF4FA340",
+    padding: 14, marginBottom: 4, overflow: "hidden",
+  },
+  joinBannerIcon: {
+    width: 50, height: 50, borderRadius: 14,
+    backgroundColor: "#FF4FA318", borderWidth: 1.5, borderColor: "#FF4FA340",
+    alignItems: "center", justifyContent: "center",
+  },
+  joinBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FF4FA3", textAlign: "right" },
+  joinBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 1 },
+  joinBannerArrow: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: "#FF4FA318", alignItems: "center", justifyContent: "center",
+  },
+
+  // زر عائم
+  fab: {
+    position: "absolute", bottom: 24, alignSelf: "center",
+    borderRadius: 28, overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#FF4FA3", shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+  },
+  fabGrad: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 24, paddingVertical: 14,
+  },
+  fabText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+
+  // مودال
+  overlay: {
+    flex: 1, backgroundColor: "#00000088",
+    justifyContent: "flex-end",
+  },
+  sheet: { maxHeight: "92%" },
+  sheetInner: {
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 20, paddingBottom: 36,
+  },
+  sheetHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center",
+  },
+  sheetTitleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+
+  // حقول
+  fieldLabel: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
+    textAlign: "right", marginBottom: 6,
+  },
+  input: {
+    backgroundColor: Colors.bg, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+  },
+  typeChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
+  },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+
+  // زر الإرسال
+  sendBtn: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
+  sendBtnGrad: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 15,
+  },
+  sendBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  // نجاح
+  successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },
+  successIconWrap: {
+    width: 100, height: 100, borderRadius: 28,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "#FF4FA340",
+  },
+  successTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#FF4FA3", textAlign: "center" },
+  successSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 22, paddingHorizontal: 16,
+  },
+  successBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8, width: "80%" },
+  successBtnGrad: { paddingVertical: 14, alignItems: "center" },
+  successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

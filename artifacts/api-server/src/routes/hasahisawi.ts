@@ -580,6 +580,20 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ── جدول طلبات الانضمام لركن المرأة ──────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_join_requests (
+      id          SERIAL PRIMARY KEY,
+      owner_name  VARCHAR(100) NOT NULL,
+      service_type VARCHAR(40) NOT NULL,
+      phone       VARCHAR(25) NOT NULL,
+      address     VARCHAR(200) NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      status      VARCHAR(20) NOT NULL DEFAULT 'new',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // ── جداول مناسبتي ──────────────────────────────────────────────────────────
   await query(`
     CREATE TABLE IF NOT EXISTS occasion_shops (
@@ -3248,6 +3262,39 @@ router.post("/auth/check-phone", async (req: Request, res: Response) => {
     const userR = await query(`SELECT id, name FROM users WHERE phone=$1`, [phone]);
     if (!userR.rows.length) return res.json({ exists: false });
     return res.json({ exists: true, name: userR.rows[0].name });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ركن المرأة — طلبات الانضمام
+// ══════════════════════════════════════════════════════════════════════════════
+
+router.post("/women/join-request", async (req: Request, res: Response) => {
+  try {
+    const { owner_name, service_type, phone, address, description } = req.body;
+    if (!owner_name || !service_type || !phone)
+      return res.status(400).json({ error: "الاسم ونوع الخدمة والهاتف مطلوبة" });
+    await query(
+      `INSERT INTO women_join_requests (owner_name, service_type, phone, address, description)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [owner_name.trim(), service_type, phone.trim(), address?.trim() ?? "", description?.trim() ?? ""]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/women/join-requests", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator"))
+      return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM women_join_requests ORDER BY created_at DESC`);
+    return res.json(r.rows);
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
