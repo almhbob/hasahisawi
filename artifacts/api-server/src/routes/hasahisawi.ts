@@ -2321,6 +2321,26 @@ router.post("/ads/request", async (req: Request, res: Response) => {
   }
 });
 
+// جلب طلبات المعلن برقم هاتفه
+router.get("/ads/my-requests", async (req: Request, res: Response) => {
+  try {
+    const phone = String(req.query.phone ?? "").trim();
+    if (!phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    const { rows } = await query(
+      `SELECT id, institution_name, contact_name, title, description, type,
+              duration_days, budget, status, admin_note,
+              image_url, website_url, created_at, start_date, end_date
+       FROM ads WHERE contact_phone = $1
+       ORDER BY created_at DESC LIMIT 20`,
+      [phone]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ── إدارة الإعلانات (الإدارة فقط) ─────────────────────────────
 
 // جلب كل الإعلانات
