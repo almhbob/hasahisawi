@@ -2831,54 +2831,56 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
     };
     if (!firebase_uid) return res.status(400).json({ error: "firebase_uid مطلوب" });
 
-    const safeRole = ["user", "admin", "moderator"].includes(role ?? "") ? role : "user";
+    // ترتيب الصلاحيات: منع تخفيض الدور
+    const roleRank: Record<string, number> = { user: 0, moderator: 1, admin: 2 };
+    const requestedRole = ["user", "admin", "moderator"].includes(role ?? "") ? (role as string) : "user";
 
-    // محاولة البحث عن المستخدم بـ firebase_uid أولاً
+    // 1. البحث بـ firebase_uid
     let userRow = (await query(
-      `SELECT * FROM users WHERE firebase_uid = $1`,
-      [firebase_uid]
+      `SELECT * FROM users WHERE firebase_uid = $1`, [firebase_uid]
     )).rows[0];
 
-    if (!userRow) {
-      // البحث بالبريد الإلكتروني لتجنب التكرار
-      if (email) {
-        userRow = (await query(
-          `SELECT * FROM users WHERE email = $1`,
-          [email]
-        )).rows[0];
-        if (userRow) {
-          await query(
-            `UPDATE users SET firebase_uid=$1, role=$2 WHERE id=$3`,
-            [firebase_uid, safeRole, userRow.id]
-          );
-          userRow = { ...userRow, firebase_uid, role: safeRole };
-        }
-      }
+    // 2. البحث بالبريد الإلكتروني الحقيقي (غير @hasahisawi.app)
+    if (!userRow && email && !email.includes("@hasahisawi.app")) {
+      userRow = (await query(`SELECT * FROM users WHERE email = $1`, [email])).rows[0];
+    }
 
-      if (!userRow) {
-        // إنشاء مستخدم جديد بدون كلمة مرور (Firebase يتولى المصادقة)
-        const hash = await bcrypt.hash(randomBytes(16).toString("hex"), 6);
-        userRow = (await query(
-          `INSERT INTO users (firebase_uid, name, email, password_hash, role)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING *`,
-          [firebase_uid, name || "مستخدم", email || null, hash, safeRole]
-        )).rows[0];
+    // 3. البحث برقم الهاتف (مستخدمي الهاتف يُحوَّل بريدهم لـ 09...@hasahisawi.app)
+    if (!userRow && email && email.includes("@hasahisawi.app")) {
+      const phone = email.split("@")[0];
+      if (/^\d+$/.test(phone)) {
+        userRow = (await query(`SELECT * FROM users WHERE phone = $1`, [phone])).rows[0];
+      }
+    }
+
+    if (userRow) {
+      // ربط firebase_uid إن لم يكن مربوطاً
+      if (!userRow.firebase_uid) {
+        await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2`, [firebase_uid, userRow.id]);
+        userRow = { ...userRow, firebase_uid };
+      }
+      // رفع الصلاحية فقط — لا تخفيضها أبداً
+      const currentRank = roleRank[userRow.role as string] ?? 0;
+      const newRank = roleRank[requestedRole] ?? 0;
+      if (newRank > currentRank) {
+        await query(`UPDATE users SET role=$1 WHERE id=$2`, [requestedRole, userRow.id]);
+        userRow = { ...userRow, role: requestedRole };
       }
     } else {
-      // تحديث الدور إن تغيّر
-      if (safeRole && userRow.role !== safeRole) {
-        await query(`UPDATE users SET role=$1 WHERE id=$2`, [safeRole, userRow.id]);
-        userRow = { ...userRow, role: safeRole };
-      }
+      // مستخدم Firebase جديد لم يُسجَّل من قبل — أنشئه
+      const hash = await bcrypt.hash(randomBytes(16).toString("hex"), 6);
+      // لا تحفظ بريد @hasahisawi.app الوهمي
+      const realEmail = (email && !email.includes("@hasahisawi.app")) ? email : null;
+      userRow = (await query(
+        `INSERT INTO users (firebase_uid, name, email, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [firebase_uid, name || "مستخدم", realEmail, hash, requestedRole]
+      )).rows[0];
     }
 
     // إصدار session token جديد
     const sessionToken = randomBytes(32).toString("hex");
-    await query(
-      `INSERT INTO user_sessions (user_id, token) VALUES ($1, $2)`,
-      [userRow.id, sessionToken]
-    );
+    await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1, $2)`, [userRow.id, sessionToken]);
 
     return res.json({ user: safeUserPayload(userRow), token: sessionToken });
   } catch (err) {

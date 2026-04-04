@@ -1909,11 +1909,11 @@ export default function SettingsScreen() {
                 <View style={styles.loginFieldWrap}>
                   <TextInput
                     style={styles.loginField}
-                    placeholder="رمز التسجيل"
+                    placeholder="رمز PIN الإدارة (للتسجيل)"
                     placeholderTextColor={Colors.textMuted}
                     value={loginAdminCode}
                     onChangeText={(v) => { setLoginAdminCode(v); setLoginError(""); }}
-                    textAlign="center"
+                    textAlign="right"
                     keyboardType="numeric"
                     secureTextEntry
                   />

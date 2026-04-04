@@ -56,6 +56,7 @@ type AuthContextValue = {
   login: (phoneOrEmail: string, password: string) => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
+  loginModerator: (phoneOrEmail: string, password: string) => Promise<void>;
   register: (
     name: string,
     nationalId: string,
@@ -82,8 +83,6 @@ const USER_KEY          = "auth_user_data";
 const GUEST_KEY         = "auth_is_guest";
 const IDENTIFIER_KEY    = "auth_biometric_identifier";
 const PASSWORD_KEY      = "auth_biometric_password";
-
-const ADMIN_CODE = "HASAHISA_ADMIN_2026";
 
 function phoneToEmail(phone: string): string {
   const clean = phone.replace(/\s+/g, "").replace(/^\+/, "");
@@ -209,7 +208,7 @@ async function exchangeForBackendToken(
   }
 }
 
-function profileToAuthUser(profile: UserProfile, idToken: string): AuthUser {
+function profileToAuthUser(profile: UserProfile, _idToken: string): AuthUser {
   return {
     id: 0,
     uid: profile.uid,
@@ -245,7 +244,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // ── استعادة الجلسة المحفوظة في التخزين المحلي ──────────────────
   const restoreLocalSession = async () => {
     try {
       const [savedGuest, savedToken, savedUser] = await Promise.all([
@@ -266,7 +264,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // إذا لم يكن Firebase مُهيَّئاً → استعِد الجلسة المحلية مباشرة
     if (!isFirebaseConfigured) {
       restoreLocalSession();
       return;
@@ -286,20 +283,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (!fbUser) {
-            // Firebase لا يوجد مستخدم — هل يوجد جلسة محفوظة؟
             const [savedToken, savedUser] = await Promise.all([
               AsyncStorage.getItem(TOKEN_KEY),
               AsyncStorage.getItem(USER_KEY),
             ]);
             if (savedToken && savedUser) {
-              // جلسة بكند محفوظة → استعدها دون Firebase
               setUser(JSON.parse(savedUser));
               setToken(savedToken);
               setIsGuest(false);
               setIsLoading(false);
               return;
             }
-            // تحقق من البيومترية
             const bioEnabled = await isBiometricsEnabled();
             const bioAvailable = await isBiometricsAvailable();
             if (bioEnabled && bioAvailable) {
@@ -319,16 +313,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
+          // Check if there's already a valid backend session saved
+          const [savedToken, savedUser] = await Promise.all([
+            AsyncStorage.getItem(TOKEN_KEY),
+            AsyncStorage.getItem(USER_KEY),
+          ]);
+          if (savedToken && savedUser) {
+            // Verify the token is still valid by checking it's not a Firebase ID token
+            // Firebase ID tokens are JWTs (contain dots), backend tokens are hex strings
+            const isBackendToken = savedToken.length === 64 && !savedToken.includes(".");
+            if (isBackendToken) {
+              setUser(JSON.parse(savedUser));
+              setToken(savedToken);
+              setIsGuest(false);
+              setIsLoading(false);
+              return;
+            }
+          }
+
           const idToken = await fbUser.getIdToken();
           const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
 
           if (profile) {
             const authUser = profileToAuthUser(profile, idToken);
+            // Exchange Firebase token for backend session token
+            const backendTok = await exchangeForBackendToken(
+              fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+            );
             setUser(authUser);
-            setToken(idToken);
             setIsGuest(false);
+            if (backendTok) {
+              setToken(backendTok);
+              await AsyncStorage.setItem(TOKEN_KEY, backendTok);
+            }
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
-            await AsyncStorage.setItem(TOKEN_KEY, idToken);
             await AsyncStorage.removeItem(GUEST_KEY);
           } else {
             await firebaseLogout();
@@ -336,7 +354,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(null);
           }
         } catch {
-          // فشل داخلي — استعِد الجلسة المحلية كبديل
           await restoreLocalSession();
           return;
         }
@@ -344,7 +361,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {
       console.warn("[Auth] Firebase listener setup failed:", e);
-      // Firebase فشل كلياً → استعِد الجلسة المحلية
       restoreLocalSession();
     }
 
@@ -430,7 +446,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let backendFailReason = "";
 
     try {
-      // Backend هو المصدر الأساسي
       const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
       await saveSession(authUser, backendTok, backendTok);
       // Firebase اختياري في الخلفية لمزامنة البيانات فقط
@@ -455,7 +470,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         backendFailed = true;
         backendFailReason = err instanceof Error ? err.message : "الخادم غير متاح";
       } else {
-        throw err; // كلمة مرور خاطئة أو خطأ حقيقي
+        throw err;
       }
     }
 
@@ -468,7 +483,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
         if (!profile) throw new Error("لم يُعثر على بيانات الحساب في Firebase");
         const authUser = profileToAuthUser(profile, idToken);
-        await saveSession(authUser, idToken, null);
+        // Try to exchange for backend token even in fallback
+        const backendTok = await exchangeForBackendToken(
+          fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role
+        );
+        await saveSession(authUser, idToken, backendTok);
         return;
       } catch (fbErr) {
         const msg = fbErr instanceof Error ? fbErr.message : "";
@@ -483,21 +502,89 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAdmin = async (email: string, password: string) => {
-    const fbUser = await firebaseLoginEmail(email.trim().toLowerCase(), password);
-    const idToken = await fbUser.getIdToken();
-
-    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
-    if (!profile) throw new Error("لم يُعثر على بيانات الحساب.");
-    if (profile.role !== "admin" && profile.role !== "moderator") {
-      await firebaseLogout();
-      throw new Error("هذا الحساب لا يملك صلاحيات الإدارة.");
+    // Try backend admin login first
+    const base = getApiUrl();
+    if (base) {
+      try {
+        const res = await fetch(`${base}/api/auth/admin-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const u = json.user as Record<string, unknown>;
+          const authUser: AuthUser = {
+            id: u.id as number,
+            name: u.name as string,
+            phone: (u.phone as string | null) ?? null,
+            email: (u.email as string | null) ?? null,
+            role: (u.role as AuthUser["role"]) ?? "admin",
+            neighborhood: null,
+            national_id_masked: null,
+            avatar_url: null,
+          };
+          await saveSession(authUser, json.token as string, json.token as string);
+          return;
+        }
+        const errData = await res.json().catch(() => ({})) as Record<string, unknown>;
+        if (res.status === 401) throw new Error((errData.error as string) || "بيانات غير صحيحة");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "بيانات غير صحيحة") throw err;
+        // Server unavailable — try Firebase
+      }
     }
 
-    const authUser = profileToAuthUser(profile, idToken);
-    const backendTok = await exchangeForBackendToken(
-      fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
-    );
-    await saveSession(authUser, idToken, backendTok);
+    // Firebase fallback
+    if (isFirebaseAvailable()) {
+      const fbUser = await firebaseLoginEmail(email.trim().toLowerCase(), password);
+      const idToken = await fbUser.getIdToken();
+      const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+      if (!profile) throw new Error("لم يُعثر على بيانات الحساب.");
+      if (profile.role !== "admin" && profile.role !== "moderator") {
+        await firebaseLogout();
+        throw new Error("هذا الحساب لا يملك صلاحيات الإدارة.");
+      }
+      const authUser = profileToAuthUser(profile, idToken);
+      const backendTok = await exchangeForBackendToken(
+        fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+      );
+      await saveSession(authUser, idToken, backendTok);
+      return;
+    }
+
+    throw new Error("تعذّر الاتصال بالخادم");
+  };
+
+  const loginModerator = async (phoneOrEmail: string, password: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    let res: Response;
+    try {
+      res = await fetch(`${base}/api/auth/moderator-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_or_email: phoneOrEmail.trim(), password }),
+      });
+    } catch {
+      throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
+    }
+    const json = await res.json() as Record<string, unknown>;
+    if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
+    const u = json.user as Record<string, unknown>;
+    const authUser: AuthUser = {
+      id: u.id as number,
+      name: u.name as string,
+      phone: (u.phone as string | null) ?? null,
+      email: (u.email as string | null) ?? null,
+      role: "moderator",
+      permissions: (u.permissions as string[]) ?? [],
+      neighborhood: (u.neighborhood as string | null) ?? null,
+      national_id_masked: null,
+      avatar_url: null,
+    };
+    await saveSession(authUser, json.token as string, json.token as string);
   };
 
   const register = async (
@@ -509,18 +596,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     birthDate?: string,
     neighborhood?: string,
   ) => {
-    // Backend هو المصدر الأساسي للتسجيل دائماً
     const { user: authUser, token: backendTok } = await backendRegister(
       name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood
     );
     await saveSession(authUser, backendTok, backendTok);
-    // Firebase اختياري — نجرّبه في الخلفية للمزامنة فقط
+    // Firebase اختياري
     if (isFirebaseAvailable()) {
       try {
         const email = identifierToEmail(phoneOrEmail);
         const isActualEmail = isEmail || phoneOrEmail.includes("@");
         const fbUser = await firebaseRegisterEmail(email, password, name);
-        const idToken = await fbUser.getIdToken();
         const profile: UserProfile = {
           uid: fbUser.uid,
           name: name.trim(),
@@ -534,15 +619,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...(birthDate ? { birthDate } : {}),
         };
         await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
+        // Exchange and update token — pass null email for phone users to avoid duplication
         const backendTok2 = await exchangeForBackendToken(
-          fbUser.uid, authUser.name, authUser.email ?? null, "user"
+          fbUser.uid, authUser.name,
+          isActualEmail ? (authUser.email ?? null) : null,
+          "user"
         );
         if (backendTok2) {
           setToken(backendTok2);
           await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
         }
       } catch {
-        // Firebase فشل — لا بأس، جلسة backend نشطة
+        // Firebase فشل — لا بأس
       }
     }
   };
@@ -553,29 +641,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     adminCode: string,
   ) => {
-    if (adminCode !== ADMIN_CODE) {
-      throw new Error("رمز المسؤول غير صحيح.");
+    // Register in backend first (uses admin PIN as admin_code)
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    let res: Response;
+    try {
+      res = await fetch(`${base}/api/auth/register-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: email.trim().toLowerCase(), password, admin_code: adminCode }),
+      });
+    } catch {
+      throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
     }
+    const json = await res.json() as Record<string, unknown>;
+    if (!res.ok) throw new Error((json.error as string) || "فشل إنشاء حساب المشرف");
 
-    const fbUser = await firebaseRegisterEmail(
-      email.trim().toLowerCase(),
-      password,
-      name,
-    );
-    const idToken = await fbUser.getIdToken();
-
-    const profile: UserProfile = {
-      uid: fbUser.uid,
-      name: name.trim(),
+    const backendTok = json.token as string;
+    const u = json.user as Record<string, unknown>;
+    const authUser: AuthUser = {
+      id: u.id as number,
+      name: (u.name as string) || name,
       email: email.trim().toLowerCase(),
+      phone: null,
       role: "admin",
-      permissions: ["manage_users", "manage_content", "manage_notifications"],
+      avatar_url: null,
     };
+    await saveSession(authUser, backendTok, backendTok);
 
-    await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
-
-    const authUser = profileToAuthUser(profile, idToken);
-    await saveSession(authUser, idToken);
+    // Firebase optional sync
+    if (isFirebaseAvailable()) {
+      try {
+        const fbUser = await firebaseRegisterEmail(email.trim().toLowerCase(), password, name);
+        const profile: UserProfile = {
+          uid: fbUser.uid,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          role: "admin",
+          permissions: ["manage_users", "manage_content", "manage_notifications"],
+        };
+        await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
+        await exchangeForBackendToken(fbUser.uid, name, email.trim().toLowerCase(), "admin");
+      } catch {
+        // Firebase optional
+      }
+    }
   };
 
   const enableBiometrics = async (identifier: string) => {
@@ -591,6 +701,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshUser = async () => {
+    // Try backend first
+    const currentToken = token || await AsyncStorage.getItem(TOKEN_KEY);
+    if (currentToken) {
+      try {
+        const base = getApiUrl();
+        if (base) {
+          const res = await fetch(`${base}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${currentToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json() as { user: Record<string, unknown> };
+            const u = data.user;
+            const updated: AuthUser = {
+              id: u.id as number,
+              name: u.name as string,
+              phone: (u.phone as string | null) ?? null,
+              email: (u.email as string | null) ?? null,
+              role: (u.role as AuthUser["role"]) ?? "user",
+              permissions: (u.permissions as string[]) ?? [],
+              neighborhood: (u.neighborhood as string | null) ?? null,
+              national_id_masked: (u.national_id_masked as string | null) ?? null,
+              avatar_url: (u.avatar_url as string | null) ?? null,
+            };
+            setUser(updated);
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+            return;
+          }
+        }
+      } catch {}
+    }
+
+    // Firebase fallback
     const fbUser = getCurrentFirebaseUser();
     if (!fbUser) return;
     try {
@@ -598,15 +740,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
       if (profile) {
         const authUser = profileToAuthUser(profile, idToken);
+        const backendTok = await exchangeForBackendToken(
+          fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+        );
         setUser(authUser);
-        setToken(idToken);
+        if (backendTok) {
+          setToken(backendTok);
+          await AsyncStorage.setItem(TOKEN_KEY, backendTok);
+        }
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
-        await AsyncStorage.setItem(TOKEN_KEY, idToken);
       }
     } catch {}
   };
 
   const logout = async () => {
+    // Notify backend to invalidate session
+    if (token) {
+      try {
+        const base = getApiUrl();
+        if (base) {
+          await fetch(`${base}/api/auth/logout`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+      } catch {}
+    }
     try { await firebaseLogout(); } catch {}
     await clearSession();
   };
@@ -638,7 +797,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
-        login, loginWithBiometrics, loginAdmin, register, registerAdmin,
+        login, loginWithBiometrics, loginAdmin, loginModerator,
+        register, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
         updateProfile,
