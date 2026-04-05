@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useLang } from "@/lib/lang-context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -72,6 +73,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState(0);
   const progress = useSharedValue(0);
+  const { lang, setLanguage } = useLang();
 
   const goNext = () => {
     if (current < SLIDES.length - 1) {
@@ -103,12 +105,33 @@ export default function OnboardingScreen() {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}>
       <StatusBar style="light" />
 
-      {/* Skip */}
-      {!isLast && (
-        <TouchableOpacity style={styles.skipBtn} onPress={handleFinish}>
-          <Text style={styles.skipText}>تخطّ</Text>
-        </TouchableOpacity>
-      )}
+      {/* شريط أعلى الشاشة: زر تخطّ + محدد اللغة */}
+      <View style={styles.topBar}>
+        {/* محدد اللغة */}
+        <View style={styles.langToggle}>
+          <TouchableOpacity
+            style={[styles.langOption, lang === "ar" && styles.langOptionActive]}
+            onPress={() => lang !== "ar" && setLanguage("ar")}
+          >
+            <Text style={[styles.langOptionText, lang === "ar" && styles.langOptionTextActive]}>ع</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.langOption, lang === "en" && styles.langOptionActive]}
+            onPress={() => lang !== "en" && setLanguage("en")}
+          >
+            <Text style={[styles.langOptionText, lang === "en" && styles.langOptionTextActive]}>EN</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Skip */}
+        {!isLast ? (
+          <TouchableOpacity style={styles.skipBtn} onPress={handleFinish}>
+            <Text style={styles.skipText}>{lang === "ar" ? "تخطّ" : "Skip"}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
+      </View>
 
       {/* Content */}
       <Animated.View key={slide.id} entering={FadeInDown.springify().damping(18)} style={styles.slideContent}>
@@ -187,10 +210,39 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg,
     alignItems: "center",
   },
+  topBar: {
+    width: "100%",
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    marginBottom: 4,
+  },
+  langToggle: {
+    flexDirection: "row",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    overflow: "hidden",
+  },
+  langOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  langOptionActive: {
+    backgroundColor: Colors.primary,
+  },
+  langOptionText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  langOptionTextActive: {
+    color: "#fff",
+  },
   skipBtn: {
-    alignSelf: "flex-start",
-    marginLeft: 20,
-    marginTop: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
