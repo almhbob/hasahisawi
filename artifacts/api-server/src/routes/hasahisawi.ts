@@ -837,6 +837,8 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   try {
     const { name, national_id, phone, email, password, birth_date, neighborhood, gender } = req.body;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
+    if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
+    if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
     const validGender = ["male", "female"].includes(gender) ? gender : null;
     const hash = await bcrypt.hash(password, 10);
     const result = await query(

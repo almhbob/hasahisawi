@@ -77,6 +77,7 @@ export default function LoginScreen() {
     setShowPwd(false); setUseEmail(false);
     setBirthDay(""); setBirthMonth(""); setBirthYear("");
     setNeighborhood(""); setNbrSearch(""); setCustomNbr("");
+    setGender("");
   };
 
   const getBirthDateISO = (): string | undefined => {
