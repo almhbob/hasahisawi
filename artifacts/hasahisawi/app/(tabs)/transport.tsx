@@ -26,6 +26,124 @@ const ACCENT2 = "#FBBF24";
 const GREEN   = "#3EFF9C";
 const BLUE    = "#3E9CBF";
 
+// ─── بيانات الاختبار التدريبي للسائقين ───────────────────────────────────────
+type QuizQuestion = {
+  q: string;
+  options: string[];
+  correct: number;
+  hint: string;
+};
+
+const DRIVER_QUIZ: QuizQuestion[] = [
+  {
+    q: "كم عدد مناطق التغطية في خدمة ترحال والتوصيل؟",
+    options: ["٣ مناطق", "٥ مناطق", "٧ مناطق", "١٠ مناطق"],
+    correct: 1,
+    hint: "الخدمة تغطي الحصاحيصا بخمس مناطق (م١ – م٥) تمتد من وسط المدينة حتى الأطراف.",
+  },
+  {
+    q: "ماذا تعني حالة الرحلة «انتظار»؟",
+    options: [
+      "الرحلة مكتملة وانتهت",
+      "الرحلة ملغاة من المستخدم",
+      "الرحلة في انتظار تعيين سائق لها",
+      "السائق وصل للعميل",
+    ],
+    correct: 2,
+    hint: "حالة «انتظار» تعني أن المستخدم أرسل الطلب ولم يُعيَّن له سائق بعد.",
+  },
+  {
+    q: "ما الترتيب الصحيح لمراحل الرحلة؟",
+    options: [
+      "مكتملة ← جارية ← انتظار",
+      "انتظار ← مكتملة ← جارية",
+      "جارية ← انتظار ← مكتملة",
+      "انتظار ← جارية ← مكتملة",
+    ],
+    correct: 3,
+    hint: "كل رحلة تبدأ بـ«انتظار» ثم تصبح «جارية» بعد قبول السائق وتنتهي بـ«مكتملة».",
+  },
+  {
+    q: "ما أهم خطوة يجب على السائق فعلها قبل بدء أي رحلة؟",
+    options: [
+      "البدء في الرحلة مباشرةً دون تأخير",
+      "الاتفاق الصريح مع العميل على الأجرة النهائية",
+      "الانتظار حتى تصدر الإدارة أمراً بالتشغيل",
+      "طلب دفعة مقدمة لا تُرد",
+    ],
+    correct: 1,
+    hint: "تحدد الشروط القانونية أنه يجب الاتفاق على الأجرة قبل بدء أي رحلة أو استلام أي شحنة.",
+  },
+  {
+    q: "ماذا يحدث عند رفض المستخدم دفع الأجرة المتفق عليها؟",
+    options: [
+      "لا يحدث شيء، الأمر طبيعي",
+      "يحصل المستخدم على خصم تلقائي",
+      "يُعلَّق حسابه فوراً وتُسجَّل مخالفة رسمية",
+      "يُحوَّل الأمر لاحقاً للمحاكم فقط",
+    ],
+    correct: 2,
+    hint: "وفق شروط المنصة، رفض الدفع يؤدي لتعليق الحساب فوراً وتسجيل مخالفة مؤثرة على التقييم.",
+  },
+  {
+    q: "كيف يتم تقييم السائق بعد كل رحلة؟",
+    options: [
+      "يقيّم السائقُ نفسَه بنفسه",
+      "يقيّمه المشرف الإداري فقط",
+      "لا يوجد تقييم في التطبيق",
+      "يقيّمه المستخدم بعد اكتمال الرحلة",
+    ],
+    correct: 3,
+    hint: "يظهر للمستخدم نجوم التقييم (١–٥) مع تعليق اختياري بعد انتهاء كل رحلة مكتملة.",
+  },
+  {
+    q: "ما أنواع المركبات المقبولة في الخدمة؟",
+    options: [
+      "سيارة فقط",
+      "ركشة فقط",
+      "سيارة وركشة",
+      "دراجة نارية وسيارة فقط",
+    ],
+    correct: 2,
+    hint: "يدعم التطبيق نوعين: سيارة وركشة، إضافةً لخيار التوصيل (شحنات) بكلا النوعين.",
+  },
+  {
+    q: "عند استلام طلب توصيل شحنة، ما الذي يجب على السائق مراجعته أولاً؟",
+    options: [
+      "إحضار الشحنة فوراً دون أي مراجعة",
+      "قراءة وصف الشحنة والتفاق على الأجرة مع العميل",
+      "رفض أي طلب توصيل دون استثناء",
+      "انتظار الإدارة لتأكيد كل شحنة",
+    ],
+    correct: 1,
+    hint: "يُرفق المستخدم وصفاً للشحنة في طلبه — على السائق قراءته والاتفاق على السعر قبل الاستلام.",
+  },
+  {
+    q: "ماذا يعني المؤشر الأخضر «متاح» بجانب اسم السائق في قائمة السائقين؟",
+    options: [
+      "السائق في إجازة رسمية",
+      "السائق منتهى عقده مع المنصة",
+      "السائق يقبل الطلبات ومتاح الآن",
+      "السائق يقود رحلة حالياً",
+    ],
+    correct: 2,
+    hint: "المؤشر الأخضر يعني أن السائق نشط ومستعد لاستقبال الطلبات في الوقت الحالي.",
+  },
+  {
+    q: "ما الذي يُميّز الحساب المعلَّق عن المحذوف في نظام المنصة؟",
+    options: [
+      "لا فرق بينهما، كلاهما نهائي",
+      "المعلَّق مؤقت ريثما تُحسم المخالفة، والمحذوف نهائي",
+      "المعلَّق دائم والمحذوف مؤقت",
+      "التعليق يؤثر على السائق فقط لا على العميل",
+    ],
+    correct: 1,
+    hint: "التعليق إجراء مؤقت يُرفع بعد حسم الخلاف، بينما الحذف نهائي في حال تكرار المخالفات الجسيمة.",
+  },
+];
+
+const QUIZ_PASS_SCORE = 7; // ٧ من ١٠ للنجاح
+
 // ─── أنواع البيانات ────────────────────────────────────────────────────────────
 type Driver = {
   id: number; name: string; vehicle_type: string; vehicle_desc: string;
@@ -317,6 +435,15 @@ export default function TransportScreen() {
   const [regArea,     setRegArea]     = useState("");
   const [submittingReg, setSubmittingReg] = useState(false);
 
+  // الاختبار التدريبي
+  const [quizPhase,    setQuizPhase]    = useState<"intro" | "quiz" | "result">("intro");
+  const [quizCurrentQ, setQuizCurrentQ] = useState(0);
+  const [quizAnswers,  setQuizAnswers]  = useState<(number | null)[]>(Array(DRIVER_QUIZ.length).fill(null));
+  const [quizSelected, setQuizSelected] = useState<number | null>(null);
+  const [quizRevealed, setQuizRevealed] = useState(false);
+  const [quizScore,    setQuizScore]    = useState(0);
+  const [quizPassed,   setQuizPassed]   = useState(false);
+
   // ── التحميل ──
   const loadStatus = useCallback(async () => {
     try {
@@ -486,6 +613,51 @@ export default function TransportScreen() {
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setSubmittingReg(false); }
+  };
+
+  // ── منطق الاختبار ──
+  const handleQuizAnswer = (optionIdx: number) => {
+    if (quizRevealed) return;
+    setQuizSelected(optionIdx);
+    setQuizRevealed(true);
+    if (Platform.OS !== "web") {
+      const correct = optionIdx === DRIVER_QUIZ[quizCurrentQ].correct;
+      Haptics.notificationAsync(
+        correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error
+      );
+    }
+  };
+
+  const handleQuizNext = () => {
+    const newAnswers = [...quizAnswers];
+    newAnswers[quizCurrentQ] = quizSelected;
+    setQuizAnswers(newAnswers);
+    setQuizSelected(null);
+    setQuizRevealed(false);
+    if (quizCurrentQ < DRIVER_QUIZ.length - 1) {
+      setQuizCurrentQ(quizCurrentQ + 1);
+    } else {
+      const score = newAnswers.filter((a, i) => a === DRIVER_QUIZ[i].correct).length;
+      setQuizScore(score);
+      const passed = score >= QUIZ_PASS_SCORE;
+      setQuizPassed(passed);
+      setQuizPhase("result");
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(
+          passed ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error
+        );
+      }
+    }
+  };
+
+  const handleQuizRetry = () => {
+    setQuizPhase("quiz");
+    setQuizCurrentQ(0);
+    setQuizAnswers(Array(DRIVER_QUIZ.length).fill(null));
+    setQuizSelected(null);
+    setQuizRevealed(false);
+    setQuizScore(0);
+    setQuizPassed(false);
   };
 
   if (loading) return (
@@ -824,60 +996,323 @@ export default function TransportScreen() {
         {/* ──── تسجيل سائق ──── */}
         {activeTab === "register" && (
           <Animated.View entering={FadeInDown.springify()}>
-            <View style={s.formCard}>
-              <View style={s.formCardHeader}>
-                <MaterialCommunityIcons name="steering" size={22} color={ACCENT} />
-                <Text style={s.formCardTitle}>التسجيل كسائق</Text>
-              </View>
-              <Text style={s.formCardSub}>
-                انضم إلى أسطول ترحال والتوصيل وابدأ رحلتك المهنية في الحصاحيصا.
-                سيراجع الفريق طلبك خلال ٢٤–٤٨ ساعة.
-              </Text>
 
-              {[
-                { label: "الاسم الكامل *",        value: regName,    setter: setRegName,    placeholder: "اسمك الكامل", kb: "default" as const },
-                { label: "رقم الهاتف *",          value: regPhone,   setter: setRegPhone,   placeholder: "+249...",      kb: "phone-pad" as const },
-                { label: "رقم اللوحة",             value: regPlate,   setter: setRegPlate,   placeholder: "مثال: خطوط / أرقام", kb: "default" as const },
-                { label: "المنطقة الرئيسية للعمل", value: regArea,    setter: setRegArea,    placeholder: "مثال: المنصورة، حي الزهور...", kb: "default" as const },
-              ].map(f => (
-                <View key={f.label}>
-                  <Text style={s.fieldLabel}>{f.label}</Text>
-                  <TextInput style={s.input} value={f.value} onChangeText={f.setter}
-                    placeholder={f.placeholder} placeholderTextColor={Colors.textMuted}
-                    textAlign="right" keyboardType={f.kb} />
-                </View>
-              ))}
-
-              <Text style={s.fieldLabel}>نوع المركبة *</Text>
-              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
-                {["سيارة", "ركشة"].map(v => (
-                  <TouchableOpacity key={v} onPress={() => setRegVehicle(v)}
-                    style={[s.typeBtn, regVehicle === v && { borderColor: ACCENT, backgroundColor: ACCENT + "15" }]}>
-                    <MaterialCommunityIcons name={v === "سيارة" ? "car-side" : "rickshaw"} size={20}
-                      color={regVehicle === v ? ACCENT : Colors.textSecondary} />
-                    <Text style={[s.typeBtnLabel, regVehicle === v && { color: ACCENT }]}>{v}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={s.fieldLabel}>وصف المركبة (اختياري)</Text>
-              <TextInput style={[s.input, { minHeight: 60, textAlignVertical: "top" }]}
-                value={regDesc} onChangeText={setRegDesc}
-                placeholder="اللون والموديل وأي مميزات..."
-                placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
-
-              <TouchableOpacity onPress={submitRegister} disabled={submittingReg}
-                style={{ marginTop: 8, borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
-                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
-                  {submittingReg
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <>
-                        <MaterialCommunityIcons name="check-decagram" size={18} color="#fff" />
-                        <Text style={s.submitBtnText}>تقديم طلب الانضمام</Text>
-                      </>}
+            {/* ══════════════════════════════════════════════ */}
+            {/* مرحلة المقدمة                                */}
+            {/* ══════════════════════════════════════════════ */}
+            {quizPhase === "intro" && (
+              <View style={s.formCard}>
+                {/* الرأس */}
+                <LinearGradient colors={["#0D2B17", "#081A0E"]}
+                  style={{ borderRadius: 12, padding: 20, marginBottom: 16, alignItems: "center" }}>
+                  <View style={{ width: 64, height: 64, borderRadius: 32,
+                    backgroundColor: ACCENT + "20", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                    <MaterialCommunityIcons name="school-outline" size={32} color={ACCENT} />
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff", textAlign: "center", marginBottom: 6 }}>
+                    المساحة التدريبية للسائقين
+                  </Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffff80", textAlign: "center", lineHeight: 22 }}>
+                    قبل الانضمام كسائق، يجب اجتياز اختبار قصير يتحقق من فهمك لمراحل عمل التطبيق وقواعده.
+                  </Text>
                 </LinearGradient>
-              </TouchableOpacity>
-            </View>
+
+                {/* ماذا ستتعلم؟ */}
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 10, textAlign: "right" }}>
+                  ماذا يغطي الاختبار؟
+                </Text>
+                {[
+                  { icon: "map-marker-radius",   label: "مناطق التغطية الخمس",          color: BLUE   },
+                  { icon: "transit-transfer",     label: "مراحل الرحلة: انتظار → جارية → مكتملة", color: GREEN  },
+                  { icon: "handshake-outline",    label: "الاتفاق على الأجرة قبل بدء الرحلة",  color: ACCENT },
+                  { icon: "star-outline",         label: "نظام التقييم والإشعارات",       color: ACCENT2 },
+                  { icon: "shield-alert-outline", label: "الشروط القانونية والمسؤولية",    color: "#DC2626" },
+                ].map((item, i) => (
+                  <View key={i} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10,
+                    marginBottom: 10, padding: 10, backgroundColor: Colors.cardBg, borderRadius: 10,
+                    borderWidth: 1, borderColor: item.color + "30" }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: item.color + "15",
+                      alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
+                      {item.label}
+                    </Text>
+                  </View>
+                ))}
+
+                {/* شروط النجاح */}
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8,
+                  backgroundColor: GREEN + "12", borderRadius: 10, padding: 12, marginTop: 6, marginBottom: 16,
+                  borderWidth: 1, borderColor: GREEN + "30" }}>
+                  <MaterialCommunityIcons name="check-decagram-outline" size={20} color={GREEN} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GREEN, flex: 1, textAlign: "right" }}>
+                    تحتاج إلى {QUIZ_PASS_SCORE}/{DRIVER_QUIZ.length} إجابات صحيحة للنجاح والمتابعة
+                  </Text>
+                </View>
+
+                {/* زر البدء */}
+                <TouchableOpacity onPress={() => setQuizPhase("quiz")}
+                  style={{ borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
+                  <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitBtn}>
+                    <MaterialCommunityIcons name="play-circle-outline" size={20} color="#fff" />
+                    <Text style={s.submitBtnText}>ابدأ الاختبار التدريبي</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* مرحلة الأسئلة                                */}
+            {/* ══════════════════════════════════════════════ */}
+            {quizPhase === "quiz" && (() => {
+              const q = DRIVER_QUIZ[quizCurrentQ];
+              const progress = (quizCurrentQ + 1) / DRIVER_QUIZ.length;
+              return (
+                <Animated.View key={quizCurrentQ} entering={FadeInDown.springify()} style={s.formCard}>
+                  {/* شريط التقدم */}
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT }}>
+                      سؤال {quizCurrentQ + 1} / {DRIVER_QUIZ.length}
+                    </Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>
+                      {Math.round(progress * 100)}%
+                    </Text>
+                  </View>
+                  <View style={{ height: 6, backgroundColor: Colors.divider, borderRadius: 3, marginBottom: 16 }}>
+                    <View style={{ height: 6, borderRadius: 3, backgroundColor: ACCENT, width: `${progress * 100}%` }} />
+                  </View>
+
+                  {/* السؤال */}
+                  <View style={{ backgroundColor: Colors.cardBg, borderRadius: 12, padding: 16, marginBottom: 16,
+                    borderWidth: 1, borderColor: ACCENT + "20" }}>
+                    <MaterialCommunityIcons name="help-circle-outline" size={22} color={ACCENT} style={{ alignSelf: "flex-end", marginBottom: 8 }} />
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", lineHeight: 26 }}>
+                      {q.q}
+                    </Text>
+                  </View>
+
+                  {/* الخيارات */}
+                  {q.options.map((opt, i) => {
+                    const isSelected = quizSelected === i;
+                    const isCorrect  = i === q.correct;
+                    let bg = Colors.cardBg;
+                    let border = Colors.divider;
+                    let textColor = Colors.textPrimary;
+                    let iconName: "check-circle" | "close-circle" | "radiobox-blank" = "radiobox-blank";
+                    let iconColor = Colors.textMuted;
+                    if (quizRevealed) {
+                      if (isCorrect) {
+                        bg = "#3EFF9C15"; border = "#3EFF9C60"; textColor = GREEN;
+                        iconName = "check-circle"; iconColor = GREEN;
+                      } else if (isSelected) {
+                        bg = "#E0556715"; border = "#E0556760"; textColor = "#E05567";
+                        iconName = "close-circle"; iconColor = "#E05567";
+                      }
+                    } else if (isSelected) {
+                      bg = ACCENT + "15"; border = ACCENT + "60"; textColor = ACCENT;
+                      iconName = "radiobox-blank"; iconColor = ACCENT;
+                    }
+                    return (
+                      <TouchableOpacity key={i} onPress={() => handleQuizAnswer(i)}
+                        activeOpacity={quizRevealed ? 1 : 0.7}
+                        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10,
+                          backgroundColor: bg, borderWidth: 1, borderColor: border,
+                          borderRadius: 10, padding: 13, marginBottom: 8 }}>
+                        <MaterialCommunityIcons name={iconName} size={20} color={iconColor} />
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: textColor, flex: 1, textAlign: "right" }}>
+                          {opt}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* تلميح بعد الكشف */}
+                  {quizRevealed && (
+                    <Animated.View entering={FadeIn.duration(300)}
+                      style={{ backgroundColor: "#FBBF2412", borderRadius: 10, padding: 12, marginTop: 6,
+                        borderWidth: 1, borderColor: "#FBBF2430", flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" }}>
+                      <MaterialCommunityIcons name="lightbulb-outline" size={16} color={ACCENT2} />
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 }}>
+                        {q.hint}
+                      </Text>
+                    </Animated.View>
+                  )}
+
+                  {/* زر التالي */}
+                  {quizRevealed && (
+                    <Animated.View entering={FadeInDown.duration(250)} style={{ marginTop: 14 }}>
+                      <TouchableOpacity onPress={handleQuizNext}
+                        style={{ borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
+                        <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitBtn}>
+                          <Text style={s.submitBtnText}>
+                            {quizCurrentQ < DRIVER_QUIZ.length - 1 ? "السؤال التالي" : "إنهاء الاختبار"}
+                          </Text>
+                          <MaterialCommunityIcons
+                            name={quizCurrentQ < DRIVER_QUIZ.length - 1 ? "arrow-left" : "check-bold"}
+                            size={18} color="#fff" />
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              );
+            })()}
+
+            {/* ══════════════════════════════════════════════ */}
+            {/* مرحلة النتيجة                                */}
+            {/* ══════════════════════════════════════════════ */}
+            {quizPhase === "result" && (
+              <Animated.View entering={ZoomIn.springify()}>
+                {/* بطاقة النتيجة */}
+                <View style={s.formCard}>
+                  <LinearGradient
+                    colors={quizPassed ? ["#0D2B17", "#052010"] : ["#1A0707", "#0D0404"]}
+                    style={{ borderRadius: 14, padding: 24, alignItems: "center", marginBottom: 16 }}>
+                    {/* الأيقونة */}
+                    <View style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12,
+                      backgroundColor: (quizPassed ? GREEN : "#E05567") + "20",
+                      alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons
+                        name={quizPassed ? "check-decagram" : "close-octagon-outline"}
+                        size={42} color={quizPassed ? GREEN : "#E05567"} />
+                    </View>
+                    {/* العنوان */}
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", marginBottom: 4 }}>
+                      {quizPassed ? "تهانينا! اجتزت الاختبار" : "لم تجتز الاختبار هذه المرة"}
+                    </Text>
+                    {/* الدرجة */}
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#ffffff90", marginBottom: 16 }}>
+                      {quizPassed
+                        ? "أثبتت فهمك الكامل لمراحل التطبيق"
+                        : `تحتاج ${QUIZ_PASS_SCORE} صحيحة — حاول مجدداً بعد مراجعة الأسئلة`}
+                    </Text>
+                    {/* الدرجة المرئية */}
+                    <View style={{ flexDirection: "row-reverse", alignItems: "baseline", gap: 4 }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 48, color: quizPassed ? GREEN : "#E05567" }}>
+                        {quizScore}
+                      </Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 22, color: "#ffffff60" }}>
+                        / {DRIVER_QUIZ.length}
+                      </Text>
+                    </View>
+                  </LinearGradient>
+
+                  {/* مراجعة الإجابات */}
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 10 }}>
+                    مراجعة إجاباتك
+                  </Text>
+                  {DRIVER_QUIZ.map((q, i) => {
+                    const userAns = quizAnswers[i];
+                    const correct = userAns === q.correct;
+                    return (
+                      <View key={i} style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+                        padding: 10, borderRadius: 10, marginBottom: 6,
+                        backgroundColor: correct ? "#3EFF9C10" : "#E0556710",
+                        borderWidth: 1, borderColor: correct ? "#3EFF9C30" : "#E0556730" }}>
+                        <MaterialCommunityIcons
+                          name={correct ? "check-circle" : "close-circle"}
+                          size={16} color={correct ? GREEN : "#E05567"}
+                          style={{ marginTop: 2 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "right", marginBottom: 2 }}>
+                            س{i + 1}: {q.q.length > 60 ? q.q.slice(0, 58) + "…" : q.q}
+                          </Text>
+                          {!correct && (
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: GREEN, textAlign: "right" }}>
+                              الصواب: {q.options[q.correct]}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+
+                  {/* أزرار */}
+                  <View style={{ gap: 10, marginTop: 12 }}>
+                    {!quizPassed && (
+                      <TouchableOpacity onPress={handleQuizRetry}
+                        style={{ borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
+                        <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitBtn}>
+                          <MaterialCommunityIcons name="refresh" size={18} color="#fff" />
+                          <Text style={s.submitBtnText}>إعادة المحاولة</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                    {quizPassed && (
+                      <View style={{ backgroundColor: GREEN + "12", borderRadius: 12, padding: 12,
+                        borderWidth: 1, borderColor: GREEN + "30", flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                        <MaterialCommunityIcons name="arrow-down-circle-outline" size={18} color={GREEN} />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GREEN, flex: 1, textAlign: "right" }}>
+                          الآن يمكنك تسجيل طلب انضمامك كسائق أدناه
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* ═══ نموذج التسجيل — يظهر فقط بعد النجاح ═══ */}
+                {quizPassed && (
+                  <Animated.View entering={FadeInDown.delay(200).springify()}>
+                    <View style={s.formCard}>
+                      <View style={s.formCardHeader}>
+                        <MaterialCommunityIcons name="steering" size={22} color={ACCENT} />
+                        <Text style={s.formCardTitle}>التسجيل كسائق</Text>
+                      </View>
+                      <Text style={s.formCardSub}>
+                        انضم إلى أسطول ترحال والتوصيل وابدأ رحلتك المهنية في الحصاحيصا.
+                        سيراجع الفريق طلبك خلال ٢٤–٤٨ ساعة.
+                      </Text>
+
+                      {[
+                        { label: "الاسم الكامل *",        value: regName,    setter: setRegName,    placeholder: "اسمك الكامل",                   kb: "default" as const },
+                        { label: "رقم الهاتف *",          value: regPhone,   setter: setRegPhone,   placeholder: "+249...",                        kb: "phone-pad" as const },
+                        { label: "رقم اللوحة",             value: regPlate,   setter: setRegPlate,   placeholder: "مثال: خطوط / أرقام",             kb: "default" as const },
+                        { label: "المنطقة الرئيسية للعمل", value: regArea,    setter: setRegArea,    placeholder: "مثال: المنصورة، حي الزهور...",    kb: "default" as const },
+                      ].map(f => (
+                        <View key={f.label}>
+                          <Text style={s.fieldLabel}>{f.label}</Text>
+                          <TextInput style={s.input} value={f.value} onChangeText={f.setter}
+                            placeholder={f.placeholder} placeholderTextColor={Colors.textMuted}
+                            textAlign="right" keyboardType={f.kb} />
+                        </View>
+                      ))}
+
+                      <Text style={s.fieldLabel}>نوع المركبة *</Text>
+                      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+                        {["سيارة", "ركشة"].map(v => (
+                          <TouchableOpacity key={v} onPress={() => setRegVehicle(v)}
+                            style={[s.typeBtn, regVehicle === v && { borderColor: ACCENT, backgroundColor: ACCENT + "15" }]}>
+                            <MaterialCommunityIcons name={v === "سيارة" ? "car-side" : "rickshaw"} size={20}
+                              color={regVehicle === v ? ACCENT : Colors.textSecondary} />
+                            <Text style={[s.typeBtnLabel, regVehicle === v && { color: ACCENT }]}>{v}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      <Text style={s.fieldLabel}>وصف المركبة (اختياري)</Text>
+                      <TextInput style={[s.input, { minHeight: 60, textAlignVertical: "top" }]}
+                        value={regDesc} onChangeText={setRegDesc}
+                        placeholder="اللون والموديل وأي مميزات..."
+                        placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+
+                      <TouchableOpacity onPress={submitRegister} disabled={submittingReg}
+                        style={{ marginTop: 8, borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
+                        <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitBtn}>
+                          {submittingReg
+                            ? <ActivityIndicator color="#fff" size="small" />
+                            : <>
+                                <MaterialCommunityIcons name="check-decagram" size={18} color="#fff" />
+                                <Text style={s.submitBtnText}>تقديم طلب الانضمام</Text>
+                              </>}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                )}
+              </Animated.View>
+            )}
+
           </Animated.View>
         )}
 
