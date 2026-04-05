@@ -3720,7 +3720,6 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
       : await query(`SELECT id FROM users WHERE phone=$1`, [lookup]);
     if (!userR.rows.length) return res.status(404).json({ error: "لم يتم العثور على حساب بهذا الرقم أو البريد" });
 
-    const bcrypt = await import("bcrypt");
     const hashed = await bcrypt.hash(new_password, 10);
     await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, userR.rows[0].id]);
 
