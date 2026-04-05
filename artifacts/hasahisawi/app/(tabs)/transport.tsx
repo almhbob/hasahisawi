@@ -303,6 +303,8 @@ export default function TransportScreen() {
   const [userPhone,  setUserPhone]  = useState("");
   const [notes,      setNotes]      = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
 
   // تسجيل السائق
   const [regName,     setRegName]     = useState(user?.name || "");
@@ -373,6 +375,14 @@ export default function TransportScreen() {
     }
     if (!userName || !userPhone) {
       Alert.alert("بيانات ناقصة", "يرجى إدخال اسمك ورقم هاتفك"); return;
+    }
+    if (!termsAccepted) {
+      Alert.alert(
+        "⚠️ يجب الموافقة على الشروط",
+        "يرجى قراءة شروط الاستخدام والموافقة عليها قبل إرسال الطلب.",
+        [{ text: "مراجعة الشروط", onPress: () => setShowLegalModal(true) }],
+      );
+      return;
     }
     setSubmitting(true);
     try {
@@ -567,6 +577,71 @@ export default function TransportScreen() {
               onVehicleChange={setVehicleType}
             />
 
+            {/* ─── بطاقة التنبيه القانوني ─── */}
+            <Animated.View entering={FadeInDown.delay(80).springify()} style={lw.card}>
+              <LinearGradient colors={["#7C0A0A18", "#8B000012"]} style={lw.gradient}>
+                <View style={lw.headerRow}>
+                  <View style={lw.iconWrap}>
+                    <MaterialCommunityIcons name="shield-alert" size={22} color="#DC2626" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={lw.title}>تنبيه قانوني هام</Text>
+                    <Text style={lw.subtitle}>يُرجى القراءة بعناية قبل الإرسال</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowLegalModal(true)} style={lw.readMoreBtn}>
+                    <Text style={lw.readMoreText}>التفاصيل</Text>
+                    <Ionicons name="chevron-back" size={12} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={lw.divider} />
+
+                {[
+                  {
+                    icon: "handshake" as const,
+                    title: "الاتفاق على القيمة إلزامي",
+                    body: "يجب الاتفاق على قيمة الأجرة مع السائق قبل بدء الرحلة أو استلام الطلب، والتعرفة المعروضة تقديرية فقط.",
+                  },
+                  {
+                    icon: "alert-circle" as const,
+                    title: "عدم الدفع يُعرّض حسابك للإيقاف",
+                    body: "رفض أداء الأجرة المتفق عليها أو التهرب منها يُعرّض حساب المستخدم للتعليق الفوري من المنصة.",
+                  },
+                  {
+                    icon: "gavel" as const,
+                    title: "المساءلة القانونية",
+                    body: "في حال الإخلال بالاتفاق مع السائق، تحتفظ المنصة بحق توثيق الحادثة وإحالتها إلى الجهات القانونية المختصة.",
+                  },
+                ].map((item, i) => (
+                  <View key={i} style={lw.ruleRow}>
+                    <View style={lw.ruleIconWrap}>
+                      <MaterialCommunityIcons name={item.icon} size={16} color="#DC2626" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={lw.ruleTitle}>{item.title}</Text>
+                      <Text style={lw.ruleBody}>{item.body}</Text>
+                    </View>
+                  </View>
+                ))}
+
+                <View style={lw.divider} />
+
+                {/* مربع الموافقة */}
+                <TouchableOpacity
+                  onPress={() => setTermsAccepted(p => !p)}
+                  style={lw.checkRow}
+                  activeOpacity={0.75}
+                >
+                  <View style={[lw.checkbox, termsAccepted && lw.checkboxChecked]}>
+                    {termsAccepted && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  </View>
+                  <Text style={lw.checkText}>
+                    أقرّ بأنني قرأت وفهمت الشروط أعلاه، وأوافق على الالتزام بها والاتفاق على الأجرة مع السائق قبل بدء الرحلة.
+                  </Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            </Animated.View>
+
             {/* بيانات الطلب */}
             <View style={s.sectionHeader}>
               <LinearGradient colors={[BLUE, GREEN]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
@@ -588,13 +663,19 @@ export default function TransportScreen() {
                 placeholder="أي تفاصيل إضافية تساعد السائق..."
                 placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
 
-              <TouchableOpacity onPress={submitTrip} disabled={submitting}
-                style={{ marginTop: 4, borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
-                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
+              <TouchableOpacity onPress={submitTrip} disabled={submitting || !termsAccepted}
+                style={{ marginTop: 8, borderRadius: 12, overflow: "hidden", opacity: termsAccepted ? 1 : 0.45 }}
+                activeOpacity={0.85}>
+                <LinearGradient
+                  colors={termsAccepted ? [ACCENT, ACCENT2] : ["#666", "#888"]}
+                  start={{ x:0,y:0 }} end={{ x:1,y:0 }}
+                  style={s.submitBtn}>
                   {submitting
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <>
-                        <MaterialCommunityIcons name={vehicleType === "delivery" ? "package-variant-closed" : "car-arrow-right"} size={18} color="#fff" />
+                        <MaterialCommunityIcons
+                          name={vehicleType === "delivery" ? "package-variant-closed" : "car-arrow-right"}
+                          size={18} color="#fff" />
                         <Text style={s.submitBtnText}>
                           {vehicleType === "delivery" ? "إرسال طلب التوصيل" :
                            vehicleType === "rickshaw"  ? "طلب مشوار ركشة" : "طلب مشوار سيارة"}
@@ -602,6 +683,12 @@ export default function TransportScreen() {
                       </>}
                 </LinearGradient>
               </TouchableOpacity>
+
+              {!termsAccepted && (
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC2626", textAlign: "center", marginTop: 6 }}>
+                  ✋ يجب الموافقة على الشروط القانونية أعلاه أولاً
+                </Text>
+              )}
             </View>
 
             {/* خطوات كيف تعمل */}
@@ -733,6 +820,121 @@ export default function TransportScreen() {
         )}
 
       </ScrollView>
+
+      {/* ══ مودال الشروط القانونية التفصيلية ══ */}
+      <Modal visible={showLegalModal} transparent animationType="slide" onRequestClose={() => setShowLegalModal(false)}>
+        <Pressable style={lm.backdrop} onPress={() => setShowLegalModal(false)}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={lm.sheet}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={lm.handle} />
+
+              {/* الرأس */}
+              <LinearGradient colors={["#7C0A0A25", "#DC262610"]} style={lm.headerGrad}>
+                <MaterialCommunityIcons name="shield-alert" size={32} color="#DC2626" />
+                <View style={{ flex: 1 }}>
+                  <Text style={lm.headerTitle}>شروط استخدام خدمة الترحال</Text>
+                  <Text style={lm.headerSub}>يُعدّ قبولك للطلب موافقةً على هذه الشروط</Text>
+                </View>
+              </LinearGradient>
+
+              <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+
+                {/* المادة الأولى */}
+                <View style={lm.article}>
+                  <View style={lm.articleHeader}>
+                    <MaterialCommunityIcons name="handshake" size={18} color="#DC2626" />
+                    <Text style={lm.articleTitle}>أولاً — الاتفاق على الأجرة</Text>
+                  </View>
+                  <Text style={lm.articleBody}>
+                    التعرفة المعروضة في التطبيق هي قيمة تقديرية مرجعية فقط. يلتزم المستخدم بالاتفاق الصريح مع السائق على القيمة النهائية للأجرة قبل بدء أي رحلة أو استلام أي طلب توصيل.
+                    {"\n\n"}
+                    لا يجوز البدء في الرحلة أو تسلُّم البضاعة قبل الوصول إلى اتفاق واضح ومؤكَّد بين الطرفين.
+                  </Text>
+                </View>
+
+                <View style={lm.divider} />
+
+                {/* المادة الثانية */}
+                <View style={lm.article}>
+                  <View style={lm.articleHeader}>
+                    <MaterialCommunityIcons name="account-cancel" size={18} color="#DC2626" />
+                    <Text style={lm.articleTitle}>ثانياً — التبعات الفورية للإخلال</Text>
+                  </View>
+                  <Text style={lm.articleBody}>
+                    يُعدّ رفض سداد الأجرة المتفق عليها أو التقليل منها بعد انتهاء الرحلة إخلالاً جسيماً بشروط المنصة، ويُعرّض المستخدم لما يلي فور توثيق الحادثة:
+                  </Text>
+                  {[
+                    "تعليق حساب المستخدم تعليقاً فورياً ومؤقتاً ريثما تُحسم المسألة.",
+                    "تسجيل مخالفة رسمية في سجل الحساب تؤثر على تقييمه العام.",
+                    "الحرمان من استخدام الخدمة في حال تكرار المخالفة.",
+                  ].map((item, i) => (
+                    <View key={i} style={lm.bulletRow}>
+                      <View style={lm.bullet} />
+                      <Text style={lm.bulletText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={lm.divider} />
+
+                {/* المادة الثالثة */}
+                <View style={lm.article}>
+                  <View style={lm.articleHeader}>
+                    <MaterialCommunityIcons name="gavel" size={18} color="#DC2626" />
+                    <Text style={lm.articleTitle}>ثالثاً — المساءلة القانونية</Text>
+                  </View>
+                  <Text style={lm.articleBody}>
+                    في حال تقديم السائق شكوى رسمية موثَّقة ضد المستخدم، تحتفظ منصة حصاحيصاوي بحق اتخاذ الإجراءات التالية:
+                  </Text>
+                  {[
+                    "توثيق بيانات الرحلة كاملةً (الوقت، الموقع، الأطراف) وتقديمها للجهات الرسمية.",
+                    "التعاون مع الجهات الأمنية والقضائية المختصة في حال المطالبة القانونية.",
+                    "إحالة الملف إلى الجهة القانونية للمنصة للفصل فيه وفق القانون الساري.",
+                  ].map((item, i) => (
+                    <View key={i} style={lm.bulletRow}>
+                      <View style={lm.bullet} />
+                      <Text style={lm.bulletText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={lm.divider} />
+
+                {/* المادة الرابعة */}
+                <View style={lm.article}>
+                  <View style={lm.articleHeader}>
+                    <MaterialCommunityIcons name="shield-check" size={18} color="#3EFF9C" />
+                    <Text style={[lm.articleTitle, { color: "#3EFF9C" }]}>رابعاً — حقوق المستخدم</Text>
+                  </View>
+                  <Text style={lm.articleBody}>
+                    في حال وقوع نزاع، يحق للمستخدم التواصل مع إدارة المنصة لتقديم روايته وأدلته. تلتزم المنصة بالحياد التام والتحقيق في كلا الطرفين قبل اتخاذ أي قرار نهائي.
+                    {"\n\n"}
+                    للتواصل: يمكنك الإبلاغ عن أي إشكالية عبر قسم البلاغات داخل التطبيق.
+                  </Text>
+                </View>
+
+              </ScrollView>
+
+              {/* أزرار الإجراء */}
+              <View style={lm.footer}>
+                <TouchableOpacity
+                  onPress={() => { setTermsAccepted(true); setShowLegalModal(false); }}
+                  style={lm.acceptBtn}
+                  activeOpacity={0.85}>
+                  <LinearGradient colors={["#16A34A", "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={lm.acceptGrad}>
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={lm.acceptText}>قرأت وأوافق على الشروط</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowLegalModal(false)} style={lm.closeBtn}>
+                  <Text style={lm.closeBtnText}>إغلاق</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -1005,4 +1207,49 @@ const tc = StyleSheet.create({
   footerRow:  { flexDirection: "row-reverse", justifyContent: "space-between", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
   dateText:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   driverText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+});
+
+// ─── أنماط بطاقة التحذير القانوني (lw = legal warning) ──────────────────────
+const lw = StyleSheet.create({
+  card:            { borderRadius: 16, overflow: "hidden", marginVertical: 12, borderWidth: 1.5, borderColor: "#DC262640" },
+  gradient:        { padding: 16 },
+  headerRow:       { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 12 },
+  iconWrap:        { width: 40, height: 40, borderRadius: 20, backgroundColor: "#DC262618", alignItems: "center", justifyContent: "center" },
+  title:           { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#DC2626", textAlign: "right" },
+  subtitle:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC262699", textAlign: "right" },
+  readMoreBtn:     { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "#DC262615", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  readMoreText:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#DC2626" },
+  divider:         { height: 1, backgroundColor: "#DC262625", marginVertical: 12 },
+  ruleRow:         { flexDirection: "row-reverse", gap: 10, marginBottom: 10, alignItems: "flex-start" },
+  ruleIconWrap:    { width: 28, height: 28, borderRadius: 14, backgroundColor: "#DC262614", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  ruleTitle:       { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#DC2626", textAlign: "right", marginBottom: 3 },
+  ruleBody:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  checkRow:        { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" },
+  checkbox:        { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#DC2626", alignItems: "center", justifyContent: "center", marginTop: 1, backgroundColor: "transparent" },
+  checkboxChecked: { backgroundColor: "#DC2626", borderColor: "#DC2626" },
+  checkText:       { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+});
+
+// ─── أنماط مودال الشروط القانونية (lm = legal modal) ────────────────────────
+const lm = StyleSheet.create({
+  backdrop:      { flex: 1, backgroundColor: "#000000BB", justifyContent: "flex-end" },
+  sheet:         { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 30 },
+  handle:        { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginTop: 12, marginBottom: 4 },
+  headerGrad:    { flexDirection: "row-reverse", gap: 12, alignItems: "center", padding: 18 },
+  headerTitle:   { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#DC2626", textAlign: "right" },
+  headerSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC262299", textAlign: "right" },
+  article:       { paddingHorizontal: 18, paddingVertical: 10 },
+  articleHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 8 },
+  articleTitle:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#DC2626", textAlign: "right" },
+  articleBody:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
+  divider:       { height: 1, backgroundColor: Colors.divider, marginHorizontal: 18 },
+  bulletRow:     { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", marginTop: 8 },
+  bullet:        { width: 6, height: 6, borderRadius: 3, backgroundColor: "#DC2626", marginTop: 7 },
+  bulletText:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+  footer:        { padding: 18, gap: 10 },
+  acceptBtn:     { borderRadius: 12, overflow: "hidden" },
+  acceptGrad:    { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, padding: 14 },
+  acceptText:    { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  closeBtn:      { alignItems: "center", padding: 10 },
+  closeBtnText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
 });
