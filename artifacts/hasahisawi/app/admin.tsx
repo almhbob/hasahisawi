@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -366,6 +366,11 @@ export default function AdminDashboard() {
   const [updateForce, setUpdateForce]     = useState(false);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [savingUpdates, setSavingUpdates] = useState(false);
+
+  // ── Phone Shops (Admin) ──
+  const [adminPhoneShops, setAdminPhoneShops] = useState<any[]>([]);
+  const [loadingPhoneShops, setLoadingPhoneShops] = useState(false);
+  const [deletingPhoneShopId, setDeletingPhoneShopId] = useState<number | null>(null);
 
   // ── Student Libraries (Admin) ──
   const [adminLibraries, setAdminLibraries] = useState<any[]>([]);
@@ -788,6 +793,45 @@ export default function AdminDashboard() {
     finally { setLoadingUpdates(false); }
   }, []);
 
+  const loadAdminPhoneShops = useCallback(async () => {
+    setLoadingPhoneShops(true);
+    try {
+      const res = await apiFetch("/api/admin/phone-shops", token);
+      if (res.ok) { const d = await res.json(); setAdminPhoneShops(d.shops ?? []); }
+    } catch {}
+    finally { setLoadingPhoneShops(false); }
+  }, [token]);
+
+  const approvePhoneShop = useCallback(async (id: number, approved: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_approved:!approved }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_approved:!approved} : s));
+    } catch {}
+  }, [token]);
+
+  const verifyPhoneShop = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_verified:!verified }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_verified:!verified} : s));
+    } catch {}
+  }, [token]);
+
+  const featurePhoneShop = useCallback(async (id: number, featured: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_featured:!featured }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_featured:!featured} : s));
+    } catch {}
+  }, [token]);
+
+  const deletePhoneShop = useCallback(async (id: number) => {
+    setDeletingPhoneShopId(id);
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"DELETE" });
+      setAdminPhoneShops(prev => prev.filter(s => s.id!==id));
+    } catch {}
+    finally { setDeletingPhoneShopId(null); }
+  }, [token]);
+
   const loadAdminLibraries = useCallback(async () => {
     setLoadingAdminLibs(true);
     try {
@@ -950,6 +994,7 @@ export default function AdminDashboard() {
     if (tab === "updates")         loadUpdates();
     if (tab === "libraries")       loadAdminLibraries();
     if (tab === "merchants_admin") loadAdminMerchants();
+    if (tab === "phone_shops")     loadAdminPhoneShops();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -1352,6 +1397,7 @@ export default function AdminDashboard() {
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
+    { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -4085,6 +4131,120 @@ export default function AdminDashboard() {
                     {deletingMerchantId === m.id
                       ? <ActivityIndicator size="small" color={Colors.danger} />
                       : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة محلات الهواتف ══ */}
+      {tab === "phone_shops" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Summary bar */}
+          <View style={{ flexDirection:"row-reverse", gap:10, marginBottom:16 }}>
+            {[
+              { label:"الكل",      val: adminPhoneShops.length,                             color:"#7C3AED" },
+              { label:"بانتظار الموافقة", val: adminPhoneShops.filter(s=>!s.is_approved).length, color:"#F59E0B" },
+              { label:"مفعّلة",    val: adminPhoneShops.filter(s=>s.is_approved).length,    color:"#10B981" },
+            ].map(stat=>(
+              <View key={stat.label} style={{ flex:1, backgroundColor:Colors.cardBg, borderRadius:14, padding:12, alignItems:"center", borderWidth:1, borderColor:Colors.divider }}>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:22, color:stat.color }}>{stat.val}</Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"center" }}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+          {loadingPhoneShops ? (
+            <ActivityIndicator color="#7C3AED" style={{ marginTop: 40 }} />
+          ) : adminPhoneShops.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems:"center", paddingVertical:60 }}>
+              <MaterialCommunityIcons name="cellphone-off" size={56} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
+              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:15, color:Colors.textMuted, textAlign:"center" }}>لا توجد متاجر هواتف مسجّلة</Text>
+            </Animated.View>
+          ) : (
+            adminPhoneShops.map((shop, i) => (
+              <Animated.View key={shop.id} entering={FadeInDown.delay(i*60).springify()} style={[s.card, { marginBottom:12, borderLeftWidth:3, borderLeftColor: shop.is_approved?"#10B981":"#F59E0B" }]}>
+                {/* Header */}
+                <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, marginBottom:12 }}>
+                  <View style={{ width:52,height:52,borderRadius:16,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center" }}>
+                    <Text style={{ fontSize:26 }}>{shop.logo_emoji}</Text>
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                      <Text style={[s.cardTitle, { fontSize:15 }]}>{shop.shop_name}</Text>
+                      {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#7C3AED" />}
+                      {shop.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
+                    </View>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>
+                      {shop.owner_name} · {shop.phone ?? shop.whatsapp ?? "—"}
+                    </Text>
+                    {shop.address && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right" }}>{shop.address}</Text>}
+                  </View>
+                  <View style={{ paddingHorizontal:8, paddingVertical:4, borderRadius:8, backgroundColor: shop.is_approved?"#10B98120":"#F59E0B20" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color: shop.is_approved?"#10B981":"#F59E0B" }}>
+                      {shop.is_approved?"مفعّل":"بانتظار الموافقة"}
+                    </Text>
+                  </View>
+                </View>
+                {/* Specialties */}
+                {shop.specialties?.length > 0 && (
+                  <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+                    {shop.specialties.slice(0,5).map((sp: string)=>(
+                      <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#7C3AED12" }}>
+                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Stats */}
+                <View style={{ flexDirection:"row-reverse", gap:8, marginBottom:12 }}>
+                  <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:Colors.textSecondary }}>
+                      {shop.total_products ?? 0} منتج
+                    </Text>
+                  </View>
+                  <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted }}>
+                      {new Date(shop.created_at).toLocaleDateString("ar")}
+                    </Text>
+                  </View>
+                </View>
+                {/* Actions */}
+                <View style={{ flexDirection:"row-reverse", gap:6, flexWrap:"wrap" }}>
+                  <TouchableOpacity onPress={()=>approvePhoneShop(shop.id, shop.is_approved)}
+                    style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
+                      backgroundColor: shop.is_approved?Colors.bg:"#10B98115", borderWidth:1,
+                      borderColor: shop.is_approved?Colors.divider:"#10B98140" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_approved?Colors.textMuted:"#10B981" }}>
+                      {shop.is_approved?"إلغاء التفعيل":"تفعيل المتجر"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>verifyPhoneShop(shop.id, shop.is_verified)}
+                    style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
+                      backgroundColor: shop.is_verified?Colors.bg:"#7C3AED15", borderWidth:1,
+                      borderColor: shop.is_verified?Colors.divider:"#7C3AED40" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_verified?Colors.textMuted:"#7C3AED" }}>
+                      {shop.is_verified?"إلغاء التوثيق":"توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>featurePhoneShop(shop.id, shop.is_featured)}
+                    style={{ paddingVertical:9, paddingHorizontal:12, borderRadius:10, alignItems:"center",
+                      backgroundColor: shop.is_featured?"#F0A50015":Colors.bg, borderWidth:1,
+                      borderColor: shop.is_featured?"#F0A50040":Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_featured?"#F0A500":Colors.textMuted }}>
+                      {shop.is_featured?"✦ مميّز":"تمييز"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>Alert.alert("حذف المتجر",`حذف "${shop.shop_name}"؟`,[
+                    { text:"إلغاء", style:"cancel" },
+                    { text:"حذف", style:"destructive", onPress:()=>deletePhoneShop(shop.id) }
+                  ])} disabled={deletingPhoneShopId===shop.id}
+                    style={{ paddingVertical:9, paddingHorizontal:12, borderRadius:10, alignItems:"center",
+                      backgroundColor:Colors.danger+"15", borderWidth:1, borderColor:Colors.danger+"40" }}>
+                    {deletingPhoneShopId===shop.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={17} color={Colors.danger} />}
                   </TouchableOpacity>
                 </View>
               </Animated.View>

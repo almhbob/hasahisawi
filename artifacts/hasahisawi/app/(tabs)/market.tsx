@@ -109,6 +109,82 @@ const MERCHANT_TAGS = [
   "استشارة مجانية","حجز مسبق","منتجات طبيعية","صنع يدوي",
 ];
 
+// ─── Phone Shops Types & Constants ──────────────────────────────────────────
+const PHONE_COLOR = "#0F172A";
+const PHONE_ACCENT = "#6366F1";
+
+type PhoneCondition = "new" | "used" | "refurbished";
+
+type PhoneShop = {
+  id: number;
+  user_id?: number;
+  shop_name: string;
+  logo_emoji: string;
+  owner_name: string;
+  phone?: string;
+  whatsapp?: string;
+  address?: string;
+  description?: string;
+  specialties: string[];
+  working_hours?: string;
+  facebook?: string;
+  is_verified: boolean;
+  is_featured: boolean;
+  is_approved: boolean;
+  product_count: number;
+  created_at: string;
+};
+
+type PhoneProduct = {
+  id: number;
+  shop_id: number;
+  emoji: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  condition: PhoneCondition;
+  price?: number;
+  original_price?: number;
+  description?: string;
+  color?: string;
+  storage?: string;
+  ram?: string;
+  battery?: string;
+  screen_size?: string;
+  camera?: string;
+  tags: string[];
+  is_available: boolean;
+  is_featured: boolean;
+  created_at: string;
+};
+
+const PHONE_BRANDS = [
+  { key:"all",       label:"الكل",       emoji:"📱" },
+  { key:"iPhone",    label:"آيفون",      emoji:"🍎" },
+  { key:"Samsung",   label:"سامسونج",    emoji:"🌟" },
+  { key:"Tecno",     label:"تيكنو",      emoji:"🔵" },
+  { key:"Infinix",   label:"إنفينكس",   emoji:"⚡" },
+  { key:"Huawei",    label:"هواوي",      emoji:"🌸" },
+  { key:"Nokia",     label:"نوكيا",      emoji:"🏛️" },
+  { key:"Xiaomi",    label:"شاومي",      emoji:"🔴" },
+  { key:"Other",     label:"أخرى",       emoji:"📦" },
+];
+
+const PHONE_CONDITIONS: { key: PhoneCondition | "all"; label: string; color: string }[] = [
+  { key:"all",         label:"الكل",     color: PHONE_ACCENT },
+  { key:"new",         label:"جديد",     color:"#10B981" },
+  { key:"used",        label:"مستعمل",  color:"#F59E0B" },
+  { key:"refurbished", label:"مجدد",     color:"#3B82F6" },
+];
+
+const PHONE_SPECIALTIES = ["iPhone","Samsung","Tecno","Infinix","Huawei","Nokia","Xiaomi","iPad","Accessories","Repairs"];
+
+const PRODUCT_EMOJIS = ["📱","🍎","💻","🖥️","⌚","🎧","🔋","📷","🎮","📡","🔌","💾"];
+
+const STORAGE_OPTIONS = ["16GB","32GB","64GB","128GB","256GB","512GB","1TB"];
+const RAM_OPTIONS = ["2GB","3GB","4GB","6GB","8GB","12GB","16GB"];
+const PHONE_COLORS_LIST = ["أسود","أبيض","أزرق","أخضر","وردي","ذهبي","رمادي","بنفسجي","أحمر"];
+
 // ─── Static Data ─────────────────────────────────────────────────────────────
 
 const FAMILY_CATS = [
@@ -1106,7 +1182,7 @@ export default function MarketScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [tab, setTab] = useState<"family" | "auction" | "carpentry" | "merchants">("family");
+  const [tab, setTab] = useState<"family" | "auction" | "carpentry" | "merchants" | "phones">("family");
   const [familyItems, setFamilyItems] = useState<FamilyItem[]>([]);
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>([]);
   const [carpentryItems, setCarpentryItems] = useState<CarpentryItem[]>([]);
@@ -1164,6 +1240,158 @@ export default function MarketScreen() {
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setMerchantSubmitting(false); }
   };
 
+  // ── Phone Shops State ──────────────────────────────────────────────────────
+  const [phoneShops, setPhoneShops]           = useState<PhoneShop[]>([]);
+  const [phoneSearch, setPhoneSearch]         = useState("");
+  const [phoneBrand, setPhoneBrand]           = useState("all");
+  const [phoneLoading, setPhoneLoading]       = useState(false);
+  const [selectedShop, setSelectedShop]       = useState<PhoneShop | null>(null);
+  const [shopProducts, setShopProducts]       = useState<PhoneProduct[]>([]);
+  const [productsCond, setProductsCond]       = useState<"all" | PhoneCondition>("all");
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [shopDetailVisible, setShopDetailVisible] = useState(false);
+
+  // My shop (owner dashboard)
+  const [myShop, setMyShop]                   = useState<PhoneShop | null>(null);
+  const [myProducts, setMyProducts]           = useState<PhoneProduct[]>([]);
+  const [myShopLoading, setMyShopLoading]     = useState(false);
+  const [myShopVisible, setMyShopVisible]     = useState(false);
+
+  // Register shop modal
+  const [phoneRegModal, setPhoneRegModal]     = useState(false);
+  const [phoneRegSuccess, setPhoneRegSuccess] = useState(false);
+  const [phoneRegSubmitting, setPhoneRegSubmitting] = useState(false);
+  const [phoneRegForm, setPhoneRegForm]       = useState({
+    shop_name:"", owner_name:"", phone:"", whatsapp:"",
+    address:"", description:"", working_hours:"", facebook:"",
+    logo_emoji:"📱", specialties:[] as string[],
+  });
+
+  // Add/edit product modal
+  const [prodModal, setProdModal]             = useState(false);
+  const [editingProduct, setEditingProduct]   = useState<PhoneProduct | null>(null);
+  const [prodSubmitting, setProdSubmitting]   = useState(false);
+  const [prodForm, setProdForm]               = useState({
+    emoji:"📱", name:"", brand:"", model:"", condition:"new" as PhoneCondition,
+    price:"", original_price:"", description:"",
+    color:"", storage:"", ram:"", battery:"", screen_size:"", camera:"",
+    tags:[] as string[], is_featured:false,
+  });
+
+  const resetProdForm = () => setProdForm({
+    emoji:"📱", name:"", brand:"", model:"", condition:"new",
+    price:"", original_price:"", description:"",
+    color:"", storage:"", ram:"", battery:"", screen_size:"", camera:"",
+    tags:[], is_featured:false,
+  });
+
+  const loadPhoneShops = async () => {
+    setPhoneLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (phoneBrand !== "all") params.set("specialty", phoneBrand);
+      if (phoneSearch.trim()) params.set("q", phoneSearch.trim());
+      const res = await fetch(`${BASE_URL}/api/phone-shops?${params}`);
+      if (res.ok) { const data = await res.json(); setPhoneShops(data.shops ?? []); }
+    } catch {} finally { setPhoneLoading(false); }
+  };
+
+  const loadMyPhoneShop = async () => {
+    if (!auth.token) return;
+    setMyShopLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/my-phone-shop`, {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMyShop(data.shop);
+        setMyProducts(data.products ?? []);
+      }
+    } catch {} finally { setMyShopLoading(false); }
+  };
+
+  const loadShopProducts = async (shopId: number, cond: "all" | PhoneCondition = "all") => {
+    setProductsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (cond !== "all") params.set("condition", cond);
+      const res = await fetch(`${BASE_URL}/api/phone-shops/${shopId}/products?${params}`);
+      if (res.ok) { const data = await res.json(); setShopProducts(data.products ?? []); }
+    } catch {} finally { setProductsLoading(false); }
+  };
+
+  const openShop = (shop: PhoneShop) => {
+    setSelectedShop(shop);
+    setProductsCond("all");
+    setShopProducts([]);
+    setShopDetailVisible(true);
+    loadShopProducts(shop.id, "all");
+  };
+
+  const submitPhoneReg = async () => {
+    if (!phoneRegForm.shop_name.trim()) { Alert.alert("خطأ", "اسم المحل مطلوب"); return; }
+    if (!phoneRegForm.owner_name.trim()) { Alert.alert("خطأ", "اسم المالك مطلوب"); return; }
+    if (!phoneRegForm.phone.trim() && !phoneRegForm.whatsapp.trim()) { Alert.alert("خطأ", "رقم التواصل مطلوب"); return; }
+    setPhoneRegSubmitting(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/phone-shops`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", ...(auth.token ? { Authorization:`Bearer ${auth.token}` } : {}) },
+        body: JSON.stringify({ ...phoneRegForm }),
+      });
+      if (res.ok) {
+        setPhoneRegSuccess(true);
+        loadMyPhoneShop();
+      } else {
+        const err = await res.json().catch(()=>({}));
+        Alert.alert("خطأ", err.error ?? "تعذّر إرسال الطلب");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setPhoneRegSubmitting(false); }
+  };
+
+  const submitProduct = async () => {
+    if (!myShop) return;
+    if (!prodForm.name.trim()) { Alert.alert("خطأ", "اسم المنتج مطلوب"); return; }
+    setProdSubmitting(true);
+    try {
+      const body = {
+        ...prodForm,
+        price: prodForm.price ? Number(prodForm.price) : undefined,
+        original_price: prodForm.original_price ? Number(prodForm.original_price) : undefined,
+      };
+      const url = editingProduct
+        ? `${BASE_URL}/api/phone-shops/${myShop.id}/products/${editingProduct.id}`
+        : `${BASE_URL}/api/phone-shops/${myShop.id}/products`;
+      const res = await fetch(url, {
+        method: editingProduct ? "PUT" : "POST",
+        headers:{ "Content-Type":"application/json", Authorization:`Bearer ${auth.token}` },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setProdModal(false);
+        setEditingProduct(null);
+        resetProdForm();
+        loadMyPhoneShop();
+      } else {
+        const err = await res.json().catch(()=>({}));
+        Alert.alert("خطأ", err.error ?? "تعذّر حفظ المنتج");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setProdSubmitting(false); }
+  };
+
+  const deleteProduct = async (productId: number) => {
+    if (!myShop) return;
+    try {
+      await fetch(`${BASE_URL}/api/phone-shops/${myShop.id}/products/${productId}`, {
+        method:"DELETE", headers:{ Authorization:`Bearer ${auth.token}` }
+      });
+      setMyProducts(prev => prev.filter(p => p.id !== productId));
+    } catch {}
+  };
+
   const FAMILY_CATS = useMemo(() => [
     { key: "all", label: t("common", "all") },
     { key: "food", label: tr("أغذية", "Food") },
@@ -1212,6 +1440,7 @@ export default function MarketScreen() {
   useEffect(() => { load(); }, []);
   useFocusEffect(useCallback(() => { load(); }, []));
   useEffect(() => { if (tab === "merchants") loadMerchants(); }, [tab, merchantCat, merchantSearch]);
+  useEffect(() => { if (tab === "phones") { loadPhoneShops(); if (auth.token) loadMyPhoneShop(); } }, [tab, phoneBrand, phoneSearch]);
 
   const saveFamily = async (data: Omit<FamilyItem, "id" | "createdAt" | "status">): Promise<void> => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1310,7 +1539,9 @@ export default function MarketScreen() {
     : tab === "auction"
     ? auctionItems.filter(i => i.status === "available").length
     : tab === "merchants"
-    ? merchants.filter(m => true).length
+    ? merchants.length
+    : tab === "phones"
+    ? phoneShops.length
     : carpentryItems.filter(i => i.status === "available").length;
 
   return (
@@ -1384,6 +1615,14 @@ export default function MarketScreen() {
           <MaterialCommunityIcons name="store-marker-outline" size={15} color={tab === "merchants" ? "#6366F1" : Colors.textMuted} />
           <Text style={[styles.switchTabText, tab === "merchants" && { color: "#6366F1" }]}>مساحة التجار</Text>
         </AnimatedPress>
+        <AnimatedPress
+          style={[styles.switchTab, tab === "phones" && styles.switchTabActive, tab === "phones" && { borderColor: "#7C3AED" }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+          onPress={() => setTab("phones")}
+          scaleDown={0.92}
+        >
+          <MaterialCommunityIcons name="cellphone-marker" size={15} color={tab === "phones" ? "#7C3AED" : Colors.textMuted} />
+          <Text style={[styles.switchTabText, tab === "phones" && { color: "#7C3AED" }]}>محلات الهواتف</Text>
+        </AnimatedPress>
       </View>
 
       {/* Category Filter */}
@@ -1393,7 +1632,7 @@ export default function MarketScreen() {
         style={styles.filterBar}
         contentContainerStyle={[styles.filterBarContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
-        {tab !== "merchants" && (tab === "family" ? FAMILY_CATS : tab === "auction" ? AUCTION_CATS : CARP_CATS).map((c) => {
+        {tab !== "merchants" && tab !== "phones" && (tab === "family" ? FAMILY_CATS : tab === "auction" ? AUCTION_CATS : CARP_CATS).map((c) => {
           const active = tab === "family" ? familyCat === c.key : tab === "auction" ? auctionCat === c.key : carpEntryCat === c.key;
           const activeColor = tab === "family" ? Colors.primary : tab === "auction" ? Colors.violet : CARPENTRY_ACCENT;
           return (
@@ -1768,6 +2007,657 @@ export default function MarketScreen() {
                   </Animated.View>
                 );
               })
+            )}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          📱 محلات الهواتف
+      ══════════════════════════════════════════════ */}
+      {tab === "phones" && (
+        <View style={{ flex:1 }}>
+
+          {/* ── تسجيل متجر ── */}
+          <Modal visible={phoneRegModal} transparent animationType="slide" onRequestClose={()=>{ setPhoneRegModal(false); setPhoneRegSuccess(false); }}>
+            <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
+              <Animated.View entering={FadeIn.duration(200)}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, padding:24, maxHeight:"94%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                  {phoneRegSuccess ? (
+                    <View style={{ alignItems:"center", paddingVertical:36, gap:16 }}>
+                      <View style={{ width:90,height:90,borderRadius:26,backgroundColor:"#7C3AED20",justifyContent:"center",alignItems:"center" }}>
+                        <Text style={{ fontSize:42 }}>📱</Text>
+                      </View>
+                      <Text style={{ fontFamily:"Cairo_700Bold", fontSize:20, color:Colors.textPrimary, textAlign:"center" }}>طلبك في الطريق!</Text>
+                      <Text style={{ fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textSecondary, textAlign:"center", lineHeight:22, maxWidth:290 }}>
+                        ستراجع الإدارة طلبك وتنشط متجرك قريباً. يمكنك إضافة منتجاتك فور التفعيل.
+                      </Text>
+                      <TouchableOpacity onPress={()=>{ setPhoneRegModal(false); setPhoneRegSuccess(false); }}
+                        style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:14, paddingHorizontal:40 }}>
+                        <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>حسناً، شكراً!</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                        <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
+                          <View style={{ width:44,height:44,borderRadius:14,backgroundColor:"#7C3AED20",justifyContent:"center",alignItems:"center" }}>
+                            <MaterialCommunityIcons name="cellphone-cog" size={22} color="#7C3AED" />
+                          </View>
+                          <View>
+                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>تسجيل متجر هواتف</Text>
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }}>ستتم المراجعة خلال 24 ساعة</Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity onPress={()=>setPhoneRegModal(false)}>
+                          <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:16 }}>
+                        {/* Emoji */}
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>أيقونة المتجر</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                          {["📱","🍎","🌟","🔵","⚡","🌸","🔴","🔧","🏪"].map(em=>(
+                            <TouchableOpacity key={em} onPress={()=>setPhoneRegForm(f=>({...f,logo_emoji:em}))}
+                              style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
+                                backgroundColor: phoneRegForm.logo_emoji===em?"#7C3AED20":Colors.cardBg,
+                                borderWidth:2, borderColor: phoneRegForm.logo_emoji===em?"#7C3AED":Colors.divider }}>
+                              <Text style={{ fontSize:22 }}>{em}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                        {/* Fields */}
+                        {([
+                          { label:"اسم المتجر *",       key:"shop_name",     ph:"مثال: متجر العقيد للهواتف" },
+                          { label:"اسم صاحب المتجر *",  key:"owner_name",    ph:"الاسم الكامل" },
+                          { label:"رقم الهاتف *",        key:"phone",         ph:"+249XXXXXXXXX" },
+                          { label:"واتساب",              key:"whatsapp",      ph:"+249XXXXXXXXX" },
+                          { label:"العنوان",             key:"address",       ph:"الحي / الشارع" },
+                          { label:"ساعات العمل",         key:"working_hours", ph:"مثال: ٨ص–١٢م، ٤م–١٢م" },
+                          { label:"فيسبوك",             key:"facebook",      ph:"رابط صفحة الفيسبوك" },
+                        ] as {label:string;key:keyof typeof phoneRegForm;ph:string}[]).map(f=>(
+                          <View key={f.key} style={{ marginBottom:12 }}>
+                            <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>{f.label}</Text>
+                            <TextInput value={phoneRegForm[f.key] as string} onChangeText={v=>setPhoneRegForm(pf=>({...pf,[f.key]:v}))}
+                              placeholder={f.ph} placeholderTextColor={Colors.textMuted}
+                              style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                          </View>
+                        ))}
+                        {/* Specialties */}
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>تخصصات المتجر</Text>
+                        <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+                          {PHONE_SPECIALTIES.map(sp=>{
+                            const on = phoneRegForm.specialties.includes(sp);
+                            return (
+                              <TouchableOpacity key={sp} onPress={()=>setPhoneRegForm(pf=>({
+                                ...pf, specialties: on ? pf.specialties.filter(s=>s!==sp) : [...pf.specialties, sp]
+                              }))} style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
+                                backgroundColor: on?"#7C3AED20":Colors.cardBg, borderWidth:1, borderColor: on?"#7C3AED60":Colors.divider }}>
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: on?"#7C3AED":Colors.textMuted }}>{sp}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {/* Description */}
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>وصف المتجر</Text>
+                        <TextInput value={phoneRegForm.description} multiline numberOfLines={3}
+                          onChangeText={v=>setPhoneRegForm(f=>({...f,description:v}))}
+                          placeholder="أذكر أبرز الماركات والخدمات التي تقدمها..." placeholderTextColor={Colors.textMuted}
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right", minHeight:80, textAlignVertical:"top", marginBottom:18 }} />
+                        <TouchableOpacity onPress={submitPhoneReg} disabled={phoneRegSubmitting}
+                          style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>
+                            {phoneRegSubmitting?"جارٍ الإرسال...":"إرسال طلب التسجيل"}
+                          </Text>
+                        </TouchableOpacity>
+                      </ScrollView>
+                    </>
+                  )}
+                </View>
+              </Animated.View>
+            </View>
+          </Modal>
+
+          {/* ── لوحة تحكم المتجر (صاحب المتجر) ── */}
+          <Modal visible={myShopVisible} transparent animationType="slide" onRequestClose={()=>setMyShopVisible(false)}>
+            <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
+              <Animated.View entering={FadeIn.duration(200)}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                  {/* Header */}
+                  <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
+                      <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
+                        <View style={{ width:50,height:50,borderRadius:16,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center" }}>
+                          <Text style={{ fontSize:26 }}>{myShop?.logo_emoji ?? "📱"}</Text>
+                        </View>
+                        <View>
+                          <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>{myShop?.shop_name}</Text>
+                            {myShop?.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#7C3AED" />}
+                          </View>
+                          <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4, marginTop:2 }}>
+                            <View style={{ width:8,height:8,borderRadius:4,backgroundColor: myShop?.is_approved?"#10B981":"#F59E0B" }} />
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }}>
+                              {myShop?.is_approved?"متجر مفعّل":"في انتظار موافقة الإدارة"}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity onPress={()=>setMyShopVisible(false)}>
+                        <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                    {/* Stats row */}
+                    <View style={{ flexDirection:"row-reverse", gap:12, marginTop:14 }}>
+                      {[
+                        { label:"المنتجات", val: myProducts.length, icon:"package-variant", color:"#7C3AED" },
+                        { label:"جديد", val: myProducts.filter(p=>p.condition==="new").length, icon:"star-circle", color:"#10B981" },
+                        { label:"مستعمل", val: myProducts.filter(p=>p.condition==="used").length, icon:"refresh-circle", color:"#F59E0B" },
+                      ].map(stat=>(
+                        <View key={stat.label} style={{ flex:1, backgroundColor:Colors.bg, borderRadius:14, padding:12, alignItems:"center", borderWidth:1, borderColor:Colors.divider }}>
+                          <MaterialCommunityIcons name={stat.icon as any} size={20} color={stat.color} style={{ marginBottom:4 }} />
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textPrimary }}>{stat.val}</Text>
+                          <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted }}>{stat.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                  {/* Products list */}
+                  <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:40 }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                      <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>منتجاتي</Text>
+                      <TouchableOpacity onPress={()=>{ setEditingProduct(null); resetProdForm(); setProdModal(true); }}
+                        style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:8 }}>
+                        <Ionicons name="add" size={18} color="#fff" />
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#fff" }}>منتج جديد</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {myShopLoading ? (
+                      <View style={{ alignItems:"center", paddingVertical:40 }}>
+                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
+                      </View>
+                    ) : myProducts.length === 0 ? (
+                      <View style={{ alignItems:"center", paddingVertical:40 }}>
+                        <MaterialCommunityIcons name="cellphone-off" size={52} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:15, color:Colors.textMuted, textAlign:"center" }}>لم تضف منتجات بعد</Text>
+                        <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", marginTop:6 }}>أضف أول منتج الآن وابدأ في الحصول على طلبات</Text>
+                      </View>
+                    ) : (
+                      myProducts.map((p, i) => {
+                        const cond = PHONE_CONDITIONS.find(c=>c.key===p.condition) ?? PHONE_CONDITIONS[1];
+                        return (
+                          <Animated.View key={p.id} entering={FadeInDown.delay(i*40).springify()}>
+                            <View style={{ flexDirection:"row-reverse", gap:12, backgroundColor:Colors.bg, borderRadius:16, padding:14, marginBottom:10, borderWidth:1, borderColor:Colors.divider }}>
+                              <View style={{ width:52,height:52,borderRadius:14,backgroundColor:"#7C3AED10",alignItems:"center",justifyContent:"center" }}>
+                                <Text style={{ fontSize:26 }}>{p.emoji}</Text>
+                              </View>
+                              <View style={{ flex:1 }}>
+                                <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary }}>{p.name}</Text>
+                                  <View style={{ paddingHorizontal:7, paddingVertical:2, borderRadius:6, backgroundColor:cond.color+"20" }}>
+                                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:cond.color }}>{cond.label}</Text>
+                                  </View>
+                                </View>
+                                {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right" }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
+                                <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
+                                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED" }}>
+                                    {p.price ? `${p.price.toLocaleString()} ج.س` : "غير محدد"}
+                                  </Text>
+                                  <View style={{ flexDirection:"row-reverse", gap:6 }}>
+                                    <TouchableOpacity onPress={()=>{
+                                      setEditingProduct(p);
+                                      setProdForm({
+                                        emoji:p.emoji, name:p.name, brand:p.brand||"", model:p.model||"",
+                                        condition:p.condition, price:String(p.price??""), original_price:String(p.original_price??""),
+                                        description:p.description||"", color:p.color||"", storage:p.storage||"",
+                                        ram:p.ram||"", battery:p.battery||"", screen_size:p.screen_size||"",
+                                        camera:p.camera||"", tags:p.tags||[], is_featured:p.is_featured,
+                                      });
+                                      setProdModal(true);
+                                    }} style={{ padding:8, borderRadius:10, backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.divider }}>
+                                      <Ionicons name="pencil-outline" size={15} color={Colors.textMuted} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={()=>Alert.alert("حذف المنتج","هل تريد حذف هذا المنتج؟",[
+                                      { text:"إلغاء", style:"cancel" },
+                                      { text:"حذف", style:"destructive", onPress:()=>deleteProduct(p.id) }
+                                    ])} style={{ padding:8, borderRadius:10, backgroundColor:Colors.danger+"15", borderWidth:1, borderColor:Colors.danger+"30" }}>
+                                      <Ionicons name="trash-outline" size={15} color={Colors.danger} />
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                              </View>
+                            </View>
+                          </Animated.View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+              </Animated.View>
+            </View>
+          </Modal>
+
+          {/* ── نموذج إضافة/تعديل منتج ── */}
+          <Modal visible={prodModal} transparent animationType="slide" onRequestClose={()=>{ setProdModal(false); setEditingProduct(null); }}>
+            <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
+              <Animated.View entering={FadeIn.duration(200)}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:28, borderTopRightRadius:28, height:"90%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                  <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider, flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
+                    <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>
+                      {editingProduct?"تعديل المنتج":"إضافة منتج جديد"}
+                    </Text>
+                    <TouchableOpacity onPress={()=>{ setProdModal(false); setEditingProduct(null); }}>
+                      <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:20, paddingBottom:30 }}>
+                    {/* Emoji */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>أيقونة المنتج</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                      {PRODUCT_EMOJIS.map(em=>(
+                        <TouchableOpacity key={em} onPress={()=>setProdForm(f=>({...f,emoji:em}))}
+                          style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
+                            backgroundColor: prodForm.emoji===em?"#7C3AED20":Colors.cardBg, borderWidth:2, borderColor: prodForm.emoji===em?"#7C3AED":Colors.divider }}>
+                          <Text style={{ fontSize:22 }}>{em}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* Condition */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>الحالة *</Text>
+                    <View style={{ flexDirection:"row-reverse", gap:8, marginBottom:14 }}>
+                      {[{key:"new",label:"جديد",color:"#10B981"},{key:"used",label:"مستعمل",color:"#F59E0B"},{key:"refurbished",label:"مجدد",color:"#3B82F6"}].map(c=>(
+                        <TouchableOpacity key={c.key} onPress={()=>setProdForm(f=>({...f,condition:c.key as PhoneCondition}))}
+                          style={{ flex:1, paddingVertical:10, borderRadius:12, alignItems:"center",
+                            backgroundColor: prodForm.condition===c.key?c.color+"20":Colors.cardBg,
+                            borderWidth:2, borderColor: prodForm.condition===c.key?c.color:Colors.divider }}>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:13, color: prodForm.condition===c.key?c.color:Colors.textMuted }}>{c.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {/* Basic fields */}
+                    {([
+                      { label:"اسم المنتج *",  key:"name",    ph:"مثال: iPhone 14 Pro Max" },
+                      { label:"الماركة",         key:"brand",   ph:"Apple، Samsung، Tecno..." },
+                      { label:"الموديل",         key:"model",   ph:"مثال: A54، Note 20" },
+                    ] as {label:string;key:keyof typeof prodForm;ph:string}[]).map(field=>(
+                      <View key={field.key} style={{ marginBottom:12 }}>
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>{field.label}</Text>
+                        <TextInput value={prodForm[field.key] as string} onChangeText={v=>setProdForm(f=>({...f,[field.key]:v}))}
+                          placeholder={field.ph} placeholderTextColor={Colors.textMuted}
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                      </View>
+                    ))}
+                    {/* Price row */}
+                    <View style={{ flexDirection:"row-reverse", gap:10, marginBottom:12 }}>
+                      <View style={{ flex:1 }}>
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>السعر (ج.س)</Text>
+                        <TextInput value={prodForm.price} onChangeText={v=>setProdForm(f=>({...f,price:v}))} keyboardType="numeric"
+                          placeholder="85000" placeholderTextColor={Colors.textMuted}
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED", borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                      </View>
+                      <View style={{ flex:1 }}>
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>السعر الأصلي</Text>
+                        <TextInput value={prodForm.original_price} onChangeText={v=>setProdForm(f=>({...f,original_price:v}))} keyboardType="numeric"
+                          placeholder="للخصم..." placeholderTextColor={Colors.textMuted}
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textMuted, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                      </View>
+                    </View>
+                    {/* Specs */}
+                    <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right", marginBottom:12, marginTop:4 }}>المواصفات التقنية</Text>
+                    {/* Color */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>اللون</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                      {PHONE_COLORS_LIST.map(cl=>(
+                        <TouchableOpacity key={cl} onPress={()=>setProdForm(f=>({...f,color:f.color===cl?"":cl}))}
+                          style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
+                            backgroundColor: prodForm.color===cl?"#7C3AED20":Colors.cardBg, borderWidth:1, borderColor: prodForm.color===cl?"#7C3AED60":Colors.divider }}>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: prodForm.color===cl?"#7C3AED":Colors.textMuted }}>{cl}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* Storage */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>التخزين</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                      {STORAGE_OPTIONS.map(s=>(
+                        <TouchableOpacity key={s} onPress={()=>setProdForm(f=>({...f,storage:f.storage===s?"":s}))}
+                          style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
+                            backgroundColor: prodForm.storage===s?"#10B98120":Colors.cardBg, borderWidth:1, borderColor: prodForm.storage===s?"#10B98160":Colors.divider }}>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.storage===s?"#10B981":Colors.textMuted }}>{s}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* RAM */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>الذاكرة RAM</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                      {RAM_OPTIONS.map(r=>(
+                        <TouchableOpacity key={r} onPress={()=>setProdForm(f=>({...f,ram:f.ram===r?"":r}))}
+                          style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
+                            backgroundColor: prodForm.ram===r?"#3B82F620":Colors.cardBg, borderWidth:1, borderColor: prodForm.ram===r?"#3B82F660":Colors.divider }}>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.ram===r?"#3B82F6":Colors.textMuted }}>{r}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* Other specs */}
+                    {([
+                      { label:"البطارية",     key:"battery",     ph:"مثال: 5000mAh" },
+                      { label:"حجم الشاشة",  key:"screen_size", ph:"مثال: 6.7 بوصة" },
+                      { label:"الكاميرا",    key:"camera",      ph:"مثال: 50MP + 12MP" },
+                    ] as {label:string;key:keyof typeof prodForm;ph:string}[]).map(field=>(
+                      <View key={field.key} style={{ marginBottom:12 }}>
+                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>{field.label}</Text>
+                        <TextInput value={prodForm[field.key] as string} onChangeText={v=>setProdForm(f=>({...f,[field.key]:v}))}
+                          placeholder={field.ph} placeholderTextColor={Colors.textMuted}
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                      </View>
+                    ))}
+                    {/* Description */}
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>وصف إضافي</Text>
+                    <TextInput value={prodForm.description} multiline numberOfLines={3} onChangeText={v=>setProdForm(f=>({...f,description:v}))}
+                      placeholder="معلومات إضافية عن المنتج..." placeholderTextColor={Colors.textMuted}
+                      style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right", minHeight:70, textAlignVertical:"top", marginBottom:20 }} />
+                    <TouchableOpacity onPress={submitProduct} disabled={prodSubmitting}
+                      style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
+                      <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>
+                        {prodSubmitting?"جارٍ الحفظ...":editingProduct?"حفظ التعديلات":"إضافة المنتج"}
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+              </Animated.View>
+            </View>
+          </Modal>
+
+          {/* ── تفاصيل المتجر وعرض المنتجات ── */}
+          <Modal visible={shopDetailVisible} transparent animationType="slide" onRequestClose={()=>setShopDetailVisible(false)}>
+            <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
+              <Animated.View entering={FadeIn.duration(200)}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                  {selectedShop && (
+                    <>
+                      {/* Shop header */}
+                      <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
+                        <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                          <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12 }}>
+                            <View style={{ width:60,height:60,borderRadius:18,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center",borderWidth:2,borderColor:selectedShop.is_featured?"#7C3AED40":"transparent" }}>
+                              <Text style={{ fontSize:30 }}>{selectedShop.logo_emoji}</Text>
+                            </View>
+                            <View>
+                              <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>{selectedShop.shop_name}</Text>
+                                {selectedShop.is_verified && <MaterialCommunityIcons name="check-decagram" size={18} color="#7C3AED" />}
+                              </View>
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"right" }}>{selectedShop.owner_name}</Text>
+                              <View style={{ flexDirection:"row-reverse", gap:4, flexWrap:"wrap", marginTop:4 }}>
+                                {selectedShop.specialties?.slice(0,3).map(sp=>(
+                                  <View key={sp} style={{ paddingHorizontal:8, paddingVertical:2, borderRadius:6, backgroundColor:"#7C3AED15" }}>
+                                    <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                          </View>
+                          <TouchableOpacity onPress={()=>setShopDetailVisible(false)}>
+                            <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+                          </TouchableOpacity>
+                        </View>
+                        {/* Info row */}
+                        <View style={{ gap:6 }}>
+                          {selectedShop.address && (
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
+                              <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, flex:1, textAlign:"right" }}>{selectedShop.address}</Text>
+                            </View>
+                          )}
+                          {selectedShop.working_hours && (
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
+                              <Ionicons name="time-outline" size={14} color={Colors.textMuted} />
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, flex:1, textAlign:"right" }}>{selectedShop.working_hours}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {/* Contact & Condition filter */}
+                        <View style={{ flexDirection:"row-reverse", gap:8, marginTop:14 }}>
+                          {selectedShop.phone && (
+                            <TouchableOpacity onPress={()=>require("react-native").Linking.openURL(`tel:${selectedShop.phone}`)}
+                              style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, backgroundColor:"#10B98118", borderRadius:12, paddingVertical:10, borderWidth:1, borderColor:"#10B98130" }}>
+                              <Ionicons name="call-outline" size={16} color="#10B981" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#10B981" }}>اتصال</Text>
+                            </TouchableOpacity>
+                          )}
+                          {selectedShop.whatsapp && (
+                            <TouchableOpacity onPress={()=>require("react-native").Linking.openURL(`https://wa.me/${selectedShop.whatsapp?.replace(/\D/g,"")}`)}
+                              style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, backgroundColor:"#25D36618", borderRadius:12, paddingVertical:10, borderWidth:1, borderColor:"#25D36630" }}>
+                              <MaterialCommunityIcons name="whatsapp" size={16} color="#25D366" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#25D366" }}>واتساب</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        {/* Condition filter */}
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginTop:12 }}>
+                          {PHONE_CONDITIONS.map(c=>(
+                            <TouchableOpacity key={c.key} onPress={()=>{ setProductsCond(c.key); loadShopProducts(selectedShop.id, c.key); }}
+                              style={{ paddingHorizontal:14, paddingVertical:7, borderRadius:20,
+                                backgroundColor: productsCond===c.key?c.color+"20":Colors.cardBg,
+                                borderWidth:1, borderColor: productsCond===c.key?c.color+"60":Colors.divider }}>
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: productsCond===c.key?c.color:Colors.textMuted }}>{c.label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                      {/* Products grid */}
+                      <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:40 }}>
+                        {productsLoading ? (
+                          <View style={{ alignItems:"center", paddingVertical:40 }}>
+                            <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
+                          </View>
+                        ) : shopProducts.length === 0 ? (
+                          <View style={{ alignItems:"center", paddingVertical:40 }}>
+                            <MaterialCommunityIcons name="cellphone-off" size={52} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
+                            <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:15, color:Colors.textMuted, textAlign:"center" }}>لا توجد منتجات في هذا القسم</Text>
+                          </View>
+                        ) : (
+                          <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:12 }}>
+                            {shopProducts.map((p, i) => {
+                              const cond = PHONE_CONDITIONS.find(c=>c.key===p.condition) ?? PHONE_CONDITIONS[1];
+                              const hasDiscount = p.original_price && p.price && p.original_price > p.price;
+                              return (
+                                <Animated.View key={p.id} entering={FadeInDown.delay(i*50).springify()}
+                                  style={{ width:"47%", backgroundColor:Colors.cardBg, borderRadius:18, borderWidth:1, borderColor: p.is_featured?"#7C3AED50":Colors.divider, overflow:"hidden" }}>
+                                  {p.is_featured && (
+                                    <View style={{ backgroundColor:"#7C3AED18", paddingVertical:4, alignItems:"center" }}>
+                                      <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:"#7C3AED" }}>⭐ مميّز</Text>
+                                    </View>
+                                  )}
+                                  <View style={{ padding:12 }}>
+                                    {/* Product emoji */}
+                                    <View style={{ alignItems:"center", marginBottom:10 }}>
+                                      <View style={{ width:64,height:64,borderRadius:18,backgroundColor:"#7C3AED10",alignItems:"center",justifyContent:"center" }}>
+                                        <Text style={{ fontSize:32 }}>{p.emoji}</Text>
+                                      </View>
+                                    </View>
+                                    {/* Condition badge */}
+                                    <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                                      <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:cond.color+"20" }}>
+                                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:cond.color }}>{cond.label}</Text>
+                                      </View>
+                                    </View>
+                                    {/* Name */}
+                                    <Text style={{ fontFamily:"Cairo_700Bold", fontSize:13, color:Colors.textPrimary, textAlign:"right", marginBottom:2 }} numberOfLines={2}>{p.name}</Text>
+                                    {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right", marginBottom:6 }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
+                                    {/* Specs chips */}
+                                    <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:4, marginBottom:8 }}>
+                                      {p.storage && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.storage}</Text></View>}
+                                      {p.ram && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.ram} RAM</Text></View>}
+                                      {p.color && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.color}</Text></View>}
+                                    </View>
+                                    {/* Price */}
+                                    <View style={{ flexDirection:"row-reverse", alignItems:"baseline", gap:6 }}>
+                                      {p.price ? (
+                                        <>
+                                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED" }}>{p.price.toLocaleString()}</Text>
+                                          <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color:Colors.textMuted }}>ج.س</Text>
+                                          {hasDiscount && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:10, color:Colors.textMuted, textDecorationLine:"line-through" }}>{p.original_price?.toLocaleString()}</Text>}
+                                        </>
+                                      ) : (
+                                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textMuted }}>السعر عند التواصل</Text>
+                                      )}
+                                    </View>
+                                  </View>
+                                </Animated.View>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </ScrollView>
+                    </>
+                  )}
+                </View>
+              </Animated.View>
+            </View>
+          </Modal>
+
+          {/* ── شريط البحث وأدوات التحكم ── */}
+          <View style={{ backgroundColor:Colors.cardBg, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
+            <View style={{ flexDirection:"row-reverse", gap:10, alignItems:"center", paddingHorizontal:16, paddingTop:12, paddingBottom:8 }}>
+              <View style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", gap:8, backgroundColor:Colors.bg, borderRadius:12, borderWidth:1, borderColor:Colors.divider, paddingHorizontal:12, paddingVertical:8 }}>
+                <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+                <TextInput value={phoneSearch} onChangeText={setPhoneSearch}
+                  placeholder="ابحث عن متجر أو ماركة..." placeholderTextColor={Colors.textMuted}
+                  style={{ flex:1, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, textAlign:"right" }} />
+                {phoneSearch.length>0 && <TouchableOpacity onPress={()=>setPhoneSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
+              </View>
+              {/* My shop or register button */}
+              {myShop ? (
+                <TouchableOpacity onPress={()=>{ loadMyPhoneShop(); setMyShopVisible(true); }}
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
+                  <MaterialCommunityIcons name="store-cog-outline" size={18} color="#fff" />
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>متجري</Text>
+                </TouchableOpacity>
+              ) : !auth.isGuest ? (
+                <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            {/* Brand filter */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
+              {PHONE_BRANDS.map(brand=>(
+                <TouchableOpacity key={brand.key} onPress={()=>setPhoneBrand(brand.key)}
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
+                    backgroundColor: phoneBrand===brand.key?"#7C3AED20":Colors.cardBg,
+                    borderWidth:1, borderColor: phoneBrand===brand.key?"#7C3AED60":Colors.divider }}>
+                  <Text style={{ fontSize:12 }}>{brand.emoji}</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: phoneBrand===brand.key?"#7C3AED":Colors.textMuted }}>{brand.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* ── قائمة المتاجر ── */}
+          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:130, gap:14 }} showsVerticalScrollIndicator={false}>
+            {phoneLoading ? (
+              <View style={{ alignItems:"center", paddingVertical:60 }}>
+                <MaterialCommunityIcons name="cellphone-wireless" size={52} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
+                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
+              </View>
+            ) : phoneShops.length === 0 ? (
+              <Animated.View entering={FadeInDown.springify()} style={{ alignItems:"center", paddingVertical:60 }}>
+                <View style={{ width:100,height:100,borderRadius:30,backgroundColor:"#7C3AED15",justifyContent:"center",alignItems:"center",marginBottom:20 }}>
+                  <MaterialCommunityIcons name="cellphone-off" size={52} color="#7C3AED" />
+                </View>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textSecondary, marginBottom:10, textAlign:"center" }}>لا توجد متاجر هواتف بعد</Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:22, maxWidth:270 }}>
+                  سجّل متجرك وكن ضمن أول متاجر الهواتف الرسمية في حصاحيصا
+                </Text>
+                {!auth.isGuest && !myShop && (
+                  <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}
+                    style={{ marginTop:20, backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:13, paddingHorizontal:30, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
+                    <MaterialCommunityIcons name="cellphone-cog" size={18} color="#fff" />
+                    <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#fff" }}>سجّل متجرك الآن</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            ) : (
+              phoneShops.map((shop, i) => (
+                <Animated.View key={shop.id} entering={FadeInDown.delay(i*70).springify().damping(18)}>
+                  <TouchableOpacity onPress={()=>openShop(shop)} activeOpacity={0.85}>
+                    <View style={{ backgroundColor:Colors.cardBg, borderRadius:22, borderWidth:1,
+                      borderColor: shop.is_featured?"#7C3AED50":Colors.divider, overflow:"hidden" }}>
+                      {shop.is_featured && (
+                        <View style={{ backgroundColor:"#7C3AED18", paddingVertical:6, paddingHorizontal:14, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                          <MaterialCommunityIcons name="star-circle" size={14} color="#7C3AED" />
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:"#7C3AED" }}>متجر مميّز</Text>
+                        </View>
+                      )}
+                      <View style={{ padding:16 }}>
+                        {/* Header */}
+                        <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:14, marginBottom:12 }}>
+                          <View style={{ width:64,height:64,borderRadius:20,backgroundColor:"#7C3AED12",alignItems:"center",justifyContent:"center",borderWidth:1.5,borderColor:"#7C3AED25" }}>
+                            <Text style={{ fontSize:32 }}>{shop.logo_emoji}</Text>
+                          </View>
+                          <View style={{ flex:1 }}>
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:7 }}>
+                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>{shop.shop_name}</Text>
+                              {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={17} color="#7C3AED" />}
+                            </View>
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>{shop.owner_name}</Text>
+                            {/* Specialties */}
+                            <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {shop.specialties?.slice(0,4).map(sp=>(
+                                <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#7C3AED12", borderWidth:1, borderColor:"#7C3AED25" }}>
+                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        </View>
+                        {/* Description */}
+                        {shop.description ? <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"right", lineHeight:20, marginBottom:12 }} numberOfLines={2}>{shop.description}</Text> : null}
+                        {/* Info row */}
+                        <View style={{ flexDirection:"row-reverse", gap:14, marginBottom:12 }}>
+                          {shop.address && (
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4 }}>
+                              <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }} numberOfLines={1}>{shop.address}</Text>
+                            </View>
+                          )}
+                          {shop.working_hours && (
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4 }}>
+                              <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }} numberOfLines={1}>{shop.working_hours}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {/* Bottom row: product count + action */}
+                        <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
+                          <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                            <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:"#7C3AED15", borderWidth:1, borderColor:"#7C3AED30" }}>
+                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color:"#7C3AED" }}>
+                                {shop.product_count} منتج
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection:"row-reverse", gap:8 }}>
+                            {shop.phone && (
+                              <TouchableOpacity onPress={e=>{ e.stopPropagation?.(); require("react-native").Linking.openURL(`tel:${shop.phone}`); }}
+                                style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#10B98115", borderWidth:1, borderColor:"#10B98130" }}>
+                                <Ionicons name="call-outline" size={14} color="#10B981" />
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#10B981" }}>اتصال</Text>
+                              </TouchableOpacity>
+                            )}
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#7C3AED15", borderWidth:1, borderColor:"#7C3AED30" }}>
+                              <MaterialCommunityIcons name="cellphone" size={14} color="#7C3AED" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#7C3AED" }}>عرض المنتجات</Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))
             )}
           </ScrollView>
         </View>

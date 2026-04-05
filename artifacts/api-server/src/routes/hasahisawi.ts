@@ -4973,4 +4973,255 @@ router.delete("/admin/merchants/:id", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ════════════════════════════════════════════════════════════════
+// 📱 محلات الهواتف — Phone Shops (institutional, owner-managed)
+// ════════════════════════════════════════════════════════════════
+
+async function initPhoneShopsTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS phone_shops (
+      id            SERIAL PRIMARY KEY,
+      user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      shop_name     TEXT NOT NULL,
+      logo_emoji    TEXT DEFAULT '📱',
+      owner_name    TEXT NOT NULL,
+      phone         TEXT,
+      whatsapp      TEXT,
+      address       TEXT,
+      description   TEXT,
+      specialties   TEXT[] DEFAULT '{}',
+      working_hours TEXT,
+      facebook      TEXT,
+      is_verified   BOOLEAN DEFAULT false,
+      is_featured   BOOLEAN DEFAULT false,
+      is_approved   BOOLEAN DEFAULT false,
+      status        TEXT DEFAULT 'pending',
+      products_count INTEGER DEFAULT 0,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS phone_products (
+      id             SERIAL PRIMARY KEY,
+      shop_id        INTEGER REFERENCES phone_shops(id) ON DELETE CASCADE,
+      emoji          TEXT DEFAULT '📱',
+      name           TEXT NOT NULL,
+      brand          TEXT,
+      model          TEXT,
+      condition      TEXT DEFAULT 'new',
+      price          NUMERIC,
+      original_price NUMERIC,
+      description    TEXT,
+      specs          JSONB DEFAULT '{}',
+      tags           TEXT[] DEFAULT '{}',
+      color          TEXT,
+      storage        TEXT,
+      ram            TEXT,
+      battery        TEXT,
+      screen_size    TEXT,
+      camera         TEXT,
+      is_available   BOOLEAN DEFAULT true,
+      is_featured    BOOLEAN DEFAULT false,
+      view_count     INTEGER DEFAULT 0,
+      created_at     TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+}
+initPhoneShopsTables().catch(console.error);
+
+// ─── helper: is owner of shop ────────────────────────────────────
+async function isShopOwner(req: Request, shopId: number): Promise<boolean> {
+  const user = await getSessionUser(req);
+  if (!user) return false;
+  const r = await query(`SELECT id FROM phone_shops WHERE id=$1 AND user_id=$2`, [shopId, user.id]);
+  return r.rows.length > 0;
+}
+
+// ── GET /api/phone-shops ─────────────────────────────────────────
+router.get("/phone-shops", async (req: Request, res: Response) => {
+  try {
+    const { q, specialty } = req.query as Record<string, string>;
+    let sql = `SELECT ps.*, (SELECT COUNT(*) FROM phone_products pp WHERE pp.shop_id=ps.id AND pp.is_available=true)::int AS product_count
+               FROM phone_shops ps WHERE ps.is_approved=true`;
+    const params: unknown[] = [];
+    if (specialty && specialty !== "all") {
+      params.push(specialty);
+      sql += ` AND $${params.length}=ANY(ps.specialties)`;
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      sql += ` AND (ps.shop_name ILIKE $${params.length} OR ps.description ILIKE $${params.length} OR ps.owner_name ILIKE $${params.length})`;
+    }
+    sql += ` ORDER BY ps.is_featured DESC, ps.is_verified DESC, ps.created_at DESC`;
+    const result = await query(sql, params);
+    return res.json({ shops: result.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/phone-shops — register shop ────────────────────────
+router.post("/phone-shops", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { shop_name, owner_name, phone, whatsapp, address, description, specialties, working_hours, facebook, logo_emoji } = req.body;
+    if (!shop_name || !owner_name) return res.status(400).json({ error: "اسم المحل والمالك مطلوبان" });
+    if (!phone && !whatsapp) return res.status(400).json({ error: "رقم التواصل مطلوب" });
+    if (user) {
+      const existing = await query(`SELECT id FROM phone_shops WHERE user_id=$1`, [user.id]);
+      if (existing.rows.length) return res.status(400).json({ error: "لديك متجر مسجّل بالفعل" });
+    }
+    const result = await query(
+      `INSERT INTO phone_shops (user_id, shop_name, owner_name, phone, whatsapp, address, description, specialties, working_hours, facebook, logo_emoji)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [user?.id ?? null, shop_name, owner_name, phone||null, whatsapp||null, address||null, description||null,
+       specialties||[], working_hours||null, facebook||null, logo_emoji||'📱']
+    );
+    return res.status(201).json({ shop: result.rows[0] });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/my-phone-shop ───────────────────────────────────────
+router.get("/my-phone-shop", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const shopRes = await query(`SELECT * FROM phone_shops WHERE user_id=$1`, [user.id]);
+    if (!shopRes.rows.length) return res.json({ shop: null });
+    const shop = shopRes.rows[0];
+    const prods = await query(`SELECT * FROM phone_products WHERE shop_id=$1 ORDER BY is_featured DESC, created_at DESC`, [shop.id]);
+    return res.json({ shop, products: prods.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PUT /api/my-phone-shop ─── update shop info ──────────────────
+router.put("/my-phone-shop", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { shop_name, owner_name, phone, whatsapp, address, description, specialties, working_hours, facebook, logo_emoji } = req.body;
+    const result = await query(
+      `UPDATE phone_shops SET shop_name=COALESCE($1,shop_name), owner_name=COALESCE($2,owner_name),
+       phone=COALESCE($3,phone), whatsapp=COALESCE($4,whatsapp), address=COALESCE($5,address),
+       description=COALESCE($6,description), specialties=COALESCE($7,specialties),
+       working_hours=COALESCE($8,working_hours), facebook=COALESCE($9,facebook), logo_emoji=COALESCE($10,logo_emoji)
+       WHERE user_id=$11 RETURNING *`,
+      [shop_name||null, owner_name||null, phone||null, whatsapp||null, address||null,
+       description||null, specialties||null, working_hours||null, facebook||null, logo_emoji||null, user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "متجرك غير موجود" });
+    return res.json({ shop: result.rows[0] });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/phone-shops/:id/products ───────────────────────────
+router.get("/phone-shops/:id/products", async (req: Request, res: Response) => {
+  try {
+    const { condition } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM phone_products WHERE shop_id=$1 AND is_available=true`;
+    const params: unknown[] = [req.params.id];
+    if (condition && condition !== "all") { params.push(condition); sql += ` AND condition=$${params.length}`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const result = await query(sql, params);
+    // increment view counts would be here
+    return res.json({ products: result.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/phone-shops/:id/products ─── add product ──────────
+router.post("/phone-shops/:id/products", async (req: Request, res: Response) => {
+  try {
+    const shopId = Number(req.params.id);
+    if (!await isShopOwner(req, shopId)) return res.status(403).json({ error: "غير مصرح — أنت لست صاحب هذا المتجر" });
+    const { emoji, name, brand, model, condition, price, original_price, description,
+            color, storage, ram, battery, screen_size, camera, tags, is_featured } = req.body;
+    if (!name) return res.status(400).json({ error: "اسم المنتج مطلوب" });
+    const specs = { color, storage, ram, battery, screen_size, camera };
+    const result = await query(
+      `INSERT INTO phone_products (shop_id, emoji, name, brand, model, condition, price, original_price,
+       description, specs, color, storage, ram, battery, screen_size, camera, tags, is_featured)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [shopId, emoji||'📱', name, brand||null, model||null, condition||'new',
+       price||null, original_price||null, description||null, specs,
+       color||null, storage||null, ram||null, battery||null, screen_size||null, camera||null,
+       tags||[], is_featured||false]
+    );
+    await query(`UPDATE phone_shops SET products_count=products_count+1 WHERE id=$1`, [shopId]);
+    return res.status(201).json({ product: result.rows[0] });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PUT /api/phone-shops/:id/products/:pid ─── edit product ─────
+router.put("/phone-shops/:id/products/:pid", async (req: Request, res: Response) => {
+  try {
+    const shopId = Number(req.params.id);
+    if (!await isShopOwner(req, shopId)) return res.status(403).json({ error: "غير مصرح" });
+    const { emoji, name, brand, model, condition, price, original_price, description,
+            color, storage, ram, battery, screen_size, camera, tags, is_featured, is_available } = req.body;
+    const specs = { color, storage, ram, battery, screen_size, camera };
+    const result = await query(
+      `UPDATE phone_products SET emoji=COALESCE($1,emoji), name=COALESCE($2,name), brand=COALESCE($3,brand),
+       model=COALESCE($4,model), condition=COALESCE($5,condition), price=COALESCE($6,price),
+       original_price=COALESCE($7,original_price), description=COALESCE($8,description),
+       specs=$9, color=COALESCE($10,color), storage=COALESCE($11,storage), ram=COALESCE($12,ram),
+       battery=COALESCE($13,battery), screen_size=COALESCE($14,screen_size), camera=COALESCE($15,camera),
+       tags=COALESCE($16,tags), is_featured=COALESCE($17,is_featured), is_available=COALESCE($18,is_available)
+       WHERE id=$19 AND shop_id=$20 RETURNING *`,
+      [emoji||null, name||null, brand||null, model||null, condition||null, price||null,
+       original_price||null, description||null, specs,
+       color||null, storage||null, ram||null, battery||null, screen_size||null, camera||null,
+       tags||null, is_featured??null, is_available??null, req.params.pid, shopId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "المنتج غير موجود" });
+    return res.json({ product: result.rows[0] });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/phone-shops/:id/products/:pid ────────────────────
+router.delete("/phone-shops/:id/products/:pid", async (req: Request, res: Response) => {
+  try {
+    const shopId = Number(req.params.id);
+    if (!await isShopOwner(req, shopId)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM phone_products WHERE id=$1 AND shop_id=$2`, [req.params.pid, shopId]);
+    await query(`UPDATE phone_shops SET products_count=GREATEST(products_count-1,0) WHERE id=$1`, [shopId]);
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin routes ─────────────────────────────────────────────────
+router.get("/admin/phone-shops", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const result = await query(
+      `SELECT ps.*, (SELECT COUNT(*) FROM phone_products pp WHERE pp.shop_id=ps.id)::int AS total_products
+       FROM phone_shops ps ORDER BY ps.is_approved ASC, ps.created_at DESC`
+    );
+    return res.json({ shops: result.rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.put("/admin/phone-shops/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { is_approved, is_verified, is_featured, status } = req.body;
+    const result = await query(
+      `UPDATE phone_shops SET
+        is_approved=COALESCE($1,is_approved),
+        is_verified=COALESCE($2,is_verified),
+        is_featured=COALESCE($3,is_featured),
+        status=COALESCE($4,status)
+       WHERE id=$5 RETURNING *`,
+      [is_approved??null, is_verified??null, is_featured??null, status||null, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ shop: result.rows[0] });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM phone_shops WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
