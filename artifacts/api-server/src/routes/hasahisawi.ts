@@ -367,6 +367,18 @@ export async function initHasahisawiDb() {
   `);
 
   await query(`
+    CREATE TABLE IF NOT EXISTS greetings (
+      id          SERIAL PRIMARY KEY,
+      user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      author_name VARCHAR(100) NOT NULL DEFAULT 'مجهول',
+      text        TEXT NOT NULL,
+      occasion_name VARCHAR(100) NOT NULL DEFAULT 'تهنئة عامة',
+      likes       INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS rated_entities (
       id SERIAL PRIMARY KEY,
       type VARCHAR(50) NOT NULL,
@@ -2187,6 +2199,70 @@ router.get("/honored-figure", async (_req: Request, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
+
+// ══════════════════════════════════════════════
+//  مساحة التهنئة — GREETINGS
+// ══════════════════════════════════════════════
+
+router.get("/greetings", async (req: Request, res: Response) => {
+  try {
+    const limit  = Math.min(50, Math.max(1, parseInt(String(req.query.limit  ?? 30))));
+    const offset = Math.max(0, parseInt(String(req.query.offset ?? 0)));
+    const { rows } = await query(
+      `SELECT id, author_name, text, occasion_name, likes, created_at
+       FROM greetings
+       ORDER BY created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/greetings", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { text, occasion_name } = req.body;
+    if (!text || !String(text).trim()) return res.status(400).json({ error: "النص مطلوب" });
+    if (String(text).length > 500) return res.status(400).json({ error: "النص طويل جداً" });
+    const authorName = user ? user.name : "مجهول";
+    const { rows } = await query(
+      `INSERT INTO greetings (user_id, author_name, text, occasion_name)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [user?.id ?? null, authorName, String(text).trim(), String(occasion_name || "تهنئة عامة").trim()],
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/greetings/:id/like", async (req: Request, res: Response) => {
+  try {
+    await query(`UPDATE greetings SET likes = likes + 1 WHERE id = $1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.delete("/greetings/:id", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "moderator"))
+      return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM greetings WHERE id = $1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════
 
 // قائمة عامة بجميع الشخصيات المكرّمة (مرئية للجميع)
 router.get("/honored-figures", async (req: Request, res: Response) => {

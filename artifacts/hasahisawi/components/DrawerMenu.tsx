@@ -79,8 +79,9 @@ const GROUPS: Group[] = [
   {
     label: "المناسبات والتكريم",
     items: [
-      { title: "مناسبتي",          icon: "sparkles-outline",  route: "/(tabs)/occasions", color: "#D97706"  },
-      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#D4AF37"  },
+      { title: "مساحة التهنئة",    icon: "sparkles-outline",  route: "/(tabs)/greetings", color: "#D4AF37"  },
+      { title: "مناسبتي",          icon: "gift-outline",       route: "/(tabs)/occasions", color: "#D97706"  },
+      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#C084FC"  },
     ],
   },
   {
