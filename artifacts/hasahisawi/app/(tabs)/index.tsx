@@ -487,7 +487,9 @@ export default function HomeScreen() {
 
         {/* شبكة الخدمات */}
         <View style={styles.gridContainer}>
-          {SERVICES.map((item, idx) => (
+          {SERVICES.filter(item =>
+            item.id !== "women" || auth.user?.gender === "female" || (!auth.user?.gender && !auth.isGuest)
+          ).map((item, idx) => (
             <ServiceGridItem key={item.id} item={item} onPress={() => handlePress(item.route)} index={idx} />
           ))}
         </View>

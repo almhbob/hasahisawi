@@ -49,6 +49,7 @@ export default function LoginScreen() {
   const [showNbrModal, setShowNbrModal] = useState(false);
   const [nbrSearch, setNbrSearch]     = useState("");
   const [customNbr, setCustomNbr]     = useState("");
+  const [gender, setGender]           = useState<"male" | "female" | "">("");
   const [bioLabel, setBioLabel]       = useState("البصمة");
   const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
@@ -118,7 +119,7 @@ export default function LoginScreen() {
       } else {
         const isEmail = useEmail || identifier.includes("@");
         const nid = nationalId.trim().replace(/\s+/g, "");
-        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), neighborhood || undefined);
+        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), neighborhood || undefined, gender || undefined);
         promptEnableBiometrics(id);
       }
       if (Platform.OS !== "web")
@@ -413,6 +414,46 @@ export default function LoginScreen() {
                     textAlign="center"
                   />
                 </View>
+              </View>
+            </View>
+          )}
+
+          {/* الجنس */}
+          {mode === "register" && (
+            <View style={s2.fieldWrap}>
+              <View style={s2.fieldHeader}>
+                <Ionicons name="person-outline" size={15} color={Colors.textMuted} />
+                <Text style={s2.fieldLabel}>الجنس</Text>
+                <Text style={s2.optional}>(مطلوب)</Text>
+              </View>
+              <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 4 }}>
+                {([
+                  { val: "male"   as const, label: "ذكر",  icon: "man-outline"   as const },
+                  { val: "female" as const, label: "أنثى", icon: "woman-outline"  as const },
+                ]).map(opt => (
+                  <TouchableOpacity
+                    key={opt.val}
+                    onPress={() => setGender(opt.val)}
+                    style={{
+                      flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+                      gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
+                      borderColor: gender === opt.val ? Colors.primary : Colors.divider,
+                      backgroundColor: gender === opt.val ? Colors.primary + "15" : Colors.cardBg,
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name={opt.icon} size={18}
+                      color={gender === opt.val ? Colors.primary : Colors.textMuted} />
+                    <Text style={{
+                      fontFamily: gender === opt.val ? "Cairo_700Bold" : "Cairo_400Regular",
+                      fontSize: 14,
+                      color: gender === opt.val ? Colors.primary : Colors.textSecondary,
+                    }}>{opt.label}</Text>
+                    {gender === opt.val && (
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           )}

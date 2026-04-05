@@ -123,6 +123,7 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -822,14 +823,15 @@ async function isAdminRequest(req: Request): Promise<boolean> {
 
 router.post("/auth/register", async (req: Request, res: Response) => {
   try {
-    const { name, national_id, phone, email, password, birth_date, neighborhood } = req.body;
+    const { name, national_id, phone, email, password, birth_date, neighborhood, gender } = req.body;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
+    const validGender = ["male", "female"].includes(gender) ? gender : null;
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO users (name, national_id, phone, email, password_hash, birth_date, neighborhood)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO users (name, national_id, phone, email, password_hash, birth_date, neighborhood, gender)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [name, national_id || null, phone || null, email || null, hash,
-       birth_date || null, neighborhood || null]
+       birth_date || null, neighborhood || null, validGender]
     );
     const user = result.rows[0];
     const token = randomBytes(32).toString("hex");
@@ -976,6 +978,21 @@ router.get("/auth/me", async (req: Request, res: Response) => {
     const safeUser = safeUserPayload(rawUser);
     const permsResult = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [rawUser.id]);
     return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/auth/me/gender", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { gender } = req.body;
+    if (!["male", "female"].includes(gender))
+      return res.status(400).json({ error: "قيمة الجنس غير صحيحة" });
+    await query(`UPDATE users SET gender=$1 WHERE id=$2`, [gender, user.id]);
+    return res.json({ success: true, gender });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });

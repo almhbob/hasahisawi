@@ -14,6 +14,8 @@ import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -122,6 +124,9 @@ type SubTab = "services" | "health" | "recipes";
 export default function WomenScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const { user, isGuest, setUserGender } = useAuth();
+  const router = useRouter();
+  const [settingGender, setSettingGender] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ServiceType | "all">("all");
   const [services, setServices] = useState<WomenService[]>([]);
@@ -204,6 +209,93 @@ export default function WomenScreen() {
   };
 
   const servicesByType = (type: ServiceType) => services.filter(s => s.type === type);
+
+  // ── حجب الزوار غير المسجّلين ─────────────────────────────────────────────
+  if (isGuest || !user) {
+    return (
+      <View style={s.root}>
+        <View style={[s.header, { paddingTop: topPad + 12 }]}>
+          <LinearGradient colors={[Colors.cardBg, Colors.bg]} style={StyleSheet.absoluteFill} />
+        </View>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
+          <MaterialCommunityIcons name="lock-outline" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
+            هذا القسم للأعضاء المسجّلات فقط
+          </Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center", marginBottom: 28 }}>
+            يُرجى إنشاء حساب أو تسجيل الدخول للوصول إلى ركن المرأة
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push("/login")}
+            style={{ backgroundColor: "#FF4FA3", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14 }}
+          >
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>تسجيل الدخول</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // ── حجب الذكور ────────────────────────────────────────────────────────────
+  if (user.gender === "male") {
+    return (
+      <View style={s.root}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
+          <MaterialCommunityIcons name="face-woman" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
+            ركن المرأة
+          </Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center" }}>
+            هذا القسم مخصّص للسيدات فقط — نحرص على توفير مساحة آمنة وخاصة لهن.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ── المستخدمة لم تحدّد جنسها بعد ──────────────────────────────────────────
+  if (!user.gender) {
+    return (
+      <View style={s.root}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
+          <MaterialCommunityIcons name="account-question-outline" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
+            تأكيد الجنس
+          </Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center", marginBottom: 28 }}>
+            لم يتم تحديد جنسك في حسابك بعد. يُرجى التحديد للمتابعة.
+          </Text>
+          <View style={{ flexDirection: "row-reverse", gap: 12, width: "100%" }}>
+            {([
+              { val: "female" as const, label: "أنثى", icon: "woman-outline" as const },
+              { val: "male"   as const, label: "ذكر",  icon: "man-outline"   as const },
+            ]).map(opt => (
+              <TouchableOpacity
+                key={opt.val}
+                disabled={settingGender}
+                onPress={async () => {
+                  setSettingGender(true);
+                  try { await setUserGender(opt.val); }
+                  catch { Alert.alert("خطأ", "تعذّر تحديث الجنس"); }
+                  finally { setSettingGender(false); }
+                }}
+                style={{
+                  flex: 1, alignItems: "center", justifyContent: "center",
+                  paddingVertical: 16, borderRadius: 14, borderWidth: 1.5,
+                  borderColor: "#FF4FA3", backgroundColor: Colors.cardBg, gap: 6,
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name={opt.icon} size={28} color="#FF4FA3" />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FF4FA3" }}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {settingGender && <ActivityIndicator color="#FF4FA3" style={{ marginTop: 18 }} />}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={s.root}>

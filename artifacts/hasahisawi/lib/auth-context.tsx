@@ -30,6 +30,7 @@ export type AuthUser = {
   permissions?: string[];
   neighborhood?: string | null;
   avatar_url?: string | null;
+  gender?: "male" | "female" | null;
 };
 
 type UserProfile = {
@@ -65,7 +66,9 @@ type AuthContextValue = {
     password: string,
     birthDate?: string,
     neighborhood?: string,
+    gender?: string,
   ) => Promise<void>;
+  setUserGender: (gender: "male" | "female") => Promise<void>;
   registerAdmin: (name: string, email: string, password: string, adminCode: string) => Promise<void>;
   enterAsGuest: () => void;
   logout: () => Promise<void>;
@@ -131,6 +134,7 @@ async function backendLogin(phoneOrEmail: string, password: string): Promise<{ u
     neighborhood: (u.neighborhood as string | null) ?? null,
     national_id_masked: (u.national_id_masked as string | null) ?? null,
     avatar_url: (u.avatar_url as string | null) ?? null,
+    gender: (u.gender as "male" | "female" | null) ?? null,
   };
   return { user: authUser, token: json.token as string };
 }
@@ -142,6 +146,7 @@ async function backendRegister(
   nationalId?: string,
   birthDate?: string,
   neighborhood?: string,
+  gender?: string,
 ): Promise<{ user: AuthUser; token: string }> {
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
@@ -159,6 +164,7 @@ async function backendRegister(
         national_id: nationalId || undefined,
         birth_date: birthDate || undefined,
         neighborhood: neighborhood || undefined,
+        gender: gender || undefined,
       }),
     });
   } catch {
@@ -182,6 +188,7 @@ async function backendRegister(
     neighborhood: (u.neighborhood as string | null) ?? null,
     national_id_masked: (u.national_id_masked as string | null) ?? null,
     avatar_url: (u.avatar_url as string | null) ?? null,
+    gender: (u.gender as "male" | "female" | null) ?? null,
   };
   return { user: authUser, token: json.token as string };
 }
@@ -587,6 +594,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveSession(authUser, json.token as string, json.token as string);
   };
 
+  const setUserGender = async (gender: "male" | "female") => {
+    const base = getApiUrl();
+    if (!base || !token) throw new Error("غير مصرح");
+    const res = await fetch(`${base}/api/auth/me/gender`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ gender }),
+    });
+    if (!res.ok) throw new Error("تعذّر تحديث الجنس");
+    setUser(prev => prev ? { ...prev, gender } : prev);
+  };
+
   const register = async (
     name: string,
     nationalId: string,
@@ -595,9 +614,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     birthDate?: string,
     neighborhood?: string,
+    gender?: string,
   ) => {
     const { user: authUser, token: backendTok } = await backendRegister(
-      name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood
+      name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender
     );
     await saveSession(authUser, backendTok, backendTok);
     // Firebase اختياري
@@ -798,7 +818,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
         login, loginWithBiometrics, loginAdmin, loginModerator,
-        register, registerAdmin,
+        register, setUserGender, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
         updateProfile,
