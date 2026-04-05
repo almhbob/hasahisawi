@@ -33,6 +33,11 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 │   │   ├── components/    # مكونات مشتركة
 │   │   ├── constants/     # ألوان وثوابت (colors.ts, transport-zones.ts)
 │   │   └── lib/           # Firebase, Auth, Translations, API
+│   ├── admin-dashboard/   # لوحة تحكم ويب React+Vite — previewPath: /admin-dashboard
+│   │   └── src/
+│   │       ├── pages/     # 11 صفحة: Dashboard, Users, Posts, Merchants, PhoneShops, Transport, MapPlaces, Communities, Ads, Honored, Settings
+│   │       ├── lib/       # auth.tsx (session), api.ts (fetch wrapper)
+│   │       └── components/# Layout.tsx (sidebar + PageHeader)
 │   └── api-server/        # Express API — previewPath: /api
 │       └── src/routes/
 │           ├── hasahisawi.ts  # كل مسارات حصاحيصاوي

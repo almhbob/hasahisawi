@@ -1389,6 +1389,23 @@ router.post("/map/places", async (req: Request, res: Response) => {
   }
 });
 
+router.put("/map/places/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { name, category, address, phone, lat, lng, icon, color } = req.body;
+    const { rows } = await query(
+      `UPDATE map_places SET name=$1,category=$2,address=$3,phone=$4,lat=$5,lng=$6,icon=$7,color=$8
+       WHERE id=$9 RETURNING *`,
+      [name, category || "other", address || null, phone || null, lat, lng, icon || "location", color || "#3EFF9C", req.params.id]
+    );
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.delete("/map/places/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
@@ -1687,7 +1704,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
     }
     const result = await query(`
       SELECT id, name, phone, email, role, neighborhood, birth_date,
-             national_id, created_at
+             national_id, is_banned, created_at
       FROM users
       ORDER BY created_at DESC
     `);
@@ -1700,6 +1717,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
       neighborhood: u.neighborhood,
       birth_date: u.birth_date,
       national_id_masked: u.national_id ? String(u.national_id).slice(-4).padStart(String(u.national_id).length, "*") : null,
+      is_banned: u.is_banned,
       created_at: u.created_at,
     }));
     return res.json(users);
@@ -1751,6 +1769,24 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     const targetId = parseInt(req.params.id as string);
     if (targetId === currentUser.id) return res.status(400).json({ error: "لا يمكنك تغيير دورك بنفسك" });
     await query(`UPDATE users SET role=$1 WHERE id=$2`, [role, targetId]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حظر / رفع حظر مستخدم
+router.patch("/admin/users/:id/ban", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    const targetId = parseInt(req.params.id as string);
+    if (isNaN(targetId)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { ban } = req.body;
+    await query(`UPDATE users SET is_banned=$1 WHERE id=$2`, [!!ban, targetId]);
     return res.json({ success: true });
   } catch (err) {
     console.error(err);
