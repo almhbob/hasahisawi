@@ -798,6 +798,7 @@ export async function initHasahisawiDb() {
 
   // إضافة عمود منطقة السائق
   await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS delivery_desc TEXT`);
 
   console.log("Hasahisawi DB initialized");
 }
@@ -4363,13 +4364,24 @@ router.get("/transport/trips", async (req: Request, res: Response) => {
 router.post("/transport/trips", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    const { user_name, user_phone, trip_type, from_location, to_location, notes } = req.body;
+    const {
+      user_name, user_phone, trip_type, from_location, to_location, notes,
+      from_zone, to_zone, fare_estimate, vehicle_preference, delivery_desc,
+    } = req.body;
     if (!user_name || !user_phone || !from_location || !to_location)
       return res.status(400).json({ error: "بيانات ناقصة" });
     const r = await query(
-      `INSERT INTO transport_trips (user_id,user_name,user_phone,trip_type,from_location,to_location,notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [me?.id ?? null, user_name, user_phone, trip_type ?? "ride", from_location, to_location, notes ?? ""]
+      `INSERT INTO transport_trips
+         (user_id, user_name, user_phone, trip_type, from_location, to_location,
+          notes, from_zone, to_zone, fare_estimate, vehicle_preference, delivery_desc)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+      [
+        me?.id ?? null, user_name, user_phone,
+        trip_type ?? "ride", from_location, to_location, notes ?? "",
+        from_zone ?? null, to_zone ?? null,
+        fare_estimate ?? null, vehicle_preference ?? "car",
+        delivery_desc ?? null,
+      ]
     );
     return res.status(201).json({ id: r.rows[0].id });
   } catch { return res.status(500).json({ error: "Server error" }); }
@@ -4408,10 +4420,31 @@ router.get("/transport/my-trips", async (req: Request, res: Response) => {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { rows } = await query(
-      `SELECT * FROM transport_trips WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30`,
+      `SELECT t.*, d.phone AS driver_phone
+       FROM transport_trips t
+       LEFT JOIN transport_drivers d ON d.id = t.driver_id
+       WHERE t.user_id=$1
+       ORDER BY t.created_at DESC LIMIT 30`,
       [me.id]
     );
     return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/transport/trips/:id/cancel — إلغاء طلب (المستخدم)
+router.post("/transport/trips/:id/cancel", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows } = await query(
+      `SELECT user_id, status FROM transport_trips WHERE id=$1`, [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "لم يُعثر على الطلب" });
+    if (rows[0].user_id !== me.id) return res.status(403).json({ error: "غير مصرح" });
+    if (rows[0].status !== "pending")
+      return res.status(400).json({ error: "لا يمكن إلغاء طلب غير معلق" });
+    await query(`UPDATE transport_trips SET status='cancelled' WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 

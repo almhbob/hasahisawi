@@ -37,8 +37,9 @@ type Trip = {
   from_location: string; to_location: string;
   from_zone: number | null; to_zone: number | null;
   fare_estimate: number | null; vehicle_preference: string;
-  status: string; driver_name: string | null;
-  created_at: string; rating: number | null;
+  status: string; driver_name: string | null; driver_phone: string | null;
+  created_at: string; rating: number | null; rating_note: string | null;
+  delivery_desc: string | null; notes: string | null;
 };
 
 // ─── شاشة قريباً ──────────────────────────────────────────────────────────────
@@ -301,9 +302,10 @@ export default function TransportScreen() {
   const [vehicleType, setVehicleType] = useState<"car" | "rickshaw" | "delivery">("car");
   const [userName,   setUserName]   = useState(user?.name || "");
   const [userPhone,  setUserPhone]  = useState("");
-  const [notes,      setNotes]      = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [notes,        setNotes]        = useState("");
+  const [deliveryDesc, setDeliveryDesc] = useState("");
+  const [submitting,   setSubmitting]   = useState(false);
+  const [termsAccepted,  setTermsAccepted]  = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
 
   // تسجيل السائق
@@ -369,6 +371,43 @@ export default function TransportScreen() {
     setRefreshing(false);
   }, [loadDrivers, loadMyTrips, loadFares]);
 
+  // تحديث تلقائي لتبويب "طلباتي" كل ٣٠ ثانية
+  useEffect(() => {
+    if (activeTab !== "mytrips" || !token) return;
+    const interval = setInterval(() => { loadMyTrips(); }, 30_000);
+    return () => clearInterval(interval);
+  }, [activeTab, token, loadMyTrips]);
+
+  // تقييم رحلة مكتملة
+  const rateTrip = useCallback(async (tripId: number, rating: number, note: string) => {
+    try {
+      await fetch(`${apiUrl}/api/transport/trips/${tripId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ rating, rating_note: note }),
+      });
+      // تحديث القائمة المحلية فوراً
+      setMyTrips(prev => prev.map(t => t.id === tripId ? { ...t, rating, rating_note: note } : t));
+    } catch { Alert.alert("خطأ", "تعذّر حفظ التقييم"); }
+  }, [apiUrl, token]);
+
+  // إلغاء طلب معلق
+  const cancelTrip = useCallback(async (tripId: number) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/transport/trips/${tripId}/cancel`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setMyTrips(prev => prev.map(t => t.id === tripId ? { ...t, status: "cancelled" } : t));
+      } else {
+        const j = await res.json();
+        Alert.alert("خطأ", j.error || "تعذّر إلغاء الطلب");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+  }, [apiUrl, token]);
+
   const submitTrip = async () => {
     if (!fromZone || !toZone) {
       Alert.alert("بيانات ناقصة", "يرجى اختيار منطقة الانطلاق والوجهة"); return;
@@ -398,6 +437,7 @@ export default function TransportScreen() {
         from_zone: fromZone, to_zone: toZone,
         fare_estimate: fareEst,
         notes,
+        delivery_desc: vehicleType === "delivery" ? deliveryDesc : null,
       };
       const res = await fetch(`${apiUrl}/api/transport/trips`, {
         method: "POST",
@@ -412,7 +452,9 @@ export default function TransportScreen() {
           [{ text: "حسناً" }],
         );
         setFromZone(null); setToZone(null);
-        setFromDetail(""); setToDetail(""); setNotes("");
+        setFromDetail(""); setToDetail("");
+        setNotes(""); setDeliveryDesc("");
+        setTermsAccepted(false);
         loadMyTrips();
       } else {
         const j = await res.json();
@@ -657,6 +699,18 @@ export default function TransportScreen() {
                 placeholder="+249..." placeholderTextColor={Colors.textMuted}
                 textAlign="right" keyboardType="phone-pad" />
 
+              {vehicleType === "delivery" && (
+                <>
+                  <Text style={s.fieldLabel}>وصف الشحنة *</Text>
+                  <TextInput
+                    style={[s.input, { minHeight: 56, textAlignVertical: "top" }]}
+                    value={deliveryDesc} onChangeText={setDeliveryDesc}
+                    placeholder="نوع البضاعة، وزنها التقريبي، أي تعليمات خاصة للتعامل معها..."
+                    placeholderTextColor={Colors.textMuted} textAlign="right" multiline
+                  />
+                </>
+              )}
+
               <Text style={s.fieldLabel}>ملاحظات إضافية (اختياري)</Text>
               <TextInput style={[s.input, { minHeight: 72, textAlignVertical: "top" }]}
                 value={notes} onChangeText={setNotes}
@@ -755,7 +809,15 @@ export default function TransportScreen() {
                 <MaterialCommunityIcons name="car-outline" size={48} color={Colors.textMuted} />
                 <Text style={s.emptyText}>لا توجد طلبات سابقة</Text>
               </View>
-            ) : myTrips.map(trip => <TripCard key={trip.id} trip={trip} fareMatrix={fareMatrix} />)}
+            ) : myTrips.map(trip => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                fareMatrix={fareMatrix}
+                onRate={rateTrip}
+                onCancel={cancelTrip}
+              />
+            ))}
           </Animated.View>
         )}
 
@@ -980,23 +1042,64 @@ function DriverCard({ driver }: { driver: Driver }) {
   );
 }
 
-// ─── بطاقة رحلة ───────────────────────────────────────────────────────────────
-function TripCard({ trip, fareMatrix }: { trip: Trip; fareMatrix: FareMatrix }) {
+// ─── بطاقة رحلة (مطوّرة) ──────────────────────────────────────────────────────
+function TripCard({
+  trip, fareMatrix, onRate, onCancel,
+}: {
+  trip: Trip;
+  fareMatrix: FareMatrix;
+  onRate:   (id: number, rating: number, note: string) => Promise<void>;
+  onCancel: (id: number) => Promise<void>;
+}) {
+  const [localStatus,    setLocalStatus]    = useState(trip.status);
+  const [localRating,    setLocalRating]    = useState(trip.rating);
+  const [showRating,     setShowRating]     = useState(false);
+  const [selectedStars,  setSelectedStars]  = useState(0);
+  const [ratingNote,     setRatingNote]     = useState("");
+  const [savingRating,   setSavingRating]   = useState(false);
+  const [cancelling,     setCancelling]     = useState(false);
+
   const STATUS_COLORS: Record<string, string> = {
     pending: ACCENT, accepted: BLUE, completed: GREEN, cancelled: "#E05567",
   };
   const STATUS_LABELS: Record<string, string> = {
     pending: "انتظار", accepted: "جارٍ التنفيذ", completed: "مكتمل", cancelled: "ملغي",
   };
-  const sc = STATUS_COLORS[trip.status] ?? Colors.textMuted;
+  const sc     = STATUS_COLORS[localStatus] ?? Colors.textMuted;
   const vcIcon = trip.vehicle_preference === "rickshaw" ? "rickshaw" :
                  trip.vehicle_preference === "delivery" ? "package-variant" : "car-side";
 
   const fromZ = TRANSPORT_ZONES.find(z => z.id === trip.from_zone);
   const toZ   = TRANSPORT_ZONES.find(z => z.id === trip.to_zone);
 
+  const handleRate = async () => {
+    if (!selectedStars) return;
+    setSavingRating(true);
+    await onRate(trip.id, selectedStars, ratingNote);
+    setLocalRating(selectedStars);
+    setShowRating(false);
+    setSavingRating(false);
+  };
+
+  const handleCancel = () => {
+    Alert.alert("إلغاء الطلب", "هل أنت متأكد من إلغاء هذا الطلب؟", [
+      { text: "تراجع", style: "cancel" },
+      {
+        text: "نعم، إلغاء",
+        style: "destructive",
+        onPress: async () => {
+          setCancelling(true);
+          await onCancel(trip.id);
+          setLocalStatus("cancelled");
+          setCancelling(false);
+        },
+      },
+    ]);
+  };
+
   return (
     <Animated.View entering={FadeInDown.springify()} style={tc.card}>
+      {/* ─ رأس البطاقة ─ */}
       <View style={tc.topRow}>
         <View style={[tc.typeBadge, { backgroundColor: ACCENT + "15" }]}>
           <MaterialCommunityIcons name={vcIcon as any} size={14} color={ACCENT} />
@@ -1005,21 +1108,32 @@ function TripCard({ trip, fareMatrix }: { trip: Trip; fareMatrix: FareMatrix }) 
              trip.vehicle_preference === "delivery" ? "توصيل" : "سيارة"}
           </Text>
         </View>
-        <View style={[tc.statusBadge, { backgroundColor: sc + "20", borderColor: sc + "50" }]}>
-          <Text style={[tc.statusText, { color: sc }]}>{STATUS_LABELS[trip.status] ?? trip.status}</Text>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+          <View style={[tc.statusBadge, { backgroundColor: sc + "20", borderColor: sc + "50" }]}>
+            <Text style={[tc.statusText, { color: sc }]}>{STATUS_LABELS[localStatus] ?? localStatus}</Text>
+          </View>
+          {/* إلغاء الطلب */}
+          {localStatus === "pending" && (
+            <TouchableOpacity onPress={handleCancel} disabled={cancelling} style={tc.cancelBtn}>
+              {cancelling
+                ? <ActivityIndicator size="small" color="#E05567" />
+                : <Ionicons name="close-circle" size={16} color="#E05567" />}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
+      {/* ─ المسار والتعرفة ─ */}
       {(fromZ || toZ) ? (
         <View style={tc.routeRow}>
           <View style={{ flex: 1, gap: 4 }}>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
               <View style={[tc.zoneDot, { backgroundColor: GREEN }]} />
-              <Text style={tc.routeText}>{fromZ ? `م${fromZ.id} ${fromZ.name}` : trip.from_location}</Text>
+              <Text style={tc.routeText}>{fromZ ? `م${fromZ.id} — ${fromZ.name}` : trip.from_location}</Text>
             </View>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
               <View style={[tc.zoneDot, { backgroundColor: ACCENT }]} />
-              <Text style={tc.routeText}>{toZ ? `م${toZ.id} ${toZ.name}` : trip.to_location}</Text>
+              <Text style={tc.routeText}>{toZ ? `م${toZ.id} — ${toZ.name}` : trip.to_location}</Text>
             </View>
           </View>
           {trip.fare_estimate ? (
@@ -1033,12 +1147,88 @@ function TripCard({ trip, fareMatrix }: { trip: Trip; fareMatrix: FareMatrix }) 
         <Text style={tc.routeFallback}>📍 {trip.from_location} ← {trip.to_location}</Text>
       )}
 
+      {/* ─ وصف الشحنة (للتوصيل) ─ */}
+      {trip.delivery_desc ? (
+        <View style={tc.descRow}>
+          <MaterialCommunityIcons name="package-variant" size={13} color={ACCENT} />
+          <Text style={tc.descText}>{trip.delivery_desc}</Text>
+        </View>
+      ) : null}
+
+      {/* ─ معلومات السائق (عند قبول الطلب) ─ */}
+      {localStatus === "accepted" && trip.driver_name ? (
+        <View style={tc.driverRow}>
+          <MaterialCommunityIcons name="steering" size={15} color={BLUE} />
+          <Text style={tc.driverNameText}>{trip.driver_name}</Text>
+          {trip.driver_phone ? (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`tel:${trip.driver_phone}`)}
+              style={tc.callDriverBtn}>
+              <Ionicons name="call" size={13} color="#fff" />
+              <Text style={tc.callDriverText}>اتصال بالسائق</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* ─ تذييل البطاقة ─ */}
       <View style={tc.footerRow}>
         <Text style={tc.dateText}>{new Date(trip.created_at).toLocaleDateString("ar-SD")}</Text>
-        {trip.driver_name ? (
+        {localStatus === "completed" && !localRating ? (
+          <TouchableOpacity onPress={() => setShowRating(p => !p)} style={tc.rateBtn}>
+            <Ionicons name="star-outline" size={13} color={ACCENT2} />
+            <Text style={tc.rateBtnText}>قيّم رحلتك</Text>
+          </TouchableOpacity>
+        ) : localRating ? (
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 3 }}>
+            {[1,2,3,4,5].map(i => (
+              <Ionicons key={i} name={i <= (localRating ?? 0) ? "star" : "star-outline"} size={13} color={ACCENT2} />
+            ))}
+            <Text style={tc.ratedText}>قيّمت</Text>
+          </View>
+        ) : trip.driver_name && localStatus !== "accepted" ? (
           <Text style={tc.driverText}>السائق: {trip.driver_name}</Text>
         ) : null}
       </View>
+
+      {/* ─ ويدجت التقييم (منسحب) ─ */}
+      {showRating && (
+        <Animated.View entering={FadeInDown.springify()} style={tc.ratingPanel}>
+          <Text style={tc.ratingTitle}>كيف كانت تجربتك؟</Text>
+          <View style={tc.starsRow}>
+            {[1,2,3,4,5].map(i => (
+              <TouchableOpacity key={i} onPress={() => setSelectedStars(i)}>
+                <Ionicons
+                  name={i <= selectedStars ? "star" : "star-outline"}
+                  size={30} color={i <= selectedStars ? ACCENT2 : Colors.divider}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            style={tc.ratingInput}
+            value={ratingNote}
+            onChangeText={setRatingNote}
+            placeholder="تعليق اختياري..."
+            placeholderTextColor={Colors.textMuted}
+            textAlign="right"
+            multiline
+          />
+          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+            <TouchableOpacity
+              onPress={handleRate}
+              disabled={!selectedStars || savingRating}
+              style={[tc.ratingSubmit, { opacity: selectedStars ? 1 : 0.45 }]}>
+              {savingRating
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={tc.ratingSubmitText}>إرسال التقييم</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowRating(false)} style={tc.ratingCancel}>
+              <Text style={tc.ratingCancelText}>تراجع</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
@@ -1191,22 +1381,40 @@ const dc = StyleSheet.create({
 });
 
 const tc = StyleSheet.create({
-  card:       { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
-  topRow:     { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 10 },
-  typeBadge:  { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  typeText:   { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT },
-  statusBadge:{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
-  statusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  routeRow:   { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 },
-  zoneDot:    { width: 8, height: 8, borderRadius: 4 },
-  routeText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  routeFallback: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 },
-  fareBadge:  { alignItems: "center", backgroundColor: ACCENT + "15", borderRadius: 10, padding: 8 },
-  fareLabel:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  fareValue:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT },
-  footerRow:  { flexDirection: "row-reverse", justifyContent: "space-between", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
-  dateText:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  driverText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  card:            { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
+  topRow:          { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 10 },
+  typeBadge:       { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  typeText:        { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT },
+  statusBadge:     { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  statusText:      { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  cancelBtn:       { width: 28, height: 28, borderRadius: 14, backgroundColor: "#E0556715", alignItems: "center", justifyContent: "center" },
+  routeRow:        { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 },
+  zoneDot:         { width: 8, height: 8, borderRadius: 4 },
+  routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  routeFallback:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 },
+  fareBadge:       { alignItems: "center", backgroundColor: ACCENT + "15", borderRadius: 10, padding: 8 },
+  fareLabel:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  fareValue:       { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT },
+  descRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 6, backgroundColor: ACCENT + "0D", borderRadius: 8, padding: 8, marginBottom: 8 },
+  descText:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
+  driverRow:       { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: BLUE + "12", borderRadius: 10, padding: 8, marginBottom: 8 },
+  driverNameText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: BLUE, flex: 1, textAlign: "right" },
+  callDriverBtn:   { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: BLUE, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  callDriverText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  footerRow:       { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
+  dateText:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  driverText:      { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  rateBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: ACCENT2 + "20", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  rateBtnText:     { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT2 },
+  ratedText:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginLeft: 4 },
+  ratingPanel:     { marginTop: 10, padding: 12, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
+  ratingTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "center", marginBottom: 10 },
+  starsRow:        { flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 10 },
+  ratingInput:     { backgroundColor: Colors.cardBg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, padding: 8, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textPrimary, minHeight: 48, textAlignVertical: "top" },
+  ratingSubmit:    { flex: 1, backgroundColor: ACCENT, borderRadius: 8, padding: 9, alignItems: "center" },
+  ratingSubmitText:{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  ratingCancel:    { backgroundColor: Colors.divider, borderRadius: 8, paddingHorizontal: 14, padding: 9, alignItems: "center", justifyContent: "center" },
+  ratingCancelText:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
 });
 
 // ─── أنماط بطاقة التحذير القانوني (lw = legal warning) ──────────────────────
