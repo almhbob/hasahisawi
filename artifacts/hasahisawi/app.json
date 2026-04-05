@@ -31,6 +31,7 @@
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -72,7 +73,28 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#27AE68",
-          "defaultChannel": "default"
+          "defaultChannel": "hasahisawi-default",
+          "androidChannels": [
+            {
+              "name": "حصاحيصاوي — تنبيهات",
+              "importance": 5,
+              "vibrationPattern": [0, 250, 250, 250],
+              "lightColor": "#27AE68",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": true,
+              "bypassDnd": false,
+              "lockscreenVisibility": 1,
+              "audioAttributes": {
+                "usage": "USAGE_NOTIFICATION",
+                "contentType": "CONTENT_TYPE_SONIFICATION",
+                "flags": {
+                  "enforceAudibility": true,
+                  "requestHardwareAudioVideoSynchronization": false
+                }
+              }
+            }
+          ]
         }
       ]
     ],
