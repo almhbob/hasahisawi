@@ -28,7 +28,7 @@ export const DEFAULT_HASAHISA_LOCATIONS: NeighborhoodItem[] = [
   { label: "المنصورة",            type: "neighborhood" },
   { label: "المزاد",              type: "neighborhood" },
   { label: "الكرمك",              type: "neighborhood" },
-  { label: "الكومبو",             type: "neighborhood" },
+  { label: "كمبو المحالج",        type: "neighborhood" },
   { label: "الجملونات",           type: "neighborhood" },
   { label: "الطائف",              type: "neighborhood" },
   { label: "ود الكامل",           type: "neighborhood" },
@@ -73,6 +73,7 @@ export const DEFAULT_HASAHISA_LOCATIONS: NeighborhoodItem[] = [
   { label: "الشيخ طيب",           type: "village" },
   { label: "ود بلال",             type: "village" },
   { label: "أبو عشر",             type: "village" },
+  { label: "الدوينيب",            type: "village" },
 
   // ── خيار عام ────────────────────────────────────────────────────────────
   { label: "أخرى / خارج الحصاحيصا", type: "village" },

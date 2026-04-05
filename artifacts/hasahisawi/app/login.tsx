@@ -48,6 +48,7 @@ export default function LoginScreen() {
   const [neighborhood, setNeighborhood] = useState("");
   const [showNbrModal, setShowNbrModal] = useState(false);
   const [nbrSearch, setNbrSearch]     = useState("");
+  const [customNbr, setCustomNbr]     = useState("");
   const [bioLabel, setBioLabel]       = useState("البصمة");
   const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
@@ -74,7 +75,7 @@ export default function LoginScreen() {
     setPassword(""); setConfirmPwd(""); setError("");
     setShowPwd(false); setUseEmail(false);
     setBirthDay(""); setBirthMonth(""); setBirthYear("");
-    setNeighborhood(""); setNbrSearch("");
+    setNeighborhood(""); setNbrSearch(""); setCustomNbr("");
   };
 
   const getBirthDateISO = (): string | undefined => {
@@ -551,11 +552,11 @@ export default function LoginScreen() {
             <FlatList
               data={filteredLocations}
               keyExtractor={i => i.label}
-              style={{ maxHeight: 360 }}
+              style={{ maxHeight: 340 }}
               renderItem={({ item }) => (
                 <Pressable
                   style={[s2.nbrRow, neighborhood === item.label && s2.nbrRowActive]}
-                  onPress={() => { setNeighborhood(item.label); setShowNbrModal(false); setNbrSearch(""); }}
+                  onPress={() => { setNeighborhood(item.label); setShowNbrModal(false); setNbrSearch(""); setCustomNbr(""); }}
                 >
                   <Ionicons
                     name={item.type === "neighborhood" ? "home-outline" : "leaf-outline"}
@@ -572,6 +573,37 @@ export default function LoginScreen() {
                   </View>
                 </Pressable>
               )}
+              ListFooterComponent={
+                <View style={s2.customNbrWrap}>
+                  <View style={s2.customNbrDivider}>
+                    <View style={s2.customNbrLine} />
+                    <Text style={s2.customNbrDividerText}>أو أدخل اسم الحي / القرية يدوياً</Text>
+                    <View style={s2.customNbrLine} />
+                  </View>
+                  <View style={s2.customNbrRow}>
+                    <TextInput
+                      style={s2.customNbrInput}
+                      placeholder="اكتب اسم الحي أو القرية..."
+                      placeholderTextColor={Colors.textMuted}
+                      value={customNbr}
+                      onChangeText={setCustomNbr}
+                      textAlign="right"
+                    />
+                    <Pressable
+                      style={[s2.customNbrBtn, !customNbr.trim() && { opacity: 0.45 }]}
+                      disabled={!customNbr.trim()}
+                      onPress={() => {
+                        setNeighborhood(customNbr.trim());
+                        setShowNbrModal(false);
+                        setNbrSearch("");
+                        setCustomNbr("");
+                      }}
+                    >
+                      <Ionicons name="checkmark" size={18} color="#fff" />
+                    </Pressable>
+                  </View>
+                </View>
+              }
             />
           </Pressable>
         </Pressable>
@@ -894,4 +926,20 @@ const s2 = StyleSheet.create({
   nbrLabelActive: { color: Colors.primary, fontFamily: "Cairo_700Bold" },
   nbrTypeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   nbrType: { fontFamily: "Cairo_500Medium", fontSize: 11 },
+  // ─── Custom neighborhood entry ───────────────────────────────────────────
+  customNbrWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+  customNbrDivider: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
+  customNbrLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
+  customNbrDividerText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
+  customNbrRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  customNbrInput: {
+    flex: 1, backgroundColor: Colors.bg, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11,
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
+  },
+  customNbrBtn: {
+    backgroundColor: Colors.primary, borderRadius: 12,
+    width: 44, height: 44, justifyContent: "center", alignItems: "center",
+  },
 });
