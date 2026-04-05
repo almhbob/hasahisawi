@@ -274,6 +274,57 @@ function ComingSoonScreen({ note }: { note?: string }) {
   );
 }
 
+// ─── شاشة الصيانة ─────────────────────────────────────────────────────────────
+function MaintenanceScreen({ note }: { note?: string }) {
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const spin   = useSharedValue(0);
+  useEffect(() => {
+    spin.value = withRepeat(withTiming(1, { duration: 3000 }), -1, false);
+  }, []);
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value * 360}deg` }],
+  }));
+  return (
+    <View style={cs.container}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={["#1A1200", "#2B1E00", "#2E2000"]} style={[cs.hero, { paddingTop: topPad + 16 }]}>
+          <Animated.View entering={FadeIn.delay(100).duration(600)} style={cs.iconCluster}>
+            <View style={cs.pulseWrap}>
+              <LinearGradient colors={["#F59E0B30", "#F59E0B10"]} style={cs.iconCircle}>
+                <Animated.View style={spinStyle}>
+                  <MaterialCommunityIcons name="cog" size={38} color="#F59E0B" />
+                </Animated.View>
+              </LinearGradient>
+            </View>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={cs.soonBadgeWrap}>
+            <View style={[cs.soonBadge, { backgroundColor: "#F59E0B20", borderColor: "#F59E0B40" }]}>
+              <MaterialCommunityIcons name="wrench-clock" size={13} color="#F59E0B" />
+              <Text style={[cs.soonBadgeText, { color: "#F59E0B" }]}>قيد الصيانة</Text>
+            </View>
+          </Animated.View>
+          <Animated.Text entering={FadeInDown.delay(280).springify()} style={cs.heroTitle}>
+            الخدمة تحت الصيانة
+          </Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
+            نعمل على تحسين تجربتك — نعود قريباً بشكل أفضل
+          </Animated.Text>
+        </LinearGradient>
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={{ marginHorizontal: 20, marginTop: 20 }}>
+          <LinearGradient colors={["#F59E0B18", "#F59E0B08"]} style={{ borderRadius: 18, padding: 20, borderWidth: 1, borderColor: "#F59E0B30" }}>
+            <MaterialCommunityIcons name="information-outline" size={22} color="#F59E0B" style={{ marginBottom: 8 }} />
+            <Text style={[cs.ctaTitle, { color: "#F59E0B" }]}>جارٍ العمل على التحسين</Text>
+            <Text style={[cs.ctaSub, { marginTop: 6 }]}>
+              {note || "نقوم بصيانة الخدمة لضمان أفضل تجربة ممكنة لك.\nشكراً لصبرك — ستعود الخدمة قريباً."}
+            </Text>
+          </LinearGradient>
+        </Animated.View>
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── اختيار المنطقة ───────────────────────────────────────────────────────────
 function ZonePicker({
   label, value, onChange,
@@ -403,6 +454,7 @@ export default function TransportScreen() {
   const apiUrl = getApiUrl();
 
   const [enabled,    setEnabled]   = useState<boolean | null>(null);
+  const [transportStatus, setTransportStatus] = useState<"available" | "coming_soon" | "maintenance">("coming_soon");
   const [note,       setNote]      = useState("");
   const [loading,    setLoading]   = useState(true);
   const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register">("book");
@@ -450,13 +502,12 @@ export default function TransportScreen() {
       const res = await fetch(`${apiUrl}/api/transport/status`);
       if (res.ok) {
         const d = await res.json();
-        setEnabled(d.enabled);
-        if (!d.enabled) {
-          const set = await fetch(`${apiUrl}/api/admin/transport/settings`).catch(() => null);
-          if (set?.ok) { const sd = await set.json(); setNote(sd.transport_note || ""); }
-        }
+        const st = d.status ?? (d.enabled ? "available" : "coming_soon");
+        setTransportStatus(st);
+        setEnabled(st === "available");
+        setNote(d.note || "");
       }
-    } catch { setEnabled(false); }
+    } catch { setEnabled(false); setTransportStatus("coming_soon"); }
     finally { setLoading(false); }
   }, [apiUrl]);
 
@@ -666,6 +717,7 @@ export default function TransportScreen() {
     </View>
   );
 
+  if (transportStatus === "maintenance") return <MaintenanceScreen note={note} />;
   if (!enabled) return <ComingSoonScreen note={note} />;
 
   const TABS = [

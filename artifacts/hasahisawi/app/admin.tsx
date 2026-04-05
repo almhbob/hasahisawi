@@ -340,7 +340,7 @@ export default function AdminDashboard() {
   const [showApiKey, setShowApiKey] = useState(false);
 
   // ── Transport ──
-  const [transportEnabled, setTransportEnabled] = useState(false);
+  const [transportStatus, setTransportStatus] = useState<"coming_soon" | "maintenance" | "available">("coming_soon");
   const [transportNote, setTransportNote] = useState("");
   const [transportPhone, setTransportPhone] = useState("");
   const [savingTransportSettings, setSavingTransportSettings] = useState(false);
@@ -535,7 +535,8 @@ export default function AdminDashboard() {
       ]);
       if (settingsRes.ok) {
         const d = await settingsRes.json();
-        setTransportEnabled(d.transport_enabled === "true");
+        const st = d.transport_status as "coming_soon" | "maintenance" | "available";
+        setTransportStatus(["coming_soon","maintenance","available"].includes(st) ? st : "coming_soon");
         setTransportNote(d.transport_note || "");
         setTransportPhone(d.transport_phone || "");
       }
@@ -605,7 +606,7 @@ export default function AdminDashboard() {
       const res = await apiFetch("/api/admin/transport/settings", token, {
         method: "PUT",
         body: JSON.stringify({
-          transport_enabled: String(transportEnabled),
+          transport_status: transportStatus,
           transport_note: transportNote,
           transport_phone: transportPhone,
         }),
@@ -3246,12 +3247,12 @@ export default function AdminDashboard() {
                       <Text style={s.cardTitle}>حالة الخدمة</Text>
                     </View>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6,
-                      backgroundColor: transportEnabled ? "#3EFF9C20" : "#E0556720",
+                      backgroundColor: transportStatus === "available" ? "#3EFF9C20" : transportStatus === "maintenance" ? "#F59E0B20" : "#6366F120",
                       paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
-                      borderWidth: 1, borderColor: transportEnabled ? "#3EFF9C40" : "#E0556740" }}>
-                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: transportEnabled ? "#3EFF9C" : "#E05567" }} />
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: transportEnabled ? "#3EFF9C" : "#E05567" }}>
-                        {transportEnabled ? "مفعّلة" : "موقوفة"}
+                      borderWidth: 1, borderColor: transportStatus === "available" ? "#3EFF9C40" : transportStatus === "maintenance" ? "#F59E0B40" : "#6366F140" }}>
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }} />
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }}>
+                        {transportStatus === "available" ? "متاحة" : transportStatus === "maintenance" ? "قيد الصيانة" : "قريباً"}
                       </Text>
                     </View>
                   </View>
@@ -3706,19 +3707,41 @@ export default function AdminDashboard() {
                   <Text style={s.cardTitle}>إعدادات خدمة الترحال والتوصيل</Text>
                 </View>
 
-                <View style={s.toggleRow}>
-                  <Text style={s.toggleLabel}>تفعيل الخدمة</Text>
-                  <TouchableOpacity
-                    onPress={() => setTransportEnabled(p => !p)}
-                    style={[s.toggle, { backgroundColor: transportEnabled ? "#F97316" : Colors.divider }]}
-                    activeOpacity={0.8}>
-                    <View style={[s.toggleThumb, { alignSelf: transportEnabled ? "flex-end" : "flex-start" }]} />
-                  </TouchableOpacity>
+                <Text style={[s.fieldLabel, { marginBottom: 10 }]}>حالة الخدمة</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  {([
+                    { key: "available",   label: "متاحة",         icon: "checkmark-circle", color: "#22C55E" },
+                    { key: "maintenance", label: "قيد الصيانة",   icon: "construct",        color: "#F59E0B" },
+                    { key: "coming_soon", label: "قريباً",        icon: "time",             color: "#6366F1" },
+                  ] as const).map(opt => {
+                    const active = transportStatus === opt.key;
+                    return (
+                      <TouchableOpacity
+                        key={opt.key}
+                        onPress={() => setTransportStatus(opt.key)}
+                        style={{
+                          flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: active ? opt.color : Colors.divider,
+                          backgroundColor: active ? opt.color + "18" : Colors.cardBg,
+                          gap: 6,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name={opt.icon as any} size={22} color={active ? opt.color : Colors.textMuted} />
+                        <Text style={{
+                          fontFamily: active ? "Cairo_700Bold" : "Cairo_500Medium",
+                          fontSize: 12,
+                          color: active ? opt.color : Colors.textMuted,
+                        }}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <Text style={s.fieldHint}>
-                  {transportEnabled
-                    ? "✅ الخدمة مفعّلة — يرى المستخدمون واجهة الحجز الكاملة مع اختيار المناطق والتعرفة"
-                    : "⏸️ الخدمة موقوفة — يرى المستخدمون شاشة «قريباً» فقط"}
+                <Text style={[s.fieldHint, { marginTop: 8 }]}>
+                  {transportStatus === "available"   && "✅ الخدمة متاحة — يرى المستخدمون واجهة الحجز الكاملة"}
+                  {transportStatus === "maintenance" && "🔧 قيد الصيانة — يرى المستخدمون إشعار صيانة مؤقتة"}
+                  {transportStatus === "coming_soon" && "🕐 قريباً — يرى المستخدمون شاشة الإطلاق القادم"}
                 </Text>
 
                 <Text style={s.fieldLabel}>رقم هاتف دعم القسم (اختياري)</Text>

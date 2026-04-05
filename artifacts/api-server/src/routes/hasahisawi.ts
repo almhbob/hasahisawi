@@ -4353,9 +4353,18 @@ router.post("/inst/logout", async (req: Request, res: Response) => {
 // GET /api/transport/status — حالة الخدمة (عام)
 router.get("/transport/status", async (_req: Request, res: Response) => {
   try {
-    const { rows } = await query(`SELECT value FROM admin_settings WHERE key='transport_enabled'`);
-    return res.json({ enabled: rows[0]?.value === "true" });
-  } catch { return res.json({ enabled: false }); }
+    const { rows } = await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('transport_status','transport_note')`
+    );
+    const map: Record<string, string> = {};
+    rows.forEach((r: any) => { map[r.key] = r.value; });
+    const status = map.transport_status ?? "coming_soon";
+    return res.json({
+      enabled: status === "available",
+      status,
+      note: map.transport_note ?? "",
+    });
+  } catch { return res.json({ enabled: false, status: "coming_soon", note: "" }); }
 });
 
 // GET /api/admin/transport/settings — إعدادات الخدمة (مدير)
@@ -4364,10 +4373,14 @@ router.get("/admin/transport/settings", async (req: Request, res: Response) => {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
     const { rows } = await query(
-      `SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_note','transport_phone')`
+      `SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_status','transport_note','transport_phone')`
     );
     const result: Record<string, string> = {};
     rows.forEach((r: any) => { result[r.key] = r.value; });
+    // ضمان وجود transport_status
+    if (!result.transport_status) {
+      result.transport_status = result.transport_enabled === "true" ? "available" : "coming_soon";
+    }
     return res.json(result);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
@@ -4377,9 +4390,13 @@ router.put("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { transport_enabled, transport_note, transport_phone } = req.body;
+    const { transport_status, transport_note, transport_phone } = req.body;
+    const valid = ["available", "coming_soon", "maintenance"];
     const entries: [string, string][] = [];
-    if (transport_enabled !== undefined) entries.push(["transport_enabled", String(transport_enabled)]);
+    if (transport_status !== undefined && valid.includes(transport_status)) {
+      entries.push(["transport_status", transport_status]);
+      entries.push(["transport_enabled", String(transport_status === "available")]);
+    }
     if (transport_note !== undefined) entries.push(["transport_note", transport_note]);
     if (transport_phone !== undefined) entries.push(["transport_phone", transport_phone]);
     for (const [k, v] of entries) {
