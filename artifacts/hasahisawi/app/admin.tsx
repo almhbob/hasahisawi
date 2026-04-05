@@ -836,7 +836,7 @@ export default function AdminDashboard() {
     setLoadingAdminLibs(true);
     try {
       const res = await apiFetch("/api/admin/student-libraries", token);
-      if (res.ok) setAdminLibraries(await res.json());
+      if (res.ok) { const d = await res.json(); setAdminLibraries(Array.isArray(d) ? d : d.libraries ?? []); }
     } catch {}
     finally { setLoadingAdminLibs(false); }
   }, [token]);
@@ -861,7 +861,7 @@ export default function AdminDashboard() {
     setLoadingAdminMerchants(true);
     try {
       const res = await apiFetch("/api/admin/merchants", token);
-      if (res.ok) setAdminMerchants(await res.json());
+      if (res.ok) { const d = await res.json(); setAdminMerchants(Array.isArray(d) ? d : d.merchants ?? []); }
     } catch {}
     finally { setLoadingAdminMerchants(false); }
   }, [token]);
