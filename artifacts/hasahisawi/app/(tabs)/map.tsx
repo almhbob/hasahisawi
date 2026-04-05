@@ -155,6 +155,30 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 </html>`;
 }
 
+// ── iframe للويب (بديل WebView) ──────────────────────────────────────────────
+function WebMapFrame({ html, onReady }: { html: string; onReady: () => void }) {
+  const iframeRef = useRef<any>(null);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const blob = new Blob([html], { type: "text/html" });
+    const url  = URL.createObjectURL(blob);
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+      iframeRef.current.onload = onReady;
+    }
+    return () => URL.revokeObjectURL(url);
+  }, [html]);
+
+  return React.createElement("iframe", {
+    ref: iframeRef,
+    style: {
+      width: "100%", height: "100%", border: "none",
+      background: BG, display: "block",
+    },
+    sandbox: "allow-scripts allow-same-origin",
+  });
+}
+
 // ── الشاشة الرئيسية ──────────────────────────────────────────────────────────
 export default function MapScreen() {
   const insets    = useSafeAreaInsets();
@@ -258,13 +282,15 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      {/* Map WebView */}
+      {/* Map */}
       <View style={s.mapWrap}>
         {loading ? (
           <View style={s.center}>
             <ActivityIndicator color={CYBER} size="large" />
             <Text style={s.loadTxt}>تحميل الخريطة…</Text>
           </View>
+        ) : Platform.OS === "web" ? (
+          <WebMapFrame html={mapHtml} onReady={() => setMapReady(true)} />
         ) : (
           <WebView
             ref={webRef}
