@@ -1084,7 +1084,45 @@ const jf = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-type Tab = "services" | "institutions" | "join" | "admin";
+type Tab = "services" | "institutions" | "libraries" | "join" | "admin";
+
+// ─── Library Types ────────────────────────────────────────────────────────────
+type LibraryCat = "books" | "stationery" | "printing" | "uniforms" | "tutoring" | "other";
+
+type StudentLibrary = {
+  id: number;
+  name: string;
+  owner_name?: string;
+  category: LibraryCat;
+  description?: string;
+  address?: string;
+  phone?: string;
+  whatsapp?: string;
+  services: string[];
+  is_featured: boolean;
+  created_at: string;
+};
+
+const LIB_CATS: { key: "all" | LibraryCat; label: string; icon: string; color: string }[] = [
+  { key:"all",        label:"الكل",           icon:"apps-outline",         color:"#6366F1" },
+  { key:"books",      label:"كتب ومراجع",     icon:"book-outline",          color:"#3B82F6" },
+  { key:"stationery", label:"قرطاسية",         icon:"pencil-outline",        color:"#F59E0B" },
+  { key:"printing",   label:"طباعة وتصوير",   icon:"print-outline",         color:"#10B981" },
+  { key:"uniforms",   label:"مستلزمات مدرسية",icon:"shirt-outline",          color:"#8B5CF6" },
+  { key:"tutoring",   label:"دروس خصوصية",    icon:"people-outline",         color:"#EF4444" },
+  { key:"other",      label:"أخرى",            icon:"ellipsis-horizontal-outline", color:"#6B7280" },
+];
+
+const LIB_CAT_LABELS: Record<string, string> = {
+  books:"كتب ومراجع", stationery:"قرطاسية", printing:"طباعة وتصوير",
+  uniforms:"مستلزمات مدرسية", tutoring:"دروس خصوصية", other:"أخرى",
+};
+
+const LIB_SERVICES = [
+  "بيع الكتب المدرسية","بيع المراجع الجامعية","تصوير وطباعة","تجليد الكتب",
+  "قرطاسية متنوعة","ملابس مدرسية","مستلزمات رياضية","حقائب وأدوات",
+  "دروس خصوصية","طباعة رسائل وبحوث","بطاقات طلابية","أخرى",
+];
 
 export default function StudentScreen() {
   const insets = useSafeAreaInsets();
@@ -1109,6 +1147,51 @@ export default function StudentScreen() {
   // Join success
   const [joinSuccess, setJoinSuccess]     = useState(false);
 
+  // Libraries state
+  const [libraries, setLibraries]         = useState<StudentLibrary[]>([]);
+  const [libCat, setLibCat]               = useState<"all" | LibraryCat>("all");
+  const [libSearch, setLibSearch]         = useState("");
+  const [libLoading, setLibLoading]       = useState(false);
+  const [libRegModal, setLibRegModal]     = useState(false);
+  const [libRegSuccess, setLibRegSuccess] = useState(false);
+  const [libForm, setLibForm]             = useState({
+    name:"", owner_name:"", category:"books" as LibraryCat,
+    description:"", address:"", phone:"", whatsapp:"", services:[] as string[],
+  });
+  const [libSubmitting, setLibSubmitting] = useState(false);
+
+  const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+
+  const loadLibraries = async () => {
+    setLibLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (libCat !== "all") params.set("category", libCat);
+      if (libSearch.trim()) params.set("q", libSearch.trim());
+      const res = await fetch(`${BASE_URL}/api/student-libraries?${params}`);
+      if (res.ok) { const data = await res.json(); setLibraries(data.libraries ?? []); }
+    } catch {} finally { setLibLoading(false); }
+  };
+
+  const submitLibraryReg = async () => {
+    if (!libForm.name.trim()) { Alert.alert("خطأ", "اسم المكتبة مطلوب"); return; }
+    if (!libForm.phone.trim() && !libForm.whatsapp.trim()) { Alert.alert("خطأ", "رقم التواصل مطلوب"); return; }
+    setLibSubmitting(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/student-libraries`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ ...libForm }),
+      });
+      if (res.ok) {
+        setLibRegSuccess(true);
+        setLibForm({ name:"", owner_name:"", category:"books", description:"", address:"", phone:"", whatsapp:"", services:[] });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert("خطأ", err.error ?? "تعذّر إرسال الطلب");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setLibSubmitting(false); }
+  };
+
   const load = async () => {
     const [insts, reqs] = await Promise.all([loadInstitutions(), loadRequests()]);
     setInstitutions(insts);
@@ -1119,6 +1202,7 @@ export default function StudentScreen() {
 
   useEffect(() => { load(); }, []);
   useFocusEffect(useCallback(() => { load(); }, []));
+  useEffect(() => { if (activeTab === "libraries") loadLibraries(); }, [activeTab, libCat, libSearch]);
 
   // ── Stats ──
   const activeInsts = institutions.filter(i => i.status === "active");
@@ -1189,6 +1273,7 @@ export default function StudentScreen() {
   const TAB_OPTIONS: { key: Tab; label: string; icon: string }[] = [
     { key:"services",     label:"الخدمات",   icon:"grid-outline" },
     { key:"institutions", label:"المؤسسات",  icon:"school-outline" },
+    { key:"libraries",    label:"المكتبات",  icon:"book-outline" },
     { key:"join",         label:"انضمام",    icon:"add-circle-outline" },
     { key:"admin",        label:"الإدارة",   icon:"shield-checkmark-outline" },
   ];
@@ -1366,6 +1451,247 @@ export default function StudentScreen() {
                 />
               </Animated.View>
             ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══ TAB: LIBRARIES ══ */}
+      {activeTab === "libraries" && (
+        <View style={{ flex:1 }}>
+          {/* Registration modal */}
+          <Modal visible={libRegModal} transparent animationType="slide" onRequestClose={()=>setLibRegModal(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":"height"} style={{ flex:1 }}>
+              <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.7)", justifyContent:"flex-end" }}>
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]}
+                    style={{ borderTopLeftRadius:28, borderTopRightRadius:28, padding:24, maxHeight:"90%" }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                      <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
+                        <View style={{ width:40,height:40,borderRadius:12,backgroundColor:"#3B82F620",justifyContent:"center",alignItems:"center" }}>
+                          <Ionicons name="book" size={20} color="#3B82F6" />
+                        </View>
+                        <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>
+                          {libRegSuccess ? "تم الإرسال!" : "تسجيل مكتبة أو محل"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={()=>{ setLibRegModal(false); setLibRegSuccess(false); }}>
+                        <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {libRegSuccess ? (
+                      <View style={{ alignItems:"center", paddingVertical:30, gap:14 }}>
+                        <View style={{ width:72,height:72,borderRadius:22,backgroundColor:Colors.primary+"20",justifyContent:"center",alignItems:"center" }}>
+                          <Ionicons name="checkmark-circle" size={44} color={Colors.primary} />
+                        </View>
+                        <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textPrimary, textAlign:"center" }}>تم استلام طلبك بنجاح!</Text>
+                        <Text style={{ fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textSecondary, textAlign:"center", lineHeight:22 }}>
+                          سيتم مراجعة طلبك من قِبل الإدارة وإضافة مكتبتك قريباً.
+                        </Text>
+                        <TouchableOpacity onPress={()=>{ setLibRegModal(false); setLibRegSuccess(false); }}
+                          style={{ backgroundColor:Colors.primary, borderRadius:14, paddingVertical:12, paddingHorizontal:32, marginTop:8 }}>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" }}>حسناً</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <ScrollView showsVerticalScrollIndicator={false}>
+                        {([ 
+                          { label:"اسم المكتبة / المحل *", key:"name", ph:"مكتبة النور الطلابية" },
+                          { label:"اسم المالك",              key:"owner_name", ph:"اسم صاحب المحل" },
+                          { label:"العنوان",                 key:"address", ph:"الحي أو الشارع" },
+                          { label:"رقم الهاتف *",            key:"phone", ph:"+249XXXXXXXXX" },
+                          { label:"واتساب",                  key:"whatsapp", ph:"+249XXXXXXXXX" },
+                        ] as {label:string;key:keyof typeof libForm;ph:string}[]).map(field => (
+                          <View key={field.key} style={{ marginBottom:12 }}>
+                            <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>{field.label}</Text>
+                            <TextInput
+                              value={libForm[field.key] as string}
+                              onChangeText={v=>setLibForm(f=>({...f,[field.key]:v}))}
+                              placeholder={field.ph} placeholderTextColor={Colors.textMuted}
+                              style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }}
+                            />
+                          </View>
+                        ))}
+                        <View style={{ marginBottom:12 }}>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>نوع النشاط *</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
+                            {LIB_CATS.filter(c=>c.key!=="all").map(c=>(
+                              <TouchableOpacity key={c.key} onPress={()=>setLibForm(f=>({...f,category:c.key as LibraryCat}))}
+                                style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
+                                  backgroundColor: libForm.category===c.key ? c.color+"25" : Colors.cardBg,
+                                  borderWidth:1, borderColor: libForm.category===c.key ? c.color : Colors.divider }}>
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: libForm.category===c.key ? c.color : Colors.textMuted }}>{c.label}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                        <View style={{ marginBottom:12 }}>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>الخدمات المقدمة</Text>
+                          <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:8 }}>
+                            {LIB_SERVICES.map(svc=>{
+                              const active = libForm.services.includes(svc);
+                              return (
+                                <TouchableOpacity key={svc} onPress={()=>setLibForm(f=>({
+                                  ...f, services: active ? f.services.filter(s=>s!==svc) : [...f.services, svc]
+                                }))}
+                                  style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:8,
+                                    backgroundColor: active ? Colors.primary+"20" : Colors.cardBg,
+                                    borderWidth:1, borderColor: active ? Colors.primary+"50" : Colors.divider }}>
+                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color: active ? Colors.primary : Colors.textMuted }}>{svc}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                        <View style={{ marginBottom:20 }}>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>وصف إضافي</Text>
+                          <TextInput
+                            value={libForm.description} multiline numberOfLines={3}
+                            onChangeText={v=>setLibForm(f=>({...f,description:v}))}
+                            placeholder="اذكر أي معلومات إضافية..." placeholderTextColor={Colors.textMuted}
+                            style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right", minHeight:80, textAlignVertical:"top" }}
+                          />
+                        </View>
+                        <TouchableOpacity onPress={submitLibraryReg} disabled={libSubmitting}
+                          style={{ borderRadius:14, overflow:"hidden", marginBottom:8 }}>
+                          <LinearGradient colors={[Colors.primary, Colors.primary+"CC"]} style={{ paddingVertical:14, alignItems:"center" }}>
+                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" }}>
+                              {libSubmitting ? "جارٍ الإرسال..." : "إرسال طلب التسجيل"}
+                            </Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </ScrollView>
+                    )}
+                  </LinearGradient>
+                </Animated.View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Search + register button */}
+          <View style={{ paddingHorizontal:16, paddingVertical:12, backgroundColor:Colors.cardBg, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
+            <View style={{ flexDirection:"row-reverse", gap:10, alignItems:"center", marginBottom:10 }}>
+              <View style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", gap:8, backgroundColor:Colors.bg, borderRadius:12, borderWidth:1, borderColor:Colors.divider, paddingHorizontal:12, paddingVertical:8 }}>
+                <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+                <TextInput value={libSearch} onChangeText={setLibSearch} placeholder="ابحث عن مكتبة..." placeholderTextColor={Colors.textMuted}
+                  style={{ flex:1, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, textAlign:"right" }} />
+                {libSearch.length>0 && <TouchableOpacity onPress={()=>setLibSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
+              </View>
+              <TouchableOpacity onPress={()=>{ setLibRegSuccess(false); setLibRegModal(true); }}
+                style={{ backgroundColor:Colors.primary, borderRadius:12, paddingHorizontal:14, paddingVertical:10, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                <Ionicons name="add" size={18} color="#000" />
+                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#000" }}>تسجيل</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Category chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
+              {LIB_CATS.map(cat=>(
+                <TouchableOpacity key={cat.key} onPress={()=>setLibCat(cat.key)}
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
+                    backgroundColor: libCat===cat.key ? cat.color+"20" : Colors.cardBg,
+                    borderWidth:1, borderColor: libCat===cat.key ? cat.color+"60" : Colors.divider }}>
+                  <Ionicons name={cat.icon as any} size={13} color={libCat===cat.key ? cat.color : Colors.textMuted} />
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: libCat===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Library list */}
+          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:120, gap:12 }} showsVerticalScrollIndicator={false}>
+            {libLoading ? (
+              <View style={{ alignItems:"center", paddingVertical:60 }}>
+                <MaterialCommunityIcons name="book-open-page-variant" size={48} color={Colors.textMuted} style={{ marginBottom:10, opacity:0.3 }} />
+                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
+              </View>
+            ) : libraries.length === 0 ? (
+              <View style={{ alignItems:"center", paddingVertical:60 }}>
+                <Animated.View entering={ZoomIn.springify()}>
+                  <View style={{ width:88,height:88,borderRadius:28,backgroundColor:"#3B82F620",justifyContent:"center",alignItems:"center",marginBottom:16 }}>
+                    <Ionicons name="book-outline" size={44} color="#3B82F6" />
+                  </View>
+                </Animated.View>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textSecondary, marginBottom:8, textAlign:"center" }}>
+                  لا توجد مكتبات مسجّلة بعد
+                </Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:20, maxWidth:260 }}>
+                  كن أول من يسجّل مكتبته أو محله في دليل الخدمات الطلابية
+                </Text>
+                <TouchableOpacity onPress={()=>{ setLibRegSuccess(false); setLibRegModal(true); }}
+                  style={{ marginTop:20, backgroundColor:Colors.primary, borderRadius:14, paddingVertical:12, paddingHorizontal:28 }}>
+                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#000" }}>سجّل مكتبتك الآن</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              libraries.map((lib, i) => {
+                const cat = LIB_CATS.find(c=>c.key===lib.category) ?? LIB_CATS[1];
+                return (
+                  <Animated.View key={lib.id} entering={FadeInDown.delay(i*60).springify().damping(18)}>
+                    <View style={{ backgroundColor:Colors.cardBg, borderRadius:18, borderWidth:1,
+                      borderColor: lib.is_featured ? cat.color+"40" : Colors.divider, overflow:"hidden" }}>
+                      {lib.is_featured && (
+                        <LinearGradient colors={[cat.color+"30", "transparent"]}
+                          style={{ paddingHorizontal:14, paddingVertical:6, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                          <MaterialCommunityIcons name="star-circle" size={14} color={cat.color} />
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:cat.color }}>مميّزة</Text>
+                        </LinearGradient>
+                      )}
+                      <View style={{ padding:16 }}>
+                        <View style={{ flexDirection:"row-reverse", alignItems:"flex-start", gap:12, marginBottom:10 }}>
+                          <View style={{ width:52,height:52,borderRadius:16,backgroundColor:cat.color+"20",justifyContent:"center",alignItems:"center" }}>
+                            <Ionicons name={cat.icon as any} size={26} color={cat.color} />
+                          </View>
+                          <View style={{ flex:1 }}>
+                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"right" }}>{lib.name}</Text>
+                            {lib.owner_name && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", marginTop:2 }}>{lib.owner_name}</Text>}
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, marginTop:4 }}>
+                              <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, backgroundColor:cat.color+"15", borderWidth:1, borderColor:cat.color+"30" }}>
+                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:cat.color }}>{LIB_CAT_LABELS[lib.category]??lib.category}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                        {lib.description ? <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"right", lineHeight:20, marginBottom:10 }}>{lib.description}</Text> : null}
+                        {lib.address ? (
+                          <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, marginBottom:8 }}>
+                            <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, flex:1, textAlign:"right" }}>{lib.address}</Text>
+                          </View>
+                        ) : null}
+                        {lib.services?.length > 0 && (
+                          <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+                            {lib.services.slice(0,5).map((svc:string) => (
+                              <View key={svc} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:Colors.textSecondary }}>{svc}</Text>
+                              </View>
+                            ))}
+                            {lib.services.length > 5 && <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                              <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:Colors.textMuted }}>+{lib.services.length-5}</Text>
+                            </View>}
+                          </View>
+                        )}
+                        <View style={{ flexDirection:"row-reverse", gap:8 }}>
+                          {lib.phone ? (
+                            <TouchableOpacity onPress={()=>Linking.openURL(`tel:${lib.phone}`)}
+                              style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, backgroundColor:"#10B98120", borderRadius:12, paddingVertical:10, borderWidth:1, borderColor:"#10B98140" }}>
+                              <Ionicons name="call-outline" size={15} color="#10B981" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#10B981" }}>اتصال</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {lib.whatsapp ? (
+                            <TouchableOpacity onPress={()=>Linking.openURL(`https://wa.me/${lib.whatsapp?.replace(/\D/g,"")??""}`)  }
+                              style={{ flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, backgroundColor:"#25D36620", borderRadius:12, paddingVertical:10, borderWidth:1, borderColor:"#25D36640" }}>
+                              <MaterialCommunityIcons name="whatsapp" size={15} color="#25D366" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#25D366" }}>واتساب</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  </Animated.View>
+                );
+              })
+            )}
           </ScrollView>
         </View>
       )}

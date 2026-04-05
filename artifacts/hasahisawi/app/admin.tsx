@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -366,6 +366,16 @@ export default function AdminDashboard() {
   const [updateForce, setUpdateForce]     = useState(false);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [savingUpdates, setSavingUpdates] = useState(false);
+
+  // ── Student Libraries (Admin) ──
+  const [adminLibraries, setAdminLibraries] = useState<any[]>([]);
+  const [loadingAdminLibs, setLoadingAdminLibs] = useState(false);
+  const [deletingLibId, setDeletingLibId] = useState<number | null>(null);
+
+  // ── Merchants (Admin) ──
+  const [adminMerchants, setAdminMerchants] = useState<any[]>([]);
+  const [loadingAdminMerchants, setLoadingAdminMerchants] = useState(false);
+  const [deletingMerchantId, setDeletingMerchantId] = useState<number | null>(null);
 
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
@@ -778,6 +788,63 @@ export default function AdminDashboard() {
     finally { setLoadingUpdates(false); }
   }, []);
 
+  const loadAdminLibraries = useCallback(async () => {
+    setLoadingAdminLibs(true);
+    try {
+      const res = await apiFetch("/api/admin/student-libraries", token);
+      if (res.ok) setAdminLibraries(await res.json());
+    } catch {}
+    finally { setLoadingAdminLibs(false); }
+  }, [token]);
+
+  const deleteAdminLibrary = useCallback(async (id: number) => {
+    setDeletingLibId(id);
+    try {
+      await apiFetch(`/api/admin/student-libraries/${id}`, token, { method: "DELETE" });
+      setAdminLibraries(prev => prev.filter(l => l.id !== id));
+    } catch {}
+    finally { setDeletingLibId(null); }
+  }, [token]);
+
+  const toggleLibraryVerified = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/student-libraries/${id}`, token, { method: "PUT", body: JSON.stringify({ is_verified: !verified }), headers: { "Content-Type": "application/json" } });
+      setAdminLibraries(prev => prev.map(l => l.id === id ? { ...l, is_verified: !verified } : l));
+    } catch {}
+  }, [token]);
+
+  const loadAdminMerchants = useCallback(async () => {
+    setLoadingAdminMerchants(true);
+    try {
+      const res = await apiFetch("/api/admin/merchants", token);
+      if (res.ok) setAdminMerchants(await res.json());
+    } catch {}
+    finally { setLoadingAdminMerchants(false); }
+  }, [token]);
+
+  const deleteAdminMerchant = useCallback(async (id: number) => {
+    setDeletingMerchantId(id);
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "DELETE" });
+      setAdminMerchants(prev => prev.filter(m => m.id !== id));
+    } catch {}
+    finally { setDeletingMerchantId(null); }
+  }, [token]);
+
+  const toggleMerchantVerified = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ is_verified: !verified }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, is_verified: !verified } : m));
+    } catch {}
+  }, [token]);
+
+  const toggleMerchantFeatured = useCallback(async (id: number, featured: boolean) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ is_featured: !featured }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, is_featured: !featured } : m));
+    } catch {}
+  }, [token]);
+
   const loadCommunities = useCallback(async () => {
     setLoadingCommunities(true);
     try {
@@ -879,8 +946,10 @@ export default function AdminDashboard() {
     if (tab === "neighborhoods") loadNeighborhoods();
     if (tab === "ai_settings")   loadAiSettings();
     if (tab === "security")      loadSecurity();
-    if (tab === "transport")     loadTransportData();
-    if (tab === "updates")       loadUpdates();
+    if (tab === "transport")       loadTransportData();
+    if (tab === "updates")         loadUpdates();
+    if (tab === "libraries")       loadAdminLibraries();
+    if (tab === "merchants_admin") loadAdminMerchants();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -1279,8 +1348,10 @@ export default function AdminDashboard() {
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
-    { key: "transport",      label: "ترحال والتوصيل",   icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
-    { key: "updates",        label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
+    { key: "transport",        label: "ترحال والتوصيل",   icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
+    { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
+    { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
+    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -3894,6 +3965,130 @@ export default function AdminDashboard() {
                 </View>
               </Animated.View>
             </>
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة المكتبات الطلابية ══ */}
+      {tab === "libraries" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadingAdminLibs ? (
+            <ActivityIndicator color="#0EA5E9" style={{ marginTop: 60 }} />
+          ) : adminLibraries.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: "center", paddingVertical: 60 }}>
+              <Ionicons name="library-outline" size={56} color={Colors.textMuted} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted, textAlign: "center" }}>
+                لا توجد مكتبات مسجّلة بعد
+              </Text>
+            </Animated.View>
+          ) : (
+            adminLibraries.map((lib, i) => (
+              <Animated.View key={lib.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12 }]}>
+                <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.cardTitle, { fontSize: 15 }]}>{lib.library_name}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                      {lib.manager_name} · {lib.phone}
+                    </Text>
+                  </View>
+                  {lib.is_verified && (
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#0EA5E920" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#0EA5E9" }}>موثّقة</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => toggleLibraryVerified(lib.id, lib.is_verified)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: lib.is_verified ? Colors.bg : "#0EA5E915",
+                      borderWidth: 1, borderColor: lib.is_verified ? Colors.divider : "#0EA5E940" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: lib.is_verified ? Colors.textMuted : "#0EA5E9" }}>
+                      {lib.is_verified ? "إلغاء التوثيق" : "توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("حذف المكتبة", `هل تريد حذف "${lib.library_name}"؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "حذف", style: "destructive", onPress: () => deleteAdminLibrary(lib.id) }
+                    ])}
+                    disabled={deletingLibId === lib.id}
+                    style={{ paddingVertical: 9, paddingHorizontal: 16, borderRadius: 10, alignItems: "center",
+                      backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                    {deletingLibId === lib.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة مساحة التجار ══ */}
+      {tab === "merchants_admin" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadingAdminMerchants ? (
+            <ActivityIndicator color="#6366F1" style={{ marginTop: 60 }} />
+          ) : adminMerchants.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: "center", paddingVertical: 60 }}>
+              <MaterialCommunityIcons name="store-outline" size={56} color={Colors.textMuted} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted, textAlign: "center" }}>
+                لا يوجد تجار مسجّلون بعد
+              </Text>
+            </Animated.View>
+          ) : (
+            adminMerchants.map((m, i) => (
+              <Animated.View key={m.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12 }]}>
+                <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
+                  <Text style={{ fontSize: 28, marginLeft: 10 }}>{m.logo_emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                      <Text style={[s.cardTitle, { fontSize: 15 }]}>{m.shop_name}</Text>
+                      {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#6366F1" />}
+                      {m.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                      {m.owner_name} · {m.phone}
+                    </Text>
+                    {m.address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{m.address}</Text> : null}
+                  </View>
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => toggleMerchantVerified(m.id, m.is_verified)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: m.is_verified ? Colors.bg : "#6366F115",
+                      borderWidth: 1, borderColor: m.is_verified ? Colors.divider : "#6366F140" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_verified ? Colors.textMuted : "#6366F1" }}>
+                      {m.is_verified ? "إلغاء التوثيق" : "توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleMerchantFeatured(m.id, m.is_featured)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: m.is_featured ? "#F0A50015" : Colors.bg,
+                      borderWidth: 1, borderColor: m.is_featured ? "#F0A50040" : Colors.divider }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_featured ? "#F0A500" : Colors.textMuted }}>
+                      {m.is_featured ? "إزالة التمييز" : "تمييز"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("حذف المحل", `هل تريد حذف "${m.shop_name}"؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "حذف", style: "destructive", onPress: () => deleteAdminMerchant(m.id) }
+                    ])}
+                    disabled={deletingMerchantId === m.id}
+                    style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, alignItems: "center",
+                      backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                    {deletingMerchantId === m.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
           )}
         </ScrollView>
       )}

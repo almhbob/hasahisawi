@@ -4762,4 +4762,215 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// مكتبات الخدمات الطلابية + مساحة التجار — إنشاء الجداول
+// ══════════════════════════════════════════════════════════════════
+(async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS student_libraries (
+        id            SERIAL PRIMARY KEY,
+        name          VARCHAR(300) NOT NULL,
+        owner_name    VARCHAR(200),
+        category      VARCHAR(60)  NOT NULL DEFAULT 'books',
+        description   TEXT,
+        address       VARCHAR(500),
+        phone         VARCHAR(60),
+        whatsapp      VARCHAR(60),
+        services      TEXT[]       NOT NULL DEFAULT '{}',
+        status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        is_featured   BOOLEAN      NOT NULL DEFAULT FALSE,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS merchant_spaces (
+        id            SERIAL PRIMARY KEY,
+        shop_name     VARCHAR(300) NOT NULL,
+        owner_name    VARCHAR(200) NOT NULL,
+        category      VARCHAR(60)  NOT NULL DEFAULT 'general',
+        description   TEXT,
+        address       VARCHAR(500),
+        phone         VARCHAR(60),
+        whatsapp      VARCHAR(60),
+        working_hours VARCHAR(200),
+        logo_emoji    VARCHAR(10)  DEFAULT '🏪',
+        tags          TEXT[]       NOT NULL DEFAULT '{}',
+        status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        is_featured   BOOLEAN      NOT NULL DEFAULT FALSE,
+        is_verified   BOOLEAN      NOT NULL DEFAULT FALSE,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+  } catch (e) { console.error("student_libraries/merchant_spaces init:", e); }
+})();
+
+// ────────────────────────────────────────────────────────────────
+// مكتبات الخدمات الطلابية — Public
+// ────────────────────────────────────────────────────────────────
+
+// GET /api/student-libraries
+router.get("/student-libraries", async (req: Request, res: Response) => {
+  try {
+    const { category, q } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM student_libraries WHERE status='approved'`;
+    const params: unknown[] = [];
+    if (category && category !== "all") { params.push(category); sql += ` AND category=$${params.length}`; }
+    if (q) { params.push(`%${q}%`); sql += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length} OR address ILIKE $${params.length})`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const result = await query(sql, params);
+    return res.json({ libraries: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/student-libraries — طلب تسجيل مكتبة
+router.post("/student-libraries", async (req: Request, res: Response) => {
+  try {
+    const { name, owner_name, category, description, address, phone, whatsapp, services } = req.body;
+    if (!name || !category) return res.status(400).json({ error: "الاسم والتصنيف مطلوبان" });
+    if (!phone && !whatsapp) return res.status(400).json({ error: "رقم التواصل مطلوب" });
+    const result = await query(
+      `INSERT INTO student_libraries (name, owner_name, category, description, address, phone, whatsapp, services)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name, owner_name||null, category, description||null, address||null, phone||null,
+       whatsapp||null, services || []]
+    );
+    return res.status(201).json({ library: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ────────────────────────────────────────────────────────────────
+// مكتبات الخدمات الطلابية — Admin
+// ────────────────────────────────────────────────────────────────
+
+// GET /api/admin/student-libraries
+router.get("/admin/student-libraries", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM student_libraries`;
+    const params: unknown[] = [];
+    if (status && status !== "all") { params.push(status); sql += ` WHERE status=$1`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const result = await query(sql, params);
+    return res.json({ libraries: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/student-libraries/:id
+router.put("/admin/student-libraries/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { id } = req.params;
+    const { name, owner_name, category, description, address, phone, whatsapp, services, status, is_featured } = req.body;
+    const result = await query(
+      `UPDATE student_libraries SET
+         name=COALESCE($1,name), owner_name=COALESCE($2,owner_name), category=COALESCE($3,category),
+         description=COALESCE($4,description), address=COALESCE($5,address), phone=COALESCE($6,phone),
+         whatsapp=COALESCE($7,whatsapp), services=COALESCE($8,services), status=COALESCE($9,status),
+         is_featured=COALESCE($10,is_featured), updated_at=NOW()
+       WHERE id=$11 RETURNING *`,
+      [name||null, owner_name||null, category||null, description||null, address||null,
+       phone||null, whatsapp||null, services||null, status||null, is_featured??null, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ library: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/student-libraries/:id
+router.delete("/admin/student-libraries/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM student_libraries WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ────────────────────────────────────────────────────────────────
+// مساحة التجار — Public
+// ────────────────────────────────────────────────────────────────
+
+// GET /api/merchants
+router.get("/merchants", async (req: Request, res: Response) => {
+  try {
+    const { category, q } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM merchant_spaces WHERE status='approved'`;
+    const params: unknown[] = [];
+    if (category && category !== "all") { params.push(category); sql += ` AND category=$${params.length}`; }
+    if (q) { params.push(`%${q}%`); sql += ` AND (shop_name ILIKE $${params.length} OR description ILIKE $${params.length} OR owner_name ILIKE $${params.length})`; }
+    sql += ` ORDER BY is_featured DESC, is_verified DESC, created_at DESC`;
+    const result = await query(sql, params);
+    return res.json({ merchants: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/merchants — طلب تسجيل تاجر
+router.post("/merchants", async (req: Request, res: Response) => {
+  try {
+    const { shop_name, owner_name, category, description, address, phone, whatsapp, working_hours, logo_emoji, tags } = req.body;
+    if (!shop_name || !owner_name || !category) return res.status(400).json({ error: "اسم المحل والمالك والتصنيف مطلوبة" });
+    if (!phone && !whatsapp) return res.status(400).json({ error: "رقم التواصل مطلوب" });
+    const result = await query(
+      `INSERT INTO merchant_spaces (shop_name, owner_name, category, description, address, phone, whatsapp, working_hours, logo_emoji, tags)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [shop_name, owner_name, category, description||null, address||null, phone||null,
+       whatsapp||null, working_hours||null, logo_emoji||'🏪', tags||[]]
+    );
+    return res.status(201).json({ merchant: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ────────────────────────────────────────────────────────────────
+// مساحة التجار — Admin
+// ────────────────────────────────────────────────────────────────
+
+// GET /api/admin/merchants
+router.get("/admin/merchants", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM merchant_spaces`;
+    const params: unknown[] = [];
+    if (status && status !== "all") { params.push(status); sql += ` WHERE status=$1`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const result = await query(sql, params);
+    return res.json({ merchants: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/merchants/:id
+router.put("/admin/merchants/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { id } = req.params;
+    const { shop_name, owner_name, category, description, address, phone, whatsapp, working_hours, logo_emoji, tags, status, is_featured, is_verified } = req.body;
+    const result = await query(
+      `UPDATE merchant_spaces SET
+         shop_name=COALESCE($1,shop_name), owner_name=COALESCE($2,owner_name), category=COALESCE($3,category),
+         description=COALESCE($4,description), address=COALESCE($5,address), phone=COALESCE($6,phone),
+         whatsapp=COALESCE($7,whatsapp), working_hours=COALESCE($8,working_hours), logo_emoji=COALESCE($9,logo_emoji),
+         tags=COALESCE($10,tags), status=COALESCE($11,status), is_featured=COALESCE($12,is_featured),
+         is_verified=COALESCE($13,is_verified), updated_at=NOW()
+       WHERE id=$14 RETURNING *`,
+      [shop_name||null, owner_name||null, category||null, description||null, address||null,
+       phone||null, whatsapp||null, working_hours||null, logo_emoji||null, tags||null,
+       status||null, is_featured??null, is_verified??null, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ merchant: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/merchants/:id
+router.delete("/admin/merchants/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM merchant_spaces WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
