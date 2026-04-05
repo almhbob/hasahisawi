@@ -51,8 +51,25 @@ export type AuctionItem = {
   interestedCount?: number;
 };
 
+export type CarpentryItem = {
+  id: string;
+  shopName: string;
+  ownerName: string;
+  specialty: "doors" | "furniture" | "kitchens" | "windows" | "decor" | "other";
+  productName: string;
+  description: string;
+  priceFrom: string;
+  priceTo: string;
+  contactPhone: string;
+  location: string;
+  status: "available" | "unavailable";
+  createdAt: string;
+  rating?: number;
+};
+
 const FAMILY_KEY = "family_market_v1";
 const AUCTION_KEY = "auction_market_v1";
+const CARPENTRY_KEY = "carpentry_market_v1";
 
 // ─── Static Data ─────────────────────────────────────────────────────────────
 
@@ -102,6 +119,37 @@ const AUCTION_CAT_COLORS: Record<AuctionItem["category"], string> = {
   furniture: "#8E44AD",
   appliances: "#16A085",
   clothing: "#C0392B",
+  other: Colors.textSecondary,
+};
+
+const CARPENTRY_ACCENT = "#7D4E2D";
+const CARPENTRY_LIGHT = "#A0672A";
+
+const CARPENTRY_CATS = [
+  { key: "all", label: "الكل" },
+  { key: "doors", label: "أبواب" },
+  { key: "furniture", label: "أثاث" },
+  { key: "kitchens", label: "مطابخ" },
+  { key: "windows", label: "نوافذ" },
+  { key: "decor", label: "ديكور" },
+  { key: "other", label: "أخرى" },
+] as const;
+
+const CARPENTRY_CAT_ICONS: Record<CarpentryItem["specialty"], string> = {
+  doors: "door-open",
+  furniture: "sofa",
+  kitchens: "countertop",
+  windows: "window-open",
+  decor: "palette",
+  other: "toolbox",
+};
+
+const CARPENTRY_CAT_COLORS: Record<CarpentryItem["specialty"], string> = {
+  doors: "#7D4E2D",
+  furniture: "#A0522D",
+  kitchens: "#C47A3A",
+  windows: "#6B8E6B",
+  decor: "#9B6B9B",
   other: Colors.textSecondary,
 };
 
@@ -265,6 +313,84 @@ const AUCTION_SAMPLES: AuctionItem[] = [
     status: "available",
     createdAt: new Date(Date.now() - 5 * 864e5).toISOString(),
     interestedCount: 2,
+  },
+];
+
+const CARPENTRY_SAMPLES: CarpentryItem[] = [
+  {
+    id: "cs1",
+    shopName: "ورشة أبو بكر للنجارة",
+    ownerName: "أبو بكر عثمان",
+    specialty: "doors",
+    productName: "أبواب خشب زان وتيك",
+    description: "أبواب غرف ومداخل من خشب الزان والتيك، تشطيبات ناعمة أو خشنة حسب الطلب، كل الأحجام متاحة",
+    priceFrom: "15,000",
+    priceTo: "45,000",
+    contactPhone: "+249912347001",
+    location: "حي الوسط - الحصاحيصا",
+    status: "available",
+    createdAt: new Date(Date.now() - 864e5).toISOString(),
+    rating: 5,
+  },
+  {
+    id: "cs2",
+    shopName: "أثاث الحصاحيصا الحديث",
+    ownerName: "محمد أحمد الطيب",
+    specialty: "furniture",
+    productName: "غرف نوم وصالونات",
+    description: "تصميم وتنفيذ غرف نوم كاملة، صالونات وكنبات، تصاميم كلاسيكية وعصرية حسب رغبة العميل",
+    priceFrom: "80,000",
+    priceTo: "250,000",
+    contactPhone: "+249912347002",
+    location: "السوق القديم - الحصاحيصا",
+    status: "available",
+    createdAt: new Date(Date.now() - 2 * 864e5).toISOString(),
+    rating: 4,
+  },
+  {
+    id: "cs3",
+    shopName: "مطابخ الفن والجمال",
+    ownerName: "إبراهيم خليل",
+    specialty: "kitchens",
+    productName: "مطابخ MDF وخشب طبيعي",
+    description: "تصميم وتركيب مطابخ بمقاسات دقيقة، خشب MDF وخشب طبيعي، ألوان وتصاميم متنوعة، ضمان على التركيب",
+    priceFrom: "150,000",
+    priceTo: "500,000",
+    contactPhone: "+249912347003",
+    location: "حي الشرق - الحصاحيصا",
+    status: "available",
+    createdAt: new Date(Date.now() - 3 * 864e5).toISOString(),
+    rating: 5,
+  },
+  {
+    id: "cs4",
+    shopName: "ورشة النيل للنجارة",
+    ownerName: "عبدالرحمن النيل",
+    specialty: "windows",
+    productName: "نوافذ وشبابيك خشبية",
+    description: "نوافذ وشبابيك خشبية بجميع الأحجام والتصاميم، بما في ذلك الشبابيك ذات الزجاج المزدوج",
+    priceFrom: "8,000",
+    priceTo: "25,000",
+    contactPhone: "+249912347004",
+    location: "المنطقة الصناعية - الحصاحيصا",
+    status: "available",
+    createdAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+    rating: 4,
+  },
+  {
+    id: "cs5",
+    shopName: "ديكور الخشب الراقي",
+    ownerName: "أسامة عبدالله",
+    specialty: "decor",
+    productName: "أعمال ديكور وزخرفة خشبية",
+    description: "تصاميم ديكور خشبية فاخرة: أرفف، لوحات جدارية، أعمال خشبية مشغولة ومنحوتة بالأيدي",
+    priceFrom: "5,000",
+    priceTo: "80,000",
+    contactPhone: "+249912347005",
+    location: "حي الشمال - الحصاحيصا",
+    status: "available",
+    createdAt: new Date(Date.now() - 1 * 864e5).toISOString(),
+    rating: 5,
   },
 ];
 
@@ -445,6 +571,105 @@ function AuctionCard({
         </View>
         <View style={[styles.priceWrap, { backgroundColor: Colors.accent + "18" }]}>
           <Text style={[styles.priceText, { color: Colors.accent }]}>{item.price}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Carpentry Shop Card ──────────────────────────────────────────────────────
+
+function CarpentryCard({
+  item,
+  onDelete,
+}: {
+  item: CarpentryItem;
+  onDelete: (id: string) => void;
+}) {
+  const { isRTL, tr } = useLang();
+  const isSample = item.id.startsWith("cs");
+  const catColor = CARPENTRY_CAT_COLORS[item.specialty] ?? CARPENTRY_ACCENT;
+  const icon = CARPENTRY_CAT_ICONS[item.specialty] ?? "toolbox";
+
+  const specialtyLabels: Record<CarpentryItem["specialty"], string> = {
+    doors: "أبواب",
+    furniture: "أثاث",
+    kitchens: "مطابخ",
+    windows: "نوافذ",
+    decor: "ديكور",
+    other: "أخرى",
+  };
+
+  const stars = item.rating ?? 0;
+
+  return (
+    <View style={styles.carpCard}>
+      {/* Wood-grain accent bar */}
+      <View style={[styles.carpAccentBar, { backgroundColor: catColor }]} />
+
+      {/* Shop header */}
+      <View style={[styles.carpHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[styles.carpIconWrap, { backgroundColor: catColor + "18" }]}>
+          <MaterialCommunityIcons name={icon as any} size={28} color={catColor} />
+        </View>
+        <View style={[styles.carpHeaderInfo, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
+          <Text style={[styles.carpShopName, { textAlign: isRTL ? "right" : "left" }]}>{item.shopName}</Text>
+          <View style={[styles.carpTagsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <View style={[styles.carpSpecBadge, { backgroundColor: catColor + "18", borderColor: catColor + "40" }]}>
+              <MaterialCommunityIcons name={icon as any} size={11} color={catColor} />
+              <Text style={[styles.carpSpecText, { color: catColor }]}>{specialtyLabels[item.specialty]}</Text>
+            </View>
+            <View style={styles.carpLocBadge}>
+              <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
+              <Text style={styles.carpLocText} numberOfLines={1}>{item.location}</Text>
+            </View>
+          </View>
+          {/* Stars */}
+          <View style={[styles.carpStarsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Ionicons
+                key={s}
+                name={s <= stars ? "star" : "star-outline"}
+                size={13}
+                color={s <= stars ? "#F5A623" : Colors.divider}
+              />
+            ))}
+            <Text style={styles.carpOwnerName}>{item.ownerName}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.cardDivider} />
+
+      {/* Product info */}
+      <View style={styles.carpBody}>
+        <Text style={[styles.carpProductName, { textAlign: isRTL ? "right" : "left" }]}>{item.productName}</Text>
+        <Text style={[styles.cardDesc, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={2}>{item.description}</Text>
+      </View>
+
+      <View style={styles.cardDivider} />
+
+      {/* Footer */}
+      <View style={[styles.carpFooter, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[styles.footerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {!isSample && (
+            <TouchableOpacity onPress={() => onDelete(item.id)}>
+              <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[styles.carpQuoteBtn, { backgroundColor: catColor + "15", borderColor: catColor + "40", flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={14} color={catColor} />
+            <Text style={[styles.carpQuoteText, { color: catColor }]}>{tr("طلب عرض سعر", "Request Quote")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.callBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <Ionicons name="call-outline" size={14} color={Colors.primary} />
+            <Text style={styles.callBtnText}>{tr("تواصل", "Contact")}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.carpPriceWrap]}>
+          <Text style={styles.carpPriceFrom}>{tr("من", "From")}</Text>
+          <Text style={[styles.carpPriceValue, { color: catColor }]}>{item.priceFrom}</Text>
+          <Text style={styles.carpPriceCurrency}>{tr("جنيه", "SDG")}</Text>
         </View>
       </View>
     </View>
@@ -696,6 +921,145 @@ function AddAuctionModal({
   );
 }
 
+// ─── Add Carpentry Modal ──────────────────────────────────────────────────────
+
+function AddCarpentryModal({
+  visible,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSave: (item: Omit<CarpentryItem, "id" | "createdAt" | "status">) => Promise<void>;
+}) {
+  const { isRTL, tr } = useLang();
+  const insets = useSafeAreaInsets();
+  const [shopName, setShopName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [specialty, setSpecialty] = useState<CarpentryItem["specialty"]>("doors");
+  const [productName, setProductName] = useState("");
+  const [description, setDescription] = useState("");
+  const [priceFrom, setPriceFrom] = useState("");
+  const [priceTo, setPriceTo] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [location, setLocation] = useState("");
+  const [rating, setRating] = useState(5);
+
+  const reset = () => {
+    setShopName(""); setOwnerName(""); setSpecialty("doors");
+    setProductName(""); setDescription(""); setPriceFrom("");
+    setPriceTo(""); setContactPhone(""); setLocation(""); setRating(5);
+  };
+
+  const handleSave = async () => {
+    if (!shopName.trim() || !productName.trim() || !priceFrom.trim() || !contactPhone.trim()) {
+      Alert.alert(tr("خطأ", "Error"), tr("يرجى تعبئة الحقول المطلوبة", "Please fill all required fields"));
+      return;
+    }
+    await onSave({
+      shopName: shopName.trim(), ownerName: ownerName.trim(), specialty,
+      productName: productName.trim(), description: description.trim(),
+      priceFrom: priceFrom.trim(), priceTo: priceTo.trim(),
+      contactPhone: contactPhone.trim(), location: location.trim(), rating,
+    });
+    reset(); onClose();
+  };
+
+  const specialtyList: { key: CarpentryItem["specialty"]; label: string }[] = [
+    { key: "doors", label: "أبواب" },
+    { key: "furniture", label: "أثاث" },
+    { key: "kitchens", label: "مطابخ" },
+    { key: "windows", label: "نوافذ" },
+    { key: "decor", label: "ديكور" },
+    { key: "other", label: "أخرى" },
+  ];
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.sheetHandle} />
+          <View style={[styles.sheetHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <TouchableOpacity onPress={() => { reset(); onClose(); }}>
+              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.sheetTitle}>{tr("إضافة محل نجارة", "Add Carpentry Shop")}</Text>
+            <View style={{ width: 22 }} />
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.form}>
+              {/* Specialty */}
+              <View style={styles.formField}>
+                <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{tr("التخصص", "Specialty")}</Text>
+                <View style={[styles.catBtnRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                  {specialtyList.map(({ key, label }) => {
+                    const cc = CARPENTRY_CAT_COLORS[key];
+                    const icon = CARPENTRY_CAT_ICONS[key];
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[styles.catPickBtn, specialty === key && { backgroundColor: cc, borderColor: cc }]}
+                        onPress={() => setSpecialty(key)}
+                      >
+                        <MaterialCommunityIcons name={icon as any} size={13} color={specialty === key ? "#fff" : Colors.textSecondary} />
+                        <Text style={[styles.catPickText, specialty === key && { color: "#fff" }]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+              {/* Rating */}
+              <View style={styles.formField}>
+                <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{tr("التقييم الذاتي", "Self Rating")}</Text>
+                <View style={[styles.carpStarsInput, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <TouchableOpacity key={s} onPress={() => setRating(s)}>
+                      <Ionicons name={s <= rating ? "star" : "star-outline"} size={28} color={s <= rating ? "#F5A623" : Colors.divider} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {[
+                { label: tr("اسم المحل *", "Shop Name *"), value: shopName, set: setShopName, placeholder: tr("مثال: ورشة أبو بكر للنجارة", "e.g. Al-Nour Carpentry") },
+                { label: tr("اسم صاحب المحل", "Owner Name"), value: ownerName, set: setOwnerName, placeholder: tr("اسمك", "Your name") },
+                { label: tr("اسم المنتج / الخدمة *", "Product / Service *"), value: productName, set: setProductName, placeholder: tr("مثال: أبواب خشب زان", "e.g. Oak wood doors") },
+                { label: tr("الوصف", "Description"), value: description, set: setDescription, placeholder: tr("تفاصيل المواد، الجودة، المميزات...", "Materials, quality, features..."), multi: true },
+                { label: tr("السعر من *", "Price From *"), value: priceFrom, set: setPriceFrom, placeholder: tr("مثال: 15,000", "e.g. 15,000"), numeric: true },
+                { label: tr("السعر إلى", "Price To"), value: priceTo, set: setPriceTo, placeholder: tr("مثال: 45,000", "e.g. 45,000"), numeric: true },
+                { label: tr("رقم الهاتف *", "Phone *"), value: contactPhone, set: setContactPhone, placeholder: "+249...", numeric: true },
+                { label: tr("الموقع", "Location"), value: location, set: setLocation, placeholder: tr("مثال: حي الوسط - الحصاحيصا", "e.g. Central district") },
+              ].map((f, i) => (
+                <View key={i} style={styles.formField}>
+                  <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{f.label}</Text>
+                  <TextInput
+                    style={[styles.formInput, (f as any).multi && styles.formTextArea]}
+                    placeholder={f.placeholder}
+                    placeholderTextColor={Colors.textMuted}
+                    value={f.value}
+                    onChangeText={f.set}
+                    multiline={(f as any).multi}
+                    keyboardType={(f as any).numeric ? "numeric" : "default"}
+                    textAlign={isRTL ? "right" : "left"}
+                    textAlignVertical={(f as any).multi ? "top" : undefined}
+                  />
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: CARPENTRY_ACCENT, flexDirection: isRTL ? "row-reverse" : "row" }]}
+                onPress={handleSave}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons name="storefront-plus-outline" size={18} color="#fff" />
+                <Text style={styles.saveBtnText}>{tr("نشر المحل", "Publish Shop")}</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MarketScreen() {
@@ -704,13 +1068,16 @@ export default function MarketScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [tab, setTab] = useState<"family" | "auction">("family");
+  const [tab, setTab] = useState<"family" | "auction" | "carpentry">("family");
   const [familyItems, setFamilyItems] = useState<FamilyItem[]>([]);
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>([]);
+  const [carpentryItems, setCarpentryItems] = useState<CarpentryItem[]>([]);
   const [familyCat, setFamilyCat] = useState("all");
   const [auctionCat, setAuctionCat] = useState("all");
+  const [carpEntryCat, setCarpEntryCat] = useState("all");
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [showAuctionModal, setShowAuctionModal] = useState(false);
+  const [showCarpentryModal, setShowCarpentryModal] = useState(false);
 
   const FAMILY_CATS = useMemo(() => [
     { key: "all", label: t("common", "all") },
@@ -733,6 +1100,16 @@ export default function MarketScreen() {
     { key: "other", label: tr("أخرى", "Other") },
   ], [t, tr]);
 
+  const CARP_CATS = useMemo(() => [
+    { key: "all", label: tr("الكل", "All") },
+    { key: "doors", label: tr("أبواب", "Doors") },
+    { key: "furniture", label: tr("أثاث", "Furniture") },
+    { key: "kitchens", label: tr("مطابخ", "Kitchens") },
+    { key: "windows", label: tr("نوافذ", "Windows") },
+    { key: "decor", label: tr("ديكور", "Decor") },
+    { key: "other", label: tr("أخرى", "Other") },
+  ], [tr]);
+
   const load = async () => {
     const rawF = await AsyncStorage.getItem(FAMILY_KEY);
     const savedF: FamilyItem[] = rawF ? JSON.parse(rawF) : [];
@@ -741,6 +1118,10 @@ export default function MarketScreen() {
     const rawA = await AsyncStorage.getItem(AUCTION_KEY);
     const savedA: AuctionItem[] = rawA ? JSON.parse(rawA) : [];
     setAuctionItems([...savedA, ...AUCTION_SAMPLES]);
+
+    const rawC = await AsyncStorage.getItem(CARPENTRY_KEY);
+    const savedC: CarpentryItem[] = rawC ? JSON.parse(rawC) : [];
+    setCarpentryItems([...savedC, ...CARPENTRY_SAMPLES]);
   };
 
   useEffect(() => { load(); }, []);
@@ -813,19 +1194,48 @@ export default function MarketScreen() {
     ]);
   };
 
+  const saveCarpentry = async (data: Omit<CarpentryItem, "id" | "createdAt" | "status">): Promise<void> => {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const newItem: CarpentryItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString() };
+    const raw = await AsyncStorage.getItem(CARPENTRY_KEY);
+    const existing: CarpentryItem[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.setItem(CARPENTRY_KEY, JSON.stringify([newItem, ...existing]));
+    await load();
+  };
+
+  const deleteCarpentryItem = (id: string) => {
+    Alert.alert(tr("تأكيد", "Confirm"), tr("هل تريد حذف هذا المحل؟", "Delete this shop?"), [
+      { text: tr("إلغاء", "Cancel"), style: "cancel" },
+      { text: tr("حذف", "Delete"), style: "destructive", onPress: async () => {
+        const raw = await AsyncStorage.getItem(CARPENTRY_KEY);
+        const saved: CarpentryItem[] = raw ? JSON.parse(raw) : [];
+        await AsyncStorage.setItem(CARPENTRY_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
+        load();
+      }},
+    ]);
+  };
+
   const filteredFamily = familyItems.filter(i => familyCat === "all" || i.category === familyCat);
   const filteredAuction = auctionItems.filter(i => auctionCat === "all" || i.category === auctionCat);
+  const filteredCarpentry = carpentryItems.filter(i => carpEntryCat === "all" || i.specialty === carpEntryCat);
 
   const activeCount = tab === "family"
     ? familyItems.filter(i => i.status === "available").length
-    : auctionItems.filter(i => i.status === "available").length;
+    : tab === "auction"
+    ? auctionItems.filter(i => i.status === "available").length
+    : carpentryItems.filter(i => i.status === "available").length;
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 14, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <AnimatedPress
-          style={[styles.addBtn, tab === "auction" && { backgroundColor: Colors.violet }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+          style={[
+            styles.addBtn,
+            tab === "auction" && { backgroundColor: Colors.violet },
+            tab === "carpentry" && { backgroundColor: CARPENTRY_ACCENT },
+            { flexDirection: isRTL ? "row-reverse" : "row" },
+          ]}
           onPress={() => {
             if (auth.isGuest) {
               Alert.alert(
@@ -835,7 +1245,9 @@ export default function MarketScreen() {
               );
               return;
             }
-            tab === "family" ? setShowFamilyModal(true) : setShowAuctionModal(true);
+            if (tab === "family") setShowFamilyModal(true);
+            else if (tab === "auction") setShowAuctionModal(true);
+            else setShowCarpentryModal(true);
           }}
         >
           <Ionicons name="add" size={20} color={Colors.cardBg} />
@@ -851,6 +1263,14 @@ export default function MarketScreen() {
 
       {/* Tab Switch */}
       <View style={[styles.tabSwitch, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <AnimatedPress
+          style={[styles.switchTab, tab === "carpentry" && styles.switchTabActive, tab === "carpentry" && { borderColor: CARPENTRY_ACCENT }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+          onPress={() => setTab("carpentry")}
+          scaleDown={0.92}
+        >
+          <MaterialCommunityIcons name="saw-blade" size={15} color={tab === "carpentry" ? CARPENTRY_ACCENT : Colors.textMuted} />
+          <Text style={[styles.switchTabText, tab === "carpentry" && { color: CARPENTRY_ACCENT }]}>{tr("محلات النجارة", "Carpentry")}</Text>
+        </AnimatedPress>
         <AnimatedPress
           style={[styles.switchTab, tab === "auction" && styles.switchTabActive, tab === "auction" && { borderColor: Colors.violet }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
           onPress={() => setTab("auction")}
@@ -876,14 +1296,18 @@ export default function MarketScreen() {
         style={styles.filterBar}
         contentContainerStyle={[styles.filterBarContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
-        {(tab === "family" ? FAMILY_CATS : AUCTION_CATS).map((c) => {
-          const active = (tab === "family" ? familyCat : auctionCat) === c.key;
-          const activeColor = tab === "family" ? Colors.primary : Colors.violet;
+        {(tab === "family" ? FAMILY_CATS : tab === "auction" ? AUCTION_CATS : CARP_CATS).map((c) => {
+          const active = tab === "family" ? familyCat === c.key : tab === "auction" ? auctionCat === c.key : carpEntryCat === c.key;
+          const activeColor = tab === "family" ? Colors.primary : tab === "auction" ? Colors.violet : CARPENTRY_ACCENT;
           return (
             <AnimatedPress
               key={c.key}
               style={[styles.filterChip, active && { backgroundColor: activeColor, borderColor: activeColor }]}
-              onPress={() => tab === "family" ? setFamilyCat(c.key) : setAuctionCat(c.key)}
+              onPress={() => {
+                if (tab === "family") setFamilyCat(c.key);
+                else if (tab === "auction") setAuctionCat(c.key);
+                else setCarpEntryCat(c.key);
+              }}
               scaleDown={0.92}
             >
               <Text style={[styles.filterChipText, active && { color: "#fff" }]}>{c.label}</Text>
@@ -945,8 +1369,42 @@ export default function MarketScreen() {
         />
       )}
 
+      {tab === "carpentry" && (
+        <FlatList
+          key="carpentry"
+          data={filteredCarpentry}
+          keyExtractor={i => i.id}
+          contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.carpBanner}>
+              <View style={[styles.carpBannerRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <View style={styles.carpBannerIcon}>
+                  <MaterialCommunityIcons name="saw-blade" size={22} color={CARPENTRY_ACCENT} />
+                </View>
+                <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+                  <Text style={[styles.carpBannerTitle, { textAlign: isRTL ? "right" : "left" }]}>
+                    {tr("محلات النجارة في الحصاحيصا", "Hasahisa Carpentry Shops")}
+                  </Text>
+                  <Text style={[styles.carpBannerSub, { textAlign: isRTL ? "right" : "left" }]}>
+                    {tr("أبواب · أثاث · مطابخ · ديكور خشبي احترافي", "Doors · Furniture · Kitchens · Woodwork")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          }
+          ListEmptyComponent={<EmptyState icon="toolbox-outline" text={tr("لا توجد محلات نجارة حالياً", "No carpentry shops yet")} />}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
+              <CarpentryCard item={item} onDelete={deleteCarpentryItem} />
+            </Animated.View>
+          )}
+        />
+      )}
+
       <AddFamilyModal visible={showFamilyModal} onClose={() => setShowFamilyModal(false)} onSave={saveFamily} />
       <AddAuctionModal visible={showAuctionModal} onClose={() => setShowAuctionModal(false)} onSave={saveAuction} />
+      <AddCarpentryModal visible={showCarpentryModal} onClose={() => setShowCarpentryModal(false)} onSave={saveCarpentry} />
     </View>
   );
 }
@@ -1147,4 +1605,73 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  // ─── Carpentry Styles ───────────────────────────────────────────────────────
+  carpCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 18,
+    borderWidth: 1, borderColor: Colors.divider,
+    shadowColor: "#7D4E2D", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    overflow: "hidden",
+  },
+  carpAccentBar: {
+    position: "absolute", top: 0, bottom: 0, left: 0,
+    width: 5, borderTopLeftRadius: 18, borderBottomLeftRadius: 18,
+  },
+  carpHeader: { flexDirection: "row-reverse", padding: 14, gap: 12, alignItems: "flex-start" },
+  carpIconWrap: {
+    width: 58, height: 58, borderRadius: 16,
+    justifyContent: "center", alignItems: "center", flexShrink: 0,
+    borderWidth: 1, borderColor: "#7D4E2D22",
+  },
+  carpHeaderInfo: { flex: 1, gap: 5 },
+  carpShopName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  carpTagsRow: { flexDirection: "row-reverse", gap: 6, flexWrap: "wrap" },
+  carpSpecBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1,
+  },
+  carpSpecText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  carpLocBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 3,
+    backgroundColor: Colors.bg, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: Colors.divider,
+    maxWidth: 160,
+  },
+  carpLocText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  carpStarsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
+  carpOwnerName: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary, marginStart: 6 },
+  carpBody: { paddingHorizontal: 14, paddingVertical: 12, gap: 5 },
+  carpProductName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  carpFooter: {
+    flexDirection: "row-reverse", alignItems: "center",
+    justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10,
+  },
+  carpPriceWrap: { alignItems: "flex-end" },
+  carpPriceFrom: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  carpPriceValue: { fontFamily: "Cairo_700Bold", fontSize: 16 },
+  carpPriceCurrency: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  carpQuoteBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
+    borderWidth: 1,
+  },
+  carpQuoteText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  // Carpentry Banner
+  carpBanner: {
+    backgroundColor: "#7D4E2D12",
+    borderRadius: 14, borderWidth: 1, borderColor: "#7D4E2D30",
+    marginBottom: 4, padding: 12,
+  },
+  carpBannerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  carpBannerIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: "#7D4E2D18",
+    justifyContent: "center", alignItems: "center",
+  },
+  carpBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#7D4E2D" },
+  carpBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  // Stars input
+  carpStarsInput: { gap: 6, paddingVertical: 4 },
 });
