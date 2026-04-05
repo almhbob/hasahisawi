@@ -177,7 +177,7 @@ const STATUS_LABELS: Record<AppStatus, { label: string; color: string; icon: str
 type Step = "category" | "facility" | "service" | "datetime" | "info" | "confirm";
 
 export default function AppointmentsScreen() {
-  const { isGuest } = useAuth();
+  const { isGuest, user } = useAuth();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -200,11 +200,11 @@ export default function AppointmentsScreen() {
   const [apptFilter, setApptFilter] = useState<AppStatus | "all">("all");
 
   const loadAppointments = async () => {
-    if (!auth.user?.uid || !isFirebaseAvailable()) { setAppointments([]); return; }
+    if (!user?.uid || !isFirebaseAvailable()) { setAppointments([]); return; }
     try {
       const docs = await fsGetCollection<Appointment>(
         COLLECTIONS.APPOINTMENTS,
-        where("userId", "==", auth.user.uid),
+        where("userId", "==", user.uid),
         orderBy("createdAt", "desc"),
       );
       setAppointments(docs);
@@ -234,7 +234,7 @@ export default function AppointmentsScreen() {
         service, patientName: patientName.trim(),
         phone: phone.trim(), date, time, notes: notes.trim(),
         status: "pending",
-        userId: auth.user?.uid ?? null,
+        userId: user?.uid ?? null,
         createdAt: new Date().toISOString(),
       });
       await loadAppointments();
