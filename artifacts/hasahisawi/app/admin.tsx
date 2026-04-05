@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, FlatList,
   TouchableOpacity, ActivityIndicator, Alert,
   TextInput, Pressable, Modal, Image,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,7 +48,10 @@ type TransportDriver = {
 type TransportTrip = {
   id: number; user_name: string; user_phone: string; trip_type: string;
   from_location: string; to_location: string; notes: string;
-  status: string; driver_name: string | null; driver_phone?: string;
+  from_zone: number | null; to_zone: number | null;
+  fare_estimate: number | null; vehicle_preference: string;
+  delivery_desc: string | null;
+  status: string; driver_name: string | null; driver_id: number | null; driver_phone?: string;
   created_at: string; rating: number | null;
 };
 
@@ -352,6 +355,10 @@ export default function AdminDashboard() {
   const [editingFares, setEditingFares] = useState<Record<string, { car: string; rickshaw: string; delivery: string }>>({});
   const [savingFares, setSavingFares] = useState(false);
   const [assigningTrip, setAssigningTrip] = useState<number | null>(null);
+  const [showAssignModal,   setShowAssignModal]   = useState(false);
+  const [assigningTripId,   setAssigningTripId]   = useState<number | null>(null);
+  const [approvedDriversList, setApprovedDriversList] = useState<TransportDriver[]>([]);
+  const [updatingTripId,    setUpdatingTripId]    = useState<number | null>(null);
 
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
@@ -631,6 +638,62 @@ export default function AdminDashboard() {
       await apiFetch(`/api/admin/transport/trips/${id}`, token, { method: "DELETE" });
       setTransportTrips(prev => prev.filter(t => t.id !== id));
     } catch {}
+  };
+
+  const loadApprovedDrivers = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/admin/transport/drivers?status=approved", token);
+      if (res.ok) setApprovedDriversList(await res.json());
+    } catch {}
+  }, [token]);
+
+  const openAssignModal = (tripId: number) => {
+    setAssigningTripId(tripId);
+    setShowAssignModal(true);
+    loadApprovedDrivers();
+  };
+
+  const assignDriverToTrip = async (driver: TransportDriver) => {
+    if (!assigningTripId) return;
+    setAssigningTrip(assigningTripId);
+    try {
+      const res = await apiFetch(`/api/admin/transport/trips/${assigningTripId}/assign`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ driver_id: driver.id, status: "accepted" }),
+      });
+      if (res.ok) {
+        setTransportTrips(prev => prev.map(t =>
+          t.id === assigningTripId
+            ? { ...t, status: "accepted", driver_id: driver.id, driver_name: driver.name }
+            : t
+        ));
+        setShowAssignModal(false);
+        setAssigningTripId(null);
+        Alert.alert("✅ تم التعيين", `تم تعيين السائق ${driver.name} للرحلة بنجاح`);
+      } else {
+        const j = await res.json();
+        Alert.alert("خطأ", j.error || "تعذّرت العملية");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setAssigningTrip(null); }
+  };
+
+  const updateTripStatus = async (tripId: number, newStatus: "accepted" | "completed" | "cancelled") => {
+    setUpdatingTripId(tripId);
+    try {
+      const res = await apiFetch(`/api/transport/trips/${tripId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setTransportTrips(prev => prev.map(t =>
+          t.id === tripId ? { ...t, status: newStatus } : t
+        ));
+      } else {
+        Alert.alert("خطأ", "تعذّر تحديث حالة الرحلة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setUpdatingTripId(null); }
   };
 
   const loadAdsSettings = useCallback(async () => {
@@ -3522,23 +3585,86 @@ export default function AdminDashboard() {
                           </View>
                         </View>
 
-                        {(trip as any).fare_estimate ? (
+                        {/* التعرفة التقديرية */}
+                        {trip.fare_estimate ? (
                           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6, backgroundColor: "#FBBF2415", borderRadius: 8, padding: 6 }}>
                             <MaterialCommunityIcons name="calculator-variant" size={13} color="#FBBF24" />
                             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>
-                              التعرفة التقديرية: {(trip as any).fare_estimate?.toLocaleString("ar-SD")} جنيه
+                              التعرفة التقديرية: {trip.fare_estimate.toLocaleString("ar-SD")} جنيه
                             </Text>
                           </View>
                         ) : null}
 
-                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                        {/* وصف الشحنة (للتوصيل) */}
+                        {trip.delivery_desc ? (
+                          <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 6, marginBottom: 8, backgroundColor: "#F9731610", borderRadius: 8, padding: 8 }}>
+                            <MaterialCommunityIcons name="package-variant" size={14} color="#F97316" />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 }}>
+                              {trip.delivery_desc}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* معلومات السائق */}
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <MaterialCommunityIcons name="steering" size={14} color={trip.driver_name ? "#3EFF9C" : Colors.textMuted} />
+                            <Text style={{ fontFamily: trip.driver_name ? "Cairo_600SemiBold" : "Cairo_400Regular", fontSize: 12, color: trip.driver_name ? "#3EFF9C" : Colors.textMuted }}>
+                              {trip.driver_name ? trip.driver_name : "لم يُعيَّن سائق بعد"}
+                            </Text>
+                          </View>
                           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
-                            {trip.driver_name ? `السائق: ${trip.driver_name}` : "لم يُعيَّن سائق"}
+                            {new Date(trip.created_at).toLocaleDateString("ar-SD")}
                           </Text>
+                        </View>
+
+                        {/* أزرار الإجراءات */}
+                        <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                          {/* تعيين سائق — للرحلات المعلقة فقط */}
+                          {trip.status === "pending" && (
+                            <TouchableOpacity
+                              onPress={() => openAssignModal(trip.id)}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
+                                backgroundColor: "#3E9CBF20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3E9CBF40" }}>
+                              <MaterialCommunityIcons name="steering" size={14} color="#3E9CBF" />
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3E9CBF" }}>تعيين سائق</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* إنهاء الرحلة — للرحلات الجارية */}
+                          {trip.status === "accepted" && (
+                            <TouchableOpacity
+                              onPress={() => updateTripStatus(trip.id, "completed")}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
+                                backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3EFF9C40" }}>
+                              {updatingTripId === trip.id
+                                ? <ActivityIndicator size="small" color="#3EFF9C" />
+                                : <>
+                                    <Ionicons name="checkmark-circle-outline" size={14} color="#3EFF9C" />
+                                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>إنهاء الرحلة</Text>
+                                  </>}
+                            </TouchableOpacity>
+                          )}
+
+                          {/* إلغاء — للمعلقة والجارية */}
+                          {(trip.status === "pending" || trip.status === "accepted") && (
+                            <TouchableOpacity
+                              onPress={() => updateTripStatus(trip.id, "cancelled")}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
+                                backgroundColor: "#E0556715", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#E0556730" }}>
+                              <Ionicons name="close-circle-outline" size={14} color="#E05567" />
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#E05567" }}>إلغاء</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* حذف */}
                           <TouchableOpacity onPress={() => deleteTransportTrip(trip.id)}
-                            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
-                            <Ionicons name="trash-outline" size={14} color={Colors.textMuted} />
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>حذف</Text>
+                            style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10,
+                              alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.divider }}>
+                            <Ionicons name="trash-outline" size={15} color={Colors.textMuted} />
                           </TouchableOpacity>
                         </View>
                       </Animated.View>
@@ -3599,6 +3725,101 @@ export default function AdminDashboard() {
           </ScrollView>
         );
       })()}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          ── مودال تعيين سائق للرحلة
+      ═══════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={showAssignModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setShowAssignModal(false); setAssigningTripId(null); }}
+      >
+        <Pressable style={ps.backdrop} onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={[ps.sheet, { maxHeight: "80%" }]}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={ps.handle} />
+
+              {/* العنوان */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                <MaterialCommunityIcons name="steering" size={22} color="#3E9CBF" />
+                <View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>تعيين سائق للرحلة</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>اختر من السائقين المعتمدين</Text>
+                </View>
+              </View>
+
+              {/* قائمة السائقين */}
+              {approvedDriversList.length === 0 ? (
+                <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                  <MaterialCommunityIcons name="account-off-outline" size={48} color={Colors.textMuted} />
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, marginTop: 10 }}>
+                    لا يوجد سائقون معتمدون حالياً
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+                  {approvedDriversList.map(driver => {
+                    const vtIcon = driver.vehicle_type === "car" ? "car-side" :
+                                   driver.vehicle_type === "rickshaw" ? "rickshaw" : "package-variant";
+                    const vtLabel = driver.vehicle_type === "car" ? "سيارة" :
+                                    driver.vehicle_type === "rickshaw" ? "ركشة" : "توصيل";
+                    return (
+                      <TouchableOpacity
+                        key={driver.id}
+                        onPress={() => assignDriverToTrip(driver)}
+                        disabled={assigningTrip === driver.id}
+                        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12,
+                          padding: 14, borderRadius: 12, marginBottom: 8,
+                          backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider }}>
+                        {/* أيقونة المركبة */}
+                        <View style={{ width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: "#3E9CBF20", alignItems: "center", justifyContent: "center" }}>
+                          <MaterialCommunityIcons name={vtIcon as any} size={20} color="#3E9CBF" />
+                        </View>
+                        {/* المعلومات */}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{driver.name}</Text>
+                          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 2 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{vtLabel}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.area}</Text>
+                            {driver.rating > 0 ? (
+                              <>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#FBBF24" }}>
+                                  ★ {driver.rating.toFixed(1)}
+                                </Text>
+                              </>
+                            ) : null}
+                          </View>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.phone}</Text>
+                        </View>
+                        {/* حالة الاتصال */}
+                        <View style={{ alignItems: "center", gap: 4 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4,
+                            backgroundColor: driver.is_online ? "#3EFF9C" : Colors.textMuted }} />
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>
+                            {driver.is_online ? "متاح" : "غير متاح"}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* إلغاء */}
+              <TouchableOpacity
+                onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}
+                style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10,
+                  backgroundColor: Colors.divider, alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>إلغاء</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════
           ── مودال إحصائيات المستخدم
