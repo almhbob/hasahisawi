@@ -107,6 +107,18 @@ export async function initHasahisawiDb() {
     ON CONFLICT (key) DO NOTHING
   `);
   await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('app_version', '1')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('app_update_notes', '')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('app_update_force', 'false')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
@@ -846,6 +858,47 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     return res.json({ user: safeUserPayload(user), token });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "المستخدم موجود بالفعل" });
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إصدار التطبيق ─────────────────────────────────────────────────────────
+
+router.get("/app/version", async (_req: Request, res: Response) => {
+  try {
+    const rows = await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('app_version','app_update_notes','app_update_force')`
+    );
+    const map: Record<string, string> = {};
+    for (const r of rows.rows) map[r.key] = r.value;
+    return res.json({
+      version:  parseInt(map.app_version  ?? "1", 10),
+      notes:    map.app_update_notes  ?? "",
+      force:    map.app_update_force  === "true",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/admin/app/version", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const { version, notes, force } = req.body;
+    if (version !== undefined) {
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='app_version'`, [String(Number(version))]);
+    }
+    if (notes !== undefined) {
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='app_update_notes'`, [notes]);
+    }
+    if (force !== undefined) {
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='app_update_force'`, [force ? "true" : "false"]);
+    }
+    return res.json({ ok: true });
+  } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }

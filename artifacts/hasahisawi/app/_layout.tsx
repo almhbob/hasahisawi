@@ -26,6 +26,7 @@ import { registerForPushNotifications, addNotificationListener, setBadgeCount } 
 import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
+import UpdateBanner from "@/components/UpdateBanner";
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
 LogBox.ignoreLogs([
@@ -188,6 +189,7 @@ export default function RootLayout() {
                   <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
                     <NetworkBanner />
+                    <UpdateBanner />
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>

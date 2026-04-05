@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -359,6 +359,13 @@ export default function AdminDashboard() {
   const [assigningTripId,   setAssigningTripId]   = useState<number | null>(null);
   const [approvedDriversList, setApprovedDriversList] = useState<TransportDriver[]>([]);
   const [updatingTripId,    setUpdatingTripId]    = useState<number | null>(null);
+
+  // ── Updates ──
+  const [appVersion, setAppVersion]       = useState("1");
+  const [updateNotes, setUpdateNotes]     = useState("");
+  const [updateForce, setUpdateForce]     = useState(false);
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [savingUpdates, setSavingUpdates] = useState(false);
 
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
@@ -756,6 +763,20 @@ export default function AdminDashboard() {
     finally { setLoadingSecurity(false); }
   }, [token]);
 
+  const loadUpdates = useCallback(async () => {
+    setLoadingUpdates(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/app/version`);
+      if (res.ok) {
+        const data = await res.json();
+        setAppVersion(String(data.version ?? 1));
+        setUpdateNotes(data.notes ?? "");
+        setUpdateForce(data.force ?? false);
+      }
+    } catch {}
+    finally { setLoadingUpdates(false); }
+  }, []);
+
   const loadCommunities = useCallback(async () => {
     setLoadingCommunities(true);
     try {
@@ -858,6 +879,7 @@ export default function AdminDashboard() {
     if (tab === "ai_settings")   loadAiSettings();
     if (tab === "security")      loadSecurity();
     if (tab === "transport")     loadTransportData();
+    if (tab === "updates")       loadUpdates();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -1257,6 +1279,7 @@ export default function AdminDashboard() {
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
     { key: "transport",      label: "ترحال والتوصيل",   icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
+    { key: "updates",        label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -3725,6 +3748,132 @@ export default function AdminDashboard() {
           </ScrollView>
         );
       })()}
+
+      {/* ══ التحديثات ══ */}
+      {tab === "updates" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadingUpdates ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
+          ) : (
+            <>
+              {/* بطاقة الإصدار الحالي */}
+              <Animated.View entering={FadeInDown.duration(300)} style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: Colors.primary + "20" }]}>
+                    <Ionicons name="cloud-upload-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <Text style={s.cardTitle}>إدارة إصدار التطبيق</Text>
+                </View>
+
+                {/* رقم الإصدار */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>رقم الإصدار الجديد</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 10, alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() => setAppVersion(v => String(Math.max(1, Number(v) - 1)))}
+                    style={{ padding: 10, backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider }}
+                  >
+                    <Ionicons name="remove" size={18} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  <View style={{ flex: 1, backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, paddingVertical: 12, alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.primary }}>{appVersion}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setAppVersion(v => String(Number(v) + 1))}
+                    style={{ padding: 10, backgroundColor: Colors.primary + "15", borderRadius: 10, borderWidth: 1, borderColor: Colors.primary }}
+                  >
+                    <Ionicons name="add" size={18} color={Colors.primary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* ملاحظات التحديث */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>ملاحظات التحديث (كل سطر نقطة)</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1,
+                    borderColor: Colors.divider, padding: 12, height: 100,
+                    textAlignVertical: "top", color: Colors.text,
+                    fontFamily: "Cairo_400Regular", fontSize: 13,
+                  }}
+                  value={updateNotes}
+                  onChangeText={setUpdateNotes}
+                  multiline
+                  placeholder={"- ميزة جديدة\n- إصلاح مشكلة\n- تحسينات في الأداء"}
+                  placeholderTextColor={Colors.textMuted}
+                  textAlign="right"
+                />
+
+                {/* تحديث إجباري */}
+                <TouchableOpacity
+                  onPress={() => setUpdateForce(f => !f)}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 14, padding: 14, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: updateForce ? Colors.danger : Colors.divider }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{
+                    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+                    borderColor: updateForce ? Colors.danger : Colors.divider,
+                    backgroundColor: updateForce ? Colors.danger : "transparent",
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    {updateForce && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: updateForce ? Colors.danger : Colors.text, textAlign: "right" }}>
+                      تحديث إجباري
+                    </Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                      المستخدم لا يستطيع تجاهل الإشعار
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* زر الحفظ */}
+                <TouchableOpacity
+                  style={{ marginTop: 18, borderRadius: 14, overflow: "hidden", opacity: savingUpdates ? 0.7 : 1 }}
+                  disabled={savingUpdates}
+                  onPress={async () => {
+                    setSavingUpdates(true);
+                    try {
+                      const res = await apiFetch("/api/admin/app/version", token, {
+                        method: "PATCH",
+                        body: JSON.stringify({ version: Number(appVersion), notes: updateNotes, force: updateForce }),
+                      });
+                      if (res.ok) {
+                        Alert.alert("تم", `تم نشر الإصدار ${appVersion} بنجاح — سيرى المستخدمون الإشعار تلقائياً`);
+                      } else {
+                        Alert.alert("خطأ", "تعذّر حفظ الإصدار");
+                      }
+                    } catch {
+                      Alert.alert("خطأ", "تعذّر الاتصال");
+                    } finally {
+                      setSavingUpdates(false);
+                    }
+                  }}
+                >
+                  <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                    {savingUpdates
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <>
+                          <Ionicons name="cloud-upload" size={18} color="#fff" />
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>نشر التحديث</Text>
+                        </>
+                    }
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+
+              {/* ملاحظة توضيحية */}
+              <Animated.View entering={FadeInDown.duration(400).delay(100)} style={[s.card, { backgroundColor: Colors.primary + "08" }]}>
+                <View style={{ flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" }}>
+                  <Ionicons name="information-circle-outline" size={22} color={Colors.primary} style={{ marginTop: 2 }} />
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 }}>
+                    عند رفع رقم الإصدار، سيظهر للمستخدمين تلقائياً إشعار بالتحديث عند فتح التطبيق أو العودة إليه. رقم الإصدار الحالي في التطبيق هو {1}.
+                  </Text>
+                </View>
+              </Animated.View>
+            </>
+          )}
+        </ScrollView>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           ── مودال تعيين سائق للرحلة
