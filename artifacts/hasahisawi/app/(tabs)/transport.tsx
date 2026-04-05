@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
   TouchableOpacity, Linking, Alert, TextInput,
@@ -15,33 +15,33 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import {
+  TRANSPORT_ZONES, DEFAULT_FARE_MATRIX,
+  type ZoneId, type FareMatrix,
+  formatFare,
+} from "@/constants/transport-zones";
 
 const ACCENT  = "#F97316";
 const ACCENT2 = "#FBBF24";
 const GREEN   = "#3EFF9C";
 const BLUE    = "#3E9CBF";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── أنواع البيانات ────────────────────────────────────────────────────────────
 type Driver = {
   id: number; name: string; vehicle_type: string; vehicle_desc: string;
-  area: string; is_online: boolean; total_trips: number; rating: number;
+  area: string; zone_id: number | null; is_online: boolean;
+  total_trips: number; rating: number; phone: string;
 };
 type Trip = {
   id: number; user_name: string; trip_type: string;
-  from_location: string; to_location: string; status: string;
-  driver_name: string | null; created_at: string; rating: number | null;
-};
-type RegisterForm = {
-  name: string; phone: string; vehicle_type: string;
-  vehicle_desc: string; plate: string; area: string;
-};
-type TripForm = {
-  user_name: string; user_phone: string;
-  trip_type: "ride" | "delivery";
-  from_location: string; to_location: string; notes: string;
+  from_location: string; to_location: string;
+  from_zone: number | null; to_zone: number | null;
+  fare_estimate: number | null; vehicle_preference: string;
+  status: string; driver_name: string | null;
+  created_at: string; rating: number | null;
 };
 
-// ─── Coming Soon Screen ────────────────────────────────────────────────────────
+// ─── شاشة قريباً ──────────────────────────────────────────────────────────────
 function ComingSoonScreen({ note }: { note?: string }) {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -56,28 +56,20 @@ function ComingSoonScreen({ note }: { note?: string }) {
         withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
       ), -1,
     );
-    scale.value  = withRepeat(withTiming(1.6, { duration: 1800, easing: Easing.out(Easing.ease) }), -1, false);
+    scale.value   = withRepeat(withTiming(1.6, { duration: 1800, easing: Easing.out(Easing.ease) }), -1, false);
     opacity.value = withRepeat(withTiming(0,   { duration: 1800, easing: Easing.out(Easing.ease) }), -1, false);
   }, []);
 
   const soonStyle  = useAnimatedStyle(() => ({ opacity: 0.7 + shimmer.value * 0.3 }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
 
-  const handleNotifyMe = () => {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("✅ شكراً لاهتمامك", "سنُعلمك فور إطلاق خدمة الترحال والتوصيل. ترقّب التحديثات القادمة!", [{ text: "حسناً" }]);
-  };
-
   return (
     <View style={cs.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#081A0E", "#0D2B17", "#112E1B"]} style={[cs.hero, { paddingTop: topPad + 16 }]}>
-          <View style={cs.dot1} /><View style={cs.dot2} /><View style={cs.dot3} />
-
           <Animated.View entering={FadeIn.delay(100).duration(600)} style={cs.iconCluster}>
             <View style={cs.pulseWrap}>
               <Animated.View style={[{ position: "absolute", width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: ACCENT }, pulseStyle]} />
-              <Animated.View style={[{ position: "absolute", width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: ACCENT2 }, pulseStyle]} />
               <LinearGradient colors={[ACCENT + "30", ACCENT2 + "20"]} style={cs.iconCircle}>
                 <MaterialCommunityIcons name="car-side" size={36} color={ACCENT} />
               </LinearGradient>
@@ -106,15 +98,14 @@ function ComingSoonScreen({ note }: { note?: string }) {
             ترحال والتوصيل{"\n"}مشاويرك علينا
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
-            منصة ربط بين السكان وأصحاب السيارات والركشات{"\n"}
-            لتسهيل التنقل وتوصيل الطلبات داخل الحصاحيصا
+            منصة ربط بين السكان وأصحاب السيارات والركشات{"\n"}لتسهيل التنقل وتوصيل الطلبات داخل الحصاحيصا
           </Animated.Text>
 
           <Animated.View entering={FadeInDown.delay(400).springify()} style={cs.statsRow}>
             {[
               { num: "٢٤س",  label: "متاح يومياً",    color: ACCENT  },
-              { num: "٥٠٠+", label: "سائق مرتقب",    color: ACCENT2 },
-              { num: "٣ د",  label: "متوسط الوصول", color: GREEN   },
+              { num: "٥ مناطق", label: "تغطية المدينة", color: ACCENT2 },
+              { num: "٣ د",  label: "متوسط الوصول",  color: GREEN   },
             ].map((st, i) => (
               <View key={i} style={cs.statItem}>
                 <Text style={[cs.statNum, { color: st.color }]}>{st.num}</Text>
@@ -132,43 +123,30 @@ function ComingSoonScreen({ note }: { note?: string }) {
             </Animated.View>
           ) : null}
 
-          {/* مميزات */}
+          {/* مناطق التغطية */}
           <Animated.View entering={FadeInDown.delay(120).springify()} style={cs.secRow}>
             <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={cs.secBar} />
-            <Text style={cs.secTitle}>ما الذي تقدمه الخدمة؟</Text>
+            <Text style={cs.secTitle}>مناطق التغطية</Text>
           </Animated.View>
-          <View style={cs.featGrid}>
-            {[
-              { icon: "car-side",        color: BLUE,      label: "توصيل بالسيارات",   sub: "رحلات مريحة وسريعة داخل المدينة" },
-              { icon: "rickshaw",        color: ACCENT,    label: "مشاوير بالركشة",    sub: "وسيلة التنقل الشعبية بتكلفة منخفضة" },
-              { icon: "package-variant", color: "#A855F7", label: "توصيل الطلبات",     sub: "إيصال بضائع لباب البيت" },
-              { icon: "map-marker-path", color: GREEN,     label: "تتبع لحظي",         sub: "تتبع موقع السائق في الوقت الفعلي" },
-              { icon: "star-circle",     color: ACCENT2,   label: "تقييم السائقين",    sub: "نظام تقييم لضمان جودة الخدمة" },
-              { icon: "shield-check",    color: BLUE,      label: "رحلات آمنة",         sub: "سائقون موثّقون ومراجَعون من الإدارة" },
-            ].map((f, i) => (
-              <Animated.View key={i} entering={FadeInDown.delay(150 + i * 50).springify()} style={cs.featCard}>
-                <View style={[cs.featIcon, { backgroundColor: f.color + "18", borderColor: f.color + "30" }]}>
-                  <MaterialCommunityIcons name={f.icon as any} size={22} color={f.color} />
+          <View style={{ gap: 8, marginBottom: 20 }}>
+            {TRANSPORT_ZONES.map(z => (
+              <View key={z.id} style={[cs.zonePreviewCard, { borderColor: z.color + "40" }]}>
+                <View style={[cs.zonePreviewBadge, { backgroundColor: z.color + "20" }]}>
+                  <Text style={[cs.zonePreviewNum, { color: z.color }]}>م{z.id}</Text>
                 </View>
-                <Text style={cs.featLabel}>{f.label}</Text>
-                <Text style={cs.featSub}>{f.sub}</Text>
-                <View style={[cs.featLine, { backgroundColor: f.color + "70" }]} />
-              </Animated.View>
+                <View style={{ flex: 1 }}>
+                  <Text style={cs.zonePreviewName}>{z.name}</Text>
+                  <Text style={cs.zonePreviewDesc}>{z.description}</Text>
+                </View>
+              </View>
             ))}
           </View>
 
-          {/* CTA */}
           <Animated.View entering={FadeInDown.delay(460).springify()} style={cs.ctaCard}>
             <LinearGradient colors={[ACCENT + "20", ACCENT2 + "10"]} style={cs.ctaGrad}>
               <MaterialCommunityIcons name="clock-time-four-outline" size={36} color={ACCENT} style={{ marginBottom: 10 }} />
               <Text style={cs.ctaTitle}>الخدمة قيد التجهيز</Text>
               <Text style={cs.ctaSub}>فريقنا يعمل على إطلاق الخدمة قريباً.{"\n"}سيتم إشعارك فور التفعيل الرسمي.</Text>
-              <TouchableOpacity onPress={handleNotifyMe} style={cs.ctaBtn} activeOpacity={0.85}>
-                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={cs.ctaBtnGrad}>
-                  <Ionicons name="notifications-outline" size={18} color="#fff" />
-                  <Text style={cs.ctaBtnText}>أبلّغني عند الإطلاق</Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </LinearGradient>
           </Animated.View>
         </View>
@@ -177,58 +155,188 @@ function ComingSoonScreen({ note }: { note?: string }) {
   );
 }
 
-// ─── Main Service Screen ───────────────────────────────────────────────────────
+// ─── اختيار المنطقة ───────────────────────────────────────────────────────────
+function ZonePicker({
+  label, value, onChange,
+}: {
+  label: string;
+  value: ZoneId | null;
+  onChange: (z: ZoneId) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const zone = value ? TRANSPORT_ZONES.find(z => z.id === value) : null;
+
+  return (
+    <>
+      <TouchableOpacity onPress={() => setOpen(true)} style={zp.btn} activeOpacity={0.8}>
+        <Ionicons name="chevron-down" size={16} color={Colors.textMuted} style={{ marginLeft: 6 }} />
+        {zone ? (
+          <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+            <View style={[zp.badge, { backgroundColor: zone.color + "20" }]}>
+              <Text style={[zp.badgeNum, { color: zone.color }]}>م{zone.id}</Text>
+            </View>
+            <Text style={zp.selectedText}>{zone.name}</Text>
+          </View>
+        ) : (
+          <Text style={zp.placeholder}>{label}</Text>
+        )}
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={zp.backdrop} onPress={() => setOpen(false)}>
+          <Animated.View entering={FadeInDown.springify().damping(20)} style={zp.sheet}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={zp.handle} />
+              <Text style={zp.sheetTitle}>{label}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {TRANSPORT_ZONES.map(z => (
+                  <TouchableOpacity key={z.id}
+                    onPress={() => { onChange(z.id); setOpen(false); }}
+                    style={[zp.zoneRow, value === z.id && { backgroundColor: z.color + "15" }]}
+                    activeOpacity={0.75}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={zp.zoneName}>{z.name}</Text>
+                      <Text style={zp.zoneDesc}>{z.neighborhoods.slice(0, 4).join(" · ")}
+                        {z.neighborhoods.length > 4 ? ` +${z.neighborhoods.length - 4}` : ""}
+                      </Text>
+                    </View>
+                    <View style={[zp.zoneNumBadge, { backgroundColor: z.color + "20", borderColor: z.color + "40" }]}>
+                      <Text style={[zp.zoneNum, { color: z.color }]}>منطقة {z.id}</Text>
+                    </View>
+                    {value === z.id && <Ionicons name="checkmark-circle" size={18} color={z.color} style={{ marginRight: 6 }} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+// ─── بطاقة تقدير التعرفة ──────────────────────────────────────────────────────
+function FareEstimateCard({
+  fromZone, toZone, fareMatrix, vehicleType, onVehicleChange,
+}: {
+  fromZone: ZoneId | null;
+  toZone: ZoneId | null;
+  fareMatrix: FareMatrix;
+  vehicleType: "car" | "rickshaw" | "delivery";
+  onVehicleChange: (v: "car" | "rickshaw" | "delivery") => void;
+}) {
+  if (!fromZone || !toZone) {
+    return (
+      <View style={fe.placeholder}>
+        <MaterialCommunityIcons name="calculator-variant-outline" size={24} color={Colors.textMuted} />
+        <Text style={fe.placeholderText}>اختر منطقتَي الانطلاق والوجهة{"\n"}لعرض التعرفة التقديرية</Text>
+      </View>
+    );
+  }
+
+  const fares = fareMatrix[fromZone]?.[toZone];
+  if (!fares) return null;
+
+  const fromZ = TRANSPORT_ZONES.find(z => z.id === fromZone);
+  const toZ   = TRANSPORT_ZONES.find(z => z.id === toZone);
+
+  const vehicles = [
+    { key: "car" as const,      icon: "car-side",        label: "سيارة",       color: BLUE,      fare: fares.car      },
+    { key: "rickshaw" as const,  icon: "rickshaw",        label: "ركشة",        color: ACCENT,    fare: fares.rickshaw },
+    { key: "delivery" as const,  icon: "package-variant", label: "توصيل طلب",  color: "#A855F7", fare: fares.delivery },
+  ];
+
+  return (
+    <Animated.View entering={ZoomIn.springify().damping(18)} style={fe.card}>
+      <LinearGradient colors={[ACCENT + "15", ACCENT2 + "08"]} style={fe.header}>
+        <MaterialCommunityIcons name="calculator-variant" size={18} color={ACCENT2} />
+        <Text style={fe.headerTitle}>التعرفة التقديرية</Text>
+        <View style={fe.routeBadge}>
+          <Text style={fe.routeText}>{fromZ?.name} ← {toZ?.name}</Text>
+        </View>
+      </LinearGradient>
+      <View style={fe.vehicleRow}>
+        {vehicles.map(v => (
+          <TouchableOpacity key={v.key} onPress={() => onVehicleChange(v.key)}
+            style={[fe.vehicleBtn, vehicleType === v.key && { borderColor: v.color, backgroundColor: v.color + "15" }]}
+            activeOpacity={0.8}>
+            <MaterialCommunityIcons name={v.icon as any} size={20} color={vehicleType === v.key ? v.color : Colors.textMuted} />
+            <Text style={[fe.vehicleLabel, vehicleType === v.key && { color: v.color }]}>{v.label}</Text>
+            <Text style={[fe.vehicleFare, { color: vehicleType === v.key ? v.color : Colors.textSecondary }]}>
+              {formatFare(v.fare)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={fe.disclaimer}>
+        <Ionicons name="information-circle-outline" size={13} color={Colors.textMuted} />
+        <Text style={fe.disclaimerText}>التعرفة تقديرية — تُحدَّد بالاتفاق مع السائق</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── الشاشة الرئيسية ──────────────────────────────────────────────────────────
 export default function TransportScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, token } = useAuth();
-
-  // حالة الخدمة
-  const [enabled, setEnabled]   = useState<boolean | null>(null);
-  const [note,    setNote]      = useState("");
-  const [loading, setLoading]   = useState(true);
-
-  // تبويبات
-  const [activeTab, setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register">("book");
-
-  // بيانات
-  const [drivers,   setDrivers]   = useState<Driver[]>([]);
-  const [myTrips,   setMyTrips]   = useState<Trip[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // نموذج الطلب
-  const [tripForm, setTripForm] = useState<TripForm>({
-    user_name: user?.name || "", user_phone: "",
-    trip_type: "ride", from_location: "", to_location: "", notes: "",
-  });
-  const [submittingTrip, setSubmittingTrip] = useState(false);
-
-  // نموذج تسجيل سائق
-  const [regForm, setRegForm] = useState<RegisterForm>({
-    name: user?.name || "", phone: "", vehicle_type: "سيارة",
-    vehicle_desc: "", plate: "", area: "",
-  });
-  const [submittingReg, setSubmittingReg] = useState(false);
-
   const apiUrl = getApiUrl();
 
+  const [enabled,    setEnabled]   = useState<boolean | null>(null);
+  const [note,       setNote]      = useState("");
+  const [loading,    setLoading]   = useState(true);
+  const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register">("book");
+
+  const [drivers,    setDrivers]    = useState<Driver[]>([]);
+  const [myTrips,    setMyTrips]    = useState<Trip[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fareMatrix, setFareMatrix] = useState<FareMatrix>(DEFAULT_FARE_MATRIX);
+
+  // نموذج الطلب
+  const [fromZone,   setFromZone]  = useState<ZoneId | null>(null);
+  const [toZone,     setToZone]    = useState<ZoneId | null>(null);
+  const [fromDetail, setFromDetail] = useState("");
+  const [toDetail,   setToDetail]   = useState("");
+  const [vehicleType, setVehicleType] = useState<"car" | "rickshaw" | "delivery">("car");
+  const [userName,   setUserName]   = useState(user?.name || "");
+  const [userPhone,  setUserPhone]  = useState("");
+  const [notes,      setNotes]      = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // تسجيل السائق
+  const [regName,     setRegName]     = useState(user?.name || "");
+  const [regPhone,    setRegPhone]     = useState("");
+  const [regVehicle,  setRegVehicle]  = useState("سيارة");
+  const [regDesc,     setRegDesc]     = useState("");
+  const [regPlate,    setRegPlate]    = useState("");
+  const [regArea,     setRegArea]     = useState("");
+  const [submittingReg, setSubmittingReg] = useState(false);
+
+  // ── التحميل ──
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch(`${apiUrl}/api/transport/status`);
       if (res.ok) {
         const d = await res.json();
         setEnabled(d.enabled);
-        // حاول تحميل الملاحظة من API إن كانت موجودة
         if (!d.enabled) {
           const set = await fetch(`${apiUrl}/api/admin/transport/settings`).catch(() => null);
-          if (set?.ok) {
-            const sd = await set.json();
-            setNote(sd.transport_note || "");
-          }
+          if (set?.ok) { const sd = await set.json(); setNote(sd.transport_note || ""); }
         }
       }
     } catch { setEnabled(false); }
     finally { setLoading(false); }
+  }, [apiUrl]);
+
+  const loadFares = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/transport/fares`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Object.keys(data).length > 0) setFareMatrix(data);
+      }
+    } catch {}
   }, [apiUrl]);
 
   const loadDrivers = useCallback(async () => {
@@ -241,51 +349,71 @@ export default function TransportScreen() {
   const loadMyTrips = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/transport/my-trips`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${apiUrl}/api/transport/my-trips`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) setMyTrips(await res.json());
     } catch {}
   }, [apiUrl, token]);
 
-  useEffect(() => { loadStatus(); }, []);
+  useEffect(() => { loadStatus(); loadFares(); }, []);
   useEffect(() => {
-    if (enabled) {
-      loadDrivers();
-      loadMyTrips();
-    }
+    if (enabled) { loadDrivers(); loadMyTrips(); }
   }, [enabled]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadDrivers(), loadMyTrips()]);
+    await Promise.all([loadDrivers(), loadMyTrips(), loadFares()]);
     setRefreshing(false);
-  }, [loadDrivers, loadMyTrips]);
+  }, [loadDrivers, loadMyTrips, loadFares]);
 
   const submitTrip = async () => {
-    if (!tripForm.from_location || !tripForm.to_location || !tripForm.user_name || !tripForm.user_phone) {
-      Alert.alert("بيانات ناقصة", "يرجى ملء جميع الحقول المطلوبة"); return;
+    if (!fromZone || !toZone) {
+      Alert.alert("بيانات ناقصة", "يرجى اختيار منطقة الانطلاق والوجهة"); return;
     }
-    setSubmittingTrip(true);
+    if (!userName || !userPhone) {
+      Alert.alert("بيانات ناقصة", "يرجى إدخال اسمك ورقم هاتفك"); return;
+    }
+    setSubmitting(true);
     try {
+      const fares = fareMatrix[fromZone]?.[toZone];
+      const fareEst = fares?.[vehicleType] ?? null;
+      const from_location = fromDetail ? `منطقة ${fromZone} — ${fromDetail}` : `منطقة ${fromZone}: ${TRANSPORT_ZONES.find(z=>z.id===fromZone)?.name}`;
+      const to_location   = toDetail   ? `منطقة ${toZone} — ${toDetail}`   : `منطقة ${toZone}: ${TRANSPORT_ZONES.find(z=>z.id===toZone)?.name}`;
+      const body = {
+        user_name: userName, user_phone: userPhone,
+        trip_type: vehicleType === "delivery" ? "delivery" : "ride",
+        vehicle_preference: vehicleType,
+        from_location, to_location,
+        from_zone: fromZone, to_zone: toZone,
+        fare_estimate: fareEst,
+        notes,
+      };
       const res = await fetch(`${apiUrl}/api/transport/trips`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify(tripForm),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("✅ تم الطلب", "تم إرسال طلبك بنجاح! سيتواصل معك السائق قريباً.", [{ text: "حسناً" }]);
-        setTripForm(p => ({ ...p, from_location: "", to_location: "", notes: "" }));
+        Alert.alert(
+          "✅ تم الطلب",
+          `طلبك أُرسل بنجاح!\nالتعرفة التقديرية: ${fareEst ? formatFare(fareEst) : "—"}\nسيتواصل معك السائق قريباً.`,
+          [{ text: "حسناً" }],
+        );
+        setFromZone(null); setToZone(null);
+        setFromDetail(""); setToDetail(""); setNotes("");
         loadMyTrips();
       } else {
         const j = await res.json();
         Alert.alert("خطأ", j.error || "تعذّر إرسال الطلب");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
-    finally { setSubmittingTrip(false); }
+    finally { setSubmitting(false); }
   };
 
   const submitRegister = async () => {
-    if (!regForm.name || !regForm.phone || !regForm.vehicle_type) {
+    if (!regName || !regPhone || !regVehicle) {
       Alert.alert("بيانات ناقصة", "يرجى ملء جميع الحقول المطلوبة"); return;
     }
     setSubmittingReg(true);
@@ -293,12 +421,13 @@ export default function TransportScreen() {
       const res = await fetch(`${apiUrl}/api/transport/drivers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify(regForm),
+        body: JSON.stringify({ name: regName, phone: regPhone, vehicle_type: regVehicle, vehicle_desc: regDesc, plate: regPlate, area: regArea }),
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("✅ تم التسجيل", "تم إرسال طلب تسجيلك كسائق. ستتلقى إشعاراً عند مراجعة الطلب من الإدارة.", [{ text: "حسناً" }]);
-        setRegForm({ name: user?.name || "", phone: "", vehicle_type: "سيارة", vehicle_desc: "", plate: "", area: "" });
+        Alert.alert("✅ تم التسجيل", "تم إرسال طلبك للانضمام كسائق. ستُبلَّغ عند مراجعة طلبك من الإدارة.", [{ text: "حسناً" }]);
+        setRegName(user?.name || ""); setRegPhone(""); setRegVehicle("سيارة");
+        setRegDesc(""); setRegPlate(""); setRegArea("");
       } else {
         const j = await res.json();
         Alert.alert("خطأ", j.error || "تعذّر التسجيل");
@@ -307,37 +436,35 @@ export default function TransportScreen() {
     finally { setSubmittingReg(false); }
   };
 
-  // ── Loading ──
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color={ACCENT} size="large" />
-      </View>
-    );
-  }
+  if (loading) return (
+    <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center" }}>
+      <ActivityIndicator color={ACCENT} size="large" />
+    </View>
+  );
 
-  // ── Coming Soon ──
   if (!enabled) return <ComingSoonScreen note={note} />;
 
-  // ── Full Service UI ──
   const TABS = [
-    { key: "book",     label: "اطلب رحلة",    icon: "car-outline"           as const },
-    { key: "drivers",  label: "السائقون",      icon: "people-outline"        as const },
-    { key: "mytrips",  label: "طلباتي",        icon: "list-outline"          as const },
-    { key: "register", label: "كن سائقاً",     icon: "car-sport-outline" as const },
+    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },
+    { key: "drivers",  label: "السائقون",   icon: "people-outline"    as const },
+    { key: "mytrips",  label: "طلباتي",     icon: "list-outline"      as const },
+    { key: "register", label: "كن سائقاً",  icon: "car-sport-outline" as const },
   ];
+
+  const onlineCnt   = drivers.filter(d => d.is_online).length;
+  const approvedCnt = drivers.length;
 
   return (
     <View style={s.container}>
       {/* ── رأس الصفحة ── */}
-      <LinearGradient colors={["#081A0E", "#0D2B17"]} style={[s.header, { paddingTop: topPad + 10 }]}>
+      <LinearGradient colors={["#081A0E", "#0D2B17"]} style={[s.header, { paddingTop: topPad + 8 }]}>
         <View style={s.headerRow}>
           <View style={s.headerIcon}>
             <MaterialCommunityIcons name="car-side" size={22} color={ACCENT} />
           </View>
-          <View style={{ flex: 1, marginRight: 12 }}>
+          <View style={{ flex: 1, marginRight: 10 }}>
             <Text style={s.headerTitle}>ترحال والتوصيل</Text>
-            <Text style={s.headerSub}>مشاويرك علينا داخل الحصاحيصا</Text>
+            <Text style={s.headerSub}>مشاويرك علينا · ٥ مناطق تغطية</Text>
           </View>
           <View style={s.liveBadge}>
             <View style={s.liveDot} />
@@ -347,23 +474,21 @@ export default function TransportScreen() {
 
         {/* إحصائيات سريعة */}
         <View style={s.quickStats}>
-          <View style={s.quickStat}>
-            <Text style={[s.quickStatNum, { color: ACCENT }]}>{drivers.filter(d => d.is_online).length}</Text>
-            <Text style={s.quickStatLabel}>سائق متاح</Text>
-          </View>
-          <View style={s.quickStatDiv} />
-          <View style={s.quickStat}>
-            <Text style={[s.quickStatNum, { color: GREEN }]}>{drivers.length}</Text>
-            <Text style={s.quickStatLabel}>سائق معتمد</Text>
-          </View>
-          <View style={s.quickStatDiv} />
-          <View style={s.quickStat}>
-            <Text style={[s.quickStatNum, { color: BLUE }]}>{myTrips.length}</Text>
-            <Text style={s.quickStatLabel}>طلباتي</Text>
-          </View>
+          {[
+            { num: onlineCnt,   label: "سائق الآن",   color: GREEN  },
+            { num: approvedCnt, label: "سائق معتمد",  color: BLUE   },
+            { num: myTrips.length, label: "طلباتي",   color: ACCENT },
+          ].map((st, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <View style={s.quickStatDiv} />}
+              <View style={s.quickStat}>
+                <Text style={[s.quickStatNum, { color: st.color }]}>{st.num}</Text>
+                <Text style={s.quickStatLabel}>{st.label}</Text>
+              </View>
+            </React.Fragment>
+          ))}
         </View>
 
-        {/* تبويبات */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsScroll}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key as any)}
@@ -375,7 +500,7 @@ export default function TransportScreen() {
         </ScrollView>
       </LinearGradient>
 
-      {/* ── محتوى التبويبات ── */}
+      {/* ── المحتوى ── */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
@@ -383,77 +508,110 @@ export default function TransportScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ──── طلب رحلة ──── */}
+        {/* ──── طلب رحلة / توصيل ──── */}
         {activeTab === "book" && (
           <Animated.View entering={FadeInDown.springify()}>
-            {/* نوع الطلب */}
-            <Text style={s.secLabel}>نوع الخدمة</Text>
-            <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
-              {([
-                { key: "ride",     label: "مشوار",       icon: "car-side" },
-                { key: "delivery", label: "توصيل طلب",   icon: "package-variant" },
-              ] as const).map(t => (
-                <TouchableOpacity key={t.key}
-                  onPress={() => setTripForm(p => ({ ...p, trip_type: t.key }))}
-                  style={[s.typeBtn, tripForm.trip_type === t.key && { borderColor: ACCENT, backgroundColor: ACCENT + "15" }]}>
-                  <MaterialCommunityIcons name={t.icon} size={22} color={tripForm.trip_type === t.key ? ACCENT : Colors.textSecondary} />
-                  <Text style={[s.typeBtnLabel, tripForm.trip_type === t.key && { color: ACCENT }]}>{t.label}</Text>
-                </TouchableOpacity>
-              ))}
+
+            {/* اختيار المنطقة */}
+            <View style={s.sectionHeader}>
+              <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
+              <Text style={s.secTitle}>حدد المسار</Text>
             </View>
 
-            {/* بيانات الطالب */}
-            <View style={s.formCard}>
-              <Text style={s.formCardTitle}>بيانات الطلب</Text>
+            <View style={s.zoneSelectCard}>
+              <View style={s.zoneSelectRow}>
+                <View style={[s.zoneSelectDot, { backgroundColor: GREEN }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.zoneSelectLabel}>منطقة الانطلاق</Text>
+                  <ZonePicker label="اختر منطقة البداية" value={fromZone} onChange={setFromZone} />
+                  <TextInput
+                    style={s.zoneDetailInput}
+                    value={fromDetail}
+                    onChangeText={setFromDetail}
+                    placeholder="وصف تفصيلي للموقع (اختياري)"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
 
-              <Text style={s.fieldLabel}>اسمك *</Text>
-              <TextInput style={s.input} value={tripForm.user_name}
-                onChangeText={v => setTripForm(p => ({ ...p, user_name: v }))}
+              <View style={s.zoneDivider}>
+                <View style={s.zoneDivLine} />
+                <MaterialCommunityIcons name="arrow-down" size={16} color={ACCENT} />
+                <View style={s.zoneDivLine} />
+              </View>
+
+              <View style={s.zoneSelectRow}>
+                <View style={[s.zoneSelectDot, { backgroundColor: ACCENT }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.zoneSelectLabel}>منطقة الوجهة</Text>
+                  <ZonePicker label="اختر منطقة الوصول" value={toZone} onChange={setToZone} />
+                  <TextInput
+                    style={s.zoneDetailInput}
+                    value={toDetail}
+                    onChangeText={setToDetail}
+                    placeholder="وصف تفصيلي للموقع (اختياري)"
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* بطاقة التعرفة */}
+            <FareEstimateCard
+              fromZone={fromZone}
+              toZone={toZone}
+              fareMatrix={fareMatrix}
+              vehicleType={vehicleType}
+              onVehicleChange={setVehicleType}
+            />
+
+            {/* بيانات الطلب */}
+            <View style={s.sectionHeader}>
+              <LinearGradient colors={[BLUE, GREEN]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
+              <Text style={s.secTitle}>بيانات التواصل</Text>
+            </View>
+            <View style={s.formCard}>
+              <Text style={s.fieldLabel}>اسمك الكامل *</Text>
+              <TextInput style={s.input} value={userName} onChangeText={setUserName}
                 placeholder="اسمك الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
               <Text style={s.fieldLabel}>رقم هاتفك *</Text>
-              <TextInput style={s.input} value={tripForm.user_phone}
-                onChangeText={v => setTripForm(p => ({ ...p, user_phone: v }))}
+              <TextInput style={s.input} value={userPhone} onChangeText={setUserPhone}
                 placeholder="+249..." placeholderTextColor={Colors.textMuted}
                 textAlign="right" keyboardType="phone-pad" />
 
-              <Text style={s.fieldLabel}>{tripForm.trip_type === "delivery" ? "موقع الاستلام *" : "موقع الانطلاق *"}</Text>
-              <TextInput style={s.input} value={tripForm.from_location}
-                onChangeText={v => setTripForm(p => ({ ...p, from_location: v }))}
-                placeholder="مثال: حي الجامعة، شارع النيل..." placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-              <Text style={s.fieldLabel}>{tripForm.trip_type === "delivery" ? "موقع التوصيل *" : "الوجهة المطلوبة *"}</Text>
-              <TextInput style={s.input} value={tripForm.to_location}
-                onChangeText={v => setTripForm(p => ({ ...p, to_location: v }))}
-                placeholder="مثال: السوق الكبير، مستشفى المدينة..." placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-              <Text style={s.fieldLabel}>ملاحظات (اختياري)</Text>
+              <Text style={s.fieldLabel}>ملاحظات إضافية (اختياري)</Text>
               <TextInput style={[s.input, { minHeight: 72, textAlignVertical: "top" }]}
-                value={tripForm.notes} onChangeText={v => setTripForm(p => ({ ...p, notes: v }))}
-                placeholder="أي تفاصيل إضافية..." placeholderTextColor={Colors.textMuted}
-                textAlign="right" multiline />
+                value={notes} onChangeText={setNotes}
+                placeholder="أي تفاصيل إضافية تساعد السائق..."
+                placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
 
-              <TouchableOpacity onPress={submitTrip} disabled={submittingTrip}
+              <TouchableOpacity onPress={submitTrip} disabled={submitting}
                 style={{ marginTop: 4, borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
                 <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
-                  {submittingTrip
+                  {submitting
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <>
-                        <MaterialCommunityIcons name={tripForm.trip_type === "delivery" ? "package-variant-closed" : "car-arrow-right"} size={18} color="#fff" />
-                        <Text style={s.submitBtnText}>{tripForm.trip_type === "delivery" ? "طلب توصيل" : "طلب مشوار"}</Text>
+                        <MaterialCommunityIcons name={vehicleType === "delivery" ? "package-variant-closed" : "car-arrow-right"} size={18} color="#fff" />
+                        <Text style={s.submitBtnText}>
+                          {vehicleType === "delivery" ? "إرسال طلب التوصيل" :
+                           vehicleType === "rickshaw"  ? "طلب مشوار ركشة" : "طلب مشوار سيارة"}
+                        </Text>
                       </>}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
-            {/* كيف تعمل */}
+            {/* خطوات كيف تعمل */}
             <View style={s.howCard}>
-              <Text style={s.formCardTitle}>كيف يعمل الطلب؟</Text>
+              <Text style={s.howCardTitle}>كيف تعمل الخدمة؟</Text>
               {[
-                { step: "١", text: "اختر نوع الخدمة: مشوار أو توصيل طلب" },
-                { step: "٢", text: "أدخل موقع الانطلاق والوجهة" },
-                { step: "٣", text: "أرسل الطلب وانتظر تواصل السائق" },
-                { step: "٤", text: "قيّم السائق بعد اكتمال الرحلة" },
+                { step: "١", text: "اختر منطقة الانطلاق ومنطقة الوصول" },
+                { step: "٢", text: "اطّلع على التعرفة التقديرية واختر نوع المركبة" },
+                { step: "٣", text: "أرسل طلبك وستجد سائقاً متاحاً يتواصل معك" },
+                { step: "٤", text: "بعد الرحلة قيّم السائق لمساعدة بقية المستخدمين" },
               ].map((h, i) => (
                 <View key={i} style={s.howRow}>
                   <LinearGradient colors={[ACCENT, ACCENT2]} style={s.howBubble}>
@@ -467,45 +625,33 @@ export default function TransportScreen() {
           </Animated.View>
         )}
 
-        {/* ──── السائقون المتاحون ──── */}
+        {/* ──── السائقون ──── */}
         {activeTab === "drivers" && (
           <Animated.View entering={FadeInDown.springify()}>
             {drivers.length === 0 ? (
-              <View style={s.emptyBox}>
-                <MaterialCommunityIcons name="steering" size={48} color={Colors.textMuted} />
-                <Text style={s.emptyText}>لا يوجد سائقون متاحون حالياً</Text>
-                <Text style={s.emptySub}>جرّب مرة أخرى لاحقاً</Text>
+              <View style={s.emptyCard}>
+                <MaterialCommunityIcons name="car-off" size={48} color={Colors.textMuted} />
+                <Text style={s.emptyText}>لا يوجد سائقون معتمدون حالياً</Text>
               </View>
-            ) : drivers.map((d, i) => (
-              <Animated.View entering={FadeInDown.delay(i * 60).springify()} key={d.id} style={s.driverCard}>
-                <View style={s.driverRow}>
-                  <LinearGradient colors={[ACCENT + "30", ACCENT2 + "20"]} style={s.driverAvatar}>
-                    <MaterialCommunityIcons name="steering" size={22} color={ACCENT} />
-                  </LinearGradient>
-                  <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={s.driverName}>{d.name}</Text>
-                    <Text style={s.driverVehicle}>{d.vehicle_type}{d.vehicle_desc ? ` — ${d.vehicle_desc}` : ""}</Text>
-                    {d.area ? <Text style={s.driverArea}>📍 {d.area}</Text> : null}
-                  </View>
-                  <View style={[s.onlineBadge, { backgroundColor: d.is_online ? GREEN + "20" : Colors.divider }]}>
-                    <View style={[s.onlineDot, { backgroundColor: d.is_online ? GREEN : Colors.textMuted }]} />
-                    <Text style={[s.onlineText, { color: d.is_online ? GREEN : Colors.textMuted }]}>
-                      {d.is_online ? "متاح" : "مشغول"}
-                    </Text>
-                  </View>
+            ) : (
+              <>
+                {/* ملخص سريع */}
+                <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+                  {[
+                    { label: "الكل",       val: drivers.length,                          color: Colors.textSecondary },
+                    { label: "متاح الآن", val: drivers.filter(d => d.is_online).length, color: GREEN  },
+                    { label: "سيارة",      val: drivers.filter(d => d.vehicle_type === "سيارة").length, color: BLUE   },
+                    { label: "ركشة",       val: drivers.filter(d => d.vehicle_type === "ركشة").length,  color: ACCENT },
+                  ].map((f, i) => (
+                    <View key={i} style={{ flex: 1, backgroundColor: f.color + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: f.color + "30" }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: f.color }}>{f.val}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>{f.label}</Text>
+                    </View>
+                  ))}
                 </View>
-                <View style={s.driverStats}>
-                  <View style={s.driverStat}>
-                    <Ionicons name="star" size={13} color={ACCENT2} />
-                    <Text style={s.driverStatVal}>{d.rating > 0 ? d.rating.toFixed(1) : "—"}</Text>
-                  </View>
-                  <View style={s.driverStat}>
-                    <Ionicons name="car-outline" size={13} color={Colors.textSecondary} />
-                    <Text style={s.driverStatVal}>{d.total_trips} رحلة</Text>
-                  </View>
-                </View>
-              </Animated.View>
-            ))}
+                {drivers.map(d => <DriverCard key={d.id} driver={d} />)}
+              </>
+            )}
           </Animated.View>
         )}
 
@@ -513,245 +659,350 @@ export default function TransportScreen() {
         {activeTab === "mytrips" && (
           <Animated.View entering={FadeInDown.springify()}>
             {!token ? (
-              <View style={s.emptyBox}>
-                <Ionicons name="lock-closed-outline" size={44} color={Colors.textMuted} />
-                <Text style={s.emptyText}>يجب تسجيل الدخول</Text>
-                <Text style={s.emptySub}>لعرض طلباتك السابقة</Text>
+              <View style={s.emptyCard}>
+                <MaterialCommunityIcons name="lock-outline" size={48} color={Colors.textMuted} />
+                <Text style={s.emptyText}>سجّل دخولك لعرض طلباتك</Text>
               </View>
             ) : myTrips.length === 0 ? (
-              <View style={s.emptyBox}>
-                <MaterialCommunityIcons name="clipboard-list-outline" size={48} color={Colors.textMuted} />
+              <View style={s.emptyCard}>
+                <MaterialCommunityIcons name="car-outline" size={48} color={Colors.textMuted} />
                 <Text style={s.emptyText}>لا توجد طلبات سابقة</Text>
-                <Text style={s.emptySub}>اطلب رحلتك الأولى!</Text>
               </View>
-            ) : myTrips.map((trip, i) => (
-              <Animated.View entering={FadeInDown.delay(i * 60).springify()} key={trip.id} style={s.tripCard}>
-                <View style={s.tripHeader}>
-                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
-                    <MaterialCommunityIcons
-                      name={trip.trip_type === "delivery" ? "package-variant" : "car-side"}
-                      size={16} color={ACCENT} />
-                    <Text style={s.tripType}>{trip.trip_type === "delivery" ? "توصيل طلب" : "مشوار"}</Text>
-                  </View>
-                  <View style={[s.tripStatusBadge, {
-                    backgroundColor: trip.status === "completed" ? GREEN + "20"
-                      : trip.status === "cancelled" ? "#E0556720"
-                      : trip.status === "accepted" ? ACCENT + "20" : Colors.divider,
-                  }]}>
-                    <Text style={[s.tripStatusText, {
-                      color: trip.status === "completed" ? GREEN
-                        : trip.status === "cancelled" ? "#E05567"
-                        : trip.status === "accepted" ? ACCENT : Colors.textSecondary,
-                    }]}>
-                      {trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "مقبول"
-                        : trip.status === "completed" ? "مكتمل" : "ملغي"}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={s.tripRoute}>من: {trip.from_location}</Text>
-                <Text style={s.tripRoute}>إلى: {trip.to_location}</Text>
-                {trip.driver_name ? (
-                  <Text style={s.tripDriver}>السائق: {trip.driver_name}</Text>
-                ) : null}
-                {trip.rating ? (
-                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
-                    {[1,2,3,4,5].map(star => (
-                      <Ionicons key={star} name={star <= trip.rating! ? "star" : "star-outline"} size={14} color={ACCENT2} />
-                    ))}
-                  </View>
-                ) : null}
-              </Animated.View>
-            ))}
+            ) : myTrips.map(trip => <TripCard key={trip.id} trip={trip} fareMatrix={fareMatrix} />)}
           </Animated.View>
         )}
 
         {/* ──── تسجيل سائق ──── */}
         {activeTab === "register" && (
           <Animated.View entering={FadeInDown.springify()}>
-            <View style={[s.formCard, { borderColor: BLUE + "40" }]}>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: BLUE + "20", alignItems: "center", justifyContent: "center" }}>
-                  <MaterialCommunityIcons name="steering" size={20} color={BLUE} />
-                </View>
-                <Text style={s.formCardTitle}>سجّل اهتمامك كسائق</Text>
+            <View style={s.formCard}>
+              <View style={s.formCardHeader}>
+                <MaterialCommunityIcons name="steering" size={22} color={ACCENT} />
+                <Text style={s.formCardTitle}>التسجيل كسائق</Text>
               </View>
-              <Text style={[s.formHint]}>سيتم مراجعة طلبك من الإدارة والتواصل معك عند القبول.</Text>
+              <Text style={s.formCardSub}>
+                انضم إلى أسطول ترحال والتوصيل وابدأ رحلتك المهنية في الحصاحيصا.
+                سيراجع الفريق طلبك خلال ٢٤–٤٨ ساعة.
+              </Text>
 
-              <Text style={s.fieldLabel}>اسمك الكامل *</Text>
-              <TextInput style={s.input} value={regForm.name}
-                onChangeText={v => setRegForm(p => ({ ...p, name: v }))}
-                placeholder="اسمك الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-              <Text style={s.fieldLabel}>رقم هاتفك *</Text>
-              <TextInput style={s.input} value={regForm.phone}
-                onChangeText={v => setRegForm(p => ({ ...p, phone: v }))}
-                placeholder="+249..." placeholderTextColor={Colors.textMuted}
-                textAlign="right" keyboardType="phone-pad" />
+              {[
+                { label: "الاسم الكامل *",        value: regName,    setter: setRegName,    placeholder: "اسمك الكامل", kb: "default" as const },
+                { label: "رقم الهاتف *",          value: regPhone,   setter: setRegPhone,   placeholder: "+249...",      kb: "phone-pad" as const },
+                { label: "رقم اللوحة",             value: regPlate,   setter: setRegPlate,   placeholder: "مثال: خطوط / أرقام", kb: "default" as const },
+                { label: "المنطقة الرئيسية للعمل", value: regArea,    setter: setRegArea,    placeholder: "مثال: المنصورة، حي الزهور...", kb: "default" as const },
+              ].map(f => (
+                <View key={f.label}>
+                  <Text style={s.fieldLabel}>{f.label}</Text>
+                  <TextInput style={s.input} value={f.value} onChangeText={f.setter}
+                    placeholder={f.placeholder} placeholderTextColor={Colors.textMuted}
+                    textAlign="right" keyboardType={f.kb} />
+                </View>
+              ))}
 
               <Text style={s.fieldLabel}>نوع المركبة *</Text>
-              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 12 }}>
-                {["سيارة", "ركشة", "بيك أب"].map(v => (
-                  <TouchableOpacity key={v}
-                    onPress={() => setRegForm(p => ({ ...p, vehicle_type: v }))}
-                    style={[s.vehicleChip, regForm.vehicle_type === v && { borderColor: BLUE, backgroundColor: BLUE + "15" }]}>
-                    <Text style={[s.vehicleChipText, regForm.vehicle_type === v && { color: BLUE }]}>{v}</Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+                {["سيارة", "ركشة"].map(v => (
+                  <TouchableOpacity key={v} onPress={() => setRegVehicle(v)}
+                    style={[s.typeBtn, regVehicle === v && { borderColor: ACCENT, backgroundColor: ACCENT + "15" }]}>
+                    <MaterialCommunityIcons name={v === "سيارة" ? "car-side" : "rickshaw"} size={20}
+                      color={regVehicle === v ? ACCENT : Colors.textSecondary} />
+                    <Text style={[s.typeBtnLabel, regVehicle === v && { color: ACCENT }]}>{v}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.fieldLabel}>وصف المركبة (موديل، لون)</Text>
-              <TextInput style={s.input} value={regForm.vehicle_desc}
-                onChangeText={v => setRegForm(p => ({ ...p, vehicle_desc: v }))}
-                placeholder="مثال: تويوتا كورولا 2018 بيضاء" placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-              <Text style={s.fieldLabel}>رقم اللوحة</Text>
-              <TextInput style={s.input} value={regForm.plate}
-                onChangeText={v => setRegForm(p => ({ ...p, plate: v }))}
-                placeholder="مثال: ك ب ج 1234" placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-              <Text style={s.fieldLabel}>المنطقة التي تعمل فيها</Text>
-              <TextInput style={s.input} value={regForm.area}
-                onChangeText={v => setRegForm(p => ({ ...p, area: v }))}
-                placeholder="مثال: وسط المدينة، حي الجامعة..." placeholderTextColor={Colors.textMuted} textAlign="right" />
+              <Text style={s.fieldLabel}>وصف المركبة (اختياري)</Text>
+              <TextInput style={[s.input, { minHeight: 60, textAlignVertical: "top" }]}
+                value={regDesc} onChangeText={setRegDesc}
+                placeholder="اللون والموديل وأي مميزات..."
+                placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
 
               <TouchableOpacity onPress={submitRegister} disabled={submittingReg}
                 style={{ marginTop: 8, borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
-                <LinearGradient colors={[BLUE, "#2B7FA0"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
+                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
                   {submittingReg
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <>
-                        <MaterialCommunityIcons name="steering" size={18} color="#fff" />
-                        <Text style={s.submitBtnText}>إرسال طلب التسجيل</Text>
+                        <MaterialCommunityIcons name="check-decagram" size={18} color="#fff" />
+                        <Text style={s.submitBtnText}>تقديم طلب الانضمام</Text>
                       </>}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-
-            {/* مميزات السائق */}
-            <View style={[s.howCard, { borderColor: BLUE + "30" }]}>
-              <Text style={s.formCardTitle}>مزايا الانضمام كسائق</Text>
-              {[
-                { icon: "cash", color: ACCENT2,  text: "دخل إضافي من خلال رحلاتك اليومية" },
-                { icon: "shield-check", color: GREEN, text: "شارة سائق موثّق معتمد من الإدارة" },
-                { icon: "star-circle", color: ACCENT, text: "نظام تقييم يبني سمعتك المهنية" },
-                { icon: "bell-ring", color: BLUE,  text: "إشعارات فورية عند وصول الطلبات" },
-              ].map((f, i) => (
-                <View key={i} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: f.color + "18", alignItems: "center", justifyContent: "center" }}>
-                    <MaterialCommunityIcons name={f.icon as any} size={18} color={f.color} />
-                  </View>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>{f.text}</Text>
-                </View>
-              ))}
-            </View>
           </Animated.View>
         )}
+
       </ScrollView>
     </View>
   );
 }
 
-// ─── Coming Soon Styles ────────────────────────────────────────────────────────
+// ─── بطاقة سائق ───────────────────────────────────────────────────────────────
+function DriverCard({ driver }: { driver: Driver }) {
+  const stars = Math.round(driver.rating);
+  const vcColor = driver.vehicle_type === "ركشة" ? ACCENT : BLUE;
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={dc.card}>
+      <View style={dc.row}>
+        <View style={[dc.avatar, { backgroundColor: vcColor + "20" }]}>
+          <MaterialCommunityIcons name={driver.vehicle_type === "ركشة" ? "rickshaw" : "steering"} size={24} color={vcColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={dc.name}>{driver.name}</Text>
+          <Text style={dc.sub}>{driver.vehicle_type} · {driver.area || "—"}</Text>
+          {driver.vehicle_desc ? <Text style={dc.desc}>{driver.vehicle_desc}</Text> : null}
+        </View>
+        <View style={[dc.statusBadge, { backgroundColor: driver.is_online ? GREEN + "20" : Colors.divider }]}>
+          <View style={[dc.statusDot, { backgroundColor: driver.is_online ? GREEN : Colors.textMuted }]} />
+          <Text style={[dc.statusText, { color: driver.is_online ? GREEN : Colors.textMuted }]}>
+            {driver.is_online ? "متاح" : "غير متاح"}
+          </Text>
+        </View>
+      </View>
+      <View style={dc.footer}>
+        <View style={{ flexDirection: "row-reverse", gap: 2 }}>
+          {[1,2,3,4,5].map(i => (
+            <Ionicons key={i} name={i <= stars ? "star" : "star-outline"} size={13} color={ACCENT2} />
+          ))}
+          <Text style={dc.ratingText}>{driver.rating > 0 ? driver.rating.toFixed(1) : "—"}</Text>
+        </View>
+        <Text style={dc.trips}>{driver.total_trips} رحلة</Text>
+        {driver.phone && (
+          <TouchableOpacity onPress={() => Linking.openURL(`tel:${driver.phone}`)} style={dc.callBtn}>
+            <Ionicons name="call-outline" size={14} color={GREEN} />
+            <Text style={dc.callText}>اتصال</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── بطاقة رحلة ───────────────────────────────────────────────────────────────
+function TripCard({ trip, fareMatrix }: { trip: Trip; fareMatrix: FareMatrix }) {
+  const STATUS_COLORS: Record<string, string> = {
+    pending: ACCENT, accepted: BLUE, completed: GREEN, cancelled: "#E05567",
+  };
+  const STATUS_LABELS: Record<string, string> = {
+    pending: "انتظار", accepted: "جارٍ التنفيذ", completed: "مكتمل", cancelled: "ملغي",
+  };
+  const sc = STATUS_COLORS[trip.status] ?? Colors.textMuted;
+  const vcIcon = trip.vehicle_preference === "rickshaw" ? "rickshaw" :
+                 trip.vehicle_preference === "delivery" ? "package-variant" : "car-side";
+
+  const fromZ = TRANSPORT_ZONES.find(z => z.id === trip.from_zone);
+  const toZ   = TRANSPORT_ZONES.find(z => z.id === trip.to_zone);
+
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={tc.card}>
+      <View style={tc.topRow}>
+        <View style={[tc.typeBadge, { backgroundColor: ACCENT + "15" }]}>
+          <MaterialCommunityIcons name={vcIcon as any} size={14} color={ACCENT} />
+          <Text style={tc.typeText}>
+            {trip.vehicle_preference === "rickshaw" ? "ركشة" :
+             trip.vehicle_preference === "delivery" ? "توصيل" : "سيارة"}
+          </Text>
+        </View>
+        <View style={[tc.statusBadge, { backgroundColor: sc + "20", borderColor: sc + "50" }]}>
+          <Text style={[tc.statusText, { color: sc }]}>{STATUS_LABELS[trip.status] ?? trip.status}</Text>
+        </View>
+      </View>
+
+      {(fromZ || toZ) ? (
+        <View style={tc.routeRow}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+              <View style={[tc.zoneDot, { backgroundColor: GREEN }]} />
+              <Text style={tc.routeText}>{fromZ ? `م${fromZ.id} ${fromZ.name}` : trip.from_location}</Text>
+            </View>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+              <View style={[tc.zoneDot, { backgroundColor: ACCENT }]} />
+              <Text style={tc.routeText}>{toZ ? `م${toZ.id} ${toZ.name}` : trip.to_location}</Text>
+            </View>
+          </View>
+          {trip.fare_estimate ? (
+            <View style={tc.fareBadge}>
+              <Text style={tc.fareLabel}>تقديري</Text>
+              <Text style={tc.fareValue}>{formatFare(trip.fare_estimate)}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <Text style={tc.routeFallback}>📍 {trip.from_location} ← {trip.to_location}</Text>
+      )}
+
+      <View style={tc.footerRow}>
+        <Text style={tc.dateText}>{new Date(trip.created_at).toLocaleDateString("ar-SD")}</Text>
+        {trip.driver_name ? (
+          <Text style={tc.driverText}>السائق: {trip.driver_name}</Text>
+        ) : null}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// الأنماط
+// ─────────────────────────────────────────────────────────────────────────────
+
 const cs = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  hero: { paddingHorizontal: 20, paddingBottom: 30, alignItems: "center", position: "relative", overflow: "hidden" },
-  dot1: { position: "absolute", width: 200, height: 200, borderRadius: 100, backgroundColor: ACCENT + "08", top: -60, right: -60 },
-  dot2: { position: "absolute", width: 150, height: 150, borderRadius: 75,  backgroundColor: ACCENT2 + "06", bottom: -40, left: -40 },
-  dot3: { position: "absolute", width: 100, height: 100, borderRadius: 50,  backgroundColor: BLUE + "08", top: 80, left: 30 },
-  iconCluster: { alignItems: "center", marginBottom: 16, marginTop: 8 },
-  pulseWrap: { width: 90, height: 90, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  iconCircle: { width: 78, height: 78, borderRadius: 39, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: ACCENT + "50" },
-  smallIconRow: { flexDirection: "row-reverse", gap: 12 },
-  smallIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  soonBadgeWrap: { marginBottom: 12 },
-  soonBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: ACCENT2 + "18", borderWidth: 1, borderColor: ACCENT2 + "40", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
-  soonBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 },
-  heroTitle: { fontFamily: "Cairo_700Bold", fontSize: 30, color: Colors.textPrimary, textAlign: "center", lineHeight: 42, marginBottom: 10 },
-  heroSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 },
-  statsRow: { flexDirection: "row-reverse", backgroundColor: "#ffffff08", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 10, borderWidth: 1, borderColor: ACCENT + "20", width: "100%" },
-  statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
-  body: { paddingHorizontal: 16, paddingTop: 20, backgroundColor: Colors.bg },
-  noteCard: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: ACCENT2 + "12", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: ACCENT2 + "30", marginBottom: 20 },
-  noteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" },
-  secRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 14 },
-  secBar: { width: 4, height: 22, borderRadius: 2 },
-  secTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  featGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  featCard: { width: "47.5%", backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
-  featIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 10 },
-  featLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
-  featSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
-  featLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2 },
-  ctaCard: { borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30", marginBottom: 12 },
-  ctaGrad: { padding: 24, alignItems: "center" },
-  ctaTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, marginBottom: 8 },
-  ctaSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 },
-  ctaBtn: { width: "100%" },
-  ctaBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14 },
-  ctaBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  container:     { flex: 1, backgroundColor: Colors.bg },
+  hero:          { paddingHorizontal: 20, paddingBottom: 24, alignItems: "center" },
+  body:          { padding: 16, paddingBottom: 40 },
+  dot1:          { position: "absolute", width: 120, height: 120, borderRadius: 60, backgroundColor: ACCENT + "08", top: 30, left: -20 },
+  dot2:          { position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: ACCENT2 + "10", top: 80, right: 10 },
+  dot3:          { position: "absolute", width: 60, height: 60, borderRadius: 30, backgroundColor: GREEN + "08", bottom: 20, left: 60 },
+  iconCluster:   { alignItems: "center", marginBottom: 14 },
+  pulseWrap:     { alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  iconCircle:    { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+  smallIconRow:  { flexDirection: "row-reverse", gap: 10 },
+  smallIcon:     { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  soonBadgeWrap: { marginBottom: 8 },
+  soonBadge:     { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: ACCENT2 + "15", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: ACCENT2 + "30" },
+  soonBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ACCENT2 },
+  heroTitle:     { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#fff", textAlign: "center", marginBottom: 8, lineHeight: 36 },
+  heroSub:       { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffff90", textAlign: "center", lineHeight: 22 },
+  statsRow:      { flexDirection: "row-reverse", gap: 20, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#ffffff15" },
+  statItem:      { alignItems: "center" },
+  statNum:       { fontFamily: "Cairo_700Bold", fontSize: 18 },
+  statLabel:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
+  noteCard:      { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", backgroundColor: ACCENT2 + "12", borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: ACCENT2 + "30" },
+  noteText:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 },
+  secRow:        { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
+  secBar:        { width: 3, height: 18, borderRadius: 2 },
+  secTitle:      { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  zonePreviewCard:  { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 10, padding: 10, borderWidth: 1 },
+  zonePreviewBadge: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  zonePreviewNum:   { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  zonePreviewName:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  zonePreviewDesc:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" },
+  ctaCard:       { borderRadius: 16, overflow: "hidden", marginTop: 8 },
+  ctaGrad:       { padding: 24, alignItems: "center" },
+  ctaTitle:      { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, marginBottom: 6 },
+  ctaSub:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 });
 
-// ─── Main Service Styles ───────────────────────────────────────────────────────
+const zp = StyleSheet.create({
+  btn:          { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 12, paddingVertical: 10, marginTop: 6, gap: 8 },
+  badge:        { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  badgeNum:     { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  selectedText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" },
+  placeholder:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
+  backdrop:     { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
+  sheet:        { backgroundColor: Colors.cardBg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: "80%" },
+  handle:       { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 },
+  sheetTitle:   { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "center", marginBottom: 14 },
+  zoneRow:      { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 10, marginBottom: 4 },
+  zoneName:     { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  zoneDesc:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  zoneNumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  zoneNum:      { fontFamily: "Cairo_700Bold", fontSize: 11 },
+});
+
+const fe = StyleSheet.create({
+  placeholder:     { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 16, marginVertical: 12, borderWidth: 1, borderColor: Colors.divider, borderStyle: "dashed" },
+  placeholderText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 20 },
+  card:            { backgroundColor: Colors.cardBg, borderRadius: 14, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30" },
+  header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, flexWrap: "wrap" },
+  headerTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 },
+  routeBadge:      { flex: 1, alignItems: "flex-start" },
+  routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  vehicleRow:      { flexDirection: "row-reverse", padding: 10, gap: 8 },
+  vehicleBtn:      { flex: 1, alignItems: "center", borderRadius: 10, padding: 10, borderWidth: 1.5, borderColor: Colors.divider, gap: 4 },
+  vehicleLabel:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  vehicleFare:     { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  disclaimer:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, padding: 10, borderTopWidth: 1, borderTopColor: Colors.divider },
+  disclaimerText:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+});
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 16, paddingBottom: 0 },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 14 },
-  headerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: ACCENT + "20", borderWidth: 1, borderColor: ACCENT + "40", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  liveBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "15", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: GREEN + "30" },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: GREEN },
-  liveText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: GREEN },
-  quickStats: { flexDirection: "row-reverse", backgroundColor: "#ffffff08", borderRadius: 12, paddingVertical: 10, marginBottom: 14, borderWidth: 1, borderColor: Colors.divider },
-  quickStat: { flex: 1, alignItems: "center" },
-  quickStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 1 },
-  quickStatDiv: { width: 1, backgroundColor: Colors.divider, marginVertical: 4 },
-  tabsScroll: { paddingBottom: 12, gap: 8, flexDirection: "row-reverse" },
-  tabBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
-  tabBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  container:      { flex: 1, backgroundColor: Colors.bg },
+  header:         { paddingHorizontal: 16, paddingBottom: 0 },
+  headerRow:      { flexDirection: "row-reverse", alignItems: "center", marginBottom: 12, gap: 0 },
+  headerIcon:     { width: 40, height: 40, borderRadius: 20, backgroundColor: ACCENT + "20", alignItems: "center", justifyContent: "center", marginLeft: 10 },
+  headerTitle:    { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
+  headerSub:      { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70" },
+  liveBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "20", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: GREEN + "40" },
+  liveDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: GREEN },
+  liveText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
+  quickStats:     { flexDirection: "row-reverse", justifyContent: "space-around", marginBottom: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#ffffff12" },
+  quickStat:      { alignItems: "center" },
+  quickStatNum:   { fontFamily: "Cairo_700Bold", fontSize: 20 },
+  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
+  quickStatDiv:   { width: 1, backgroundColor: "#ffffff15" },
+  tabsScroll:     { paddingHorizontal: 4, paddingBottom: 10, gap: 6, flexDirection: "row-reverse" },
+  tabBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: "#ffffff10", borderWidth: 1, borderColor: "#ffffff15" },
+  tabBtnActive:   { backgroundColor: ACCENT, borderColor: ACCENT },
+  tabLabel:       { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   tabLabelActive: { color: "#fff" },
-  secLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 10, textAlign: "right" },
-  typeBtn: { flex: 1, alignItems: "center", paddingVertical: 16, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1.5, borderColor: Colors.divider, gap: 6 },
-  typeBtnLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
-  formCard: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.divider, marginBottom: 16 },
-  formCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, marginBottom: 14, textAlign: "right" },
-  formHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 14, lineHeight: 21 },
-  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, marginBottom: 6, textAlign: "right" },
-  input: { backgroundColor: Colors.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: Colors.divider, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
-  submitBtn: { paddingVertical: 14, borderRadius: 12, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10 },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
-  howCard: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.divider, marginBottom: 16 },
-  howRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12, position: "relative", minHeight: 52 },
-  howBubble: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  howLine: { position: "absolute", right: 14, top: 32, width: 2, height: 18, backgroundColor: ACCENT + "30" },
-  howStep: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" },
-  howText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", paddingTop: 5, lineHeight: 20 },
-  driverCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.divider, marginBottom: 10 },
-  driverRow: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 10 },
-  driverAvatar: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  driverName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  driverVehicle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  driverArea: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
-  onlineBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  onlineDot: { width: 7, height: 7, borderRadius: 3.5 },
-  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  driverStats: { flexDirection: "row-reverse", gap: 14 },
-  driverStat: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  driverStatVal: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  tripCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.divider, marginBottom: 10 },
-  tripHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  tripType: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
-  tripStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  tripStatusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  tripRoute: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 3 },
-  tripDriver: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: GREEN, textAlign: "right", marginTop: 4 },
-  vehicleChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
-  vehicleChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  emptyBox: { alignItems: "center", paddingVertical: 60, gap: 10 },
-  emptyText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
+
+  sectionHeader:  { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 6 },
+  secBar:         { width: 3, height: 18, borderRadius: 2 },
+  secTitle:       { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+
+  zoneSelectCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 4 },
+  zoneSelectRow:  { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" },
+  zoneSelectDot:  { width: 10, height: 10, borderRadius: 5, marginTop: 14 },
+  zoneSelectLabel:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  zoneDetailInput:{ backgroundColor: Colors.bg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 10, paddingVertical: 8, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textPrimary, marginTop: 6 },
+  zoneDivider:    { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginVertical: 6, paddingRight: 14 },
+  zoneDivLine:    { flex: 1, height: 1, backgroundColor: Colors.divider },
+
+  formCard:       { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Colors.divider },
+  formCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 4 },
+  formCardTitle:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  formCardSub:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginBottom: 14 },
+  fieldLabel:     { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 5, marginTop: 10 },
+  input:          { backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary },
+  submitBtn:      { paddingVertical: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
+  submitBtnText:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  typeBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 10, paddingVertical: 10 },
+  typeBtnLabel:   { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+
+  howCard:        { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.divider },
+  howCardTitle:   { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 14 },
+  howRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 10, position: "relative" },
+  howBubble:      { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  howStep:        { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  howLine:        { position: "absolute", width: 2, height: 20, backgroundColor: ACCENT + "40", right: 13, top: 30 },
+  howText:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+
+  emptyCard:      { alignItems: "center", paddingVertical: 48, gap: 12 },
+  emptyText:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
+});
+
+const dc = StyleSheet.create({
+  card:        { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
+  row:         { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 10 },
+  avatar:      { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  name:        { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  sub:         { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  desc:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  statusBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12 },
+  statusDot:   { width: 6, height: 6, borderRadius: 3 },
+  statusText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  footer:      { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
+  ratingText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary, marginRight: 4 },
+  trips:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  callBtn:     { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: GREEN + "15", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: GREEN + "40" },
+  callText:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
+});
+
+const tc = StyleSheet.create({
+  card:       { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
+  topRow:     { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 10 },
+  typeBadge:  { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  typeText:   { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT },
+  statusBadge:{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  statusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  routeRow:   { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 },
+  zoneDot:    { width: 8, height: 8, borderRadius: 4 },
+  routeText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  routeFallback: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 },
+  fareBadge:  { alignItems: "center", backgroundColor: ACCENT + "15", borderRadius: 10, padding: 8 },
+  fareLabel:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  fareValue:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT },
+  footerRow:  { flexDirection: "row-reverse", justifyContent: "space-between", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
+  dateText:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  driverText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
 });

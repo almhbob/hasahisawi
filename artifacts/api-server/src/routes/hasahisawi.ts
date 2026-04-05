@@ -760,6 +760,45 @@ export async function initHasahisawiDb() {
     ON CONFLICT (key) DO NOTHING
   `);
 
+  // جدول التعرفة — مصفوفة المناطق (5×5 × 3 مركبات)
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_fares (
+      id           SERIAL PRIMARY KEY,
+      from_zone    INTEGER NOT NULL CHECK (from_zone BETWEEN 1 AND 5),
+      to_zone      INTEGER NOT NULL CHECK (to_zone BETWEEN 1 AND 5),
+      fare_car     INTEGER NOT NULL DEFAULT 500,
+      fare_rickshaw INTEGER NOT NULL DEFAULT 300,
+      fare_delivery INTEGER NOT NULL DEFAULT 600,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (from_zone, to_zone)
+    )
+  `);
+
+  // إدراج التعرفة الافتراضية إن لم تكن موجودة
+  const defaultFares: Array<[number, number, number, number, number]> = [
+    [1,1,500,300,600],[1,2,1000,600,1200],[1,3,1500,900,1800],[1,4,2000,1200,2400],[1,5,3000,1800,3600],
+    [2,1,1000,600,1200],[2,2,500,300,600],[2,3,1200,700,1400],[2,4,1500,900,1800],[2,5,2500,1500,3000],
+    [3,1,1500,900,1800],[3,2,1200,700,1400],[3,3,700,400,800],[3,4,1200,700,1400],[3,5,2000,1200,2400],
+    [4,1,2000,1200,2400],[4,2,1500,900,1800],[4,3,1200,700,1400],[4,4,700,400,800],[4,5,2000,1200,2400],
+    [5,1,3000,1800,3600],[5,2,2500,1500,3000],[5,3,2000,1200,2400],[5,4,2000,1200,2400],[5,5,1500,900,1800],
+  ];
+  for (const [fz, tz, car, rick, del_] of defaultFares) {
+    await query(
+      `INSERT INTO transport_fares (from_zone,to_zone,fare_car,fare_rickshaw,fare_delivery)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT (from_zone,to_zone) DO NOTHING`,
+      [fz, tz, car, rick, del_],
+    );
+  }
+
+  // إضافة أعمدة التعرفة لجدول الرحلات إن لم تكن موجودة
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS from_zone INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS to_zone   INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS fare_estimate INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS vehicle_preference VARCHAR(30) DEFAULT 'car'`);
+
+  // إضافة عمود منطقة السائق
+  await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`);
+
   console.log("Hasahisawi DB initialized");
 }
 
@@ -4466,6 +4505,133 @@ router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) 
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
     await query(`DELETE FROM transport_trips WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── مسارات التعرفة والمناطق ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/transport/fares — جلب مصفوفة التعرفة (عام)
+router.get("/transport/fares", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery FROM transport_fares ORDER BY from_zone, to_zone`
+    );
+    // تحويل إلى مصفوفة متداخلة
+    const matrix: Record<number, Record<number, { car: number; rickshaw: number; delivery: number }>> = {};
+    for (const row of rows) {
+      if (!matrix[row.from_zone]) matrix[row.from_zone] = {};
+      matrix[row.from_zone][row.to_zone] = {
+        car: Number(row.fare_car),
+        rickshaw: Number(row.fare_rickshaw),
+        delivery: Number(row.fare_delivery),
+      };
+    }
+    return res.json(matrix);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير/مشرف)
+router.put("/admin/transport/fares", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery } = req.body;
+    if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
+    await query(
+      `UPDATE transport_fares SET
+         fare_car = COALESCE($3, fare_car),
+         fare_rickshaw = COALESCE($4, fare_rickshaw),
+         fare_delivery = COALESCE($5, fare_delivery),
+         updated_at = NOW()
+       WHERE from_zone=$1 AND to_zone=$2`,
+      [from_zone, to_zone, fare_car ?? null, fare_rickshaw ?? null, fare_delivery ?? null],
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل
+router.put("/admin/transport/fares/bulk", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { fares } = req.body as { fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number }> };
+    if (!Array.isArray(fares)) return res.status(400).json({ error: "تنسيق خاطئ" });
+    for (const f of fares) {
+      await query(
+        `UPDATE transport_fares SET fare_car=$3, fare_rickshaw=$4, fare_delivery=$5, updated_at=NOW()
+         WHERE from_zone=$1 AND to_zone=$2`,
+        [f.from_zone, f.to_zone, f.fare_car, f.fare_rickshaw, f.fare_delivery],
+      );
+    }
+    return res.json({ success: true, updated: fares.length });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/fare-estimate — حساب التعرفة التقديرية
+router.get("/transport/fare-estimate", async (req: Request, res: Response) => {
+  try {
+    const { from_zone, to_zone } = req.query;
+    if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
+    const { rows } = await query(
+      `SELECT fare_car, fare_rickshaw, fare_delivery FROM transport_fares WHERE from_zone=$1 AND to_zone=$2`,
+      [Number(from_zone), Number(to_zone)],
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لا توجد تعرفة لهذا المسار" });
+    return res.json({
+      from_zone: Number(from_zone),
+      to_zone: Number(to_zone),
+      car: Number(rows[0].fare_car),
+      rickshaw: Number(rows[0].fare_rickshaw),
+      delivery: Number(rows[0].fare_delivery),
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة
+router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { driver_id, status } = req.body;
+    let driverName = null;
+    if (driver_id) {
+      const dr = await query(`SELECT name FROM transport_drivers WHERE id=$1`, [driver_id]);
+      driverName = dr.rows[0]?.name || null;
+    }
+    await query(
+      `UPDATE transport_trips SET
+         driver_id = COALESCE($1, driver_id),
+         driver_name = COALESCE($2, driver_name),
+         status = COALESCE($3, status)
+       WHERE id=$4`,
+      [driver_id ?? null, driverName, status ?? null, req.params.id],
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/overview — نظرة عامة متكاملة للمدير
+router.get("/admin/transport/overview", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const [drivers, trips, fares, settings] = await Promise.all([
+      query(`SELECT status, vehicle_type, COUNT(*) as cnt FROM transport_drivers GROUP BY status, vehicle_type`),
+      query(`SELECT status, trip_type, COUNT(*) as cnt FROM transport_trips GROUP BY status, trip_type`),
+      query(`SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery FROM transport_fares ORDER BY from_zone, to_zone`),
+      query(`SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_note','transport_phone')`),
+    ]);
+    const settingsMap: Record<string, string> = {};
+    for (const r of settings.rows) settingsMap[r.key] = r.value;
+    return res.json({
+      drivers: drivers.rows,
+      trips: trips.rows,
+      fares: fares.rows,
+      settings: settingsMap,
+    });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 

@@ -347,7 +347,11 @@ export default function AdminDashboard() {
   const [transportDriverFilter, setTransportDriverFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [transportTripFilter, setTransportTripFilter] = useState<"all" | "pending" | "accepted" | "completed" | "cancelled">("all");
   const [transportStats, setTransportStats] = useState<{ drivers: any[]; trips: any[]; pendingDrivers: number } | null>(null);
-  const [transportView, setTransportView] = useState<"settings" | "drivers" | "trips">("settings");
+  const [transportView, setTransportView] = useState<"overview" | "fares" | "drivers" | "trips" | "settings">("overview");
+  const [fareMatrix, setFareMatrix] = useState<Record<number, Record<number, { car: number; rickshaw: number; delivery: number }>>>({});
+  const [editingFares, setEditingFares] = useState<Record<string, { car: string; rickshaw: string; delivery: string }>>({});
+  const [savingFares, setSavingFares] = useState(false);
+  const [assigningTrip, setAssigningTrip] = useState<number | null>(null);
 
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
@@ -508,11 +512,12 @@ export default function AdminDashboard() {
   const loadTransportData = useCallback(async () => {
     setLoadingTransport(true);
     try {
-      const [settingsRes, driversRes, tripsRes, statsRes] = await Promise.all([
+      const [settingsRes, driversRes, tripsRes, statsRes, faresRes] = await Promise.all([
         apiFetch("/api/admin/transport/settings", token),
         apiFetch(`/api/admin/transport/drivers?status=${transportDriverFilter}`, token),
         apiFetch(`/api/admin/transport/trips?status=${transportTripFilter}`, token),
         apiFetch("/api/admin/transport/stats", token),
+        fetch(`${getApiUrl()}/api/transport/fares`),
       ]);
       if (settingsRes.ok) {
         const d = await settingsRes.json();
@@ -523,9 +528,62 @@ export default function AdminDashboard() {
       if (driversRes.ok) setTransportDrivers(await driversRes.json());
       if (tripsRes.ok) setTransportTrips(await tripsRes.json());
       if (statsRes.ok) setTransportStats(await statsRes.json());
+      if (faresRes.ok) {
+        const fm = await faresRes.json();
+        setFareMatrix(fm);
+        // تهيئة قيم التعديل
+        const init: Record<string, { car: string; rickshaw: string; delivery: string }> = {};
+        for (let f = 1; f <= 5; f++) {
+          for (let t = 1; t <= 5; t++) {
+            const key = `${f}-${t}`;
+            init[key] = {
+              car: String(fm[f]?.[t]?.car ?? ""),
+              rickshaw: String(fm[f]?.[t]?.rickshaw ?? ""),
+              delivery: String(fm[f]?.[t]?.delivery ?? ""),
+            };
+          }
+        }
+        setEditingFares(init);
+      }
     } catch {}
     finally { setLoadingTransport(false); }
   }, [token, transportDriverFilter, transportTripFilter]);
+
+  const saveFares = async () => {
+    setSavingFares(true);
+    try {
+      const fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number }> = [];
+      for (const key of Object.keys(editingFares)) {
+        const [f, t] = key.split("-").map(Number);
+        const v = editingFares[key];
+        fares.push({
+          from_zone: f, to_zone: t,
+          fare_car: Number(v.car) || 0,
+          fare_rickshaw: Number(v.rickshaw) || 0,
+          fare_delivery: Number(v.delivery) || 0,
+        });
+      }
+      const res = await apiFetch("/api/admin/transport/fares/bulk", token, {
+        method: "PUT", body: JSON.stringify({ fares }),
+      });
+      if (res.ok) {
+        Alert.alert("✅ تم الحفظ", "تم تحديث جدول التعرفة بنجاح");
+        loadTransportData();
+      } else {
+        const j = await res.json();
+        Alert.alert("خطأ", j.error || "تعذّر حفظ التعرفة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingFares(false); }
+  };
+
+  const updateFareField = (fromZ: number, toZ: number, field: "car" | "rickshaw" | "delivery", val: string) => {
+    const key = `${fromZ}-${toZ}`;
+    setEditingFares(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: val },
+    }));
+  };
 
   const saveTransportSettings = async () => {
     setSavingTransportSettings(true);
@@ -3038,230 +3096,509 @@ export default function AdminDashboard() {
         </ScrollView>
       )}
 
-      {/* ── ترحال والتوصيل ── */}
-      {tab === "transport" && isAdmin && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* ─ إحصائيات سريعة ─ */}
-          {transportStats && (
-            <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 }}>
+      {/* ══ ترحال والتوصيل — لوحة الإشراف ══ */}
+      {tab === "transport" && isAdmin && (() => {
+        const TRANSPORT_ZONE_NAMES = ["قلب المدينة", "الأحياء الوسطى", "أطراف المدينة", "المناطق الفرعية", "القرى المحيطة"];
+        const ZONE_COLORS = ["#F97316", "#3E9CBF", "#A855F7", "#3EFF9C", "#FBBF24"];
+        const totalDrivers = transportStats ? transportStats.drivers.reduce((a:number,d:any)=>a+parseInt(d.cnt),0) : 0;
+        const approvedDrivers = transportStats ? (transportStats.drivers.find((d:any)=>d.status==="approved")?.cnt || 0) : 0;
+        const totalTrips = transportStats ? transportStats.trips.reduce((a:number,t:any)=>a+parseInt(t.cnt),0) : 0;
+        const pendingTrips = transportStats ? (transportStats.trips.find((t:any)=>t.status==="pending")?.cnt || 0) : 0;
+
+        return (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+
+            {/* ─── الشريط العلوي — النظرة الإجمالية ─── */}
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
               {[
-                { label: "طلبات انتظار", val: transportStats.pendingDrivers, color: "#F97316" },
-                { label: "رحلات", val: transportStats.trips.reduce((a:number,t:any)=>a+parseInt(t.cnt),0), color: "#3EFF9C" },
-                { label: "سائقون", val: transportStats.drivers.reduce((a:number,d:any)=>a+parseInt(d.cnt),0), color: "#3E9CBF" },
+                { label: "في انتظار القبول", val: transportStats?.pendingDrivers || 0, color: "#F97316", icon: "account-clock" },
+                { label: "سائق معتمد", val: Number(approvedDrivers), color: "#3EFF9C", icon: "steering" },
+                { label: "إجمالي الرحلات", val: totalTrips, color: "#3E9CBF", icon: "map-marker-path" },
+                { label: "رحلة انتظار", val: Number(pendingTrips), color: "#FBBF24", icon: "clock-outline" },
               ].map((st, i) => (
-                <View key={i} style={{ flex: 1, backgroundColor: st.color + "15", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: st.color + "30", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: st.color }}>{st.val}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{st.label}</Text>
+                <View key={i} style={{ flex: 1, backgroundColor: st.color + "15", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: st.color + "30", alignItems: "center", gap: 4 }}>
+                  <MaterialCommunityIcons name={st.icon as any} size={18} color={st.color} />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: st.color }}>{st.val}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary, textAlign: "center" }}>{st.label}</Text>
                 </View>
               ))}
             </View>
-          )}
 
-          {/* ─ sub-nav ─ */}
-          <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 16 }}>
-            {(["settings", "drivers", "trips"] as const).map(v => (
-              <TouchableOpacity key={v} onPress={() => setTransportView(v)}
-                style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
-                  backgroundColor: transportView === v ? "#F97316" : Colors.cardBg,
-                  borderWidth: 1, borderColor: transportView === v ? "#F97316" : Colors.divider }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: transportView === v ? "#fff" : Colors.textSecondary }}>
-                  {v === "settings" ? "الإعدادات" : v === "drivers" ? "السائقون" : "الرحلات"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            {/* ─── شريط التنقل ─── */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 14, flexDirection: "row-reverse" }}>
+              {([
+                { v: "overview", label: "نظرة عامة", icon: "view-dashboard-outline" },
+                { v: "fares",    label: "جدول التعرفة", icon: "calculator-variant" },
+                { v: "drivers",  label: "السائقون", icon: "steering" },
+                { v: "trips",    label: "الرحلات", icon: "map-marker-path" },
+                { v: "settings", label: "الإعدادات", icon: "cog-outline" },
+              ] as const).map(nav => (
+                <TouchableOpacity key={nav.v} onPress={() => setTransportView(nav.v)}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                    backgroundColor: transportView === nav.v ? "#F97316" : Colors.cardBg,
+                    borderWidth: 1, borderColor: transportView === nav.v ? "#F97316" : Colors.divider }}>
+                  <MaterialCommunityIcons name={nav.icon} size={14} color={transportView === nav.v ? "#fff" : Colors.textSecondary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: transportView === nav.v ? "#fff" : Colors.textSecondary }}>
+                    {nav.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-          {loadingTransport && <ActivityIndicator color="#F97316" style={{ marginVertical: 20 }} />}
+            {loadingTransport && <ActivityIndicator color="#F97316" style={{ marginVertical: 20 }} />}
 
-          {/* ─ الإعدادات ─ */}
-          {!loadingTransport && transportView === "settings" && (
-            <View style={s.card}>
-              <View style={s.cardHeaderRow}>
-                <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
-                  <Ionicons name="car" size={20} color="#F97316" />
+            {/* ══ نظرة عامة ══ */}
+            {!loadingTransport && transportView === "overview" && (
+              <View style={{ gap: 12 }}>
+                {/* حالة الخدمة */}
+                <View style={s.card}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                      <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                        <MaterialCommunityIcons name="car-side" size={20} color="#F97316" />
+                      </View>
+                      <Text style={s.cardTitle}>حالة الخدمة</Text>
+                    </View>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6,
+                      backgroundColor: transportEnabled ? "#3EFF9C20" : "#E0556720",
+                      paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
+                      borderWidth: 1, borderColor: transportEnabled ? "#3EFF9C40" : "#E0556740" }}>
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: transportEnabled ? "#3EFF9C" : "#E05567" }} />
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: transportEnabled ? "#3EFF9C" : "#E05567" }}>
+                        {transportEnabled ? "مفعّلة" : "موقوفة"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                    <TouchableOpacity onPress={() => setTransportView("settings")}
+                      style={{ flex: 1, backgroundColor: "#F9731620", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#F9731640" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>إعدادات الخدمة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setTransportView("fares")}
+                      style={{ flex: 1, backgroundColor: "#FBBF2420", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#FBBF2440" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل التعرفة</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <Text style={s.cardTitle}>إعدادات خدمة الترحال والتوصيل</Text>
-              </View>
 
-              <View style={s.toggleRow}>
-                <Text style={s.toggleLabel}>تفعيل الخدمة</Text>
-                <TouchableOpacity
-                  onPress={() => setTransportEnabled(p => !p)}
-                  style={[s.toggle, { backgroundColor: transportEnabled ? "#F97316" : Colors.divider }]}
-                  activeOpacity={0.8}
-                >
-                  <View style={[s.toggleThumb, { alignSelf: transportEnabled ? "flex-end" : "flex-start" }]} />
+                {/* توزيع السائقين */}
+                {transportStats && (
+                  <View style={s.card}>
+                    <View style={s.cardHeaderRow}>
+                      <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
+                        <MaterialCommunityIcons name="steering" size={20} color="#3EFF9C" />
+                      </View>
+                      <Text style={s.cardTitle}>توزيع السائقين</Text>
+                    </View>
+                    {[
+                      { label: "في انتظار المراجعة", status: "pending",  color: "#F97316" },
+                      { label: "معتمدون",            status: "approved", color: "#3EFF9C" },
+                      { label: "مرفوضون",            status: "rejected", color: "#E05567" },
+                    ].map(r => {
+                      const cnt = Number(transportStats.drivers.find((d:any) => d.status === r.status)?.cnt || 0);
+                      const pct = totalDrivers > 0 ? (cnt / totalDrivers) * 100 : 0;
+                      return (
+                        <View key={r.status} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{r.label}</Text>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: r.color }}>{cnt}</Text>
+                          </View>
+                          <View style={{ height: 6, backgroundColor: Colors.divider, borderRadius: 3 }}>
+                            <View style={{ height: 6, width: `${pct}%` as any, backgroundColor: r.color, borderRadius: 3 }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity onPress={() => { setTransportDriverFilter("pending"); setTransportView("drivers"); }}
+                      style={{ alignSelf: "flex-end", marginTop: 6 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>
+                        مراجعة طلبات الانضمام ({transportStats.pendingDrivers}) ←
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* توزيع الرحلات */}
+                {transportStats && (
+                  <View style={s.card}>
+                    <View style={s.cardHeaderRow}>
+                      <View style={[s.cardIcon, { backgroundColor: "#3E9CBF20" }]}>
+                        <MaterialCommunityIcons name="map-marker-path" size={20} color="#3E9CBF" />
+                      </View>
+                      <Text style={s.cardTitle}>حالة الرحلات</Text>
+                    </View>
+                    {[
+                      { label: "انتظار",    status: "pending",   color: "#FBBF24" },
+                      { label: "جارية",    status: "accepted",  color: "#3E9CBF" },
+                      { label: "مكتملة",  status: "completed", color: "#3EFF9C" },
+                      { label: "ملغاة",   status: "cancelled", color: "#E05567" },
+                    ].map(r => {
+                      const cnt = Number(transportStats.trips.find((t:any) => t.status === r.status)?.cnt || 0);
+                      return (
+                        <View key={r.status} style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.divider }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary }}>{r.label}</Text>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: r.color }}>{cnt}</Text>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: r.color }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity onPress={() => { setTransportTripFilter("pending"); setTransportView("trips"); }}
+                      style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3EFF9C" }}>عرض الرحلات ←</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* خلاصة التعرفة */}
+                <View style={s.card}>
+                  <View style={s.cardHeaderRow}>
+                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
+                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
+                    </View>
+                    <Text style={s.cardTitle}>ملخص التعرفة الحالية</Text>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 }}>
+                    التعرفة الأساسية داخل المنطقة الواحدة (بالجنيه السوداني)
+                  </Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                    {[1,2,3,4,5].map(z => {
+                      const fare = fareMatrix[z]?.[z];
+                      return (
+                        <View key={z} style={{ flex: 1, backgroundColor: ZONE_COLORS[z-1] + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: ZONE_COLORS[z-1] + "30" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: ZONE_COLORS[z-1] }}>م{z}</Text>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, marginTop: 4 }}>{fare?.car || "—"}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>سيارة</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <TouchableOpacity onPress={() => setTransportView("fares")} style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل الجدول الكامل ←</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ══ جدول التعرفة ══ */}
+            {!loadingTransport && transportView === "fares" && (
+              <View style={{ gap: 10 }}>
+                <View style={s.card}>
+                  <View style={s.cardHeaderRow}>
+                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
+                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.cardTitle}>جدول التعرفة (بالجنيه السوداني)</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                        يمكنك تعديل التعرفة بين أي منطقتين لكل نوع مركبة
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 }}>
+                    أيقونات الأعمدة: 🚗 سيارة · 🛺 ركشة · 📦 توصيل
+                  </Text>
+                </View>
+
+                {[1,2,3,4,5].map(fromZ => (
+                  <View key={fromZ} style={s.card}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: ZONE_COLORS[fromZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: ZONE_COLORS[fromZ-1] }}>م{fromZ}</Text>
+                      </View>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>
+                        من: {TRANSPORT_ZONE_NAMES[fromZ-1]}
+                      </Text>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {[1,2,3,4,5].map(toZ => {
+                        const key = `${fromZ}-${toZ}`;
+                        const ef = editingFares[key] || { car: "", rickshaw: "", delivery: "" };
+                        return (
+                          <View key={toZ} style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: ZONE_COLORS[toZ-1] + "30" }}>
+                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: ZONE_COLORS[toZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
+                                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: ZONE_COLORS[toZ-1] }}>م{toZ}</Text>
+                              </View>
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>
+                                إلى: {TRANSPORT_ZONE_NAMES[toZ-1]}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                              {([
+                                { field: "car" as const,      label: "🚗", placeholder: "سيارة" },
+                                { field: "rickshaw" as const,  label: "🛺", placeholder: "ركشة"  },
+                                { field: "delivery" as const,  label: "📦", placeholder: "توصيل" },
+                              ]).map(inp => (
+                                <View key={inp.field} style={{ flex: 1, alignItems: "center", gap: 3 }}>
+                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12 }}>{inp.label}</Text>
+                                  <TextInput
+                                    style={{ backgroundColor: Colors.cardBg, borderRadius: 6, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 6, paddingVertical: 5, fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "center", width: "100%" }}
+                                    value={ef[inp.field]}
+                                    onChangeText={v => updateFareField(fromZ, toZ, inp.field, v)}
+                                    keyboardType="numeric"
+                                    placeholder={inp.placeholder}
+                                    placeholderTextColor={Colors.textMuted}
+                                  />
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+
+                <TouchableOpacity onPress={saveFares} disabled={savingFares}
+                  style={{ backgroundColor: "#FBBF24", borderRadius: 14, paddingVertical: 14, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+                  <MaterialCommunityIcons name="content-save-outline" size={18} color="#000" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000" }}>
+                    {savingFares ? "جارٍ حفظ التعرفة..." : "حفظ جدول التعرفة كاملاً"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={s.fieldHint}>
-                {transportEnabled
-                  ? "✅ الخدمة مفعّلة — يرى المستخدمون الواجهة الكاملة للطلب والحجز"
-                  : "⏸️ الخدمة موقوفة — يرى المستخدمون شاشة «قريباً» فقط"}
-              </Text>
+            )}
 
-              <Text style={s.fieldLabel}>رقم هاتف الدعم (اختياري)</Text>
-              <TextInput style={s.fieldInput} value={transportPhone}
-                onChangeText={setTransportPhone}
-                placeholder="+249..." placeholderTextColor={Colors.textMuted}
-                textAlign="right" keyboardType="phone-pad" />
-
-              <Text style={s.fieldLabel}>ملاحظة تظهر لمستخدم القريباً (اختياري)</Text>
-              <TextInput style={[s.fieldInput, { minHeight: 72, textAlignVertical: "top" }]}
-                value={transportNote} onChangeText={setTransportNote}
-                placeholder="مثال: سيتم الإطلاق خلال أسبوعين..."
-                placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
-
-              <TouchableOpacity
-                onPress={saveTransportSettings}
-                disabled={savingTransportSettings}
-                style={{ backgroundColor: "#F97316", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 8, flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}
-              >
-                <Ionicons name="save-outline" size={16} color="#fff" />
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
-                  {savingTransportSettings ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ─ السائقون ─ */}
-          {!loadingTransport && transportView === "drivers" && (
-            <View style={s.card}>
-              <View style={s.cardHeaderRow}>
-                <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
-                  <Ionicons name="person-circle" size={20} color="#F97316" />
+            {/* ══ السائقون ══ */}
+            {!loadingTransport && transportView === "drivers" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                    <MaterialCommunityIcons name="steering" size={20} color="#F97316" />
+                  </View>
+                  <Text style={s.cardTitle}>إدارة السائقين</Text>
                 </View>
-                <Text style={s.cardTitle}>إدارة السائقين</Text>
-              </View>
 
-              {/* فلتر */}
-              <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 12 }}>
-                {(["pending", "approved", "rejected", "all"] as const).map(f => (
-                  <TouchableOpacity key={f} onPress={() => setTransportDriverFilter(f)}
-                    style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: "center",
-                      backgroundColor: transportDriverFilter === f ? "#F97316" : Colors.bg,
-                      borderWidth: 1, borderColor: transportDriverFilter === f ? "#F97316" : Colors.divider }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
-                      color: transportDriverFilter === f ? "#fff" : Colors.textSecondary }}>
-                      {f === "pending" ? "انتظار" : f === "approved" ? "مقبول" : f === "rejected" ? "مرفوض" : "الكل"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity onPress={loadTransportData}
-                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
-                <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
-              </TouchableOpacity>
-
-              {transportDrivers.length === 0
-                ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا يوجد سائقون في هذه الفئة</Text>
-                : transportDrivers.map(driver => (
-                  <Animated.View entering={FadeInDown.springify()} key={driver.id}
-                    style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1,
-                      borderColor: driver.status === "approved" ? "#3EFF9C30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }}>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#F9731620", alignItems: "center", justifyContent: "center" }}>
-                        <MaterialCommunityIcons name="steering" size={22} color="#F97316" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{driver.name}</Text>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>{driver.phone} | {driver.vehicle_type}</Text>
-                      </View>
-                      <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-                        backgroundColor: driver.status === "approved" ? "#3EFF9C20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11,
-                          color: driver.status === "approved" ? "#3EFF9C" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
-                          {driver.status === "approved" ? "مقبول" : driver.status === "rejected" ? "مرفوض" : "انتظار"}
-                        </Text>
-                      </View>
-                    </View>
-                    {driver.area ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>📍 {driver.area} | {driver.plate || "—"}</Text> : null}
-                    {driver.vehicle_desc ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 }}>{driver.vehicle_desc}</Text> : null}
-                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                      {driver.status !== "approved" && (
-                        <TouchableOpacity onPress={() => approveTransportDriver(driver, "approved")}
-                          style={{ flex: 1, backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C40" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>قبول ✓</Text>
-                        </TouchableOpacity>
-                      )}
-                      {driver.status !== "rejected" && (
-                        <TouchableOpacity onPress={() => approveTransportDriver(driver, "rejected")}
-                          style={{ flex: 1, backgroundColor: "#E0556720", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#E0556740" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#E05567" }}>رفض ✗</Text>
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity onPress={() => deleteTransportDriver(driver.id)}
-                        style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
-                        <Ionicons name="trash-outline" size={16} color={Colors.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                  </Animated.View>
-                ))}
-            </View>
-          )}
-
-          {/* ─ الرحلات ─ */}
-          {!loadingTransport && transportView === "trips" && (
-            <View style={s.card}>
-              <View style={s.cardHeaderRow}>
-                <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                  <MaterialCommunityIcons name="map-marker-path" size={20} color="#3EFF9C" />
-                </View>
-                <Text style={s.cardTitle}>مراقبة الرحلات والتوصيل</Text>
-              </View>
-
-              <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 12 }}>
-                {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
-                  <TouchableOpacity key={f} onPress={() => setTransportTripFilter(f)}
-                    style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, alignItems: "center",
-                      backgroundColor: transportTripFilter === f ? "#3EFF9C20" : Colors.bg,
-                      borderWidth: 1, borderColor: transportTripFilter === f ? "#3EFF9C" : Colors.divider }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10,
-                      color: transportTripFilter === f ? "#3EFF9C" : Colors.textSecondary }}>
-                      {f === "all" ? "الكل" : f === "pending" ? "انتظار" : f === "accepted" ? "مقبول" : f === "completed" ? "مكتمل" : "ملغي"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {transportTrips.length === 0
-                ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا توجد رحلات في هذه الفئة</Text>
-                : transportTrips.map(trip => (
-                  <Animated.View entering={FadeInDown.springify()} key={trip.id}
-                    style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider }}>
-                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
-                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                        <MaterialCommunityIcons name={trip.trip_type === "delivery" ? "package-variant" : "car-side"} size={16} color="#F97316" />
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>{trip.user_name}</Text>
-                      </View>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                        backgroundColor: trip.status === "completed" ? "#3EFF9C20" : trip.status === "cancelled" ? "#E0556720" : trip.status === "accepted" ? "#F9731620" : Colors.bg,
-                        borderWidth: 1, borderColor: trip.status === "completed" ? "#3EFF9C50" : trip.status === "cancelled" ? "#E0556750" : "#F9731650" }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10,
-                          color: trip.status === "completed" ? "#3EFF9C" : trip.status === "cancelled" ? "#E05567" : "#F97316" }}>
-                          {trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "مقبول" : trip.status === "completed" ? "مكتمل" : "ملغي"}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
-                      📍 من: {trip.from_location} ← إلى: {trip.to_location}
-                    </Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>
-                      {trip.user_phone} | {trip.driver_name ? `السائق: ${trip.driver_name}` : "لم يُحدَّد سائق"}
-                    </Text>
-                    <TouchableOpacity onPress={() => deleteTransportTrip(trip.id)}
-                      style={{ alignSelf: "flex-start", marginTop: 8, flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
-                      <Ionicons name="trash-outline" size={14} color={Colors.textMuted} />
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>حذف</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 12 }}>
+                  {(["pending", "approved", "rejected", "all"] as const).map(f => (
+                    <TouchableOpacity key={f} onPress={() => setTransportDriverFilter(f)}
+                      style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: "center",
+                        backgroundColor: transportDriverFilter === f ? "#F97316" : Colors.bg,
+                        borderWidth: 1, borderColor: transportDriverFilter === f ? "#F97316" : Colors.divider }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
+                        color: transportDriverFilter === f ? "#fff" : Colors.textSecondary }}>
+                        {f === "pending" ? "انتظار" : f === "approved" ? "مقبول" : f === "rejected" ? "مرفوض" : "الكل"}
+                      </Text>
                     </TouchableOpacity>
-                  </Animated.View>
-                ))}
-            </View>
-          )}
-        </ScrollView>
-      )}
+                  ))}
+                </View>
+
+                <TouchableOpacity onPress={loadTransportData}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
+                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
+                </TouchableOpacity>
+
+                {transportDrivers.length === 0
+                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا يوجد سائقون في هذه الفئة</Text>
+                  : transportDrivers.map(driver => (
+                    <Animated.View entering={FadeInDown.springify()} key={driver.id}
+                      style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1,
+                        borderColor: driver.status === "approved" ? "#3EFF9C30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#F9731620", alignItems: "center", justifyContent: "center" }}>
+                          <MaterialCommunityIcons name={driver.vehicle_type === "ركشة" ? "rickshaw" : "steering"} size={22} color="#F97316" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{driver.name}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                            {driver.vehicle_type} · {driver.phone}
+                          </Text>
+                        </View>
+                        <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                          backgroundColor: driver.status === "approved" ? "#3EFF9C20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11,
+                            color: driver.status === "approved" ? "#3EFF9C" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
+                            {driver.status === "approved" ? "معتمد" : driver.status === "rejected" ? "مرفوض" : "انتظار"}
+                          </Text>
+                        </View>
+                      </View>
+                      {driver.area ? (
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>
+                          📍 {driver.area} | اللوحة: {driver.plate || "—"}
+                        </Text>
+                      ) : null}
+                      {driver.vehicle_desc ? (
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
+                          {driver.vehicle_desc}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                        {driver.status !== "approved" && (
+                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "approved")}
+                            style={{ flex: 1, backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C40" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>✓ قبول</Text>
+                          </TouchableOpacity>
+                        )}
+                        {driver.status !== "rejected" && (
+                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "rejected")}
+                            style={{ flex: 1, backgroundColor: "#E0556720", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#E0556740" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#E05567" }}>✗ رفض</Text>
+                          </TouchableOpacity>
+                        )}
+                        {driver.phone ? (
+                          <TouchableOpacity onPress={() => Linking.openURL(`tel:${driver.phone}`)}
+                            style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C30" }}>
+                            <Ionicons name="call-outline" size={16} color="#3EFF9C" />
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity onPress={() => deleteTransportDriver(driver.id)}
+                          style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
+                          <Ionicons name="trash-outline" size={16} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    </Animated.View>
+                  ))}
+              </View>
+            )}
+
+            {/* ══ الرحلات ══ */}
+            {!loadingTransport && transportView === "trips" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
+                    <MaterialCommunityIcons name="map-marker-path" size={20} color="#3EFF9C" />
+                  </View>
+                  <Text style={s.cardTitle}>مراقبة الرحلات والتوصيل</Text>
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12, flexDirection: "row-reverse" }}>
+                  {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
+                    <TouchableOpacity key={f} onPress={() => setTransportTripFilter(f)}
+                      style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
+                        backgroundColor: transportTripFilter === f ? "#3EFF9C20" : Colors.bg,
+                        borderWidth: 1, borderColor: transportTripFilter === f ? "#3EFF9C" : Colors.divider }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
+                        color: transportTripFilter === f ? "#3EFF9C" : Colors.textSecondary }}>
+                        {f === "all" ? "الكل" : f === "pending" ? "انتظار" : f === "accepted" ? "جارية" : f === "completed" ? "مكتملة" : "ملغاة"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity onPress={loadTransportData}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
+                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
+                </TouchableOpacity>
+
+                {transportTrips.length === 0
+                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا توجد رحلات في هذه الفئة</Text>
+                  : transportTrips.map(trip => {
+                    const sc = trip.status === "completed" ? "#3EFF9C" : trip.status === "cancelled" ? "#E05567" : trip.status === "accepted" ? "#3E9CBF" : "#F97316";
+                    const sl = trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "جارية" : trip.status === "completed" ? "مكتملة" : "ملغاة";
+                    return (
+                      <Animated.View entering={FadeInDown.springify()} key={trip.id}
+                        style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: sc + "30" }}>
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <MaterialCommunityIcons
+                              name={trip.trip_type === "delivery" ? "package-variant" : "car-side"}
+                              size={16} color="#F97316" />
+                            <View>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>{trip.user_name}</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{trip.user_phone}</Text>
+                            </View>
+                          </View>
+                          <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: sc + "20", borderWidth: 1, borderColor: sc + "40" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: sc }}>{sl}</Text>
+                          </View>
+                        </View>
+
+                        <View style={{ gap: 4, marginBottom: 8 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#3EFF9C" }} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
+                              {(trip as any).from_zone ? `منطقة ${(trip as any).from_zone} — ` : ""}{trip.from_location}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F97316" }} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
+                              {(trip as any).to_zone ? `منطقة ${(trip as any).to_zone} — ` : ""}{trip.to_location}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {(trip as any).fare_estimate ? (
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6, backgroundColor: "#FBBF2415", borderRadius: 8, padding: 6 }}>
+                            <MaterialCommunityIcons name="calculator-variant" size={13} color="#FBBF24" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>
+                              التعرفة التقديرية: {(trip as any).fare_estimate?.toLocaleString("ar-SD")} جنيه
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
+                            {trip.driver_name ? `السائق: ${trip.driver_name}` : "لم يُعيَّن سائق"}
+                          </Text>
+                          <TouchableOpacity onPress={() => deleteTransportTrip(trip.id)}
+                            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+                            <Ionicons name="trash-outline" size={14} color={Colors.textMuted} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>حذف</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </Animated.View>
+                    );
+                  })}
+              </View>
+            )}
+
+            {/* ══ الإعدادات ══ */}
+            {!loadingTransport && transportView === "settings" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                    <Ionicons name="settings-outline" size={20} color="#F97316" />
+                  </View>
+                  <Text style={s.cardTitle}>إعدادات خدمة الترحال والتوصيل</Text>
+                </View>
+
+                <View style={s.toggleRow}>
+                  <Text style={s.toggleLabel}>تفعيل الخدمة</Text>
+                  <TouchableOpacity
+                    onPress={() => setTransportEnabled(p => !p)}
+                    style={[s.toggle, { backgroundColor: transportEnabled ? "#F97316" : Colors.divider }]}
+                    activeOpacity={0.8}>
+                    <View style={[s.toggleThumb, { alignSelf: transportEnabled ? "flex-end" : "flex-start" }]} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={s.fieldHint}>
+                  {transportEnabled
+                    ? "✅ الخدمة مفعّلة — يرى المستخدمون واجهة الحجز الكاملة مع اختيار المناطق والتعرفة"
+                    : "⏸️ الخدمة موقوفة — يرى المستخدمون شاشة «قريباً» فقط"}
+                </Text>
+
+                <Text style={s.fieldLabel}>رقم هاتف دعم القسم (اختياري)</Text>
+                <TextInput style={s.fieldInput} value={transportPhone}
+                  onChangeText={setTransportPhone}
+                  placeholder="+249..." placeholderTextColor={Colors.textMuted}
+                  textAlign="right" keyboardType="phone-pad" />
+
+                <Text style={s.fieldLabel}>ملاحظة للمستخدمين عندما تكون الخدمة موقوفة</Text>
+                <TextInput style={[s.fieldInput, { minHeight: 72, textAlignVertical: "top" }]}
+                  value={transportNote} onChangeText={setTransportNote}
+                  placeholder="مثال: سيتم الإطلاق خلال أسبوعين..."
+                  placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+
+                <TouchableOpacity
+                  onPress={saveTransportSettings}
+                  disabled={savingTransportSettings}
+                  style={{ backgroundColor: "#F97316", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 8, flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}>
+                  <Ionicons name="save-outline" size={16} color="#fff" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
+                    {savingTransportSettings ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+          </ScrollView>
+        );
+      })()}
 
       {/* ═══════════════════════════════════════════════════════════════════
           ── مودال إحصائيات المستخدم
