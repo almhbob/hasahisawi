@@ -5336,4 +5336,176 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ════════════════════════════════════════════════════════════════
+//  EVENTS  – الفعاليات
+// ════════════════════════════════════════════════════════════════
+(async () => {
+  await query(`
+    CREATE TABLE IF NOT EXISTS events (
+      id               SERIAL PRIMARY KEY,
+      user_id          INTEGER,
+      title            TEXT NOT NULL,
+      type             TEXT NOT NULL DEFAULT 'other',
+      description      TEXT,
+      location         TEXT NOT NULL,
+      event_date       DATE NOT NULL,
+      event_time       TEXT,
+      organizer_name   TEXT NOT NULL,
+      contact_phone    TEXT,
+      is_free          BOOLEAN NOT NULL DEFAULT TRUE,
+      price            NUMERIC(12,2),
+      capacity         INTEGER,
+      registered_count INTEGER NOT NULL DEFAULT 0,
+      status           TEXT NOT NULL DEFAULT 'pending',
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS event_rentals (
+      id                  SERIAL PRIMARY KEY,
+      user_id             INTEGER,
+      category            TEXT NOT NULL DEFAULT 'other',
+      name                TEXT NOT NULL,
+      description         TEXT,
+      price_per_day       NUMERIC(12,2) NOT NULL DEFAULT 0,
+      price_per_event     NUMERIC(12,2),
+      quantity_available  INTEGER NOT NULL DEFAULT 1,
+      contact_phone       TEXT NOT NULL,
+      provider_name       TEXT NOT NULL,
+      status              TEXT NOT NULL DEFAULT 'active',
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+})();
+
+// ── GET /events ──────────────────────────────
+router.get("/events", async (req: Request, res: Response) => {
+  try {
+    const limit  = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const type   = req.query.type as string;
+    const status = (req.query.status as string) || "approved";
+    const params: any[] = [status, limit];
+    let where = "WHERE status = $1";
+    if (type && type !== "all") { where += ` AND type = $${params.length + 1}`; params.push(type); }
+    const r = await query(
+      `SELECT * FROM events ${where} ORDER BY event_date ASC, created_at DESC LIMIT $2`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/events/:id", async (req: Request, res: Response) => {
+  try {
+    const r = await query(`SELECT * FROM events WHERE id = $1`, [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/events", async (req: Request, res: Response) => {
+  try {
+    const { title, type, description, location, event_date, event_time, organizer_name, contact_phone, is_free, price, capacity } = req.body;
+    if (!title || !location || !event_date || !organizer_name) return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
+    const userId = (req as any).user?.id ?? null;
+    const r = await query(
+      `INSERT INTO events (user_id, title, type, description, location, event_date, event_time, organizer_name, contact_phone, is_free, price, capacity, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING *`,
+      [userId, title, type || "other", description || null, location, event_date, event_time || null, organizer_name, contact_phone || null, is_free ?? true, price || null, capacity || null]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/events/:id/register", async (req: Request, res: Response) => {
+  try {
+    const r = await query(`UPDATE events SET registered_count = registered_count + 1 WHERE id = $1 RETURNING registered_count`, [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ registered_count: r.rows[0].registered_count });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin events ────────────────────────────
+router.get("/admin/events", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM events ORDER BY created_at DESC LIMIT 200`);
+    return res.json({ events: r.rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/events/:id/status", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const r = await query(`UPDATE events SET status=$1 WHERE id=$2 RETURNING *`, [status, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/events/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM events WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  EVENT RENTALS  – تأجير معدات الفعاليات
+// ════════════════════════════════════════════════════════════════
+
+router.get("/event-rentals", async (req: Request, res: Response) => {
+  try {
+    const limit    = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const category = req.query.category as string;
+    const params: any[] = ["active", limit];
+    let where = "WHERE status = $1";
+    if (category && category !== "all") { where += ` AND category = $${params.length + 1}`; params.push(category); }
+    const r = await query(`SELECT * FROM event_rentals ${where} ORDER BY created_at DESC LIMIT $2`, params);
+    return res.json(r.rows);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/event-rentals", async (req: Request, res: Response) => {
+  try {
+    const { category, name, description, price_per_day, price_per_event, quantity_available, contact_phone, provider_name } = req.body;
+    if (!name || !provider_name || !contact_phone) return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
+    const userId = (req as any).user?.id ?? null;
+    const r = await query(
+      `INSERT INTO event_rentals (user_id, category, name, description, price_per_day, price_per_event, quantity_available, contact_phone, provider_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [userId, category || "other", name, description || null, price_per_day || 0, price_per_event || null, quantity_available || 1, contact_phone, provider_name]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/event-rentals", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM event_rentals ORDER BY created_at DESC LIMIT 200`);
+    return res.json({ rentals: r.rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/event-rentals/:id/status", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const r = await query(`UPDATE event_rentals SET status=$1 WHERE id=$2 RETURNING *`, [status, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/event-rentals/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM event_rentals WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;

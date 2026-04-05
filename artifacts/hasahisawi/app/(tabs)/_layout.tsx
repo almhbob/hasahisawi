@@ -151,6 +151,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="occasions"   options={{ href: null }} />
       <Tabs.Screen name="honored"     options={{ href: null }} />
       <Tabs.Screen name="greetings"   options={{ href: null }} />
+      <Tabs.Screen name="events"      options={{ href: null }} />
       <Tabs.Screen name="map"         options={{ href: null }} />
     </Tabs>
   );
