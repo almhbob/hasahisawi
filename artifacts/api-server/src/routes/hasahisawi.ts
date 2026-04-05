@@ -859,7 +859,13 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     } catch {}
     return res.json({ user: safeUserPayload(user), token });
   } catch (err: any) {
-    if (err.code === "23505") return res.status(400).json({ error: "المستخدم موجود بالفعل" });
+    if (err.code === "23505") {
+      const detail: string = err.detail ?? err.constraint ?? "";
+      if (detail.includes("phone"))       return res.status(400).json({ error: "رقم الهاتف مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام رقم آخر" });
+      if (detail.includes("email"))       return res.status(400).json({ error: "البريد الإلكتروني مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام بريد آخر" });
+      if (detail.includes("national_id")) return res.status(400).json({ error: "رقم الهوية مسجّل مسبقاً، تواصل مع الدعم إن كنت تعتقد أن هذا خطأ" });
+      return res.status(400).json({ error: "هذه البيانات مسجّلة مسبقاً، يرجى تسجيل الدخول" });
+    }
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }

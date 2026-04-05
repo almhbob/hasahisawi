@@ -487,7 +487,16 @@ export default function LoginScreen() {
           {!!error && (
             <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
               <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.errorText}>{error}</Text>
+                {mode === "register" && (error.includes("مسجّل مسبقاً") || error.includes("مسجلة مسبقاً")) && (
+                  <TouchableOpacity onPress={() => { switchMode("login"); setIdentifier(identifier); }} style={{ marginTop: 6 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textDecorationLine: "underline" }}>
+                      انتقل إلى تسجيل الدخول ←
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </Animated.View>
           )}
 
