@@ -2,3 +2,11 @@ node_modules
 android
 ios
 .expo
+.git
+dist
+build
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
