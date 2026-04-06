@@ -227,3 +227,9 @@ id = "qeSrH4kDpwlXs8agZ7uhr"
 uri = "file://screenshots/booklet/hasahisawi-booklet-4k.pdf"
 type = "pdf"
 title = "حصاحيصاوي — كتيب الشرح المفصّل — دقة 4K"
+
+[[outputs]]
+id = "uNjlTvJPOnyWm2YDSu4vR"
+uri = "file://screenshots/booklet/hasahisawi-complete-4k.pdf"
+type = "pdf"
+title = "حصاحيصاوي — الكتيب الشامل لجميع الخدمات — 19 صفحة — دقة 4K"
