@@ -209,3 +209,9 @@ id = "Au1r4lfZgX_Xdv1eyl5NN"
 uri = "file://screenshots/booklet/08-backcover.jpg"
 type = "image"
 title = "الغلاف الخلفي — دعوة التحميل"
+
+[[outputs]]
+id = "HqGqSNj01KuTpYEjFyRmx"
+uri = "file://screenshots/booklet/hasahisawi-booklet.pdf"
+type = "pdf"
+title = "حصاحيصاوي — كتيب الخدمات (PDF)"
