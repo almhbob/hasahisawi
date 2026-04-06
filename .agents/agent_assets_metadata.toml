@@ -149,3 +149,9 @@ id = "s5_GOyq8BlrJxbaHES5ZR"
 uri = "file://screenshots/hasahisawi-poster-4k.jpg"
 type = "image"
 title = "بوستر حصاحيصاوي — جودة عالية"
+
+[[outputs]]
+id = "FSKveVS9_ZFlnT6O0FBkh"
+uri = "file://screenshots/update-post.jpg"
+type = "image"
+title = "بوست التحديث — حصاحيصاوي 2.3.2"
