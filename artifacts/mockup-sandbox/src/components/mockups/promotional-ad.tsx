@@ -124,7 +124,7 @@ export default function PromotionalAd() {
           fontSize: 20, fontWeight: 700,
           color: "#FFFFFF", lineHeight: 1.5, marginBottom: 8,
         }}>
-          بوابتك الذكية لمدينة حصاحيصة
+          البوابة الذكية لمدينة الحصاحيصا
         </div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7 }}>
           كل ما تحتاجه في مكان واحد —{" "}

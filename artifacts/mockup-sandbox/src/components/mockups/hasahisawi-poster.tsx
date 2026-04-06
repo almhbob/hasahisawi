@@ -152,8 +152,8 @@ export default function HasahisawiPoster() {
           lineHeight: 1.6,
           marginBottom: 10,
         }}>
-          بوابتك الذكية<br />
-          <span style={{ color: "#27AE68" }}>لمدينة حصاحيصة</span>
+          البوابة الذكية<br />
+          <span style={{ color: "#27AE68" }}>لمدينة الحصاحيصا</span>
         </div>
         <div style={{
           fontSize: 13,
