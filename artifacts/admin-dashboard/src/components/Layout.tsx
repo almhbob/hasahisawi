@@ -15,7 +15,7 @@ const NAV: NavItem[] = [
   { path: "/posts",         label: "المنشورات",        icon: "📝" },
   { path: "/merchants",     label: "التجار",           icon: "🏪" },
   { path: "/phone-shops",   label: "محلات الهواتف",    icon: "📱" },
-  { path: "/transport",     label: "ترحال والتوصيل",   icon: "🚗" },
+  { path: "/transport",     label: "مشوارك علينا",      icon: "🚗" },
   { path: "/map",           label: "خريطة المدينة",    icon: "🗺️" },
   { path: "/communities",   label: "المجتمعات",        icon: "🏘️" },
   { path: "/ads",           label: "الإعلانات",        icon: "📢" },

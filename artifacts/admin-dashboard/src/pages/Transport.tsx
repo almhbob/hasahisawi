@@ -56,7 +56,7 @@ export default function Transport() {
   return (
     <div>
       <PageHeader
-        title="إدارة ترحال والتوصيل"
+        title="إدارة مشوارك علينا"
         subtitle={`${drivers.length} سائق مسجّل${pending ? ` · ${pending} بانتظار الموافقة` : ""}`}
         action={
           <input className="input-field" style={{ width: 220, padding: "9px 14px" }}

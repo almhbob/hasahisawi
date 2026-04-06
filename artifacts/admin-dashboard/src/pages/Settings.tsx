@@ -7,8 +7,9 @@ type AppVersion = {
 };
 
 type AiConfig = {
-  enabled: boolean; system_prompt?: string; model?: string;
-  max_tokens?: number;
+  ai_enabled: boolean;
+  ai_system_prompt: string;
+  ai_api_key: string;
 };
 
 type FeatureFlags = {
@@ -19,7 +20,7 @@ type FeatureFlags = {
 
 export default function Settings() {
   const [version,  setVersion]  = useState<AppVersion>({ version: 1, notes: "", force: false });
-  const [aiConfig, setAiConfig] = useState<AiConfig>({ enabled: false });
+  const [aiConfig, setAiConfig] = useState<AiConfig>({ ai_enabled: false, ai_system_prompt: "", ai_api_key: "" });
   const [flags,    setFlags]    = useState<FeatureFlags>({ gov_services_enabled: true, gov_appointments_enabled: true, gov_reports_enabled: true });
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState<string | null>(null);
@@ -28,11 +29,15 @@ export default function Settings() {
   useEffect(() => {
     Promise.all([
       apiJson<AppVersion>("/app/version").catch(() => null),
-      apiJson<AiConfig>("/admin/ai-settings").catch(() => null),
+      apiJson<Record<string,string>>("/admin/ai-settings").catch(() => null),
       apiJson<FeatureFlags>("/app/feature-flags").catch(() => null),
     ]).then(([v, ai, f]) => {
       if (v) setVersion(v);
-      if (ai) setAiConfig(ai);
+      if (ai) setAiConfig({
+        ai_enabled: ai.ai_enabled === "true" || ai.ai_enabled === true as any,
+        ai_system_prompt: ai.ai_system_prompt ?? "",
+        ai_api_key: ai.ai_api_key ?? "",
+      });
       if (f) setFlags(f);
       setLoading(false);
     });
@@ -53,7 +58,11 @@ export default function Settings() {
   const saveAi = async () => {
     setSaving("ai");
     try {
-      await apiFetch("/admin/ai-settings", { method: "PUT", body: JSON.stringify(aiConfig) });
+      await apiFetch("/admin/ai-settings", { method: "PUT", body: JSON.stringify({
+        ai_enabled: aiConfig.ai_enabled,
+        ai_system_prompt: aiConfig.ai_system_prompt,
+        ai_api_key: aiConfig.ai_api_key,
+      }) });
       setMsg({ text: "تم حفظ إعدادات الذكاء الاصطناعي", ok: true });
     } catch {
       setMsg({ text: "فشل الحفظ", ok: false });
@@ -151,29 +160,26 @@ export default function Settings() {
                   <p style={{ fontSize: 12, color: "hsl(215 20% 50%)", margin: "3px 0 0" }}>ضبط المساعد الذكي في التطبيق</p>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, color: "hsl(210 40% 80%)" }}>تفعيل الذكاء الاصطناعي</label>
-                  <input type="checkbox" checked={aiConfig.enabled ?? false}
-                    onChange={e => setAiConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                  <input type="checkbox" checked={aiConfig.ai_enabled}
+                    onChange={e => setAiConfig(prev => ({ ...prev, ai_enabled: e.target.checked }))}
                     style={{ width: 18, height: 18, cursor: "pointer" }} />
+                  <span style={{ fontSize: 12, color: aiConfig.ai_enabled ? "hsl(147 60% 55%)" : "hsl(215 20% 50%)" }}>
+                    {aiConfig.ai_enabled ? "مُفعَّل" : "مُعطَّل"}
+                  </span>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>النموذج</label>
-                  <input type="text" value={aiConfig.model ?? ""} placeholder="gpt-4o-mini"
-                    onChange={e => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
-                    className="input-field" />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>مفتاح API</label>
+                  <input type="password" value={aiConfig.ai_api_key}
+                    onChange={e => setAiConfig(prev => ({ ...prev, ai_api_key: e.target.value }))}
+                    className="input-field" placeholder="sk-..." />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>الحد الأقصى للـ tokens</label>
-                  <input type="number" value={aiConfig.max_tokens ?? 1000}
-                    onChange={e => setAiConfig(prev => ({ ...prev, max_tokens: +e.target.value }))}
-                    className="input-field" />
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>النص التمهيدي للنظام (System Prompt)</label>
-                  <textarea value={aiConfig.system_prompt ?? ""} rows={4}
-                    onChange={e => setAiConfig(prev => ({ ...prev, system_prompt: e.target.value }))}
+                  <textarea value={aiConfig.ai_system_prompt} rows={4}
+                    onChange={e => setAiConfig(prev => ({ ...prev, ai_system_prompt: e.target.value }))}
                     className="input-field" style={{ resize: "none" }}
                     placeholder="أنت مساعد ذكي لمدينة حصاحيصا..." />
                 </div>
