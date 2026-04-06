@@ -2,6 +2,14 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/VideoTemplate.tsx": () => import("../components/mockups/VideoTemplate.tsx"),
+  "./components/mockups/booklet-backcover.tsx": () => import("../components/mockups/booklet-backcover.tsx"),
+  "./components/mockups/booklet-cover.tsx": () => import("../components/mockups/booklet-cover.tsx"),
+  "./components/mockups/booklet-libraries.tsx": () => import("../components/mockups/booklet-libraries.tsx"),
+  "./components/mockups/booklet-merchants.tsx": () => import("../components/mockups/booklet-merchants.tsx"),
+  "./components/mockups/booklet-occasions.tsx": () => import("../components/mockups/booklet-occasions.tsx"),
+  "./components/mockups/booklet-phones.tsx": () => import("../components/mockups/booklet-phones.tsx"),
+  "./components/mockups/booklet-transport.tsx": () => import("../components/mockups/booklet-transport.tsx"),
+  "./components/mockups/booklet-women.tsx": () => import("../components/mockups/booklet-women.tsx"),
   "./components/mockups/dev-bio.tsx": () => import("../components/mockups/dev-bio.tsx"),
   "./components/mockups/facebook-poster.tsx": () => import("../components/mockups/facebook-poster.tsx"),
   "./components/mockups/google-play-scene.tsx": () => import("../components/mockups/google-play-scene.tsx"),

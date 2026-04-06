@@ -161,3 +161,51 @@ id = "4JQcASuF7ZNWmcXdN2K-o"
 uri = "file://screenshots/update-post-v2.jpg"
 type = "image"
 title = "بوست التحديث — نسخة مصححة"
+
+[[outputs]]
+id = "Wx6A7Wz-G6FdpgVaOS8qi"
+uri = "file://screenshots/booklet/01-cover.jpg"
+type = "image"
+title = "صفحة الغلاف"
+
+[[outputs]]
+id = "7k_98ekXN-AknSnHtXM1v"
+uri = "file://screenshots/booklet/02-women.jpg"
+type = "image"
+title = "01 — قسم المرأة"
+
+[[outputs]]
+id = "Qjhxishb0-vhbftE2bJyk"
+uri = "file://screenshots/booklet/03-transport.jpg"
+type = "image"
+title = "02 — مشوارك علينا (النقل)"
+
+[[outputs]]
+id = "wqghpflj1v9xPLwIU2bnu"
+uri = "file://screenshots/booklet/04-occasions.jpg"
+type = "image"
+title = "03 — مناسبتك علينا"
+
+[[outputs]]
+id = "1W_VhEcmD09YAmct1_jtW"
+uri = "file://screenshots/booklet/05-merchants.jpg"
+type = "image"
+title = "04 — مساحة التجار"
+
+[[outputs]]
+id = "hyKp0ytkqNgXwtKqvKmWV"
+uri = "file://screenshots/booklet/06-phones.jpg"
+type = "image"
+title = "05 — محلات الهواتف"
+
+[[outputs]]
+id = "u171y_yNXur_A98hZmM_D"
+uri = "file://screenshots/booklet/07-libraries.jpg"
+type = "image"
+title = "06 — المكتبات والقرطاسية"
+
+[[outputs]]
+id = "Au1r4lfZgX_Xdv1eyl5NN"
+uri = "file://screenshots/booklet/08-backcover.jpg"
+type = "image"
+title = "الغلاف الخلفي — دعوة التحميل"
