@@ -137,3 +137,9 @@ id = "ac6FyfS8D0fn8g1CC2NiQ"
 uri = "file://exports/hasahisawi-app-document.pdf"
 type = "pdf"
 title = "حصاحيصاوي — وثيقة التطبيق الرسمية"
+
+[[outputs]]
+id = "LzlNcMgxwYjDdi_xhO73A"
+uri = "file://screenshots/hasahisawi-poster.jpg"
+type = "image"
+title = "بوستر حصاحيصاوي"
