@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
+import { getApiUrl } from "@/lib/query-client";
 
 const CITY_IMAGE = require("@/assets/images/hasahisa-city.jpg");
 const FERRIS     = require("@/assets/images/ferris-wheel.jpg");
@@ -49,7 +50,8 @@ export default function LoginScreen() {
   const [showNbrModal, setShowNbrModal] = useState(false);
   const [nbrSearch, setNbrSearch]     = useState("");
   const [customNbr, setCustomNbr]     = useState("");
-  const [gender, setGender]           = useState<"male" | "female" | "">("");
+  const [gender, setGender]           = useState<"male" | "female" | "">(""); 
+  const [feedback, setFeedback]       = useState("");
   const [bioLabel, setBioLabel]       = useState("البصمة");
   const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
@@ -78,6 +80,7 @@ export default function LoginScreen() {
     setBirthDay(""); setBirthMonth(""); setBirthYear("");
     setNeighborhood(""); setNbrSearch(""); setCustomNbr("");
     setGender("");
+    setFeedback("");
   };
 
   const getBirthDateISO = (): string | undefined => {
@@ -96,9 +99,21 @@ export default function LoginScreen() {
 
   const validate = (): string | null => {
     if (mode === "register") {
-      if (!name.trim()) return "يرجى إدخال الاسم الكامل";
+      // الاسم ثلاثي إلزامي
+      if (!name.trim()) return "يرجى إدخال الاسم الثلاثي كاملاً";
+      const nameParts = name.trim().split(/\s+/).filter(p => p.length > 0);
+      if (nameParts.length < 3) return "يرجى إدخال الاسم ثلاثياً (الاسم الأول والثاني والثالث)";
+      // الجنس إلزامي
+      if (!gender) return "يرجى تحديد الجنس (ذكر أو أنثى)";
+      // رقم الهوية اختياري
       const nid = nationalId.trim().replace(/\s+/g, "");
       if (nid && !/^\d{8,20}$/.test(nid)) return "رقم الهوية يجب أن يكون 8–20 رقماً";
+      // رقم الهاتف 10 أرقام إلزامياً
+      if (!useEmail) {
+        const phone = identifier.trim().replace(/\s+/g, "");
+        if (!phone) return "يرجى إدخال رقم الهاتف";
+        if (!/^\d{10}$/.test(phone)) return "رقم الهاتف يجب أن يكون 10 أرقام بالضبط";
+      }
     }
     if (!identifier.trim()) return "يرجى إدخال البريد أو رقم الهاتف";
     if (!password)           return "يرجى إدخال كلمة المرور";
@@ -122,6 +137,23 @@ export default function LoginScreen() {
         const nid = nationalId.trim().replace(/\s+/g, "");
         await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), neighborhood || undefined, gender || undefined);
         promptEnableBiometrics(id);
+        // إرسال الاقتراح/المشكلة إذا وُجدت
+        if (feedback.trim()) {
+          try {
+            await fetch(`${getApiUrl()}/feedback`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "suggestion",
+                title: "اقتراح/مشكلة عند التسجيل",
+                body: feedback.trim(),
+                sender_name: name.trim(),
+                phone: !isEmail ? id : undefined,
+                category: "تسجيل",
+              }),
+            });
+          } catch (_) {}
+        }
       }
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -271,18 +303,23 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.formScroll}
         >
-          {/* الاسم */}
+          {/* الاسم الثلاثي */}
           {mode === "register" && (
-            <Field label="الاسم الكامل" required icon="person-outline">
+            <Field label="الاسم الثلاثي" required icon="person-outline">
               <TextInput
                 style={styles.input}
-                placeholder="أدخل اسمك الكامل"
+                placeholder="الاسم الأول والثاني والثالث"
                 placeholderTextColor={Colors.textMuted}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
               />
             </Field>
+          )}
+          {mode === "register" && (
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: -10, marginBottom: 4, textAlign: "right" }}>
+              مثال: محمد أحمد عبد الله
+            </Text>
           )}
 
           {/* رقم الهوية */}
@@ -327,7 +364,7 @@ export default function LoginScreen() {
               style={styles.input}
               placeholder={
                 mode === "login" ? "أدخل البريد أو رقم الهاتف"
-                  : useEmail ? "example@email.com" : "09xxxxxxxx"
+                  : useEmail ? "example@email.com" : "0912345678 (10 أرقام)"
               }
               placeholderTextColor={Colors.textMuted}
               value={identifier}
@@ -480,6 +517,38 @@ export default function LoginScreen() {
                   <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
                 )}
               </Pressable>
+            </View>
+          )}
+
+          {/* مشكلة أو اقتراح */}
+          {mode === "register" && (
+            <View style={s2.fieldWrap}>
+              <View style={s2.fieldHeader}>
+                <Ionicons name="chatbubble-ellipses-outline" size={15} color={Colors.textMuted} />
+                <Text style={s2.fieldLabel}>مشكلة أو اقتراح</Text>
+                <Text style={s2.optional}>(اختياري)</Text>
+              </View>
+              <TextInput
+                style={[styles.input, {
+                  height: 80,
+                  textAlignVertical: "top",
+                  paddingTop: 10,
+                  backgroundColor: Colors.cardBg,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.divider,
+                  paddingHorizontal: 14,
+                  fontFamily: "Cairo_400Regular",
+                  fontSize: 14,
+                  color: Colors.textPrimary,
+                }]}
+                placeholder="هل لديك مشكلة في التطبيق أو اقتراح لميزة جديدة؟ أخبرنا..."
+                placeholderTextColor={Colors.textMuted}
+                value={feedback}
+                onChangeText={setFeedback}
+                multiline
+                numberOfLines={3}
+              />
             </View>
           )}
 
