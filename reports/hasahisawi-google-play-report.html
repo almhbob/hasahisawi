@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تقرير مشكلة Google Play — حصاحيصاوي</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Cairo', 'Arial', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a2e;
+      direction: rtl;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #fff;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 36px 40px 28px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -40px; left: -40px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; right: 60px;
+      width: 250px; height: 250px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.03);
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .header-logo {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #27AE68, #1e8c52);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .header-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .header-sub { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+    .header-meta {
+      display: flex; gap: 24px; margin-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 16px;
+    }
+    .meta-item { display: flex; flex-direction: column; gap: 3px; }
+    .meta-label { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+    .meta-value { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+    /* Content */
+    .content { padding: 32px 40px 40px; }
+
+    /* Section */
+    .section { margin-bottom: 28px; }
+    .section-title {
+      font-size: 16px; font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .section-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+
+    /* Alert Box */
+    .alert {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .alert-danger { background: #fff5f5; border: 1px solid #ffcdd2; }
+    .alert-warning { background: #fffbf0; border: 1px solid #ffe082; }
+    .alert-success { background: #f0fff8; border: 1px solid #b2dfdb; }
+    .alert-info { background: #f0f7ff; border: 1px solid #bbdefb; }
+    .alert-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .alert-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .alert-danger .alert-title { color: #c62828; }
+    .alert-warning .alert-title { color: #e65100; }
+    .alert-success .alert-title { color: #1b5e20; }
+    .alert-info .alert-title { color: #0d47a1; }
+    .alert-text { font-size: 13px; line-height: 1.8; color: #444; }
+
+    /* Cause List */
+    .cause-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .cause-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fafafa; border: 1px solid #eee;
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .cause-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #e53935; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .cause-text { font-size: 13px; line-height: 1.7; color: #333; }
+    .cause-text strong { color: #1a1a2e; font-weight: 700; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+    .step {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: #f9f9fb; border: 1px solid #e8e8f0;
+      border-radius: 12px; padding: 16px;
+    }
+    .step-num {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, #27AE68, #1e8c52);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .step-body { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .step-text { font-size: 12.5px; line-height: 1.8; color: #555; }
+    .step-text code {
+      background: #e8eaf6; color: #3f51b5;
+      padding: 2px 6px; border-radius: 4px;
+      font-family: monospace; font-size: 12px;
+    }
+
+    /* Changes Table */
+    .changes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .change-card {
+      background: #f9f9fb; border: 1px solid #e0e0ef;
+      border-radius: 10px; padding: 14px;
+    }
+    .change-card-icon { font-size: 22px; margin-bottom: 8px; }
+    .change-card-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 5px; }
+    .change-card-text { font-size: 12px; line-height: 1.7; color: #666; }
+
+    /* Description Box */
+    .desc-box {
+      background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+      border: 1px solid #a5d6a7;
+      border-radius: 12px; padding: 18px 22px;
+    }
+    .desc-box-title { font-size: 13px; font-weight: 700; color: #2e7d32; margin-bottom: 10px; }
+    .desc-box-text { font-size: 13px; line-height: 2; color: #333; }
+
+    /* Timeline */
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .timeline-item { display: flex; gap: 16px; }
+    .timeline-left { display: flex; flex-direction: column; align-items: center; }
+    .timeline-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #27AE68; border: 3px solid #b2dfdb; flex-shrink: 0;
+    }
+    .timeline-line { width: 2px; flex: 1; background: #e0e0e0; margin: 4px 0; min-height: 20px; }
+    .timeline-body { padding-bottom: 18px; flex: 1; }
+    .timeline-title { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+    .timeline-text { font-size: 12px; color: #666; line-height: 1.7; margin-top: 3px; }
+
+    /* Footer */
+    .footer {
+      background: #1a1a2e; color: rgba(255,255,255,0.6);
+      padding: 16px 40px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-text { font-size: 11px; }
+    .footer-brand { font-size: 12px; font-weight: 700; color: #27AE68; }
+
+    /* Print Styles */
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; box-shadow: none; border-radius: 0; width: 100%; }
+      .print-btn { display: none !important; }
+    }
+
+    /* Print Button */
+    .print-btn {
+      position: fixed;
+      bottom: 30px; left: 30px;
+      background: linear-gradient(135deg, #27AE68, #1e8c52);
+      color: #fff; border: none; border-radius: 50px;
+      padding: 14px 28px; font-family: 'Cairo', sans-serif;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(39,174,104,0.4);
+      display: flex; align-items: center; gap: 8px;
+      z-index: 1000;
+    }
+    .print-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(39,174,104,0.5); }
+  </style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">
+  🖨️ طباعة / حفظ PDF
+</button>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">📱</div>
+      <div>
+        <div class="header-title">تقرير مشكلة Google Play Console</div>
+        <div class="header-sub">تطبيق حصاحيصاوي — تحليل المشكلة والحل المقترح</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-item">
+        <span class="meta-label">اسم التطبيق</span>
+        <span class="meta-value">حصاحيصاوي</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">معرّف الحزمة</span>
+        <span class="meta-value">com.almhbob.hasahisawi</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">الإصدار</span>
+        <span class="meta-value">2.3.2 (Build 25)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">تاريخ التقرير</span>
+        <span class="meta-value">6 أبريل 2026</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Section 1: Problem -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#fff0f0;">🚨</div>
+        أولاً: تفاصيل المشكلة
+      </div>
+
+      <div class="alert alert-danger">
+        <div class="alert-icon">⛔</div>
+        <div>
+          <div class="alert-title">مخالفة سياسة Google Play — انتحال صفة جهة حكومية</div>
+          <div class="alert-text">
+            رصدت Google Play أن تطبيق حصاحيصاوي يحتوي على ميزات وصياغات توحي بأنه تطبيق حكومي رسمي أو تابع لجهة حكومية، في حين أنه لا يمتلك إثباتاً رسمياً على ذلك. هذا يُشكّل انتهاكاً لسياسة التطبيقات الحكومية المزيفة (Government Impersonation Policy).
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning">
+        <div class="alert-icon">📋</div>
+        <div>
+          <div class="alert-title">وصف المشكلة من Google</div>
+          <div class="alert-text">
+            "يبدو أن تطبيقك يدّعي تقديم خدمات حكومية أو الانتساب لجهة حكومية دون وجود إثبات رسمي. التطبيقات التي تتعامل مع الخدمات الحكومية يجب أن تكون صادرة من الجهة الحكومية نفسها أو أن تُفصح بوضوح عن كونها منصة مستقلة."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Root Causes -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#fff8e1;">🔍</div>
+        ثانياً: أسباب المشكلة
+      </div>
+      <ul class="cause-list">
+        <li class="cause-item">
+          <div class="cause-num">1</div>
+          <div class="cause-text"><strong>ميزة البلاغات:</strong> التطبيق يتيح الإبلاغ عن مشاكل الكهرباء والمياه والطرق، وهذا ما يوحي بأنه قناة رسمية للتواصل مع الجهات الحكومية.</div>
+        </li>
+        <li class="cause-item">
+          <div class="cause-num">2</div>
+          <div class="cause-text"><strong>حجز مواعيد مع جهات حكومية:</strong> التطبيق يتيح حجز مواعيد في المحلية، السجل المدني، مكتب الأراضي، والمحكمة — مما يوحي بانتساب رسمي.</div>
+        </li>
+        <li class="cause-item">
+          <div class="cause-num">3</div>
+          <div class="cause-text"><strong>دليل المؤسسات الحكومية:</strong> التطبيق يحتوي على قائمة بالمحاكم، البنوك، الدوائر الحكومية مع إمكانية التقييم.</div>
+        </li>
+        <li class="cause-item">
+          <div class="cause-num">4</div>
+          <div class="cause-text"><strong>وصف التطبيق:</strong> الوصف السابق في المتجر لم يُوضّح بشكل كافٍ أن التطبيق منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية.</div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Section 3: Applied Fixes -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#e8f5e9;">✅</div>
+        ثالثاً: التعديلات المُطبّقة على التطبيق
+      </div>
+      <div class="changes-grid">
+        <div class="change-card">
+          <div class="change-card-icon">📖</div>
+          <div class="change-card-title">شاشة التعريف (Onboarding)</div>
+          <div class="change-card-text">أُضيفت شريحة جديدة تنص صراحةً على أن حصاحيصاوي منصة أهلية مستقلة غير تابعة لأي جهة حكومية.</div>
+        </div>
+        <div class="change-card">
+          <div class="change-card-icon">📅</div>
+          <div class="change-card-title">شاشة حجز المواعيد</div>
+          <div class="change-card-text">أُضيف تنبيه واضح قبل قسم الجهات الحكومية يوضح أن البيانات للإرشاد فقط وأن المنصة مستقلة.</div>
+        </div>
+        <div class="change-card">
+          <div class="change-card-icon">📢</div>
+          <div class="change-card-title">شاشة البلاغات</div>
+          <div class="change-card-text">عُدّل العنوان الفرعي ليقول "منصة مجتمعية مستقلة · غير تابعة لأي جهة حكومية" بشكل ظاهر.</div>
+        </div>
+        <div class="change-card">
+          <div class="change-card-icon">🏢</div>
+          <div class="change-card-title">شاشة انضمام المؤسسات</div>
+          <div class="change-card-text">أُضيفت ملاحظة توضح أن انضمام الجهات الحكومية لأغراض التواصل المجتمعي فقط.</div>
+        </div>
+        <div class="change-card">
+          <div class="change-card-icon">📝</div>
+          <div class="change-card-title">وصف التطبيق في المتجر</div>
+          <div class="change-card-text">صِيغ وصف جديد واضح يُعرّف التطبيق كمنصة مجتمعية مستقلة منذ أول سطر.</div>
+        </div>
+        <div class="change-card">
+          <div class="change-card-icon">🔢</div>
+          <div class="change-card-title">رقم الإصدار</div>
+          <div class="change-card-text">يجب رفع versionCode إلى 26 قبل رفع النسخة الجديدة على Google Play.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: New Description -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#e3f2fd;">📄</div>
+        رابعاً: الوصف الجديد للمتجر
+      </div>
+      <div class="desc-box">
+        <div class="desc-box-title">✦ الوصف المقترح لـ Google Play Console (الصق هذا النص في خانة الوصف):</div>
+        <div class="desc-box-text">
+          <strong>حصاحيصاوي — منصة مجتمعية أهلية مستقلة لمدينة الحصاحيصا</strong><br><br>
+          حصاحيصاوي تطبيق مجتمعي من أبناء مدينة الحصاحيصا وقراها، <strong>غير تابع لأي جهة حكومية أو رسمية</strong>، ولا يمثّل أي سلطة حكومية.<br><br>
+          يوفر التطبيق دليلاً إرشادياً للخدمات المحلية (الصحية والتعليمية والتجارية)، ومنصة للتواصل الاجتماعي بين أبناء المنطقة، وخدمات مجتمعية متنوعة كالوظائف والسوق والمفقودات.<br><br>
+          المعلومات المتوفرة في التطبيق للأغراض الإرشادية فقط، وحصاحيصاوي ليست بديلاً عن المواقع والخدمات الرسمية للجهات الحكومية.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Step by Step -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#fce4ec;">📋</div>
+        خامساً: خطوات حل المشكلة في Google Play Console
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">افتح صفحة "حالة التطبيق"</div>
+            <div class="step-text">من القائمة الجانبية: <code>السياسات والبرامج</code> ← <code>حالة التطبيق</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">اضغط "طلب مراجعة"</div>
+            <div class="step-text">ستجد الرابط في قسم "طريقة معالجة المشاكل" داخل صفحة تفاصيل المخالفة.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">اكتب رسالة الاستئناف</div>
+            <div class="step-text">اشرح أن التطبيق منصة مجتمعية أهلية مستقلة وغير تابعة لأي جهة حكومية، وأنك أضفت إخلاءات مسؤولية واضحة داخل التطبيق.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">حدّث وصف التطبيق في المتجر</div>
+            <div class="step-text"><code>لوحة المعلومات</code> ← <code>بطاقة بيانات المتجر</code> ← خانة <code>الوصف</code> — الصق الوصف الجديد أعلاه.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">ارفع نسخة AAB جديدة</div>
+            <div class="step-text">شغّل: <code>eas build --platform android --profile production</code> ثم ارفع الملف في <code>الإصدار والإصدار → إنشاء إصدار جديد</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">أرسل عبر "عرض الإرسال الإلكتروني"</div>
+            <div class="step-text">في أسفل صفحة المشكلة، اضغط على رابط "عرض الإرسال الإلكتروني" لإرسال طلب المراجعة رسمياً.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 6: Timeline -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-icon" style="background:#f3e5f5;">⏱️</div>
+        سادساً: الجدول الزمني المتوقع
+      </div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-left">
+            <div class="timeline-dot"></div>
+            <div class="timeline-line"></div>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-title">اليوم 1 — تطبيق التعديلات</div>
+            <div class="timeline-text">تعديلات الكود جاهزة ✅ — بناء AAB ورفعه + تحديث الوصف.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-left">
+            <div class="timeline-dot" style="background:#FFA000;border-color:#ffe082;"></div>
+            <div class="timeline-line"></div>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-title">اليوم 1–3 — إرسال طلب المراجعة</div>
+            <div class="timeline-text">إرسال رسالة الاستئناف لـ Google مع رفع الإصدار الجديد.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-left">
+            <div class="timeline-dot" style="background:#1565C0;border-color:#bbdefb;"></div>
+            <div class="timeline-line"></div>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-title">اليوم 3–7 — مراجعة Google</div>
+            <div class="timeline-text">تستغرق مراجعة Google عادةً من 3 إلى 7 أيام عمل.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-left">
+            <div class="timeline-dot"></div>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-title">اليوم 7+ — استعادة التطبيق</div>
+            <div class="timeline-text">بعد قبول المراجعة، يعود التطبيق للظهور في المتجر بشكل طبيعي.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Final -->
+    <div class="alert alert-info">
+      <div class="alert-icon">💡</div>
+      <div>
+        <div class="alert-title">نصيحة مهمة</div>
+        <div class="alert-text">إذا رفضت Google طلب المراجعة مرة أخرى، تواصل معهم عبر <strong>مركز دعم Google Play</strong> وأرفق لقطات شاشة تُظهر إخلاءات المسؤولية الجديدة داخل التطبيق. في حالات نادرة قد تحتاج إلى إزالة ميزة حجز المواعيد مع الجهات الحكومية كلياً.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">تم إعداد هذا التقرير في 6 أبريل 2026 | حصاحيصاوي v2.3.2</div>
+    <div class="footer-brand">حصاحيصاوي · منصتنا · مدينتنا</div>
+  </div>
+
+</div>
+
+</body>
+</html>
