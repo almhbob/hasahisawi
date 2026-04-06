@@ -191,6 +191,7 @@ export default function OrgJoinScreen() {
   const router = useRouter();
   const auth = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+  const commitmentSectionYRef = useRef<number>(9999);
 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -545,6 +546,15 @@ export default function OrgJoinScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 16 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={({ nativeEvent }) => {
+          if (step === 5 && !commitmentScrolled) {
+            const scrolledPast = nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height;
+            if (scrolledPast >= commitmentSectionYRef.current) {
+              setCommitmentScrolled(true);
+            }
+          }
+        }}
+        scrollEventThrottle={200}
       >
         {/* ══════════════════ STEP 1: بيانات المؤسسة ══════════════════ */}
         {step === 1 && (
@@ -1053,12 +1063,17 @@ export default function OrgJoinScreen() {
                 style={s.documentScroll}
                 contentContainerStyle={{ alignItems: "stretch" }}
                 nestedScrollEnabled
+                onContentSizeChange={(_, contentH) => {
+                  // إذا كان النص يتسع دون تمرير → نعتبره مقروءاً تلقائياً
+                  const maxH = 340;
+                  if (contentH <= maxH && !commitmentScrolled) setCommitmentScrolled(true);
+                }}
                 onScroll={({ nativeEvent }) => {
                   const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-                  const reached = layoutMeasurement.height + contentOffset.y >= contentSize.height - 30;
+                  const reached = layoutMeasurement.height + contentOffset.y >= contentSize.height - 80;
                   if (reached && !commitmentScrolled) setCommitmentScrolled(true);
                 }}
-                scrollEventThrottle={200}
+                scrollEventThrottle={100}
               >
                 <Text style={s.documentBody}>{COMMITMENT_TEXT}</Text>
                 <View style={{ height: 24 }} />
@@ -1066,7 +1081,10 @@ export default function OrgJoinScreen() {
             </View>
 
             {/* بيانات الممثل */}
-            <View style={s.signatureBox}>
+            <View
+              style={s.signatureBox}
+              onLayout={(e) => { commitmentSectionYRef.current = e.nativeEvent.layout.y; }}
+            >
               <Text style={s.signatureTitle}>بيانات الموقِّع</Text>
               {[
                 { k: "الاسم", v: repName },
