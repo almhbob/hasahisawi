@@ -17,6 +17,7 @@ import { uploadReportImage } from "@/lib/firebase/storage";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -244,6 +245,7 @@ export default function ReportsScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { isRTL, tr } = useLang();
   const auth = useAuth();
+  const { gov_reports_enabled } = useFeatureFlags();
 
   const [tab, setTab] = useState<Tab>("report");
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
@@ -567,8 +569,28 @@ export default function ReportsScreen() {
         </View>
       </LinearGradient>
 
+      {/* ════════ GOV REPORTS DISABLED ════════ */}
+      {!gov_reports_enabled && !auth.isGuest && (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#6B728018", borderWidth: 1, borderColor: "#6B728030", alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="time-outline" size={38} color="#6B7280" />
+          </View>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" }}>
+            الخدمة غير متاحة مؤقتاً
+          </Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 24 }}>
+            خدمة التبليغ عن المشاكل معلّقة مؤقتاً.{"\n"}نعتذر عن الإزعاج وسيعود التطبيق قريباً.
+          </Text>
+          <View style={{ backgroundColor: "#6B728012", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#6B728025", width: "100%" }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", textAlign: "center", lineHeight: 20 }}>
+              حصاحيصاوي منصة مجتمعية مستقلة غير تابعة لأي جهة حكومية
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* ════════ GUEST GATE ════════ */}
-      {auth.isGuest ? (
+      {auth.isGuest && gov_reports_enabled ? (
         <GuestGate
           title={tr("التبليغ السريع", "Quick Reporting")}
           preview={
@@ -600,7 +622,7 @@ export default function ReportsScreen() {
       ) : null}
 
       {/* ════════ TAB: REPORT ════════ */}
-      {!auth.isGuest && tab === "report" && (
+      {!auth.isGuest && gov_reports_enabled && tab === "report" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 16 }} showsVerticalScrollIndicator={false}>
 
           {/* Progress */}
@@ -961,7 +983,7 @@ export default function ReportsScreen() {
       )}
 
       {/* ════════ TAB: MY REPORTS ════════ */}
-      {!auth.isGuest && tab === "myReports" && (
+      {!auth.isGuest && gov_reports_enabled && tab === "myReports" && (
         <View style={{ flex: 1 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
             {([["all", "الكل"], ["pending", "مُرسَل"], ["received", "وصل"], ["inProgress", "جارٍ"], ["resolved", "تم الحل"]] as [ReportStatus | "all", string][]).map(([k, label]) => {
