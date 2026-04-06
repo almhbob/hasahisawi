@@ -1330,11 +1330,6 @@ export default function SettingsScreen() {
   useEffect(() => { if (activeTab === "users" && isAdmin) loadUsers(); }, [activeTab]);
   useEffect(() => { if (activeTab === "landmarks" && hasAccess) loadLandmarks(); }, [activeTab]);
 
-  const apiBase = () => {
-    const base = getApiUrl();
-    return (path: string) => new URL(path, base).toString();
-  };
-
   const handleLogin = async () => {
     setLoginError("");
     if (!loginEmail.trim()) {
@@ -1383,7 +1378,9 @@ export default function SettingsScreen() {
       return;
     }
     try {
-      const url = apiBase()("/api/admin/change-pin");
+      const base = getApiUrl();
+      if (!base) { setPinChangeError("الخادم غير متاح — تحقق من الإنترنت"); return; }
+      const url = `${base}/api/admin/change-pin`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -1392,17 +1389,17 @@ export default function SettingsScreen() {
         },
         body: JSON.stringify({ new_pin: newPinInput, current_pin: currentPinInput }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPinChangeError(json.error || "فشل تغيير رمز PIN");
+        setPinChangeError((json as any).error || "فشل تغيير رمز PIN");
         return;
       }
       await AsyncStorage.setItem(ADMIN_PIN_KEY, newPinInput);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPinChangeSuccess(true);
       setCurrentPinInput(""); setNewPinInput(""); setConfirmPinInput("");
-    } catch {
-      setPinChangeError("تعذّر الاتصال بالخادم");
+    } catch (e: any) {
+      setPinChangeError("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
     }
   };
 
