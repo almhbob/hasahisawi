@@ -231,6 +231,7 @@ export default function OrgJoinScreen() {
   const [repPhotoUri, setRepPhotoUri] = useState<string | null>(null);
   const [repPhotoUploading, setRepPhotoUploading] = useState(false);
   const [repPhotoUrl, setRepPhotoUrl] = useState<string | null>(null);
+  const [repPhotoUploadFailed, setRepPhotoUploadFailed] = useState(false);
 
   // جلب رقم واتساب العقود عند التحميل
   useEffect(() => {
@@ -271,14 +272,17 @@ export default function OrgJoinScreen() {
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
     setRepPhotoUri(uri);
+    setRepPhotoUrl(null);
+    setRepPhotoUploadFailed(false);
     if (auth.user) {
       setRepPhotoUploading(true);
       try {
         const name = `${Date.now()}_rep_id.jpg`;
         const url = await uploadFile(`institution_applications/${auth.user.id}/${name}`, uri);
         setRepPhotoUrl(url);
+        setRepPhotoUploadFailed(false);
       } catch {
-        Alert.alert("تحذير", "تعذّر رفع الصورة، يمكن الاستمرار وإرسالها لاحقاً");
+        setRepPhotoUploadFailed(true);
       } finally {
         setRepPhotoUploading(false);
       }
@@ -408,6 +412,20 @@ export default function OrgJoinScreen() {
       return Alert.alert("تنبيه", "يرجى قراءة العهد كاملاً قبل التوقيع");
     }
     setSubmitting(true);
+
+    // إعادة محاولة رفع صورة الهوية إذا فشلت سابقاً
+    let finalRepPhotoUrl = repPhotoUrl;
+    if (!finalRepPhotoUrl && repPhotoUri && auth.user) {
+      try {
+        const name = `${Date.now()}_rep_id.jpg`;
+        finalRepPhotoUrl = await uploadFile(`institution_applications/${auth.user.id}/${name}`, repPhotoUri);
+        setRepPhotoUrl(finalRepPhotoUrl);
+        setRepPhotoUploadFailed(false);
+      } catch {
+        // نستمر بدون صورة — يمكن للإدارة طلبها لاحقاً
+      }
+    }
+
     try {
       const base = getApiUrl().replace(/\/$/, "");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -435,7 +453,7 @@ export default function OrgJoinScreen() {
           rep_national_id: repNationalId.trim(),
           rep_phone: repPhone.trim(),
           rep_email: repEmail.trim() || undefined,
-          rep_photo_url: repPhotoUrl || undefined,
+          rep_photo_url: finalRepPhotoUrl || undefined,
         }),
       });
 
@@ -737,7 +755,7 @@ export default function OrgJoinScreen() {
                 صورة هوية الممثل الرسمي <Text style={{ color: Colors.danger }}>*</Text>
               </Text>
               <TouchableOpacity
-                style={[s.photoPicker, repPhotoUri && s.photoPickerDone]}
+                style={[s.photoPicker, repPhotoUri && (repPhotoUploadFailed ? s.photoPickerFailed : s.photoPickerDone)]}
                 onPress={pickRepPhoto}
                 disabled={repPhotoUploading}
                 activeOpacity={0.8}
@@ -749,11 +767,17 @@ export default function OrgJoinScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         {repPhotoUploading ? (
                           <ActivityIndicator size="small" color={Colors.primary} />
+                        ) : repPhotoUploadFailed ? (
+                          <Ionicons name="alert-circle" size={18} color={Colors.danger} />
                         ) : (
                           <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
                         )}
-                        <Text style={s.photoPickerDoneText}>
-                          {repPhotoUploading ? "جارٍ الرفع..." : "تم رفع الصورة"}
+                        <Text style={[s.photoPickerDoneText, repPhotoUploadFailed && { color: Colors.danger }]}>
+                          {repPhotoUploading
+                            ? "جارٍ الرفع..."
+                            : repPhotoUploadFailed
+                            ? "لم يُرفع بعد — سيُرسل مع الطلب"
+                            : "✓ تم رفع الصورة"}
                         </Text>
                       </View>
                       <Text style={s.photoPickerChange}>اضغط لتغيير الصورة</Text>
@@ -1179,7 +1203,7 @@ export default function OrgJoinScreen() {
                   { k: "الصفة",              v: repTitle },
                   { k: "الخدمات المحددة",    v: `${selectedServices.length} خدمة` },
                   { k: "تاريخ التقديم",      v: new Date().toLocaleDateString("ar-SD") },
-                  { k: "صورة الهوية",        v: repPhotoUrl ? "مرفقة ✓" : "غير مرفقة" },
+                  { k: "صورة الهوية",        v: repPhotoUrl ? "مرفقة ✓" : repPhotoUri ? "محفوظة (سترفع مع الطلب)" : "غير مرفقة" },
                   { k: "إصدار العهد",        v: COMMITMENT_VERSION },
                 ].map(r => (
                   <View key={r.k} style={s.sigRow}>
@@ -1382,6 +1406,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.cardBg, overflow: "hidden",
   },
   photoPickerDone: { borderColor: Colors.primary, borderStyle: "solid" },
+  photoPickerFailed: { borderColor: Colors.danger, borderStyle: "solid" },
   photoPickerEmpty: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
   photoPickerIcon: {
     width: 52, height: 52, borderRadius: 12, backgroundColor: Colors.bg,
