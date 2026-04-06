@@ -626,7 +626,7 @@ export default function AdminDashboard() {
           transport_phone: transportPhone,
         }),
       });
-      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات خدمة الترحال");
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات خدمة مشوارك علينا");
       else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setSavingTransportSettings(false); }
@@ -1393,7 +1393,7 @@ export default function AdminDashboard() {
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
-    { key: "transport",        label: "ترحال والتوصيل",   icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
+    { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
@@ -3300,7 +3300,7 @@ export default function AdminDashboard() {
         </ScrollView>
       )}
 
-      {/* ══ ترحال والتوصيل — لوحة الإشراف ══ */}
+      {/* ══ مشوارك علينا — لوحة الإشراف ══ */}
       {tab === "transport" && isAdmin && (() => {
         const TRANSPORT_ZONE_NAMES = ["قلب المدينة", "الأحياء الوسطى", "أطراف المدينة", "المناطق الفرعية", "القرى المحيطة"];
         const ZONE_COLORS = ["#F97316", "#3E9CBF", "#A855F7", "#3EFF9C", "#FBBF24"];
@@ -3821,7 +3821,7 @@ export default function AdminDashboard() {
                   <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
                     <Ionicons name="settings-outline" size={20} color="#F97316" />
                   </View>
-                  <Text style={s.cardTitle}>إعدادات خدمة الترحال والتوصيل</Text>
+                  <Text style={s.cardTitle}>إعدادات خدمة مشوارك علينا</Text>
                 </View>
 
                 <Text style={[s.fieldLabel, { marginBottom: 10 }]}>حالة الخدمة</Text>

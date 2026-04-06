@@ -36,7 +36,7 @@ type QuizQuestion = {
 
 const DRIVER_QUIZ: QuizQuestion[] = [
   {
-    q: "كم عدد مناطق التغطية في خدمة ترحال والتوصيل؟",
+    q: "كم عدد مناطق التغطية في خدمة مشوارك علينا؟",
     options: ["٣ مناطق", "٥ مناطق", "٧ مناطق", "١٠ مناطق"],
     correct: 1,
     hint: "الخدمة تغطي الحصاحيصا بخمس مناطق (م١ – م٥) تمتد من وسط المدينة حتى الأطراف.",
@@ -214,7 +214,7 @@ function ComingSoonScreen({ note }: { note?: string }) {
           </Animated.View>
 
           <Animated.Text entering={FadeInDown.delay(280).springify()} style={cs.heroTitle}>
-            ترحال والتوصيل{"\n"}مشاويرك علينا
+            مشوارك علينا{"\n"}مشاويرك علينا
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
             منصة ربط بين السكان وأصحاب السيارات والركشات{"\n"}لتسهيل التنقل وتوصيل الطلبات داخل الحصاحيصا
@@ -739,7 +739,7 @@ export default function TransportScreen() {
             <MaterialCommunityIcons name="car-side" size={22} color={ACCENT} />
           </View>
           <View style={{ flex: 1, marginRight: 10 }}>
-            <Text style={s.headerTitle}>ترحال والتوصيل</Text>
+            <Text style={s.headerTitle}>مشوارك علينا</Text>
             <Text style={s.headerSub}>مشاويرك علينا · ٥ مناطق تغطية</Text>
           </View>
           <View style={s.liveBadge}>
@@ -1312,7 +1312,7 @@ export default function TransportScreen() {
                         <Text style={s.formCardTitle}>التسجيل كسائق</Text>
                       </View>
                       <Text style={s.formCardSub}>
-                        انضم إلى أسطول ترحال والتوصيل وابدأ رحلتك المهنية في الحصاحيصا.
+                        انضم إلى أسطول مشوارك علينا وابدأ رحلتك المهنية في الحصاحيصا.
                         سيراجع الفريق طلبك خلال ٢٤–٤٨ ساعة.
                       </Text>
 
@@ -1381,7 +1381,7 @@ export default function TransportScreen() {
               <LinearGradient colors={["#7C0A0A25", "#DC262610"]} style={lm.headerGrad}>
                 <MaterialCommunityIcons name="shield-alert" size={32} color="#DC2626" />
                 <View style={{ flex: 1 }}>
-                  <Text style={lm.headerTitle}>شروط استخدام خدمة الترحال</Text>
+                  <Text style={lm.headerTitle}>شروط استخدام خدمة مشوارك علينا</Text>
                   <Text style={lm.headerSub}>يُعدّ قبولك للطلب موافقةً على هذه الشروط</Text>
                 </View>
               </LinearGradient>
