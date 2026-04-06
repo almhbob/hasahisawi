@@ -27,7 +27,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import UserAvatar from "@/components/UserAvatar";
-import { uploadAvatar } from "@/lib/firebase/storage";
+import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
 
 const DEFAULT_ADMIN_PIN = "4444";
@@ -1239,6 +1239,7 @@ export default function SettingsScreen() {
   const [lmSub, setLmSub] = useState("");
   const [lmImageUrl, setLmImageUrl] = useState("");
   const [lmAdding, setLmAdding] = useState(false);
+  const [lmImgUploading, setLmImgUploading] = useState(false);
 
   const checkAdmin = async () => {
     if (hasAccess) loadAll();
@@ -1280,9 +1281,25 @@ export default function SettingsScreen() {
     } catch {}
   };
 
+  const pickLandmarkImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setLmImgUploading(true);
+    try {
+      const uploadedUrl = await uploadLandmarkImage(uri);
+      setLmImageUrl(uploadedUrl);
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة، تأكد من اتصالك بالإنترنت"); }
+    finally { setLmImgUploading(false); }
+  };
+
   const addLandmark = async () => {
     if (!lmName.trim() || !lmImageUrl.trim()) {
-      Alert.alert("تنبيه", "الاسم ورابط الصورة مطلوبان");
+      Alert.alert("تنبيه", "الاسم والصورة مطلوبان");
       return;
     }
     setLmAdding(true);
@@ -2457,32 +2474,43 @@ export default function SettingsScreen() {
                     textAlign="right"
                   />
 
-                  <Text style={ms.lmFieldLabel}>رابط الصورة *</Text>
-                  <TextInput
-                    style={[ms.lmInput, { height: 54 }]}
-                    placeholder="https://... أو local:ferris-wheel"
-                    placeholderTextColor={Colors.textMuted}
-                    value={lmImageUrl}
-                    onChangeText={setLmImageUrl}
-                    textAlign="right"
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                  <Text style={ms.lmHint}>
-                    للصور المحلية: local:ferris-wheel · local:hasahisa-city
-                  </Text>
+                  <Text style={ms.lmFieldLabel}>صورة المعلم *</Text>
+                  {/* معاينة الصورة */}
+                  {lmImageUrl ? (
+                    <Image
+                      source={{ uri: lmImageUrl }}
+                      style={{ width: "100%", height: 160, borderRadius: 12, marginBottom: 10, backgroundColor: Colors.bg }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ width: "100%", height: 130, borderRadius: 12, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider, borderStyle: "dashed", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                      <Ionicons name="camera-outline" size={32} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6 }}>اضغط لاختيار صورة</Text>
+                    </View>
+                  )}
+                  {/* زر الرفع */}
+                  <TouchableOpacity
+                    onPress={pickLandmarkImage}
+                    disabled={lmImgUploading}
+                    style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "60", backgroundColor: Colors.primary + "12", marginBottom: 14, opacity: lmImgUploading ? 0.6 : 1 }}
+                  >
+                    {lmImgUploading
+                      ? <><ActivityIndicator size="small" color={Colors.primary} /><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary }}>جارٍ الرفع...</Text></>
+                      : <><Ionicons name="cloud-upload-outline" size={18} color={Colors.primary} /><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary }}>{lmImageUrl ? "تغيير الصورة" : "رفع صورة من الهاتف"}</Text></>
+                    }
+                  </TouchableOpacity>
 
-                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 12 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 4 }}>
                     <TouchableOpacity
-                      style={[ms.lmSaveBtn, { opacity: lmAdding ? 0.6 : 1 }]}
+                      style={[ms.lmSaveBtn, { opacity: (lmAdding || lmImgUploading) ? 0.6 : 1 }]}
                       onPress={addLandmark}
-                      disabled={lmAdding}
+                      disabled={lmAdding || lmImgUploading}
                     >
                       <Text style={ms.lmSaveBtnText}>{lmAdding ? "جارٍ الإضافة..." : "إضافة"}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={ms.lmCancelBtn}
-                      onPress={() => setShowAddLandmark(false)}
+                      onPress={() => { setShowAddLandmark(false); setLmImageUrl(""); setLmName(""); setLmSub(""); }}
                     >
                       <Text style={ms.lmCancelBtnText}>إلغاء</Text>
                     </TouchableOpacity>
