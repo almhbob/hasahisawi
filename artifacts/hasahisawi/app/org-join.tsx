@@ -1051,6 +1051,7 @@ export default function OrgJoinScreen() {
 
               <ScrollView
                 style={s.documentScroll}
+                contentContainerStyle={{ alignItems: "stretch" }}
                 nestedScrollEnabled
                 onScroll={({ nativeEvent }) => {
                   const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
@@ -1392,7 +1393,7 @@ const s = StyleSheet.create({
   documentScroll: { maxHeight: 340, width: "100%" },
   documentBody: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary,
-    textAlign: "right", lineHeight: 26, direction: "rtl",
+    textAlign: "right", lineHeight: 26, writingDirection: "rtl", width: "100%",
   },
   documentFooter: {
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
