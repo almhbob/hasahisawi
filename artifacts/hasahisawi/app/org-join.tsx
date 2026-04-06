@@ -197,6 +197,7 @@ export default function OrgJoinScreen() {
   const [appId, setAppId] = useState<number | null>(null);
   const [appStatus, setAppStatus] = useState<string>("pending");
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [contractAgreed, setContractAgreed] = useState(false);
   const [commitmentScrolled, setCommitmentScrolled] = useState(false);
   const [serviceCatFilter, setServiceCatFilter] = useState("الكل");
 
@@ -394,6 +395,11 @@ export default function OrgJoinScreen() {
       if (!repPhone.trim()) return Alert.alert("تنبيه", "يرجى إدخال رقم هاتف الممثل");
       if (!repPhotoUri && !repPhotoUrl) {
         return Alert.alert("تنبيه", "يرجى إرفاق صورة هوية الممثل الرسمي");
+      }
+    }
+    if (step === 4) {
+      if (!contractAgreed) {
+        return Alert.alert("تنبيه", "يرجى تأكيد قراءتك والموافقة على بنود العقد أولاً");
       }
     }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -960,13 +966,47 @@ export default function OrgJoinScreen() {
               </Text>
             </View>
 
-            {/* تنبيه */}
+            {/* تنبيه PDF */}
             <View style={s.warningBox}>
               <MaterialCommunityIcons name="download-circle-outline" size={20} color={Colors.accent} />
               <Text style={s.warningText}>
                 بعد الموافقة على طلبك ستتمكن من تحميل هذا العقد بصيغة PDF لملئه وتوقيعه ورفعه أو إرساله عبر الواتساب للإدارة.
               </Text>
             </View>
+
+            {/* مربع الموافقة */}
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.selectionAsync();
+                setContractAgreed(v => !v);
+              }}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 14,
+                backgroundColor: contractAgreed ? Colors.primary + "15" : Colors.cardBg,
+                borderRadius: 14, borderWidth: 1.5,
+                borderColor: contractAgreed ? Colors.primary + "60" : Colors.divider,
+                padding: 16,
+              }}
+            >
+              <View style={{
+                width: 26, height: 26, borderRadius: 8, borderWidth: 2,
+                borderColor: contractAgreed ? Colors.primary : Colors.textMuted,
+                backgroundColor: contractAgreed ? Colors.primary : "transparent",
+                alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {contractAgreed && (
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                )}
+              </View>
+              <Text style={{
+                flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14,
+                color: contractAgreed ? Colors.primary : Colors.textSecondary,
+                lineHeight: 22, textAlign: "right",
+              }}>
+                قرأت عقد انضمام المؤسسة وأوافق على جميع بنوده وشروطه
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
