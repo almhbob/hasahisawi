@@ -400,6 +400,11 @@ export default function AppointmentsScreen() {
                 </LinearGradient>
               </AnimatedPress>
 
+              <View style={[s.infoBox, { backgroundColor: "#6B728012", borderColor: "#6B728030" }]}>
+                <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
+                <Text style={[s.infoText, { color: "#6B7280" }]}>حصاحيصاوي منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية. البيانات للإرشاد فقط.</Text>
+              </View>
+
               <View style={s.infoBox}>
                 <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
                 <Text style={s.infoText}>بعد الحجز ستتلقى تأكيداً هاتفياً من الجهة خلال ٢٤ ساعة</Text>

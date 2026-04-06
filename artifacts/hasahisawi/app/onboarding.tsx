@@ -67,6 +67,15 @@ const SLIDES: Slide[] = [
     title: "صوتك يُغيّر المدينة",
     subtitle: "بلّغ عن مشاكل الكهرباء والمياه والطرق، وقدّم مقترحاتك لتطوير مدينتك",
   },
+  {
+    id: "disclaimer",
+    icon: "information-circle",
+    iconLib: "ionicons",
+    color: "#6B7280",
+    bg: "#6B728018",
+    title: "منصة مجتمعية مستقلة",
+    subtitle: "حصاحيصاوي منصة أهلية مستقلة من أبناء المدينة، وليست تابعة لأي جهة حكومية أو رسمية. المعلومات المتوفرة للإرشاد فقط.",
+  },
 ];
 
 export default function OnboardingScreen() {

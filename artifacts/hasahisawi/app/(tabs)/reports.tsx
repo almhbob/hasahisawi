@@ -536,7 +536,7 @@ export default function ReportsScreen() {
           </LinearGradient>
           <View style={{ flex: 1, marginHorizontal: 12 }}>
             <Text style={s.headerTitle}>التبليغ السريع</Text>
-            <Text style={s.headerSub}>اربط مشكلتك بالجهة المختصة</Text>
+            <Text style={s.headerSub}>منصة مجتمعية مستقلة · غير تابعة لأي جهة حكومية</Text>
           </View>
           {step !== "agency" && tab === "report" && (
             <TouchableOpacity onPress={resetForm} style={s.resetBtn}>

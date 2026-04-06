@@ -553,6 +553,12 @@ export default function OrgJoinScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 10, backgroundColor: "#6B728012", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#6B728025" }}>
+                <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginTop: 2 }} />
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", flex: 1, lineHeight: 20 }}>
+                  حصاحيصاوي منصة مجتمعية أهلية مستقلة، وغير تابعة لأي جهة حكومية. انضمام الجهات الحكومية لأغراض التواصل المجتمعي فقط.
+                </Text>
+              </View>
             </View>
 
             {/* تصنيف المؤسسة */}
