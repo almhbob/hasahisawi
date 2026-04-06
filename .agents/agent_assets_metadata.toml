@@ -215,3 +215,9 @@ id = "HqGqSNj01KuTpYEjFyRmx"
 uri = "file://screenshots/booklet/hasahisawi-booklet.pdf"
 type = "pdf"
 title = "حصاحيصاوي — كتيب الخدمات (PDF)"
+
+[[outputs]]
+id = "fnRqVHPuGuRlluQYmwl_z"
+uri = "file://screenshots/booklet/hasahisawi-booklet-detailed.pdf"
+type = "pdf"
+title = "حصاحيصاوي — كتيب الشرح المفصّل للخدمات (PDF)"
