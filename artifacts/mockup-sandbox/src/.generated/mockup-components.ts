@@ -11,6 +11,8 @@ export const modules: ModuleMap = {
   "./components/mockups/promotional-ad.tsx": () => import("../components/mockups/promotional-ad.tsx"),
   "./components/mockups/status-poster.tsx": () => import("../components/mockups/status-poster.tsx"),
   "./components/mockups/update-post-4k.tsx": () => import("../components/mockups/update-post-4k.tsx"),
+  "./components/mockups/update-post-v2-4k.tsx": () => import("../components/mockups/update-post-v2-4k.tsx"),
+  "./components/mockups/update-post-v2.tsx": () => import("../components/mockups/update-post-v2.tsx"),
   "./components/mockups/update-post.tsx": () => import("../components/mockups/update-post.tsx"),
   "./components/mockups/whatsapp-status.tsx": () => import("../components/mockups/whatsapp-status.tsx")
 };

@@ -155,3 +155,9 @@ id = "FSKveVS9_ZFlnT6O0FBkh"
 uri = "file://screenshots/update-post.jpg"
 type = "image"
 title = "بوست التحديث — حصاحيصاوي 2.3.2"
+
+[[outputs]]
+id = "4JQcASuF7ZNWmcXdN2K-o"
+uri = "file://screenshots/update-post-v2.jpg"
+type = "image"
+title = "بوست التحديث — تصميم عصري"
