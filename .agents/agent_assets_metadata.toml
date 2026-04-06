@@ -143,3 +143,9 @@ id = "LzlNcMgxwYjDdi_xhO73A"
 uri = "file://screenshots/hasahisawi-poster.jpg"
 type = "image"
 title = "بوستر حصاحيصاوي"
+
+[[outputs]]
+id = "s5_GOyq8BlrJxbaHES5ZR"
+uri = "file://screenshots/hasahisawi-poster-4k.jpg"
+type = "image"
+title = "بوستر حصاحيصاوي — جودة عالية"
