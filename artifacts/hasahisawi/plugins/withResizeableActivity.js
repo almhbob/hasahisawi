@@ -3,9 +3,11 @@ const { withAndroidManifest } = require("@expo/config-plugins");
 /**
  * Plugin: withResizeableActivity
  *
- * Adds android:resizeableActivity="true" to the main activity in AndroidManifest.xml.
- * This fixes Google Play's large-screen compatibility warning (foldables, tablets).
- * Required for Android 15+ policy compliance.
+ * 1. Adds android:resizeableActivity="true" — required for foldable/large-screen compat.
+ * 2. Changes android:screenOrientation to "fullUser" — required for Android 16 large-screen
+ *    policy (Google Play). "fullUser" respects the device's auto-rotation setting instead
+ *    of hard-locking to portrait, satisfying the policy without forcing landscape on phones.
+ * 3. Adds configChanges to handle screen size/layout changes gracefully.
  */
 module.exports = function withResizeableActivity(config) {
   return withAndroidManifest(config, (cfg) => {
@@ -19,9 +21,12 @@ module.exports = function withResizeableActivity(config) {
 
     if (activity) {
       activity.$["android:resizeableActivity"] = "true";
-      activity.$["android:configChanges"] =
-        (activity.$["android:configChanges"] || "") +
-        "|screenLayout|screenSize|smallestScreenSize";
+      activity.$["android:screenOrientation"] = "fullUser";
+      const existing = activity.$["android:configChanges"] || "";
+      const additions = ["screenLayout", "screenSize", "smallestScreenSize"];
+      const parts = existing ? existing.split("|") : [];
+      additions.forEach((a) => { if (!parts.includes(a)) parts.push(a); });
+      activity.$["android:configChanges"] = parts.join("|");
     }
 
     return cfg;

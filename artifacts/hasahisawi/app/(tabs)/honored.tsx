@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, Image, Modal,
-  Dimensions, Platform, StatusBar,
+  Dimensions, Platform,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import Animated, {
   FadeIn, FadeInDown, FadeInUp, ZoomIn,
   useSharedValue, useAnimatedStyle,
@@ -120,7 +121,7 @@ function DetailModal({ figure, onClose }: { figure: Figure; onClose: () => void 
 
   return (
     <Modal animationType="slide" transparent={false} visible onRequestClose={onClose}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <View style={[dm.root, { paddingTop: insets.top }]}>
         {/* الرأس */}
         <LinearGradient colors={["#050E04", "#0A1A0A"]} style={dm.header}>
