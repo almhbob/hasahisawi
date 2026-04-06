@@ -3,8 +3,7 @@ import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
 
 type AppVersion = {
-  version: string; build_number: string; update_url?: string;
-  change_log?: string; is_mandatory?: boolean;
+  version: number; notes: string; force: boolean;
 };
 
 type AiConfig = {
@@ -19,7 +18,7 @@ type FeatureFlags = {
 };
 
 export default function Settings() {
-  const [version,  setVersion]  = useState<AppVersion>({ version: "", build_number: "" });
+  const [version,  setVersion]  = useState<AppVersion>({ version: 1, notes: "", force: false });
   const [aiConfig, setAiConfig] = useState<AiConfig>({ enabled: false });
   const [flags,    setFlags]    = useState<FeatureFlags>({ gov_services_enabled: true, gov_appointments_enabled: true, gov_reports_enabled: true });
   const [loading,  setLoading]  = useState(true);
@@ -105,33 +104,41 @@ export default function Settings() {
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                {[
-                  { label: "رقم الإصدار", key: "version", placeholder: "1.0.0" },
-                  { label: "رقم البناء", key: "build_number", placeholder: "100" },
-                  { label: "رابط التحديث", key: "update_url", placeholder: "https://..." },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>{f.label}</label>
-                    <input type="text" value={(version as any)[f.key] ?? ""} placeholder={f.placeholder}
-                      onChange={e => setVersion(prev => ({ ...prev, [f.key]: e.target.value }))}
-                      className="input-field" />
+                {/* رقم الإصدار */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>رقم الإصدار</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button onClick={() => setVersion(v => ({ ...v, version: Math.max(1, v.version - 1) }))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid hsl(217 32% 20%)", background: "hsl(222 47% 13%)", color: "hsl(210 40% 70%)", fontSize: 18, cursor: "pointer" }}>−</button>
+                    <div style={{ flex: 1, textAlign: "center", fontWeight: 700, fontSize: 22, color: "hsl(217 91% 60%)" }}>{version.version}</div>
+                    <button onClick={() => setVersion(v => ({ ...v, version: v.version + 1 }))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid hsl(217 91% 60% / 0.4)", background: "hsl(217 91% 60% / 0.12)", color: "hsl(217 91% 60%)", fontSize: 18, cursor: "pointer" }}>+</button>
                   </div>
-                ))}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "hsl(210 40% 80%)" }}>تحديث إجباري</label>
-                  <input type="checkbox" checked={version.is_mandatory ?? false}
-                    onChange={e => setVersion(prev => ({ ...prev, is_mandatory: e.target.checked }))}
-                    style={{ width: 18, height: 18, cursor: "pointer" }} />
+                  <p style={{ fontSize: 11, color: "hsl(215 20% 45%)", margin: "6px 0 0" }}>الإصدار الحالي في التطبيق: 1</p>
                 </div>
+                {/* تحديث إجباري */}
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)" }}>تحديث إجباري</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input type="checkbox" checked={version.force}
+                      onChange={e => setVersion(prev => ({ ...prev, force: e.target.checked }))}
+                      style={{ width: 18, height: 18, cursor: "pointer" }} />
+                    <span style={{ fontSize: 13, color: version.force ? "hsl(0 72% 65%)" : "hsl(215 20% 60%)" }}>
+                      {version.force ? "إجباري — المستخدم لا يستطيع تجاهله" : "اختياري — يمكن تجاهله"}
+                    </span>
+                  </label>
+                </div>
+                {/* ملاحظات التحديث */}
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>سجل التغييرات</label>
-                  <textarea value={version.change_log ?? ""} rows={3}
-                    onChange={e => setVersion(prev => ({ ...prev, change_log: e.target.value }))}
-                    className="input-field" style={{ resize: "none" }} placeholder="ما الجديد في هذا الإصدار..." />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>ملاحظات التحديث</label>
+                  <textarea value={version.notes} rows={3}
+                    onChange={e => setVersion(prev => ({ ...prev, notes: e.target.value }))}
+                    className="input-field" style={{ resize: "none" }} placeholder="اكتب مزايا الإصدار الجديد (سطر لكل ميزة)..." />
+                  <p style={{ fontSize: 11, color: "hsl(215 20% 45%)", margin: "4px 0 0" }}>كل سطر يظهر كنقطة منفصلة في إشعار التحديث</p>
                 </div>
               </div>
               <button className="btn-primary" onClick={saveVersion} disabled={saving === "version"} style={{ marginTop: 16 }}>
-                {saving === "version" ? "جارٍ الحفظ..." : "💾 حفظ إعدادات الإصدار"}
+                {saving === "version" ? "جارٍ النشر..." : "🚀 نشر التحديث"}
               </button>
             </div>
 

@@ -3892,6 +3892,15 @@ export default function AdminDashboard() {
       {/* ══ التحديثات ══ */}
       {tab === "updates" && isAdmin && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* تحذير إذا لم يكن هناك توكن للخادم */}
+          {!token && (
+            <View style={{ backgroundColor: "#FFF3CD", borderRadius: 12, padding: 14, marginBottom: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#F0A500" }}>
+              <Ionicons name="warning-outline" size={20} color="#F0A500" />
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#856404", flex: 1, textAlign: "right" }}>
+                {"جلسة الخادم غير نشطة — أغلق التطبيق وسجّل الدخول مجدداً لتفعيل نشر التحديثات"}
+              </Text>
+            </View>
+          )}
           {loadingUpdates ? (
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
           ) : (
@@ -3971,6 +3980,10 @@ export default function AdminDashboard() {
                   style={{ marginTop: 18, borderRadius: 14, overflow: "hidden", opacity: savingUpdates ? 0.7 : 1 }}
                   disabled={savingUpdates}
                   onPress={async () => {
+                    if (!token) {
+                      Alert.alert("خطأ", "لم يتم تسجيل الدخول بعد — أغلق التطبيق وأعد فتحه، ثم سجّل الدخول مجدداً");
+                      return;
+                    }
                     setSavingUpdates(true);
                     try {
                       const res = await apiFetch("/api/admin/app/version", token, {
@@ -3980,10 +3993,11 @@ export default function AdminDashboard() {
                       if (res.ok) {
                         Alert.alert("تم", `تم نشر الإصدار ${appVersion} بنجاح — سيرى المستخدمون الإشعار تلقائياً`);
                       } else {
-                        Alert.alert("خطأ", "تعذّر حفظ الإصدار");
+                        const errText = await res.text().catch(() => "");
+                        Alert.alert("خطأ", `تعذّر حفظ الإصدار (${res.status})${errText ? `: ${errText}` : ""}`);
                       }
-                    } catch {
-                      Alert.alert("خطأ", "تعذّر الاتصال");
+                    } catch (e: any) {
+                      Alert.alert("خطأ", `تعذّر الاتصال: ${e?.message ?? "خطأ غير معروف"}`);
                     } finally {
                       setSavingUpdates(false);
                     }
