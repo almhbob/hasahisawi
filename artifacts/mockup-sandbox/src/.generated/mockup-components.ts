@@ -5,6 +5,7 @@ export const modules: ModuleMap = {
   "./components/mockups/dev-bio.tsx": () => import("../components/mockups/dev-bio.tsx"),
   "./components/mockups/facebook-poster.tsx": () => import("../components/mockups/facebook-poster.tsx"),
   "./components/mockups/google-play-scene.tsx": () => import("../components/mockups/google-play-scene.tsx"),
+  "./components/mockups/hasahisawi-poster.tsx": () => import("../components/mockups/hasahisawi-poster.tsx"),
   "./components/mockups/hasahisawi-video.tsx": () => import("../components/mockups/hasahisawi-video.tsx"),
   "./components/mockups/promotional-ad.tsx": () => import("../components/mockups/promotional-ad.tsx"),
   "./components/mockups/status-poster.tsx": () => import("../components/mockups/status-poster.tsx"),
