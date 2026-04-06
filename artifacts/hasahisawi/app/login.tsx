@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
-  KeyboardAvoidingView, Pressable, Dimensions, Modal, FlatList, Alert,
+  KeyboardAvoidingView, Pressable, Dimensions, Alert,
 } from "react-native";
 import Animated, {
   FadeIn, FadeInDown, FadeInUp,
@@ -16,7 +16,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import { HASAHISA_LOCATIONS } from "@/constants/neighborhoods";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -46,10 +45,8 @@ export default function LoginScreen() {
   const [birthDay, setBirthDay]       = useState("");
   const [birthMonth, setBirthMonth]   = useState("");
   const [birthYear, setBirthYear]     = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [showNbrModal, setShowNbrModal] = useState(false);
-  const [nbrSearch, setNbrSearch]     = useState("");
-  const [customNbr, setCustomNbr]     = useState("");
+  const [villageName, setVillageName]   = useState("");
+  const [nbrName, setNbrName]           = useState("");
   const [gender, setGender]           = useState<"male" | "female" | "">(""); 
   const [feedback, setFeedback]       = useState("");
   const [bioLabel, setBioLabel]       = useState("البصمة");
@@ -78,7 +75,7 @@ export default function LoginScreen() {
     setPassword(""); setConfirmPwd(""); setError("");
     setShowPwd(false); setUseEmail(false);
     setBirthDay(""); setBirthMonth(""); setBirthYear("");
-    setNeighborhood(""); setNbrSearch(""); setCustomNbr("");
+    setVillageName(""); setNbrName("");
     setGender("");
     setFeedback("");
   };
@@ -91,9 +88,14 @@ export default function LoginScreen() {
     return undefined;
   };
 
-  const filteredLocations = HASAHISA_LOCATIONS.filter(l =>
-    l.label.includes(nbrSearch) || nbrSearch === ""
-  );
+  const buildNeighborhood = () => {
+    const v = villageName.trim();
+    const n = nbrName.trim();
+    if (v && n) return `قرية ${v} - حي ${n}`;
+    if (v) return `قرية ${v}`;
+    if (n) return `حي ${n}`;
+    return undefined;
+  };
 
   const switchMode = (m: Mode) => { reset(); setMode(m); };
 
@@ -135,7 +137,7 @@ export default function LoginScreen() {
       } else {
         const isEmail = useEmail || identifier.includes("@");
         const nid = nationalId.trim().replace(/\s+/g, "");
-        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), neighborhood || undefined, gender || undefined);
+        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
         promptEnableBiometrics(id);
         // إرسال الاقتراح/المشكلة إذا وُجدت
         if (feedback.trim()) {
@@ -496,27 +498,48 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* الحي / القرية */}
+          {/* القرية والحي */}
           {mode === "register" && (
             <View style={s2.fieldWrap}>
               <View style={s2.fieldHeader}>
                 <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>الحي أو القرية</Text>
+                <Text style={s2.fieldLabel}>القرية والحي</Text>
                 <Text style={s2.optional}>(اختياري)</Text>
               </View>
-              <Pressable style={s2.pickerBtn} onPress={() => setShowNbrModal(true)}>
-                <Ionicons
-                  name="chevron-down"
-                  size={16}
-                  color={neighborhood ? Colors.primary : Colors.textMuted}
-                />
-                <Text style={neighborhood ? s2.pickerVal : s2.pickerPlaceholder}>
-                  {neighborhood || "اختر من أحياء وقرى الحصاحيصا"}
-                </Text>
-                {neighborhood && (
-                  <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
-                )}
-              </Pressable>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center",
+                  backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
+                  borderColor: Colors.divider, paddingHorizontal: 10, height: 44 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13,
+                    color: Colors.textMuted, marginLeft: 6, writingDirection: "rtl" }}>قرية</Text>
+                  <TextInput
+                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
+                      color: Colors.textPrimary, textAlign: "right" }}
+                    placeholder="اسم القرية"
+                    placeholderTextColor={Colors.textMuted}
+                    value={villageName}
+                    onChangeText={t => setVillageName(t.slice(0, 20))}
+                    maxLength={20}
+                    textAlign="right"
+                  />
+                </View>
+                <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center",
+                  backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
+                  borderColor: Colors.divider, paddingHorizontal: 10, height: 44 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13,
+                    color: Colors.textMuted, marginLeft: 6, writingDirection: "rtl" }}>حي</Text>
+                  <TextInput
+                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
+                      color: Colors.textPrimary, textAlign: "right" }}
+                    placeholder="اسم الحي"
+                    placeholderTextColor={Colors.textMuted}
+                    value={nbrName}
+                    onChangeText={t => setNbrName(t.slice(0, 20))}
+                    maxLength={20}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
             </View>
           )}
 
@@ -653,81 +676,6 @@ export default function LoginScreen() {
         </ScrollView>
       </Animated.View>
 
-      {/* مودال الحي / القرية */}
-      <Modal visible={showNbrModal} animationType="slide" transparent onRequestClose={() => setShowNbrModal(false)}>
-        <Pressable style={s2.modalOverlay} onPress={() => setShowNbrModal(false)}>
-          <Pressable style={[s2.modalSheet, { paddingBottom: insets.bottom + 12 }]} onPress={e => e.stopPropagation()}>
-            <View style={s2.modalHandle} />
-            <Text style={s2.modalTitle}>اختر الحي أو القرية</Text>
-            <View style={s2.searchWrap}>
-              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-              <TextInput
-                style={s2.searchInput}
-                placeholder="ابحث..."
-                placeholderTextColor={Colors.textMuted}
-                value={nbrSearch}
-                onChangeText={setNbrSearch}
-              />
-            </View>
-            <FlatList
-              data={filteredLocations}
-              keyExtractor={i => i.label}
-              style={{ maxHeight: 340 }}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[s2.nbrRow, neighborhood === item.label && s2.nbrRowActive]}
-                  onPress={() => { setNeighborhood(item.label); setShowNbrModal(false); setNbrSearch(""); setCustomNbr(""); }}
-                >
-                  <Ionicons
-                    name={item.type === "neighborhood" ? "home-outline" : "leaf-outline"}
-                    size={16}
-                    color={neighborhood === item.label ? Colors.primary : (item.type === "neighborhood" ? Colors.primary : Colors.accent)}
-                  />
-                  <Text style={[s2.nbrLabel, neighborhood === item.label && s2.nbrLabelActive]}>
-                    {item.label}
-                  </Text>
-                  <View style={[s2.nbrTypeBadge, { backgroundColor: item.type === "neighborhood" ? Colors.primary + "20" : Colors.accent + "20" }]}>
-                    <Text style={[s2.nbrType, { color: item.type === "neighborhood" ? Colors.primary : Colors.accent }]}>
-                      {item.type === "neighborhood" ? "حي" : "قرية"}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
-              ListFooterComponent={
-                <View style={s2.customNbrWrap}>
-                  <View style={s2.customNbrDivider}>
-                    <View style={s2.customNbrLine} />
-                    <Text style={s2.customNbrDividerText}>أو أدخل اسم الحي / القرية يدوياً</Text>
-                    <View style={s2.customNbrLine} />
-                  </View>
-                  <View style={s2.customNbrRow}>
-                    <TextInput
-                      style={s2.customNbrInput}
-                      placeholder="اكتب اسم الحي أو القرية..."
-                      placeholderTextColor={Colors.textMuted}
-                      value={customNbr}
-                      onChangeText={setCustomNbr}
-                      textAlign="right"
-                    />
-                    <Pressable
-                      style={[s2.customNbrBtn, !customNbr.trim() && { opacity: 0.45 }]}
-                      disabled={!customNbr.trim()}
-                      onPress={() => {
-                        setNeighborhood(customNbr.trim());
-                        setShowNbrModal(false);
-                        setNbrSearch("");
-                        setCustomNbr("");
-                      }}
-                    >
-                      <Ionicons name="checkmark" size={18} color="#fff" />
-                    </Pressable>
-                  </View>
-                </View>
-              }
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1011,55 +959,5 @@ const s2 = StyleSheet.create({
   dateInput: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary,
     height: 38, textAlignVertical: "center",
-  },
-  pickerBtn: {
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: Colors.bg, borderRadius: 16,
-    borderWidth: 1.5, borderColor: Colors.divider,
-    paddingHorizontal: 14, paddingVertical: 15, gap: 10, minHeight: 52,
-  },
-  pickerVal: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
-  pickerPlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  modalSheet: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingTop: 12, paddingHorizontal: 0,
-    borderTopWidth: 1, borderColor: Colors.primary + "25",
-  },
-  modalHandle: { width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 14 },
-  searchWrap: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: Colors.bg, borderRadius: 14, marginHorizontal: 16, marginBottom: 8,
-    paddingHorizontal: 14, paddingVertical: 11,
-    borderWidth: 1, borderColor: Colors.divider,
-  },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  nbrRow: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    paddingHorizontal: 20, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
-  nbrRowActive: { backgroundColor: Colors.primary + "12" },
-  nbrLabel: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  nbrLabelActive: { color: Colors.primary, fontFamily: "Cairo_700Bold" },
-  nbrTypeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  nbrType: { fontFamily: "Cairo_500Medium", fontSize: 11 },
-  // ─── Custom neighborhood entry ───────────────────────────────────────────
-  customNbrWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
-  customNbrDivider: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
-  customNbrLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
-  customNbrDividerText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
-  customNbrRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  customNbrInput: {
-    flex: 1, backgroundColor: Colors.bg, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11,
-    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
-    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
-  },
-  customNbrBtn: {
-    backgroundColor: Colors.primary, borderRadius: 12,
-    width: 44, height: 44, justifyContent: "center", alignItems: "center",
   },
 });
