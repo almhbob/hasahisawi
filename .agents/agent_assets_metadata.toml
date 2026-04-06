@@ -221,3 +221,9 @@ id = "fnRqVHPuGuRlluQYmwl_z"
 uri = "file://screenshots/booklet/hasahisawi-booklet-detailed.pdf"
 type = "pdf"
 title = "حصاحيصاوي — كتيب الشرح المفصّل للخدمات (PDF)"
+
+[[outputs]]
+id = "qeSrH4kDpwlXs8agZ7uhr"
+uri = "file://screenshots/booklet/hasahisawi-booklet-4k.pdf"
+type = "pdf"
+title = "حصاحيصاوي — كتيب الشرح المفصّل — دقة 4K"
