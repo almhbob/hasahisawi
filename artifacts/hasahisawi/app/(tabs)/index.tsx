@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import { getApiUrl } from "@/lib/query-client";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -114,6 +115,7 @@ export default function HomeScreen() {
   const insets  = useSafeAreaInsets();
   const topPad  = Platform.OS === "web" ? 67 : insets.top;
   const auth    = useAuth();
+  const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = useFeatureFlags();
   const [showAuth, setShowAuth] = useState(false);
   const [bioLabel, setBioLabel] = useState("البصمة");
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
@@ -429,7 +431,7 @@ export default function HomeScreen() {
                 <Ionicons name="calendar" size={22} color={Colors.accent} />
               </View>
               <Text style={styles.quickBannerTitle}>حجز موعد</Text>
-              <Text style={styles.quickBannerSub}>صحي · حكومي</Text>
+              <Text style={styles.quickBannerSub}>{gov_appointments_enabled ? "صحي · حكومي" : "خدمات صحية"}</Text>
             </LinearGradient>
           </AnimatedPress>
 

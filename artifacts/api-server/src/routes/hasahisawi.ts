@@ -119,6 +119,18 @@ export async function initHasahisawiDb() {
     ON CONFLICT (key) DO NOTHING
   `);
   await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('gov_services_enabled', 'true')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('gov_appointments_enabled', 'true')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
+    INSERT INTO admin_settings (key, value) VALUES ('gov_reports_enabled', 'true')
+    ON CONFLICT (key) DO NOTHING
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
@@ -916,6 +928,47 @@ router.patch("/admin/app/version", async (req: Request, res: Response) => {
     }
     if (force !== undefined) {
       await query(`UPDATE admin_settings SET value=$1 WHERE key='app_update_force'`, [force ? "true" : "false"]);
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── Feature Flags — الخدمات الحكومية ────────────────────────────────────────
+
+router.get("/app/feature-flags", async (_req: Request, res: Response) => {
+  try {
+    const rows = await query(
+      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled')`
+    );
+    const map: Record<string, string> = {};
+    for (const r of rows.rows) map[r.key] = r.value;
+    return res.json({
+      gov_services_enabled:      map.gov_services_enabled      !== "false",
+      gov_appointments_enabled:  map.gov_appointments_enabled  !== "false",
+      gov_reports_enabled:       map.gov_reports_enabled       !== "false",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = req.body;
+    if (gov_services_enabled !== undefined) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_services_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_services_enabled ? "true" : "false"]);
+    }
+    if (gov_appointments_enabled !== undefined) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_appointments_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_appointments_enabled ? "true" : "false"]);
+    }
+    if (gov_reports_enabled !== undefined) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_reports_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_reports_enabled ? "true" : "false"]);
     }
     return res.json({ ok: true });
   } catch (err) {

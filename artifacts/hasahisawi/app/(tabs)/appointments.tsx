@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { useAuth } from "@/lib/auth-context";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 
 // ══════════════════════════════════════════════════════════
 // TYPES
@@ -178,6 +179,7 @@ type Step = "category" | "facility" | "service" | "datetime" | "info" | "confirm
 
 export default function AppointmentsScreen() {
   const { isGuest, user } = useAuth();
+  const { gov_appointments_enabled } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -381,29 +383,33 @@ export default function AppointmentsScreen() {
                 </LinearGradient>
               </AnimatedPress>
 
-              <AnimatedPress onPress={() => { setCategory("government"); setStep("facility"); }}>
-                <LinearGradient
-                  colors={[Colors.accent + "18", Colors.accent + "08"]}
-                  style={[s.catCard, { borderColor: Colors.accent + "40" }]}
-                >
-                  <View style={[s.catIcon, { backgroundColor: Colors.accent + "20" }]}>
-                    <MaterialCommunityIcons name="office-building" size={36} color={Colors.accent} />
-                  </View>
-                  <View style={s.catInfo}>
-                    <Text style={s.catTitle}>الجهات الحكومية</Text>
-                    <Text style={s.catSub}>محلية · سجل مدني · أراضي · قضاء</Text>
-                    <View style={s.catCount}>
-                      <Text style={[s.catCountText, { color: Colors.accent }]}>{govFacilities.length} جهات متاحة</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color={Colors.accent} />
-                </LinearGradient>
-              </AnimatedPress>
+              {gov_appointments_enabled && (
+                <>
+                  <AnimatedPress onPress={() => { setCategory("government"); setStep("facility"); }}>
+                    <LinearGradient
+                      colors={[Colors.accent + "18", Colors.accent + "08"]}
+                      style={[s.catCard, { borderColor: Colors.accent + "40" }]}
+                    >
+                      <View style={[s.catIcon, { backgroundColor: Colors.accent + "20" }]}>
+                        <MaterialCommunityIcons name="office-building" size={36} color={Colors.accent} />
+                      </View>
+                      <View style={s.catInfo}>
+                        <Text style={s.catTitle}>الجهات الحكومية</Text>
+                        <Text style={s.catSub}>محلية · سجل مدني · أراضي · قضاء</Text>
+                        <View style={s.catCount}>
+                          <Text style={[s.catCountText, { color: Colors.accent }]}>{govFacilities.length} جهات متاحة</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={22} color={Colors.accent} />
+                    </LinearGradient>
+                  </AnimatedPress>
 
-              <View style={[s.infoBox, { backgroundColor: "#6B728012", borderColor: "#6B728030" }]}>
-                <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
-                <Text style={[s.infoText, { color: "#6B7280" }]}>حصاحيصاوي منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية. البيانات للإرشاد فقط.</Text>
-              </View>
+                  <View style={[s.infoBox, { backgroundColor: "#6B728012", borderColor: "#6B728030" }]}>
+                    <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
+                    <Text style={[s.infoText, { color: "#6B7280" }]}>حصاحيصاوي منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية. البيانات للإرشاد فقط.</Text>
+                  </View>
+                </>
+              )}
 
               <View style={s.infoBox}>
                 <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />

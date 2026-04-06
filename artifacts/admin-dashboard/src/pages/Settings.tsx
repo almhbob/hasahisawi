@@ -12,9 +12,16 @@ type AiConfig = {
   max_tokens?: number;
 };
 
+type FeatureFlags = {
+  gov_services_enabled: boolean;
+  gov_appointments_enabled: boolean;
+  gov_reports_enabled: boolean;
+};
+
 export default function Settings() {
   const [version,  setVersion]  = useState<AppVersion>({ version: "", build_number: "" });
   const [aiConfig, setAiConfig] = useState<AiConfig>({ enabled: false });
+  const [flags,    setFlags]    = useState<FeatureFlags>({ gov_services_enabled: true, gov_appointments_enabled: true, gov_reports_enabled: true });
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState<string | null>(null);
   const [msg,      setMsg]      = useState<{text: string; ok: boolean} | null>(null);
@@ -23,9 +30,11 @@ export default function Settings() {
     Promise.all([
       apiJson<AppVersion>("/app/version").catch(() => null),
       apiJson<AiConfig>("/admin/ai-settings").catch(() => null),
-    ]).then(([v, ai]) => {
+      apiJson<FeatureFlags>("/app/feature-flags").catch(() => null),
+    ]).then(([v, ai, f]) => {
       if (v) setVersion(v);
       if (ai) setAiConfig(ai);
+      if (f) setFlags(f);
       setLoading(false);
     });
   }, []);
@@ -47,6 +56,18 @@ export default function Settings() {
     try {
       await apiFetch("/admin/ai-settings", { method: "PUT", body: JSON.stringify(aiConfig) });
       setMsg({ text: "تم حفظ إعدادات الذكاء الاصطناعي", ok: true });
+    } catch {
+      setMsg({ text: "فشل الحفظ", ok: false });
+    }
+    setSaving(null);
+    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const saveFlags = async () => {
+    setSaving("flags");
+    try {
+      await apiFetch("/admin/feature-flags", { method: "PATCH", body: JSON.stringify(flags) });
+      setMsg({ text: "تم حفظ إعدادات الخدمات الحكومية بنجاح", ok: true });
     } catch {
       setMsg({ text: "فشل الحفظ", ok: false });
     }
@@ -152,6 +173,71 @@ export default function Settings() {
               </div>
               <button className="btn-primary" onClick={saveAi} disabled={saving === "ai"} style={{ marginTop: 16 }}>
                 {saving === "ai" ? "جارٍ الحفظ..." : "💾 حفظ إعدادات الذكاء الاصطناعي"}
+              </button>
+            </div>
+
+            {/* Government Services Feature Flags */}
+            <div style={{ background: "hsl(222 47% 10%)", borderRadius: 16, border: "1px solid hsl(217 32% 14%)", padding: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: "hsl(38 90% 50% / 0.12)", border: "1px solid hsl(38 90% 50% / 0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🏛️</div>
+                <div>
+                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(210 40% 90%)", margin: 0 }}>الخدمات الحكومية</h3>
+                  <p style={{ fontSize: 12, color: "hsl(215 20% 50%)", margin: "3px 0 0" }}>إخفاء أو إظهار الأقسام الحكومية في التطبيق فوراً</p>
+                </div>
+                <div style={{
+                  marginRight: "auto", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                  background: flags.gov_services_enabled ? "hsl(147 60% 42% / 0.15)" : "hsl(0 72% 55% / 0.15)",
+                  color: flags.gov_services_enabled ? "hsl(147 60% 55%)" : "hsl(0 72% 65%)",
+                  border: `1px solid ${flags.gov_services_enabled ? "hsl(147 60% 42% / 0.3)" : "hsl(0 72% 55% / 0.3)"}`,
+                }}>
+                  {flags.gov_services_enabled ? "✅ مُفعّلة" : "🚫 مُخفاة"}
+                </div>
+              </div>
+
+              {/* Info Banner */}
+              <div style={{ background: "hsl(38 90% 50% / 0.08)", border: "1px solid hsl(38 90% 50% / 0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16 }}>💡</span>
+                <p style={{ fontSize: 12, color: "hsl(38 90% 65%)", lineHeight: 1.7, margin: 0 }}>
+                  استخدم هذا القسم لإخفاء الخدمات الحكومية مؤقتاً أثناء مراجعة Google Play. بعد حل المشكلة، أعد تفعيلها من هنا دون الحاجة لتحديث التطبيق.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { key: "gov_services_enabled" as keyof FeatureFlags, label: "جميع الخدمات الحكومية", desc: "مفتاح رئيسي — يؤثر على جميع الأقسام الحكومية في التطبيق", icon: "🏛️", color: "hsl(213 90% 60%)" },
+                  { key: "gov_appointments_enabled" as keyof FeatureFlags, label: "حجز المواعيد الحكومية", desc: "إخفاء قسم المحلية، السجل المدني، مكتب الأراضي، المحكمة", icon: "📅", color: "hsl(147 60% 45%)" },
+                  { key: "gov_reports_enabled" as keyof FeatureFlags, label: "بلاغات البنية التحتية", desc: "إخفاء البلاغات المتعلقة بالكهرباء والمياه والطرق", icon: "📢", color: "hsl(0 72% 55%)" },
+                ].map(item => (
+                  <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 14, background: "hsl(217 32% 12%)", borderRadius: 12, padding: "14px 16px", border: "1px solid hsl(217 32% 16%)" }}>
+                    <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(210 40% 88%)", marginBottom: 3 }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: "hsl(215 20% 50%)" }}>{item.desc}</div>
+                    </div>
+                    <button
+                      onClick={() => setFlags(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                      style={{
+                        width: 52, height: 28, borderRadius: 14, border: "none", cursor: "pointer",
+                        background: flags[item.key] ? item.color : "hsl(217 32% 20%)",
+                        position: "relative", transition: "background 0.2s", flexShrink: 0,
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute", top: 3, width: 22, height: 22, borderRadius: "50%",
+                        background: "#fff", transition: "right 0.2s, left 0.2s",
+                        right: flags[item.key] ? 3 : undefined,
+                        left: flags[item.key] ? undefined : 3,
+                      }} />
+                    </button>
+                    <span style={{ fontSize: 12, fontWeight: 600, minWidth: 40, color: flags[item.key] ? "hsl(147 60% 55%)" : "hsl(0 72% 65%)" }}>
+                      {flags[item.key] ? "ظاهر" : "مخفي"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button className="btn-primary" onClick={saveFlags} disabled={saving === "flags"} style={{ marginTop: 18 }}>
+                {saving === "flags" ? "جارٍ الحفظ..." : "💾 حفظ إعدادات الخدمات الحكومية"}
               </button>
             </div>
 

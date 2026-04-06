@@ -17,6 +17,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { FeatureFlagsProvider } from "@/lib/feature-flags-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
@@ -184,6 +185,7 @@ export default function RootLayout() {
         <LangProvider initialLang={initialLang}>
           <FirebaseProvider>
             <AuthProvider>
+              <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
@@ -193,6 +195,7 @@ export default function RootLayout() {
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>
+              </FeatureFlagsProvider>
             </AuthProvider>
           </FirebaseProvider>
         </LangProvider>
