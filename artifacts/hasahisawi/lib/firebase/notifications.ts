@@ -66,7 +66,6 @@ export async function registerForPushNotifications(
           allowAlert: true,
           allowBadge: true,
           allowSound: true,
-          allowAnnouncements: true,
           allowCriticalAlerts: true,
         },
       });

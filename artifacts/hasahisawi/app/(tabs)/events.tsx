@@ -365,13 +365,13 @@ export default function EventsScreen() {
             </ScrollView>
 
             {/* الحقول */}
-            <FormField label="عنوان الفعالية *" placeholder="مثال: حفل تخرج دفعة 2026" value={form.title} onChangeText={v => setForm(f => ({ ...f, title: v }))} />
-            <FormField label="الموقع *" placeholder="مثال: قاعة المدينة الرياضية" value={form.location} onChangeText={v => setForm(f => ({ ...f, location: v }))} icon="location-outline" />
-            <FormField label="تاريخ الفعالية *" placeholder="مثال: 2026-06-15" value={form.event_date} onChangeText={v => setForm(f => ({ ...f, event_date: v }))} icon="calendar-outline" />
-            <FormField label="الوقت" placeholder="مثال: 17:00" value={form.event_time} onChangeText={v => setForm(f => ({ ...f, event_time: v }))} icon="time-outline" />
-            <FormField label="اسم المنظِّم *" placeholder="اسمك أو اسم جهتك" value={form.organizer_name} onChangeText={v => setForm(f => ({ ...f, organizer_name: v }))} icon="person-outline" />
-            <FormField label="رقم التواصل" placeholder="للاستفسار والتسجيل" value={form.contact_phone} onChangeText={v => setForm(f => ({ ...f, contact_phone: v }))} icon="call-outline" keyboard="phone-pad" />
-            <FormField label="وصف الفعالية" placeholder="تفاصيل الفعالية والبرنامج..." value={form.description} onChangeText={v => setForm(f => ({ ...f, description: v }))} multiline />
+            <FormField label="عنوان الفعالية *" placeholder="مثال: حفل تخرج دفعة 2026" value={form.title} onChangeText={(v: string) => setForm(f => ({ ...f, title: v }))} />
+            <FormField label="الموقع *" placeholder="مثال: قاعة المدينة الرياضية" value={form.location} onChangeText={(v: string) => setForm(f => ({ ...f, location: v }))} icon="location-outline" />
+            <FormField label="تاريخ الفعالية *" placeholder="مثال: 2026-06-15" value={form.event_date} onChangeText={(v: string) => setForm(f => ({ ...f, event_date: v }))} icon="calendar-outline" />
+            <FormField label="الوقت" placeholder="مثال: 17:00" value={form.event_time} onChangeText={(v: string) => setForm(f => ({ ...f, event_time: v }))} icon="time-outline" />
+            <FormField label="اسم المنظِّم *" placeholder="اسمك أو اسم جهتك" value={form.organizer_name} onChangeText={(v: string) => setForm(f => ({ ...f, organizer_name: v }))} icon="person-outline" />
+            <FormField label="رقم التواصل" placeholder="للاستفسار والتسجيل" value={form.contact_phone} onChangeText={(v: string) => setForm(f => ({ ...f, contact_phone: v }))} icon="call-outline" keyboard="phone-pad" />
+            <FormField label="وصف الفعالية" placeholder="تفاصيل الفعالية والبرنامج..." value={form.description} onChangeText={(v: string) => setForm(f => ({ ...f, description: v }))} multiline />
 
             {/* مجاني / مدفوع */}
             <Text style={styles.fieldLabel}>نوع الدخول</Text>
@@ -387,9 +387,9 @@ export default function EventsScreen() {
               ))}
             </View>
             {!form.is_free && (
-              <FormField label="سعر التذكرة (جنيه)" placeholder="0" value={form.price} onChangeText={v => setForm(f => ({ ...f, price: v }))} keyboard="numeric" />
+              <FormField label="سعر التذكرة (جنيه)" placeholder="0" value={form.price} onChangeText={(v: string) => setForm(f => ({ ...f, price: v }))} keyboard="numeric" />
             )}
-            <FormField label="الطاقة الاستيعابية" placeholder="عدد المقاعد المتاحة" value={form.capacity} onChangeText={v => setForm(f => ({ ...f, capacity: v }))} keyboard="numeric" />
+            <FormField label="الطاقة الاستيعابية" placeholder="عدد المقاعد المتاحة" value={form.capacity} onChangeText={(v: string) => setForm(f => ({ ...f, capacity: v }))} keyboard="numeric" />
 
             <TouchableOpacity
               style={[styles.submitBtn, submitting && { opacity: 0.6 }]}

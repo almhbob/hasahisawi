@@ -21,6 +21,7 @@ import {
 } from "firebase/firestore";
 import { app, isFirebaseConfigured } from "./index";
 import { isFirebaseAvailable } from "./auth";
+export { isFirebaseAvailable } from "./auth";
 
 let _db: Firestore | null = null;
 

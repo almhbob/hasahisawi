@@ -51,3 +51,4 @@ if (isFirebaseConfigured) {
 
 export { app };
 export { AsyncStorage };
+export { isFirebaseAvailable } from "./auth";

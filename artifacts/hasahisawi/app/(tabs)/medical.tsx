@@ -837,7 +837,7 @@ function SpecialistsTab() {
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
       ) : filtered.length === 0 ? (
         <View style={[styles.emptyState, { marginTop: 60 }]}>
-          <MaterialCommunityIcons name="account-stethoscope-outline" size={56} color={Colors.textMuted} />
+          <MaterialCommunityIcons name="stethoscope" size={56} color={Colors.textMuted} />
           <Text style={styles.emptyText}>لا يوجد أخصائيون مسجلون بعد</Text>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingHorizontal: 30 }}>
             سيتم إضافة دليل الأخصائيين قريباً

@@ -1090,7 +1090,7 @@ export default function ReportsScreen() {
             {/* نوع */}
             <View style={fb.typeRow}>
               {([
-                ["suggestion", "مقترح",  "lightbulb-outline",      "#F0A500"],
+                ["suggestion", "مقترح",  "bulb-outline",           "#F0A500"],
                 ["complaint",  "شكوى",   "warning-outline",         Colors.danger],
                 ["general",    "استفسار","help-circle-outline",     "#3E9CBF"],
               ] as [FeedbackType, string, string, string][]).map(([key, label, icon, color]) => (
@@ -1193,7 +1193,7 @@ export default function ReportsScreen() {
                 colors={fbType === "complaint" ? [Colors.danger, Colors.danger + "CC"] : fbType === "suggestion" ? ["#F0A500", "#E69500"] : ["#3E9CBF", "#359AB0"]}
                 style={s.submitBtn}
               >
-                <Ionicons name={fbType === "complaint" ? "warning-outline" : fbType === "suggestion" ? "lightbulb-outline" : "help-circle-outline"} size={20} color="#fff" />
+                <Ionicons name={fbType === "complaint" ? "warning-outline" : fbType === "suggestion" ? "bulb-outline" : "help-circle-outline"} size={20} color="#fff" />
                 <Text style={s.submitBtnText}>
                   {fbSubmitting ? "جارٍ الإرسال..." : fbType === "suggestion" ? "إرسال المقترح" : fbType === "complaint" ? "إرسال الشكوى" : "إرسال الاستفسار"}
                 </Text>

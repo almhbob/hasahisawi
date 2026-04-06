@@ -4909,6 +4909,15 @@ const s = StyleSheet.create({
 
   /* Empty state */
   empty: { fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textMuted, textAlign: "center", marginTop: 70, marginBottom: 20 },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 8, minHeight: 160 },
+  emptyStateText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
+
+  /* Input field */
+  inputField: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+    backgroundColor: Colors.cardBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
+  },
 });
 
 // ─── Member Tracking Styles ──────────────────────────────────────────────────
