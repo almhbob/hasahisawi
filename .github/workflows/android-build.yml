@@ -1,4 +1,4 @@
-name: Android Build
+name: Android Build & Publish
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Android AAB
+    name: Build & Upload to Google Play
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -114,12 +114,22 @@ jobs:
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
-      - name: Upload AAB
+      - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: hasahisawi-release-${{ github.run_number }}
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      - name: Upload to Google Play (Internal track — draft)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.almhbob.hasahisawi
+          releaseFiles: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
+          track: production
+          status: draft
+          whatsNewDirectory: .github/whatsnew
 
       - name: Cleanup
         if: always()
