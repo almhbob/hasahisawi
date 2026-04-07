@@ -45,8 +45,7 @@ export default function LoginScreen() {
   const [birthDay, setBirthDay]       = useState("");
   const [birthMonth, setBirthMonth]   = useState("");
   const [birthYear, setBirthYear]     = useState("");
-  const [villageName, setVillageName]   = useState("");
-  const [nbrName, setNbrName]           = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [gender, setGender]           = useState<"male" | "female" | "">(""); 
   const [feedback, setFeedback]       = useState("");
   const [bioLabel, setBioLabel]       = useState("البصمة");
@@ -75,7 +74,7 @@ export default function LoginScreen() {
     setPassword(""); setConfirmPwd(""); setError("");
     setShowPwd(false); setUseEmail(false);
     setBirthDay(""); setBirthMonth(""); setBirthYear("");
-    setVillageName(""); setNbrName("");
+    setNeighborhood("");
     setGender("");
     setFeedback("");
   };
@@ -88,14 +87,7 @@ export default function LoginScreen() {
     return undefined;
   };
 
-  const buildNeighborhood = () => {
-    const v = villageName.trim();
-    const n = nbrName.trim();
-    if (v && n) return `قرية ${v} - حي ${n}`;
-    if (v) return `قرية ${v}`;
-    if (n) return `حي ${n}`;
-    return undefined;
-  };
+  const buildNeighborhood = () => neighborhood.trim() || undefined;
 
   const switchMode = (m: Mode) => { reset(); setMode(m); };
 
@@ -498,47 +490,27 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* القرية والحي */}
+          {/* القرية أو الحي */}
           {mode === "register" && (
             <View style={s2.fieldWrap}>
               <View style={s2.fieldHeader}>
                 <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>القرية والحي</Text>
+                <Text style={s2.fieldLabel}>القرية أو الحي</Text>
                 <Text style={s2.optional}>(اختياري)</Text>
               </View>
-              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center",
-                  backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
-                  borderColor: Colors.divider, paddingHorizontal: 10, height: 44 }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13,
-                    color: Colors.textMuted, marginLeft: 6, writingDirection: "rtl" }}>قرية</Text>
-                  <TextInput
-                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
-                      color: Colors.textPrimary, textAlign: "right" }}
-                    placeholder="اسم القرية"
-                    placeholderTextColor={Colors.textMuted}
-                    value={villageName}
-                    onChangeText={t => setVillageName(t.slice(0, 20))}
-                    maxLength={20}
-                    textAlign="right"
-                  />
-                </View>
-                <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center",
-                  backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
-                  borderColor: Colors.divider, paddingHorizontal: 10, height: 44 }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13,
-                    color: Colors.textMuted, marginLeft: 6, writingDirection: "rtl" }}>حي</Text>
-                  <TextInput
-                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
-                      color: Colors.textPrimary, textAlign: "right" }}
-                    placeholder="اسم الحي"
-                    placeholderTextColor={Colors.textMuted}
-                    value={nbrName}
-                    onChangeText={t => setNbrName(t.slice(0, 20))}
-                    maxLength={20}
-                    textAlign="right"
-                  />
-                </View>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center",
+                backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
+                borderColor: Colors.divider, paddingHorizontal: 12, height: 44 }}>
+                <TextInput
+                  style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
+                    color: Colors.textPrimary, textAlign: "right" }}
+                  placeholder="أدخل اسم قريتك أو حيّك"
+                  placeholderTextColor={Colors.textMuted}
+                  value={neighborhood}
+                  onChangeText={t => setNeighborhood(t.slice(0, 40))}
+                  maxLength={40}
+                  textAlign="right"
+                />
               </View>
             </View>
           )}
