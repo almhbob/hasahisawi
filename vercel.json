@@ -4,15 +4,9 @@
   "outputDirectory": "artifacts/api-server/dist",
   "cleanUrls": true,
   "trailingSlash": false,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Content-Type", "value": "application/json" }
-      ]
-    }
-  ],
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/index.mjs" },
+    { "source": "/health", "destination": "/index.mjs" },
     { "source": "/(.*)", "destination": "/index.mjs" }
   ]
 }
