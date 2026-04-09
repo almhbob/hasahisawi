@@ -2127,7 +2127,7 @@ router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = String(req.params.key);
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
     if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
@@ -2147,7 +2147,7 @@ router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) =
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = String(req.params.key);
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
     return res.json({ success: true });
