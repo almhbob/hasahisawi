@@ -4,6 +4,11 @@
   "outputDirectory": "artifacts/api-server/dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "index.mjs": {
+      "runtime": "vercel-node@latest"
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/index.mjs" },
     { "source": "/health", "destination": "/index.mjs" },
