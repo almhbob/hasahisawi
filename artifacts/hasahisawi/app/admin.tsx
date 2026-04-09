@@ -2024,6 +2024,18 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
   },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  inputField: {
+    backgroundColor: Colors.bg,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    fontFamily: "Cairo_400Regular",
+    fontSize: 14,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
 
   /* User Card */
   userCard: {

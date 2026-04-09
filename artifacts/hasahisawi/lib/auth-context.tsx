@@ -54,6 +54,7 @@ type AuthContextValue = {
   login: (phoneOrEmail: string, password: string) => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
+  loginModerator: (email: string, password: string) => Promise<void>;
   register: (
     name: string,
     nationalId: string,
@@ -317,6 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     await saveSession(authUser, idToken, backendTok);
   };
+  const loginModerator = loginAdmin;
 
   const register = async (
     name: string,
@@ -424,7 +426,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
-        login, loginWithBiometrics, loginAdmin, register, registerAdmin,
+        login, loginWithBiometrics, loginAdmin, loginModerator, register, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
       }}

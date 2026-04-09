@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Platform, Linking, TextInput, Modal, Alert, KeyboardAvoidingView,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -576,7 +577,7 @@ function ToolModal({ tool, visible, onClose }: { tool:StudentTool|null; visible:
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS==="ios"?"padding":"height"}>
         <Pressable style={tl.backdrop} onPress={onClose}>
-          <Pressable style={[tl.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={e => e.stopPropagation()}>
+          <Pressable style={[tl.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e: any) => e.stopPropagation()}>
             <View style={tl.handle} />
             <View style={tl.sheetHeader}>
               <TouchableOpacity onPress={onClose}>
