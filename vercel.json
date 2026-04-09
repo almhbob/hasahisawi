@@ -3,6 +3,7 @@
   "buildCommand": "pnpm -r --filter \"./artifacts/api-server\" run build",
   "outputDirectory": "artifacts/api-server/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.mjs" }
+    { "source": "/api/(.*)", "destination": "/index.mjs" },
+    { "source": "/health", "destination": "/index.mjs" }
   ]
 }
