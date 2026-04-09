@@ -3,6 +3,20 @@
   "buildCommand": "pnpm -r --filter \"./artifacts/api-server\" run build",
   "outputDirectory": "artifacts/api-server/dist",
   "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "source": "/health",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/index.mjs" },
     { "source": "/health", "destination": "/index.mjs" },
