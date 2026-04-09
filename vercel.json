@@ -6,6 +6,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/index.mjs" },
     { "source": "/health", "destination": "/index.mjs" },
-    { "source": "/(.*)", "destination": "/index.mjs" }
+    { "source": "/((?!index\\.mjs$).*)", "destination": "/index.mjs" }
   ]
 }
