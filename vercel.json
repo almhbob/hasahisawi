@@ -6,21 +6,13 @@
   "trailingSlash": false,
   "headers": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Content-Type", "value": "application/json" }
-      ]
-    },
-    {
-      "source": "/health",
+      "source": "/(.*)",
       "headers": [
         { "key": "Content-Type", "value": "application/json" }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/index.mjs" },
-    { "source": "/health", "destination": "/index.mjs" },
     { "source": "/(.*)", "destination": "/index.mjs" }
   ]
 }
