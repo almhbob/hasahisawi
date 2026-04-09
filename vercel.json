@@ -1,8 +1,12 @@
 {
   "version": 2,
   "buildCommand": "pnpm -r --filter \"./artifacts/api-server\" run build",
-  "outputDirectory": "artifacts/api-server/dist",
+  "functions": {
+    "artifacts/api-server/dist/index.mjs": {
+      "runtime": "vercel-node@latest"
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.mjs" }
+    { "source": "/(.*)", "destination": "/artifacts/api-server/dist/index.mjs" }
   ]
 }
