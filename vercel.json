@@ -2,8 +2,10 @@
   "version": 2,
   "buildCommand": "pnpm -r --filter \"./artifacts/api-server\" run build",
   "outputDirectory": "artifacts/api-server/dist",
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/index.mjs" },
-    { "source": "/health", "destination": "/index.mjs" }
+    { "source": "/health", "destination": "/index.mjs" },
+    { "source": "/(.*)", "destination": "/index.mjs" }
   ]
 }
