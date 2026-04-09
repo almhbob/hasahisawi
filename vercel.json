@@ -6,7 +6,7 @@
   "trailingSlash": false,
   "functions": {
     "index.mjs": {
-      "runtime": "vercel-node@latest"
+      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
