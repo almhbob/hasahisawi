@@ -47,18 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-attached_assets/
-.replit
-.replitignore
-replit.md
 
-# Android Keystore (sensitive — never commit)
-*.keystore
-*.jks
-*.b64
-.secrets/
-
-# Android build artifacts (large files — never commit or deploy)
-*.aab
-hasahisawi-*.zip
-hasahisawi-aab-*/
+# Vercel Build Output (generated during build, not committed)
+.vercel/output/
