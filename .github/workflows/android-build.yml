@@ -9,9 +9,9 @@ permissions:
 
 jobs:
   build:
-    name: Build & Upload to Google Play
+    name: Build AAB + APK & Upload
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     steps:
       - name: Checkout
@@ -26,7 +26,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '9'
+          version: '10'
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -114,14 +114,74 @@ jobs:
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
+      - name: Convert AAB to Universal APK (bundletool)
+        run: |
+          AAB_PATH="artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab"
+          KEYSTORE_PATH="${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore"
+
+          # Download bundletool
+          curl -sL "https://github.com/google/bundletool/releases/download/1.17.2/bundletool-all-1.17.2.jar" \
+            -o /tmp/bundletool.jar
+
+          # Build universal APK set
+          java -jar /tmp/bundletool.jar build-apks \
+            --bundle="$AAB_PATH" \
+            --output=/tmp/hasahisawi-release.apks \
+            --mode=universal \
+            --ks="$KEYSTORE_PATH" \
+            --ks-pass="pass:${{ secrets.KEYSTORE_PASSWORD }}" \
+            --ks-key-alias="${{ secrets.KEY_ALIAS }}" \
+            --key-pass="pass:${{ secrets.KEY_PASSWORD }}"
+
+          # Extract universal.apk from the .apks zip
+          cd /tmp && unzip -p hasahisawi-release.apks universal.apk > hasahisawi-release.apk
+          echo "APK size: $(du -sh /tmp/hasahisawi-release.apk | cut -f1)"
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-release-${{ github.run_number }}
+          name: hasahisawi-release-${{ github.run_number }}-aab
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-release-${{ github.run_number }}-apk
+          path: /tmp/hasahisawi-release.apk
+          retention-days: 30
+
+      - name: Get app version
+        id: version
+        run: |
+          VERSION=$(node -e "const p=require('./artifacts/hasahisawi/package.json'); console.log(p.version || '1.0.0')")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release with APK
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "v${{ steps.version.outputs.version }}-build${{ github.run_number }}"
+          name: "حصاحيصاوي v${{ steps.version.outputs.version }} (Build #${{ github.run_number }})"
+          body: |
+            ## تثبيت التطبيق مباشرة على الهاتف
+
+            **حمّل APK:**  قابل للتثبيت المباشر على جميع أجهزة Android
+
+            ### طريقة التثبيت:
+            1. حمّل ملف `hasahisawi-release.apk`
+            2. افتح الإعدادات ← الأمان ← السماح بمصادر غير معروفة
+            3. افتح الملف وثبّت التطبيق
+
+            ---
+            **Build:** #${{ github.run_number }} | **Branch:** master
+          artifacts: "/tmp/hasahisawi-release.apk"
+          artifactContentType: "application/vnd.android.package-archive"
+          allowUpdates: true
+          removeArtifacts: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload to Google Play (Internal track — draft)
+        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
