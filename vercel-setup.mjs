@@ -3,7 +3,7 @@ import path from "path";
 
 const DIST_DIR = "artifacts/api-server/dist";
 const OUT_DIR = ".vercel/output";
-const FUNC_DIR = `${OUT_DIR}/functions/index.func`;
+const FUNC_DIR = `${OUT_DIR}/functions/server.func`;
 
 async function setup() {
   await fs.rm(OUT_DIR, { recursive: true, force: true });
@@ -33,11 +33,16 @@ async function setup() {
     path.join(OUT_DIR, "config.json"),
     JSON.stringify({
       version: 3,
-      routes: [{ src: "/(.*)", dest: "/index" }],
+      routes: [
+        { src: "^/uploads/(.*)", dest: "/server" },
+        { src: "^/api/(.*)", dest: "/server" },
+        { src: "^/health$", dest: "/server" },
+        { src: "/(.*)", dest: "/server" },
+      ],
     })
   );
 
-  console.log("✅ Vercel output structure prepared");
+  console.log("✅ Vercel output structure prepared (functions/server.func)");
 }
 
 setup().catch((err) => {
