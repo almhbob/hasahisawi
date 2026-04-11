@@ -1,17 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "pnpm -r --filter \"./artifacts/api-server\" run build",
+  "buildCommand": "cd artifacts/api-server && pnpm install && pnpm run build",
   "outputDirectory": "artifacts/api-server/dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "index.mjs": {
-      "runtime": "nodejs20.x"
+    "vercel-handler.mjs": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/index.mjs" },
-    { "source": "/health", "destination": "/index.mjs" },
-    { "source": "/(.*)", "destination": "/index.mjs" }
+    {
+      "source": "/(.*)",
+      "destination": "/vercel-handler.mjs"
+    }
   ]
 }
