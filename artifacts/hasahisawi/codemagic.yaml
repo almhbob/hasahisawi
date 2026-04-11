@@ -1,6 +1,6 @@
 workflows:
   android-release:
-    name: Android Release AAB
+    name: Android Release AAB → Google Play
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -11,6 +11,7 @@ workflows:
         - hasahisawi_firebase
       vars:
         PACKAGE_NAME: com.almhbob.hasahisawi
+        EXPO_PUBLIC_DOMAIN: hasahisawi.vercel.app
     cache:
       cache_paths:
         - $HOME/.gradle/caches
@@ -24,12 +25,19 @@ workflows:
 
       - name: Expo Prebuild (Android)
         working_directory: artifacts/hasahisawi
-        script: npx expo prebuild --platform android --clean
+        script: |
+          export EXPO_PUBLIC_DOMAIN=hasahisawi.vercel.app
+          export EXPO_PUBLIC_FIREBASE_API_KEY=$EXPO_PUBLIC_FIREBASE_API_KEY
+          export EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=$EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+          export EXPO_PUBLIC_FIREBASE_PROJECT_ID=$EXPO_PUBLIC_FIREBASE_PROJECT_ID
+          export EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=$EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+          export EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+          export EXPO_PUBLIC_FIREBASE_APP_ID=$EXPO_PUBLIC_FIREBASE_APP_ID
+          npx expo prebuild --platform android --clean
 
       - name: Inject signing config into build.gradle
         working_directory: artifacts/hasahisawi/android
         script: |
-          # كتابة keystore.properties بقيم Codemagic
           cat > keystore.properties << EOF
           storeFile=$CM_KEYSTORE_PATH
           storePassword=$CM_KEYSTORE_PASSWORD
@@ -37,7 +45,6 @@ workflows:
           keyPassword=$CM_KEY_PASSWORD
           EOF
 
-          # تعديل app/build.gradle لإضافة إعداد التوقيع
           node -e "
           const fs = require('fs');
           const path = 'app/build.gradle';
@@ -89,3 +96,7 @@ workflows:
         notify:
           success: true
           failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
