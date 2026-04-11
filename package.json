@@ -7,11 +7,17 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "vercel-build": "pnpm -r --filter \"./artifacts/api-server\" run build"
+    "vercel-build": "pnpm -r --filter \"./artifacts/api-server\" run build && node ./vercel-setup.mjs"
   },
   "private": true,
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  },
+  "dependencies": {
+    "@replit/connectors-sdk": "^0.3.0",
+    "@types/libsodium-wrappers": "^0.8.2",
+    "libsodium-wrappers": "^0.8.2",
+    "pdf-lib": "^1.17.1"
   }
 }
