@@ -2,47 +2,30 @@ import fs from "fs/promises";
 import path from "path";
 
 const DIST_DIR = "artifacts/api-server/dist";
-const OUT_DIR = ".vercel/output";
-const FUNC_DIR = `${OUT_DIR}/functions/server.func`;
 
 async function setup() {
-  await fs.rm(OUT_DIR, { recursive: true, force: true });
-  await fs.mkdir(FUNC_DIR, { recursive: true });
+  // Create api/ directory in project root for Vercel native function detection
+  await fs.mkdir("api", { recursive: true });
 
-  const files = await fs.readdir(DIST_DIR);
-  for (const file of files) {
+  // Copy the self-contained Express bundle as the serverless function entry point
+  await fs.copyFile(
+    path.join(DIST_DIR, "vercel-handler.mjs"),
+    "api/index.mjs"
+  );
+
+  // Copy pino worker files needed at runtime (they're loaded dynamically)
+  const pinoFiles = ["pino-worker.mjs", "pino-file.mjs", "pino-pretty.mjs", "thread-stream-worker.mjs"];
+  for (const file of pinoFiles) {
     const src = path.join(DIST_DIR, file);
-    const stat = await fs.stat(src);
-    if (stat.isFile()) {
-      await fs.copyFile(src, path.join(FUNC_DIR, file));
+    try {
+      await fs.copyFile(src, path.join("api", file));
+    } catch {
+      // Not critical if pino workers are missing
     }
   }
 
-  await fs.writeFile(
-    path.join(FUNC_DIR, ".vc-config.json"),
-    JSON.stringify({
-      runtime: "nodejs20.x",
-      handler: "vercel-handler.mjs",
-      launcherType: "Nodejs",
-      shouldAddHelpers: true,
-      maxDuration: 30,
-    })
-  );
-
-  await fs.writeFile(
-    path.join(OUT_DIR, "config.json"),
-    JSON.stringify({
-      version: 3,
-      routes: [
-        { src: "^/uploads/(.*)", dest: "/server" },
-        { src: "^/api/(.*)", dest: "/server" },
-        { src: "^/health$", dest: "/server" },
-        { src: "/(.*)", dest: "/server" },
-      ],
-    })
-  );
-
-  console.log("✅ Vercel output structure prepared (functions/server.func)");
+  console.log("✅ api/index.mjs created from build output");
+  console.log("   Express app ready for Vercel native function runtime");
 }
 
 setup().catch((err) => {
