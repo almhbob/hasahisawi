@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd artifacts/api-server && pnpm install && pnpm run build",
+  "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "artifacts/api-server/dist",
   "cleanUrls": true,
   "trailingSlash": false,
