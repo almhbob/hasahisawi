@@ -3,17 +3,20 @@ import {
   View, Text, StyleSheet, ScrollView, FlatList,
   TouchableOpacity, ActivityIndicator, Alert,
   TextInput, Pressable, Modal, Image,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import { uploadLandmarkImage } from "@/lib/firebase/storage";
+import { registerForPushNotifications } from "@/lib/firebase/notifications";
 import BrandPattern from "@/components/BrandPattern";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -35,7 +38,23 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops";
+
+type TransportDriver = {
+  id: number; name: string; phone: string; vehicle_type: string;
+  vehicle_desc: string; plate: string; area: string;
+  status: "pending" | "approved" | "rejected"; admin_note: string;
+  is_online: boolean; total_trips: number; rating: number; created_at: string;
+};
+type TransportTrip = {
+  id: number; user_name: string; user_phone: string; trip_type: string;
+  from_location: string; to_location: string; notes: string;
+  from_zone: number | null; to_zone: number | null;
+  fare_estimate: number | null; vehicle_preference: string;
+  delivery_desc: string | null;
+  status: string; driver_name: string | null; driver_id: number | null; driver_phone?: string;
+  created_at: string; rating: number | null;
+};
 
 type AdRecord = {
   id: number;
@@ -56,10 +75,23 @@ type AdRecord = {
   created_at: string;
   approved_at?: string;
   approved_by_name?: string;
+  image_url?: string;
+  website_url?: string;
 };
 
 type ApiLandmark = { id: number; name: string; sub: string; image_url: string; sort_order: number };
-type NbrItem = { label: string; type: "neighborhood" | "village"; key?: string };
+type HonoredFigure = {
+  id: number;
+  name: string;
+  title: string;
+  city_role: string;
+  photo_url: string;
+  tribute: string;
+  start_date: string;
+  end_date: string;
+  is_visible: boolean;
+  created_at: string;
+};
 type CommunityRecord = {
   id: number;
   name: string;
@@ -226,6 +258,21 @@ export default function AdminDashboard() {
   const [permModal, setPermModal] = useState<AdminUser | null>(null);
   const [permSections, setPermSections] = useState<string[]>([]);
   const [savingPerms, setSavingPerms] = useState(false);
+  const [memberSort, setMemberSort] = useState<"newest" | "oldest" | "name">("newest");
+  const [memberNbrFilter, setMemberNbrFilter] = useState<string>("all");
+  const [promotingId, setPromotingId] = useState<number | null>(null);
+  const [promoTarget, setPromoTarget] = useState<AdminUser | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+
+  // ── User Stats Modal ──
+  const [statsUser, setStatsUser] = useState<AdminUser | null>(null);
+  const [userStats, setUserStats] = useState<null | {
+    user: AdminUser & { bio?: string; is_banned?: boolean };
+    posts_count: number; comments_count: number; likes_count: number;
+    reports_count: number; messages_count: number; ads_count: number;
+    appointments_count: number; last_seen: string | null;
+  }>(null);
+  const [loadingUserStats, setLoadingUserStats] = useState(false);
 
   // ── Landmarks ──
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
@@ -233,10 +280,26 @@ export default function AdminDashboard() {
   const [lmForm, setLmForm] = useState({ name: "", sub: "", image_url: "" });
   const [addingLM, setAddingLM] = useState(false);
   const [showAddLM, setShowAddLM] = useState(false);
+  const [lmAddImgUploading, setLmAddImgUploading] = useState(false);
   const [editingLM, setEditingLM] = useState<ApiLandmark | null>(null);
   const [editLmForm, setEditLmForm] = useState({ name: "", sub: "", image_url: "" });
   const [showEditLM, setShowEditLM] = useState(false);
   const [updatingLM, setUpdatingLM] = useState(false);
+  const [lmEditImgUploading, setLmEditImgUploading] = useState(false);
+
+  // ── Honored Figures ──
+  const [honoredList, setHonoredList]       = useState<HonoredFigure[]>([]);
+  const [loadingHonored, setLoadingHonored] = useState(false);
+  const [showAddHonor, setShowAddHonor]     = useState(false);
+  const [addingHonor, setAddingHonor]       = useState(false);
+  const [honorImgUploading, setHonorImgUploading] = useState(false);
+  const [editingHonor, setEditingHonor]     = useState<HonoredFigure | null>(null);
+  const [showEditHonor, setShowEditHonor]   = useState(false);
+  const [updatingHonor, setUpdatingHonor]   = useState(false);
+  const [editHonorImgUploading, setEditHonorImgUploading] = useState(false);
+  const HONOR_FORM_INIT = { name: "", title: "", city_role: "", photo_url: "", tribute: "", start_date: "", end_date: "" };
+  const [honorForm, setHonorForm]           = useState(HONOR_FORM_INIT);
+  const [editHonorForm, setEditHonorForm]   = useState(HONOR_FORM_INIT);
 
   // ── Ads ──
   const [adsList, setAdsList] = useState<AdRecord[]>([]);
@@ -247,14 +310,18 @@ export default function AdminDashboard() {
   const [approvalDays, setApprovalDays] = useState("7");
   const [adminNote, setAdminNote] = useState("");
 
-  // ── Neighborhoods ──
-  const [neighborhoods, setNeighborhoods] = useState<NbrItem[]>([]);
-  const [loadingNbr, setLoadingNbr] = useState(false);
-  const [nbrForm, setNbrForm] = useState<{ label: string; type: "neighborhood" | "village" }>({ label: "", type: "neighborhood" });
-  const [addingNbr, setAddingNbr] = useState(false);
-  const [editingNbr, setEditingNbr] = useState<NbrItem | null>(null);
-  const [showAddNbr, setShowAddNbr] = useState(false);
-  const [nbrFilter, setNbrFilter] = useState<"all" | "neighborhood" | "village">("all");
+  // ── Ads Settings ──
+  const [adsSettings, setAdsSettings] = useState({
+    ad_price_per_day: "500", ad_contact_phone: "", ad_contact_whatsapp: "",
+    ad_promo_text: "", ad_partner_email: "", ad_bank_info: "",
+  });
+  const [savingAdsSettings, setSavingAdsSettings] = useState(false);
+  const [showAdsSettingsModal, setShowAdsSettingsModal] = useState(false);
+
+  // ── Contract Settings ──
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [savingContractSettings, setSavingContractSettings] = useState(false);
+
 
   // ── AI Settings ──
   const [loadingAi, setLoadingAi] = useState(false);
@@ -262,12 +329,71 @@ export default function AdminDashboard() {
   const [aiForm, setAiForm] = useState({ ai_api_key: "", ai_enabled: "false", ai_system_prompt: "" });
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // ── Transport ──
+  const [transportStatus, setTransportStatus] = useState<"coming_soon" | "maintenance" | "available">("coming_soon");
+  const [transportNote, setTransportNote] = useState("");
+  const [transportPhone, setTransportPhone] = useState("");
+  const [savingTransportSettings, setSavingTransportSettings] = useState(false);
+  const [loadingTransport, setLoadingTransport] = useState(false);
+  const [transportDrivers, setTransportDrivers] = useState<TransportDriver[]>([]);
+  const [transportTrips, setTransportTrips] = useState<TransportTrip[]>([]);
+  const [transportDriverFilter, setTransportDriverFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
+  const [transportTripFilter, setTransportTripFilter] = useState<"all" | "pending" | "accepted" | "completed" | "cancelled">("all");
+  const [transportStats, setTransportStats] = useState<{ drivers: any[]; trips: any[]; pendingDrivers: number } | null>(null);
+  const [transportView, setTransportView] = useState<"overview" | "fares" | "drivers" | "trips" | "settings">("overview");
+  const [fareMatrix, setFareMatrix] = useState<Record<number, Record<number, { car: number; rickshaw: number; delivery: number }>>>({});
+  const [editingFares, setEditingFares] = useState<Record<string, { car: string; rickshaw: string; delivery: string }>>({});
+  const [savingFares, setSavingFares] = useState(false);
+  const [assigningTrip, setAssigningTrip] = useState<number | null>(null);
+  const [showAssignModal,   setShowAssignModal]   = useState(false);
+  const [assigningTripId,   setAssigningTripId]   = useState<number | null>(null);
+  const [approvedDriversList, setApprovedDriversList] = useState<TransportDriver[]>([]);
+  const [updatingTripId,    setUpdatingTripId]    = useState<number | null>(null);
+
+  // ── Updates ──
+  const [appVersion, setAppVersion]       = useState("1");
+  const [updateNotes, setUpdateNotes]     = useState("");
+  const [updateForce, setUpdateForce]     = useState(false);
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [savingUpdates, setSavingUpdates] = useState(false);
+
+  // ── Phone Shops (Admin) ──
+  const [adminPhoneShops, setAdminPhoneShops] = useState<any[]>([]);
+  const [loadingPhoneShops, setLoadingPhoneShops] = useState(false);
+  const [deletingPhoneShopId, setDeletingPhoneShopId] = useState<number | null>(null);
+
+  // ── Student Libraries (Admin) ──
+  const [adminLibraries, setAdminLibraries] = useState<any[]>([]);
+  const [loadingAdminLibs, setLoadingAdminLibs] = useState(false);
+  const [deletingLibId, setDeletingLibId] = useState<number | null>(null);
+
+  // ── Merchants (Admin) ──
+  const [adminMerchants, setAdminMerchants] = useState<any[]>([]);
+  const [loadingAdminMerchants, setLoadingAdminMerchants] = useState(false);
+  const [deletingMerchantId, setDeletingMerchantId] = useState<number | null>(null);
+
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [savingPin, setSavingPin] = useState(false);
   const [adminNameForm, setAdminNameForm] = useState({ name: "" });
   const [savingName, setSavingName] = useState(false);
   const [loadingSecurity, setLoadingSecurity] = useState(false);
+
+  // ── Admin Push Device ──
+  const [adminDeviceRegistered, setAdminDeviceRegistered] = useState<boolean | null>(null);
+  const [registeringAdminDevice, setRegisteringAdminDevice] = useState(false);
+
+  // ── Broadcast Push ──
+  const [broadcastForm, setBroadcastForm] = useState({ title: "", body: "" });
+  const [broadcastingPush, setBroadcastingPush] = useState(false);
+
+  // ── Ghost Accounts ──
+  const [ghostAccounts, setGhostAccounts] = useState<{ count: number; accounts: { id: number; name: string; created_at: string; posts: number; has_token: number }[] }>({ count: 0, accounts: [] });
+  const [loadingGhosts, setLoadingGhosts] = useState(false);
+  const [cleaningGhosts, setCleaningGhosts] = useState(false);
+
+  // ── Backup ──
+  const [downloadingBackup, setDownloadingBackup] = useState(false);
 
   // ── Communities ──
   const [communitiesList, setCommunitiesList] = useState<CommunityRecord[]>([]);
@@ -337,22 +463,6 @@ export default function AdminDashboard() {
     finally { setLoadingAds(false); }
   }, [token]);
 
-  const loadNeighborhoods = useCallback(async () => {
-    setLoadingNbr(true);
-    try {
-      const res = await apiFetch("/api/admin/neighborhoods", token);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) { setNeighborhoods(data); return; }
-      }
-      const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
-      setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
-    } catch {
-      const { DEFAULT_HASAHISA_LOCATIONS } = await import("@/constants/neighborhoods");
-      setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
-    } finally { setLoadingNbr(false); }
-  }, [token]);
-
   const loadAiSettings = useCallback(async () => {
     setLoadingAi(true);
     try {
@@ -365,6 +475,235 @@ export default function AdminDashboard() {
     finally { setLoadingAi(false); }
   }, [token]);
 
+  const loadTransportData = useCallback(async () => {
+    setLoadingTransport(true);
+    try {
+      const [settingsRes, driversRes, tripsRes, statsRes, faresRes] = await Promise.all([
+        apiFetch("/api/admin/transport/settings", token),
+        apiFetch(`/api/admin/transport/drivers?status=${transportDriverFilter}`, token),
+        apiFetch(`/api/admin/transport/trips?status=${transportTripFilter}`, token),
+        apiFetch("/api/admin/transport/stats", token),
+        fetch(`${getApiUrl()}/api/transport/fares`),
+      ]);
+      if (settingsRes.ok) {
+        const d = await settingsRes.json();
+        const st = d.transport_status as "coming_soon" | "maintenance" | "available";
+        setTransportStatus(["coming_soon","maintenance","available"].includes(st) ? st : "coming_soon");
+        setTransportNote(d.transport_note || "");
+        setTransportPhone(d.transport_phone || "");
+      }
+      if (driversRes.ok) setTransportDrivers(await driversRes.json());
+      if (tripsRes.ok) setTransportTrips(await tripsRes.json());
+      if (statsRes.ok) setTransportStats(await statsRes.json());
+      if (faresRes.ok) {
+        const fm = await faresRes.json();
+        setFareMatrix(fm);
+        // تهيئة قيم التعديل
+        const init: Record<string, { car: string; rickshaw: string; delivery: string }> = {};
+        for (let f = 1; f <= 5; f++) {
+          for (let t = 1; t <= 5; t++) {
+            const key = `${f}-${t}`;
+            init[key] = {
+              car: String(fm[f]?.[t]?.car ?? ""),
+              rickshaw: String(fm[f]?.[t]?.rickshaw ?? ""),
+              delivery: String(fm[f]?.[t]?.delivery ?? ""),
+            };
+          }
+        }
+        setEditingFares(init);
+      }
+    } catch {}
+    finally { setLoadingTransport(false); }
+  }, [token, transportDriverFilter, transportTripFilter]);
+
+  const saveFares = async () => {
+    setSavingFares(true);
+    try {
+      const fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number }> = [];
+      for (const key of Object.keys(editingFares)) {
+        const [f, t] = key.split("-").map(Number);
+        const v = editingFares[key];
+        fares.push({
+          from_zone: f, to_zone: t,
+          fare_car: Number(v.car) || 0,
+          fare_rickshaw: Number(v.rickshaw) || 0,
+          fare_delivery: Number(v.delivery) || 0,
+        });
+      }
+      const res = await apiFetch("/api/admin/transport/fares/bulk", token, {
+        method: "PUT", body: JSON.stringify({ fares }),
+      });
+      if (res.ok) {
+        Alert.alert("✅ تم الحفظ", "تم تحديث جدول التعرفة بنجاح");
+        loadTransportData();
+      } else {
+        const j = await res.json();
+        Alert.alert("خطأ", j.error || "تعذّر حفظ التعرفة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingFares(false); }
+  };
+
+  const updateFareField = (fromZ: number, toZ: number, field: "car" | "rickshaw" | "delivery", val: string) => {
+    const key = `${fromZ}-${toZ}`;
+    setEditingFares(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: val },
+    }));
+  };
+
+  const saveTransportSettings = async () => {
+    setSavingTransportSettings(true);
+    try {
+      const res = await apiFetch("/api/admin/transport/settings", token, {
+        method: "PUT",
+        body: JSON.stringify({
+          transport_status: transportStatus,
+          transport_note: transportNote,
+          transport_phone: transportPhone,
+        }),
+      });
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات خدمة مشوارك علينا");
+      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingTransportSettings(false); }
+  };
+
+  const approveTransportDriver = async (driver: TransportDriver, newStatus: "approved" | "rejected") => {
+    try {
+      const res = await apiFetch(`/api/admin/transport/drivers/${driver.id}`, token, {
+        method: "PATCH", body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setTransportDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, status: newStatus } : d));
+        Alert.alert("تم", newStatus === "approved" ? `تم قبول السائق ${driver.name}` : `تم رفض السائق ${driver.name}`);
+      }
+    } catch { Alert.alert("خطأ", "تعذّر العملية"); }
+  };
+
+  const deleteTransportDriver = async (id: number) => {
+    Alert.alert("حذف سائق", "هل تريد حذف هذا السائق نهائياً؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: async () => {
+        try {
+          await apiFetch(`/api/admin/transport/drivers/${id}`, token, { method: "DELETE" });
+          setTransportDrivers(prev => prev.filter(d => d.id !== id));
+        } catch {}
+      }},
+    ]);
+  };
+
+  const deleteTransportTrip = async (id: number) => {
+    try {
+      await apiFetch(`/api/admin/transport/trips/${id}`, token, { method: "DELETE" });
+      setTransportTrips(prev => prev.filter(t => t.id !== id));
+    } catch {}
+  };
+
+  const loadApprovedDrivers = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/admin/transport/drivers?status=approved", token);
+      if (res.ok) setApprovedDriversList(await res.json());
+    } catch {}
+  }, [token]);
+
+  const openAssignModal = (tripId: number) => {
+    setAssigningTripId(tripId);
+    setShowAssignModal(true);
+    loadApprovedDrivers();
+  };
+
+  const assignDriverToTrip = async (driver: TransportDriver) => {
+    if (!assigningTripId) return;
+    setAssigningTrip(assigningTripId);
+    try {
+      const res = await apiFetch(`/api/admin/transport/trips/${assigningTripId}/assign`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ driver_id: driver.id, status: "accepted" }),
+      });
+      if (res.ok) {
+        setTransportTrips(prev => prev.map(t =>
+          t.id === assigningTripId
+            ? { ...t, status: "accepted", driver_id: driver.id, driver_name: driver.name }
+            : t
+        ));
+        setShowAssignModal(false);
+        setAssigningTripId(null);
+        Alert.alert("✅ تم التعيين", `تم تعيين السائق ${driver.name} للرحلة بنجاح`);
+      } else {
+        const j = await res.json();
+        Alert.alert("خطأ", j.error || "تعذّرت العملية");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setAssigningTrip(null); }
+  };
+
+  const updateTripStatus = async (tripId: number, newStatus: "accepted" | "completed" | "cancelled") => {
+    setUpdatingTripId(tripId);
+    try {
+      const res = await apiFetch(`/api/transport/trips/${tripId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setTransportTrips(prev => prev.map(t =>
+          t.id === tripId ? { ...t, status: newStatus } : t
+        ));
+      } else {
+        Alert.alert("خطأ", "تعذّر تحديث حالة الرحلة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setUpdatingTripId(null); }
+  };
+
+  const loadAdsSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/ads/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        setAdsSettings({
+          ad_price_per_day:    data.ad_price_per_day    || "500",
+          ad_contact_phone:    data.ad_contact_phone    || "",
+          ad_contact_whatsapp: data.ad_contact_whatsapp || "",
+          ad_promo_text:       data.ad_promo_text        || "",
+          ad_partner_email:    data.ad_partner_email    || "",
+          ad_bank_info:        data.ad_bank_info        || "",
+        });
+      }
+    } catch {}
+  }, []);
+
+  const saveAdsSettings = async () => {
+    setSavingAdsSettings(true);
+    try {
+      const res = await apiFetch("/api/admin/ads-settings", token, {
+        method: "PUT", body: JSON.stringify(adsSettings),
+      });
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات الإعلانات");
+      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingAdsSettings(false); }
+  };
+
+  const loadContractSettings = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/admin/contract-settings", token);
+      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966530658285"); }
+    } catch {}
+  }, [token]);
+
+  const saveContractSettings = async () => {
+    setSavingContractSettings(true);
+    try {
+      const res = await apiFetch("/api/admin/contract-settings", token, {
+        method: "PUT", body: JSON.stringify({ contract_whatsapp: contractWhatsapp }),
+      });
+      if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث رقم واتساب عقود المؤسسات");
+      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setSavingContractSettings(false); }
+  };
+
   const loadSecurity = useCallback(async () => {
     setLoadingSecurity(true);
     try {
@@ -375,6 +714,116 @@ export default function AdminDashboard() {
       }
     } catch {}
     finally { setLoadingSecurity(false); }
+  }, [token]);
+
+  const loadUpdates = useCallback(async () => {
+    setLoadingUpdates(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/app/version`);
+      if (res.ok) {
+        const data = await res.json();
+        setAppVersion(String(data.version ?? 1));
+        setUpdateNotes(data.notes ?? "");
+        setUpdateForce(data.force ?? false);
+      }
+    } catch {}
+    finally { setLoadingUpdates(false); }
+  }, []);
+
+  const loadAdminPhoneShops = useCallback(async () => {
+    setLoadingPhoneShops(true);
+    try {
+      const res = await apiFetch("/api/admin/phone-shops", token);
+      if (res.ok) { const d = await res.json(); setAdminPhoneShops(d.shops ?? []); }
+    } catch {}
+    finally { setLoadingPhoneShops(false); }
+  }, [token]);
+
+  const approvePhoneShop = useCallback(async (id: number, approved: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_approved:!approved }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_approved:!approved} : s));
+    } catch {}
+  }, [token]);
+
+  const verifyPhoneShop = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_verified:!verified }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_verified:!verified} : s));
+    } catch {}
+  }, [token]);
+
+  const featurePhoneShop = useCallback(async (id: number, featured: boolean) => {
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"PUT", body:JSON.stringify({ is_featured:!featured }), headers:{"Content-Type":"application/json"} });
+      setAdminPhoneShops(prev => prev.map(s => s.id===id ? {...s, is_featured:!featured} : s));
+    } catch {}
+  }, [token]);
+
+  const deletePhoneShop = useCallback(async (id: number) => {
+    setDeletingPhoneShopId(id);
+    try {
+      await apiFetch(`/api/admin/phone-shops/${id}`, token, { method:"DELETE" });
+      setAdminPhoneShops(prev => prev.filter(s => s.id!==id));
+    } catch {}
+    finally { setDeletingPhoneShopId(null); }
+  }, [token]);
+
+  const loadAdminLibraries = useCallback(async () => {
+    setLoadingAdminLibs(true);
+    try {
+      const res = await apiFetch("/api/admin/student-libraries", token);
+      if (res.ok) { const d = await res.json(); setAdminLibraries(Array.isArray(d) ? d : d.libraries ?? []); }
+    } catch {}
+    finally { setLoadingAdminLibs(false); }
+  }, [token]);
+
+  const deleteAdminLibrary = useCallback(async (id: number) => {
+    setDeletingLibId(id);
+    try {
+      await apiFetch(`/api/admin/student-libraries/${id}`, token, { method: "DELETE" });
+      setAdminLibraries(prev => prev.filter(l => l.id !== id));
+    } catch {}
+    finally { setDeletingLibId(null); }
+  }, [token]);
+
+  const toggleLibraryVerified = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/student-libraries/${id}`, token, { method: "PUT", body: JSON.stringify({ is_verified: !verified }), headers: { "Content-Type": "application/json" } });
+      setAdminLibraries(prev => prev.map(l => l.id === id ? { ...l, is_verified: !verified } : l));
+    } catch {}
+  }, [token]);
+
+  const loadAdminMerchants = useCallback(async () => {
+    setLoadingAdminMerchants(true);
+    try {
+      const res = await apiFetch("/api/admin/merchants", token);
+      if (res.ok) { const d = await res.json(); setAdminMerchants(Array.isArray(d) ? d : d.merchants ?? []); }
+    } catch {}
+    finally { setLoadingAdminMerchants(false); }
+  }, [token]);
+
+  const deleteAdminMerchant = useCallback(async (id: number) => {
+    setDeletingMerchantId(id);
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "DELETE" });
+      setAdminMerchants(prev => prev.filter(m => m.id !== id));
+    } catch {}
+    finally { setDeletingMerchantId(null); }
+  }, [token]);
+
+  const toggleMerchantVerified = useCallback(async (id: number, verified: boolean) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ is_verified: !verified }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, is_verified: !verified } : m));
+    } catch {}
+  }, [token]);
+
+  const toggleMerchantFeatured = useCallback(async (id: number, featured: boolean) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ is_featured: !featured }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, is_featured: !featured } : m));
+    } catch {}
   }, [token]);
 
   const loadCommunities = useCallback(async () => {
@@ -472,11 +921,16 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
     if (tab === "landmarks")    loadLandmarks();
-    if (tab === "ads")          loadAds();
-    if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); }
-    if (tab === "neighborhoods") loadNeighborhoods();
+    if (tab === "honored")      loadHonoredFigures();
+    if (tab === "ads")          { loadAds(); loadAdsSettings(); }
+    if (tab === "communities")  { loadCommunities(); loadServiceRequests("pending"); loadContractSettings(); }
     if (tab === "ai_settings")   loadAiSettings();
-    if (tab === "security")      loadSecurity();
+    if (tab === "security")      { loadSecurity(); loadGhostAccounts(); }
+    if (tab === "transport")       loadTransportData();
+    if (tab === "updates")         loadUpdates();
+    if (tab === "libraries")       loadAdminLibraries();
+    if (tab === "merchants_admin") loadAdminMerchants();
+    if (tab === "phone_shops")     loadAdminPhoneShops();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -493,6 +947,26 @@ export default function AdminDashboard() {
       setRoleModal(null);
     } catch { Alert.alert("خطأ", "تعذّر تغيير الصفة"); }
     finally { setRoleChanging(false); }
+  };
+
+  const handleQuickPromote = (u: AdminUser) => {
+    setPromoTarget(u);
+  };
+
+  const executePromote = async () => {
+    if (!promoTarget) return;
+    setPromoLoading(true);
+    try {
+      const res = await apiFetch(`/api/admin/users/${promoTarget.id}/role`, token, {
+        method: "PATCH", body: JSON.stringify({ role: "moderator" }),
+      });
+      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
+      setUsers(prev => prev.map(x => x.id === promoTarget.id ? { ...x, role: "moderator" } : x));
+      loadStats();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPromoTarget(null);
+    } catch { Alert.alert("خطأ", "تعذّر الترقية"); }
+    finally { setPromoLoading(false); }
   };
 
   const handleDeleteUser = async (u: AdminUser) => {
@@ -515,6 +989,17 @@ export default function AdminDashboard() {
       if (res.ok) setPermSections(await res.json());
       else setPermSections([]);
     } catch { setPermSections([]); }
+  };
+
+  const openUserStats = async (u: AdminUser) => {
+    setStatsUser(u);
+    setUserStats(null);
+    setLoadingUserStats(true);
+    try {
+      const res = await apiFetch(`/api/admin/users/${u.id}/stats`, token);
+      if (res.ok) setUserStats(await res.json());
+    } catch {}
+    finally { setLoadingUserStats(false); }
   };
 
   const savePerms = async () => {
@@ -566,6 +1051,138 @@ export default function AdminDashboard() {
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
+  const pickLandmarkImageForAdd = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setLmAddImgUploading(true);
+    try {
+      const url = await uploadLandmarkImage(uri);
+      setLmForm(f => ({ ...f, image_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة، تأكد من اتصالك بالإنترنت"); }
+    finally { setLmAddImgUploading(false); }
+  };
+
+  const pickLandmarkImageForEdit = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const uri = result.assets[0].uri;
+    setLmEditImgUploading(true);
+    try {
+      const url = await uploadLandmarkImage(uri);
+      setEditLmForm(f => ({ ...f, image_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة، تأكد من اتصالك بالإنترنت"); }
+    finally { setLmEditImgUploading(false); }
+  };
+
+  // ── Honored Figures actions ───────────────────────────────────────────────
+  const loadHonoredFigures = async () => {
+    setLoadingHonored(true);
+    try {
+      const res = await apiFetch("/api/admin/honored-figures", token);
+      const json = await res.json();
+      if (res.ok) setHonoredList(json);
+    } catch { }
+    finally { setLoadingHonored(false); }
+  };
+
+  const addHonoredFigure = async () => {
+    if (!honorForm.name.trim() || !honorForm.photo_url.trim() || !honorForm.start_date || !honorForm.end_date) {
+      Alert.alert("تنبيه", "الاسم والصورة والتاريخان مطلوبة");
+      return;
+    }
+    setAddingHonor(true);
+    try {
+      const res = await apiFetch("/api/admin/honored-figures", token, {
+        method: "POST", body: JSON.stringify(honorForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error); return; }
+      setHonoredList(prev => [json, ...prev]);
+      setHonorForm(HONOR_FORM_INIT);
+      setShowAddHonor(false);
+    } catch { Alert.alert("خطأ", "تعذّر الإضافة"); }
+    finally { setAddingHonor(false); }
+  };
+
+  const updateHonoredFigure = async () => {
+    if (!editingHonor) return;
+    if (!editHonorForm.name.trim() || !editHonorForm.photo_url.trim() || !editHonorForm.start_date || !editHonorForm.end_date) {
+      Alert.alert("تنبيه", "الاسم والصورة والتاريخان مطلوبة");
+      return;
+    }
+    setUpdatingHonor(true);
+    try {
+      const res = await apiFetch(`/api/admin/honored-figures/${editingHonor.id}`, token, {
+        method: "PATCH", body: JSON.stringify(editHonorForm),
+      });
+      const json = await res.json();
+      if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر التعديل"); return; }
+      setHonoredList(prev => prev.map(x => x.id === editingHonor.id ? json : x));
+      setShowEditHonor(false); setEditingHonor(null);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setUpdatingHonor(false); }
+  };
+
+  const toggleHonoredVisibility = async (figure: HonoredFigure) => {
+    try {
+      const res = await apiFetch(`/api/admin/honored-figures/${figure.id}/visibility`, token, { method: "PATCH" });
+      const json = await res.json();
+      if (res.ok) setHonoredList(prev => prev.map(x => x.id === figure.id ? json : x));
+    } catch { Alert.alert("خطأ", "تعذّر تغيير الحالة"); }
+  };
+
+  const deleteHonoredFigure = async (figure: HonoredFigure) => {
+    Alert.alert("حذف التكريم", `هل أنت متأكد من حذف "${figure.name}"؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف", style: "destructive",
+        onPress: async () => {
+          try {
+            await apiFetch(`/api/admin/honored-figures/${figure.id}`, token, { method: "DELETE" });
+            setHonoredList(prev => prev.filter(x => x.id !== figure.id));
+          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+        },
+      },
+    ]);
+  };
+
+  const pickHonorImageForAdd = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled || !result.assets?.[0]) return;
+    setHonorImgUploading(true);
+    try {
+      const { uploadHonorImage } = await import("@/lib/firebase/storage");
+      const url = await uploadHonorImage(result.assets[0].uri);
+      setHonorForm(f => ({ ...f, photo_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة"); }
+    finally { setHonorImgUploading(false); }
+  };
+
+  const pickHonorImageForEdit = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled || !result.assets?.[0]) return;
+    setEditHonorImgUploading(true);
+    try {
+      const { uploadHonorImage } = await import("@/lib/firebase/storage");
+      const url = await uploadHonorImage(result.assets[0].uri);
+      setEditHonorForm(f => ({ ...f, photo_url: url }));
+    } catch { Alert.alert("خطأ", "تعذّر رفع الصورة"); }
+    finally { setEditHonorImgUploading(false); }
+  };
+
   // ── Ads actions ──────────────────────────────────────────────────────────
   const updateAdStatus = async (ad: AdRecord, status: "active" | "rejected" | "expired", days?: string, note?: string) => {
     setApprovingId(ad.id);
@@ -591,31 +1208,6 @@ export default function AdminDashboard() {
       await apiFetch(`/api/admin/ads/${ad.id}`, token, { method: "DELETE" });
       setAdsList(prev => prev.filter(a => a.id !== ad.id));
       setAdDetailModal(null);
-    } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
-  };
-
-  // ── Neighborhoods actions ────────────────────────────────────────────────
-  const saveNeighborhood = async () => {
-    if (!nbrForm.label.trim()) { Alert.alert("تنبيه", "أدخل الاسم"); return; }
-    setAddingNbr(true);
-    try {
-      if (editingNbr?.key) {
-        const res = await apiFetch(`/api/admin/neighborhoods/${editingNbr.key}`, token, { method: "PUT", body: JSON.stringify(nbrForm) });
-        if (res.ok) { const updated = await res.json(); setNeighborhoods(prev => prev.map(n => n.key === editingNbr.key ? updated : n)); }
-      } else {
-        const res = await apiFetch("/api/admin/neighborhoods", token, { method: "POST", body: JSON.stringify(nbrForm) });
-        if (res.ok) { const added = await res.json(); setNeighborhoods(prev => [...prev, added]); }
-      }
-      setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(false);
-    } catch { Alert.alert("خطأ", "تعذّرت العملية"); }
-    finally { setAddingNbr(false); }
-  };
-
-  const deleteNeighborhood = async (item: NbrItem) => {
-    if (!item.key) { setNeighborhoods(prev => prev.filter(n => n.label !== item.label)); return; }
-    try {
-      await apiFetch(`/api/admin/neighborhoods/${item.key}`, token, { method: "DELETE" });
-      setNeighborhoods(prev => prev.filter(n => n.key !== item.key));
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
@@ -660,15 +1252,147 @@ export default function AdminDashboard() {
     finally { setSavingName(false); }
   };
 
+  // ── Admin Device Registration ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!token) return;
+    apiFetch("/api/admin/push/register-token", token)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setAdminDeviceRegistered(!!d?.token))
+      .catch(() => {});
+  }, [token]);
+
+  const registerAdminDevice = async () => {
+    setRegisteringAdminDevice(true);
+    try {
+      const pushToken = await registerForPushNotifications(token ?? undefined);
+      if (!pushToken) {
+        Alert.alert("تنبيه", "تعذّر الحصول على رمز الإشعارات. تأكد من منح الإذن للتطبيق.");
+        return;
+      }
+      const res = await apiFetch("/api/admin/push/register-token", token, {
+        method: "POST",
+        body: JSON.stringify({ expo_token: pushToken }),
+      });
+      if (res.ok) {
+        setAdminDeviceRegistered(true);
+        Alert.alert("تم التفعيل ✅", "سيصلك إشعار على هذا الجهاز عند أي طلب جديد.");
+      } else {
+        Alert.alert("خطأ", "فشل التسجيل. حاول مجدداً.");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذّر التسجيل.");
+    } finally {
+      setRegisteringAdminDevice(false);
+    }
+  };
+
+  // ── Broadcast Push ────────────────────────────────────────────────────────
+  const broadcastPush = async () => {
+    if (!broadcastForm.title.trim() || !broadcastForm.body.trim()) { Alert.alert("تنبيه", "أدخل العنوان والرسالة"); return; }
+    setBroadcastingPush(true);
+    try {
+      const res = await apiFetch("/api/admin/push/broadcast", token, {
+        method: "POST",
+        body: JSON.stringify({ title: broadcastForm.title.trim(), body: broadcastForm.body.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        Alert.alert("تم الإرسال", `أُرسل لـ ${data.sent} جهاز بنجاح${data.failed ? `، فشل: ${data.failed}` : ""}`);
+        setBroadcastForm({ title: "", body: "" });
+      } else Alert.alert("خطأ", "فشل الإرسال");
+    } catch { Alert.alert("خطأ", "تعذّر الإرسال"); }
+    finally { setBroadcastingPush(false); }
+  };
+
+  // ── Ghost Accounts ────────────────────────────────────────────────────────
+  const loadGhostAccounts = useCallback(async () => {
+    setLoadingGhosts(true);
+    try {
+      const res = await apiFetch("/api/admin/ghost-accounts", token);
+      if (res.ok) setGhostAccounts(await res.json());
+    } catch {} finally { setLoadingGhosts(false); }
+  }, [token]);
+
+  const cleanGhostAccounts = (onlyInactive: boolean) => {
+    Alert.alert(
+      "تأكيد الحذف",
+      onlyInactive
+        ? "سيتم حذف الحسابات الوهمية غير النشطة (لا منشورات ولا جهاز مسجّل). هل أنت متأكد؟"
+        : `سيتم حذف جميع الحسابات الوهمية (${ghostAccounts.count}). هل أنت متأكد؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حذف", style: "destructive",
+          onPress: async () => {
+            setCleaningGhosts(true);
+            try {
+              const res = await apiFetch("/api/admin/ghost-accounts", token, {
+                method: "DELETE",
+                body: JSON.stringify({ onlyInactive }),
+              });
+              if (res.ok) {
+                const d = await res.json();
+                Alert.alert("تم", `حُذف ${d.deleted} حساب`);
+                loadGhostAccounts();
+              } else Alert.alert("خطأ", "فشل الحذف");
+            } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
+            finally { setCleaningGhosts(false); }
+          },
+        },
+      ]
+    );
+  };
+
+  // ── Backup ────────────────────────────────────────────────────────────────
+  const downloadBackup = async () => {
+    setDownloadingBackup(true);
+    try {
+      const res = await apiFetch("/api/admin/backup", token);
+      if (res.ok) {
+        const data = await res.json();
+        const summary = Object.entries(data.tables as Record<string, { count: number }>)
+          .map(([k, v]) => `${k}: ${v.count}`)
+          .join("\n");
+        Alert.alert("النسخة الاحتياطية جاهزة", `تصدير بيانات ${data.exported_at?.slice(0, 10)}\n\n${summary}`);
+      } else Alert.alert("خطأ", "فشل التصدير");
+    } catch { Alert.alert("خطأ", "تعذّر التصدير"); }
+    finally { setDownloadingBackup(false); }
+  };
+
   // ── Derived ──────────────────────────────────────────────────────────────
-  const filteredUsers = users.filter(u => {
-    const q = search.trim().toLowerCase();
-    const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.neighborhood || "").toLowerCase().includes(q);
-    if (tab === "members")    return matchSearch && u.role === "user";
-    if (tab === "admins")     return matchSearch && u.role === "admin";
-    if (tab === "moderators") return matchSearch && u.role === "moderator";
-    return matchSearch;
+  const allMembers = users.filter(u => u.role === "user");
+  const now = new Date();
+  const thisMonth = allMembers.filter(u => {
+    const d = new Date(u.created_at);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
+  const thisWeek = allMembers.filter(u => {
+    const d = new Date(u.created_at);
+    return (now.getTime() - d.getTime()) < 7 * 86400000;
+  });
+  const membersByNbr = allMembers.reduce<Record<string, number>>((acc, u) => {
+    const key = u.neighborhood || "غير محدد";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const topNbrs = Object.entries(membersByNbr).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const filteredUsers = users
+    .filter(u => {
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.phone || "").includes(q) || (u.neighborhood || "").toLowerCase().includes(q);
+      const matchNbr = tab !== "members" || memberNbrFilter === "all" || (u.neighborhood || "غير محدد") === memberNbrFilter;
+      if (tab === "members")    return matchSearch && matchNbr && u.role === "user";
+      if (tab === "admins")     return matchSearch && u.role === "admin";
+      if (tab === "moderators") return matchSearch && u.role === "moderator";
+      return matchSearch;
+    })
+    .sort((a, b) => {
+      if (tab !== "members") return 0;
+      if (memberSort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (memberSort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return a.name.localeCompare(b.name, "ar");
+    });
 
   const pendingAdsCount       = adsList.filter(a => a.status === "pending").length;
   const pendingCommunitiesCount = communitiesList.filter(c => c.status === "pending").length;
@@ -681,11 +1405,16 @@ export default function AdminDashboard() {
     { key: "admins",         label: "المديرون",          icon: "shield",             color: "#E05567",      adminOnly: true               },
     { key: "moderators",     label: "المشرفون",          icon: "shield-half",        color: "#F0A500",      adminOnly: true               },
     { key: "communities",    label: "المؤسسات",          icon: "business",           color: "#16A085", badge: pendingCommunitiesCount, modPerm: "communities" },
+    { key: "honored",        label: "قاعة التكريم",      icon: "trophy",             color: "#D4AF37",      adminOnly: true               },
     { key: "landmarks",      label: "المعالم",           icon: "location",           color: "#9B59B6",      modPerm: "landmarks"          },
     { key: "ads",            label: "الإعلانات",         icon: "megaphone",          color: "#F0A500", badge: pendingAdsCount, modPerm: "ads" },
-    { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
+    { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
+    { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
+    { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
+    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
+    { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -695,60 +1424,107 @@ export default function AdminDashboard() {
   });
 
   // ─── Render helpers ────────────────────────────────────────────────────────
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "اليوم";
+    if (days < 7) return `منذ ${days} يوم`;
+    if (days < 30) return `منذ ${Math.floor(days / 7)} أسبوع`;
+    if (days < 365) return `منذ ${Math.floor(days / 30)} شهر`;
+    return `منذ ${Math.floor(days / 365)} سنة`;
+  }
+
   function renderUserCard(u: AdminUser) {
-    const joinDate = u.created_at
-      ? new Date(u.created_at).toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" })
-      : "—";
+    const roleColor = ROLE_LABELS[u.role]?.color ?? Colors.primary;
+    const joinAgo   = u.created_at ? timeAgo(u.created_at) : "—";
     return (
-      <Animated.View entering={FadeInDown.springify().damping(18)} key={u.id} style={s.userCard}>
-        <View style={s.userCardRow}>
-          <View style={s.avatarCircle}>
-            <Text style={s.avatarLetter}>{u.name.charAt(0)}</Text>
+      <Animated.View entering={FadeInDown.springify().damping(18)} key={u.id} style={uc.card}>
+        {/* اضغط على البطاقة لرؤية الإحصائيات */}
+        <TouchableOpacity onPress={() => openUserStats(u)} activeOpacity={0.85} style={{ position: "absolute", top: 10, left: 12, zIndex: 5 }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.primary + "30" }}>
+            <Ionicons name="bar-chart-outline" size={12} color={Colors.primary} />
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary }}>إحصائيات</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.userName}>{u.name}</Text>
-            <Text style={s.userContact}>{u.phone || u.email || "—"}</Text>
+        </TouchableOpacity>
+        {/* Top row */}
+        <View style={uc.topRow}>
+          {/* Avatar */}
+          <View style={[uc.avatar, { backgroundColor: roleColor + "22", borderColor: roleColor + "44" }]}>
+            <Text style={[uc.avatarLetter, { color: roleColor }]}>{u.name.charAt(0)}</Text>
           </View>
-          <RoleBadge role={u.role} />
+
+          {/* Name + meta */}
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={uc.name}>{u.name}</Text>
+            <View style={uc.metaRow}>
+              {u.phone ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="call-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.phone}</Text>
+                </View>
+              ) : u.email ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="mail-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.email}</Text>
+                </View>
+              ) : null}
+              {u.neighborhood ? (
+                <View style={uc.metaChip}>
+                  <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
+                  <Text style={uc.metaText}>{u.neighborhood}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Role badge + join time */}
+          <View style={{ alignItems: "flex-end", gap: 5 }}>
+            <RoleBadge role={u.role} />
+            <Text style={uc.joinAgo}>{joinAgo}</Text>
+          </View>
         </View>
 
-        <View style={s.chipRow}>
-          {u.neighborhood ? (
-            <View style={s.chip}>
-              <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
-              <Text style={s.chipText}>{u.neighborhood}</Text>
-            </View>
-          ) : null}
-          <View style={s.chip}>
-            <Ionicons name="time-outline" size={11} color={Colors.textMuted} />
-            <Text style={s.chipText}>{joinDate}</Text>
-          </View>
-          {u.national_id_masked ? (
-            <View style={s.chip}>
-              <Ionicons name="id-card-outline" size={11} color={Colors.textMuted} />
-              <Text style={s.chipText}>{u.national_id_masked}</Text>
-            </View>
-          ) : null}
-        </View>
-
+        {/* Action bar - only for admin */}
         {isAdmin && (
-          <View style={s.userActions}>
-            <TouchableOpacity style={s.userActionBtn} onPress={() => setRoleModal(u)}>
-              <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
-              <Text style={[s.userActionTxt, { color: Colors.primary }]}>تغيير الصفة</Text>
-            </TouchableOpacity>
-            {u.role === "moderator" && (
-              <TouchableOpacity style={[s.userActionBtn, { borderColor: "#F0A50030", backgroundColor: "#F0A50010" }]} onPress={() => openPermModal(u)}>
-                <Ionicons name="key-outline" size={14} color="#F0A500" />
-                <Text style={[s.userActionTxt, { color: "#F0A500" }]}>الصلاحيات</Text>
+          <View style={uc.actionBar}>
+            {/* Primary action: Promote (only for regular users) */}
+            {u.role === "user" && (
+              <TouchableOpacity
+                style={uc.promoteBtn}
+                onPress={() => handleQuickPromote(u)}
+                activeOpacity={0.78}
+              >
+                <Ionicons name="arrow-up-circle" size={15} color="#fff" />
+                <Text style={uc.promoteBtnTxt}>ترقية لمشرف</Text>
               </TouchableOpacity>
             )}
+
+            {/* Permissions (only for moderators) */}
+            {u.role === "moderator" && (
+              <TouchableOpacity
+                style={[uc.secBtn, { borderColor: "#F0A50040", backgroundColor: "#F0A50012" }]}
+                onPress={() => openPermModal(u)}
+              >
+                <Ionicons name="key-outline" size={14} color="#F0A500" />
+                <Text style={[uc.secBtnTxt, { color: "#F0A500" }]}>الصلاحيات</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Change role */}
             <TouchableOpacity
-              style={[s.userActionBtn, { borderColor: "#E0556730", backgroundColor: "#E0556710" }]}
+              style={[uc.secBtn, { borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "12" }]}
+              onPress={() => setRoleModal(u)}
+            >
+              <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
+              <Text style={[uc.secBtnTxt, { color: Colors.primary }]}>الصفة</Text>
+            </TouchableOpacity>
+
+            {/* Delete */}
+            <TouchableOpacity
+              style={[uc.secBtn, { borderColor: "#E0556730", backgroundColor: "#E0556710" }]}
               onPress={() => handleDeleteUser(u)}
             >
               <Ionicons name="trash-outline" size={14} color="#E05567" />
-              <Text style={[s.userActionTxt, { color: "#E05567" }]}>حذف</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -867,21 +1643,94 @@ export default function AdminDashboard() {
       {/* Members / Admins / Moderators */}
       {(tab === "members" || tab === "admins" || tab === "moderators") && (
         <View style={{ flex: 1 }}>
-          <View style={s.searchBar}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="ابحث باسم أو حي..."
-              placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              textAlign="right"
-            />
-            {search ? (
-              <Pressable onPress={() => setSearch("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-              </Pressable>
-            ) : null}
+          {/* جدول متابعة الأعضاء - فقط في تبويب الأعضاء */}
+          {tab === "members" && !loadingUsers && (
+            <Animated.View entering={FadeInDown.duration(300)} style={sm.trackingPanel}>
+              {/* إحصائيات سريعة */}
+              <View style={sm.trackingRow}>
+                <View style={[sm.trackingStat, { borderColor: Colors.primary + "40" }]}>
+                  <Text style={[sm.trackingNum, { color: Colors.primary }]}>{allMembers.length}</Text>
+                  <Text style={sm.trackingLabel}>إجمالي الأعضاء</Text>
+                </View>
+                <View style={[sm.trackingStat, { borderColor: "#3498DB40" }]}>
+                  <Text style={[sm.trackingNum, { color: "#3498DB" }]}>{thisMonth.length}</Text>
+                  <Text style={sm.trackingLabel}>هذا الشهر</Text>
+                </View>
+                <View style={[sm.trackingStat, { borderColor: Colors.cyber + "40" }]}>
+                  <Text style={[sm.trackingNum, { color: Colors.cyber }]}>{thisWeek.length}</Text>
+                  <Text style={sm.trackingLabel}>هذا الأسبوع</Text>
+                </View>
+              </View>
+
+              {/* أعلى الأحياء */}
+              {topNbrs.length > 0 && (
+                <View style={sm.nbrSection}>
+                  <Text style={sm.nbrTitle}>توزيع الأعضاء بالأحياء</Text>
+                  {topNbrs.map(([nbr, count]) => (
+                    <TouchableOpacity
+                      key={nbr}
+                      style={sm.nbrRow}
+                      onPress={() => setMemberNbrFilter(memberNbrFilter === nbr ? "all" : nbr)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[sm.nbrBar, {
+                        width: `${Math.round((count / (topNbrs[0]?.[1] || 1)) * 100)}%` as any,
+                        backgroundColor: memberNbrFilter === nbr ? Colors.primary : Colors.primary + "30",
+                      }]} />
+                      <View style={sm.nbrInfo}>
+                        <Text style={[sm.nbrName, memberNbrFilter === nbr && { color: Colors.primary }]}>{nbr}</Text>
+                        <Text style={sm.nbrCount}>{count} عضو</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                  {memberNbrFilter !== "all" && (
+                    <TouchableOpacity onPress={() => setMemberNbrFilter("all")} style={sm.clearFilter}>
+                      <Ionicons name="close-circle" size={13} color={Colors.textMuted} />
+                      <Text style={sm.clearFilterTxt}>إلغاء الفلتر</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </Animated.View>
+          )}
+
+          {/* شريط البحث والترتيب */}
+          <View style={{ paddingHorizontal: 14, paddingTop: 8, gap: 8 }}>
+            <View style={s.searchBar}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={s.searchInput}
+                placeholder={tab === "members" ? "ابحث باسم أو هاتف أو حي..." : "ابحث باسم..."}
+                placeholderTextColor={Colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+                textAlign="right"
+              />
+              {search ? (
+                <Pressable onPress={() => setSearch("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* أزرار الترتيب - فقط للأعضاء */}
+            {tab === "members" && (
+              <View style={sm.sortRow}>
+                <Text style={sm.sortLabel}>ترتيب:</Text>
+                {([ ["newest", "الأحدث"], ["oldest", "الأقدم"], ["name", "الاسم"] ] as const).map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[sm.sortBtn, memberSort === key && sm.sortBtnActive]}
+                    onPress={() => setMemberSort(key)}
+                  >
+                    <Text style={[sm.sortBtnTxt, memberSort === key && sm.sortBtnTxtActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+                <Text style={[sm.sortLabel, { marginRight: "auto" as any }]}>
+                  {filteredUsers.length} عضو
+                </Text>
+              </View>
+            )}
           </View>
 
           {loadingUsers ? (
@@ -895,6 +1744,247 @@ export default function AdminDashboard() {
               renderItem={({ item }) => renderUserCard(item)}
             />
           )}
+        </View>
+      )}
+
+      {/* ═══ قاعة التكريم ═══ */}
+      {tab === "honored" && (
+        <View style={{ flex: 1 }}>
+          <View style={s.pageHeader}>
+            <Text style={s.pageHeaderTitle}>قاعة التكريم ({honoredList.length})</Text>
+            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#D4AF37" }]} onPress={() => { setHonorForm(HONOR_FORM_INIT); setShowAddHonor(true); }}>
+              <Ionicons name="add" size={16} color="#000" />
+              <Text style={[s.addBtnTxt, { color: "#000" }]}>إضافة</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingHonored ? (
+            <ActivityIndicator color="#D4AF37" style={{ marginTop: 40 }} />
+          ) : honoredList.length === 0 ? (
+            <View style={s.emptyState}>
+              <Ionicons name="trophy-outline" size={44} color="#D4AF3760" />
+              <Text style={s.emptyStateText}>لا توجد شخصيات مكرّمة بعد</Text>
+              <Text style={[s.emptyStateText, { fontSize: 12, marginTop: 4 }]}>اضغط "إضافة" لتكريم أول شخصية من أبناء المدينة</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={honoredList}
+              keyExtractor={item => String(item.id)}
+              contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
+              renderItem={({ item }) => {
+                const now = new Date(); now.setHours(0, 0, 0, 0);
+                const start = new Date(item.start_date); const end = new Date(item.end_date);
+                const isActive = item.is_visible && start <= now && now <= end;
+                const isPast   = end < now;
+                return (
+                  <Animated.View entering={FadeInDown.springify().damping(16)} style={hs.honorCard}>
+                    {/* Photo + Name row */}
+                    <View style={hs.honorCardTop}>
+                      {item.photo_url ? (
+                        <Image source={{ uri: item.photo_url }} style={hs.honorThumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[hs.honorThumb, hs.honorThumbPlaceholder]}>
+                          <Ionicons name="person" size={22} color="#D4AF37" />
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={hs.honorName}>{item.name}</Text>
+                        {!!item.title && <Text style={hs.honorTitle}>{item.title}</Text>}
+                        {!!item.city_role && <Text style={hs.honorRole}>{item.city_role}</Text>}
+                      </View>
+                      {/* Visibility badge */}
+                      <View style={[hs.visChip, { backgroundColor: isActive ? "#D4AF3720" : isPast ? "#E0556720" : "#3E9CBF20", borderColor: isActive ? "#D4AF3750" : isPast ? "#E0556750" : "#3E9CBF50" }]}>
+                        <View style={[hs.visDot, { backgroundColor: isActive ? "#D4AF37" : isPast ? "#E05567" : "#3E9CBF" }]} />
+                        <Text style={[hs.visText, { color: isActive ? "#D4AF37" : isPast ? "#E05567" : "#3E9CBF" }]}>
+                          {isActive ? "نشط" : isPast ? "منتهي" : "مجدوَل"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Dates */}
+                    <View style={hs.datesRow}>
+                      <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
+                      <Text style={hs.datesText}>
+                        {new Date(item.start_date).toLocaleDateString("ar-SD", { day: "numeric", month: "short" })} ←
+                        {new Date(item.end_date).toLocaleDateString("ar-SD", { day: "numeric", month: "short", year: "numeric" })}
+                      </Text>
+                    </View>
+
+                    {!!item.tribute && (
+                      <Text style={hs.tributePreview} numberOfLines={2}>{item.tribute}</Text>
+                    )}
+
+                    {/* Actions */}
+                    <View style={hs.honorActions}>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: item.is_visible ? "#D4AF3740" : "#3E9CBF40", backgroundColor: item.is_visible ? "#D4AF3712" : "#3E9CBF12" }]}
+                        onPress={() => toggleHonoredVisibility(item)}
+                      >
+                        <Ionicons name={item.is_visible ? "eye" : "eye-off"} size={14} color={item.is_visible ? "#D4AF37" : "#3E9CBF"} />
+                        <Text style={[hs.honorActionTxt, { color: item.is_visible ? "#D4AF37" : "#3E9CBF" }]}>{item.is_visible ? "إخفاء" : "إظهار"}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: "#3498DB40", backgroundColor: "#3498DB12" }]}
+                        onPress={() => {
+                          setEditingHonor(item);
+                          setEditHonorForm({ name: item.name, title: item.title, city_role: item.city_role, photo_url: item.photo_url, tribute: item.tribute, start_date: item.start_date.slice(0, 10), end_date: item.end_date.slice(0, 10) });
+                          setShowEditHonor(true);
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={14} color="#3498DB" />
+                        <Text style={[hs.honorActionTxt, { color: "#3498DB" }]}>تعديل</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[hs.honorAction, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "12" }]}
+                        onPress={() => deleteHonoredFigure(item)}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+                        <Text style={[hs.honorActionTxt, { color: Colors.danger }]}>حذف</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                );
+              }}
+            />
+          )}
+
+          {/* ── Add Modal ── */}
+          <Modal visible={showAddHonor} transparent animationType="slide" onRequestClose={() => setShowAddHonor(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+              <Pressable style={s.overlay} onPress={() => setShowAddHonor(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "95%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                    <View style={hs.modalHeaderRow}>
+                      <Ionicons name="trophy" size={20} color="#D4AF37" />
+                      <Text style={[s.modalTitle, { color: "#D4AF37", marginBottom: 0 }]}>إضافة شخصية مكرّمة</Text>
+                    </View>
+
+                    <Text style={s.fieldLabel}>الاسم الكامل *</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.name} onChangeText={v => setHonorForm(f => ({ ...f, name: v }))} placeholder="اسم الشخصية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>اللقب / المنصب</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.title} onChangeText={v => setHonorForm(f => ({ ...f, title: v }))} placeholder="مثال: رائد أعمال · شاعر · معلم" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>دوره في المدينة</Text>
+                    <TextInput style={s.fieldInput} value={honorForm.city_role} onChangeText={v => setHonorForm(f => ({ ...f, city_role: v }))} placeholder="مثال: خدم المجتمع لأكثر من ٣٠ عاماً" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>الصورة الشخصية *</Text>
+                    {honorForm.photo_url ? (
+                      <Image source={{ uri: honorForm.photo_url }} style={hs.honorPhotoPreview} resizeMode="cover" />
+                    ) : (
+                      <View style={[hs.honorPhotoPreview, hs.honorPhotoPlaceholder]}>
+                        <Ionicons name="person-circle-outline" size={44} color="#D4AF37" />
+                        <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة شخصية</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      onPress={pickHonorImageForAdd}
+                      disabled={honorImgUploading}
+                      style={[s.lmPickBtn, { borderColor: "#D4AF3750", backgroundColor: "#D4AF3712" }]}
+                    >
+                      {honorImgUploading
+                        ? <><ActivityIndicator size="small" color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>جاري الرفع...</Text></>
+                        : <><Ionicons name="cloud-upload-outline" size={18} color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>{honorForm.photo_url ? "تغيير الصورة" : "رفع صورة"}</Text></>
+                      }
+                    </TouchableOpacity>
+
+                    <Text style={s.fieldLabel}>شهادة التكريم</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 90, textAlignVertical: "top", paddingTop: 10 }]}
+                      value={honorForm.tribute} onChangeText={v => setHonorForm(f => ({ ...f, tribute: v }))}
+                      placeholder="اكتب كلمة التكريم أو شهادة وجيزة..."
+                      placeholderTextColor={Colors.textMuted} textAlign="right" multiline
+                    />
+
+                    <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
+                        <TextInput style={s.fieldInput} value={honorForm.start_date} onChangeText={v => setHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
+                        <TextInput style={s.fieldInput} value={honorForm.end_date} onChangeText={v => setHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                    </View>
+                    <Text style={s.fieldHint}>يتم إخفاء الشخصية تلقائياً بعد تاريخ الانتهاء</Text>
+
+                    <View style={[s.modalBtns, { marginTop: 8 }]}>
+                      <ActionButton label="إضافة التكريم" color="#D4AF37" icon="trophy-outline" onPress={addHonoredFigure} disabled={addingHonor || honorImgUploading} />
+                      <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddHonor(false)} outline />
+                    </View>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* ── Edit Modal ── */}
+          <Modal visible={showEditHonor} transparent animationType="slide" onRequestClose={() => setShowEditHonor(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+              <Pressable style={s.overlay} onPress={() => setShowEditHonor(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "95%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                    <View style={hs.modalHeaderRow}>
+                      <Ionicons name="create" size={20} color="#3498DB" />
+                      <Text style={[s.modalTitle, { color: "#3498DB", marginBottom: 0 }]}>تعديل التكريم</Text>
+                    </View>
+
+                    <Text style={s.fieldLabel}>الاسم الكامل *</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.name} onChangeText={v => setEditHonorForm(f => ({ ...f, name: v }))} placeholder="اسم الشخصية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>اللقب / المنصب</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.title} onChangeText={v => setEditHonorForm(f => ({ ...f, title: v }))} placeholder="مثال: رائد أعمال · شاعر · معلم" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>دوره في المدينة</Text>
+                    <TextInput style={s.fieldInput} value={editHonorForm.city_role} onChangeText={v => setEditHonorForm(f => ({ ...f, city_role: v }))} placeholder="مثال: خدم المجتمع لأكثر من ٣٠ عاماً" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                    <Text style={s.fieldLabel}>الصورة الشخصية *</Text>
+                    {editHonorForm.photo_url ? (
+                      <Image source={{ uri: editHonorForm.photo_url }} style={hs.honorPhotoPreview} resizeMode="cover" />
+                    ) : (
+                      <View style={[hs.honorPhotoPreview, hs.honorPhotoPlaceholder]}>
+                        <Ionicons name="person-circle-outline" size={44} color="#D4AF37" />
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      onPress={pickHonorImageForEdit}
+                      disabled={editHonorImgUploading}
+                      style={[s.lmPickBtn, { borderColor: "#D4AF3750", backgroundColor: "#D4AF3712" }]}
+                    >
+                      {editHonorImgUploading
+                        ? <><ActivityIndicator size="small" color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>جاري الرفع...</Text></>
+                        : <><Ionicons name="cloud-upload-outline" size={18} color="#D4AF37" /><Text style={[s.lmPickBtnText, { color: "#D4AF37" }]}>{editHonorForm.photo_url ? "تغيير الصورة" : "رفع صورة"}</Text></>
+                      }
+                    </TouchableOpacity>
+
+                    <Text style={s.fieldLabel}>شهادة التكريم</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 90, textAlignVertical: "top", paddingTop: 10 }]}
+                      value={editHonorForm.tribute} onChangeText={v => setEditHonorForm(f => ({ ...f, tribute: v }))}
+                      placeholder="اكتب كلمة التكريم أو شهادة وجيزة..."
+                      placeholderTextColor={Colors.textMuted} textAlign="right" multiline
+                    />
+
+                    <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
+                        <TextInput style={s.fieldInput} value={editHonorForm.start_date} onChangeText={v => setEditHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
+                        <TextInput style={s.fieldInput} value={editHonorForm.end_date} onChangeText={v => setEditHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                      </View>
+                    </View>
+
+                    <View style={[s.modalBtns, { marginTop: 8 }]}>
+                      <ActionButton label="حفظ التعديلات" color="#D4AF37" icon="save-outline" onPress={updateHonoredFigure} disabled={updatingHonor || editHonorImgUploading} />
+                      <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowEditHonor(false)} outline />
+                    </View>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </KeyboardAvoidingView>
+          </Modal>
         </View>
       )}
 
@@ -960,10 +2050,39 @@ export default function AdminDashboard() {
                   <TextInput style={s.fieldInput} value={editLmForm.name} onChangeText={v => setEditLmForm(f => ({ ...f, name: v }))} placeholder="مثال: عجلة الهواء" placeholderTextColor={Colors.textMuted} textAlign="right" />
                   <Text style={s.fieldLabel}>الوصف (اختياري)</Text>
                   <TextInput style={s.fieldInput} value={editLmForm.sub} onChangeText={v => setEditLmForm(f => ({ ...f, sub: v }))} placeholder="وصف قصير" placeholderTextColor={Colors.textMuted} textAlign="right" />
-                  <Text style={s.fieldLabel}>رابط الصورة *</Text>
+
+                  <Text style={s.fieldLabel}>صورة المعلم *</Text>
+                  {/* معاينة الصورة */}
+                  {editLmForm.image_url.startsWith("http") ? (
+                    <Image source={{ uri: editLmForm.image_url }} style={s.lmImgPreview} resizeMode="cover" />
+                  ) : editLmForm.image_url ? (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="image-outline" size={28} color="#9B59B6" />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{editLmForm.image_url}</Text>
+                    </View>
+                  ) : (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>لم تُختر صورة بعد</Text>
+                    </View>
+                  )}
+                  {/* زر رفع الصورة */}
+                  <TouchableOpacity
+                    onPress={pickLandmarkImageForEdit}
+                    disabled={lmEditImgUploading}
+                    style={[s.lmPickBtn, { borderColor: "#9B59B6" + "50", backgroundColor: "#9B59B6" + "12" }]}
+                  >
+                    {lmEditImgUploading
+                      ? <><ActivityIndicator size="small" color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>جاري الرفع...</Text></>
+                      : <><Ionicons name="cloud-upload-outline" size={18} color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>{editLmForm.image_url ? "تغيير الصورة" : "رفع صورة من الجهاز"}</Text></>
+                    }
+                  </TouchableOpacity>
+                  {/* رابط يدوي (اختياري) */}
+                  <Text style={[s.fieldLabel, { marginTop: 8 }]}>أو أدخل رابط الصورة يدوياً</Text>
                   <TextInput style={s.fieldInput} value={editLmForm.image_url} onChangeText={v => setEditLmForm(f => ({ ...f, image_url: v }))} placeholder="https://..." placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" keyboardType="url" />
+
                   <View style={s.modalBtns}>
-                    <ActionButton label="حفظ التعديلات" color="#3498DB" icon="save-outline" onPress={updateLandmark} disabled={updatingLM} />
+                    <ActionButton label="حفظ التعديلات" color="#3498DB" icon="save-outline" onPress={updateLandmark} disabled={updatingLM || lmEditImgUploading} />
                     <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowEditLM(false)} outline />
                   </View>
                 </Pressable>
@@ -981,11 +2100,40 @@ export default function AdminDashboard() {
                   <TextInput style={s.fieldInput} value={lmForm.name} onChangeText={v => setLmForm(f => ({ ...f, name: v }))} placeholder="مثال: عجلة الهواء" placeholderTextColor={Colors.textMuted} textAlign="right" />
                   <Text style={s.fieldLabel}>الوصف (اختياري)</Text>
                   <TextInput style={s.fieldInput} value={lmForm.sub} onChangeText={v => setLmForm(f => ({ ...f, sub: v }))} placeholder="وصف قصير" placeholderTextColor={Colors.textMuted} textAlign="right" />
-                  <Text style={s.fieldLabel}>رابط الصورة *</Text>
+
+                  <Text style={s.fieldLabel}>صورة المعلم *</Text>
+                  {/* معاينة الصورة */}
+                  {lmForm.image_url.startsWith("http") ? (
+                    <Image source={{ uri: lmForm.image_url }} style={s.lmImgPreview} resizeMode="cover" />
+                  ) : lmForm.image_url ? (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="image-outline" size={28} color="#9B59B6" />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{lmForm.image_url}</Text>
+                    </View>
+                  ) : (
+                    <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
+                      <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة المعلم</Text>
+                    </View>
+                  )}
+                  {/* زر رفع الصورة */}
+                  <TouchableOpacity
+                    onPress={pickLandmarkImageForAdd}
+                    disabled={lmAddImgUploading}
+                    style={[s.lmPickBtn, { borderColor: "#9B59B6" + "50", backgroundColor: "#9B59B6" + "12" }]}
+                  >
+                    {lmAddImgUploading
+                      ? <><ActivityIndicator size="small" color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>جاري الرفع...</Text></>
+                      : <><Ionicons name="cloud-upload-outline" size={18} color="#9B59B6" /><Text style={[s.lmPickBtnText, { color: "#9B59B6" }]}>{lmForm.image_url ? "تغيير الصورة" : "رفع صورة من الجهاز"}</Text></>
+                    }
+                  </TouchableOpacity>
+                  {/* رابط يدوي (اختياري) */}
+                  <Text style={[s.fieldLabel, { marginTop: 8 }]}>أو أدخل رابط الصورة يدوياً</Text>
                   <TextInput style={s.fieldInput} value={lmForm.image_url} onChangeText={v => setLmForm(f => ({ ...f, image_url: v }))} placeholder="https://... أو local:ferris-wheel" placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" keyboardType="url" />
                   <Text style={s.fieldHint}>للصور المحلية: local:ferris-wheel أو local:hasahisa-city</Text>
+
                   <View style={s.modalBtns}>
-                    <ActionButton label="إضافة المعلم" color="#9B59B6" icon="add-circle-outline" onPress={addLandmark} disabled={addingLM} />
+                    <ActionButton label="إضافة المعلم" color="#9B59B6" icon="add-circle-outline" onPress={addLandmark} disabled={addingLM || lmAddImgUploading} />
                     <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddLM(false)} outline />
                   </View>
                 </Pressable>
@@ -1002,10 +2150,18 @@ export default function AdminDashboard() {
             <Text style={s.pageHeaderTitle}>
               الإعلانات ({adsList.length}){pendingAdsCount > 0 ? ` · ${pendingAdsCount} معلق` : ""}
             </Text>
-            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#F0A50015", borderWidth: 1, borderColor: "#F0A500" }]} onPress={loadAds}>
-              <Ionicons name="refresh" size={14} color="#F0A500" />
-              <Text style={[s.addBtnTxt, { color: "#F0A500" }]}>تحديث</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {isAdmin && (
+                <TouchableOpacity style={[s.addBtn, { backgroundColor: Colors.primary + "15", borderWidth: 1, borderColor: Colors.primary }]} onPress={() => setShowAdsSettingsModal(true)}>
+                  <Ionicons name="settings-outline" size={14} color={Colors.primary} />
+                  <Text style={[s.addBtnTxt, { color: Colors.primary }]}>الإعدادات</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[s.addBtn, { backgroundColor: "#F0A50015", borderWidth: 1, borderColor: "#F0A500" }]} onPress={loadAds}>
+                <Ionicons name="refresh" size={14} color="#F0A500" />
+                <Text style={[s.addBtnTxt, { color: "#F0A500" }]}>تحديث</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
@@ -1079,6 +2235,97 @@ export default function AdminDashboard() {
             />
           )}
 
+          {/* Ads Settings Modal */}
+          {isAdmin && (
+            <Modal visible={showAdsSettingsModal} transparent animationType="slide" onRequestClose={() => setShowAdsSettingsModal(false)}>
+              <Pressable style={s.overlay} onPress={() => setShowAdsSettingsModal(false)}>
+                <Pressable style={[s.modalCard, { maxHeight: "90%" }]} onPress={e => e.stopPropagation()}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 16, gap: 10 }}>
+                      <Ionicons name="settings" size={22} color={Colors.primary} />
+                      <Text style={[s.modalTitle, { flex: 1, marginBottom: 0 }]}>إعدادات الإعلانات</Text>
+                    </View>
+
+                    {/* إحصائية الإيرادات */}
+                    <View style={[s.infoBlock, { backgroundColor: Colors.accent + "10", borderColor: Colors.accent + "30" }]}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <Ionicons name="cash" size={16} color={Colors.accent} />
+                        <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.accent, fontSize: 14 }}>إحصائيات الإيرادات</Text>
+                      </View>
+                      <InfoRow label="الإعلانات النشطة" value={String(adsList.filter(a => a.status === "active").length)} />
+                      <InfoRow label="مجموع الطلبات" value={String(adsList.length)} />
+                      <InfoRow
+                        label="إجمالي الإيرادات (تقديري)"
+                        value={`${adsList.filter(a => a.status === "active" || a.status === "expired").reduce((sum, a) => sum + (a.duration_days || 0) * parseInt(adsSettings.ad_price_per_day || "500"), 0).toLocaleString()} جنيه`}
+                      />
+                    </View>
+
+                    <View style={s.divider} />
+                    <Text style={[s.fieldLabel, { marginBottom: 10 }]}>إعدادات التسعير والتواصل</Text>
+
+                    {[
+                      { label: "سعر اليوم الواحد (جنيه)", key: "ad_price_per_day", numeric: true, placeholder: "500" },
+                      { label: "رقم التواصل للإعلانات", key: "ad_contact_phone", placeholder: "+249..." },
+                      { label: "رقم واتساب للإعلانات", key: "ad_contact_whatsapp", placeholder: "+249..." },
+                      { label: "البريد الإلكتروني (اختياري)", key: "ad_partner_email", placeholder: "ads@..." },
+                    ].map(f => (
+                      <View key={f.key} style={{ marginBottom: 12 }}>
+                        <Text style={s.fieldLabel}>{f.label}</Text>
+                        <TextInput
+                          style={s.fieldInput}
+                          value={(adsSettings as any)[f.key]}
+                          onChangeText={v => setAdsSettings(prev => ({ ...prev, [f.key]: v }))}
+                          keyboardType={f.numeric ? "numeric" : "default"}
+                          placeholder={f.placeholder}
+                          placeholderTextColor={Colors.textMuted}
+                          textAlign="right"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    ))}
+
+                    <Text style={s.fieldLabel}>نص ترويجي مخصص</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 80 }]}
+                      value={adsSettings.ad_promo_text}
+                      onChangeText={v => setAdsSettings(prev => ({ ...prev, ad_promo_text: v }))}
+                      multiline
+                      textAlign="right"
+                      textAlignVertical="top"
+                      placeholder="نص يظهر في شاشة الإعلانات لتحفيز المؤسسات..."
+                      placeholderTextColor={Colors.textMuted}
+                    />
+
+                    <Text style={[s.fieldLabel, { marginTop: 12 }]}>معلومات الدفع / البنك (اختياري)</Text>
+                    <TextInput
+                      style={[s.fieldInput, { height: 72 }]}
+                      value={adsSettings.ad_bank_info}
+                      onChangeText={v => setAdsSettings(prev => ({ ...prev, ad_bank_info: v }))}
+                      multiline
+                      textAlign="right"
+                      textAlignVertical="top"
+                      placeholder="رقم الحساب / اسم البنك / طريقة الدفع..."
+                      placeholderTextColor={Colors.textMuted}
+                    />
+
+                    <View style={[s.modalBtns, { marginTop: 16 }]}>
+                      <ActionButton
+                        label={savingAdsSettings ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                        color={Colors.primary}
+                        icon="save-outline"
+                        onPress={saveAdsSettings}
+                        disabled={savingAdsSettings}
+                      />
+                    </View>
+                    <TouchableOpacity style={[s.cancelBtn, { marginTop: 10 }]} onPress={() => setShowAdsSettingsModal(false)}>
+                      <Text style={s.cancelTxt}>إغلاق</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </Modal>
+          )}
+
           {/* Ad Detail Modal */}
           <Modal visible={!!adDetailModal} transparent animationType="slide" onRequestClose={() => setAdDetailModal(null)}>
             <Pressable style={s.overlay} onPress={() => setAdDetailModal(null)}>
@@ -1096,12 +2343,20 @@ export default function AdminDashboard() {
                           </View>
                         </View>
 
+                        {ad.image_url && (
+                          <Image
+                            source={{ uri: ad.image_url }}
+                            style={{ width: "100%", height: 160, borderRadius: 12, marginBottom: 12 }}
+                            resizeMode="cover"
+                          />
+                        )}
                         <View style={s.infoBlock}>
                           <InfoRow label="عنوان الإعلان" value={ad.title} />
                           <InfoRow label="تفاصيل"         value={ad.description} />
                           <InfoRow label="نوع الإعلان"    value={ad.type} />
                           <InfoRow label="شخص التواصل"    value={ad.contact_name} />
                           <InfoRow label="رقم التواصل"    value={ad.contact_phone} />
+                          <InfoRow label="الموقع الإلكتروني" value={ad.website_url} />
                           <InfoRow label="الميزانية"      value={ad.budget} />
                           <InfoRow label="مدة مطلوبة"     value={`${ad.duration_days} يوم`} />
                           <InfoRow label="ملاحظة الإدارة" value={ad.admin_note} />
@@ -1176,6 +2431,45 @@ export default function AdminDashboard() {
               <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 12, flex: 1, textAlign: "right" }}>
                 صلاحيتك: رفع طلبات مؤسسات جديدة للمراجعة. الموافقة والإيقاف والحذف من صلاحية الإدارة فقط.
               </Text>
+            </View>
+          )}
+
+          {/* ── إعداد رقم واتساب عقود المؤسسات ── */}
+          {isAdmin && (
+            <View style={{ marginHorizontal: 14, marginBottom: 12, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#25D36620", justifyContent: "center", alignItems: "center" }}>
+                  <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                </View>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>رقم واتساب عقود المؤسسات</Text>
+              </View>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
+                هذا الرقم يُرسَل إليه عقد الانضمام الموقع من المؤسسات عبر واتساب
+              </Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TextInput
+                  value={contractWhatsapp}
+                  onChangeText={setContractWhatsapp}
+                  placeholder="+966530658285"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="phone-pad"
+                  style={{
+                    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
+                    backgroundColor: Colors.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={saveContractSettings}
+                  disabled={savingContractSettings}
+                  style={{ backgroundColor: "#25D366", borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" }}
+                >
+                  {savingContractSettings
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>حفظ</Text>
+                  }
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -1696,83 +2990,6 @@ export default function AdminDashboard() {
         </View>
       )}
 
-      {/* Neighborhoods */}
-      {tab === "neighborhoods" && (
-        <View style={{ flex: 1 }}>
-          <View style={s.pageHeader}>
-            <Text style={s.pageHeaderTitle}>الأحياء والقرى ({neighborhoods.length})</Text>
-            <TouchableOpacity style={[s.addBtn, { backgroundColor: "#3498DB" }]} onPress={() => { setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(true); }}>
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={s.addBtnTxt}>إضافة</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
-            {(["all", "neighborhood", "village"] as const).map(f => (
-              <TouchableOpacity key={f} style={[s.filterChip, nbrFilter === f && { backgroundColor: "#3498DB20", borderColor: "#3498DB" }]} onPress={() => setNbrFilter(f)}>
-                <Text style={[s.filterChipTxt, nbrFilter === f && { color: "#3498DB", fontFamily: "Cairo_700Bold" }]}>
-                  {f === "all" ? "الكل" : f === "neighborhood" ? "أحياء" : "قرى"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {loadingNbr ? (
-            <ActivityIndicator color="#3498DB" style={{ marginTop: 60 }} />
-          ) : (
-            <FlatList
-              data={nbrFilter === "all" ? neighborhoods : neighborhoods.filter(n => n.type === nbrFilter)}
-              keyExtractor={(_, i) => i.toString()}
-              contentContainerStyle={{ padding: 14, gap: 8, paddingBottom: 60 }}
-              ListEmptyComponent={<Text style={s.empty}>لا توجد أحياء</Text>}
-              renderItem={({ item }) => (
-                <View style={s.nbrCard}>
-                  <View style={[s.nbrIcon, { backgroundColor: item.type === "neighborhood" ? "#3498DB15" : "#9B59B615" }]}>
-                    <Ionicons name={item.type === "neighborhood" ? "home" : "leaf"} size={18} color={item.type === "neighborhood" ? "#3498DB" : "#9B59B6"} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.nbrName}>{item.label}</Text>
-                    <Text style={[s.nbrType, { color: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }]}>{item.type === "neighborhood" ? "حي" : "قرية"}</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TouchableOpacity style={[s.iconBtn, { backgroundColor: "#3498DB15", borderColor: "#3498DB30" }]} onPress={() => { setEditingNbr(item); setNbrForm({ label: item.label, type: item.type }); setShowAddNbr(true); }}>
-                      <Ionicons name="pencil-outline" size={15} color="#3498DB" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.iconBtn, { backgroundColor: "#E0556715", borderColor: "#E0556730" }]} onPress={() => deleteNeighborhood(item)}>
-                      <Ionicons name="trash-outline" size={15} color="#E05567" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            />
-          )}
-
-          <Modal visible={showAddNbr} transparent animationType="fade" onRequestClose={() => setShowAddNbr(false)}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-              <Pressable style={s.overlay} onPress={() => setShowAddNbr(false)}>
-                <Pressable style={s.modalCard} onPress={e => e.stopPropagation()}>
-                  <Text style={s.modalTitle}>{editingNbr ? "تعديل الحي/القرية" : "إضافة حي أو قرية"}</Text>
-                  <Text style={s.fieldLabel}>الاسم *</Text>
-                  <TextInput style={s.fieldInput} value={nbrForm.label} onChangeText={t => setNbrForm(p => ({ ...p, label: t }))} placeholder="اسم الحي أو القرية" placeholderTextColor={Colors.textMuted} textAlign="right" />
-                  <Text style={s.fieldLabel}>النوع</Text>
-                  <View style={{ flexDirection: "row-reverse", gap: 10, marginVertical: 8 }}>
-                    {(["neighborhood", "village"] as const).map(t => (
-                      <TouchableOpacity key={t} onPress={() => setNbrForm(p => ({ ...p, type: t }))} style={[s.filterChip, { flex: 1, justifyContent: "center" }, nbrForm.type === t && { backgroundColor: "#3498DB20", borderColor: "#3498DB" }]}>
-                        <Text style={[s.filterChipTxt, nbrForm.type === t && { color: "#3498DB" }]}>{t === "neighborhood" ? "حي" : "قرية"}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={s.modalBtns}>
-                    <ActionButton label={editingNbr ? "حفظ التعديل" : "إضافة"} color="#3498DB" icon={editingNbr ? "save-outline" : "add-circle-outline"} onPress={saveNeighborhood} disabled={addingNbr} />
-                    <ActionButton label="إلغاء" color={Colors.textMuted} onPress={() => setShowAddNbr(false)} outline />
-                  </View>
-                </Pressable>
-              </Pressable>
-            </KeyboardAvoidingView>
-          </Modal>
-        </View>
-      )}
-
       {/* AI Settings */}
       {tab === "ai_settings" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
@@ -1883,8 +3100,1476 @@ export default function AdminDashboard() {
             />
             <ActionButton label={savingName ? "جاري الحفظ..." : "حفظ الاسم"} color={Colors.primary} icon="save-outline" onPress={saveAdminName} disabled={savingName} />
           </View>
+
+          {/* Admin Device Push Card */}
+          <View style={s.card}>
+            <View style={s.cardHeaderRow}>
+              <View style={[s.cardIcon, { backgroundColor: "#E6700020" }]}>
+                <Ionicons name="phone-portrait-outline" size={20} color="#E67000" />
+              </View>
+              <Text style={s.cardTitle}>إشعارات الطلبات الجديدة</Text>
+            </View>
+            <Text style={s.fieldHint}>
+              سجّل هذا الجهاز ليصلك إشعار فوري عند وصول طلب مؤسسة، مشوار، انضمام ركن المرأة، أو أي طلب جديد.
+            </Text>
+            {adminDeviceRegistered === true && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+                <Text style={{ color: "#22C55E", fontFamily: "Cairo-SemiBold", fontSize: 13 }}>
+                  هذا الجهاز مفعّل لاستقبال إشعارات الطلبات
+                </Text>
+              </View>
+            )}
+            <ActionButton
+              label={registeringAdminDevice ? "جارٍ التفعيل..." : adminDeviceRegistered ? "تحديث تسجيل الجهاز" : "تفعيل الإشعارات على هذا الجهاز"}
+              color="#E67000"
+              icon="notifications-outline"
+              onPress={registerAdminDevice}
+              disabled={registeringAdminDevice}
+            />
+          </View>
+
+          {/* Broadcast Push Card */}
+          <View style={s.card}>
+            <View style={s.cardHeaderRow}>
+              <View style={[s.cardIcon, { backgroundColor: "#8E44AD20" }]}>
+                <Ionicons name="notifications" size={20} color="#8E44AD" />
+              </View>
+              <Text style={s.cardTitle}>إشعار جماعي للمستخدمين</Text>
+            </View>
+            <Text style={s.fieldHint}>أرسل إشعار فوري لجميع المستخدمين الذين فعّلوا الإشعارات على أجهزتهم</Text>
+            <Text style={s.fieldLabel}>عنوان الإشعار *</Text>
+            <TextInput
+              style={s.fieldInput}
+              value={broadcastForm.title}
+              onChangeText={v => setBroadcastForm(p => ({ ...p, title: v }))}
+              placeholder="مثال: تحديث جديد في التطبيق"
+              placeholderTextColor={Colors.textMuted}
+              textAlign="right"
+              maxLength={100}
+            />
+            <Text style={s.fieldLabel}>نص الرسالة *</Text>
+            <TextInput
+              style={[s.fieldInput, { height: 80, textAlignVertical: "top" }]}
+              value={broadcastForm.body}
+              onChangeText={v => setBroadcastForm(p => ({ ...p, body: v }))}
+              placeholder="اكتب رسالتك هنا..."
+              placeholderTextColor={Colors.textMuted}
+              textAlign="right"
+              multiline
+              maxLength={500}
+            />
+            <ActionButton
+              label={broadcastingPush ? "جارٍ الإرسال..." : "إرسال للجميع"}
+              color="#8E44AD"
+              icon="send-outline"
+              onPress={broadcastPush}
+              disabled={broadcastingPush || !broadcastForm.title.trim() || !broadcastForm.body.trim()}
+            />
+          </View>
+
+          {/* Ghost Accounts Card */}
+          <View style={s.card}>
+            <View style={s.cardHeaderRow}>
+              <View style={[s.cardIcon, { backgroundColor: "#E67E2220" }]}>
+                <Ionicons name="person-remove" size={20} color="#E67E22" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>الحسابات الوهمية</Text>
+                {ghostAccounts.count > 0 && (
+                  <Text style={[s.filterChipTxt, { marginTop: 2, color: "#E67E22" }]}>
+                    {ghostAccounts.count} حساب بلا هاتف ولا بريد إلكتروني
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={loadGhostAccounts} style={{ padding: 8 }}>
+                <Ionicons name="refresh-outline" size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.fieldHint}>حسابات تُسجَّل عبر Firebase دون توفير وسيلة تواصل. يُنصح بتنظيفها دورياً.</Text>
+            {loadingGhosts ? <ActivityIndicator color="#E67E22" style={{ marginVertical: 12 }} /> : (
+              ghostAccounts.count === 0
+                ? <Text style={[s.empty, { marginVertical: 8 }]}>لا توجد حسابات وهمية ✓</Text>
+                : (
+                  <View style={{ gap: 8, marginTop: 8 }}>
+                    <ActionButton
+                      label={cleaningGhosts ? "جارٍ الحذف..." : "حذف غير النشطة فقط"}
+                      color="#E67E22"
+                      icon="trash-outline"
+                      onPress={() => cleanGhostAccounts(true)}
+                      disabled={cleaningGhosts}
+                      outline
+                    />
+                    <ActionButton
+                      label={cleaningGhosts ? "جارٍ الحذف..." : `حذف جميعها (${ghostAccounts.count})`}
+                      color="#E05567"
+                      icon="warning-outline"
+                      onPress={() => cleanGhostAccounts(false)}
+                      disabled={cleaningGhosts}
+                    />
+                  </View>
+                )
+            )}
+          </View>
+
+          {/* Backup Card */}
+          <View style={s.card}>
+            <View style={s.cardHeaderRow}>
+              <View style={[s.cardIcon, { backgroundColor: "#27AE6020" }]}>
+                <Ionicons name="cloud-download" size={20} color="#27AE60" />
+              </View>
+              <Text style={s.cardTitle}>نسخة احتياطية</Text>
+            </View>
+            <Text style={s.fieldHint}>تصدير بيانات التطبيق الأساسية (المستخدمون، المعالم، الإعلانات، المؤسسات) كملف JSON</Text>
+            <ActionButton
+              label={downloadingBackup ? "جارٍ التصدير..." : "تصدير النسخة الاحتياطية"}
+              color="#27AE60"
+              icon="cloud-download-outline"
+              onPress={downloadBackup}
+              disabled={downloadingBackup}
+            />
+          </View>
+
         </ScrollView>
       )}
+
+      {/* ══ مشوارك علينا — لوحة الإشراف ══ */}
+      {tab === "transport" && isAdmin && (() => {
+        const TRANSPORT_ZONE_NAMES = ["قلب المدينة", "الأحياء الوسطى", "أطراف المدينة", "المناطق الفرعية", "القرى المحيطة"];
+        const ZONE_COLORS = ["#F97316", "#3E9CBF", "#A855F7", "#3EFF9C", "#FBBF24"];
+        const totalDrivers = transportStats ? transportStats.drivers.reduce((a:number,d:any)=>a+parseInt(d.cnt),0) : 0;
+        const approvedDrivers = transportStats ? (transportStats.drivers.find((d:any)=>d.status==="approved")?.cnt || 0) : 0;
+        const totalTrips = transportStats ? transportStats.trips.reduce((a:number,t:any)=>a+parseInt(t.cnt),0) : 0;
+        const pendingTrips = transportStats ? (transportStats.trips.find((t:any)=>t.status==="pending")?.cnt || 0) : 0;
+
+        return (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+
+            {/* ─── الشريط العلوي — النظرة الإجمالية ─── */}
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
+              {[
+                { label: "في انتظار القبول", val: transportStats?.pendingDrivers || 0, color: "#F97316", icon: "account-clock" },
+                { label: "سائق معتمد", val: Number(approvedDrivers), color: "#3EFF9C", icon: "steering" },
+                { label: "إجمالي الرحلات", val: totalTrips, color: "#3E9CBF", icon: "map-marker-path" },
+                { label: "رحلة انتظار", val: Number(pendingTrips), color: "#FBBF24", icon: "clock-outline" },
+              ].map((st, i) => (
+                <View key={i} style={{ flex: 1, backgroundColor: st.color + "15", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: st.color + "30", alignItems: "center", gap: 4 }}>
+                  <MaterialCommunityIcons name={st.icon as any} size={18} color={st.color} />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: st.color }}>{st.val}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary, textAlign: "center" }}>{st.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ─── شريط التنقل ─── */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 14, flexDirection: "row-reverse" }}>
+              {([
+                { v: "overview", label: "نظرة عامة", icon: "view-dashboard-outline" },
+                { v: "fares",    label: "جدول التعرفة", icon: "calculator-variant" },
+                { v: "drivers",  label: "السائقون", icon: "steering" },
+                { v: "trips",    label: "الرحلات", icon: "map-marker-path" },
+                { v: "settings", label: "الإعدادات", icon: "cog-outline" },
+              ] as const).map(nav => (
+                <TouchableOpacity key={nav.v} onPress={() => setTransportView(nav.v)}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                    backgroundColor: transportView === nav.v ? "#F97316" : Colors.cardBg,
+                    borderWidth: 1, borderColor: transportView === nav.v ? "#F97316" : Colors.divider }}>
+                  <MaterialCommunityIcons name={nav.icon} size={14} color={transportView === nav.v ? "#fff" : Colors.textSecondary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: transportView === nav.v ? "#fff" : Colors.textSecondary }}>
+                    {nav.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {loadingTransport && <ActivityIndicator color="#F97316" style={{ marginVertical: 20 }} />}
+
+            {/* ══ نظرة عامة ══ */}
+            {!loadingTransport && transportView === "overview" && (
+              <View style={{ gap: 12 }}>
+                {/* حالة الخدمة */}
+                <View style={s.card}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                      <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                        <MaterialCommunityIcons name="car-side" size={20} color="#F97316" />
+                      </View>
+                      <Text style={s.cardTitle}>حالة الخدمة</Text>
+                    </View>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6,
+                      backgroundColor: transportStatus === "available" ? "#3EFF9C20" : transportStatus === "maintenance" ? "#F59E0B20" : "#6366F120",
+                      paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
+                      borderWidth: 1, borderColor: transportStatus === "available" ? "#3EFF9C40" : transportStatus === "maintenance" ? "#F59E0B40" : "#6366F140" }}>
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }} />
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }}>
+                        {transportStatus === "available" ? "متاحة" : transportStatus === "maintenance" ? "قيد الصيانة" : "قريباً"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                    <TouchableOpacity onPress={() => setTransportView("settings")}
+                      style={{ flex: 1, backgroundColor: "#F9731620", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#F9731640" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>إعدادات الخدمة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setTransportView("fares")}
+                      style={{ flex: 1, backgroundColor: "#FBBF2420", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#FBBF2440" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل التعرفة</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* توزيع السائقين */}
+                {transportStats && (
+                  <View style={s.card}>
+                    <View style={s.cardHeaderRow}>
+                      <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
+                        <MaterialCommunityIcons name="steering" size={20} color="#3EFF9C" />
+                      </View>
+                      <Text style={s.cardTitle}>توزيع السائقين</Text>
+                    </View>
+                    {[
+                      { label: "في انتظار المراجعة", status: "pending",  color: "#F97316" },
+                      { label: "معتمدون",            status: "approved", color: "#3EFF9C" },
+                      { label: "مرفوضون",            status: "rejected", color: "#E05567" },
+                    ].map(r => {
+                      const cnt = Number(transportStats.drivers.find((d:any) => d.status === r.status)?.cnt || 0);
+                      const pct = totalDrivers > 0 ? (cnt / totalDrivers) * 100 : 0;
+                      return (
+                        <View key={r.status} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{r.label}</Text>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: r.color }}>{cnt}</Text>
+                          </View>
+                          <View style={{ height: 6, backgroundColor: Colors.divider, borderRadius: 3 }}>
+                            <View style={{ height: 6, width: `${pct}%` as any, backgroundColor: r.color, borderRadius: 3 }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity onPress={() => { setTransportDriverFilter("pending"); setTransportView("drivers"); }}
+                      style={{ alignSelf: "flex-end", marginTop: 6 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>
+                        مراجعة طلبات الانضمام ({transportStats.pendingDrivers}) ←
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* توزيع الرحلات */}
+                {transportStats && (
+                  <View style={s.card}>
+                    <View style={s.cardHeaderRow}>
+                      <View style={[s.cardIcon, { backgroundColor: "#3E9CBF20" }]}>
+                        <MaterialCommunityIcons name="map-marker-path" size={20} color="#3E9CBF" />
+                      </View>
+                      <Text style={s.cardTitle}>حالة الرحلات</Text>
+                    </View>
+                    {[
+                      { label: "انتظار",    status: "pending",   color: "#FBBF24" },
+                      { label: "جارية",    status: "accepted",  color: "#3E9CBF" },
+                      { label: "مكتملة",  status: "completed", color: "#3EFF9C" },
+                      { label: "ملغاة",   status: "cancelled", color: "#E05567" },
+                    ].map(r => {
+                      const cnt = Number(transportStats.trips.find((t:any) => t.status === r.status)?.cnt || 0);
+                      return (
+                        <View key={r.status} style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.divider }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary }}>{r.label}</Text>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: r.color }}>{cnt}</Text>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: r.color }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity onPress={() => { setTransportTripFilter("pending"); setTransportView("trips"); }}
+                      style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3EFF9C" }}>عرض الرحلات ←</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* خلاصة التعرفة */}
+                <View style={s.card}>
+                  <View style={s.cardHeaderRow}>
+                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
+                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
+                    </View>
+                    <Text style={s.cardTitle}>ملخص التعرفة الحالية</Text>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 }}>
+                    التعرفة الأساسية داخل المنطقة الواحدة (بالجنيه السوداني)
+                  </Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                    {[1,2,3,4,5].map(z => {
+                      const fare = fareMatrix[z]?.[z];
+                      return (
+                        <View key={z} style={{ flex: 1, backgroundColor: ZONE_COLORS[z-1] + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: ZONE_COLORS[z-1] + "30" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: ZONE_COLORS[z-1] }}>م{z}</Text>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, marginTop: 4 }}>{fare?.car || "—"}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>سيارة</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <TouchableOpacity onPress={() => setTransportView("fares")} style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل الجدول الكامل ←</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ══ جدول التعرفة ══ */}
+            {!loadingTransport && transportView === "fares" && (
+              <View style={{ gap: 10 }}>
+                <View style={s.card}>
+                  <View style={s.cardHeaderRow}>
+                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
+                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.cardTitle}>جدول التعرفة (بالجنيه السوداني)</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                        يمكنك تعديل التعرفة بين أي منطقتين لكل نوع مركبة
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 }}>
+                    أيقونات الأعمدة: 🚗 سيارة · 🛺 ركشة · 📦 توصيل
+                  </Text>
+                </View>
+
+                {[1,2,3,4,5].map(fromZ => (
+                  <View key={fromZ} style={s.card}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: ZONE_COLORS[fromZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: ZONE_COLORS[fromZ-1] }}>م{fromZ}</Text>
+                      </View>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>
+                        من: {TRANSPORT_ZONE_NAMES[fromZ-1]}
+                      </Text>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {[1,2,3,4,5].map(toZ => {
+                        const key = `${fromZ}-${toZ}`;
+                        const ef = editingFares[key] || { car: "", rickshaw: "", delivery: "" };
+                        return (
+                          <View key={toZ} style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: ZONE_COLORS[toZ-1] + "30" }}>
+                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: ZONE_COLORS[toZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
+                                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: ZONE_COLORS[toZ-1] }}>م{toZ}</Text>
+                              </View>
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>
+                                إلى: {TRANSPORT_ZONE_NAMES[toZ-1]}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                              {([
+                                { field: "car" as const,      label: "🚗", placeholder: "سيارة" },
+                                { field: "rickshaw" as const,  label: "🛺", placeholder: "ركشة"  },
+                                { field: "delivery" as const,  label: "📦", placeholder: "توصيل" },
+                              ]).map(inp => (
+                                <View key={inp.field} style={{ flex: 1, alignItems: "center", gap: 3 }}>
+                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12 }}>{inp.label}</Text>
+                                  <TextInput
+                                    style={{ backgroundColor: Colors.cardBg, borderRadius: 6, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 6, paddingVertical: 5, fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "center", width: "100%" }}
+                                    value={ef[inp.field]}
+                                    onChangeText={v => updateFareField(fromZ, toZ, inp.field, v)}
+                                    keyboardType="numeric"
+                                    placeholder={inp.placeholder}
+                                    placeholderTextColor={Colors.textMuted}
+                                  />
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+
+                <TouchableOpacity onPress={saveFares} disabled={savingFares}
+                  style={{ backgroundColor: "#FBBF24", borderRadius: 14, paddingVertical: 14, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+                  <MaterialCommunityIcons name="content-save-outline" size={18} color="#000" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000" }}>
+                    {savingFares ? "جارٍ حفظ التعرفة..." : "حفظ جدول التعرفة كاملاً"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ══ السائقون ══ */}
+            {!loadingTransport && transportView === "drivers" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                    <MaterialCommunityIcons name="steering" size={20} color="#F97316" />
+                  </View>
+                  <Text style={s.cardTitle}>إدارة السائقين</Text>
+                </View>
+
+                <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 12 }}>
+                  {(["pending", "approved", "rejected", "all"] as const).map(f => (
+                    <TouchableOpacity key={f} onPress={() => setTransportDriverFilter(f)}
+                      style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: "center",
+                        backgroundColor: transportDriverFilter === f ? "#F97316" : Colors.bg,
+                        borderWidth: 1, borderColor: transportDriverFilter === f ? "#F97316" : Colors.divider }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
+                        color: transportDriverFilter === f ? "#fff" : Colors.textSecondary }}>
+                        {f === "pending" ? "انتظار" : f === "approved" ? "مقبول" : f === "rejected" ? "مرفوض" : "الكل"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity onPress={loadTransportData}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
+                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
+                </TouchableOpacity>
+
+                {transportDrivers.length === 0
+                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا يوجد سائقون في هذه الفئة</Text>
+                  : transportDrivers.map(driver => (
+                    <Animated.View entering={FadeInDown.springify()} key={driver.id}
+                      style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1,
+                        borderColor: driver.status === "approved" ? "#3EFF9C30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#F9731620", alignItems: "center", justifyContent: "center" }}>
+                          <MaterialCommunityIcons name={driver.vehicle_type === "ركشة" ? "rickshaw" : "steering"} size={22} color="#F97316" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{driver.name}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                            {driver.vehicle_type} · {driver.phone}
+                          </Text>
+                        </View>
+                        <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                          backgroundColor: driver.status === "approved" ? "#3EFF9C20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11,
+                            color: driver.status === "approved" ? "#3EFF9C" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
+                            {driver.status === "approved" ? "معتمد" : driver.status === "rejected" ? "مرفوض" : "انتظار"}
+                          </Text>
+                        </View>
+                      </View>
+                      {driver.area ? (
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>
+                          📍 {driver.area} | اللوحة: {driver.plate || "—"}
+                        </Text>
+                      ) : null}
+                      {driver.vehicle_desc ? (
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
+                          {driver.vehicle_desc}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                        {driver.status !== "approved" && (
+                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "approved")}
+                            style={{ flex: 1, backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C40" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>✓ قبول</Text>
+                          </TouchableOpacity>
+                        )}
+                        {driver.status !== "rejected" && (
+                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "rejected")}
+                            style={{ flex: 1, backgroundColor: "#E0556720", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#E0556740" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#E05567" }}>✗ رفض</Text>
+                          </TouchableOpacity>
+                        )}
+                        {driver.phone ? (
+                          <TouchableOpacity onPress={() => Linking.openURL(`tel:${driver.phone}`)}
+                            style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C30" }}>
+                            <Ionicons name="call-outline" size={16} color="#3EFF9C" />
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity onPress={() => deleteTransportDriver(driver.id)}
+                          style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
+                          <Ionicons name="trash-outline" size={16} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    </Animated.View>
+                  ))}
+              </View>
+            )}
+
+            {/* ══ الرحلات ══ */}
+            {!loadingTransport && transportView === "trips" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
+                    <MaterialCommunityIcons name="map-marker-path" size={20} color="#3EFF9C" />
+                  </View>
+                  <Text style={s.cardTitle}>مراقبة الرحلات والتوصيل</Text>
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12, flexDirection: "row-reverse" }}>
+                  {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
+                    <TouchableOpacity key={f} onPress={() => setTransportTripFilter(f)}
+                      style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
+                        backgroundColor: transportTripFilter === f ? "#3EFF9C20" : Colors.bg,
+                        borderWidth: 1, borderColor: transportTripFilter === f ? "#3EFF9C" : Colors.divider }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
+                        color: transportTripFilter === f ? "#3EFF9C" : Colors.textSecondary }}>
+                        {f === "all" ? "الكل" : f === "pending" ? "انتظار" : f === "accepted" ? "جارية" : f === "completed" ? "مكتملة" : "ملغاة"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity onPress={loadTransportData}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
+                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
+                </TouchableOpacity>
+
+                {transportTrips.length === 0
+                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا توجد رحلات في هذه الفئة</Text>
+                  : transportTrips.map(trip => {
+                    const sc = trip.status === "completed" ? "#3EFF9C" : trip.status === "cancelled" ? "#E05567" : trip.status === "accepted" ? "#3E9CBF" : "#F97316";
+                    const sl = trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "جارية" : trip.status === "completed" ? "مكتملة" : "ملغاة";
+                    return (
+                      <Animated.View entering={FadeInDown.springify()} key={trip.id}
+                        style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: sc + "30" }}>
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <MaterialCommunityIcons
+                              name={trip.trip_type === "delivery" ? "package-variant" : "car-side"}
+                              size={16} color="#F97316" />
+                            <View>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>{trip.user_name}</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{trip.user_phone}</Text>
+                            </View>
+                          </View>
+                          <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: sc + "20", borderWidth: 1, borderColor: sc + "40" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: sc }}>{sl}</Text>
+                          </View>
+                        </View>
+
+                        <View style={{ gap: 4, marginBottom: 8 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#3EFF9C" }} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
+                              {(trip as any).from_zone ? `منطقة ${(trip as any).from_zone} — ` : ""}{trip.from_location}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F97316" }} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
+                              {(trip as any).to_zone ? `منطقة ${(trip as any).to_zone} — ` : ""}{trip.to_location}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* التعرفة التقديرية */}
+                        {trip.fare_estimate ? (
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6, backgroundColor: "#FBBF2415", borderRadius: 8, padding: 6 }}>
+                            <MaterialCommunityIcons name="calculator-variant" size={13} color="#FBBF24" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>
+                              التعرفة التقديرية: {trip.fare_estimate.toLocaleString("ar-SD")} جنيه
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* وصف الشحنة (للتوصيل) */}
+                        {trip.delivery_desc ? (
+                          <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 6, marginBottom: 8, backgroundColor: "#F9731610", borderRadius: 8, padding: 8 }}>
+                            <MaterialCommunityIcons name="package-variant" size={14} color="#F97316" />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 }}>
+                              {trip.delivery_desc}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* معلومات السائق */}
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                            <MaterialCommunityIcons name="steering" size={14} color={trip.driver_name ? "#3EFF9C" : Colors.textMuted} />
+                            <Text style={{ fontFamily: trip.driver_name ? "Cairo_600SemiBold" : "Cairo_400Regular", fontSize: 12, color: trip.driver_name ? "#3EFF9C" : Colors.textMuted }}>
+                              {trip.driver_name ? trip.driver_name : "لم يُعيَّن سائق بعد"}
+                            </Text>
+                          </View>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
+                            {new Date(trip.created_at).toLocaleDateString("ar-SD")}
+                          </Text>
+                        </View>
+
+                        {/* أزرار الإجراءات */}
+                        <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                          {/* تعيين سائق — للرحلات المعلقة فقط */}
+                          {trip.status === "pending" && (
+                            <TouchableOpacity
+                              onPress={() => openAssignModal(trip.id)}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
+                                backgroundColor: "#3E9CBF20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3E9CBF40" }}>
+                              <MaterialCommunityIcons name="steering" size={14} color="#3E9CBF" />
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3E9CBF" }}>تعيين سائق</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* إنهاء الرحلة — للرحلات الجارية */}
+                          {trip.status === "accepted" && (
+                            <TouchableOpacity
+                              onPress={() => updateTripStatus(trip.id, "completed")}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
+                                backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3EFF9C40" }}>
+                              {updatingTripId === trip.id
+                                ? <ActivityIndicator size="small" color="#3EFF9C" />
+                                : <>
+                                    <Ionicons name="checkmark-circle-outline" size={14} color="#3EFF9C" />
+                                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>إنهاء الرحلة</Text>
+                                  </>}
+                            </TouchableOpacity>
+                          )}
+
+                          {/* إلغاء — للمعلقة والجارية */}
+                          {(trip.status === "pending" || trip.status === "accepted") && (
+                            <TouchableOpacity
+                              onPress={() => updateTripStatus(trip.id, "cancelled")}
+                              disabled={updatingTripId === trip.id}
+                              style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
+                                backgroundColor: "#E0556715", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#E0556730" }}>
+                              <Ionicons name="close-circle-outline" size={14} color="#E05567" />
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#E05567" }}>إلغاء</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* حذف */}
+                          <TouchableOpacity onPress={() => deleteTransportTrip(trip.id)}
+                            style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10,
+                              alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.divider }}>
+                            <Ionicons name="trash-outline" size={15} color={Colors.textMuted} />
+                          </TouchableOpacity>
+                        </View>
+                      </Animated.View>
+                    );
+                  })}
+              </View>
+            )}
+
+            {/* ══ الإعدادات ══ */}
+            {!loadingTransport && transportView === "settings" && (
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
+                    <Ionicons name="settings-outline" size={20} color="#F97316" />
+                  </View>
+                  <Text style={s.cardTitle}>إعدادات خدمة مشوارك علينا</Text>
+                </View>
+
+                <Text style={[s.fieldLabel, { marginBottom: 10 }]}>حالة الخدمة</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  {([
+                    { key: "available",   label: "متاحة",         icon: "checkmark-circle", color: "#22C55E" },
+                    { key: "maintenance", label: "قيد الصيانة",   icon: "construct",        color: "#F59E0B" },
+                    { key: "coming_soon", label: "قريباً",        icon: "time",             color: "#6366F1" },
+                  ] as const).map(opt => {
+                    const active = transportStatus === opt.key;
+                    return (
+                      <TouchableOpacity
+                        key={opt.key}
+                        onPress={() => setTransportStatus(opt.key)}
+                        style={{
+                          flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: active ? opt.color : Colors.divider,
+                          backgroundColor: active ? opt.color + "18" : Colors.cardBg,
+                          gap: 6,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name={opt.icon as any} size={22} color={active ? opt.color : Colors.textMuted} />
+                        <Text style={{
+                          fontFamily: active ? "Cairo_700Bold" : "Cairo_500Medium",
+                          fontSize: 12,
+                          color: active ? opt.color : Colors.textMuted,
+                        }}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={[s.fieldHint, { marginTop: 8 }]}>
+                  {transportStatus === "available"   && "✅ الخدمة متاحة — يرى المستخدمون واجهة الحجز الكاملة"}
+                  {transportStatus === "maintenance" && "🔧 قيد الصيانة — يرى المستخدمون إشعار صيانة مؤقتة"}
+                  {transportStatus === "coming_soon" && "🕐 قريباً — يرى المستخدمون شاشة الإطلاق القادم"}
+                </Text>
+
+                <Text style={s.fieldLabel}>رقم هاتف دعم القسم (اختياري)</Text>
+                <TextInput style={s.fieldInput} value={transportPhone}
+                  onChangeText={setTransportPhone}
+                  placeholder="+249..." placeholderTextColor={Colors.textMuted}
+                  textAlign="right" keyboardType="phone-pad" />
+
+                <Text style={s.fieldLabel}>ملاحظة للمستخدمين عندما تكون الخدمة موقوفة</Text>
+                <TextInput style={[s.fieldInput, { minHeight: 72, textAlignVertical: "top" }]}
+                  value={transportNote} onChangeText={setTransportNote}
+                  placeholder="مثال: سيتم الإطلاق خلال أسبوعين..."
+                  placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+
+                <TouchableOpacity
+                  onPress={saveTransportSettings}
+                  disabled={savingTransportSettings}
+                  style={{ backgroundColor: "#F97316", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 8, flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}>
+                  <Ionicons name="save-outline" size={16} color="#fff" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
+                    {savingTransportSettings ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+          </ScrollView>
+        );
+      })()}
+
+      {/* ══ التحديثات ══ */}
+      {tab === "updates" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* تحذير إذا لم يكن هناك توكن للخادم */}
+          {!token && (
+            <View style={{ backgroundColor: "#FFF3CD", borderRadius: 12, padding: 14, marginBottom: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#F0A500" }}>
+              <Ionicons name="warning-outline" size={20} color="#F0A500" />
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#856404", flex: 1, textAlign: "right" }}>
+                {"جلسة الخادم غير نشطة — أغلق التطبيق وسجّل الدخول مجدداً لتفعيل نشر التحديثات"}
+              </Text>
+            </View>
+          )}
+          {loadingUpdates ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
+          ) : (
+            <>
+              {/* بطاقة الإصدار الحالي */}
+              <Animated.View entering={FadeInDown.duration(300)} style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <View style={[s.cardIcon, { backgroundColor: Colors.primary + "20" }]}>
+                    <Ionicons name="cloud-upload-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <Text style={s.cardTitle}>إدارة إصدار التطبيق</Text>
+                </View>
+
+                {/* رقم الإصدار */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>رقم الإصدار الجديد</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 10, alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() => setAppVersion(v => String(Math.max(1, Number(v) - 1)))}
+                    style={{ padding: 10, backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider }}
+                  >
+                    <Ionicons name="remove" size={18} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  <View style={{ flex: 1, backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, paddingVertical: 12, alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.primary }}>{appVersion}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setAppVersion(v => String(Number(v) + 1))}
+                    style={{ padding: 10, backgroundColor: Colors.primary + "15", borderRadius: 10, borderWidth: 1, borderColor: Colors.primary }}
+                  >
+                    <Ionicons name="add" size={18} color={Colors.primary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* ملاحظات التحديث */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>ملاحظات التحديث (كل سطر نقطة)</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1,
+                    borderColor: Colors.divider, padding: 12, height: 100,
+                    textAlignVertical: "top", color: Colors.text,
+                    fontFamily: "Cairo_400Regular", fontSize: 13,
+                  }}
+                  value={updateNotes}
+                  onChangeText={setUpdateNotes}
+                  multiline
+                  placeholder={"- ميزة جديدة\n- إصلاح مشكلة\n- تحسينات في الأداء"}
+                  placeholderTextColor={Colors.textMuted}
+                  textAlign="right"
+                />
+
+                {/* تحديث إجباري */}
+                <TouchableOpacity
+                  onPress={() => setUpdateForce(f => !f)}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 14, padding: 14, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: updateForce ? Colors.danger : Colors.divider }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{
+                    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+                    borderColor: updateForce ? Colors.danger : Colors.divider,
+                    backgroundColor: updateForce ? Colors.danger : "transparent",
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    {updateForce && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: updateForce ? Colors.danger : Colors.text, textAlign: "right" }}>
+                      تحديث إجباري
+                    </Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                      المستخدم لا يستطيع تجاهل الإشعار
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* زر الحفظ */}
+                <TouchableOpacity
+                  style={{ marginTop: 18, borderRadius: 14, overflow: "hidden", opacity: savingUpdates ? 0.7 : 1 }}
+                  disabled={savingUpdates}
+                  onPress={async () => {
+                    if (!token) {
+                      Alert.alert("خطأ", "لم يتم تسجيل الدخول بعد — أغلق التطبيق وأعد فتحه، ثم سجّل الدخول مجدداً");
+                      return;
+                    }
+                    setSavingUpdates(true);
+                    try {
+                      const res = await apiFetch("/api/admin/app/version", token, {
+                        method: "PATCH",
+                        body: JSON.stringify({ version: Number(appVersion), notes: updateNotes, force: updateForce }),
+                      });
+                      if (res.ok) {
+                        Alert.alert("تم", `تم نشر الإصدار ${appVersion} بنجاح — سيرى المستخدمون الإشعار تلقائياً`);
+                      } else {
+                        const errText = await res.text().catch(() => "");
+                        Alert.alert("خطأ", `تعذّر حفظ الإصدار (${res.status})${errText ? `: ${errText}` : ""}`);
+                      }
+                    } catch (e: any) {
+                      Alert.alert("خطأ", `تعذّر الاتصال: ${e?.message ?? "خطأ غير معروف"}`);
+                    } finally {
+                      setSavingUpdates(false);
+                    }
+                  }}
+                >
+                  <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                    {savingUpdates
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <>
+                          <Ionicons name="cloud-upload" size={18} color="#fff" />
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>نشر التحديث</Text>
+                        </>
+                    }
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+
+              {/* ملاحظة توضيحية */}
+              <Animated.View entering={FadeInDown.duration(400).delay(100)} style={[s.card, { backgroundColor: Colors.primary + "08" }]}>
+                <View style={{ flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" }}>
+                  <Ionicons name="information-circle-outline" size={22} color={Colors.primary} style={{ marginTop: 2 }} />
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 }}>
+                    عند رفع رقم الإصدار، سيظهر للمستخدمين تلقائياً إشعار بالتحديث عند فتح التطبيق أو العودة إليه. رقم الإصدار الحالي في التطبيق هو {1}.
+                  </Text>
+                </View>
+              </Animated.View>
+            </>
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة المكتبات الطلابية ══ */}
+      {tab === "libraries" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadingAdminLibs ? (
+            <ActivityIndicator color="#0EA5E9" style={{ marginTop: 60 }} />
+          ) : adminLibraries.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: "center", paddingVertical: 60 }}>
+              <Ionicons name="library-outline" size={56} color={Colors.textMuted} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted, textAlign: "center" }}>
+                لا توجد مكتبات مسجّلة بعد
+              </Text>
+            </Animated.View>
+          ) : (
+            adminLibraries.map((lib, i) => (
+              <Animated.View key={lib.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12 }]}>
+                <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.cardTitle, { fontSize: 15 }]}>{lib.library_name}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                      {lib.manager_name} · {lib.phone}
+                    </Text>
+                  </View>
+                  {lib.is_verified && (
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#0EA5E920" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#0EA5E9" }}>موثّقة</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => toggleLibraryVerified(lib.id, lib.is_verified)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: lib.is_verified ? Colors.bg : "#0EA5E915",
+                      borderWidth: 1, borderColor: lib.is_verified ? Colors.divider : "#0EA5E940" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: lib.is_verified ? Colors.textMuted : "#0EA5E9" }}>
+                      {lib.is_verified ? "إلغاء التوثيق" : "توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("حذف المكتبة", `هل تريد حذف "${lib.library_name}"؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "حذف", style: "destructive", onPress: () => deleteAdminLibrary(lib.id) }
+                    ])}
+                    disabled={deletingLibId === lib.id}
+                    style={{ paddingVertical: 9, paddingHorizontal: 16, borderRadius: 10, alignItems: "center",
+                      backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                    {deletingLibId === lib.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة مساحة التجار ══ */}
+      {tab === "merchants_admin" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadingAdminMerchants ? (
+            <ActivityIndicator color="#6366F1" style={{ marginTop: 60 }} />
+          ) : adminMerchants.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: "center", paddingVertical: 60 }}>
+              <MaterialCommunityIcons name="store-outline" size={56} color={Colors.textMuted} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted, textAlign: "center" }}>
+                لا يوجد تجار مسجّلون بعد
+              </Text>
+            </Animated.View>
+          ) : (
+            adminMerchants.map((m, i) => (
+              <Animated.View key={m.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12 }]}>
+                <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
+                  <Text style={{ fontSize: 28, marginLeft: 10 }}>{m.logo_emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                      <Text style={[s.cardTitle, { fontSize: 15 }]}>{m.shop_name}</Text>
+                      {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#6366F1" />}
+                      {m.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                      {m.owner_name} · {m.phone}
+                    </Text>
+                    {m.address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{m.address}</Text> : null}
+                  </View>
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => toggleMerchantVerified(m.id, m.is_verified)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: m.is_verified ? Colors.bg : "#6366F115",
+                      borderWidth: 1, borderColor: m.is_verified ? Colors.divider : "#6366F140" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_verified ? Colors.textMuted : "#6366F1" }}>
+                      {m.is_verified ? "إلغاء التوثيق" : "توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleMerchantFeatured(m.id, m.is_featured)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
+                      backgroundColor: m.is_featured ? "#F0A50015" : Colors.bg,
+                      borderWidth: 1, borderColor: m.is_featured ? "#F0A50040" : Colors.divider }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_featured ? "#F0A500" : Colors.textMuted }}>
+                      {m.is_featured ? "إزالة التمييز" : "تمييز"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("حذف المحل", `هل تريد حذف "${m.shop_name}"؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "حذف", style: "destructive", onPress: () => deleteAdminMerchant(m.id) }
+                    ])}
+                    disabled={deletingMerchantId === m.id}
+                    style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, alignItems: "center",
+                      backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                    {deletingMerchantId === m.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ══ إدارة محلات الهواتف ══ */}
+      {tab === "phone_shops" && isAdmin && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Summary bar */}
+          <View style={{ flexDirection:"row-reverse", gap:10, marginBottom:16 }}>
+            {[
+              { label:"الكل",      val: adminPhoneShops.length,                             color:"#7C3AED" },
+              { label:"بانتظار الموافقة", val: adminPhoneShops.filter(s=>!s.is_approved).length, color:"#F59E0B" },
+              { label:"مفعّلة",    val: adminPhoneShops.filter(s=>s.is_approved).length,    color:"#10B981" },
+            ].map(stat=>(
+              <View key={stat.label} style={{ flex:1, backgroundColor:Colors.cardBg, borderRadius:14, padding:12, alignItems:"center", borderWidth:1, borderColor:Colors.divider }}>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:22, color:stat.color }}>{stat.val}</Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"center" }}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+          {loadingPhoneShops ? (
+            <ActivityIndicator color="#7C3AED" style={{ marginTop: 40 }} />
+          ) : adminPhoneShops.length === 0 ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems:"center", paddingVertical:60 }}>
+              <MaterialCommunityIcons name="cellphone-off" size={56} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
+              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:15, color:Colors.textMuted, textAlign:"center" }}>لا توجد متاجر هواتف مسجّلة</Text>
+            </Animated.View>
+          ) : (
+            adminPhoneShops.map((shop, i) => (
+              <Animated.View key={shop.id} entering={FadeInDown.delay(i*60).springify()} style={[s.card, { marginBottom:12, borderLeftWidth:3, borderLeftColor: shop.is_approved?"#10B981":"#F59E0B" }]}>
+                {/* Header */}
+                <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, marginBottom:12 }}>
+                  <View style={{ width:52,height:52,borderRadius:16,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center" }}>
+                    <Text style={{ fontSize:26 }}>{shop.logo_emoji}</Text>
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                      <Text style={[s.cardTitle, { fontSize:15 }]}>{shop.shop_name}</Text>
+                      {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#7C3AED" />}
+                      {shop.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
+                    </View>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>
+                      {shop.owner_name} · {shop.phone ?? shop.whatsapp ?? "—"}
+                    </Text>
+                    {shop.address && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right" }}>{shop.address}</Text>}
+                  </View>
+                  <View style={{ paddingHorizontal:8, paddingVertical:4, borderRadius:8, backgroundColor: shop.is_approved?"#10B98120":"#F59E0B20" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color: shop.is_approved?"#10B981":"#F59E0B" }}>
+                      {shop.is_approved?"مفعّل":"بانتظار الموافقة"}
+                    </Text>
+                  </View>
+                </View>
+                {/* Specialties */}
+                {shop.specialties?.length > 0 && (
+                  <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+                    {shop.specialties.slice(0,5).map((sp: string)=>(
+                      <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#7C3AED12" }}>
+                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Stats */}
+                <View style={{ flexDirection:"row-reverse", gap:8, marginBottom:12 }}>
+                  <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:Colors.textSecondary }}>
+                      {shop.total_products ?? 0} منتج
+                    </Text>
+                  </View>
+                  <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted }}>
+                      {new Date(shop.created_at).toLocaleDateString("ar")}
+                    </Text>
+                  </View>
+                </View>
+                {/* Actions */}
+                <View style={{ flexDirection:"row-reverse", gap:6, flexWrap:"wrap" }}>
+                  <TouchableOpacity onPress={()=>approvePhoneShop(shop.id, shop.is_approved)}
+                    style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
+                      backgroundColor: shop.is_approved?Colors.bg:"#10B98115", borderWidth:1,
+                      borderColor: shop.is_approved?Colors.divider:"#10B98140" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_approved?Colors.textMuted:"#10B981" }}>
+                      {shop.is_approved?"إلغاء التفعيل":"تفعيل المتجر"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>verifyPhoneShop(shop.id, shop.is_verified)}
+                    style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
+                      backgroundColor: shop.is_verified?Colors.bg:"#7C3AED15", borderWidth:1,
+                      borderColor: shop.is_verified?Colors.divider:"#7C3AED40" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_verified?Colors.textMuted:"#7C3AED" }}>
+                      {shop.is_verified?"إلغاء التوثيق":"توثيق"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>featurePhoneShop(shop.id, shop.is_featured)}
+                    style={{ paddingVertical:9, paddingHorizontal:12, borderRadius:10, alignItems:"center",
+                      backgroundColor: shop.is_featured?"#F0A50015":Colors.bg, borderWidth:1,
+                      borderColor: shop.is_featured?"#F0A50040":Colors.divider }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_featured?"#F0A500":Colors.textMuted }}>
+                      {shop.is_featured?"✦ مميّز":"تمييز"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>Alert.alert("حذف المتجر",`حذف "${shop.shop_name}"؟`,[
+                    { text:"إلغاء", style:"cancel" },
+                    { text:"حذف", style:"destructive", onPress:()=>deletePhoneShop(shop.id) }
+                  ])} disabled={deletingPhoneShopId===shop.id}
+                    style={{ paddingVertical:9, paddingHorizontal:12, borderRadius:10, alignItems:"center",
+                      backgroundColor:Colors.danger+"15", borderWidth:1, borderColor:Colors.danger+"40" }}>
+                    {deletingPhoneShopId===shop.id
+                      ? <ActivityIndicator size="small" color={Colors.danger} />
+                      : <Ionicons name="trash-outline" size={17} color={Colors.danger} />}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          ── مودال تعيين سائق للرحلة
+      ═══════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={showAssignModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setShowAssignModal(false); setAssigningTripId(null); }}
+      >
+        <Pressable style={ps.backdrop} onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={[ps.sheet, { maxHeight: "80%" }]}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={ps.handle} />
+
+              {/* العنوان */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                <MaterialCommunityIcons name="steering" size={22} color="#3E9CBF" />
+                <View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>تعيين سائق للرحلة</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>اختر من السائقين المعتمدين</Text>
+                </View>
+              </View>
+
+              {/* قائمة السائقين */}
+              {approvedDriversList.length === 0 ? (
+                <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                  <MaterialCommunityIcons name="account-off-outline" size={48} color={Colors.textMuted} />
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, marginTop: 10 }}>
+                    لا يوجد سائقون معتمدون حالياً
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+                  {approvedDriversList.map(driver => {
+                    const vtIcon = driver.vehicle_type === "car" ? "car-side" :
+                                   driver.vehicle_type === "rickshaw" ? "rickshaw" : "package-variant";
+                    const vtLabel = driver.vehicle_type === "car" ? "سيارة" :
+                                    driver.vehicle_type === "rickshaw" ? "ركشة" : "توصيل";
+                    return (
+                      <TouchableOpacity
+                        key={driver.id}
+                        onPress={() => assignDriverToTrip(driver)}
+                        disabled={assigningTrip === driver.id}
+                        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12,
+                          padding: 14, borderRadius: 12, marginBottom: 8,
+                          backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider }}>
+                        {/* أيقونة المركبة */}
+                        <View style={{ width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: "#3E9CBF20", alignItems: "center", justifyContent: "center" }}>
+                          <MaterialCommunityIcons name={vtIcon as any} size={20} color="#3E9CBF" />
+                        </View>
+                        {/* المعلومات */}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{driver.name}</Text>
+                          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 2 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{vtLabel}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.area}</Text>
+                            {driver.rating > 0 ? (
+                              <>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#FBBF24" }}>
+                                  ★ {driver.rating.toFixed(1)}
+                                </Text>
+                              </>
+                            ) : null}
+                          </View>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.phone}</Text>
+                        </View>
+                        {/* حالة الاتصال */}
+                        <View style={{ alignItems: "center", gap: 4 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4,
+                            backgroundColor: driver.is_online ? "#3EFF9C" : Colors.textMuted }} />
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>
+                            {driver.is_online ? "متاح" : "غير متاح"}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* إلغاء */}
+              <TouchableOpacity
+                onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}
+                style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10,
+                  backgroundColor: Colors.divider, alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>إلغاء</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          ── مودال إحصائيات المستخدم
+      ═══════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={!!statsUser}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setStatsUser(null); setUserStats(null); }}
+      >
+        <Pressable style={ps.backdrop} onPress={() => { setStatsUser(null); setUserStats(null); }}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={[ps.sheet, { maxHeight: "92%" }]}>
+            <Pressable onPress={e => e.stopPropagation()}>
+
+              {/* Handle */}
+              <View style={ps.handle} />
+
+              {/* Header — اسم المستخدم */}
+              {statsUser && (() => {
+                const roleColor = ROLE_LABELS[statsUser.role]?.color ?? Colors.primary;
+                return (
+                  <View style={{ alignItems: "center", marginBottom: 16 }}>
+                    <View style={[ps.memberAvatar, {
+                      backgroundColor: roleColor + "25",
+                      width: 64, height: 64, borderRadius: 32,
+                      marginBottom: 8,
+                    }]}>
+                      <Text style={[ps.memberLetter, { fontSize: 26 }]}>{statsUser.name.charAt(0)}</Text>
+                    </View>
+                    <Text style={[ps.memberName, { fontSize: 18 }]}>{statsUser.name}</Text>
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
+                      <RoleBadge role={statsUser.role} />
+                      {statsUser.neighborhood ? (
+                        <View style={ps.nbrChip}>
+                          <Ionicons name="location-outline" size={10} color={Colors.textMuted} />
+                          <Text style={ps.nbrChipTxt}>{statsUser.neighborhood}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    {(statsUser.phone || statsUser.email) ? (
+                      <Text style={[ps.memberSub, { marginTop: 4 }]}>{statsUser.phone || statsUser.email}</Text>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
+              {/* Loading */}
+              {loadingUserStats && (
+                <View style={{ alignItems: "center", paddingVertical: 32, gap: 10 }}>
+                  <ActivityIndicator color={Colors.cyber} size="large" />
+                  <Text style={ps.permLabel}>جارٍ تحميل الإحصائيات…</Text>
+                </View>
+              )}
+
+              {/* Stats Grid */}
+              {!loadingUserStats && userStats && (() => {
+                const st = userStats;
+                const joinDate = st.user.created_at
+                  ? new Date(st.user.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+                  : "—";
+                const lastSeen = st.last_seen
+                  ? timeAgo(st.last_seen)
+                  : "غير متاح";
+
+                const statItems = [
+                  { icon: "newspaper-outline",     label: "المنشورات",    value: st.posts_count,        color: Colors.primary  },
+                  { icon: "chatbubble-outline",     label: "التعليقات",    value: st.comments_count,     color: "#3B82F6"       },
+                  { icon: "heart-outline",          label: "الإعجابات",   value: st.likes_count,        color: "#E74C6F"       },
+                  { icon: "megaphone-outline",      label: "البلاغات",     value: st.reports_count,      color: "#F59E0B"       },
+                  { icon: "chatbubbles-outline",    label: "الرسائل",      value: st.messages_count,     color: "#06B6D4"       },
+                  { icon: "pricetag-outline",       label: "الإعلانات",    value: st.ads_count,          color: "#F0A500"       },
+                  { icon: "calendar-outline",       label: "المواعيد",     value: st.appointments_count, color: "#8B5CF6"       },
+                ];
+
+                return (
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+                    {/* شبكة الإحصائيات */}
+                    <Text style={[ps.permBlockTitle, { marginBottom: 10 }]}>نشاط المستخدم</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+                      {statItems.map(item => (
+                        <View key={item.label} style={{
+                          width: "30%", flex: 1, minWidth: "28%",
+                          backgroundColor: item.color + "12",
+                          borderRadius: 12, borderWidth: 1,
+                          borderColor: item.color + "30",
+                          padding: 12, alignItems: "center", gap: 5,
+                        }}>
+                          <Ionicons name={item.icon as any} size={20} color={item.color} />
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: item.color }}>
+                            {item.value}
+                          </Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+                            {item.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* معلومات الحساب */}
+                    <Text style={[ps.permBlockTitle, { marginBottom: 8 }]}>معلومات الحساب</Text>
+                    <View style={[ps.permBlock, { gap: 10, marginBottom: 16 }]}>
+                      {[
+                        { icon: "calendar-number-outline", label: "تاريخ الانضمام", val: joinDate  },
+                        { icon: "time-outline",            label: "آخر دخول",       val: lastSeen  },
+                        { icon: "phone-portrait-outline",  label: "رقم الهاتف",     val: st.user.phone || "—"  },
+                        { icon: "mail-outline",            label: "البريد",          val: st.user.email || "—"  },
+                        { icon: "home-outline",            label: "الحي",            val: st.user.neighborhood || "—"  },
+                      ].map(row => (
+                        <View key={row.label} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                          <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
+                            <Ionicons name={row.icon as any} size={15} color={Colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{row.label}</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>{row.val}</Text>
+                          </View>
+                        </View>
+                      ))}
+                      {st.user.bio ? (
+                        <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 }}>
+                          <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center", marginTop: 2 }}>
+                            <Ionicons name="person-outline" size={15} color={Colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>نبذة</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, lineHeight: 20 }}>{st.user.bio}</Text>
+                          </View>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* أزرار الإجراءات */}
+                    {isAdmin && statsUser && (
+                      <View style={{ gap: 10, paddingBottom: 20 }}>
+                        {statsUser.role === "user" && (
+                          <TouchableOpacity
+                            style={[ps.confirmBtn, { backgroundColor: "#F0A500" }]}
+                            onPress={() => { setStatsUser(null); setUserStats(null); handleQuickPromote(statsUser); }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="arrow-up-circle" size={18} color="#fff" />
+                            <Text style={ps.confirmBtnTxt}>ترقية إلى مشرف</Text>
+                          </TouchableOpacity>
+                        )}
+                        {statsUser.role === "moderator" && (
+                          <TouchableOpacity
+                            style={[ps.confirmBtn, { backgroundColor: "#F0A50090" }]}
+                            onPress={() => { setStatsUser(null); setUserStats(null); openPermModal(statsUser); }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="key-outline" size={18} color="#fff" />
+                            <Text style={ps.confirmBtnTxt}>تعديل صلاحيات المشرف</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={[ps.confirmBtn, { backgroundColor: Colors.primary + "CC" }]}
+                          onPress={() => { setStatsUser(null); setUserStats(null); setRoleModal(statsUser); }}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="swap-horizontal-outline" size={18} color="#fff" />
+                          <Text style={ps.confirmBtnTxt}>تغيير الصفة</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[ps.cancelBtn, { backgroundColor: "#E0556715", borderWidth: 1, borderColor: "#E0556740", borderRadius: 12 }]}
+                          onPress={() => {
+                            Alert.alert("حذف المستخدم", `هل تريد حذف حساب "${statsUser.name}" نهائياً؟`, [
+                              { text: "إلغاء", style: "cancel" },
+                              { text: "حذف", style: "destructive", onPress: () => { setStatsUser(null); setUserStats(null); handleDeleteUser(statsUser); } },
+                            ]);
+                          }}
+                        >
+                          <Text style={[ps.cancelBtnTxt, { color: "#E05567" }]}>حذف الحساب</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </ScrollView>
+                );
+              })()}
+
+              {/* Close button if not loading */}
+              {!loadingUserStats && !userStats && (
+                <TouchableOpacity style={ps.cancelBtn} onPress={() => { setStatsUser(null); setUserStats(null); }}>
+                  <Text style={ps.cancelBtnTxt}>إغلاق</Text>
+                </TouchableOpacity>
+              )}
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ─── Promote-to-Moderator Sheet ─────────────────────────────────── */}
+      <Modal visible={!!promoTarget} transparent animationType="slide" onRequestClose={() => setPromoTarget(null)}>
+        <Pressable style={ps.backdrop} onPress={() => !promoLoading && setPromoTarget(null)}>
+          <Animated.View entering={FadeInDown.springify().damping(20)} style={ps.sheet}>
+            {/* Handle */}
+            <View style={ps.handle} />
+
+            {/* Icon header */}
+            <View style={ps.iconWrap}>
+              <LinearGradient colors={["#F0A500", "#E8900A"]} style={ps.iconGrad}>
+                <Ionicons name="arrow-up-circle" size={34} color="#fff" />
+              </LinearGradient>
+              <Text style={ps.sheetTitle}>ترقية إلى مشرف</Text>
+              <Text style={ps.sheetSub}>تغيير صفة العضو وإعطاؤه صلاحيات الإشراف</Text>
+            </View>
+
+            {/* Member info card */}
+            {promoTarget && (
+              <View style={ps.memberCard}>
+                <View style={[ps.memberAvatar, { backgroundColor: Colors.primary + "25" }]}>
+                  <Text style={ps.memberLetter}>{promoTarget.name.charAt(0)}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={ps.memberName}>{promoTarget.name}</Text>
+                  {(promoTarget.phone || promoTarget.email) ? (
+                    <Text style={ps.memberSub}>{promoTarget.phone || promoTarget.email}</Text>
+                  ) : null}
+                  {promoTarget.neighborhood ? (
+                    <View style={ps.nbrChip}>
+                      <Ionicons name="location-outline" size={10} color={Colors.textMuted} />
+                      <Text style={ps.nbrChipTxt}>{promoTarget.neighborhood}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={ps.roleFlow}>
+                  <RoleBadge role="user" />
+                  <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
+                  <RoleBadge role="moderator" />
+                </View>
+              </View>
+            )}
+
+            {/* Permissions preview */}
+            <View style={ps.permBlock}>
+              <Text style={ps.permBlockTitle}>سيكون بإمكانه بعد الترقية:</Text>
+              {[
+                { icon: "people-outline",   label: "متابعة الأعضاء ومراجعة طلباتهم" },
+                { icon: "business-outline", label: "مراجعة طلبات المؤسسات والمجتمعات" },
+                { icon: "megaphone-outline",label: "إدارة الإعلانات وقبولها أو رفضها"   },
+                { icon: "location-outline", label: "إضافة وتعديل المعالم السياحية"       },
+              ].map(p => (
+                <View key={p.icon} style={ps.permRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                  <Ionicons name={p.icon as any} size={14} color={Colors.textMuted} />
+                  <Text style={ps.permLabel}>{p.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[ps.confirmBtn, promoLoading && { opacity: 0.7 }]}
+              onPress={executePromote}
+              disabled={promoLoading}
+              activeOpacity={0.8}
+            >
+              {promoLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="arrow-up-circle" size={18} color="#fff" />
+                  <Text style={ps.confirmBtnTxt}>تأكيد الترقية</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={ps.cancelBtn}
+              onPress={() => setPromoTarget(null)}
+              disabled={promoLoading}
+            >
+              <Text style={ps.cancelBtnTxt}>إلغاء</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       {/* Role Change Modal */}
       <Modal visible={!!roleModal} transparent animationType="fade" onRequestClose={() => setRoleModal(null)}>
@@ -2024,18 +4709,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
   },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  inputField: {
-    backgroundColor: Colors.bg,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "right",
-  },
 
   /* User Card */
   userCard: {
@@ -2076,6 +4749,20 @@ const s = StyleSheet.create({
   lmName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   lmSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   lmUrl: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+  lmImgPreview: {
+    width: "100%", height: 140, borderRadius: 12, marginBottom: 10, overflow: "hidden",
+  },
+  lmImgPlaceholder: {
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
+    alignItems: "center", justifyContent: "center",
+  },
+  lmPickBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 11, borderRadius: 12, borderWidth: 1, marginBottom: 4,
+  },
+  lmPickBtnText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14,
+  },
 
   /* Icon button */
   iconBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
@@ -2155,4 +4842,510 @@ const s = StyleSheet.create({
 
   /* Empty state */
   empty: { fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textMuted, textAlign: "center", marginTop: 70, marginBottom: 20 },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 8, minHeight: 160 },
+  emptyStateText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
+
+  /* Input field */
+  inputField: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
+    backgroundColor: Colors.cardBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.divider, textAlign: "right",
+  },
+});
+
+// ─── Member Tracking Styles ──────────────────────────────────────────────────
+const sm = StyleSheet.create({
+  trackingPanel: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 12,
+  },
+  trackingRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+  },
+  trackingStat: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: Colors.bg,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    gap: 4,
+  },
+  trackingNum: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+  },
+  trackingLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  nbrSection: {
+    gap: 6,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    paddingTop: 10,
+  },
+  nbrTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  nbrRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    height: 28,
+    position: "relative",
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  nbrBar: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 6,
+  },
+  nbrInfo: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    zIndex: 1,
+  },
+  nbrName: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 12,
+    color: Colors.textPrimary,
+  },
+  nbrCount: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  clearFilter: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-end",
+    marginTop: 2,
+  },
+  clearFilterTxt: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  sortRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  sortLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  sortBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    backgroundColor: Colors.cardBg,
+  },
+  sortBtnActive: {
+    borderColor: Colors.primary + "60",
+    backgroundColor: Colors.primary + "15",
+  },
+  sortBtnTxt: {
+    fontFamily: "Cairo_500Medium",
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  sortBtnTxtActive: {
+    color: Colors.primary,
+    fontFamily: "Cairo_600SemiBold",
+  },
+});
+
+// ─── User Card Styles ────────────────────────────────────────────────────────
+const uc = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 12,
+  },
+  topRow: {
+    flexDirection: "row-reverse",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 20,
+  },
+  name: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  metaRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+  metaChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+  },
+  metaText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  joinAgo: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: Colors.textMuted,
+    textAlign: "right",
+  },
+  actionBar: {
+    flexDirection: "row-reverse",
+    gap: 7,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    paddingTop: 10,
+  },
+  promoteBtn: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#F0A500",
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  promoteBtnTxt: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 13,
+    color: "#fff",
+  },
+  secBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    borderWidth: 1,
+  },
+  secBtnTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+  },
+});
+
+// ─── Promote Sheet Styles ────────────────────────────────────────────────────
+const ps = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 36,
+    gap: 14,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.divider,
+    alignSelf: "center",
+    marginBottom: 4,
+  },
+  iconWrap: {
+    alignItems: "center",
+    gap: 8,
+  },
+  iconGrad: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 20,
+    color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  sheetSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  memberCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.bg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 12,
+  },
+  memberAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  memberLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+    color: Colors.primary,
+  },
+  memberName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  memberSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: "right",
+  },
+  nbrChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  nbrChipTxt: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  roleFlow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+  },
+  permBlock: {
+    backgroundColor: Colors.bg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    padding: 14,
+    gap: 10,
+  },
+  permBlockTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  permRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+  },
+  permLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 13,
+    color: Colors.textPrimary,
+    flex: 1,
+    textAlign: "right",
+  },
+  confirmBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F0A500",
+    borderRadius: 16,
+    paddingVertical: 15,
+  },
+  confirmBtnTxt: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: "#fff",
+  },
+  cancelBtn: {
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  cancelBtnTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+});
+
+const hs = StyleSheet.create({
+  honorCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#D4AF3722",
+    padding: 14,
+    gap: 10,
+  },
+  honorCardTop: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+  },
+  honorThumb: {
+    width: 62,
+    height: 74,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#D4AF3740",
+  },
+  honorThumbPlaceholder: {
+    backgroundColor: "#D4AF3715",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  honorName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  honorTitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+    color: "#D4AF37",
+    textAlign: "right",
+    marginTop: 2,
+  },
+  honorRole: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: "right",
+    marginTop: 2,
+  },
+  visChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+  },
+  visDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  visText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 11,
+  },
+  datesRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+  },
+  datesText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  tributePreview: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "right",
+    fontStyle: "italic",
+    borderRightWidth: 2,
+    borderRightColor: "#D4AF3740",
+    paddingRight: 8,
+  },
+  honorActions: {
+    flexDirection: "row-reverse",
+    gap: 8,
+    marginTop: 2,
+  },
+  honorAction: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+  },
+  honorActionTxt: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+  },
+  honorPhotoPreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  honorPhotoPlaceholder: {
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: "#D4AF3730",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalHeaderRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
 });

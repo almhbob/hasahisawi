@@ -8,6 +8,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -16,12 +17,66 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { FeatureFlagsProvider } from "@/lib/feature-flags-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
-import { I18nManager, Platform, View } from "react-native";
+import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
+import { I18nManager, Platform, View, LogBox } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { useApiUnread } from "@/lib/api-chat";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ONBOARDING_KEY } from "./onboarding";
+import UpdateBanner from "@/components/UpdateBanner";
+import "@/lib/network";
+
+// ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
+LogBox.ignoreLogs([
+  "Firebase: Error",
+  "@firebase/auth:",
+  "Firebase Auth",
+  "auth/invalid-api-key",
+  "auth/network-request-failed",
+]);
+
+// ── معالج أخطاء React Native (Hermes) العالمي ───────────────────
+// يمنع Firebase من كسر التطبيق عند وجود مفتاح API غير صالح
+try {
+  const EU = (global as any).ErrorUtils;
+  if (EU?.getGlobalHandler && EU?.setGlobalHandler) {
+    const prev = EU.getGlobalHandler();
+    EU.setGlobalHandler((error: Error, isFatal: boolean) => {
+      const msg = error?.message ?? String(error);
+      if (
+        msg.includes("auth/invalid-api-key") ||
+        msg.includes("Firebase") ||
+        msg.includes("@firebase")
+      ) {
+        console.warn("[Firebase global error suppressed]", msg);
+        try { markFirebaseRuntimeFailed(); } catch {}
+        return; // لا نُعيد رميه → لا كراش
+      }
+      prev?.(error, isFatal);
+    });
+  }
+} catch {}
+
+// ── معالجة رفض الـ Promises غير المُعالَجة (web) ────────────────
+if (typeof globalThis !== "undefined") {
+  const origHandler = (globalThis as any).onunhandledrejection;
+  (globalThis as any).onunhandledrejection = (event: any) => {
+    const msg = String(event?.reason?.message ?? event?.reason ?? "");
+    if (
+      msg.includes("Firebase") ||
+      msg.includes("auth/invalid-api-key") ||
+      msg.includes("@firebase")
+    ) {
+      event?.preventDefault?.();
+      return;
+    }
+    if (origHandler) origHandler(event);
+  };
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,7 +90,7 @@ function AuthGate() {
   // تسجيل الإشعارات عند تسجيل الدخول
   useEffect(() => {
     if (!user || isGuest) return;
-    registerForPushNotifications(user.uid ?? String(user.id)).catch(() => {});
+    registerForPushNotifications(user.uid ?? String(user.id), token ?? undefined).catch(() => {});
     const unsub = addNotificationListener(
       (_n) => {},
       (data) => {
@@ -55,10 +110,20 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
     const inLogin = segments[0] === "login";
+    const inOnboarding = segments[0] === "onboarding";
     if (!user) {
-      if (!inLogin) router.replace("/login");
+      if (!inLogin && !inOnboarding) {
+        // فحص إذا كان المستخدم شاهد شاشة الترحيب من قبل
+        AsyncStorage.getItem(ONBOARDING_KEY).then((done) => {
+          if (!done) {
+            router.replace("/onboarding" as any);
+          } else {
+            router.replace("/login");
+          }
+        });
+      }
     } else {
-      if (inLogin) router.replace("/(tabs)/" as any);
+      if (inLogin || inOnboarding) router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
 
@@ -68,13 +133,19 @@ function AuthGate() {
 function RootLayoutNav() {
   return (
     <>
+      <StatusBar style="light" />
       <AuthGate />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login"  options={{ headerShown: false, animation: "fade" }} />
-        <Stack.Screen name="report" options={{ headerShown: false }} />
-        <Stack.Screen name="admin"        options={{ headerShown: false, animation: "slide_from_left" }} />
-        <Stack.Screen name="conversation" options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
+        <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="report"          options={{ headerShown: false }} />
+        <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin"           options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
@@ -115,14 +186,17 @@ export default function RootLayout() {
         <LangProvider initialLang={initialLang}>
           <FirebaseProvider>
             <AuthProvider>
+              <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
                     <NetworkBanner />
+                    <UpdateBanner />
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>
+              </FeatureFlagsProvider>
             </AuthProvider>
           </FirebaseProvider>
         </LangProvider>
