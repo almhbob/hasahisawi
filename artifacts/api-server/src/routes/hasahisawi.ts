@@ -959,15 +959,16 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
 
 router.post("/auth/register-admin", async (req: Request, res: Response) => {
   try {
-    const { name, email, password, admin_code } = req.body;
+    const { name, email, password, admin_code, role: reqRole } = req.body as { name?: string; email?: string; password?: string; admin_code?: string; role?: string };
     if (!name || !email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const settingResult = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
     const pin = settingResult.rows[0]?.value || DEFAULT_ADMIN_PIN;
     if (admin_code !== pin) return res.status(403).json({ error: "رمز المشرف غير صحيح" });
+    const assignRole = reqRole === "moderator" ? "moderator" : "admin";
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'admin') RETURNING id, name, role`,
-      [name, email, hash]
+      `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, name, email, role`,
+      [name, email, hash, assignRole]
     );
     const user = result.rows[0];
     const token = randomBytes(32).toString("hex");
@@ -975,6 +976,60 @@ router.post("/auth/register-admin", async (req: Request, res: Response) => {
     return res.json({ user, token });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "البريد موجود بالفعل" });
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/auth/reset-admin-password — إعادة تعيين كلمة مرور الأدمن/المشرف بالـ PIN
+router.post("/auth/reset-admin-password", async (req: Request, res: Response) => {
+  try {
+    const { email, new_password, admin_code } = req.body as { email?: string; new_password?: string; admin_code?: string };
+    if (!email || !new_password || !admin_code) return res.status(400).json({ error: "البيانات ناقصة" });
+    if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    const settingResult = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+    const pin = settingResult.rows[0]?.value || DEFAULT_ADMIN_PIN;
+    if (admin_code !== pin) return res.status(403).json({ error: "رمز PIN غير صحيح" });
+    const userResult = await query(`SELECT id, role FROM users WHERE email=$1`, [email]);
+    const user = userResult.rows[0];
+    if (!user) return res.status(404).json({ error: "البريد الإلكتروني غير موجود" });
+    if (user.role !== "admin" && user.role !== "moderator") return res.status(403).json({ error: "هذا الحساب ليس حساب إدارة" });
+    const hash = await bcrypt.hash(new_password, 10);
+    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hash, user.id]);
+    return res.json({ ok: true, message: "تم تعيين كلمة المرور بنجاح" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/admin/users — قائمة حسابات الإدارة
+router.get("/admin/users", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT id, name, email, role, created_at FROM users WHERE role IN ('admin','moderator') ORDER BY created_at DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /api/admin/users/:id — حذف حساب مشرف (فقط المسؤول الرئيسي يمكنه ذلك)
+router.delete("/admin/users/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const me = await getSessionUser(req);
+    const targetId = parseInt(req.params.id as string);
+    if (me?.id === targetId) return res.status(400).json({ error: "لا يمكن حذف حسابك الحالي" });
+    const { rows } = await query(`SELECT role FROM users WHERE id=$1`, [targetId]);
+    if (!rows[0]) return res.status(404).json({ error: "المستخدم غير موجود" });
+    await query(`DELETE FROM user_sessions WHERE user_id=$1`, [targetId]);
+    await query(`UPDATE users SET role='user' WHERE id=$1`, [targetId]);
+    return res.json({ ok: true });
+  } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
