@@ -71,12 +71,12 @@ jobs:
 
       - name: Decode keystore (KEYSTORE_BASE64)
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
             > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
           echo "=== Verifying keystore ==="
           keytool -list -keystore artifacts/hasahisawi/android/app/hasahisawi-release.keystore \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -alias "${{ secrets.KEY_ALIAS }}" 2>&1 | grep -iE "SHA1|SHA256|fingerprint"
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_KEY_ALIAS }}" 2>&1 | grep -iE "SHA1|SHA256|fingerprint"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -92,9 +92,9 @@ jobs:
           NODE_ENV: production
           NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/artifacts/hasahisawi/node_modules
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           EXPO_PROJECT_ROOT: ${{ github.workspace }}/artifacts/hasahisawi
           EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
@@ -126,9 +126,9 @@ jobs:
             --output=/tmp/hasahisawi-release.apks \
             --mode=universal \
             --ks="$KEYSTORE_PATH" \
-            --ks-pass="pass:${{ secrets.KEYSTORE_PASSWORD }}" \
-            --ks-key-alias="${{ secrets.KEY_ALIAS }}" \
-            --key-pass="pass:${{ secrets.KEY_PASSWORD }}"
+            --ks-pass="pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            --ks-key-alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            --key-pass="pass:${{ secrets.ANDROID_KEY_PASSWORD }}"
           cd /tmp && unzip -p hasahisawi-release.apks universal.apk > hasahisawi-release.apk
           echo "APK size: $(du -sh /tmp/hasahisawi-release.apk | cut -f1)"
 
