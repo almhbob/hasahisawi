@@ -1,22 +1,26 @@
 import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+const PRODUCTION_API_HOST = "hasahisawi.vercel.app";
+
 /**
  * Gets the base URL for the Express API server.
- * Returns null when EXPO_PUBLIC_DOMAIN is not configured.
+ * In production builds (__DEV__ === false), always uses hasahisawi.vercel.app.
+ * In development, reads EXPO_PUBLIC_DOMAIN environment variable.
  */
 export function getApiUrl(): string {
-  const host = process.env.EXPO_PUBLIC_DOMAIN;
-  if (!host) return "";
+  const host = __DEV__
+    ? (process.env.EXPO_PUBLIC_DOMAIN || PRODUCTION_API_HOST)
+    : PRODUCTION_API_HOST;
   try {
     return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
-    return "";
+    return `https://${PRODUCTION_API_HOST}`;
   }
 }
 
 export function isApiConfigured(): boolean {
-  return !!process.env.EXPO_PUBLIC_DOMAIN;
+  return true;
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -69,14 +73,25 @@ export function getQueryFn<T>(options: {
   };
 }
 
+function shouldRetry(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 2) return false;
+  const msg = error instanceof Error ? error.message : String(error);
+  const status = parseInt(msg.split(":")[0], 10);
+  if (!isNaN(status) && status >= 400 && status < 500) return false;
+  return true;
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnReconnect: true,
+      staleTime: 3 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
+      retry: shouldRetry,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     },
     mutations: {
       retry: false,
