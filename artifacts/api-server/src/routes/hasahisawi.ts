@@ -5635,7 +5635,7 @@ async function sendPushBroadcast(title: string, body: string, data: Record<strin
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(messages),
       });
-      if (r.ok) { const d = await r.json(); const data2 = d.data ?? []; sent += data2.filter((x: { status: string }) => x.status === "ok").length; failed += data2.filter((x: { status: string }) => x.status !== "ok").length; }
+      if (r.ok) { const d = await r.json() as { data?: { status: string }[] }; const data2 = d.data ?? []; sent += data2.filter((x) => x.status === "ok").length; failed += data2.filter((x) => x.status !== "ok").length; }
       else failed += chunk.length;
     } catch { failed += chunk.length; }
   }
