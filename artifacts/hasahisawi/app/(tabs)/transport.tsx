@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
   TouchableOpacity, Linking, Alert, TextInput,
-  ActivityIndicator, RefreshControl, Modal, Pressable,
+  ActivityIndicator, RefreshControl, Modal, Pressable, KeyboardAvoidingView,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, useSharedValue, useAnimatedStyle,
@@ -731,7 +731,7 @@ export default function TransportScreen() {
   const approvedCnt = drivers.length;
 
   return (
-    <View style={s.container}>
+    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       {/* ── رأس الصفحة ── */}
       <LinearGradient colors={["#081A0E", "#0D2B17"]} style={[s.header, { paddingTop: topPad + 8 }]}>
         <View style={s.headerRow}>
@@ -1484,7 +1484,7 @@ export default function TransportScreen() {
         </Pressable>
       </Modal>
 
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
