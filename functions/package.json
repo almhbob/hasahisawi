@@ -1,0 +1,13 @@
+{
+  "name": "hasahisawi-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^13",
+    "firebase-functions": "^6"
+  }
+}
