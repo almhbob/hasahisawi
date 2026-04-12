@@ -161,6 +161,7 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     getStoredLang().then((lang) => {
@@ -173,12 +174,20 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if ((fontsLoaded || fontError) && initialLang !== null) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError, initialLang]);
 
-  if ((!fontsLoaded && !fontError) || initialLang === null) return null;
+  const fontsReady = fontsLoaded || fontError || timedOut;
+  const langReady = initialLang !== null || timedOut;
+
+  if (!fontsReady || !langReady) return null;
 
   return (
     <ErrorBoundary>
