@@ -4,21 +4,28 @@ on:
   push:
     branches: [master]
     paths-ignore:
-      - '.github/workflows/android-build.yml'
       - 'attached_assets/**'
 
 jobs:
-  deploy:
-    name: Trigger Vercel Production Deploy
+  sync-main-and-deploy:
+    name: Sync main branch → trigger Vercel Production
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Vercel Deploy Hook
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Force-update main to match master
+        run: |
+          git config user.email "ci@hasahisawi.app"
+          git config user.name "Hasahisawi CI"
+          git push origin HEAD:main --force
+          echo "✅ main synced with master — Vercel will deploy production"
+
+      - name: Also trigger deploy hook (backup)
         run: |
           RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
-          echo "Vercel response: $RESPONSE"
-          if echo "$RESPONSE" | grep -q '"state":"PENDING"'; then
-            echo "✅ Vercel deployment triggered successfully"
-          else
-            echo "⚠️ Unexpected response: $RESPONSE"
-            exit 1
-          fi
+          echo "Deploy hook response: $RESPONSE"
