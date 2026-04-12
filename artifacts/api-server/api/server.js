@@ -1,9 +1,3 @@
-let app;
-
-export default async (req, res) => {
-  if (!app) {
-    const mod = await import('./server.mjs');
-    app = mod.default;
-  }
-  return app(req, res);
+export default (req, res) => {
+  res.status(200).json({ ok: true, service: 'hasahisawi-api', time: new Date().toISOString() });
 };
