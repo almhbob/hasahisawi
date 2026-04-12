@@ -169,6 +169,7 @@ export default function HomeScreen() {
     { id: "medical",   label: t('home','medical').label,         sub: t('home','medical').sub,         icon: "medkit",            iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/medical"   as const },
     { id: "lost",      label: t('home','lost').label,            sub: t('home','lost').sub,             icon: "search",            iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/missing"   as const },
     { id: "student",   label: t('home','student').label,         sub: t('home','student').sub,          icon: "school",            iconType: "ionicons"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/student"   as const },
+    { id: "transport", label: "مشوارك علينا",                    sub: "سيارات · ركشات · توصيل",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const },
     { id: "jobs",      label: t('home','jobsService').label,     sub: t('home','jobsService').sub,      icon: "briefcase",         iconType: "ionicons"  as const, color: Colors.primary, bg: Colors.primary+"20", route: "/(tabs)/jobs"   as const },
     { id: "market",    label: t('home','marketService').label,   sub: t('home','marketService').sub,    icon: "storefront",        iconType: "ionicons"  as const, color: "#FF6B35", bg: "#FF6B3520", route: "/(tabs)/market"    as const },
     { id: "sports",    label: t('home','sports').label,          sub: t('home','sports').sub,           icon: "football",          iconType: "ionicons"  as const, color: "#27AE68", bg: "#27AE6820", route: "/(tabs)/sports"    as const },
@@ -181,7 +182,6 @@ export default function HomeScreen() {
     { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
-    { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const },
   ], [lang]);
 
   const handlePress = (route: string) => {
