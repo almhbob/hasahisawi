@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "installCommand": "npm install --no-package-lock && npm install --no-package-lock --prefix artifacts/api-server",
-  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install --no-package-lock && npm install --no-package-lock --include=dev --prefix artifacts/api-server",
+  "buildCommand": "node artifacts/api-server/build-vercel.mjs",
   "functions": {
     "api/server.mjs": {
       "maxDuration": 30,
@@ -9,6 +9,9 @@
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/server" }
+    {
+      "source": "/(.*)",
+      "destination": "/api/server"
+    }
   ]
 }
