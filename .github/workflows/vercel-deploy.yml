@@ -1,0 +1,24 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '.github/workflows/android-build.yml'
+      - 'attached_assets/**'
+
+jobs:
+  deploy:
+    name: Trigger Vercel Production Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Deploy Hook
+        run: |
+          RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+          echo "Vercel response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"state":"PENDING"'; then
+            echo "✅ Vercel deployment triggered successfully"
+          else
+            echo "⚠️ Unexpected response: $RESPONSE"
+            exit 1
+          fi
