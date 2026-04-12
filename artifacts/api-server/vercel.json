@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "installCommand": "",
+  "buildCommand": "",
   "functions": {
     "api/server.mjs": {
       "maxDuration": 30,
