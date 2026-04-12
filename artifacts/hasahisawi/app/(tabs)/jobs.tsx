@@ -11,10 +11,10 @@ import {
   TextInput,
   ScrollView,
   Linking,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
@@ -23,6 +23,10 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { requireNetwork } from "@/lib/network";
+import {
+  fsGetCollection, fsAddDoc, fsDeleteDoc,
+  COLLECTIONS, orderBy, isFirebaseAvailable,
+} from "@/lib/firebase/firestore";
 
 export type Job = {
   id: string;
@@ -36,7 +40,8 @@ export type Job = {
   createdAt: string;
 };
 
-const STORAGE_KEY = "jobs_listings";
+// STORAGE_KEY kept for reference only — data now lives in Firestore
+const STORAGE_KEY = "jobs_listings_legacy";
 
 const SAMPLE_JOBS: Job[] = [
   {
@@ -171,6 +176,7 @@ function AddJobModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={modalStyles.overlay}>
         <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={modalStyles.handle} />
@@ -228,6 +234,7 @@ function AddJobModal({
           </ScrollView>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -273,40 +280,44 @@ export default function JobsScreen() {
 
   const loadJobs = async () => {
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      const saved: Job[] = raw ? JSON.parse(raw) : [];
-      setJobs([...saved, ...SAMPLE_JOBS]);
+      if (isFirebaseAvailable()) {
+        const docs = await fsGetCollection<Job>(COLLECTIONS.JOBS, orderBy("createdAt", "desc"));
+        setJobs(docs.length > 0 ? docs : SAMPLE_JOBS);
+      } else {
+        setJobs(SAMPLE_JOBS);
+      }
     } catch {
       setJobs(SAMPLE_JOBS);
     }
   };
 
   const saveJob = async (jobData: Omit<Job, "id" | "createdAt">): Promise<void> => {
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await fsAddDoc(COLLECTIONS.JOBS, {
+        ...jobData,
+        postedBy: auth.user?.uid ?? null,
+        createdAt: new Date().toISOString(),
+      });
+      await loadJobs();
+    } catch {
+      Alert.alert(t("common", "error"), "تعذّر حفظ الوظيفة، تحقق من الاتصال");
     }
-    const newJob: Job = {
-      ...jobData,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString(),
-    };
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    const existing: Job[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([newJob, ...existing]));
-    await loadJobs();
   };
 
   const deleteJob = (id: string) => {
+    const isSample = id.startsWith("sample");
+    if (isSample) return;
     Alert.alert(t("jobs", "deleteConfirm") || t("common", "confirm"), t("common", "deleteMessage"), [
       { text: t("common", "cancel"), style: "cancel" },
       {
         text: t("common", "delete"),
         style: "destructive",
         onPress: async () => {
-          const raw = await AsyncStorage.getItem(STORAGE_KEY);
-          const saved: Job[] = raw ? JSON.parse(raw) : [];
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(saved.filter((j) => j.id !== id)));
-          loadJobs();
+          try {
+            await fsDeleteDoc(COLLECTIONS.JOBS, id);
+            loadJobs();
+          } catch { Alert.alert(t("common", "error"), "تعذّر الحذف"); }
         },
       },
     ]);
