@@ -3,7 +3,7 @@
   "installCommand": "",
   "buildCommand": "",
   "functions": {
-    "api/server.mjs": {
+    "api/server.js": {
       "maxDuration": 30,
       "memory": 1024
     }
