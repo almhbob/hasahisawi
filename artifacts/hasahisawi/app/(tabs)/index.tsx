@@ -23,10 +23,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import { getApiUrl } from "@/lib/query-client";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
 import BrandPattern from "@/components/BrandPattern";
+import HonorCard, { HonoredFigure } from "@/components/HonorCard";
 import { useLang } from "@/lib/lang-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 
@@ -55,6 +57,7 @@ const FALLBACK_LANDMARKS: ApiLandmark[] = [
 type ServiceItem = {
   id: string; label: string; sub: string; icon: any;
   color: string; bg: string; route: any; iconType: "ionicons" | "material";
+  soon?: boolean;
 };
 
 function ServiceGridItem({
@@ -66,7 +69,7 @@ function ServiceGridItem({
       style={styles.gridItemContainer}
     >
       <AnimatedPress onPress={onPress}>
-        <View style={styles.gridItem}>
+        <View style={[styles.gridItem, item.soon && { opacity: 0.88 }]}>
           {/* توهج خلفي للبطاقة */}
           <View style={[styles.gridGlow, { backgroundColor: item.color + "12" }]} />
           <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
@@ -76,6 +79,13 @@ function ServiceGridItem({
           </View>
           <Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>
           <Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>
+          {/* شارة "قريباً" */}
+          {item.soon && (
+            <View style={styles.soonBadge}>
+              <MaterialCommunityIcons name="clock-fast" size={9} color="#FBBF24" />
+              <Text style={styles.soonBadgeText}>قريباً</Text>
+            </View>
+          )}
           {/* حد نيوني سفلي */}
           <View style={[styles.gridBottomLine, { backgroundColor: item.color + "80" }]} />
         </View>
@@ -105,11 +115,13 @@ export default function HomeScreen() {
   const insets  = useSafeAreaInsets();
   const topPad  = Platform.OS === "web" ? 67 : insets.top;
   const auth    = useAuth();
+  const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = useFeatureFlags();
   const [showAuth, setShowAuth] = useState(false);
   const [bioLabel, setBioLabel] = useState("البصمة");
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>(FALLBACK_LANDMARKS);
   const [featuredAd, setFeaturedAd] = useState<{ institution_name: string; title: string; description?: string; type: string } | null>(null);
+  const [honoredFigure, setHonoredFigure] = useState<HonoredFigure | null>(null);
   const greeting = useMemo(() => getGreeting(), []);
   const arabicDate = useMemo(() => getArabicDate(), []);
 
@@ -142,6 +154,17 @@ export default function HomeScreen() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const base = getApiUrl();
+    if (!base) return;
+    fetch(new URL("/api/honored-figure", base).toString())
+      .then(r => r.ok ? r.json() : null)
+      .then((data: HonoredFigure | null) => {
+        if (data && data.id) setHonoredFigure(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const SERVICES = useMemo(() => [
     { id: "medical",   label: t('home','medical').label,         sub: t('home','medical').sub,         icon: "medkit",            iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/medical"   as const },
     { id: "lost",      label: t('home','lost').label,            sub: t('home','lost').sub,             icon: "search",            iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/missing"   as const },
@@ -158,6 +181,7 @@ export default function HomeScreen() {
     { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
+    { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const },
   ], [lang]);
 
   const handlePress = (route: string) => {
@@ -322,6 +346,32 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
+        {/* ═══ قاعة التكريم ═══ */}
+        {honoredFigure && (
+          <Animated.View entering={FadeInDown.delay(105).springify()} style={styles.honorSection}>
+            {/* Header */}
+            <View style={styles.honorHeader}>
+              <View style={styles.honorDotGroup}>
+                <View style={[styles.honorDot, { backgroundColor: "#D4AF37" }]} />
+                <View style={[styles.honorDot, { width: 5, height: 5, backgroundColor: "#D4AF3770" }]} />
+              </View>
+              <View style={styles.honorTitleRow}>
+                <Ionicons name="trophy" size={15} color="#D4AF37" />
+                <Text style={styles.honorTitle}>قاعة التكريم</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/honored" as any)}
+                style={styles.honorSeeAll}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.honorSeeAllText}>عرض الكل</Text>
+                <Ionicons name="chevron-back" size={13} color="#D4AF37" />
+              </TouchableOpacity>
+            </View>
+            <HonorCard figure={honoredFigure} />
+          </Animated.View>
+        )}
+
         {/* ═══ معالم المدينة ═══ */}
         <Animated.View entering={FadeInDown.delay(110).springify()} style={styles.landmarksSection}>
           <View style={styles.landmarksHeader}>
@@ -381,7 +431,7 @@ export default function HomeScreen() {
                 <Ionicons name="calendar" size={22} color={Colors.accent} />
               </View>
               <Text style={styles.quickBannerTitle}>حجز موعد</Text>
-              <Text style={styles.quickBannerSub}>صحي · حكومي</Text>
+              <Text style={styles.quickBannerSub}>{gov_appointments_enabled ? "صحي · حكومي" : "خدمات صحية"}</Text>
             </LinearGradient>
           </AnimatedPress>
 
@@ -439,7 +489,9 @@ export default function HomeScreen() {
 
         {/* شبكة الخدمات */}
         <View style={styles.gridContainer}>
-          {SERVICES.map((item, idx) => (
+          {SERVICES.filter(item =>
+            item.id !== "women" || auth.user?.gender === "female" || (!auth.user?.gender && !auth.isGuest)
+          ).map((item, idx) => (
             <ServiceGridItem key={item.id} item={item} onPress={() => handlePress(item.route)} index={idx} />
           ))}
         </View>
@@ -849,7 +901,7 @@ const styles = StyleSheet.create({
   featuredAdChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.accent },
 
   sectionHeader: {
-    alignItems: "center", gap: 10, marginBottom: 18,
+    alignItems: "center", gap: 10, marginTop: 4, marginBottom: 18,
   },
   sectionAccentBar: {
     width: 4, height: 22, borderRadius: 2,
@@ -900,9 +952,18 @@ const styles = StyleSheet.create({
   gridBottomLine: {
     position: "absolute", bottom: 0, left: 14, right: 14, height: 2, borderRadius: 1, opacity: 0.55,
   },
+  soonBadge: {
+    position: "absolute", top: 7, left: 7,
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#FBBF2420", borderWidth: 1, borderColor: "#FBBF2450",
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
+  },
+  soonBadgeText: {
+    fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FBBF24",
+  },
 
   /* Quick Banners Row */
-  quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 6 },
   quickBanner: {
     borderRadius: 18, padding: 16, borderWidth: 1,
     overflow: "hidden", alignItems: "center", gap: 8,
@@ -1086,7 +1147,57 @@ const styles = StyleSheet.create({
     color: Colors.textMuted, textAlign: "center", marginTop: 2,
   },
 
-  /* ── معالم المدينة ── */
+  /* ─ قاعة التكريم ─ */
+  honorSection: {
+    marginBottom: 22,
+  },
+  honorHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  honorSeeAll: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#D4AF3718",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D4AF3730",
+  },
+  honorSeeAllText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 11,
+    color: "#D4AF37",
+  },
+  honorDotGroup: {
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+  },
+  honorDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    opacity: 0.9,
+  },
+  honorTitleRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  honorTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: "#D4AF37",
+    letterSpacing: 0.8,
+  },
+
   landmarksSection: {
     marginBottom: 20,
   },
