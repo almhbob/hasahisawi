@@ -1,9 +1,9 @@
-let appPromise;
+let app;
 
-module.exports = async (req, res) => {
-  if (!appPromise) {
-    appPromise = import('./server.mjs').then((m) => m.default);
+export default async (req, res) => {
+  if (!app) {
+    const mod = await import('./server.mjs');
+    app = mod.default;
   }
-  const app = await appPromise;
   return app(req, res);
 };
