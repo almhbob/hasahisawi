@@ -1,5 +1,5 @@
 {
   "version": 2,
   "buildCommand": "pnpm run vercel-build",
-  "installCommand": "pnpm install"
+  "installCommand": "npm install -g pnpm@10.26.1 && pnpm install --no-frozen-lockfile"
 }
