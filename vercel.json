@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "installCommand": "",
+  "buildCommand": "",
   "functions": {
     "api/server.mjs": {
       "maxDuration": 30,
@@ -7,9 +9,6 @@
     }
   },
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/server"
-    }
+    { "source": "/(.*)", "destination": "/api/server" }
   ]
 }
