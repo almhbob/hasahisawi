@@ -7,25 +7,13 @@ on:
       - 'attached_assets/**'
 
 jobs:
-  sync-main-and-deploy:
-    name: Sync main branch → trigger Vercel Production
+  deploy:
+    name: Trigger Vercel Production Deployment
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout master
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Force-update main to match master
+      - name: Trigger Vercel deploy hook
         run: |
-          git config user.email "ci@hasahisawi.app"
-          git config user.name "Hasahisawi CI"
-          git push origin HEAD:main --force
-          echo "✅ main synced with master — Vercel will deploy production"
-
-      - name: Also trigger deploy hook (backup)
-        run: |
-          RESPONSE=$(curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
-          echo "Deploy hook response: $RESPONSE"
+          RESPONSE=$(curl -s -X POST "https://api.vercel.com/v1/integrations/deploy/prj_jXYp7uk0HZuZXUu3vuiEXCm0xF2U/ltjqlh48pn")
+          echo "Response: $RESPONSE"
+          JOB_ID=$(echo "$RESPONSE" | node -e "const d=[];process.stdin.on('data',c=>d.push(c));process.stdin.on('end',()=>{console.log(JSON.parse(d.join('')).job?.id||'none');})" 2>/dev/null || echo "unknown")
+          echo "✅ Vercel deploy triggered — Job: $JOB_ID"
