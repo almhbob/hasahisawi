@@ -27,6 +27,7 @@ type Section = {
   icon: keyof typeof Ionicons.glyphMap;
   route: string;
   color?: string;
+  soon?: boolean;
 };
 
 type Group = { label: string; items: Section[] };
@@ -76,11 +77,28 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "المناسبات والتكريم",
+    items: [
+      { title: "الفعاليات والتأجير", icon: "calendar-outline",  route: "/(tabs)/events",    color: "#F0A500"  },
+      { title: "مساحة التهنئة",    icon: "sparkles-outline",  route: "/(tabs)/greetings", color: "#D4AF37"  },
+      { title: "مناسبتي",          icon: "gift-outline",       route: "/(tabs)/occasions", color: "#D97706"  },
+      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#C084FC"  },
+    ],
+  },
+  {
+    label: "نقل وتوصيل",
+    items: [
+      { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316" },
+    ],
+  },
+  {
     label: "أدوات",
     items: [
-      { title: "التقويم",      icon: "calendar-number-outline", route: "/(tabs)/calendar",   color: Colors.cyber   },
-      { title: "أرقام مهمة",  icon: "call-outline",            route: "/(tabs)/numbers",    color: Colors.primary },
-      { title: "المساعد الذكي",icon: "sparkles",                route: "/(tabs)/ai-support", color: Colors.accent  },
+      { title: "خريطة المدينة", icon: "map-outline",              route: "/(tabs)/map",        color: "#0EA5E9"       },
+      { title: "التقويم",        icon: "calendar-number-outline",  route: "/(tabs)/calendar",   color: Colors.cyber   },
+      { title: "أرقام مهمة",    icon: "call-outline",             route: "/(tabs)/numbers",    color: Colors.primary },
+      { title: "المساعد الذكي", icon: "sparkles",                  route: "/(tabs)/ai-support", color: Colors.accent  },
+      { title: "الإعدادات",     icon: "settings-outline",          route: "/(tabs)/settings",   color: Colors.textMuted },
     ],
   },
 ];
@@ -214,6 +232,11 @@ export default function DrawerMenu() {
                       <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />
                     </View>
                     <Text style={styles.itemLabel}>{item.title}</Text>
+                    {item.soon && (
+                      <View style={styles.soonChip}>
+                        <Text style={styles.soonChipText}>قريباً</Text>
+                      </View>
+                    )}
                     {showBadge && (
                       <View style={styles.drawerBadge}>
                         <Text style={styles.drawerBadgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
@@ -410,5 +433,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#fff",
     lineHeight: 14,
+  },
+  soonChip: {
+    backgroundColor: "#FBBF2418",
+    borderWidth: 1,
+    borderColor: "#FBBF2445",
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginRight: 4,
+  },
+  soonChipText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 10,
+    color: "#FBBF24",
   },
 });
