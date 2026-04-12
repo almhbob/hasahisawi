@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Modal, Pressable, ActivityIndicator,
-  Alert,
+  Alert, KeyboardAvoidingView, Platform, AppState,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,9 @@ import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
+import UserAvatar from "@/components/UserAvatar";
+import * as Haptics from "expo-haptics";
+import { scheduleLocalNotification } from "@/lib/firebase/notifications";
 import {
   useApiChats, apiGetUsers, apiGetOrCreateChat,
   getOtherUser, getMyUnread, ApiChat, ApiUser,
@@ -34,14 +37,11 @@ function formatTime(ts: string | null): string {
 function ChatCard({ chat, myId, onPress }: { chat: ApiChat; myId: number; onPress: () => void }) {
   const other = getOtherUser(chat, myId);
   const unread = getMyUnread(chat, myId);
-  const initial = other.name.charAt(0);
   const isMe = chat.last_sender_id === myId;
 
   return (
     <TouchableOpacity style={styles.chatCard} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initial}</Text>
-      </View>
+      <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
           <Text style={styles.chatName} numberOfLines={1}>{other.name}</Text>
@@ -107,6 +107,10 @@ function NewChatModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
@@ -124,6 +128,9 @@ function NewChatModal({
               placeholderTextColor={Colors.textMuted}
               value={search}
               onChangeText={setSearch}
+              cursorColor={Colors.primary}
+              selectionColor={Colors.primary + "60"}
+              autoCorrect={false}
             />
           </View>
 
@@ -144,9 +151,7 @@ function NewChatModal({
                   disabled={starting === item.id}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.userAvatar}>
-                    <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-                  </View>
+                  <UserAvatar name={item.name} avatarUrl={item.avatar_url} size={42} borderRadius={13} />
                   <Text style={styles.userName}>{item.name}</Text>
                   {starting === item.id ? (
                     <ActivityIndicator size="small" color={Colors.primary} />
@@ -159,6 +164,7 @@ function NewChatModal({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -172,6 +178,21 @@ export default function ChatScreen() {
 
   const myId = user?.id ?? 0;
   const { chats, loading, refresh } = useApiChats(isGuest ? null : token);
+
+  // ── نغمة تنبيه عند وصول رسائل جديدة ──────────────────────────────────────
+  const prevUnreadRef = useRef(0);
+  useEffect(() => {
+    if (!chats.length) return;
+    const totalUnread = chats.reduce((sum, c) => sum + getMyUnread(c, myId), 0);
+    if (totalUnread > prevUnreadRef.current && prevUnreadRef.current >= 0) {
+      const appState = AppState.currentState;
+      if (appState === "active") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        scheduleLocalNotification({ title: "رسالة جديدة 💬", body: "لديك رسالة جديدة في الدردشة" });
+      }
+    }
+    prevUnreadRef.current = totalUnread;
+  }, [chats, myId]);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -191,7 +212,7 @@ export default function ChatScreen() {
     const other = getOtherUser(chat, myId);
     router.push({
       pathname: "/conversation",
-      params: { chatId: String(chat.id), otherName: other.name },
+      params: { chatId: String(chat.id), otherName: other.name, otherAvatar: other.avatar ?? "" },
     } as any);
   }
 
@@ -374,12 +395,12 @@ const styles = StyleSheet.create({
     margin: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.cardBgElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: Colors.primary + "50",
   },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", includeFontPadding: false },
   userItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
   userAvatar: {
     width: 42, height: 42,
