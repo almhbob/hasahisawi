@@ -1003,37 +1003,6 @@ router.post("/auth/reset-admin-password", async (req: Request, res: Response) =>
   }
 });
 
-// GET /api/admin/users — قائمة حسابات الإدارة
-router.get("/admin/users", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { rows } = await query(
-      `SELECT id, name, email, role, created_at FROM users WHERE role IN ('admin','moderator') ORDER BY created_at DESC`
-    );
-    return res.json(rows);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-// DELETE /api/admin/users/:id — حذف حساب مشرف (فقط المسؤول الرئيسي يمكنه ذلك)
-router.delete("/admin/users/:id", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const me = await getSessionUser(req);
-    const targetId = parseInt(req.params.id as string);
-    if (me?.id === targetId) return res.status(400).json({ error: "لا يمكن حذف حسابك الحالي" });
-    const { rows } = await query(`SELECT role FROM users WHERE id=$1`, [targetId]);
-    if (!rows[0]) return res.status(404).json({ error: "المستخدم غير موجود" });
-    await query(`DELETE FROM user_sessions WHERE user_id=$1`, [targetId]);
-    await query(`UPDATE users SET role='user' WHERE id=$1`, [targetId]);
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
 
 // تحديث الملف الشخصي (الاسم + الصورة الشخصية)
 router.put("/auth/profile", async (req: Request, res: Response) => {
