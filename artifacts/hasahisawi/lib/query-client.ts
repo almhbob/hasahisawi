@@ -1,17 +1,15 @@
 import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-const PRODUCTION_API_HOST = "hasahisawi.vercel.app";
+const PRODUCTION_API_HOST = process.env.EXPO_PUBLIC_DOMAIN || "hasahisawi.vercel.app";
 
 /**
  * Gets the base URL for the Express API server.
- * In production builds (__DEV__ === false), always uses hasahisawi.vercel.app.
- * In development, reads EXPO_PUBLIC_DOMAIN environment variable.
+ * Always reads EXPO_PUBLIC_DOMAIN environment variable (set at build time in eas.json).
+ * Falls back to hasahisawi.vercel.app if not set.
  */
 export function getApiUrl(): string {
-  const host = __DEV__
-    ? (process.env.EXPO_PUBLIC_DOMAIN || PRODUCTION_API_HOST)
-    : PRODUCTION_API_HOST;
+  const host = PRODUCTION_API_HOST;
   try {
     return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
