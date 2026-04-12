@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 
-export const NOTIF_CHANNEL_ID = "hasahisawi-default";
+export const NOTIF_CHANNEL_ID = "hasahisawi-v2";
 
 export type PushNotification = {
   title: string;
@@ -14,10 +14,11 @@ export type PushNotification = {
 async function ensureAndroidChannel(Notifications: typeof import("expo-notifications")) {
   if (Platform.OS !== "android") return;
   try {
+    await Notifications.deleteNotificationChannelAsync("hasahisawi-default").catch(() => {});
     await Notifications.setNotificationChannelAsync(NOTIF_CHANNEL_ID, {
       name: "حصاحيصاوي — تنبيهات",
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: [0, 300, 200, 300],
       lightColor: "#27AE68",
       enableLights: true,
       enableVibrate: true,
