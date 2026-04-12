@@ -1,5 +1,5 @@
 {
   "version": 2,
   "buildCommand": "pnpm run vercel-build",
-  "installCommand": "npm install -g pnpm@10.26.1 && pnpm install --no-frozen-lockfile"
+  "installCommand": "corepack enable && corepack prepare pnpm@10.26.1 --activate && pnpm install --no-frozen-lockfile"
 }
