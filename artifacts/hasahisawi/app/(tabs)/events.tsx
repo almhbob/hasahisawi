@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, RefreshControl,
-  Modal, Platform, Linking, FlatList,
+  Modal, Platform, Linking, FlatList, KeyboardAvoidingView,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -204,7 +204,7 @@ export default function EventsScreen() {
 
   // ─────────────────────────────────────────────
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
+    <KeyboardAvoidingView style={[styles.root, { paddingTop: topPad }]} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       {/* ── Header ── */}
       <LinearGradient colors={["#051209", "#071610"]} style={styles.header}>
         <View style={styles.headerRow}>
@@ -425,7 +425,7 @@ export default function EventsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
