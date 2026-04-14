@@ -12,91 +12,50 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 
-const CERTS = [
-  {
-    title: "Google Advanced Data Analytics",
-    issuer: "Coursera / Google",
-    date: "يناير 2026",
-    icon: "analytics-outline",
-    color: "#4285F4",
-  },
-  {
-    title: "IBM Cybersecurity Specialist",
-    issuer: "Coursera / IBM",
-    date: "فبراير 2026",
-    icon: "shield-checkmark-outline",
-    color: "#052FAD",
-  },
-  {
-    title: "Cloud DevOps",
-    issuer: "Intel",
-    date: "مارس 2025",
-    icon: "cloud-outline",
-    color: "#0071C5",
-  },
-  {
-    title: "Introduction to Design Thinking",
-    issuer: "Virginia Commonwealth University",
-    date: "مارس 2025",
-    icon: "bulb-outline",
-    color: "#8E44AD",
-  },
-  {
-    title: "IBM Cybersecurity Fundamentals",
-    issuer: "IBM SkillsBuild",
-    date: "أكتوبر 2024",
-    icon: "lock-closed-outline",
-    color: "#1F70C1",
-  },
-  {
-    title: "Introduction to Data Science",
-    issuer: "Cisco",
-    date: "مارس 2025",
-    icon: "bar-chart-outline",
-    color: "#1BA0D7",
-  },
-  {
-    title: "Introduction to Packet Tracer",
-    issuer: "Cisco",
-    date: "مارس 2025",
-    icon: "git-network-outline",
-    color: "#049FD9",
-  },
-  {
-    title: "Agile Explorer",
-    issuer: "IBM SkillsBuild",
-    date: "مارس 2025",
-    icon: "refresh-circle-outline",
-    color: "#0F62FE",
-  },
-  {
-    title: "Threat Landscape 2.0",
-    issuer: "Fortinet",
-    date: "يناير 2025",
-    icon: "warning-outline",
-    color: "#EE2222",
-  },
-  {
-    title: "Digital Marketing",
-    issuer: "Certiprof",
-    date: "أبريل 2025",
-    icon: "megaphone-outline",
-    color: "#E67E22",
-  },
+const ACCENT = "#C9A84C";
+const ACCENT_LIGHT = "#F0C96020";
+const DARK_HERO_TOP = "#0B1E35";
+const DARK_HERO_MID = "#0A3828";
+const DARK_HERO_BOT = "#0D4F36";
+
+const CONTACT = [
+  { icon: "logo-whatsapp",  color: "#25D366", label: "واتساب",  url: "https://wa.me/966530658285",                         value: "+966 530 658 285" },
+  { icon: "mail-outline",   color: "#EA4335", label: "البريد",  url: "mailto:almhbob.iii@gmail.com",                       value: "almhbob.iii@gmail.com" },
+  { icon: "ribbon-outline", color: "#FF6900", label: "Credly",  url: "https://www.credly.com/users/asim-abdulrahman",       value: "credly.com/users/asim-abdulrahman" },
 ];
 
 const SKILLS = [
-  { label: "تحليل البيانات", icon: "analytics-outline", color: "#4285F4" },
-  { label: "الأمن السيبراني", icon: "shield-outline", color: "#C0392B" },
-  { label: "Cloud DevOps", icon: "cloud-outline", color: "#0071C5" },
-  { label: "تصميم التطبيقات", icon: "phone-portrait-outline", color: "#8E44AD" },
-  { label: "تطوير المجتمع", icon: "people-outline", color: Colors.primary },
-  { label: "التسويق الرقمي", icon: "megaphone-outline", color: "#E67E22" },
-  { label: "Design Thinking", icon: "bulb-outline", color: "#D35400" },
-  { label: "إدارة المشاريع", icon: "briefcase-outline", color: "#27AE60" },
+  { label: "تحليل البيانات",    icon: "analytics-outline",       color: "#4285F4" },
+  { label: "الأمن السيبراني",   icon: "shield-outline",           color: "#C0392B" },
+  { label: "Cloud & DevOps",    icon: "cloud-outline",             color: "#0071C5" },
+  { label: "تطوير التطبيقات",   icon: "phone-portrait-outline",   color: "#8E44AD" },
+  { label: "Design Thinking",   icon: "bulb-outline",              color: "#D35400" },
+  { label: "التسويق الرقمي",    icon: "megaphone-outline",        color: "#E67E22" },
+  { label: "تطوير المجتمع",     icon: "people-outline",           color: Colors.primary },
+  { label: "إدارة المشاريع",    icon: "briefcase-outline",        color: "#27AE60" },
+];
+
+const CERTS = [
+  { title: "Google Advanced Data Analytics", issuer: "Coursera / Google",                   date: "يناير 2026",   icon: "analytics-outline",       color: "#4285F4" },
+  { title: "IBM Cybersecurity Specialist",   issuer: "Coursera / IBM",                      date: "فبراير 2026",  icon: "shield-checkmark-outline", color: "#052FAD" },
+  { title: "Cloud DevOps",                   issuer: "Intel",                               date: "مارس 2025",   icon: "cloud-outline",            color: "#0071C5" },
+  { title: "Introduction to Design Thinking",issuer: "Virginia Commonwealth University",    date: "مارس 2025",   icon: "bulb-outline",             color: "#8E44AD" },
+  { title: "IBM Cybersecurity Fundamentals", issuer: "IBM SkillsBuild",                     date: "أكتوبر 2024", icon: "lock-closed-outline",      color: "#1F70C1" },
+  { title: "Introduction to Data Science",   issuer: "Cisco",                               date: "مارس 2025",   icon: "bar-chart-outline",        color: "#1BA0D7" },
+  { title: "Introduction to Packet Tracer",  issuer: "Cisco",                               date: "مارس 2025",   icon: "git-network-outline",      color: "#049FD9" },
+  { title: "Agile Explorer",                 issuer: "IBM SkillsBuild",                     date: "مارس 2025",   icon: "refresh-circle-outline",   color: "#0F62FE" },
+  { title: "Threat Landscape 2.0",           issuer: "Fortinet",                            date: "يناير 2025",  icon: "warning-outline",          color: "#EE2222" },
+  { title: "Digital Marketing",              issuer: "Certiprof",                           date: "أبريل 2025",  icon: "megaphone-outline",        color: "#E67E22" },
+];
+
+const VALUES = [
+  { icon: "rocket-outline",      color: "#4285F4", title: "الابتكار",      text: "أُصمّم حلولاً تقنية مبتكرة تُلبّي احتياجات المجتمع المحلي وتُواكب المستقبل." },
+  { icon: "heart-outline",       color: "#C0392B", title: "الخدمة",        text: "أضع خدمة الإنسان في قلب كل مشروع أعمل عليه، من المجتمع وإلى المجتمع." },
+  { icon: "shield-outline",      color: "#27AE60", title: "الثقة والأمان", text: "أُولي الأمن الرقمي وحماية بيانات المستخدم أولويةً قصوى في كل ما أبنيه." },
 ];
 
 function openLink(url: string) {
@@ -109,426 +68,277 @@ export default function DesignerScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const [showAllCerts, setShowAllCerts] = useState(false);
-
   const visibleCerts = showAllCerts ? CERTS : CERTS.slice(0, 4);
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: bottomPad + 40 }}
-      >
-        {/* Hero Card */}
+    <View style={s.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: bottomPad + 40 }}>
+
+        {/* ── Hero ── */}
         <LinearGradient
-          colors={["#1A2B4A", "#0D4F36", "#1A6B4A"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.hero, { paddingTop: topPad + 16 }]}
+          colors={[DARK_HERO_TOP, DARK_HERO_MID, DARK_HERO_BOT]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={[s.hero, { paddingTop: topPad + 16 }]}
         >
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.8)" />
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <View style={s.backBtnInner}>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.85)" />
+            </View>
           </TouchableOpacity>
 
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>عا</Text>
+          {/* Avatar */}
+          <Animated.View entering={FadeInUp.delay(100).springify()} style={s.avatarWrap}>
+            <LinearGradient colors={[ACCENT, "#8B6914"]} style={s.avatarRing}>
+              <View style={s.avatar}>
+                <Text style={s.avatarInitials}>عا</Text>
+              </View>
+            </LinearGradient>
+            <View style={s.verifiedBadge}>
+              <Ionicons name="checkmark" size={10} color="#fff" />
             </View>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark" size={11} color="#fff" />
-            </View>
-          </View>
+          </Animated.View>
 
-          <Text style={styles.heroName}>عاصم عبد الرحمن محمد عمر</Text>
-          <Text style={styles.heroLatin}>Asim Abdulrahman Mohammed Omer</Text>
+          {/* Name */}
+          <Animated.View entering={FadeInUp.delay(180).springify()} style={{ alignItems: "center", gap: 4 }}>
+            <Text style={s.heroName}>عاصم عبد الرحمن محمد عمر</Text>
+            <Text style={s.heroLatin}>Asim Abdulrahman Mohammed Omer</Text>
+          </Animated.View>
 
-          <View style={styles.heroBadge}>
-            <Ionicons name="phone-portrait-outline" size={13} color={Colors.accent} />
-            <Text style={styles.heroBadgeText}>مصمم ومطور تطبيق حصاحيصاوي</Text>
-          </View>
+          {/* Title Badge */}
+          <Animated.View entering={FadeInUp.delay(240).springify()} style={s.heroBadge}>
+            <Ionicons name="code-slash-outline" size={13} color={ACCENT} />
+            <Text style={s.heroBadgeText}>مصمم ومطور تطبيق حصاحيصاوي</Text>
+          </Animated.View>
 
-          <View style={styles.heroStats}>
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>١٠+</Text>
-              <Text style={styles.heroStatLabel}>شهادة دولية</Text>
+          {/* Location Badge */}
+          <Animated.View entering={FadeInUp.delay(280).springify()} style={s.locationBadge}>
+            <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.55)" />
+            <Text style={s.locationText}>الحصاحيصا، ولاية الجزيرة، السودان</Text>
+          </Animated.View>
+
+          {/* Stats */}
+          <Animated.View entering={FadeInDown.delay(320).springify()} style={s.heroStats}>
+            <View style={s.heroStat}>
+              <Text style={s.heroStatNum}>١٠+</Text>
+              <Text style={s.heroStatLabel}>شهادة دولية</Text>
             </View>
-            <View style={styles.heroStatSep} />
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>١٩٩١</Text>
-              <Text style={styles.heroStatLabel}>سنة الميلاد</Text>
+            <View style={s.heroStatSep} />
+            <View style={s.heroStat}>
+              <Text style={s.heroStatNum}>١٩٩١</Text>
+              <Text style={s.heroStatLabel}>سنة الميلاد</Text>
             </View>
-            <View style={styles.heroStatSep} />
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>Credly</Text>
-              <Text style={styles.heroStatLabel}>الملف الأكاديمي</Text>
+            <View style={s.heroStatSep} />
+            <View style={s.heroStat}>
+              <Text style={s.heroStatNum}>8+</Text>
+              <Text style={s.heroStatLabel}>مهارة تقنية</Text>
             </View>
-          </View>
+          </Animated.View>
         </LinearGradient>
 
-        <View style={styles.body}>
-          {/* Contact Buttons */}
-          <View style={styles.contactRow}>
-            <TouchableOpacity
-              style={[styles.contactBtn, { backgroundColor: "#25D366" }]}
-              onPress={() => openLink("https://wa.me/966530658285")}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-              <Text style={styles.contactBtnText}>واتس اب</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.contactBtn, { backgroundColor: "#EA4335" }]}
-              onPress={() => openLink("mailto:almhbob.iii@gmail.com")}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="mail-outline" size={20} color="#fff" />
-              <Text style={styles.contactBtnText}>البريد</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.contactBtn, { backgroundColor: "#FF6900" }]}
-              onPress={() => openLink("https://www.credly.com/users/asim-abdulrahman")}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="ribbon-outline" size={20} color="#fff" />
-              <Text style={styles.contactBtnText}>Credly</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={s.body}>
 
-          {/* Contact Details */}
-          <View style={styles.infoCard}>
-            <TouchableOpacity style={styles.infoRow} onPress={() => openLink("https://wa.me/966530658285")}>
-              <Ionicons name="chevron-back" size={14} color={Colors.textMuted} />
-              <Text style={styles.infoValue} selectable>+966 530 658 285</Text>
-              <View style={[styles.infoIcon, { backgroundColor: "#25D36618" }]}>
-                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.infoDivider} />
-            <TouchableOpacity style={styles.infoRow} onPress={() => openLink("mailto:almhbob.iii@gmail.com")}>
-              <Ionicons name="chevron-back" size={14} color={Colors.textMuted} />
-              <Text style={styles.infoValue} selectable>almhbob.iii@gmail.com</Text>
-              <View style={[styles.infoIcon, { backgroundColor: "#EA433518" }]}>
-                <Ionicons name="mail-outline" size={18} color="#EA4335" />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.infoDivider} />
-            <TouchableOpacity style={styles.infoRow} onPress={() => openLink("https://www.credly.com/users/asim-abdulrahman")}>
-              <Ionicons name="chevron-back" size={14} color={Colors.textMuted} />
-              <Text style={styles.infoValue}>credly.com/users/asim-abdulrahman</Text>
-              <View style={[styles.infoIcon, { backgroundColor: "#FF690018" }]}>
-                <Ionicons name="ribbon-outline" size={18} color="#FF6900" />
-              </View>
-            </TouchableOpacity>
-          </View>
+          {/* ── Contact Buttons ── */}
+          <Animated.View entering={FadeInDown.delay(60).springify()} style={s.contactRow}>
+            {CONTACT.map((c, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[s.contactBtn, { backgroundColor: c.color }]}
+                onPress={() => openLink(c.url)}
+                activeOpacity={0.82}
+              >
+                <Ionicons name={c.icon as any} size={19} color="#fff" />
+                <Text style={s.contactBtnText}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
 
-          {/* Skills */}
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionDot, { backgroundColor: Colors.accent }]} />
-            <Text style={styles.sectionTitle}>المهارات والتخصصات</Text>
-          </View>
-          <View style={styles.skillsGrid}>
-            {SKILLS.map((s, i) => (
-              <View key={i} style={[styles.skillChip, { borderColor: s.color + "30", backgroundColor: s.color + "0E" }]}>
-                <Ionicons name={s.icon as any} size={16} color={s.color} />
-                <Text style={[styles.skillText, { color: s.color }]}>{s.label}</Text>
+          {/* ── Contact Details ── */}
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={s.card}>
+            {CONTACT.map((c, i) => (
+              <View key={i}>
+                {i > 0 && <View style={s.divider} />}
+                <TouchableOpacity style={s.infoRow} onPress={() => openLink(c.url)} activeOpacity={0.7}>
+                  <Ionicons name="chevron-back" size={14} color={Colors.textMuted} />
+                  <Text style={s.infoValue} selectable>{c.value}</Text>
+                  <View style={[s.infoIcon, { backgroundColor: c.color + "18" }]}>
+                    <Ionicons name={c.icon as any} size={17} color={c.color} />
+                  </View>
+                </TouchableOpacity>
               </View>
             ))}
-          </View>
+          </Animated.View>
 
-          {/* Certifications */}
-          <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-            <View style={[styles.sectionDot, { backgroundColor: "#4285F4" }]} />
-            <Text style={styles.sectionTitle}>الشهادات الدولية المعتمدة</Text>
-          </View>
+          {/* ── About ── */}
+          <Animated.View entering={FadeInDown.delay(140).springify()}>
+            <SectionLabel icon="person-circle-outline" color={ACCENT} title="نبذة شخصية" />
+            <View style={s.aboutCard}>
+              <Text style={s.aboutLead}>
+                أنا عاصم عبد الرحمن، مطور ومصمم تطبيقات متخصص في تحليل البيانات والأمن السيبراني وبناء الحلول التقنية المجتمعية.
+              </Text>
+              <Text style={s.aboutBody}>
+                حصلت على أكثر من عشر شهادات دولية معتمدة من كبرى المؤسسات التقنية كـ Google وIBM وCisco وIntel، إلى جانب شهادات من جامعات عالمية مرموقة. هذا التنوع المعرفي يمنحني رؤيةً شاملة تجمع بين الأمان الرقمي وقوة البيانات وفن التصميم.
+              </Text>
+              <Text style={s.aboutBody}>
+                أؤمن بأن التكنولوجيا يجب أن تكون في خدمة الإنسان وتُحدث فارقاً حقيقياً في حياته اليومية. لذلك، صممت وطورت تطبيق «حصاحيصاوي» بنفسي — بوابة رقمية متكاملة تربط مجتمع الحصاحيصا وتُوفّر خدمات السوق والمواصلات والصحة والتواصل الاجتماعي في مكان واحد، خدمةً لأبناء المدينة والقرى المجاورة.
+              </Text>
+            </View>
+          </Animated.View>
 
-          <View style={styles.certsList}>
-            {visibleCerts.map((cert, i) => (
-              <View key={i} style={styles.certCard}>
-                <View style={styles.certContent}>
-                  <Text style={styles.certTitle}>{cert.title}</Text>
-                  <Text style={styles.certIssuer}>{cert.issuer}</Text>
-                  <View style={styles.certDateRow}>
-                    <Ionicons name="calendar-outline" size={11} color={Colors.textMuted} />
-                    <Text style={styles.certDate}>{cert.date}</Text>
+          {/* ── Values ── */}
+          <Animated.View entering={FadeInDown.delay(180).springify()}>
+            <SectionLabel icon="diamond-outline" color="#8E44AD" title="مبادئ العمل" />
+            <View style={s.valuesGrid}>
+              {VALUES.map((v, i) => (
+                <View key={i} style={[s.valueCard, { borderTopColor: v.color }]}>
+                  <View style={[s.valueIconWrap, { backgroundColor: v.color + "15" }]}>
+                    <Ionicons name={v.icon as any} size={22} color={v.color} />
+                  </View>
+                  <Text style={s.valueTitle}>{v.title}</Text>
+                  <Text style={s.valueText}>{v.text}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* ── Skills ── */}
+          <Animated.View entering={FadeInDown.delay(220).springify()}>
+            <SectionLabel icon="flash-outline" color="#4285F4" title="المهارات والتخصصات" />
+            <View style={s.skillsGrid}>
+              {SKILLS.map((sk, i) => (
+                <View key={i} style={[s.skillChip, { borderColor: sk.color + "35", backgroundColor: sk.color + "0E" }]}>
+                  <Ionicons name={sk.icon as any} size={15} color={sk.color} />
+                  <Text style={[s.skillText, { color: sk.color }]}>{sk.label}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* ── Certifications ── */}
+          <Animated.View entering={FadeInDown.delay(260).springify()}>
+            <SectionLabel icon="ribbon-outline" color="#FF6900" title="الشهادات الدولية المعتمدة" />
+            <View style={s.certsList}>
+              {visibleCerts.map((cert, i) => (
+                <View key={i} style={[s.certCard, { borderRightColor: cert.color }]}>
+                  <View style={s.certContent}>
+                    <Text style={s.certTitle}>{cert.title}</Text>
+                    <Text style={s.certIssuer}>{cert.issuer}</Text>
+                    <View style={s.certDateRow}>
+                      <Ionicons name="calendar-outline" size={11} color={Colors.textMuted} />
+                      <Text style={s.certDate}>{cert.date}</Text>
+                    </View>
+                  </View>
+                  <View style={[s.certIcon, { backgroundColor: cert.color + "15" }]}>
+                    <Ionicons name={cert.icon as any} size={22} color={cert.color} />
                   </View>
                 </View>
-                <View style={[styles.certIcon, { backgroundColor: cert.color + "15" }]}>
-                  <Ionicons name={cert.icon as any} size={24} color={cert.color} />
-                </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
 
-          {!showAllCerts && (
-            <TouchableOpacity
-              style={styles.showMoreBtn}
-              onPress={() => setShowAllCerts(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chevron-down" size={16} color={Colors.primary} />
-              <Text style={styles.showMoreText}>عرض جميع الشهادات ({CERTS.length})</Text>
-            </TouchableOpacity>
-          )}
+            {!showAllCerts && (
+              <TouchableOpacity style={s.showMoreBtn} onPress={() => setShowAllCerts(true)} activeOpacity={0.8}>
+                <Ionicons name="chevron-down-circle-outline" size={18} color={Colors.primary} />
+                <Text style={s.showMoreText}>عرض جميع الشهادات ({CERTS.length})</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
 
-          {/* About */}
-          <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-            <View style={[styles.sectionDot, { backgroundColor: Colors.primary }]} />
-            <Text style={styles.sectionTitle}>نبذة تعريفية</Text>
-          </View>
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutText}>
-              متخصص في تحليل البيانات والأمن السيبراني وتطوير التطبيقات المجتمعية. حاصل على أكثر من عشر شهادات دولية معتمدة من Google وIBM وCisco وIntel وجامعات عالمية. صمّم وطوّر تطبيق حصاحيصاوي خدمةً لأبناء المنطقة والقرى المجاورة، بهدف ربط المجتمع ورقمنة الخدمات المحلية.
-            </Text>
-          </View>
+          {/* ── Footer ── */}
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={s.footer}>
+            <LinearGradient colors={[DARK_HERO_MID, DARK_HERO_BOT]} style={s.footerGrad}>
+              <Ionicons name="code-slash-outline" size={28} color={ACCENT} />
+              <Text style={s.footerTitle}>تطبيق حصاحيصاوي</Text>
+              <Text style={s.footerSub}>بُني بشغف وإخلاص لأبناء الحصاحيصا</Text>
+              <Text style={s.footerCopy}>© 2025 عاصم عبد الرحمن — جميع الحقوق محفوظة</Text>
+            </LinearGradient>
+          </Animated.View>
+
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  hero: {
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    alignItems: "center",
-    gap: 8,
-  },
-  backBtn: {
-    position: "absolute",
-    top: 0,
-    right: 16,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarWrap: { position: "relative", marginTop: 12, marginBottom: 4 },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.accent + "30",
-    borderWidth: 3,
-    borderColor: Colors.accent,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarInitials: { fontFamily: "Cairo_700Bold", fontSize: 32, color: Colors.accent },
-  verifiedBadge: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#27AE60",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#0D4F36",
-  },
-  heroName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 22,
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-  heroLatin: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.55)",
-    textAlign: "center",
-  },
-  heroBadge: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(201,168,76,0.15)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.accent + "40",
-  },
-  heroBadgeText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.accent,
-  },
-  heroStats: {
-    flexDirection: "row-reverse",
-    gap: 0,
-    marginTop: 12,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    width: "100%",
-  },
-  heroStat: { flex: 1, alignItems: "center", paddingVertical: 14 },
-  heroStatSep: { width: 1, backgroundColor: "rgba(255,255,255,0.12)" },
-  heroStatNum: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFFFFF" },
-  heroStatLabel: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 10,
-    color: "rgba(255,255,255,0.55)",
-    marginTop: 3,
-  },
-  body: { paddingHorizontal: 16, paddingTop: 20, gap: 0 },
-  contactRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 14 },
-  contactBtn: {
-    flex: 1,
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  contactBtnText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: "#FFFFFF",
-  },
-  infoCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 24,
-  },
-  infoRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    padding: 14,
-    gap: 12,
-  },
-  infoIcon: { width: 38, height: 38, borderRadius: 10, justifyContent: "center", alignItems: "center", flexShrink: 0 },
-  infoValue: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    flex: 1,
-    textAlign: "right",
-  },
-  infoDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
-  sectionHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionDot: { width: 6, height: 6, borderRadius: 3 },
-  sectionTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  skillsGrid: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 8,
-  },
-  skillChip: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  skillText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  certsList: { gap: 10, marginBottom: 8 },
-  certCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    padding: 14,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  certIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  certContent: { flex: 1, alignItems: "flex-end", gap: 4 },
-  certTitle: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "right",
-  },
-  certIssuer: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textSecondary,
-    textAlign: "right",
-  },
-  certDateRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  certDate: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  showMoreBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    backgroundColor: Colors.primary + "0E",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + "20",
-    marginBottom: 4,
-  },
-  showMoreText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.primary,
-  },
-  aboutCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    borderRightWidth: 4,
-    borderRightColor: Colors.primary,
-  },
-  aboutText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "right",
-    lineHeight: 26,
-  },
+function SectionLabel({ icon, color, title }: { icon: string; color: string; title: string }) {
+  return (
+    <View style={s.sectionLabel}>
+      <View style={[s.sectionIconWrap, { backgroundColor: color + "15" }]}>
+        <Ionicons name={icon as any} size={16} color={color} />
+      </View>
+      <Text style={s.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  container:      { flex: 1, backgroundColor: Colors.bg },
+  hero:           { paddingHorizontal: 20, paddingBottom: 32, alignItems: "center", gap: 10 },
+  backBtn:        { position: "absolute", top: 0, right: 12, paddingTop: 4 },
+  backBtnInner:   { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", justifyContent: "center", alignItems: "center" },
+
+  avatarWrap:     { position: "relative", marginTop: 16, marginBottom: 2 },
+  avatarRing:     { width: 96, height: 96, borderRadius: 48, padding: 3, justifyContent: "center", alignItems: "center" },
+  avatar:         { width: 90, height: 90, borderRadius: 45, backgroundColor: "#0A2B1E", justifyContent: "center", alignItems: "center" },
+  avatarInitials: { fontFamily: "Cairo_700Bold", fontSize: 34, color: ACCENT },
+  verifiedBadge:  { position: "absolute", bottom: 2, right: 2, width: 24, height: 24, borderRadius: 12, backgroundColor: "#27AE60", justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: DARK_HERO_BOT },
+
+  heroName:       { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FFFFFF", textAlign: "center" },
+  heroLatin:      { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center", letterSpacing: 0.4 },
+  heroBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: ACCENT_LIGHT, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: ACCENT + "50" },
+  heroBadgeText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: ACCENT },
+  locationBadge:  { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
+  locationText:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.50)" },
+
+  heroStats:      { flexDirection: "row-reverse", marginTop: 6, backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", width: "100%" },
+  heroStat:       { flex: 1, alignItems: "center", paddingVertical: 14 },
+  heroStatSep:    { width: 1, backgroundColor: "rgba(255,255,255,0.10)" },
+  heroStatNum:    { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#FFFFFF" },
+  heroStatLabel:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.50)", marginTop: 2 },
+
+  body:           { paddingHorizontal: 16, paddingTop: 20, gap: 20 },
+
+  contactRow:     { flexDirection: "row-reverse", gap: 10 },
+  contactBtn:     { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13, borderRadius: 16, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 8 },
+  contactBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
+
+  card:           { backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+  infoRow:        { flexDirection: "row-reverse", alignItems: "center", padding: 14, gap: 12 },
+  infoIcon:       { width: 38, height: 38, borderRadius: 10, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  infoValue:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+  divider:        { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
+
+  aboutCard:      { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4, borderRightColor: ACCENT, gap: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+  aboutLead:      { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", lineHeight: 28 },
+  aboutBody:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 26 },
+
+  valuesGrid:     { gap: 10 },
+  valueCard:      { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, borderTopWidth: 3, borderWidth: 1, borderColor: Colors.divider, alignItems: "flex-end", gap: 8, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  valueIconWrap:  { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  valueTitle:     { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  valueText:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
+
+  sectionLabel:   { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 12 },
+  sectionIconWrap:{ width: 34, height: 34, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  sectionTitle:   { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+
+  skillsGrid:     { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
+  skillChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  skillText:      { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+
+  certsList:      { gap: 10 },
+  certCard:       { backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4, flexDirection: "row-reverse", alignItems: "center", padding: 14, gap: 12, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  certIcon:       { width: 48, height: 48, borderRadius: 13, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  certContent:    { flex: 1, alignItems: "flex-end", gap: 3 },
+  certTitle:      { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  certIssuer:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  certDateRow:    { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
+  certDate:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+
+  showMoreBtn:    { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, backgroundColor: Colors.primary + "0D", borderRadius: 14, borderWidth: 1, borderColor: Colors.primary + "22" },
+  showMoreText:   { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
+
+  footer:         { borderRadius: 20, overflow: "hidden" },
+  footerGrad:     { padding: 24, alignItems: "center", gap: 8 },
+  footerTitle:    { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF", textAlign: "center" },
+  footerSub:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.60)", textAlign: "center" },
+  footerCopy:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", marginTop: 8 },
 });
