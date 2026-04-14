@@ -2248,6 +2248,22 @@ router.delete("/admin/users/:id", async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /admin/users/:id/password — تغيير كلمة مرور مستخدم (admin فقط)
+router.patch("/admin/users/:id/password", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const targetId = parseInt(req.params.id as string);
+    if (isNaN(targetId)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { new_password } = req.body as any;
+    if (!new_password || String(new_password).length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    const hash = await bcrypt.hash(String(new_password), 10);
+    const { rowCount } = await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hash, targetId]);
+    if (!rowCount) return res.status(404).json({ error: "المستخدم غير موجود" });
+    return res.json({ ok: true, message: "تم تحديث كلمة المرور بنجاح" });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
 router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
   try {
     const currentUser = await getSessionUser(req);
