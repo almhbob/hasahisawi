@@ -2548,95 +2548,118 @@ export default function SettingsScreen() {
         {/* ── SUBSCRIPTIONS ── */}
         {activeTab === "subscriptions" && (
           <View style={styles.section}>
-            {/* رأس القسم */}
-            <View style={sub_s.header}>
-              <Ionicons name="card-outline" size={22} color="#F0A500" />
-              <View style={{ flex: 1 }}>
-                <Text style={sub_s.headerTitle}>اشتراكات وتكاليف المنصة</Text>
-                <Text style={sub_s.headerSub}>
-                  روابط مباشرة لدفع وإدارة خدمات الاستضافة والأدوات المستخدمة في تشغيل حصاحيصاوي
-                </Text>
+
+            {/* ── ملخص التكاليف ── */}
+            <View style={sub_s.summaryBox}>
+              <View style={sub_s.summaryRow}>
+                <View style={sub_s.summaryItem}>
+                  <Text style={sub_s.summaryNum}>1</Text>
+                  <Text style={sub_s.summaryLabel}>خدمة مدفوعة</Text>
+                </View>
+                <View style={sub_s.summaryDivider} />
+                <View style={sub_s.summaryItem}>
+                  <Text style={[sub_s.summaryNum, { color: "#3EFF9C" }]}>3</Text>
+                  <Text style={sub_s.summaryLabel}>خدمات مجانية</Text>
+                </View>
+                <View style={sub_s.summaryDivider} />
+                <View style={sub_s.summaryItem}>
+                  <Text style={[sub_s.summaryNum, { color: "#F97316" }]}>4</Text>
+                  <Text style={sub_s.summaryLabel}>ميزة قابلة للتطوير</Text>
+                </View>
               </View>
             </View>
 
-            {/* بطاقة Replit */}
-            <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#F26207" + "20" }]}>
+            {/* ── قسم المدفوع ── */}
+            <View style={sub_s.groupHeader}>
+              <View style={[sub_s.groupDot, { backgroundColor: "#EF4444" }]} />
+              <Text style={sub_s.groupTitle}>الخدمات المدفوعة</Text>
+            </View>
+
+            {/* Replit */}
+            <View style={[sub_s.card, sub_s.cardPaid]}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#F2620720" }]}>
                 <Ionicons name="server-outline" size={22} color="#F26207" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Replit</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#F26207" + "20" }]}>
-                    <Text style={[sub_s.planText, { color: "#F26207" }]}>مدفوع</Text>
+                  <Text style={sub_s.cardName}>Replit Core</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#EF444420" }]}>
+                    <Text style={[sub_s.planText, { color: "#EF4444" }]}>● مدفوع</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  استضافة الخادم الخلفي وقاعدة البيانات PostgreSQL — مطلوب للحفاظ على تشغيل التطبيق
+                  استضافة الخادم الخلفي (Express) وقاعدة البيانات (PostgreSQL) — العمود الفقري للتطبيق
                 </Text>
-                <View style={sub_s.cardMeta}>
-                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
-                  <Text style={sub_s.cardUrl}>replit.com/pricing</Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>API Server</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>PostgreSQL</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>24/7 Uptime</Text></View>
                 </View>
               </View>
               <TouchableOpacity
-                style={sub_s.payBtn}
+                style={[sub_s.payBtn, { backgroundColor: "#F26207" }]}
                 onPress={() => Linking.openURL("https://replit.com/pricing")}
                 activeOpacity={0.8}
               >
-                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Ionicons name="card-outline" size={15} color="#fff" />
                 <Text style={sub_s.payBtnText}>ادفع</Text>
               </TouchableOpacity>
             </View>
 
-            {/* بطاقة Firebase */}
+            {/* ── قسم المجاني ── */}
+            <View style={[sub_s.groupHeader, { marginTop: 8 }]}>
+              <View style={[sub_s.groupDot, { backgroundColor: "#3EFF9C" }]} />
+              <Text style={sub_s.groupTitle}>الخدمات المجانية</Text>
+            </View>
+
+            {/* Firebase */}
             <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#FFCA28" + "25" }]}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#FFCA2825" }]}>
                 <MaterialCommunityIcons name="firebase" size={22} color="#F57F17" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Firebase</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#27AE6820" }]}>
-                    <Text style={[sub_s.planText, { color: "#27AE68" }]}>Spark مجاني</Text>
+                  <Text style={sub_s.cardName}>Firebase Auth</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Spark مجاني</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  نظام تسجيل الدخول والمصادقة — خطة Spark المجانية تكفي حتى 10,000 مستخدم شهرياً
+                  مصادقة المستخدمين — يدعم حتى 10,000 مستخدم/شهر مجاناً
                 </Text>
-                <View style={sub_s.cardMeta}>
-                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
-                  <Text style={sub_s.cardUrl}>console.firebase.google.com</Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>OTP SMS</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Google Login</Text></View>
                 </View>
               </View>
               <TouchableOpacity
                 style={[sub_s.payBtn, { backgroundColor: "#F57F17" }]}
-                onPress={() => Linking.openURL("https://console.firebase.google.com/project/_/usage/details")}
+                onPress={() => Linking.openURL("https://console.firebase.google.com")}
                 activeOpacity={0.8}
               >
-                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Ionicons name="open-outline" size={15} color="#fff" />
                 <Text style={sub_s.payBtnText}>إدارة</Text>
               </TouchableOpacity>
             </View>
 
-            {/* بطاقة EAS / Expo */}
+            {/* Expo EAS */}
             <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#4630EB" + "15" }]}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#4630EB15" }]}>
                 <MaterialCommunityIcons name="android" size={22} color="#4630EB" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Expo EAS</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#4630EB" + "15" }]}>
-                    <Text style={[sub_s.planText, { color: "#4630EB" }]}>Free / Production</Text>
+                  <Text style={sub_s.cardName}>Expo EAS Build</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Free Tier</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  بناء ونشر تطبيق أندرويد — بناء التطبيق (AAB) وتوزيعه عبر متجر Google Play
+                  بناء ملف AAB للأندرويد ورفعه على Google Play — مجاني بحد 30 بناء/شهر
                 </Text>
-                <View style={sub_s.cardMeta}>
-                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
-                  <Text style={sub_s.cardUrl}>expo.dev/settings/billing</Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>AAB Build</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Google Play</Text></View>
                 </View>
               </View>
               <TouchableOpacity
@@ -2644,48 +2667,103 @@ export default function SettingsScreen() {
                 onPress={() => Linking.openURL("https://expo.dev/settings/billing")}
                 activeOpacity={0.8}
               >
-                <Ionicons name="open-outline" size={16} color="#fff" />
-                <Text style={sub_s.payBtnText}>ادفع</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* بطاقة GitHub Actions */}
-            <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#24292E" + "15" }]}>
-                <MaterialCommunityIcons name="github" size={22} color="#24292E" />
-              </View>
-              <View style={sub_s.cardBody}>
-                <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>GitHub Actions</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#27AE6820" }]}>
-                    <Text style={[sub_s.planText, { color: "#27AE68" }]}>مجاني</Text>
-                  </View>
-                </View>
-                <Text style={sub_s.cardDesc}>
-                  البناء التلقائي للتطبيق وإنتاج ملف AAB الموقّع — 2000 دقيقة شهرية مجانية على الخطة المجانية
-                </Text>
-                <View style={sub_s.cardMeta}>
-                  <Ionicons name="link-outline" size={13} color={Colors.textMuted} />
-                  <Text style={sub_s.cardUrl}>github.com/settings/billing</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#24292E" }]}
-                onPress={() => Linking.openURL("https://github.com/settings/billing")}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="open-outline" size={16} color="#fff" />
+                <Ionicons name="open-outline" size={15} color="#fff" />
                 <Text style={sub_s.payBtnText}>إدارة</Text>
               </TouchableOpacity>
             </View>
 
-            {/* ملاحظة */}
-            <View style={sub_s.note}>
-              <Ionicons name="information-circle-outline" size={16} color={Colors.accent} />
-              <Text style={sub_s.noteText}>
-                الخدمات المجانية لا تحتاج دفعاً الآن — تأكد من البقاء ضمن الحدود المجانية أو قم بالترقية عند الحاجة
-              </Text>
+            {/* GitHub Actions */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#FFFFFF10" }]}>
+                <MaterialCommunityIcons name="github" size={22} color="#E0E0E0" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>GitHub Actions</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مجاني</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  CI/CD تلقائي — بناء وتوقيع APK تلقائياً عند كل إصدار جديد (2000 دقيقة/شهر)
+                </Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>CI/CD</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Auto Sign</Text></View>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#333" }]}
+                onPress={() => Linking.openURL("https://github.com/settings/billing")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={15} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* ── ما يمكن تطويره ── */}
+            <View style={[sub_s.groupHeader, { marginTop: 8 }]}>
+              <View style={[sub_s.groupDot, { backgroundColor: "#F97316" }]} />
+              <Text style={sub_s.groupTitle}>ما يمكن تطويره</Text>
+            </View>
+
+            {/* Push Notifications */}
+            <View style={sub_s.devCard}>
+              <View style={[sub_s.devIcon, { backgroundColor: "#F9731620" }]}>
+                <Ionicons name="notifications-outline" size={18} color="#F97316" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={sub_s.devTitle}>إشعارات Push للمستخدمين</Text>
+                <Text style={sub_s.devDesc}>إرسال إشعارات مخصصة لمستخدمين بعينهم أو لجميع المستخدمين — البنية التحتية موجودة</Text>
+              </View>
+              <View style={[sub_s.devBadge, { backgroundColor: "#3EFF9C20" }]}>
+                <Text style={[sub_s.devBadgeText, { color: "#3EFF9C" }]}>جاهز</Text>
+              </View>
+            </View>
+
+            {/* Stripe / دفع إلكتروني */}
+            <View style={sub_s.devCard}>
+              <View style={[sub_s.devIcon, { backgroundColor: "#6772E520" }]}>
+                <Ionicons name="card-outline" size={18} color="#6772E5" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={sub_s.devTitle}>بوابة دفع إلكتروني</Text>
+                <Text style={sub_s.devDesc}>قبول مدفوعات للإعلانات المميزة والاشتراكات عبر Stripe أو بوابة محلية</Text>
+              </View>
+              <View style={[sub_s.devBadge, { backgroundColor: "#F9731620" }]}>
+                <Text style={[sub_s.devBadgeText, { color: "#F97316" }]}>قريباً</Text>
+              </View>
+            </View>
+
+            {/* تقارير وإحصاءات */}
+            <View style={sub_s.devCard}>
+              <View style={[sub_s.devIcon, { backgroundColor: "#3E9CBF20" }]}>
+                <Ionicons name="bar-chart-outline" size={18} color="#3E9CBF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={sub_s.devTitle}>لوحة تحليلات متقدمة</Text>
+                <Text style={sub_s.devDesc}>إحصاءات تفصيلية: أكثر المناطق نشاطاً، ساعات الذروة، تحليل الإعلانات</Text>
+              </View>
+              <View style={[sub_s.devBadge, { backgroundColor: "#F9731620" }]}>
+                <Text style={[sub_s.devBadgeText, { color: "#F97316" }]}>قريباً</Text>
+              </View>
+            </View>
+
+            {/* iOS */}
+            <View style={sub_s.devCard}>
+              <View style={[sub_s.devIcon, { backgroundColor: "#FFFFFF10" }]}>
+                <MaterialCommunityIcons name="apple" size={18} color="#E0E0E0" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={sub_s.devTitle}>إصدار iOS (آيفون)</Text>
+                <Text style={sub_s.devDesc}>نشر التطبيق على App Store — يتطلب اشتراك Apple Developer ($99/سنة)</Text>
+              </View>
+              <View style={[sub_s.devBadge, { backgroundColor: "#FFFFFF15" }]}>
+                <Text style={[sub_s.devBadgeText, { color: "#999" }]}>مستقبلي</Text>
+              </View>
+            </View>
+
           </View>
         )}
 
@@ -3048,35 +3126,57 @@ const ms = StyleSheet.create({
 // ─── Subscriptions Tab Styles ─────────────────────────────────────────────────
 
 const sub_s = StyleSheet.create({
-  header: {
-    flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
-    backgroundColor: "#F0A50015", borderRadius: 14, padding: 14, marginBottom: 18,
-    borderWidth: 1, borderColor: "#F0A50030",
+  summaryBox: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, marginBottom: 20,
+    borderWidth: 1, borderColor: Colors.divider,
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
+  summaryRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-around" },
+  summaryItem: { alignItems: "center", flex: 1 },
+  summaryNum: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#EF4444", lineHeight: 32 },
+  summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
+  summaryDivider: { width: 1, height: 36, backgroundColor: Colors.divider },
+
+  groupHeader: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    marginBottom: 10, marginTop: 4,
+  },
+  groupDot: { width: 8, height: 8, borderRadius: 4 },
+  groupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
 
   card: {
     flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
-    borderRadius: 14, padding: 14, marginBottom: 12, gap: 12,
+    borderRadius: 14, padding: 14, marginBottom: 10, gap: 12,
     borderWidth: 1, borderColor: Colors.divider,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
+  cardPaid: { borderColor: "#EF444430", borderLeftWidth: 3, borderLeftColor: "#EF4444" },
   iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   cardBody: { flex: 1, gap: 4 },
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  planBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  planBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   planText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
-  cardMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
-  cardUrl: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  tagRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 5, marginTop: 4 },
+  tag: { backgroundColor: Colors.divider, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  tagText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
 
   payBtn: {
     backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
     alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0, minWidth: 58,
   },
   payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
+
+  devCard: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  devIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  devTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 3 },
+  devDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", lineHeight: 16 },
+  devBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
+  devBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 
   note: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
