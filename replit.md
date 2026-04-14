@@ -35,7 +35,7 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 │   │   └── lib/           # Firebase, Auth, Translations, API
 │   ├── admin-dashboard/   # لوحة تحكم ويب React+Vite — previewPath: /admin-dashboard
 │   │   └── src/
-│   │       ├── pages/     # 13 صفحة: Dashboard, Users, Posts, Merchants, PhoneShops, Transport, MapPlaces, Communities, Ads, Honored, Missing, Numbers, Settings
+│   │       ├── pages/     # 14 صفحة: Dashboard, Users, Posts, Merchants, PhoneShops, Transport, MapPlaces, Communities, Ads, Honored, Missing, Numbers, Settings, PrayerSettings
 │   │       ├── lib/       # auth.tsx (session), api.ts (fetch wrapper)
 │   │       └── components/# Layout.tsx (sidebar + PageHeader)
 │   └── api-server/        # Express API — previewPath: /api

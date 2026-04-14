@@ -1067,6 +1067,27 @@ export async function initHasahisawiDb() {
     }
   }
 
+  // ══ جدول إعدادات مواقيت الآذان ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS prayer_settings (
+      id INTEGER DEFAULT 1 PRIMARY KEY CHECK (id = 1),
+      method INTEGER NOT NULL DEFAULT 3,
+      school INTEGER NOT NULL DEFAULT 0,
+      latitude NUMERIC(9,6) NOT NULL DEFAULT 14.0566,
+      longitude NUMERIC(9,6) NOT NULL DEFAULT 33.4001,
+      fajr_offset INTEGER NOT NULL DEFAULT 0,
+      dhuhr_offset INTEGER NOT NULL DEFAULT 0,
+      asr_offset INTEGER NOT NULL DEFAULT 0,
+      maghrib_offset INTEGER NOT NULL DEFAULT 0,
+      isha_offset INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: psCheck } = await query(`SELECT COUNT(*) as cnt FROM prayer_settings`);
+  if (parseInt(psCheck[0].cnt, 10) === 0) {
+    await query(`INSERT INTO prayer_settings (id) VALUES (1)`);
+  }
+
   // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
   await initPhoneShopsTables();
 
@@ -1466,6 +1487,46 @@ router.get("/organizations", async (_req: Request, res: Response) => {
   try {
     const result = await query(`SELECT * FROM organizations ORDER BY name`);
     return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إعدادات مواقيت الآذان (عام) ──
+router.get("/prayer-settings", async (_req: Request, res: Response) => {
+  try {
+    const result = await query(`SELECT * FROM prayer_settings WHERE id = 1`);
+    const row = result.rows[0] || {};
+    return res.json({ settings: row });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إعدادات مواقيت الآذان (إدارة) ──
+router.put("/admin/prayer-settings", async (req: Request, res: Response) => {
+  const isAdmin = await isAdminRequest(req);
+  if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+  const { method, school, latitude, longitude, fajr_offset, dhuhr_offset, asr_offset, maghrib_offset, isha_offset } = req.body;
+  try {
+    await query(`
+      UPDATE prayer_settings SET
+        method         = COALESCE($1, method),
+        school         = COALESCE($2, school),
+        latitude       = COALESCE($3, latitude),
+        longitude      = COALESCE($4, longitude),
+        fajr_offset    = COALESCE($5, fajr_offset),
+        dhuhr_offset   = COALESCE($6, dhuhr_offset),
+        asr_offset     = COALESCE($7, asr_offset),
+        maghrib_offset = COALESCE($8, maghrib_offset),
+        isha_offset    = COALESCE($9, isha_offset),
+        updated_at     = NOW()
+      WHERE id = 1
+    `, [method, school, latitude, longitude, fajr_offset, dhuhr_offset, asr_offset, maghrib_offset, isha_offset]);
+    const result = await query(`SELECT * FROM prayer_settings WHERE id = 1`);
+    return res.json({ success: true, settings: result.rows[0] });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
