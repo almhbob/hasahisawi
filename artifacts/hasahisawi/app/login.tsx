@@ -492,27 +492,17 @@ export default function LoginScreen() {
 
           {/* القرية أو الحي */}
           {mode === "register" && (
-            <View style={s2.fieldWrap}>
-              <View style={s2.fieldHeader}>
-                <Ionicons name="location-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>القرية أو الحي</Text>
-                <Text style={s2.optional}>(اختياري)</Text>
-              </View>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center",
-                backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1,
-                borderColor: Colors.divider, paddingHorizontal: 12, height: 44 }}>
-                <TextInput
-                  style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14,
-                    color: Colors.textPrimary, textAlign: "right" }}
-                  placeholder="أدخل اسم قريتك أو حيّك"
-                  placeholderTextColor={Colors.textMuted}
-                  value={neighborhood}
-                  onChangeText={t => setNeighborhood(t.slice(0, 40))}
-                  maxLength={40}
-                  textAlign="right"
-                />
-              </View>
-            </View>
+            <Field label="القرية أو الحي" icon="location-outline" optional>
+              <TextInput
+                style={styles.input}
+                placeholder="أدخل اسم قريتك أو حيّك"
+                placeholderTextColor={Colors.textMuted}
+                value={neighborhood}
+                onChangeText={v => setNeighborhood(v.slice(0, 40))}
+                maxLength={40}
+                textAlign="right"
+              />
+            </Field>
           )}
 
           {/* مشكلة أو اقتراح */}
