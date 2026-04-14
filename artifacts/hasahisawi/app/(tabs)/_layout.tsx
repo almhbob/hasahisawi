@@ -21,11 +21,11 @@ type TabItem = {
 };
 
 const TAB_ITEMS: TabItem[] = [
-  { name: "index",        label: "الرئيسية", icon: "home-outline",      activeIcon: "home"        },
-  { name: "medical",      label: "الطب",     icon: "medkit-outline",    activeIcon: "medkit"      },
-  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline",activeIcon: "chatbubbles" },
-  { name: "reports",      label: "بلاغات",   icon: "megaphone-outline", activeIcon: "megaphone"   },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",  activeIcon: "calendar"    },
+  { name: "index",        label: "الرئيسية", icon: "home-outline",       activeIcon: "home"         },
+  { name: "prayer",       label: "الآذان",   icon: "moon-outline",       activeIcon: "moon"         },
+  { name: "medical",      label: "الطب",     icon: "medkit-outline",     activeIcon: "medkit"       },
+  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline",activeIcon: "chatbubbles"  },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",   activeIcon: "calendar"     },
 ];
 
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
@@ -98,6 +98,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>{t("tabs", "home")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="prayer">
+        <Icon sf={{ default: "moon", selected: "moon.fill" }} />
+        <Label>الآذان</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="medical">
         <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
         <Label>{t("tabs", "medical")}</Label>
@@ -105,10 +109,6 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: "bubble.left.and.bubble.right", selected: "bubble.left.and.bubble.right.fill" }} />
         <Label>الدردشة</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "exclamationmark.bubble", selected: "exclamationmark.bubble.fill" }} />
-        <Label>بلاغات</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="appointments">
         <Icon sf={{ default: "calendar.badge.plus", selected: "calendar.badge.plus" }} />
@@ -126,25 +126,26 @@ function ClassicTabLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index"        />
+      <Tabs.Screen name="prayer"       />
       <Tabs.Screen name="medical"      />
       <Tabs.Screen name="chat"         />
-      <Tabs.Screen name="reports"      />
       <Tabs.Screen name="appointments" />
-      <Tabs.Screen name="search"       options={{ href: null }} />
-      <Tabs.Screen name="missing"      options={{ href: null }} />
-      <Tabs.Screen name="student"      options={{ href: null }} />
-      <Tabs.Screen name="jobs"         options={{ href: null }} />
-      <Tabs.Screen name="market"       options={{ href: null }} />
-      <Tabs.Screen name="sports"       options={{ href: null }} />
-      <Tabs.Screen name="culture"      options={{ href: null }} />
-      <Tabs.Screen name="social"       options={{ href: null }} />
-      <Tabs.Screen name="women"        options={{ href: null }} />
-      <Tabs.Screen name="orgs"         options={{ href: null }} />
-      <Tabs.Screen name="ratings"      options={{ href: null }} />
-      <Tabs.Screen name="calendar"     options={{ href: null }} />
-      <Tabs.Screen name="numbers"      options={{ href: null }} />
-      <Tabs.Screen name="settings"     options={{ href: null }} />
-      <Tabs.Screen name="ads"          options={{ href: null }} />
+      <Tabs.Screen name="reports"     options={{ href: null }} />
+      <Tabs.Screen name="search"      options={{ href: null }} />
+      <Tabs.Screen name="missing"     options={{ href: null }} />
+      <Tabs.Screen name="student"     options={{ href: null }} />
+      <Tabs.Screen name="jobs"        options={{ href: null }} />
+      <Tabs.Screen name="market"      options={{ href: null }} />
+      <Tabs.Screen name="sports"      options={{ href: null }} />
+      <Tabs.Screen name="culture"     options={{ href: null }} />
+      <Tabs.Screen name="social"      options={{ href: null }} />
+      <Tabs.Screen name="women"       options={{ href: null }} />
+      <Tabs.Screen name="orgs"        options={{ href: null }} />
+      <Tabs.Screen name="ratings"     options={{ href: null }} />
+      <Tabs.Screen name="calendar"    options={{ href: null }} />
+      <Tabs.Screen name="numbers"     options={{ href: null }} />
+      <Tabs.Screen name="settings"    options={{ href: null }} />
+      <Tabs.Screen name="ads"         options={{ href: null }} />
       <Tabs.Screen name="communities" options={{ href: null }} />
       <Tabs.Screen name="ai-support"  options={{ href: null }} />
       <Tabs.Screen name="transport"   options={{ href: null }} />
@@ -153,7 +154,6 @@ function ClassicTabLayout() {
       <Tabs.Screen name="greetings"   options={{ href: null }} />
       <Tabs.Screen name="events"      options={{ href: null }} />
       <Tabs.Screen name="map"         options={{ href: null }} />
-      <Tabs.Screen name="prayer"      options={{ href: null }} />
     </Tabs>
   );
 }

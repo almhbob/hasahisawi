@@ -29,7 +29,15 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // السماح بكل الطلبات (موبايل، ويب، Replit، localhost)
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token"],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
