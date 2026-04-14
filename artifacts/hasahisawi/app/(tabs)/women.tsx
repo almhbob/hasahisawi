@@ -21,7 +21,7 @@ const { width } = Dimensions.get("window");
 // ══════════════════════════════════════════════════════
 // TYPES
 // ══════════════════════════════════════════════════════
-type ServiceType = "salon" | "sewing" | "health" | "cooking" | "childcare" | "tip";
+type ServiceType = "salon" | "sewing" | "health" | "cooking" | "childcare" | "tip" | "handmade";
 
 type WomenService = {
   id: string;
@@ -106,18 +106,19 @@ const sh = StyleSheet.create({
 });
 
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
-  salon:     { label: "كوفيرة",      icon: "face-woman",     color: "#FF4FA3" },
-  sewing:    { label: "خياطة",       icon: "needle",          color: "#A855F7" },
-  health:    { label: "صحة المرأة", icon: "heart-pulse",     color: "#3E9CBF" },
-  cooking:   { label: "طبخ ومطبخ",  icon: "pot-steam",       color: Colors.accent },
-  childcare: { label: "رعاية أطفال", icon: "baby-face-outline", color: Colors.primary },
-  tip:       { label: "نصيحة",      icon: "lightbulb-on",   color: "#F0A500" },
+  salon:     { label: "كوفيرة",        icon: "face-woman",         color: "#FF4FA3" },
+  sewing:    { label: "خياطة",         icon: "needle",              color: "#A855F7" },
+  health:    { label: "صحة المرأة",   icon: "heart-pulse",         color: "#3E9CBF" },
+  cooking:   { label: "طبخ ومطبخ",    icon: "pot-steam",           color: Colors.accent },
+  childcare: { label: "رعاية أطفال",  icon: "baby-face-outline",   color: Colors.primary },
+  tip:       { label: "نصيحة",        icon: "lightbulb-on",        color: "#F0A500" },
+  handmade:  { label: "أعمال يدوية",  icon: "hand-heart-outline",  color: "#14B8A6" },
 };
 
 // ══════════════════════════════════════════════════════
 // SCREEN
 // ══════════════════════════════════════════════════════
-type SubTab = "services" | "health" | "recipes";
+type SubTab = "services" | "health" | "recipes" | "handmade";
 
 export default function WomenScreen() {
   const insets = useSafeAreaInsets();
@@ -143,11 +144,12 @@ export default function WomenScreen() {
   const [joinDesc,     setJoinDesc]    = useState("");
 
   const JOIN_TYPES: { key: ServiceType; label: string; icon: string }[] = [
-    { key: "salon",     label: "كوفيرة",        icon: "face-woman"       },
-    { key: "sewing",    label: "خياطة",          icon: "needle"           },
-    { key: "health",    label: "صحة المرأة",    icon: "heart-pulse"      },
-    { key: "cooking",   label: "مطبخ منزلي",    icon: "pot-steam"        },
-    { key: "childcare", label: "رعاية أطفال",   icon: "baby-face-outline"},
+    { key: "salon",     label: "كوفيرة",        icon: "face-woman"        },
+    { key: "sewing",    label: "خياطة",          icon: "needle"            },
+    { key: "handmade",  label: "أعمال يدوية",   icon: "hand-heart-outline"},
+    { key: "health",    label: "صحة المرأة",    icon: "heart-pulse"       },
+    { key: "cooking",   label: "مطبخ منزلي",    icon: "pot-steam"         },
+    { key: "childcare", label: "رعاية أطفال",   icon: "baby-face-outline" },
   ];
 
   function resetJoin() {
@@ -328,10 +330,10 @@ export default function WomenScreen() {
         {/* Stats */}
         <View style={s.statsRow}>
           {[
-            { num: `${servicesByType("salon").length}`, label: "كوفيرة", color: "#FF4FA3" },
-            { num: `${servicesByType("sewing").length}`, label: "خياطة", color: "#A855F7" },
-            { num: `${servicesByType("cooking").length}`, label: "مطبخ", color: Colors.accent },
-            { num: `${servicesByType("health").length}`, label: "صحة", color: "#3E9CBF" },
+            { num: `${servicesByType("salon").length}`,    label: "كوفيرة",   color: "#FF4FA3" },
+            { num: `${servicesByType("sewing").length}`,   label: "خياطة",    color: "#A855F7" },
+            { num: `${servicesByType("handmade").length}`, label: "يدوية",    color: "#14B8A6" },
+            { num: `${servicesByType("cooking").length}`,  label: "مطبخ",     color: Colors.accent },
           ].map((st, i) => (
             <View key={i} style={s.statItem}>
               <Text style={[s.statNum, { color: st.color }]}>{st.num}</Text>
@@ -341,15 +343,20 @@ export default function WomenScreen() {
         </View>
 
         {/* Sub tabs */}
-        <View style={s.subTabRow}>
-          {([["services", "الخدمات", "storefront-outline"], ["health", "صحة المرأة", "heart-outline"], ["recipes", "مطبخ سوداني", "restaurant-outline"]] as [SubTab, string, string][]).map(([k, label, icon]) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...s.subTabRow }}>
+          {([
+            ["services",  "الخدمات",      "storefront-outline",   "#FF4FA3"],
+            ["handmade",  "يدوية",         "hand-heart-outline",   "#14B8A6"],
+            ["health",    "صحة المرأة",   "heart-outline",        "#3E9CBF"],
+            ["recipes",   "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
+          ] as [SubTab, string, string, string][]).map(([k, label, icon, color]) => (
             <TouchableOpacity key={k} style={[s.subTab, subTab === k && s.subTabActive]} onPress={() => setSubTab(k)}>
-              {subTab === k && <LinearGradient colors={["#FF4FA330", "#A855F720"]} style={StyleSheet.absoluteFill} />}
-              <Ionicons name={icon as any} size={14} color={subTab === k ? "#FF4FA3" : Colors.textMuted} />
-              <Text style={[s.subTabText, subTab === k && { color: "#FF4FA3" }]}>{label}</Text>
+              {subTab === k && <LinearGradient colors={[color + "30", color + "10"]} style={StyleSheet.absoluteFill} />}
+              <Ionicons name={icon as any} size={14} color={subTab === k ? color : Colors.textMuted} />
+              <Text style={[s.subTabText, subTab === k && { color }]}>{label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </LinearGradient>
 
       {/* ══ TAB: SERVICES ══ */}
@@ -369,7 +376,7 @@ export default function WomenScreen() {
               />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
-              {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
+              {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: "#FF4FA3", borderColor: "#FF4FA3" }]} onPress={() => setFilter(k)}>
                   <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
                 </TouchableOpacity>
@@ -634,6 +641,115 @@ export default function WomenScreen() {
         </ScrollView>
       )}
 
+      {/* ══ TAB: HANDMADE ══ */}
+      {subTab === "handmade" && (
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+
+          {/* بطاقة ترحيبية */}
+          <Animated.View entering={FadeIn.duration(400)}>
+            <View style={hm.introBanner}>
+              <LinearGradient colors={["#14B8A630", "#14B8A610"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="hand-heart-outline" size={36} color="#14B8A6" style={{ marginBottom: 10 }} />
+              <Text style={hm.introTitle}>الأعمال اليدوية</Text>
+              <Text style={hm.introSub}>
+                دعمي الحِرَف اليدوية السودانية — اكتشفي منتجات مصنوعة بأيدي حصاحيصاويات موهوبات
+              </Text>
+            </View>
+          </Animated.View>
+
+          {/* أنواع الحِرَف */}
+          <SectionHeader title="أنواع الحِرَف المتوفرة" sub="أختاري ما يناسبك" color="#14B8A6" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
+            {([
+              { icon: "yarn",               label: "تطريز وحياكة",  color: "#A855F7" },
+              { icon: "candle",             label: "شمع وعطور",     color: "#F0A500" },
+              { icon: "soap",               label: "صابون طبيعي",   color: "#3E9CBF" },
+              { icon: "basket",             label: "سلال وخوص",     color: "#D97706" },
+              { icon: "palette",            label: "رسم وزخرفة",    color: "#EC4899" },
+              { icon: "crystal-ball",       label: "خزف وفخار",     color: "#8B5CF6" },
+              { icon: "bag-personal-outline", label: "حقائب يدوية", color: "#14B8A6" },
+              { icon: "gift-outline",       label: "هدايا مخصصة",   color: "#EF4444" },
+            ]).map((cat, i) => (
+              <Animated.View key={i} entering={FadeInDown.delay(i * 50)}>
+                <View style={hm.catChip}>
+                  <LinearGradient colors={[cat.color + "20", cat.color + "08"]} style={StyleSheet.absoluteFill} />
+                  <MaterialCommunityIcons name={cat.icon as any} size={20} color={cat.color} />
+                  <Text style={[hm.catLabel, { color: cat.color }]}>{cat.label}</Text>
+                </View>
+              </Animated.View>
+            ))}
+          </ScrollView>
+
+          {/* منتجات وخدمات من قاعدة البيانات */}
+          <SectionHeader title="صانعات محليات" sub="تواصلي معهن مباشرة" color="#14B8A6" />
+          {services.filter(sv => sv.type === "handmade").length === 0 ? (
+            <Animated.View entering={FadeIn.duration(500)}>
+              <View style={hm.emptyBanner}>
+                <MaterialCommunityIcons name="hand-heart-outline" size={44} color="#14B8A650" />
+                <Text style={hm.emptyTitle}>لا يوجد إدخالات بعد</Text>
+                <Text style={hm.emptySub}>كوني أول من تُسجّل منتجاتها اليدوية في حصاحيصا</Text>
+                <TouchableOpacity
+                  style={hm.emptyBtn}
+                  onPress={() => { setJoinDone(false); setJoinType("handmade"); setJoinModal(true); }}
+                >
+                  <LinearGradient colors={["#14B8A6", "#0D9488"]} style={hm.emptyBtnGrad}>
+                    <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#fff" />
+                    <Text style={hm.emptyBtnText}>سجّلي منتجاتك الآن</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          ) : (
+            services.filter(sv => sv.type === "handmade").map((item, i) => (
+              <Animated.View key={item.id} entering={FadeInDown.delay(i * 60).springify()}>
+                <View style={[s.card, { borderColor: "#14B8A630" }]}>
+                  <LinearGradient colors={["#14B8A608", "transparent"]} style={StyleSheet.absoluteFill} />
+                  <View style={s.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.cardName}>{item.name}</Text>
+                      <View style={s.ratingRow}>
+                        <Ionicons name="star" size={13} color={Colors.accent} />
+                        <Text style={s.ratingText}>{item.rating}</Text>
+                      </View>
+                    </View>
+                    <View style={[s.iconCircle, { backgroundColor: "#14B8A618", borderColor: "#14B8A630" }]}>
+                      <MaterialCommunityIcons name="hand-heart-outline" size={26} color="#14B8A6" />
+                    </View>
+                  </View>
+                  <Text style={s.cardDesc}>{item.description}</Text>
+                  <View style={s.tagsRow}>
+                    {item.tags.map(tag => (
+                      <View key={tag} style={s.tag}><Text style={s.tagText}>{tag}</Text></View>
+                    ))}
+                  </View>
+                  <View style={s.cardInfoRow}>
+                    <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
+                    <Text style={s.cardInfoText}>{item.address}</Text>
+                    <Ionicons name="time-outline" size={14} color={Colors.textMuted} />
+                    <Text style={s.cardInfoText}>{item.hours}</Text>
+                  </View>
+                  <AnimatedPress onPress={() => handleCall(item.phone)}>
+                    <LinearGradient colors={["#14B8A6", "#0D9488"]} style={s.wideBtn}>
+                      <Ionicons name="call-outline" size={16} color="#fff" />
+                      <Text style={s.actionBtnText}>تواصلي مع الصانعة</Text>
+                    </LinearGradient>
+                  </AnimatedPress>
+                </View>
+              </Animated.View>
+            ))
+          )}
+
+          {/* نصيحة */}
+          <View style={hm.tipCard}>
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#F0A500" />
+            <Text style={hm.tipText}>
+              هل تصنعين منتجات يدوية؟ سجّلي معنا وابدئي في البيع والتسويق داخل مجتمع حصاحيصاوي.
+            </Text>
+          </View>
+
+        </ScrollView>
+      )}
+
       {/* ══ زر الانضمام العائم ══════════════════════════════════════════════ */}
       <TouchableOpacity
         style={jm.fab}
@@ -783,8 +899,8 @@ const s = StyleSheet.create({
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
 
-  subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 14 },
-  subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 14, paddingHorizontal: 0 },
+  subTab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
   subTabActive: { borderColor: "#FF4FA360" },
   subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
@@ -937,4 +1053,50 @@ const jm = StyleSheet.create({
   successBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8, width: "80%" },
   successBtnGrad: { paddingVertical: 14, alignItems: "center" },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+});
+
+// ── أنماط قسم الأعمال اليدوية ────────────────────────────────────────────────
+const hm = StyleSheet.create({
+  introBanner: {
+    borderRadius: 20, padding: 20, alignItems: "center", gap: 6,
+    borderWidth: 1.5, borderColor: "#14B8A630", overflow: "hidden",
+    backgroundColor: Colors.cardBg,
+  },
+  introTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#14B8A6", textAlign: "center" },
+  introSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 22,
+  },
+
+  catChip: {
+    flexDirection: "column", alignItems: "center", gap: 6,
+    borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
+    minWidth: 84, overflow: "hidden",
+  },
+  catLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+
+  emptyBanner: {
+    backgroundColor: Colors.cardBg, borderRadius: 20, padding: 28,
+    alignItems: "center", gap: 10,
+    borderWidth: 1.5, borderColor: "#14B8A620",
+  },
+  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" },
+  emptyBtn: { borderRadius: 14, overflow: "hidden", marginTop: 8, width: "100%" },
+  emptyBtnGrad: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 14,
+  },
+  emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+
+  tipCard: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    backgroundColor: "#F0A50010", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: "#F0A50030",
+  },
+  tipText: {
+    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: Colors.textSecondary, lineHeight: 22, textAlign: "right",
+  },
 });

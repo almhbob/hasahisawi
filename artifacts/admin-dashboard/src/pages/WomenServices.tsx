@@ -18,7 +18,7 @@ type WomenService = {
 
 const TYPE_LABELS: Record<string, string> = {
   salon: "كوفيرة", sewing: "خياطة", health: "صحة المرأة",
-  cooking: "مطبخ", childcare: "رعاية أطفال", other: "أخرى",
+  cooking: "مطبخ", childcare: "رعاية أطفال", handmade: "أعمال يدوية", other: "أخرى",
 };
 const EMPTY = {
   name: "", type: "salon", address: "", phone: "", hours: "",
