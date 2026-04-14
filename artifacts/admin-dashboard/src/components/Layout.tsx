@@ -20,9 +20,14 @@ const NAV: NavItem[] = [
   { path: "/communities",   label: "المجتمعات",        icon: "🏘️" },
   { path: "/ads",           label: "الإعلانات",        icon: "📢" },
   { path: "/honored",       label: "شخصية مكرّمة",    icon: "🏆" },
-  { path: "/missing",       label: "المفقودات",         icon: "🔍" },
-  { path: "/numbers",       label: "الأرقام المهمة",   icon: "📞" },
-  { path: "/settings",      label: "الإعدادات",        icon: "⚙️" },
+  { path: "/missing",        label: "المفقودات",         icon: "🔍" },
+  { path: "/numbers",        label: "الأرقام المهمة",   icon: "📞" },
+  { path: "/events",         label: "الفعاليات",         icon: "🎉" },
+  { path: "/organizations",  label: "المنظمات المجتمعية",icon: "🤝" },
+  { path: "/education",      label: "التعليم",            icon: "🎓" },
+  { path: "/women",          label: "خدمات المرأة",      icon: "👩" },
+  { path: "/reports",        label: "بلاغات المواطنين",  icon: "📋" },
+  { path: "/settings",       label: "الإعدادات",         icon: "⚙️" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

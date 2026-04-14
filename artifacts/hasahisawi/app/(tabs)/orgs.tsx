@@ -5,7 +5,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,6 +12,7 @@ import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import JoinOrgBanner from "@/components/JoinOrgBanner";
+import { getApiUrl } from "@/lib/query-client";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -60,65 +60,26 @@ type Campaign = {
 // ══════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════
-const ORGS_KEY = "orgs_v2";
-const ORGS_INIT_KEY = "orgs_v2_initialized";
 
-const SEED_ORGS: Organization[] = [
-  {
-    id: "o1", name: "مبادرة شباب الحصاحيصا", type: "initiative",
-    description: "مبادرة شبابية تهدف لتطوير الخدمات المجتمعية",
-    fullDescription: "مبادرة شبابية تطوعية تهدف إلى تطوير الخدمات في مدينة الحصاحيصا ومناطقها القريبة، تتبنى مشاريع البنية التحتية والتوعية الاجتماعية وتنظيم الفعاليات الثقافية والرياضية.",
-    contact: "+249912345611", members: 120, founded: "2019",
-    goals: ["تطوير الخدمات المجتمعية", "توعية الشباب", "دعم المحتاجين"],
-    needs: ["متطوعون", "تمويل مشاريع", "معدات وأدوات"],
-    rating: 4.9, isVerified: true,
-  },
-  {
-    id: "o2", name: "جمعية البر الخيرية", type: "charity",
-    description: "جمعية مسجلة تكفل الأيتام وتساعد الأسر المتعففة",
-    fullDescription: "جمعية خيرية مسجلة رسمياً تعنى بكفالة الأيتام ومساعدة الأسر المتعففة والمحتاجين في مدينة الحصاحيصا وقراها. توفر المساعدات الغذائية والملابس والرسوم الدراسية.",
-    contact: "+249912345612", members: 45, founded: "2015",
-    goals: ["كفالة الأيتام", "دعم الأسر المحتاجة", "التعليم للجميع"],
-    needs: ["تبرعات مالية", "ملابس وأغذية", "متطوعون"],
-    rating: 4.7, isVerified: true,
-  },
-  {
-    id: "o3", name: "مبادرة شارع الحوادث الطارئة", type: "volunteer",
-    description: "مبادرة طوعية لتوفير الأدوية والمستلزمات للحالات الطارئة",
-    fullDescription: "فريق متطوع يقدم خدمات الإسعاف الأولي والأدوية الطارئة للحوادث والطوارئ في الحصاحيصا، ويدعم مستشفى المدينة بالمستلزمات الطبية عند الحاجة.",
-    contact: "+249912345613", members: 80, founded: "2021",
-    goals: ["خدمات طارئة فورية", "دعم الكوارث", "التوعية الطبية"],
-    needs: ["أدوية ومستلزمات طبية", "سيارة إسعاف", "متطوعون مؤهلون"],
-    rating: 5.0, isVerified: true,
-  },
-  {
-    id: "o4", name: "جمعية المزارعين التعاونية", type: "cooperative",
-    description: "تعاونية زراعية تدعم مزارعي حصاحيصا والمناطق المجاورة",
-    fullDescription: "جمعية تعاونية تجمع المزارعين في الحصاحيصا والمناطق المجاورة لتبادل الخبرات والموارد وتسويق المنتجات الزراعية المحلية. توفر بذوراً ومدخلات زراعية بأسعار مخفضة.",
-    contact: "+249912345614", members: 200, founded: "2010",
-    goals: ["دعم المزارعين", "تسويق المنتجات", "تطوير الزراعة المحلية"],
-    needs: ["بذور ومدخلات", "تمويل موسم الزراعة", "أسواق تسويق"],
-    rating: 4.6, isVerified: true,
-  },
-  {
-    id: "o5", name: "مبادرة بنات حصاحيصا", type: "initiative",
-    description: "مبادرة نسائية لتمكين المرأة وتعليم المهارات",
-    fullDescription: "مبادرة نسائية شاملة تهدف إلى تمكين المرأة في مدينة الحصاحيصا عبر التدريب المهني وتعليم الحرف اليدوية والخياطة والطبخ المهني وتوفير فرص دخل للأسر.",
-    contact: "+249912345615", members: 95, founded: "2020",
-    goals: ["تمكين المرأة", "التدريب المهني", "توفير الدخل للأسر"],
-    needs: ["ماكينات خياطة", "مواد تدريب", "قاعة للتدريب"],
-    rating: 4.8, isVerified: false,
-  },
-  {
-    id: "o6", name: "فريق النظافة والتشجير", type: "volunteer",
-    description: "مبادرة بيئية لتنظيف المدينة وزرع الأشجار",
-    fullDescription: "فريق متطوع يعمل على تنظيف شوارع وأحياء حصاحيصا وزرع الأشجار والحفاظ على البيئة. ينظم حملات دورية أسبوعية وحملات كبرى في المناسبات الوطنية.",
-    contact: "+249912345616", members: 60, founded: "2022",
-    goals: ["تنظيف الشوارع", "التشجير", "التوعية البيئية"],
-    needs: ["أدوات نظافة", "شتلات أشجار", "متطوعون"],
-    rating: 4.5, isVerified: false,
-  },
-];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapOrg(row: any): Organization {
+  return {
+    id: String(row.id),
+    name: row.name,
+    type: row.type as OrgType,
+    description: row.description,
+    fullDescription: row.full_description,
+    contact: row.contact_phone,
+    email: row.email,
+    members: row.members_count,
+    founded: row.founded_year,
+    goals: row.goals || [],
+    needs: row.needs || [],
+    rating: parseFloat(row.rating),
+    isVerified: row.is_verified,
+  };
+}
+
 
 const EVENTS: Event[] = [
   { id: "e1", orgId: "o1", orgName: "مبادرة شباب الحصاحيصا", title: "يوم خدمة مجتمعية", date: "الجمعة 21 مارس 2026", location: "ميدان المدينة", description: "يوم خدمة مجتمعية شامل: تنظيف، صيانة، مساعدات", color: Colors.primary },
@@ -173,18 +134,19 @@ export default function OrgsScreen() {
   const [volPhone, setVolPhone] = useState("");
 
   const load = async () => {
-    const init = await AsyncStorage.getItem(ORGS_INIT_KEY);
-    if (!init) {
-      await AsyncStorage.setItem(ORGS_KEY, JSON.stringify(SEED_ORGS));
-      await AsyncStorage.setItem(ORGS_INIT_KEY, "1");
-      setOrgs(SEED_ORGS);
-    } else {
-      const raw = await AsyncStorage.getItem(ORGS_KEY);
-      setOrgs(raw ? JSON.parse(raw) : []);
-    }
+    try {
+      const params = new URLSearchParams();
+      if (filter !== "all") params.set("type", filter);
+      if (search) params.set("search", search);
+      const res = await fetch(`${getApiUrl()}/api/organizations?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrgs((data.organizations || []).map(mapOrg));
+      }
+    } catch { /* ignore offline */ }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [filter, search]);
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const filtered = orgs.filter(o => {

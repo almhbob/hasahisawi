@@ -13,9 +13,14 @@ import MapPlaces   from "@/pages/MapPlaces";
 import Communities from "@/pages/Communities";
 import Ads         from "@/pages/Ads";
 import Honored     from "@/pages/Honored";
-import Missing     from "@/pages/Missing";
-import Numbers     from "@/pages/Numbers";
-import Settings    from "@/pages/Settings";
+import Missing        from "@/pages/Missing";
+import Numbers        from "@/pages/Numbers";
+import Events         from "@/pages/Events";
+import Organizations  from "@/pages/Organizations";
+import Education      from "@/pages/Education";
+import WomenServices  from "@/pages/WomenServices";
+import Reports        from "@/pages/Reports";
+import Settings       from "@/pages/Settings";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -55,9 +60,14 @@ function AppRoutes() {
         <Route path="/communities" component={Communities} />
         <Route path="/ads"         component={Ads} />
         <Route path="/honored"     component={Honored} />
-        <Route path="/missing"     component={Missing} />
-        <Route path="/numbers"     component={Numbers} />
-        <Route path="/settings"    component={Settings} />
+        <Route path="/missing"       component={Missing} />
+        <Route path="/numbers"       component={Numbers} />
+        <Route path="/events"        component={Events} />
+        <Route path="/organizations" component={Organizations} />
+        <Route path="/education"     component={Education} />
+        <Route path="/women"         component={WomenServices} />
+        <Route path="/reports"       component={Reports} />
+        <Route path="/settings"      component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>
             الصفحة غير موجودة

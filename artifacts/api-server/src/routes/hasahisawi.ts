@@ -935,6 +935,138 @@ export async function initHasahisawiDb() {
     }
   }
 
+  // ══ جدول المنظمات المجتمعية ══
+  // ترحيل: إذا الجدول القديم يفتقر لعمود contact_phone — أعد الإنشاء
+  {
+    const { rows: orgCols } = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'organizations' AND column_name = 'contact_phone'
+    `);
+    if (orgCols.length === 0) {
+      await query(`DROP TABLE IF EXISTS organizations CASCADE`);
+    }
+  }
+  await query(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'initiative',
+      description TEXT NOT NULL DEFAULT '',
+      full_description TEXT NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      email VARCHAR(200),
+      members_count INTEGER NOT NULL DEFAULT 0,
+      founded_year VARCHAR(20) NOT NULL DEFAULT '',
+      goals TEXT[] NOT NULL DEFAULT '{}',
+      needs TEXT[] NOT NULL DEFAULT '{}',
+      rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+      is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: orgCheck } = await query(`SELECT COUNT(*) as cnt FROM organizations`);
+  if (parseInt(orgCheck[0].cnt, 10) === 0) {
+    const seedOrgs = [
+      ["مبادرة شباب الحصاحيصا","initiative","مبادرة شبابية تهدف لتطوير الخدمات المجتمعية","مبادرة شبابية تطوعية تهدف إلى تطوير الخدمات في مدينة الحصاحيصا ومناطقها القريبة، تتبنى مشاريع البنية التحتية والتوعية الاجتماعية وتنظيم الفعاليات الثقافية والرياضية.","+249912345611","",120,"2019",["تطوير الخدمات المجتمعية","توعية الشباب","دعم المحتاجين"],["متطوعون","تمويل مشاريع","معدات وأدوات"],4.9,true],
+      ["جمعية البر الخيرية","charity","جمعية مسجلة تكفل الأيتام وتساعد الأسر المتعففة","جمعية خيرية مسجلة رسمياً تعنى بكفالة الأيتام ومساعدة الأسر المتعففة والمحتاجين في مدينة الحصاحيصا وقراها.","+249912345612","",45,"2015",["كفالة الأيتام","دعم الأسر المحتاجة","التعليم للجميع"],["تبرعات مالية","ملابس وأغذية","متطوعون"],4.7,true],
+      ["مبادرة شارع الحوادث الطارئة","volunteer","مبادرة طوعية لتوفير الأدوية والمستلزمات للحالات الطارئة","فريق متطوع يقدم خدمات الإسعاف الأولي والأدوية الطارئة للحوادث والطوارئ في الحصاحيصا.","+249912345613","",80,"2021",["خدمات طارئة فورية","دعم الكوارث","التوعية الطبية"],["أدوية ومستلزمات طبية","سيارة إسعاف","متطوعون مؤهلون"],5.0,true],
+      ["جمعية المزارعين التعاونية","cooperative","تعاونية زراعية تدعم مزارعي حصاحيصا والمناطق المجاورة","جمعية تعاونية تجمع المزارعين في الحصاحيصا والمناطق المجاورة لتبادل الخبرات والموارد.","+249912345614","",200,"2010",["دعم المزارعين","تسويق المنتجات","تطوير الزراعة المحلية"],["بذور ومدخلات","تمويل موسم الزراعة","أسواق تسويق"],4.6,true],
+      ["مبادرة بنات حصاحيصا","initiative","مبادرة نسائية لتمكين المرأة وتعليم المهارات","مبادرة نسائية شاملة تهدف إلى تمكين المرأة في مدينة الحصاحيصا عبر التدريب المهني وتعليم الحرف اليدوية.","+249912345615","",95,"2020",["تمكين المرأة","التدريب المهني","توفير الدخل للأسر"],["ماكينات خياطة","مواد تدريب","قاعة للتدريب"],4.8,false],
+      ["فريق النظافة والتشجير","volunteer","مبادرة بيئية لتنظيف المدينة وزرع الأشجار","فريق متطوع يعمل على تنظيف شوارع وأحياء حصاحيصا وزرع الأشجار والحفاظ على البيئة.","+249912345616","",60,"2022",["تنظيف الشوارع","التشجير","التوعية البيئية"],["أدوات نظافة","شتلات أشجار","متطوعون"],4.5,false],
+    ];
+    for (const [name,type,desc,fullDesc,phone,email,members,founded,goals,needs,rating,verified] of seedOrgs) {
+      await query(
+        `INSERT INTO organizations (name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [name,type,desc,fullDesc,phone,email||null,members,founded,goals,needs,rating,verified]
+      );
+    }
+  }
+
+  // ══ جدول المؤسسات التعليمية ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS educational_institutions (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'primary',
+      address TEXT NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      principal VARCHAR(200),
+      email VARCHAR(200),
+      website VARCHAR(300),
+      description TEXT,
+      grades VARCHAR(100),
+      shifts VARCHAR(100),
+      services TEXT[] NOT NULL DEFAULT '{}',
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: eduCheck } = await query(`SELECT COUNT(*) as cnt FROM educational_institutions`);
+  if (parseInt(eduCheck[0].cnt, 10) === 0) {
+    const seedEdu = [
+      ["مدرسة الحصاحيصا الأساسية","primary","وسط المدينة، شارع المدارس","0111100001","أحمد عبدالله",null,null,"مدرسة حكومية أساسية للبنين والبنات","الصف الأول – الثامن","صباحي ومسائي",["results","enrollment","transfer","textbooks"],"active"],
+      ["ثانوية الحصاحيصا للبنين","secondary","حي الضحى","0111100002","محمد إبراهيم",null,null,"ثانوية حكومية للبنين","الصف التاسع – الثاني عشر","صباحي",["results","enrollment","exam","guidance"],"active"],
+      ["ثانوية البنات بحصاحيصا","secondary","حي السلام","0111100003","فاطمة الزهراء",null,null,"ثانوية حكومية للبنات","الصف التاسع – الثاني عشر","صباحي",["results","enrollment","exam","scholarship"],"active"],
+      ["خلوة القرآن الكريم","quran","قرب المسجد الكبير","0111100004","الشيخ يوسف",null,null,"خلوة لحفظ وتجويد القرآن الكريم",null,"مسائي",["quran"],"active"],
+      ["روضة المستقبل المشرق","kindergarten","حي النهضة","0111100005","أميرة خالد",null,null,"روضة أطفال خاصة","KG1 – KG3","صباحي",["enrollment","activity"],"active"],
+      ["معهد الحوسبة والتقنية","institute","وسط المدينة","0111100006",null,null,null,"معهد تقني متخصص في الحاسوب والبرمجة",null,"مسائي",["enrollment","training","results"],"active"],
+    ];
+    for (const [name,type,address,phone,principal,email,website,description,grades,shifts,services,status] of seedEdu) {
+      await query(
+        `INSERT INTO educational_institutions (name,type,address,phone,principal,email,website,description,grades,shifts,services,status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [name,type,address,phone,principal||null,email||null,website||null,description||null,grades||null,shifts||null,services,status]
+      );
+    }
+  }
+
+  // ══ جدول خدمات المرأة ══
+  // ترحيل: إذا الجدول القديم يفتقر لعمود rating — أعد الإنشاء
+  {
+    const { rows: wsCols } = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'women_services' AND column_name = 'rating'
+    `);
+    if (wsCols.length === 0) {
+      await query(`DROP TABLE IF EXISTS women_services CASCADE`);
+    }
+  }
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_services (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'salon',
+      address TEXT NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      hours VARCHAR(100) NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: wsCheck } = await query(`SELECT COUNT(*) as cnt FROM women_services`);
+  if (parseInt(wsCheck[0].cnt, 10) === 0) {
+    const seedWS = [
+      ["صالون ليلى للسيدات","salon","حي السلام","0912000011","8ص – 9م","صالون نسائي متكامل، خدمات حلاقة وتجميل وعناية بالبشرة",4.8,["صالون","تجميل","حلاقة"]],
+      ["أتيليه بنات النيل","sewing","وسط المدينة","0912000012","9ص – 5م","خياطة ملابس سودانية وعصرية، توب وجلابية وعرائس",4.7,["خياطة","تصميم","توب"]],
+      ["عيادة الأم والطفل","health","قرب المستشفى","0912000013","8ص – 2م","متخصصة في صحة المرأة والأطفال والرضّع",4.9,["صحة","طب","أطفال"]],
+      ["مطبخ أم الخير","cooking","حي النهضة","0912000014","7ص – 8م","طبخ سوداني أصيل للمناسبات والتوصيل اليومي",4.6,["طبخ","وجبات","مناسبات"]],
+      ["حضانة أطفالنا","childcare","حي الضحى","0912000015","7ص – 4م","رعاية الأطفال من عمر سنة إلى خمس سنوات",4.8,["حضانة","أطفال","رعاية"]],
+    ];
+    for (const [name,type,address,phone,hours,description,rating,tags] of seedWS) {
+      await query(
+        `INSERT INTO women_services (name,type,address,phone,hours,description,rating,tags)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [name,type,address,phone,hours,description,rating,tags]
+      );
+    }
+  }
+
   // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
   await initPhoneShopsTables();
 
@@ -3817,6 +3949,16 @@ router.get("/admin/reports", async (req: Request, res: Response) => {
   }
 });
 
+router.delete("/admin/reports/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM citizen_reports WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // مقترحات وشكاوى — Feedback
 // ══════════════════════════════════════════════════════
@@ -5959,6 +6101,195 @@ router.delete("/admin/emergency-numbers/:id", async (req: Request, res: Response
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM emergency_numbers WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🏢 المنظمات المجتمعية — Organizations
+// ════════════════════════════════════════════════════════════════
+
+router.get("/organizations", async (req: Request, res: Response) => {
+  try {
+    const { type, search } = req.query;
+    let sql = `SELECT * FROM organizations WHERE is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND type=$${params.length}`; }
+    if (search) { params.push(`%${search}%`); sql += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length})`; }
+    sql += ` ORDER BY is_verified DESC, rating DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ organizations: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/organizations", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM organizations ORDER BY created_at DESC`);
+    return res.json({ organizations: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/organizations", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, description, full_description, contact_phone, email, members_count, founded_year, goals, needs, rating, is_verified } = req.body;
+    if (!name?.trim() || !contact_phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO organizations (name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [name.trim(),type||"initiative",description||"",full_description||"",contact_phone.trim(),email||null,members_count||0,founded_year||"",goals||[],needs||[],rating||5.0,is_verified||false]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/organizations/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, description, full_description, contact_phone, email, members_count, founded_year, goals, needs, rating, is_verified, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE organizations SET
+        name=COALESCE($1,name), type=COALESCE($2,type), description=COALESCE($3,description),
+        full_description=COALESCE($4,full_description), contact_phone=COALESCE($5,contact_phone),
+        email=COALESCE($6,email), members_count=COALESCE($7,members_count),
+        founded_year=COALESCE($8,founded_year), goals=COALESCE($9,goals), needs=COALESCE($10,needs),
+        rating=COALESCE($11,rating), is_verified=COALESCE($12,is_verified), is_active=COALESCE($13,is_active)
+       WHERE id=$14 RETURNING *`,
+      [name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/organizations/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM organizations WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🎓 المؤسسات التعليمية — Educational Institutions
+// ════════════════════════════════════════════════════════════════
+
+router.get("/educational-institutions", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM educational_institutions WHERE is_active=TRUE ORDER BY type, name`);
+    return res.json({ institutions: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/educational-institutions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM educational_institutions ORDER BY created_at DESC`);
+    return res.json({ institutions: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/educational-institutions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, principal, email, website, description, grades, shifts, services, status } = req.body;
+    if (!name?.trim() || !phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO educational_institutions (name,type,address,phone,principal,email,website,description,grades,shifts,services,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [name.trim(),type||"primary",address||"",phone.trim(),principal||null,email||null,website||null,description||null,grades||null,shifts||null,services||[],status||"active"]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/educational-institutions/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, principal, email, website, description, grades, shifts, services, status, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE educational_institutions SET
+        name=COALESCE($1,name), type=COALESCE($2,type), address=COALESCE($3,address),
+        phone=COALESCE($4,phone), principal=COALESCE($5,principal), email=COALESCE($6,email),
+        website=COALESCE($7,website), description=COALESCE($8,description), grades=COALESCE($9,grades),
+        shifts=COALESCE($10,shifts), services=COALESCE($11,services), status=COALESCE($12,status),
+        is_active=COALESCE($13,is_active)
+       WHERE id=$14 RETURNING *`,
+      [name,type,address,phone,principal,email,website,description,grades,shifts,services,status,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/educational-institutions/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM educational_institutions WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 👩 خدمات المرأة — Women Services
+// ════════════════════════════════════════════════════════════════
+
+router.get("/women-services", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = `SELECT * FROM women_services WHERE is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND type=$${params.length}`; }
+    sql += ` ORDER BY rating DESC, name`;
+    const { rows } = await query(sql, params);
+    return res.json({ services: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/women-services", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM women_services ORDER BY created_at DESC`);
+    return res.json({ services: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/women-services", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, hours, description, rating, tags } = req.body;
+    if (!name?.trim() || !phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO women_services (name,type,address,phone,hours,description,rating,tags)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name.trim(),type||"salon",address||"",phone.trim(),hours||"",description||"",rating||5.0,tags||[]]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/women-services/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, hours, description, rating, tags, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE women_services SET
+        name=COALESCE($1,name), type=COALESCE($2,type), address=COALESCE($3,address),
+        phone=COALESCE($4,phone), hours=COALESCE($5,hours), description=COALESCE($6,description),
+        rating=COALESCE($7,rating), tags=COALESCE($8,tags), is_active=COALESCE($9,is_active)
+       WHERE id=$10 RETURNING *`,
+      [name,type,address,phone,hours,description,rating,tags,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/women-services/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM women_services WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });

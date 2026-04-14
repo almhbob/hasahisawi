@@ -6,7 +6,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,7 +55,6 @@ type Recipe = {
 // ══════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════
-const WOMEN_KEY = "women_services_v2";
 
 const HEALTH_TIPS: HealthTip[] = [
   { id: "ht1", title: "تغذية المرأة الحامل", body: "تناولي الحديد والحمض الفوليك وأوميجا-3 يومياً. تجنبي المأكولات النيئة والكافيين الزائد. شربي 8 أكواب ماء على الأقل يومياً.", icon: "heart-pulse", color: "#FF4FA3" },
@@ -186,11 +184,27 @@ export default function WomenScreen() {
   }
 
   const load = async () => {
-    const raw = await AsyncStorage.getItem(WOMEN_KEY);
-    setServices(raw ? JSON.parse(raw) : []);
+    try {
+      const params = filter !== "all" ? `?type=${filter}` : "";
+      const res = await fetch(`${getApiUrl()}/api/women-services${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setServices((data.services || []).map((s: Record<string,unknown>) => ({
+          id: String(s.id),
+          name: s.name,
+          type: s.type as ServiceType,
+          address: s.address,
+          phone: s.phone,
+          hours: s.hours,
+          description: s.description,
+          rating: parseFloat(String(s.rating)),
+          tags: s.tags || [],
+        })));
+      }
+    } catch { /* offline */ }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [filter]);
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const filtered = services.filter(s => {

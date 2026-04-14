@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import { getApiUrl } from "@/lib/query-client";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
@@ -192,19 +193,39 @@ export const getSchoolTypeIcon  = getInstitutionTypeIcon;
 export const getSchoolTypeColor = getInstitutionTypeColor;
 export async function loadSchools(): Promise<Institution[]> { return loadInstitutions(); }
 
-// ─── Storage Helpers ─────────────────────────────────────────────────────────
-export async function loadInstitutions(): Promise<Institution[]> {
-  const init = await AsyncStorage.getItem(INST_INIT_KEY);
-  if (!init) {
-    await AsyncStorage.setItem(INST_KEY, JSON.stringify(SEED_INSTITUTIONS));
-    await AsyncStorage.setItem(INST_INIT_KEY, "1");
-    return SEED_INSTITUTIONS;
-  }
-  const raw = await AsyncStorage.getItem(INST_KEY);
-  return raw ? JSON.parse(raw) : [];
+// ─── API + Storage Helpers ────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapInstitution(row: any): Institution {
+  return {
+    id: String(row.id),
+    name: row.name,
+    type: row.type as InstType,
+    address: row.address || "",
+    phone: row.phone || "",
+    principal: row.principal || undefined,
+    email: row.email || undefined,
+    website: row.website || undefined,
+    description: row.description || undefined,
+    grades: row.grades || undefined,
+    shifts: row.shifts || undefined,
+    services: (row.services || []) as ServiceType[],
+    status: row.status as "active" | "pending" | "rejected",
+    createdAt: row.created_at || new Date().toISOString(),
+  };
 }
-async function saveInstitutions(list: Institution[]) {
-  await AsyncStorage.setItem(INST_KEY, JSON.stringify(list));
+
+export async function loadInstitutions(): Promise<Institution[]> {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/educational-institutions`);
+    if (res.ok) {
+      const data = await res.json();
+      return (data.institutions || []).map(mapInstitution);
+    }
+  } catch { /* offline */ }
+  return [];
+}
+async function saveInstitutions(_list: Institution[]) {
+  // no-op: admin now manages via backend dashboard
 }
 async function loadRequests(): Promise<JoinRequest[]> {
   const raw = await AsyncStorage.getItem(REQ_KEY);
@@ -214,8 +235,7 @@ async function saveRequests(list: JoinRequest[]) {
   await AsyncStorage.setItem(REQ_KEY, JSON.stringify(list));
 }
 async function getAdminPin(): Promise<string> {
-  const stored = await AsyncStorage.getItem(ADMIN_PIN_KEY);
-  return stored || DEFAULT_PIN;
+  return DEFAULT_PIN;
 }
 
 // ─── Student Tools Data ───────────────────────────────────────────────────────
@@ -1224,19 +1244,24 @@ export default function StudentScreen() {
 
   // ── Approve Request ──
   const approveRequest = async (req: JoinRequest) => {
-    const newInst: Institution = {
-      id: `inst_${Date.now()}`,
-      name: req.institutionName, type: req.instType,
-      address: req.address, phone: req.phone,
-      description: req.description,
-      services: req.requestedServices,
-      status: "active",
-      createdAt: new Date().toISOString(),
-    };
-    const updatedInsts = [...institutions, newInst];
-    const updatedReqs  = requests.map(r => r.id === req.id ? { ...r, status: "approved" as const } : r);
-    await Promise.all([saveInstitutions(updatedInsts), saveRequests(updatedReqs)]);
-    setInstitutions(updatedInsts);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/admin/educational-institutions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
+        body: JSON.stringify({
+          name: req.institutionName, type: req.instType,
+          address: req.address, phone: req.phone,
+          description: req.description || "",
+          services: req.requestedServices, status: "active",
+        }),
+      });
+      if (res.ok) {
+        const newInst = mapInstitution(await res.json());
+        setInstitutions(prev => [...prev, newInst]);
+      }
+    } catch { Alert.alert("خطأ", "تعذّر إضافة المؤسسة"); }
+    const updatedReqs = requests.map(r => r.id === req.id ? { ...r, status: "approved" as const } : r);
+    await saveRequests(updatedReqs);
     setRequests(updatedReqs);
   };
 
@@ -1247,20 +1272,40 @@ export default function StudentScreen() {
   };
 
   const saveInst = async (inst: Institution) => {
-    const idx = institutions.findIndex(i => i.id === inst.id);
-    const updated = idx >= 0
-      ? institutions.map(i => i.id === inst.id ? inst : i)
-      : [...institutions, inst];
-    await saveInstitutions(updated);
-    setInstitutions(updated);
+    try {
+      const isNew = !institutions.find(i => i.id === inst.id);
+      const url = isNew
+        ? `${getApiUrl()}/api/admin/educational-institutions`
+        : `${getApiUrl()}/api/admin/educational-institutions/${inst.id}`;
+      const res = await fetch(url, {
+        method: isNew ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
+        body: JSON.stringify({
+          name: inst.name, type: inst.type, address: inst.address,
+          phone: inst.phone, principal: inst.principal,
+          grades: inst.grades, shifts: inst.shifts,
+          description: inst.description, services: inst.services, status: inst.status,
+        }),
+      });
+      if (res.ok) {
+        const saved = mapInstitution(await res.json());
+        setInstitutions(prev =>
+          isNew ? [...prev, saved] : prev.map(i => i.id === saved.id ? saved : i)
+        );
+      }
+    } catch { Alert.alert("خطأ", "تعذّر حفظ المؤسسة"); }
     setFormVisible(false);
     setEditInst(undefined);
   };
 
   const deleteInst = async (id: string) => {
-    const updated = institutions.filter(i => i.id !== id);
-    await saveInstitutions(updated);
-    setInstitutions(updated);
+    try {
+      await fetch(`${getApiUrl()}/api/admin/educational-institutions/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-pin": DEFAULT_PIN },
+      });
+      setInstitutions(prev => prev.filter(i => i.id !== id));
+    } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
   const handleJoinSubmit = async (req: JoinRequest) => {
