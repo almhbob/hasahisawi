@@ -634,7 +634,7 @@ export default function HomeScreen() {
                   <Text style={styles.devRole}>مطوّر تطبيقات · محلل بيانات</Text>
                   <View style={styles.devContactRow}>
                     <Ionicons name="location-outline" size={12} color={Colors.primary} />
-                    <Text style={[styles.devContact, { color: Colors.primary }]}>حصاحيصا · ولاية الجزيرة · السودان</Text>
+                    <Text style={[styles.devContact, { color: Colors.primary }]}>الحصاحيصا · ولاية الجزيرة · السودان</Text>
                   </View>
                   <Text style={styles.devBirth}>م. 2 مايو 1991</Text>
                 </View>
@@ -654,7 +654,7 @@ export default function HomeScreen() {
                   <Text style={styles.devBioTitle}>نبذة تعريفية</Text>
                 </View>
                 <Text style={styles.devBioText}>
-                  أنا مطوّر تطبيقات جوّال ومحلّل بيانات من مدينة حصاحيصا، ولاية الجزيرة، السودان.
+                  أنا مطوّر تطبيقات جوّال ومحلّل بيانات من مدينة الحصاحيصا، ولاية الجزيرة، السودان.
                   {"\n\n"}
                   أمتلك خبرةً متخصصة في بناء تطبيقات React Native وTypeScript، وتحليل البيانات، والأمن السيبراني. أحمل شغفاً حقيقياً بالتقنية وتوظيفها لخدمة المجتمع وتيسير حياة أبناء مدينتي.
                   {"\n\n"}
@@ -731,7 +731,7 @@ export default function HomeScreen() {
 
               {/* حقوق */}
               <Text style={styles.devCopyright}>
-                © 2026 · صُنع بـ ❤️ في حصاحيصا · السودان
+                © 2026 · صُنع بـ ❤️ في الحصاحيصا · السودان
               </Text>
             </LinearGradient>
           </LinearGradient>

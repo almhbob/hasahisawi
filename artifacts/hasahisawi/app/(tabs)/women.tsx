@@ -515,7 +515,7 @@ export default function WomenScreen() {
             </Animated.View>
           ))}
 
-          <SectionHeader title="مراكز صحة المرأة" sub="في حصاحيصا" color="#3E9CBF" />
+          <SectionHeader title="مراكز صحة المرأة" sub="في الحصاحيصا" color="#3E9CBF" />
           {services.filter((sv) => sv.type === "health").map((item, i) => {
             const cfg = TYPE_CONFIG[item.type];
             return (
@@ -687,7 +687,7 @@ export default function WomenScreen() {
               <View style={hm.emptyBanner}>
                 <MaterialCommunityIcons name="hand-heart-outline" size={44} color="#14B8A650" />
                 <Text style={hm.emptyTitle}>لا يوجد إدخالات بعد</Text>
-                <Text style={hm.emptySub}>كوني أول من تُسجّل منتجاتها اليدوية في حصاحيصا</Text>
+                <Text style={hm.emptySub}>كوني أول من تُسجّل منتجاتها اليدوية في الحصاحيصا</Text>
                 <TouchableOpacity
                   style={hm.emptyBtn}
                   onPress={() => { setJoinDone(false); setJoinType("handmade"); setJoinModal(true); }}
@@ -827,7 +827,7 @@ export default function WomenScreen() {
                   {[
                     { label: "الاسم الكامل *",          val: joinName,    set: setJoinName,    placeholder: "فاطمة أحمد"        },
                     { label: "رقم الهاتف *",             val: joinPhone,   set: setJoinPhone,   placeholder: "0912345678", kb: "phone-pad" as const },
-                    { label: "الحي / المنطقة",           val: joinAddress, set: setJoinAddress, placeholder: "حصاحيصا — الحي الشرقي" },
+                    { label: "الحي / المنطقة",           val: joinAddress, set: setJoinAddress, placeholder: "الحصاحيصا — الحي الشرقي" },
                   ].map(f => (
                     <View key={f.label} style={{ marginBottom: 12 }}>
                       <Text style={jm.fieldLabel}>{f.label}</Text>

@@ -142,7 +142,7 @@ export default function UpdatePostV2() {
 
         {/* Hashtags */}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          {["#حصاحيصاوي", "#حصاحيصا", "#تحديث_جديد"].map((t, i) => (
+          {["#حصاحيصاوي", "#الحصاحيصا", "#تحديث_جديد"].map((t, i) => (
             <span key={i} style={{ fontSize: 9.5, color: "rgba(39,174,104,0.5)" }}>{t}</span>
           ))}
         </div>

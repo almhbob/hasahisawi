@@ -147,7 +147,7 @@ export default function UpdatePost() {
         position: "absolute", bottom: 20, zIndex: 10,
         display: "flex", gap: 8,
       }}>
-        {["#حصاحيصاوي", "#حصاحيصا", "#تحديث_جديد"].map((t, i) => (
+        {["#حصاحيصاوي", "#الحصاحيصا", "#تحديث_جديد"].map((t, i) => (
           <span key={i} style={{
             fontSize: 10, color: "rgba(39,174,104,0.6)",
             background: "rgba(39,174,104,0.08)",

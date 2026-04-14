@@ -1912,7 +1912,7 @@ export default function MarketScreen() {
                 </View>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textSecondary, marginBottom:8, textAlign:"center" }}>لا يوجد تجار مسجّلون بعد</Text>
                 <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:20, maxWidth:260 }}>
-                  سجّل محلك التجاري وكن ضمن أول التجار في دليل حصاحيصا
+                  سجّل محلك التجاري وكن ضمن أول التجار في دليل الحصاحيصا
                 </Text>
                 <TouchableOpacity onPress={()=>{ setMerchantRegSuccess(false); setMerchantRegModal(true); }}
                   style={{ marginTop:20, backgroundColor:"#6366F1", borderRadius:14, paddingVertical:12, paddingHorizontal:28, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
@@ -2569,7 +2569,7 @@ export default function MarketScreen() {
                 </View>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textSecondary, marginBottom:10, textAlign:"center" }}>لا توجد متاجر هواتف بعد</Text>
                 <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:22, maxWidth:270 }}>
-                  سجّل متجرك وكن ضمن أول متاجر الهواتف الرسمية في حصاحيصا
+                  سجّل متجرك وكن ضمن أول متاجر الهواتف الرسمية في الحصاحيصا
                 </Text>
                 {!auth.isGuest && !myShop && (
                   <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}

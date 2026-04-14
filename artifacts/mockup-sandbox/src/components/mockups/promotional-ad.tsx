@@ -268,7 +268,7 @@ export default function PromotionalAd() {
         <div style={{
           display: "flex", gap: 6, alignItems: "center",
         }}>
-          {["#حصاحيصا", "#السودان", "#تطبيق"].map((tag, i) => (
+          {["#الحصاحيصا", "#السودان", "#تطبيق"].map((tag, i) => (
             <span key={i} style={{
               fontSize: 9, color: "rgba(39,174,104,0.7)",
               background: "rgba(39,174,104,0.1)",

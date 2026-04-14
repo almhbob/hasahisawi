@@ -57,9 +57,9 @@ type Appointment = {
 const FACILITIES: BookingFacility[] = [
   // ── صحية ──
   {
-    id: "f1", name: "مستشفى حصاحيصا الحكومي",
+    id: "f1", name: "مستشفى الحصاحيصا الحكومي",
     category: "health", subcategory: "مستشفى",
-    address: "المنطقة المركزية، حصاحيصا", phone: "+249912345682",
+    address: "المنطقة المركزية، الحصاحيصا", phone: "+249912345682",
     icon: "hospital-building", color: "#3E9CBF",
     services: ["طوارئ", "جراحة عامة", "أطفال", "نساء وتوليد", "باطنية", "أشعة وتحاليل"],
     workDays: "السبت - الخميس", hours: "24 ساعة",
@@ -67,7 +67,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "f2", name: "مستشفى الخيرية الأهلي",
     category: "health", subcategory: "مستشفى",
-    address: "حي السلام، حصاحيصا", phone: "+249912345683",
+    address: "حي السلام، الحصاحيصا", phone: "+249912345683",
     icon: "hospital-building", color: "#3E9CBF",
     services: ["باطنية", "أطفال", "تحاليل مخبرية", "مراجعة عامة"],
     workDays: "السبت - الخميس", hours: "7ص - 5م",
@@ -75,7 +75,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "f3", name: "عيادة الدكتور أحمد - طب عام",
     category: "health", subcategory: "عيادة",
-    address: "شارع النيل، حصاحيصا", phone: "+249912345684",
+    address: "شارع النيل، الحصاحيصا", phone: "+249912345684",
     icon: "stethoscope", color: "#A855F7",
     services: ["مراجعة طب عام", "متابعة مزمن", "شهادة صحية"],
     workDays: "السبت - الخميس", hours: "4م - 9م",
@@ -83,7 +83,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "f4", name: "عيادة الأطفال المتخصصة",
     category: "health", subcategory: "عيادة",
-    address: "الحي الغربي، حصاحيصا", phone: "+249912345685",
+    address: "الحي الغربي، الحصاحيصا", phone: "+249912345685",
     icon: "stethoscope", color: "#A855F7",
     services: ["متابعة أطفال", "تطعيمات", "استشارة طبية"],
     workDays: "السبت - الخميس", hours: "5م - 9م",
@@ -91,24 +91,24 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "f5", name: "مركز صحة الأسرة",
     category: "health", subcategory: "مركز صحي",
-    address: "حي الضحى، حصاحيصا", phone: "+249912345686",
+    address: "حي الضحى، الحصاحيصا", phone: "+249912345686",
     icon: "heart-pulse", color: "#27AE68",
     services: ["رعاية الأم والطفل", "تخطيط الأسرة", "تطعيمات", "صحة المدرسة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
   // ── حكومية ──
   {
-    id: "g1", name: "محلية حصاحيصا",
+    id: "g1", name: "محلية الحصاحيصا",
     category: "government", subcategory: "محلية",
-    address: "مقر المحلية، حصاحيصا", phone: "+249912345690",
+    address: "مقر المحلية، الحصاحيصا", phone: "+249912345690",
     icon: "office-building", color: "#F0A500",
     services: ["تسجيل عقارات", "رخص تشغيل", "شهادات إقامة", "تسجيل مواليد", "دفن الموتى", "خدمات عامة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
   {
-    id: "g2", name: "سجل مدني - حصاحيصا",
+    id: "g2", name: "سجل مدني - الحصاحيصا",
     category: "government", subcategory: "سجل مدني",
-    address: "مبنى السجل المدني، حصاحيصا", phone: "+249912345691",
+    address: "مبنى السجل المدني، الحصاحيصا", phone: "+249912345691",
     icon: "card-account-details", color: "#F0A500",
     services: ["استخراج بطاقة شخصية", "تجديد بطاقة", "شهادة ميلاد", "شهادة زواج", "شهادة وفاة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
@@ -116,7 +116,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "g3", name: "مكتب الأراضي والتخطيط",
     category: "government", subcategory: "أراضي",
-    address: "مجمع الدوائر الحكومية، حصاحيصا", phone: "+249912345692",
+    address: "مجمع الدوائر الحكومية، الحصاحيصا", phone: "+249912345692",
     icon: "map-marker-radius", color: "#FF6B35",
     services: ["تسجيل قطعة", "استخراج شهادة حيازة", "رسم خرائط", "تقسيم أراضي"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
@@ -124,7 +124,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "g4", name: "المحكمة العامة",
     category: "government", subcategory: "قضاء",
-    address: "مبنى المحكمة، حصاحيصا", phone: "+249912345693",
+    address: "مبنى المحكمة، الحصاحيصا", phone: "+249912345693",
     icon: "scale-balance", color: "#6B7280",
     services: ["حضور جلسة", "تقديم دعوى", "طلب وثائق قانونية", "توثيق عقود"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
@@ -132,7 +132,7 @@ const FACILITIES: BookingFacility[] = [
   {
     id: "g5", name: "مكتب الشؤون الاجتماعية",
     category: "government", subcategory: "اجتماعي",
-    address: "مجمع الخدمات، حصاحيصا", phone: "+249912345694",
+    address: "مجمع الخدمات، الحصاحيصا", phone: "+249912345694",
     icon: "account-group", color: "#27AE68",
     services: ["طلب إعانة", "تسجيل أسرة", "شهادة عوز", "خدمات ذوي الإعاقة"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",

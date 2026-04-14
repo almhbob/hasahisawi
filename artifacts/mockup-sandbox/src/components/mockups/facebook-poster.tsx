@@ -228,7 +228,7 @@ async function drawPoster(
   // ── 11. Tagline ───────────────────────────────────────────────────────────────
   ctx.font      = "400 20px Cairo, Arial";
   ctx.fillStyle = "rgba(255,255,255,0.68)";
-  ctx.fillText("أخبار المدينة · خدمات محلية · سوق حصاحيصا · مجتمع متصل", tx, 362);
+  ctx.fillText("أخبار المدينة · خدمات محلية · سوق الحصاحيصا · مجتمع متصل", tx, 362);
 
   // ── 12. Thin separator line ───────────────────────────────────────────────────
   const lineGrad = ctx.createLinearGradient(tx - 530, 385, tx, 385);

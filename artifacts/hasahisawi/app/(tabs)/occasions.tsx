@@ -423,7 +423,7 @@ function JoinTab() {
               { label: "اسم المحل *",      val: shopName,  set: setShopName,  placeholder: "محل نجمة للمناسبات" },
               { label: "رقم الهاتف *",     val: phone,     set: setPhone,     placeholder: "0912345678", keyboard: "phone-pad" as const },
               { label: "رقم الواتساب",     val: whatsapp,  set: setWhatsapp,  placeholder: "0912345678 (اختياري)", keyboard: "phone-pad" as const },
-              { label: "المنطقة / الحي",   val: cityArea,  set: setCityArea,  placeholder: "حصاحيصا — الحي الشرقي" },
+              { label: "المنطقة / الحي",   val: cityArea,  set: setCityArea,  placeholder: "الحصاحيصا — الحي الشرقي" },
               { label: "رابط السوشيال",    val: social,    set: setSocial,    placeholder: "فيسبوك / تيك توك (اختياري)" },
             ].map(f => (
               <View key={f.label} style={j.fieldBlock}>
@@ -493,7 +493,7 @@ function JoinTab() {
               { label: "رقم الهاتف *",           val: vPhone,     set: setVPhone,     placeholder: "0912345678", keyboard: "phone-pad" as const },
               { label: "وصف المركبة",            val: vDesc,      set: setVDesc,      placeholder: "باص 45 مقعد مكيّف" },
               { label: "عدد المقاعد",            val: vCap,       set: setVCap,       placeholder: "45", keyboard: "number-pad" as const },
-              { label: "المنطقة / نطاق الخدمة", val: vArea,      set: setVArea,      placeholder: "حصاحيصا والمناطق المجاورة" },
+              { label: "المنطقة / نطاق الخدمة", val: vArea,      set: setVArea,      placeholder: "الحصاحيصا والمناطق المجاورة" },
             ].map(f => (
               <View key={f.label} style={j.fieldBlock}>
                 <Text style={j.fieldLabel}>{f.label}</Text>

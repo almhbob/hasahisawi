@@ -46,9 +46,9 @@ const SAMPLE_JOBS: Job[] = [
   {
     id: "sample1",
     title: "مدرس رياضيات",
-    company: "ثانوية حصاحيصا الكبرى",
+    company: "ثانوية الحصاحيصا الكبرى",
     type: "fulltime",
-    location: "حصاحيصا",
+    location: "الحصاحيصا",
     description: "مطلوب مدرس رياضيات للصفوف الثانوية، يُشترط وجود شهادة تربوية وخبرة لا تقل عن سنتين.",
     contactPhone: "+249912345800",
     salary: "يُحدد عند المقابلة",
@@ -59,7 +59,7 @@ const SAMPLE_JOBS: Job[] = [
     title: "محاسب",
     company: "شركة النيل للتجارة",
     type: "fulltime",
-    location: "حصاحيصا - السوق المركزي",
+    location: "الحصاحيصا - السوق المركزي",
     description: "مطلوب محاسب حاصل على بكالوريوس محاسبة، يُجيد استخدام الحاسوب والبرامج المحاسبية.",
     contactPhone: "+249912345801",
     salary: "٣٠٠٠ - ٥٠٠٠ جنيه",
@@ -70,7 +70,7 @@ const SAMPLE_JOBS: Job[] = [
     title: "سائق توصيل",
     company: "متجر الأمانة",
     type: "parttime",
-    location: "حصاحيصا والقرى المجاورة",
+    location: "الحصاحيصا والقرى المجاورة",
     description: "مطلوب سائق لتوصيل الطلبات، يملك رخصة قيادة سارية وسيارة خاصة.",
     contactPhone: "+249912345802",
     salary: "عمولة على كل توصيلة",
@@ -91,7 +91,7 @@ const SAMPLE_JOBS: Job[] = [
     title: "متطوع في الإسعاف المجتمعي",
     company: "منظمة الهلال الأحمر",
     type: "volunteer",
-    location: "حصاحيصا",
+    location: "الحصاحيصا",
     description: "نبحث عن متطوعين للمشاركة في حملات الإسعاف والتوعية الصحية في المجتمع المحلي.",
     contactPhone: "+249912345804",
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
@@ -359,8 +359,8 @@ export default function JobsScreen() {
         preview={
           <View style={{ padding: 16, gap: 12 }}>
             {[
-              { title: "مدرّس لغة عربية", company: "مدرسة حصاحيصا الثانوية", type: "دوام كامل", loc: "حصاحيصا" },
-              { title: "محاسب قانوني", company: "شركة النيل التجارية", type: "دوام جزئي", loc: "حصاحيصا" },
+              { title: "مدرّس لغة عربية", company: "مدرسة الحصاحيصا الثانوية", type: "دوام كامل", loc: "الحصاحيصا" },
+              { title: "محاسب قانوني", company: "شركة النيل التجارية", type: "دوام جزئي", loc: "الحصاحيصا" },
               { title: "مهندس زراعي", company: "مزرعة الخير", type: "عقد", loc: "الجزيرة" },
             ].map((item, i) => (
               <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
@@ -382,7 +382,7 @@ export default function JobsScreen() {
           </View>
         }
         features={[
-          { icon: "briefcase-outline",     text: tr("اعثر على فرص عمل في حصاحيصا", "Find jobs in Hasahisa") },
+          { icon: "briefcase-outline",     text: tr("اعثر على فرص عمل في الحصاحيصا", "Find jobs in Hasahisa") },
           { icon: "add-circle-outline",    text: tr("انشر إعلان وظيفتك مجاناً", "Post your job listing for free") },
           { icon: "call-outline",          text: tr("تواصل مباشرةً مع أصحاب العمل", "Contact employers directly") },
           { icon: "filter-outline",        text: tr("صفّح وظائف بحسب النوع والموقع", "Filter jobs by type and location") },

@@ -181,7 +181,7 @@ export default function Settings() {
                   <textarea value={aiConfig.ai_system_prompt} rows={4}
                     onChange={e => setAiConfig(prev => ({ ...prev, ai_system_prompt: e.target.value }))}
                     className="input-field" style={{ resize: "none" }}
-                    placeholder="أنت مساعد ذكي لمدينة حصاحيصا..." />
+                    placeholder="أنت مساعد ذكي لمدينة الحصاحيصا..." />
                 </div>
               </div>
               <button className="btn-primary" onClick={saveAi} disabled={saving === "ai"} style={{ marginTop: 16 }}>

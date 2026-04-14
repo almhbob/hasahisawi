@@ -118,8 +118,8 @@ const SVC_LABELS: Record<ServiceType, string> = {
 // ─── Seed Institutions ───────────────────────────────────────────────────────
 const SEED_INSTITUTIONS: Institution[] = [
   {
-    id:"i1", name:"مدرسة حصاحيصا الأساسية الأولى", type:"primary",
-    address:"حي الضحى، حصاحيصا", phone:"+249912345700",
+    id:"i1", name:"مدرسة الحصاحيصا الأساسية الأولى", type:"primary",
+    address:"حي الضحى، الحصاحيصا", phone:"+249912345700",
     principal:"الأستاذ/ أحمد محمد علي",
     grades:"الصف الأول – الثامن", shifts:"صباحية",
     services:["enrollment","transfer","textbooks","guidance"],
@@ -127,23 +127,23 @@ const SEED_INSTITUTIONS: Institution[] = [
   },
   {
     id:"i2", name:"مدرسة البنات الأساسية", type:"primary",
-    address:"حي السلام، حصاحيصا", phone:"+249912345701",
+    address:"حي السلام، الحصاحيصا", phone:"+249912345701",
     principal:"الأستاذة/ فاطمة إبراهيم",
     grades:"الصف الأول – الثامن", shifts:"صباحية",
     services:["enrollment","transfer","textbooks"],
     status:"active", createdAt: new Date().toISOString(),
   },
   {
-    id:"i3", name:"ثانوية حصاحيصا الكبرى", type:"secondary",
-    address:"المنطقة المركزية، حصاحيصا", phone:"+249912345702",
+    id:"i3", name:"ثانوية الحصاحيصا الكبرى", type:"secondary",
+    address:"المنطقة المركزية، الحصاحيصا", phone:"+249912345702",
     principal:"الأستاذ/ محمد الأمين",
     grades:"الصف التاسع – الثاني عشر", shifts:"صباحية ومسائية",
     services:["results","enrollment","transfer","activity","guidance","exam","textbooks"],
     status:"active", createdAt: new Date().toISOString(),
   },
   {
-    id:"i4", name:"ثانوية البنات بحصاحيصا", type:"secondary",
-    address:"شارع المدارس، حصاحيصا", phone:"+249912345703",
+    id:"i4", name:"ثانوية البنات بالحصاحيصا", type:"secondary",
+    address:"شارع المدارس، الحصاحيصا", phone:"+249912345703",
     principal:"الأستاذة/ آمنة عبدالله",
     grades:"الصف التاسع – الثاني عشر", shifts:"صباحية",
     services:["results","enrollment","transfer","activity","exam"],
@@ -151,15 +151,15 @@ const SEED_INSTITUTIONS: Institution[] = [
   },
   {
     id:"i5", name:"معهد التقنية والحاسوب", type:"institute",
-    address:"شارع السوق، حصاحيصا", phone:"+249912345704",
+    address:"شارع السوق، الحصاحيصا", phone:"+249912345704",
     principal:"الأستاذ/ عمر محمد",
     grades:"شهادة تقنية ومهنية", shifts:"صباحية ومسائية",
     services:["enrollment","scholarship","tutoring","guidance"],
     status:"active", createdAt: new Date().toISOString(),
   },
   {
-    id:"i6", name:"كلية حصاحيصا الجامعية", type:"university",
-    address:"جنوب حصاحيصا", phone:"+249912345705",
+    id:"i6", name:"كلية الحصاحيصا الجامعية", type:"university",
+    address:"جنوب الحصاحيصا", phone:"+249912345705",
     principal:"الدكتور/ يوسف الحسن",
     grades:"بكالوريوس", shifts:"صباحية",
     services:["enrollment","scholarship","library","activity","guidance"],
@@ -167,14 +167,14 @@ const SEED_INSTITUTIONS: Institution[] = [
   },
   {
     id:"i7", name:"روضة الزهور", type:"kindergarten",
-    address:"حي الأزهار، حصاحيصا", phone:"+249912345706",
+    address:"حي الأزهار، الحصاحيصا", phone:"+249912345706",
     grades:"3 – 6 سنوات", shifts:"صباحية",
     services:["enrollment","activity"],
     status:"active", createdAt: new Date().toISOString(),
   },
   {
     id:"i8", name:"خلوة الشيخ عبدالرحمن", type:"quran",
-    address:"حي الإسلامي، حصاحيصا", phone:"+249912345707",
+    address:"حي الإسلامي، الحصاحيصا", phone:"+249912345707",
     grades:"جميع الأعمار", shifts:"صباحية ومسائية",
     services:["enrollment","guidance"],
     status:"active", createdAt: new Date().toISOString(),
@@ -1387,7 +1387,7 @@ export default function StudentScreen() {
             </AnimatedPress>
             <View>
               <Text style={s.headerTitle}>الخدمات الطلابية</Text>
-              <Text style={s.headerSub}>حصاحيصا التعليمية</Text>
+              <Text style={s.headerSub}>الحصاحيصا التعليمية</Text>
             </View>
             <View style={s.headerIcon}>
               <Ionicons name="school" size={24} color={Colors.primary} />
@@ -1457,7 +1457,7 @@ export default function StudentScreen() {
               <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
               <Text style={[s.tipTitle, { color: Colors.primary }]}>للتواصل مع مكتب التربية</Text>
             </View>
-            <Text style={s.tipText}>يعمل مكتب التربية والتعليم بحصاحيصا من الأحد إلى الخميس، من 8 صباحاً حتى 2 ظهراً. للحالات الطارئة تواصل عبر الأرقام المخصصة.</Text>
+            <Text style={s.tipText}>يعمل مكتب التربية والتعليم بالحصاحيصا من الأحد إلى الخميس، من 8 صباحاً حتى 2 ظهراً. للحالات الطارئة تواصل عبر الأرقام المخصصة.</Text>
           </LinearGradient>
         </ScrollView>
       )}

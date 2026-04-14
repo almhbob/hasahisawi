@@ -51,7 +51,7 @@ export default function BookletBackCover() {
 
         {/* Hashtags */}
         <div style={{ display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
-          {["#حصاحيصاوي","#حصاحيصا","#السودان","#تطبيق_ذكي"].map((t,i)=>(
+          {["#حصاحيصاوي","#الحصاحيصا","#السودان","#تطبيق_ذكي"].map((t,i)=>(
             <span key={i} style={{ fontSize:10, color:"rgba(39,174,104,0.55)" }}>{t}</span>
           ))}
         </div>

@@ -380,7 +380,7 @@ export default function LostItemsScreen() {
         preview={
           <View style={{ padding: 16, gap: 12 }}>
             {[
-              { name: "محفظة جلدية سوداء", status: "lost", loc: "سوق حصاحيصا", time: "منذ يومين" },
+              { name: "محفظة جلدية سوداء", status: "lost", loc: "سوق الحصاحيصا", time: "منذ يومين" },
               { name: "هاتف سامسونج A54", status: "lost", loc: "شارع المدارس", time: "منذ ٥ أيام" },
               { name: "وثيقة هوية وطنية", status: "found", loc: "حي السلام", time: "منذ ٣ أيام" },
             ].map((item, i) => (

@@ -696,7 +696,7 @@ export function HasahisawiVideo() {
             </motion.div>
             <FeatureCard title="أخبار المدينة" icon="📰" delay={0.3}  x="-26vw" y="-12vw" />
             <FeatureCard title="خدمات محلية"  icon="🛠️" delay={0.55} x="26vw"  y="-8vw"  />
-            <FeatureCard title="سوق حصاحيصا"  icon="🛒" delay={0.8}  x="-24vw" y="12vw"  />
+            <FeatureCard title="سوق الحصاحيصا"  icon="🛒" delay={0.8}  x="-24vw" y="12vw"  />
             <FeatureCard title="مجتمع متصل"   icon="🤝" delay={1.05} x="24vw"  y="16vw"  />
           </motion.div>
         )}

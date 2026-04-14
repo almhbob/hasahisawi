@@ -1043,7 +1043,7 @@ export default function MedicalScreen() {
           <View style={{ padding: 16, gap: 12 }}>
             {[
               { name: "صيدلية الشفاء", type: "صيدلية", hours: "24 ساعة", onCall: true },
-              { name: "مستشفى حصاحيصا الحكومي", type: "مستشفى", hours: "24 ساعة", onCall: true },
+              { name: "مستشفى الحصاحيصا الحكومي", type: "مستشفى", hours: "24 ساعة", onCall: true },
               { name: "عيادة الدكتور أحمد", type: "عيادة", hours: "4م - 9م", onCall: false },
             ].map((item, i) => (
               <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>

@@ -69,7 +69,7 @@ const AGENCIES: Agency[] = [
     name: "هيئة مياه ولاية الجزيرة",
     shortName: "هيئة المياه",
     category: "مياه",
-    description: "الجهة المسؤولة عن توفير وإدارة شبكة مياه الشرب في مدينة حصاحيصا ومحيطها",
+    description: "الجهة المسؤولة عن توفير وإدارة شبكة مياه الشرب في مدينة الحصاحيصا ومحيطها",
     phone: "+249912300100",
     whatsapp: "+249912300100",
     icon: "water",
@@ -80,7 +80,7 @@ const AGENCIES: Agency[] = [
   },
   {
     id: "ag2",
-    name: "شركة كهرباء السودان — حصاحيصا",
+    name: "شركة كهرباء السودان — الحصاحيصا",
     shortName: "الكهرباء",
     category: "كهرباء",
     description: "توفير وصيانة شبكة الكهرباء، معالجة انقطاع التيار والأعطال الكهربائية في المدينة",
@@ -110,7 +110,7 @@ const AGENCIES: Agency[] = [
     name: "هيئة الطرق والجسور",
     shortName: "الطرق",
     category: "طرق",
-    description: "صيانة وإنشاء الطرق والجسور، معالجة الحفر والتشققات وأعطال الإنارة في حصاحيصا",
+    description: "صيانة وإنشاء الطرق والجسور، معالجة الحفر والتشققات وأعطال الإنارة في الحصاحيصا",
     phone: "+249912300400",
     icon: "road-variant",
     color: "#FF6B35",
@@ -120,7 +120,7 @@ const AGENCIES: Agency[] = [
   },
   {
     id: "ag5",
-    name: "محلية حصاحيصا",
+    name: "محلية الحصاحيصا",
     shortName: "المحلية",
     category: "محلية",
     description: "الجهة الإدارية المحلية المسؤولة عن تنظيم المدينة وخدماتها العامة ورخص البناء والنشاط التجاري",
@@ -147,7 +147,7 @@ const AGENCIES: Agency[] = [
   },
   {
     id: "ag7",
-    name: "قوة الشرطة — مركز حصاحيصا",
+    name: "قوة الشرطة — مركز الحصاحيصا",
     shortName: "الشرطة",
     category: "أمن",
     description: "الحفاظ على الأمن العام، استقبال البلاغات الجنائية، التحقيق في الشكاوى الأمنية",
@@ -596,7 +596,7 @@ export default function ReportsScreen() {
           preview={
             <View style={{ padding: 16, gap: 12 }}>
               {[
-                { icon: "water-outline", label: "انقطاع المياه", agency: "مياه حصاحيصا", color: "#3B82F6" },
+                { icon: "water-outline", label: "انقطاع المياه", agency: "مياه الحصاحيصا", color: "#3B82F6" },
                 { icon: "flash-outline", label: "عطل كهربائي", agency: "الكهرباء الوطنية", color: "#F59E0B" },
                 { icon: "leaf-outline", label: "مشكلة بيئية", agency: "البلدية", color: "#10B981" },
               ].map((item, i) => (

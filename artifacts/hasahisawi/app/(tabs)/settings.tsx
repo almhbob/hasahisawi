@@ -115,7 +115,7 @@ function AddJobModal({ visible, onClose, onSave }: {
               </FieldRow>
               <FieldInput label="المسمى الوظيفي *" value={title} onChange={setTitle} placeholder="مثال: مدرس رياضيات" />
               <FieldInput label="جهة العمل *" value={company} onChange={setCompany} placeholder="اسم الشركة أو المؤسسة" />
-              <FieldInput label="الموقع" value={location} onChange={setLocation} placeholder="مثال: حصاحيصا - السوق المركزي" />
+              <FieldInput label="الموقع" value={location} onChange={setLocation} placeholder="مثال: الحصاحيصا - السوق المركزي" />
               <FieldInput label="الراتب" value={salary} onChange={setSalary} placeholder="مثال: 3000 جنيه أو يُحدد عند المقابلة" />
               <FieldInput label="الوصف والمتطلبات" value={description} onChange={setDescription} placeholder="اكتب تفاصيل الوظيفة والمتطلبات..." multi />
               <FieldInput label="رقم التواصل *" value={contactPhone} onChange={setContactPhone} placeholder="+249..." numeric />

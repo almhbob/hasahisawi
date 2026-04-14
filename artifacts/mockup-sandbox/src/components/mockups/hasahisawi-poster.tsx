@@ -278,7 +278,7 @@ export default function HasahisawiPoster() {
         justifyContent: "center",
         padding: "0 20px",
       }}>
-        {["#حصاحيصا", "#السودان", "#حصاحيصاوي", "#تطبيق_ذكي"].map((t, i) => (
+        {["#الحصاحيصا", "#السودان", "#حصاحيصاوي", "#تطبيق_ذكي"].map((t, i) => (
           <span key={i} style={{
             fontSize: 11,
             color: "rgba(39,174,104,0.7)",

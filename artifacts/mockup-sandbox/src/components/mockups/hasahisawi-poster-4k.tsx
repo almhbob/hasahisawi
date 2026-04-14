@@ -170,7 +170,7 @@ export default function HasahisawiPoster4K() {
             position: "relative", zIndex: 10, display: "flex", gap: 10, marginTop: 22,
             flexWrap: "wrap", justifyContent: "center", padding: "0 20px",
           }}>
-            {["#حصاحيصا", "#السودان", "#حصاحيصاوي", "#تطبيق_ذكي"].map((t, i) => (
+            {["#الحصاحيصا", "#السودان", "#حصاحيصاوي", "#تطبيق_ذكي"].map((t, i) => (
               <span key={i} style={{
                 fontSize: 11, color: "rgba(39,174,104,0.7)", background: "rgba(39,174,104,0.08)",
                 border: "1px solid rgba(39,174,104,0.2)", borderRadius: 10, padding: "4px 10px",

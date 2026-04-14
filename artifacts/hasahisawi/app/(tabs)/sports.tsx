@@ -566,7 +566,7 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
   };
   const submit = () => {
     if (!title.trim()||!body.trim()) return;
-    onSave({id:`p_${Date.now()}`,title:title.trim(),body:body.trim(),category:cat,imageUrl:imgUri||undefined,author:"إدارة حصاحيصا كورة",likes:0,likedByMe:false,comments:[],createdAt:new Date().toISOString()});
+    onSave({id:`p_${Date.now()}`,title:title.trim(),body:body.trim(),category:cat,imageUrl:imgUri||undefined,author:"إدارة الحصاحيصا كورة",likes:0,likedByMe:false,comments:[],createdAt:new Date().toISOString()});
     setTitle(""); setBody(""); setCat("خبر"); setImgUri(""); onClose();
   };
   return (
@@ -708,7 +708,7 @@ function AddMatchModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=
   const [comp,setComp]   = useState("");
   const [date,setDate]   = useState("");
   const [time,setTime]   = useState("");
-  const [venue,setVenue] = useState("ملعب حصاحيصا");
+  const [venue,setVenue] = useState("ملعب الحصاحيصا");
   const [status,setStatus] = useState<MatchStatus>("upcoming");
   const [hs,setHs]       = useState("");
   const [as_,setAs]      = useState("");
@@ -716,7 +716,7 @@ function AddMatchModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=
   const submit = () => {
     if (!home.trim()||!away.trim()||!comp.trim()||!date.trim()) return;
     onSave({id:`m_${Date.now()}`,homeTeam:home.trim(),awayTeam:away.trim(),competition:comp.trim(),date:date.trim(),time:time.trim(),venue:venue.trim(),homeScore:hs?Number(hs):undefined,awayScore:as_?Number(as_):undefined,status,description:desc.trim()||undefined,createdAt:new Date().toISOString()});
-    setHome(""); setAway(""); setComp(""); setDate(""); setTime(""); setVenue("ملعب حصاحيصا"); setStatus("upcoming"); setHs(""); setAs(""); setDesc(""); onClose();
+    setHome(""); setAway(""); setComp(""); setDate(""); setTime(""); setVenue("ملعب الحصاحيصا"); setStatus("upcoming"); setHs(""); setAs(""); setDesc(""); onClose();
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -1162,7 +1162,7 @@ export default function SportsScreen() {
             <Animated.View entering={ZoomIn.springify().damping(16)} style={s.pinCard}>
               <LinearGradient colors={[Colors.cardBgElevated,Colors.cardBg]} style={s.pinInner}>
                 <View style={s.pinIconBox}><Ionicons name="football" size={32} color={Colors.primary} /></View>
-                <Text style={s.pinTitle}>إدارة حصاحيصا كورة</Text>
+                <Text style={s.pinTitle}>إدارة الحصاحيصا كورة</Text>
                 <Text style={s.pinSub}>أدخل الرمز السري للوصول إلى لوحة الإدارة</Text>
                 <TextInput style={s.pinInput} value={pinInput} onChangeText={v=>{setPinInput(v);setPinError("");}} placeholder="••••" placeholderTextColor={Colors.textMuted} secureTextEntry keyboardType="numeric" textAlign="center" maxLength={6} />
                 {pinError ? <Text style={s.pinError}>{pinError}</Text> : null}
@@ -1212,7 +1212,7 @@ export default function SportsScreen() {
             <View style={{flexDirection:"row-reverse",alignItems:"center",gap:10}}>
               <View style={s.logoBox}><Ionicons name="football" size={22} color={Colors.primary} /></View>
               <View>
-                <Text style={s.brandName}>حصاحيصا كورة حديثة</Text>
+                <Text style={s.brandName}>الحصاحيصا كورة حديثة</Text>
                 <Text style={s.brandSub}>أخبار · لاعبون · مباريات · أندية</Text>
               </View>
             </View>

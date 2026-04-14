@@ -51,7 +51,7 @@ const Scene0_City = () => {
           transition={{ duration: 2, delay: 0.5, ease: EASE_CINEMATIC }}
           dir="rtl"
         >
-          حصاحيصا
+          الحصاحيصا
         </motion.h1>
         
         <motion.p
@@ -259,7 +259,7 @@ const Scene3_Community = () => {
         transition={{ duration: 1.5, delay: 2, ease: EASE_CINEMATIC }}
       >
         <h2 className="text-[4vw] font-serif text-white" dir="rtl">
-          ابقَ على تواصل مع أبناء <span className="text-primary">حصاحيصا</span>
+          ابقَ على تواصل مع أبناء <span className="text-primary">الحصاحيصا</span>
         </h2>
       </motion.div>
     </motion.div>

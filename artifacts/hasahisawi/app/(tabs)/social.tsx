@@ -639,7 +639,7 @@ function AddPostModal({
                     value={content}
                     onChangeText={setContent}
                     placeholder={tr(
-                      "شارك خبراً، سؤالاً، أو فكرة مع مجتمع حصاحيصا...",
+                      "شارك خبراً، سؤالاً، أو فكرة مع مجتمع الحصاحيصا...",
                       "Share news, a question, or an idea with the community..."
                     )}
                     placeholderTextColor={Colors.textMuted}
@@ -1027,7 +1027,7 @@ function ComposeBar({
       </View>
       <View style={cb.inputFake}>
         <Text style={cb.inputFakePlaceholder}>
-          {isRTL ? "شارك شيئاً مع حصاحيصا..." : "Share something with Hasahisa..."}
+          {isRTL ? "شارك شيئاً مع الحصاحيصا..." : "Share something with Hasahisa..."}
         </Text>
       </View>
       <View style={cb.mediaIcons}>
@@ -1333,7 +1333,7 @@ export default function SocialScreen() {
           </View>
         }
         features={[
-          { icon: "newspaper-outline", text: tr("اطّلع على أخبار حصاحيصا لحظةً بلحظة", "Follow Hasahisa news in real time") },
+          { icon: "newspaper-outline", text: tr("اطّلع على أخبار الحصاحيصا لحظةً بلحظة", "Follow Hasahisa news in real time") },
           { icon: "image-outline", text: tr("شارك صوراً وفيديوهات مع المجتمع", "Share photos and videos with the community") },
           { icon: "heart-outline", text: tr("أعجب بالمنشورات وعلّق عليها", "Like and comment on posts") },
           { icon: "chatbubbles-outline", text: tr("شارك في نقاشات المجتمع الحية", "Join live community discussions") },

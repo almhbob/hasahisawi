@@ -346,7 +346,7 @@ export default function EventsScreen() {
             <LinearGradient colors={[PURPLE + "22", "transparent"]} style={styles.organizeHero}>
               <Text style={styles.organizeIcon}>🎪</Text>
               <Text style={styles.organizeTitle}>نظّم فعاليتك</Text>
-              <Text style={styles.organizeSub}>أضف فعاليتك وشاركها مع مجتمع حصاحيصا</Text>
+              <Text style={styles.organizeSub}>أضف فعاليتك وشاركها مع مجتمع الحصاحيصا</Text>
             </LinearGradient>
 
             {/* نوع الفعالية */}
