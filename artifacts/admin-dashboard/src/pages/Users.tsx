@@ -33,7 +33,7 @@ export default function Users() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiJson<{ users: User[] }>("/admin/users?limit=200");
+      const data = await apiJson<{ users: User[] }>("/admin/users?limit=2000");
       setUsers(Array.isArray(data?.users) ? data.users : Array.isArray(data) ? data as unknown as User[] : []);
     } catch {}
     setLoading(false);
