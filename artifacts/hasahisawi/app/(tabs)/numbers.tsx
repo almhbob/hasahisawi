@@ -11,26 +11,18 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
-import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
-
-// ─── Storage ──────────────────────────────────────────────────────────────────
-
-export const NUMBERS_KEY = "important_numbers_v1";
-export const NUMBERS_ADMIN_KEY = "admin_logged_in";
-export const NUMBERS_PIN_KEY = "admin_pin";
-const DEFAULT_PIN = "4444";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
 
 export type NumberEntry = {
   id: string;
@@ -40,6 +32,8 @@ export type NumberEntry = {
   color: string;
   category: string;
   note?: string;
+  sort_order?: number;
+  is_active?: boolean;
 };
 
 type Category = {
@@ -50,26 +44,18 @@ type Category = {
   numbers: NumberEntry[];
 };
 
-// ─── Static Emergency Numbers (real Sudan numbers) ────────────────────────────
-
-const EMERGENCY_CATEGORY: Category = {
-  id: "emergency",
-  title: "الطوارئ",
-  icon: "warning-outline",
-  color: "#EF4444",
-  numbers: [
-    { id: "police",    name: "الشرطة",               number: "999", icon: "shield-checkmark-outline", color: "#3B82F6", category: "emergency", note: "متاح 24 ساعة" },
-    { id: "ambulance", name: "الإسعاف",               number: "998", icon: "medkit-outline",           color: "#EF4444", category: "emergency", note: "متاح 24 ساعة" },
-    { id: "fire",      name: "الدفاع المدني والإطفاء", number: "998", icon: "flame-outline",            color: "#F97316", category: "emergency", note: "متاح 24 ساعة" },
-  ],
-};
-
 const CATEGORY_META: Record<string, { title: string; icon: string; color: string }> = {
-  health:     { title: "الصحة",              icon: "heart-outline",     color: "#2D8A96" },
-  services:   { title: "الخدمات العامة",     icon: "construct-outline", color: "#E07830" },
-  government: { title: "الجهات الحكومية",    icon: "business-outline",  color: "#6366F1" },
-  education:  { title: "التعليم",            icon: "school-outline",    color: "#8B5CF6" },
-  other:      { title: "أخرى",              icon: "apps-outline",      color: Colors.primary },
+  طوارئ:    { title: "الطوارئ",           icon: "warning-outline",   color: "#EF4444" },
+  صحة:      { title: "الصحة",             icon: "heart-outline",     color: "#2D8A96" },
+  خدمات:    { title: "الخدمات العامة",    icon: "construct-outline", color: "#E07830" },
+  حكومي:    { title: "الجهات الحكومية",   icon: "business-outline",  color: "#6366F1" },
+  قانوني:   { title: "القانون",           icon: "hammer-outline",    color: "#8B5CF6" },
+  general:   { title: "عامة",             icon: "apps-outline",      color: Colors.primary },
+  health:    { title: "الصحة",            icon: "heart-outline",     color: "#2D8A96" },
+  services:  { title: "الخدمات العامة",   icon: "construct-outline", color: "#E07830" },
+  government:{ title: "الجهات الحكومية",  icon: "business-outline",  color: "#6366F1" },
+  education: { title: "التعليم",          icon: "school-outline",    color: "#8B5CF6" },
+  other:     { title: "أخرى",            icon: "apps-outline",      color: Colors.primary },
 };
 
 const ICON_OPTIONS = [
@@ -78,11 +64,10 @@ const ICON_OPTIONS = [
   "business-outline","card-outline","scale-outline","receipt-outline",
   "school-outline","document-text-outline","call-outline","people-outline",
   "home-outline","shield-checkmark-outline","medkit-outline","flame-outline",
+  "hammer-outline","shield-outline",
 ];
 
-const COLOR_OPTIONS = ["#2D8A96","#27AE68","#E07830","#6366F1","#8B5CF6","#EF4444","#F97316","#EAB308","#EC4899","#10B981","#06B6D4","#3B82F6"];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const COLOR_OPTIONS = ["#EF4444","#2D8A96","#27AE68","#E07830","#6366F1","#8B5CF6","#F97316","#EAB308","#EC4899","#10B981","#06B6D4","#3B82F6"];
 
 function groupByCategory(entries: NumberEntry[]): Category[] {
   const map: Record<string, NumberEntry[]> = {};
@@ -97,18 +82,9 @@ function groupByCategory(entries: NumberEntry[]): Category[] {
   });
 }
 
-async function loadNumbers(): Promise<NumberEntry[]> {
-  try {
-    if (isFirebaseAvailable()) {
-      return await fsGetCollection<NumberEntry>(COLLECTIONS.NUMBERS, orderBy("category"), orderBy("name"));
-    }
-    return [];
-  } catch { return []; }
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function NumberCard({ entry, index, isAdmin, onDelete }: { entry: NumberEntry; index: number; isAdmin: boolean; onDelete?: (id: string) => void }) {
+function NumberCard({ entry, index, isAdmin, onDelete }: {
+  entry: NumberEntry; index: number; isAdmin: boolean; onDelete?: (id: string) => void
+}) {
   const handleCall = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Linking.openURL(`tel:${entry.number}`);
@@ -118,26 +94,22 @@ function NumberCard({ entry, index, isAdmin, onDelete }: { entry: NumberEntry; i
     <Animated.View entering={FadeInDown.delay(index * 50).springify().damping(18)}>
       <AnimatedPress onPress={handleCall}>
         <View style={styles.card}>
-          <View style={[styles.cardIcon, { backgroundColor: entry.color + "20" }]}>
-            <Ionicons name={entry.icon as any} size={22} color={entry.color} />
+          <View style={[styles.cardIcon, { backgroundColor: (entry.color || Colors.primary) + "20" }]}>
+            <Ionicons name={entry.icon as any || "call-outline"} size={22} color={entry.color || Colors.primary} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardName}>{entry.name}</Text>
-            <Text style={[styles.cardNumber, { color: entry.color }]}>{entry.number}</Text>
+            <Text style={[styles.cardNumber, { color: entry.color || Colors.primary }]}>{entry.number}</Text>
             {entry.note ? <Text style={styles.cardNote}>{entry.note}</Text> : null}
           </View>
           {isAdmin && onDelete ? (
-            <TouchableOpacity
-              onPress={() => onDelete(entry.id)}
-              hitSlop={10}
-              style={styles.deleteBtn}
-            >
+            <TouchableOpacity onPress={() => onDelete(entry.id)} hitSlop={10} style={styles.deleteBtn}>
               <Ionicons name="trash-outline" size={16} color="#EF4444" />
             </TouchableOpacity>
           ) : (
-            <View style={[styles.callBtn, { backgroundColor: entry.color + "18", borderColor: entry.color + "50" }]}>
-              <Ionicons name="call" size={18} color={entry.color} />
-              <Text style={[styles.callLabel, { color: entry.color }]}>اتصال</Text>
+            <View style={[styles.callBtn, { backgroundColor: (entry.color || Colors.primary) + "18", borderColor: (entry.color || Colors.primary) + "50" }]}>
+              <Ionicons name="call" size={18} color={entry.color || Colors.primary} />
+              <Text style={[styles.callLabel, { color: entry.color || Colors.primary }]}>اتصال</Text>
             </View>
           )}
         </View>
@@ -146,9 +118,11 @@ function NumberCard({ entry, index, isAdmin, onDelete }: { entry: NumberEntry; i
   );
 }
 
-function CategorySection({ cat, catIndex, isAdmin, onDelete }: { cat: Category; catIndex: number; isAdmin: boolean; onDelete?: (id: string) => void }) {
+function CategorySection({ cat, catIndex, isAdmin, onDelete }: {
+  cat: Category; catIndex: number; isAdmin: boolean; onDelete?: (id: string) => void
+}) {
   const [expanded, setExpanded] = useState(true);
-  const isEmergency = cat.id === "emergency";
+  const isEmergency = cat.id === "طوارئ";
 
   return (
     <Animated.View entering={FadeInDown.delay(catIndex * 80).springify()} style={styles.section}>
@@ -170,8 +144,8 @@ function CategorySection({ cat, catIndex, isAdmin, onDelete }: { cat: Category; 
           <Text style={[styles.sectionTitle, { color: cat.color }]}>{cat.title}</Text>
           {isEmergency && (
             <View style={[styles.pinBadge, { backgroundColor: "#EF444420", borderColor: "#EF444440" }]}>
-              <Ionicons name="lock-closed" size={10} color="#EF4444" />
-              <Text style={[styles.pinText, { color: "#EF4444" }]}>ثابت</Text>
+              <Ionicons name="shield" size={10} color="#EF4444" />
+              <Text style={[styles.pinText, { color: "#EF4444" }]}>طوارئ</Text>
             </View>
           )}
           <View style={styles.sectionBadge}>
@@ -187,7 +161,7 @@ function CategorySection({ cat, catIndex, isAdmin, onDelete }: { cat: Category; 
               key={entry.id}
               entry={entry}
               index={catIndex * 10 + idx}
-              isAdmin={isAdmin && !isEmergency}
+              isAdmin={isAdmin}
               onDelete={onDelete}
             />
           ))}
@@ -197,24 +171,25 @@ function CategorySection({ cat, catIndex, isAdmin, onDelete }: { cat: Category; 
   );
 }
 
-// ─── Add Number Modal ─────────────────────────────────────────────────────────
-
-function AddNumberModal({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: (e: NumberEntry) => void }) {
+function AddNumberModal({ visible, onClose, onSave, saving }: {
+  visible: boolean; onClose: () => void; onSave: (e: Omit<NumberEntry,"id">) => void; saving: boolean
+}) {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [note, setNote] = useState("");
-  const [category, setCategory] = useState("health");
-  const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [category, setCategory] = useState("صحة");
+  const [color, setColor] = useState(COLOR_OPTIONS[1]);
   const [icon, setIcon] = useState(ICON_OPTIONS[0]);
 
-  const reset = () => { setName(""); setNumber(""); setNote(""); setCategory("health"); setColor(COLOR_OPTIONS[0]); setIcon(ICON_OPTIONS[0]); };
+  const reset = () => { setName(""); setNumber(""); setNote(""); setCategory("صحة"); setColor(COLOR_OPTIONS[1]); setIcon(ICON_OPTIONS[0]); };
 
   const save = () => {
     if (!name.trim() || !number.trim()) { Alert.alert("خطأ", "الاسم والرقم مطلوبان"); return; }
-    onSave({ id: Date.now().toString(), name: name.trim(), number: number.trim(), note: note.trim() || undefined, category, color, icon });
+    onSave({ name: name.trim(), number: number.trim(), note: note.trim() || undefined, category, color, icon });
     reset();
-    onClose();
   };
+
+  const categoryKeys = ["طوارئ", "صحة", "خدمات", "حكومي", "قانوني", "other"];
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -234,19 +209,22 @@ function AddNumberModal({ visible, onClose, onSave }: { visible: boolean; onClos
 
             <Text style={modal.label}>التصنيف</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-              {Object.entries(CATEGORY_META).map(([id, meta]) => (
-                <TouchableOpacity
-                  key={id}
-                  style={[modal.catChip, category === id && { backgroundColor: meta.color + "30", borderColor: meta.color }]}
-                  onPress={() => setCategory(id)}
-                >
-                  <Ionicons name={meta.icon as any} size={14} color={category === id ? meta.color : Colors.textSecondary} />
-                  <Text style={[modal.catChipText, category === id && { color: meta.color }]}>{meta.title}</Text>
-                </TouchableOpacity>
-              ))}
+              {categoryKeys.map((id) => {
+                const meta = CATEGORY_META[id] ?? CATEGORY_META.other;
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    style={[modal.catChip, category === id && { backgroundColor: meta.color + "30", borderColor: meta.color }]}
+                    onPress={() => setCategory(id)}
+                  >
+                    <Ionicons name={meta.icon as any} size={14} color={category === id ? meta.color : Colors.textSecondary} />
+                    <Text style={[modal.catChipText, category === id && { color: meta.color }]}>{meta.title}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
-            <Text style={modal.label}>لون الأيقونة</Text>
+            <Text style={modal.label}>اللون</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {COLOR_OPTIONS.map(c => (
                 <TouchableOpacity key={c} onPress={() => setColor(c)} style={[modal.colorDot, { backgroundColor: c }, color === c && modal.colorDotActive]} />
@@ -266,8 +244,8 @@ function AddNumberModal({ visible, onClose, onSave }: { visible: boolean; onClos
               <TouchableOpacity style={modal.cancelBtn} onPress={() => { reset(); onClose(); }}>
                 <Text style={modal.cancelText}>إلغاء</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[modal.saveBtn, { backgroundColor: Colors.primary }]} onPress={save}>
-                <Text style={modal.saveText}>حفظ</Text>
+              <TouchableOpacity style={[modal.saveBtn, { backgroundColor: Colors.primary, opacity: saving ? 0.6 : 1 }]} onPress={save} disabled={saving}>
+                {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={modal.saveText}>حفظ</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -277,65 +255,118 @@ function AddNumberModal({ visible, onClose, onSave }: { visible: boolean; onClos
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-
 export default function NumbersScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const auth = useAuth();
 
-  const [customNumbers, setCustomNumbers] = useState<NumberEntry[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [numbers, setNumbers] = useState<NumberEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState("");
+  const [validatedPin, setValidatedPin] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const load = async () => {
-    const nums = await loadNumbers();
-    setCustomNumbers(nums);
-    const adm = await AsyncStorage.getItem(NUMBERS_ADMIN_KEY);
-    setIsAdmin(adm === "true");
+  useEffect(() => {
+    setIsAdmin(auth.user?.role === "admin" || auth.user?.role === "moderator");
+  }, [auth.user]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const base = getApiUrl();
+      if (!base) { setNumbers([]); return; }
+      const res = await fetch(`${base}/api/emergency-numbers`);
+      if (res.ok) {
+        const data = await res.json();
+        setNumbers(data.numbers || []);
+      }
+    } catch (e) {
+      console.error("Emergency numbers load error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const categories = groupByCategory(numbers);
+  const total = numbers.length;
+
+  const emergencyNums = numbers.filter(n => n.category === "طوارئ");
+  const firstPolice = emergencyNums.find(n => n.name.includes("شرطة") || n.number === "999");
+  const firstAmbulance = emergencyNums.find(n => n.name.includes("إسعاف") || n.number.includes("1515"));
+
+  const adminHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {};
+    if (auth.token) headers["Authorization"] = `Bearer ${auth.token}`;
+    if (validatedPin) headers["x-admin-pin"] = validatedPin;
+    return headers;
   };
-
-  useEffect(() => { load(); }, []);
-  useFocusEffect(useCallback(() => { load(); }, []));
-
-  const customCategories = groupByCategory(customNumbers);
-  const allCategories = [EMERGENCY_CATEGORY, ...customCategories];
-  const total = allCategories.reduce((s, c) => s + c.numbers.length, 0);
 
   const handleDelete = async (id: string) => {
     try {
-      await fsDeleteDoc(COLLECTIONS.NUMBERS, id);
-      setCustomNumbers(prev => prev.filter(n => n.id !== id));
+      const base = getApiUrl();
+      if (!base) return;
+      const res = await fetch(`${base}/api/admin/emergency-numbers/${id}`, {
+        method: "DELETE",
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        setNumbers(prev => prev.filter(n => n.id !== id));
+      } else {
+        Alert.alert("خطأ", "تعذّر الحذف");
+      }
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
-  const handleAdd = async (entry: NumberEntry) => {
+  const handleAdd = async (entry: Omit<NumberEntry, "id">) => {
+    setSaving(true);
     try {
-      const newId = await fsAddDoc(COLLECTIONS.NUMBERS, {
-        name: entry.name, number: entry.number,
-        icon: entry.icon, color: entry.color,
-        category: entry.category, note: entry.note ?? null,
+      const base = getApiUrl();
+      if (!base) return;
+      const res = await fetch(`${base}/api/admin/emergency-numbers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify(entry),
       });
-      setCustomNumbers(prev => [...prev, { ...entry, id: newId }]);
+      if (res.ok) {
+        const newNum = await res.json();
+        setNumbers(prev => [...prev, newNum]);
+        setShowAddModal(false);
+      } else {
+        const err = await res.json();
+        Alert.alert("خطأ", err.error || "تعذّر الحفظ");
+      }
     } catch { Alert.alert("خطأ", "تعذّر الحفظ"); }
+    finally { setSaving(false); }
   };
 
   const handleAdminLogin = async () => {
-    const storedPin = await AsyncStorage.getItem(NUMBERS_PIN_KEY) || DEFAULT_PIN;
-    if (pin === storedPin) {
-      await AsyncStorage.setItem(NUMBERS_ADMIN_KEY, "true");
-      setIsAdmin(true);
-      setPin("");
-      setShowPinModal(false);
-    } else {
-      Alert.alert("خطأ", "رمز PIN غير صحيح");
-    }
+    try {
+      const base = getApiUrl();
+      if (!base) { Alert.alert("خطأ", "لا يوجد اتصال بالخادم"); return; }
+      const res = await fetch(`${base}/api/admin/validate-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      if (res.ok) {
+        setIsAdmin(true);
+        setValidatedPin(pin);
+        setPin("");
+        setShowPinModal(false);
+      } else {
+        Alert.alert("خطأ", "رمز PIN غير صحيح");
+      }
+    } catch { Alert.alert("خطأ", "خطأ في الاتصال بالخادم"); }
   };
 
   return (
     <View style={styles.root}>
-      {/* Header */}
       <LinearGradient
         colors={[Colors.bg, Colors.cardBg]}
         style={[styles.header, { paddingTop: topPad + 16 }]}
@@ -346,7 +377,7 @@ export default function NumbersScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>الأرقام المهمة</Text>
-            <Text style={styles.headerSub}>{total} رقم في {allCategories.length} أقسام — اضغط للاتصال المباشر</Text>
+            <Text style={styles.headerSub}>{total} رقم — اضغط للاتصال المباشر</Text>
           </View>
           {isAdmin ? (
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
@@ -359,60 +390,81 @@ export default function NumbersScreen() {
           )}
         </Animated.View>
 
-        {/* ملخص الطوارئ */}
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.emergencyStrip}>
           <Ionicons name="alert-circle" size={16} color="#EF4444" />
           <Text style={styles.emergencyText}>طوارئ سريعة:</Text>
-          <TouchableOpacity onPress={() => Linking.openURL("tel:999")} style={styles.emergencyChip}>
-            <Ionicons name="shield" size={12} color="#3B82F6" />
-            <Text style={[styles.emergencyChipText, { color: "#3B82F6" }]}>شرطة 999</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => Linking.openURL("tel:998")} style={styles.emergencyChip}>
-            <Ionicons name="medkit" size={12} color="#EF4444" />
-            <Text style={[styles.emergencyChipText, { color: "#EF4444" }]}>إسعاف 998</Text>
-          </TouchableOpacity>
+          {firstPolice && (
+            <TouchableOpacity onPress={() => Linking.openURL(`tel:${firstPolice.number}`)} style={styles.emergencyChip}>
+              <Ionicons name="shield" size={12} color="#3B82F6" />
+              <Text style={[styles.emergencyChipText, { color: "#3B82F6" }]}>{firstPolice.name} {firstPolice.number}</Text>
+            </TouchableOpacity>
+          )}
+          {firstAmbulance && (
+            <TouchableOpacity onPress={() => Linking.openURL(`tel:${firstAmbulance.number}`)} style={styles.emergencyChip}>
+              <Ionicons name="medkit" size={12} color="#EF4444" />
+              <Text style={[styles.emergencyChipText, { color: "#EF4444" }]}>{firstAmbulance.name} {firstAmbulance.number}</Text>
+            </TouchableOpacity>
+          )}
+          {!firstPolice && !firstAmbulance && (
+            <>
+              <TouchableOpacity onPress={() => Linking.openURL("tel:999")} style={styles.emergencyChip}>
+                <Ionicons name="shield" size={12} color="#3B82F6" />
+                <Text style={[styles.emergencyChipText, { color: "#3B82F6" }]}>شرطة 999</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Linking.openURL("tel:1515")} style={styles.emergencyChip}>
+                <Ionicons name="medkit" size={12} color="#EF4444" />
+                <Text style={[styles.emergencyChipText, { color: "#EF4444" }]}>إسعاف 1515</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
       </LinearGradient>
 
-      {/* Categories */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120, paddingTop: 16 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {allCategories.map((cat, idx) => (
-          <CategorySection
-            key={cat.id}
-            cat={cat}
-            catIndex={idx}
-            isAdmin={isAdmin}
-            onDelete={handleDelete}
-          />
-        ))}
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, marginTop: 12 }}>جاري التحميل...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120, paddingTop: 16 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {categories.map((cat, idx) => (
+            <CategorySection
+              key={cat.id}
+              cat={cat}
+              catIndex={idx}
+              isAdmin={isAdmin}
+              onDelete={handleDelete}
+            />
+          ))}
 
-        {customNumbers.length === 0 && !isAdmin && (
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyHint}>
-            <Ionicons name="phone-portrait-outline" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyHintTitle}>لا توجد أرقام محلية بعد</Text>
-            <Text style={styles.emptyHintSub}>يمكن للمسؤول إضافة أرقام المستشفيات والجهات المحلية والخدمات من خلال لوحة التحكم</Text>
-          </Animated.View>
-        )}
+          {numbers.length === 0 && (
+            <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyHint}>
+              <Ionicons name="phone-portrait-outline" size={36} color={Colors.textMuted} />
+              <Text style={styles.emptyHintTitle}>لا توجد أرقام بعد</Text>
+              <Text style={styles.emptyHintSub}>يمكن للمسؤول إضافة أرقام المستشفيات والجهات المحلية من خلال الإعدادات</Text>
+            </Animated.View>
+          )}
 
-        {isAdmin && (
-          <TouchableOpacity
-            style={styles.addRow}
-            onPress={() => setShowAddModal(true)}
-          >
-            <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-            <Text style={styles.addRowText}>إضافة رقم جديد</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          {isAdmin && (
+            <TouchableOpacity style={styles.addRow} onPress={() => setShowAddModal(true)}>
+              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+              <Text style={styles.addRowText}>إضافة رقم جديد</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      )}
 
-      {/* Add Modal */}
-      <AddNumberModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleAdd} />
+      <AddNumberModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={handleAdd}
+        saving={saving}
+      />
 
-      {/* Admin PIN Modal */}
       <Modal visible={showPinModal} transparent animationType="fade">
         <View style={modal.overlay}>
           <View style={[modal.sheet, { paddingBottom: 24 }]}>
@@ -442,8 +494,6 @@ export default function NumbersScreen() {
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
@@ -499,10 +549,10 @@ const modal = StyleSheet.create({
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   colorDot: { width: 28, height: 28, borderRadius: 14, marginRight: 8, borderWidth: 2, borderColor: "transparent" },
   colorDotActive: { borderColor: Colors.textPrimary, transform: [{ scale: 1.2 }] },
-  iconBtn: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg, marginRight: 8 },
-  actions: { flexDirection: "row", gap: 12, marginTop: 4 },
-  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  iconBtn: { width: 38, height: 38, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, justifyContent: "center", alignItems: "center", marginRight: 8, backgroundColor: Colors.bg },
+  actions: { flexDirection: "row", gap: 12, marginTop: 8 },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  saveBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center" },
+  saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

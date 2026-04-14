@@ -5,9 +5,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
+import { getApiUrl } from "@/lib/query-client";
+import { useAuth } from "@/lib/auth-context";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -884,6 +885,7 @@ type KouraTab = "news"|"players"|"matches"|"clubs";
 export default function SportsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS==="web" ? 67 : insets.top;
+  const auth = useAuth();
 
   const [posts,   setPosts]   = useState<KouraPost[]>([]);
   const [players, setPlayers] = useState<KouraPlayer[]>([]);
@@ -892,6 +894,7 @@ export default function SportsScreen() {
   const [tab,     setTab]     = useState<KouraTab>("news");
   const [search,  setSearch]  = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [validatedPin, setValidatedPin] = useState<string | null>(null);
   const [pinModal, setPinModal]   = useState(false);
   const [pinInput, setPinInput]   = useState("");
   const [pinError, setPinError]   = useState("");
@@ -907,73 +910,201 @@ export default function SportsScreen() {
   const [addClub,   setAddClub]   = useState(false);
   const [featModal, setFeatModal] = useState(false);
 
-  const load = async () => {
-    const [rp, rpl, rm, adm] = await Promise.all([
-      AsyncStorage.getItem(POSTS_KEY), AsyncStorage.getItem(PLAYERS_KEY),
-      AsyncStorage.getItem(MATCHES_KEY),
-      AsyncStorage.getItem(ADMIN_KEY),
+  useEffect(() => {
+    setIsAdmin(auth.user?.role === "admin" || auth.user?.role === "moderator");
+  }, [auth.user]);
+
+  const apiGet = useCallback(async (path: string) => {
+    const base = getApiUrl();
+    if (!base) return null;
+    try {
+      const res = await fetch(`${base}${path}`);
+      if (res.ok) return res.json();
+    } catch {}
+    return null;
+  }, []);
+
+  const apiPost = useCallback(async (path: string, body: unknown) => {
+    const base = getApiUrl();
+    const token = auth.token;
+    if (!base) return null;
+    const headers: Record<string,string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (validatedPin) headers["x-admin-pin"] = validatedPin;
+    try {
+      const res = await fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+      if (res.ok) return res.json();
+    } catch {}
+    return null;
+  }, [auth.token, validatedPin]);
+
+  const apiDelete = useCallback(async (path: string) => {
+    const base = getApiUrl();
+    const token = auth.token;
+    if (!base) return false;
+    const headers: Record<string,string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (validatedPin) headers["x-admin-pin"] = validatedPin;
+    if (!token && !validatedPin) return false;
+    try {
+      const res = await fetch(`${base}${path}`, { method: "DELETE", headers });
+      return res.ok;
+    } catch { return false; }
+  }, [auth.token, validatedPin]);
+
+  const load = useCallback(async () => {
+    const [postsData, playersData, matchesData] = await Promise.all([
+      apiGet("/api/sports/posts"),
+      apiGet("/api/sports/players"),
+      apiGet("/api/sports/matches"),
     ]);
-    setPosts(rp ? JSON.parse(rp) : []);
-    setPlayers(rpl ? JSON.parse(rpl) : []);
-    setMatches(rm ? JSON.parse(rm) : []);
-    setIsAdmin(adm === "true");
-    // Clubs from Firestore
+    if (postsData?.posts) {
+      setPosts(postsData.posts.map((p: any) => ({
+        id: String(p.id), title: p.title, body: p.content,
+        category: p.type === "news" ? "خبر" : p.type === "result" ? "نتيجة" : "خبر",
+        imageUrl: p.image_url || undefined, author: p.author_name,
+        likes: p.likes, likedByMe: false, comments: [], createdAt: p.created_at,
+      })));
+    }
+    if (playersData?.players) {
+      setPlayers(playersData.players.map((p: any) => ({
+        id: String(p.id), name: p.name, position: p.position,
+        club: p.team, number: "", age: p.age ? String(p.age) : "",
+        bio: p.bio || undefined, imageUrl: p.photo_url || undefined,
+        goals: p.goals, assists: p.assists, matches: p.matches_played,
+        featured: false,
+      })));
+    }
+    if (matchesData?.matches) {
+      setMatches(matchesData.matches.map((m: any) => ({
+        id: String(m.id), teamA: m.home_team, teamB: m.away_team,
+        scoreA: m.home_score != null ? String(m.home_score) : undefined,
+        scoreB: m.away_score != null ? String(m.away_score) : undefined,
+        date: m.match_date, venue: m.venue, status: m.status, notes: m.notes,
+      })));
+    }
+    // Clubs from Firestore (fallback)
     const fsClubs = await loadSportClubs();
     setClubs(fsClubs);
-  };
-  useEffect(()=>{ load(); },[]);
-  useFocusEffect(useCallback(()=>{ load(); },[]));
+  }, [apiGet]);
+
+  useEffect(()=>{ load(); },[load]);
+  useFocusEffect(useCallback(()=>{ load(); },[load]));
 
   const adminLogin = async () => {
-    if (pinInput===KOURA_PIN) {
-      await AsyncStorage.setItem(ADMIN_KEY,"true");
-      setIsAdmin(true); setPinModal(false); setPinInput(""); setPinError("");
-      if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
-      setPinError("رمز غير صحيح");
-      if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
+    const base = getApiUrl();
+    if (!base) { setPinError("لا يوجد اتصال بالخادم"); return; }
+    try {
+      const res = await fetch(`${base}/api/admin/validate-pin`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      if (res.ok) {
+        setIsAdmin(true); setValidatedPin(pinInput);
+        setPinModal(false); setPinInput(""); setPinError("");
+        if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setPinError("رمز غير صحيح");
+        if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch { setPinError("خطأ في الاتصال"); }
   };
-  const logout = async () => { await AsyncStorage.setItem(ADMIN_KEY,"false"); setIsAdmin(false); };
+  const logout = async () => { setIsAdmin(false); setValidatedPin(null); };
 
   // Posts
-  const savePost = async (p:KouraPost) => { const u=[p,...posts]; setPosts(u); await AsyncStorage.setItem(POSTS_KEY,JSON.stringify(u)); };
-  const likePost = async (id:string) => {
+  const savePost = async (p: KouraPost) => {
+    const result = await apiPost("/api/sports/posts", {
+      title: p.title, content: p.body,
+      type: p.category === "نتيجة" ? "result" : p.category === "منافسة" ? "match_preview" : "news",
+      image_url: p.imageUrl || null,
+    });
+    if (result) {
+      const mapped: KouraPost = { ...p, id: String(result.id) };
+      setPosts(prev => [mapped, ...prev]);
+    }
+  };
+  const likePost = async (id: string) => {
     if (Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const u=posts.map(p=>p.id===id?{...p,likes:p.likedByMe?p.likes-1:p.likes+1,likedByMe:!p.likedByMe}:p);
-    setPosts(u); await AsyncStorage.setItem(POSTS_KEY,JSON.stringify(u));
-    if (selPost?.id===id) setSelPost(u.find(p=>p.id===id)||null);
+    const base = getApiUrl();
+    if (base) {
+      fetch(`${base}/api/sports/posts/${id}/like`, { method: "PATCH" })
+        .then(r => r.ok ? r.json() : null).then(data => {
+          if (data) {
+            setPosts(prev => prev.map(p => p.id===id ? { ...p, likes: data.likes, likedByMe: !p.likedByMe } : p));
+            if (selPost?.id===id) setSelPost(prev => prev ? { ...prev, likes: data.likes } : null);
+          }
+        }).catch(() => {});
+    }
+    // Optimistic update
+    setPosts(prev => prev.map(p => p.id===id ? { ...p, likes: p.likedByMe?p.likes-1:p.likes+1, likedByMe: !p.likedByMe } : p));
   };
   const addComment = async (pid:string,text:string,author:string) => {
     const cmt:PostComment={id:`c_${Date.now()}`,author,text,createdAt:new Date().toISOString()};
     const u=posts.map(p=>p.id===pid?{...p,comments:[...p.comments,cmt]}:p);
-    setPosts(u); await AsyncStorage.setItem(POSTS_KEY,JSON.stringify(u));
+    setPosts(u);
     setSelPost(u.find(p=>p.id===pid)||null);
   };
-  const deletePost = async (id:string) => { const u=posts.filter(p=>p.id!==id); setPosts(u); await AsyncStorage.setItem(POSTS_KEY,JSON.stringify(u)); };
+  const deletePost = async (id: string) => {
+    const ok = await apiDelete(`/api/sports/posts/${id}`);
+    if (ok) setPosts(prev => prev.filter(p => p.id!==id));
+    else Alert.alert("خطأ", "تعذّر الحذف");
+  };
 
   // Players
-  const savePlayer = async (p:KouraPlayer) => {
-    const ex=players.find(x=>x.id===p.id);
-    const u=ex?players.map(x=>x.id===p.id?p:x):[p,...players];
-    setPlayers(u); await AsyncStorage.setItem(PLAYERS_KEY,JSON.stringify(u)); setEditPlayer(undefined);
+  const savePlayer = async (p: KouraPlayer) => {
+    const body = { name: p.name, position: p.position, team: p.club, age: p.age ? Number(p.age) : null, bio: p.bio || null, photo_url: p.imageUrl || null };
+    const ex = players.find(x => x.id===p.id);
+    if (ex) {
+      const base = getApiUrl(); const token = auth.token;
+      if (base && token) {
+        try {
+          const res = await fetch(`${base}/api/sports/players/${p.id}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body),
+          });
+          if (res.ok) setPlayers(prev => prev.map(x => x.id===p.id ? p : x));
+        } catch {}
+      }
+    } else {
+      const result = await apiPost("/api/sports/players", body);
+      if (result) setPlayers(prev => [{ ...p, id: String(result.id) }, ...prev]);
+    }
+    setEditPlayer(undefined);
   };
-  const deletePlayer = async (id:string) => { const u=players.filter(p=>p.id!==id); setPlayers(u); await AsyncStorage.setItem(PLAYERS_KEY,JSON.stringify(u)); setPlayerDet(false); };
-  const featurePlayer = async (id:string,days:number) => {
+  const deletePlayer = async (id: string) => {
+    const ok = await apiDelete(`/api/sports/players/${id}`);
+    if (ok) { setPlayers(prev => prev.filter(p => p.id!==id)); setPlayerDet(false); }
+    else Alert.alert("خطأ", "تعذّر الحذف");
+  };
+  const featurePlayer = async (id: string, days: number) => {
+    // Feature is local-only for now (not in DB schema)
     const u=players.map(p=>{
       if (p.id!==id) return p;
       if (days===0) return {...p,featured:false,featuredUntil:undefined,featuredDays:undefined};
       const until=new Date(); until.setDate(until.getDate()+days);
       return {...p,featured:true,featuredUntil:until.toISOString(),featuredDays:days};
     });
-    setPlayers(u); await AsyncStorage.setItem(PLAYERS_KEY,JSON.stringify(u));
+    setPlayers(u);
     setFeatModal(false); setPlayerDet(false);
     if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   // Matches
-  const saveMatch = async (m:KouraMatch) => { const u=[m,...matches]; setMatches(u); await AsyncStorage.setItem(MATCHES_KEY,JSON.stringify(u)); };
-  const deleteMatch = async (id:string) => { const u=matches.filter(m=>m.id!==id); setMatches(u); await AsyncStorage.setItem(MATCHES_KEY,JSON.stringify(u)); };
+  const saveMatch = async (m: KouraMatch) => {
+    const result = await apiPost("/api/sports/matches", {
+      home_team: m.teamA, away_team: m.teamB,
+      home_score: m.scoreA != null ? Number(m.scoreA) : null,
+      away_score: m.scoreB != null ? Number(m.scoreB) : null,
+      match_date: m.date, venue: m.venue || "ملعب الحصاحيصا",
+      status: m.status || "upcoming", notes: m.notes || "",
+    });
+    if (result) setMatches(prev => [{ ...m, id: String(result.id) }, ...prev]);
+  };
+  const deleteMatch = async (id: string) => {
+    const ok = await apiDelete(`/api/sports/matches/${id}`);
+    if (ok) setMatches(prev => prev.filter(m => m.id!==id));
+    else Alert.alert("خطأ", "تعذّر الحذف");
+  };
 
   // Clubs — Firestore
   const saveClub = async (c: SportClub) => {

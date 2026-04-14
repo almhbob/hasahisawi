@@ -61,6 +61,26 @@ function safeUserPayload(user: Record<string, unknown>) {
 }
 
 export async function initHasahisawiDb() {
+  // ══ جدول المستخدمين أولاً — لأن كل الجداول الأخرى تُشير إليه ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      national_id VARCHAR(30) UNIQUE,
+      phone VARCHAR(20) UNIQUE,
+      email VARCHAR(200) UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+
   await query(`
     CREATE TABLE IF NOT EXISTS social_posts (
       id SERIAL PRIMARY KEY,
@@ -130,24 +150,6 @@ export async function initHasahisawiDb() {
     INSERT INTO admin_settings (key, value) VALUES ('gov_reports_enabled', 'true')
     ON CONFLICT (key) DO NOTHING
   `);
-  await query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      national_id VARCHAR(30) UNIQUE,
-      phone VARCHAR(20) UNIQUE,
-      email VARCHAR(200) UNIQUE,
-      password_hash VARCHAR(255) NOT NULL,
-      role VARCHAR(20) NOT NULL DEFAULT 'user',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -837,7 +839,106 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`);
   await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS delivery_desc TEXT`);
 
-  console.log("Hasahisawi DB initialized");
+  // ══ جدول المفقودات والموجودات ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS lost_items (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reporter_name VARCHAR(150) NOT NULL DEFAULT 'مجهول',
+      item_name VARCHAR(200) NOT NULL,
+      category VARCHAR(30) NOT NULL DEFAULT 'other',
+      description TEXT NOT NULL DEFAULT '',
+      last_seen VARCHAR(300) NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      status VARCHAR(10) NOT NULL DEFAULT 'lost' CHECK (status IN ('lost','found')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ══ جداول الرياضة ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_posts (
+      id SERIAL PRIMARY KEY,
+      author_name VARCHAR(100) NOT NULL DEFAULT 'مجهول',
+      author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type VARCHAR(20) NOT NULL DEFAULT 'news' CHECK (type IN ('news','result','announcement','match_preview')),
+      title VARCHAR(300) NOT NULL,
+      content TEXT NOT NULL,
+      team VARCHAR(100),
+      image_url TEXT,
+      likes INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_players (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      position VARCHAR(80) NOT NULL DEFAULT '',
+      team VARCHAR(100) NOT NULL DEFAULT '',
+      age INTEGER,
+      goals INTEGER NOT NULL DEFAULT 0,
+      assists INTEGER NOT NULL DEFAULT 0,
+      matches_played INTEGER NOT NULL DEFAULT 0,
+      photo_url TEXT,
+      bio TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_matches (
+      id SERIAL PRIMARY KEY,
+      home_team VARCHAR(100) NOT NULL,
+      away_team VARCHAR(100) NOT NULL,
+      home_score INTEGER,
+      away_score INTEGER,
+      match_date TIMESTAMPTZ NOT NULL,
+      venue VARCHAR(200) NOT NULL DEFAULT 'ملعب الحصاحيصا',
+      status VARCHAR(20) NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming','live','finished','postponed')),
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ══ جدول الأرقام الهامة ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS emergency_numbers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      number VARCHAR(50) NOT NULL,
+      category VARCHAR(80) NOT NULL DEFAULT 'general',
+      icon VARCHAR(50) NOT NULL DEFAULT 'call',
+      color VARCHAR(20) NOT NULL DEFAULT '#F97316',
+      note TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 99,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: enRows } = await query(`SELECT COUNT(*) as cnt FROM emergency_numbers`);
+  if (parseInt(enRows[0].cnt, 10) === 0) {
+    const defaultNumbers = [
+      ["الشرطة", "999", "طوارئ", "shield", "#EF4444", "خط طوارئ الشرطة", 1],
+      ["الإسعاف", "1515", "طوارئ", "medical", "#EF4444", "خدمات الإسعاف والطوارئ الطبية", 2],
+      ["الدفاع المدني", "998", "طوارئ", "flame", "#F97316", "مكافحة الحرائق والكوارث", 3],
+      ["مستشفى الحصاحيصا", "0111000001", "صحة", "hospital", "#E74C6F", "المستشفى الرئيسي بالمدينة", 4],
+      ["كهرباء الحصاحيصا", "0111000002", "خدمات", "flash", "#F59E0B", "الإبلاغ عن أعطال الكهرباء", 5],
+      ["مياه الحصاحيصا", "0111000003", "خدمات", "water", "#3B82F6", "الإبلاغ عن مشاكل المياه", 6],
+      ["بلدية الحصاحيصا", "0111000004", "حكومي", "business", "#8B5CF6", "الخدمات البلدية", 7],
+      ["النيابة العامة", "0111000005", "قانوني", "hammer", "#6366F1", "القضايا القانونية", 8],
+    ];
+    for (const [name, number, category, icon, color, note, sort_order] of defaultNumbers) {
+      await query(
+        `INSERT INTO emergency_numbers (name, number, category, icon, color, note, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [name, number, category, icon, color, note, sort_order]
+      );
+    }
+  }
+
+  // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
+  await initPhoneShopsTables();
+
+  console.log("✅ Hasahisawi DB initialized");
 }
 
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
@@ -854,7 +955,17 @@ async function getSessionUser(req: Request): Promise<Record<string, unknown> | n
 
 async function isAdminRequest(req: Request): Promise<boolean> {
   const user = await getSessionUser(req);
-  return user?.role === "admin";
+  if (user?.role === "admin") return true;
+  // Support PIN-based admin access (for mobile app users without accounts)
+  const pinHeader = req.headers["x-admin-pin"] as string | undefined;
+  const pinBody = req.body?.admin_pin as string | undefined;
+  const submittedPin = pinHeader || pinBody;
+  if (submittedPin) {
+    const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+    const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
+    return submittedPin === storedPin;
+  }
+  return false;
 }
 
 router.post("/auth/register", async (req: Request, res: Response) => {
@@ -5192,8 +5303,6 @@ async function initPhoneShopsTables() {
     )
   `);
 }
-initPhoneShopsTables().catch(console.error);
-
 // ─── helper: is owner of shop ────────────────────────────────────
 async function isShopOwner(req: Request, shopId: number): Promise<boolean> {
   const user = await getSessionUser(req);
@@ -5557,6 +5666,269 @@ router.delete("/admin/event-rentals/:id", async (req: Request, res: Response) =>
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM event_rentals WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🔍 المفقودات والموجودات — Lost & Found
+// ════════════════════════════════════════════════════════════════
+
+router.get("/lost-items", async (req: Request, res: Response) => {
+  try {
+    const { status } = req.query;
+    let sql = `SELECT li.*, u.name as user_display_name FROM lost_items li LEFT JOIN users u ON u.id = li.user_id`;
+    const params: unknown[] = [];
+    if (status === "lost" || status === "found") {
+      sql += ` WHERE li.status=$1`;
+      params.push(status);
+    }
+    sql += ` ORDER BY li.created_at DESC LIMIT 200`;
+    const { rows } = await query(sql, params);
+    return res.json({ items: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/lost-items", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { item_name, category, description, last_seen, contact_phone } = req.body;
+    if (!item_name?.trim() || !contact_phone?.trim()) {
+      return res.status(400).json({ error: "اسم الغرض ورقم التواصل مطلوبان" });
+    }
+    const reporter_name = user ? (user.name as string) : "مجهول";
+    const { rows } = await query(
+      `INSERT INTO lost_items (user_id, reporter_name, item_name, category, description, last_seen, contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [user?.id ?? null, reporter_name, item_name.trim(), category || "other",
+       description || "", last_seen || "", contact_phone.trim()]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/lost-items/:id/status", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    if (!["lost", "found"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const { rows } = await query(
+      `UPDATE lost_items SET status=$1 WHERE id=$2 AND (user_id=$3 OR $4::boolean) RETURNING *`,
+      [status, req.params.id, user.id, user.role === "admin"]
+    );
+    if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `DELETE FROM lost_items WHERE id=$1 AND (user_id=$2 OR $3::boolean) RETURNING id`,
+      [req.params.id, user.id, user.role === "admin"]
+    );
+    if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/lost-items", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT li.*, u.name as user_display_name FROM lost_items li LEFT JOIN users u ON u.id = li.user_id ORDER BY li.created_at DESC LIMIT 500`);
+    return res.json({ items: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ⚽ الرياضة — Sports
+// ════════════════════════════════════════════════════════════════
+
+router.get("/sports/posts", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_posts ORDER BY created_at DESC LIMIT 100`);
+    return res.json({ posts: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/posts", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    if (user.role !== "admin" && user.role !== "moderator") return res.status(403).json({ error: "غير مصرح" });
+    const { title, content, type, team, image_url } = req.body;
+    if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO sports_posts (author_name, author_id, title, content, type, team, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [user.name, user.id, title.trim(), content.trim(), type || "news", team || null, image_url || null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/posts/:id/like", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`UPDATE sports_posts SET likes=likes+1 WHERE id=$1 RETURNING likes`, [_req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ likes: rows[0].likes });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/posts/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_posts WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/sports/players", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_players ORDER BY goals DESC, name ASC LIMIT 200`);
+    return res.json({ players: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/players", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO sports_players (name, position, team, age, goals, assists, matches_played, photo_url, bio)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [name.trim(), position || "", team || "", age || null, goals || 0, assists || 0, matches_played || 0, photo_url || null, bio || null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/players/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
+    const { rows } = await query(
+      `UPDATE sports_players SET name=COALESCE($1,name), position=COALESCE($2,position), team=COALESCE($3,team),
+       age=COALESCE($4,age), goals=COALESCE($5,goals), assists=COALESCE($6,assists),
+       matches_played=COALESCE($7,matches_played), photo_url=COALESCE($8,photo_url), bio=COALESCE($9,bio)
+       WHERE id=$10 RETURNING *`,
+      [name, position, team, age, goals, assists, matches_played, photo_url, bio, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/players/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_players WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/sports/matches", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_matches ORDER BY match_date DESC LIMIT 100`);
+    return res.json({ matches: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/matches", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { home_team, away_team, home_score, away_score, match_date, venue, status, notes } = req.body;
+    if (!home_team?.trim() || !away_team?.trim() || !match_date) return res.status(400).json({ error: "الفريقان والتاريخ مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO sports_matches (home_team, away_team, home_score, away_score, match_date, venue, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [home_team.trim(), away_team.trim(), home_score ?? null, away_score ?? null, match_date,
+       venue || "ملعب الحصاحيصا", status || "upcoming", notes || ""]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/matches/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { home_score, away_score, status, notes } = req.body;
+    const { rows } = await query(
+      `UPDATE sports_matches SET home_score=COALESCE($1,home_score), away_score=COALESCE($2,away_score),
+       status=COALESCE($3,status), notes=COALESCE($4,notes) WHERE id=$5 RETURNING *`,
+      [home_score, away_score, status, notes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/matches/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_matches WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 📞 الأرقام المهمة — Emergency Numbers
+// ════════════════════════════════════════════════════════════════
+
+router.get("/emergency-numbers", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM emergency_numbers WHERE is_active=TRUE ORDER BY sort_order ASC, name ASC`);
+    return res.json({ numbers: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/emergency-numbers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM emergency_numbers ORDER BY sort_order ASC, name ASC`);
+    return res.json({ numbers: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/emergency-numbers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, number, category, icon, color, note, sort_order } = req.body;
+    if (!name?.trim() || !number?.trim()) return res.status(400).json({ error: "الاسم والرقم مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO emergency_numbers (name, number, category, icon, color, note, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name.trim(), number.trim(), category || "general", icon || "call", color || "#F97316", note || "", sort_order || 99]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/emergency-numbers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, number, category, icon, color, note, sort_order, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE emergency_numbers SET
+       name=COALESCE($1,name), number=COALESCE($2,number), category=COALESCE($3,category),
+       icon=COALESCE($4,icon), color=COALESCE($5,color), note=COALESCE($6,note),
+       sort_order=COALESCE($7,sort_order), is_active=COALESCE($8,is_active)
+       WHERE id=$9 RETURNING *`,
+      [name, number, category, icon, color, note, sort_order, is_active, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/emergency-numbers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM emergency_numbers WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });

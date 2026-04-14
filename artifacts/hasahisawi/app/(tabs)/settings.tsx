@@ -15,7 +15,6 @@ import type { LostItem } from "./missing";
 import type { Job } from "./jobs";
 import type { Facility } from "./medical";
 import type { School, Institution } from "./student";
-import { LOST_ITEMS_KEY } from "./missing";
 import { MEDICAL_KEY, loadFacilities, getTypeLabel, getTypeIcon, getTypeColor } from "./medical";
 import { SCHOOLS_KEY, loadSchools, getSchoolTypeLabel, getSchoolTypeIcon, getSchoolTypeColor, INSTITUTIONS_KEY, loadInstitutions, getInstitutionTypeLabel, getInstitutionTypeColor, getInstitutionTypeIcon } from "./student";
 import type { FamilyItem, AuctionItem } from "./market";
@@ -1245,8 +1244,18 @@ export default function SettingsScreen() {
     if (hasAccess) loadAll();
   };
 
+  const loadLostItemsFromApi = async (): Promise<LostItem[]> => {
+    try {
+      const base = getApiUrl();
+      if (!base) return [];
+      const res = await fetch(`${base}/api/lost-items`);
+      if (res.ok) { const d = await res.json(); return d.items || []; }
+    } catch {}
+    return [];
+  };
+
   const loadAll = async () => {
-    const [facs, schs, insts, clubs, sevents, ccenters, cevents, rawLost, rawJobs, rawFam, rawAuc] = await Promise.all([
+    const [facs, schs, insts, clubs, sevents, ccenters, cevents, lostItems, rawJobs, rawFam, rawAuc] = await Promise.all([
       loadFacilities(),
       loadSchools(),
       loadInstitutions(),
@@ -1254,7 +1263,7 @@ export default function SettingsScreen() {
       loadSportEvents(),
       loadCulturalCenters(),
       loadCulturalEvents(),
-      AsyncStorage.getItem(LOST_ITEMS_KEY),
+      loadLostItemsFromApi(),
       AsyncStorage.getItem(JOBS_KEY),
       AsyncStorage.getItem(FAMILY_KEY),
       AsyncStorage.getItem(AUCTION_KEY),
@@ -1266,7 +1275,7 @@ export default function SettingsScreen() {
     setSportEvents(sevents);
     setCulturalCenters(ccenters);
     setCulturalEvents(cevents);
-    setLostItems(rawLost ? JSON.parse(rawLost) : []);
+    setLostItems(lostItems);
     setJobs(rawJobs ? JSON.parse(rawJobs) : []);
     setFamilyItems(rawFam ? JSON.parse(rawFam) : []);
     setAuctionItems(rawAuc ? JSON.parse(rawAuc) : []);
@@ -1531,16 +1540,31 @@ export default function SettingsScreen() {
 
   // ── Lost Items ──
   const markLostFound = async (id: string) => {
-    const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-    const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.map(i => i.id === id ? { ...i, status: "found" as const } : i)));
+    try {
+      const base = getApiUrl();
+      const tkn = auth.token;
+      if (base && tkn) {
+        await fetch(`${base}/api/lost-items/${id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${tkn}` },
+          body: JSON.stringify({ status: "found" }),
+        });
+      }
+    } catch {}
     loadAll();
   };
 
   const deleteLostItem = async (id: string) => {
-    const raw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-    const saved: LostItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(LOST_ITEMS_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
+    try {
+      const base = getApiUrl();
+      const tkn = auth.token;
+      if (base && tkn) {
+        await fetch(`${base}/api/lost-items/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${tkn}` },
+        });
+      }
+    } catch {}
     loadAll();
   };
 

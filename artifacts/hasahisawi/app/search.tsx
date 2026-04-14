@@ -22,7 +22,6 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 import UserAvatar from "@/components/UserAvatar";
 import { MEDICAL_KEY } from "./(tabs)/medical";
-import { LOST_ITEMS_KEY } from "./(tabs)/missing";
 import { SCHOOLS_KEY } from "./(tabs)/student";
 import { SPORT_CLUBS_KEY } from "./(tabs)/sports";
 import { CULTURAL_CENTERS_KEY } from "./(tabs)/culture";
@@ -94,27 +93,32 @@ export default function SearchScreen() {
       }
 
       // ── Lost & Found ──
-      const lostRaw = await AsyncStorage.getItem(LOST_ITEMS_KEY);
-      const lostItems: any[] = lostRaw ? JSON.parse(lostRaw) : [];
-      for (const item of lostItems) {
-        if (
-          item.itemName?.toLowerCase().includes(lower) ||
-          item.description?.toLowerCase().includes(lower) ||
-          item.lastSeen?.toLowerCase().includes(lower)
-        ) {
-          found.push({
-            id: "lost_" + item.id,
-            title: item.itemName,
-            subtitle: (item.status === "lost" ? (lang === "ar" ? "مفقود" : "Lost") : (lang === "ar" ? "موجود" : "Found")) + " · " + item.lastSeen,
-            section: "missing",
-            sectionLabel: lang === "ar" ? "المفقودات" : "Lost & Found",
-            icon: "search-outline",
-            color: item.status === "lost" ? Colors.danger : Colors.success,
-            phone: item.contactPhone,
-            route: "/(tabs)/missing",
-          });
+      try {
+        const base = getApiUrl();
+        if (base) {
+          const lostRes = await fetch(`${base}/api/lost-items`);
+          const lostItems: any[] = lostRes.ok ? (await lostRes.json()).items || [] : [];
+          for (const item of lostItems) {
+            if (
+              item.item_name?.toLowerCase().includes(lower) ||
+              item.description?.toLowerCase().includes(lower) ||
+              item.last_seen?.toLowerCase().includes(lower)
+            ) {
+              found.push({
+                id: "lost_" + item.id,
+                title: item.item_name,
+                subtitle: (item.status === "lost" ? (lang === "ar" ? "مفقود" : "Lost") : (lang === "ar" ? "موجود" : "Found")) + " · " + item.last_seen,
+                section: "missing",
+                sectionLabel: lang === "ar" ? "المفقودات" : "Lost & Found",
+                icon: "search-outline",
+                color: item.status === "lost" ? Colors.danger : Colors.success,
+                phone: item.contact_phone,
+                route: "/(tabs)/missing",
+              });
+            }
+          }
         }
-      }
+      } catch {}
 
       // ── Schools ──
       const schRaw = await AsyncStorage.getItem(SCHOOLS_KEY);

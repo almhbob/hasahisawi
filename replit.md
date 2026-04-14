@@ -185,9 +185,42 @@ pnpm --filter @workspace/api-spec run codegen
 - إرسال الصور داخل المحادثات
 - polling كل 3 ثوانٍ
 
+### ٧. المفقودات والأرقام المهمة والرياضة — ترحيل كامل للـ Backend
+
+**جداول قاعدة البيانات الجديدة:**
+- `lost_items` — المفقودات والموجودات
+- `emergency_numbers` — الأرقام المهمة (مع بيانات افتراضية: 8 أرقام)
+- `sports_posts` — أخبار ومنشورات كرة القدم
+- `sports_players` — اللاعبون
+- `sports_matches` — المباريات
+
+**مسارات API الجديدة:**
+- `GET /api/emergency-numbers` — قائمة الأرقام المهمة
+- `POST /api/admin/emergency-numbers` — إضافة رقم (أدمن)
+- `PATCH /api/admin/emergency-numbers/:id` — تحديث رقم (أدمن)
+- `DELETE /api/admin/emergency-numbers/:id` — حذف رقم (أدمن)
+- `GET /api/lost-items` — قائمة المفقودات (مع فلتر `?status=lost|found`)
+- `POST /api/lost-items` — الإبلاغ عن مفقود
+- `PATCH /api/lost-items/:id/status` — تحديث حالة المفقود
+- `DELETE /api/lost-items/:id` — حذف بلاغ
+- `GET /api/sports/posts|players|matches` — بيانات الرياضة
+- `POST/PATCH/DELETE /api/sports/*` — إدارة الرياضة (أدمن)
+
+**شاشات مُحدَّثة:**
+- `numbers.tsx` — يستخدم `GET /api/emergency-numbers` بدلاً من Firebase/AsyncStorage
+- `missing.tsx` — يستخدم `GET /api/lost-items` مع نموذج إبلاغ داخلي
+- `sports.tsx` — يستخدم `GET /api/sports/*` بدلاً من AsyncStorage
+- `settings.tsx` — إدارة المفقودات عبر API
+- `search.tsx` — البحث في المفقودات عبر API
+
+**نظام مصادقة الأدمن المزدوج:**
+- `isAdminRequest()` يدعم: Bearer token للمستخدمين المسجلين + رأس `x-admin-pin` للدخول بـ PIN
+- `POST /api/admin/validate-pin` — التحقق من PIN
+
 ## ثوابت مهمة
 
 - `ACCENT = "#F97316"` (برتقالي)، `ACCENT2 = "#FBBF24"`، `GREEN = "#3EFF9C"`، `BLUE = "#3E9CBF"`
+- PIN الافتراضي للأدمن: `"4444"` (قابل للتغيير من `/api/admin/change-pin`)
 - مناطق المواصلات: 5 مناطق (م1–م5) في `constants/transport-zones.ts`
 - قيم الجنس في قاعدة البيانات: `"male"` | `"female"` (VARCHAR)
 - نتيجة اجتياز اختبار السائق: 7/10
