@@ -591,149 +591,173 @@ export default function HomeScreen() {
 
         {/* ── بطاقة المطور ── */}
         <Animated.View entering={FadeInDown.delay(400).springify().damping(20)} style={styles.devCardOuter}>
-          {/* إطار متوهج */}
           <LinearGradient
-            colors={[Colors.accent + "90", Colors.primary + "70", Colors.cyber + "60", Colors.violet + "70", Colors.accent + "90"]}
+            colors={["#C9A84C", "#F0C040", "#C9A84C", "#8B6914"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.devCardBorder}
           >
-            <LinearGradient
-              colors={["#0D1A12", "#142119", "#0D1A12"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.devCardInner}
-            >
-              {/* شعاع ضوء خلفي */}
-              <View style={styles.devGlowTop} />
-              <View style={styles.devGlowBottom} />
+            <View style={styles.devCardInner}>
 
-              {/* رأس البطاقة */}
-              <View style={styles.devCardTop}>
-                <View style={styles.devBadge}>
-                  <Text style={styles.devBadgeText}>DEVELOPER</Text>
-                </View>
-                <LinearGradient
-                  colors={[Colors.accent + "30", Colors.primary + "20"]}
-                  style={styles.devAppLabel}
-                >
-                  <Text style={styles.devAppLabelText}>حصاحيصاوي v1.0</Text>
-                </LinearGradient>
-              </View>
+              {/* ── Hero Header ── */}
+              <LinearGradient
+                colors={["#1A1200", "#0F1E0A", "#0A1210"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.devHero}
+              >
+                {/* زخارف خلفية */}
+                <View style={[styles.devOrb, { top: -30, right: -20, backgroundColor: "#C9A84C18", width: 130, height: 130 }]} />
+                <View style={[styles.devOrb, { bottom: -20, left: 10, backgroundColor: Colors.primary + "14", width: 90, height: 90 }]} />
+                <View style={[styles.devOrb, { top: 10, left: "40%", backgroundColor: Colors.cyber + "10", width: 60, height: 60 }]} />
 
-              {/* الهوية */}
-              <View style={styles.devIdentity}>
-                <LinearGradient
-                  colors={[Colors.accent, Colors.primary]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={styles.devAvatar}
-                >
-                  <Text style={styles.devAvatarText}>ع</Text>
-                </LinearGradient>
-
-                <View style={styles.devInfo}>
-                  <Text style={styles.devName}>عاصم عبدالرحمن محمد</Text>
-                  <Text style={styles.devRole}>مطوّر تطبيقات · محلل بيانات</Text>
-                  <View style={styles.devContactRow}>
-                    <Ionicons name="location-outline" size={12} color={Colors.primary} />
-                    <Text style={[styles.devContact, { color: Colors.primary }]}>الحصاحيصا · ولاية الجزيرة · السودان</Text>
+                {/* سطر أعلى */}
+                <View style={styles.devHeroTop}>
+                  <LinearGradient
+                    colors={["#C9A84C40", "#C9A84C15"]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.devHeroBadge}
+                  >
+                    <View style={styles.devHeroBadgeDot} />
+                    <Text style={styles.devHeroBadgeText}>MOBILE DEVELOPER</Text>
+                  </LinearGradient>
+                  <View style={styles.devHeroVersion}>
+                    <Text style={styles.devHeroVersionText}>حصاحيصاوي v1.0</Text>
                   </View>
-                  <Text style={styles.devBirth}>م. 2 مايو 1991</Text>
                 </View>
-              </View>
 
-              {/* فاصل متوهج */}
-              <LinearGradient
-                colors={["transparent", Colors.accent + "60", Colors.primary + "60", "transparent"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={[styles.devDivider, { marginBottom: 14 }]}
-              />
+                {/* الهوية الرئيسية */}
+                <View style={styles.devHeroIdentity}>
+                  {/* Avatar */}
+                  <LinearGradient
+                    colors={["#C9A84C", "#F0C040", "#A87820"]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={styles.devAvatarRing}
+                  >
+                    <LinearGradient
+                      colors={["#1A1200", "#0F1800"]}
+                      style={styles.devAvatarInner}
+                    >
+                      <Text style={styles.devAvatarLetter}>ع</Text>
+                    </LinearGradient>
+                  </LinearGradient>
 
-              {/* نبذة تعريفية */}
-              <View style={styles.devBioBox}>
-                <View style={styles.devBioHeader}>
-                  <Ionicons name="person-circle-outline" size={15} color={Colors.accent} />
-                  <Text style={styles.devBioTitle}>نبذة تعريفية</Text>
-                </View>
-                <Text style={styles.devBioText}>
-                  أنا مطوّر تطبيقات جوّال ومحلّل بيانات من مدينة الحصاحيصا، ولاية الجزيرة، السودان.
-                  {"\n\n"}
-                  أمتلك خبرةً متخصصة في بناء تطبيقات React Native وTypeScript، وتحليل البيانات، والأمن السيبراني. أحمل شغفاً حقيقياً بالتقنية وتوظيفها لخدمة المجتمع وتيسير حياة أبناء مدينتي.
-                  {"\n\n"}
-                  حصلت على شهادات دولية معتمدة من Google وIBM وCisco وIntel وFortinet، وأؤمن بأن التكنولوجيا جسرٌ حقيقي نحو تنمية الأوطان.
-                </Text>
-              </View>
-
-              <LinearGradient
-                colors={["transparent", Colors.primary + "30", "transparent"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={[styles.devDivider, { marginBottom: 14 }]}
-              />
-
-              {/* وسائل التواصل */}
-              {[
-                { icon: "logo-whatsapp",  color: "#25D366", label: "+966 530 658 285",              url: "https://wa.me/966530658285" },
-                { icon: "logo-whatsapp",  color: "#25D366", label: "+249 916 897 578",              url: "https://wa.me/249916897578" },
-                { icon: "logo-linkedin",  color: "#0A66C2", label: "linkedin.com/in/asim-abdulrahman", url: "https://www.linkedin.com/in/asim-abdulrahman" },
-                { icon: "logo-facebook",  color: "#1877F2", label: "facebook.com/almhbob2013",     url: "https://www.facebook.com/almhbob2013" },
-                { icon: "mail-outline",   color: Colors.cyber, label: "almhbob.iii@gmail.com",    url: "mailto:almhbob.iii@gmail.com" },
-              ].map((item) => (
-                <AnimatedPress key={item.url} onPress={() => Linking.openURL(item.url)}>
-                  <View style={styles.devSocialRow}>
-                    <View style={[styles.devSocialIcon, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
-                      <Ionicons name={item.icon as any} size={15} color={item.color} />
+                  {/* Info */}
+                  <View style={styles.devHeroInfo}>
+                    <Text style={styles.devHeroName}>عاصم عبدالرحمن محمد</Text>
+                    <Text style={styles.devHeroTitle}>مطوّر تطبيقات جوّال · محلّل بيانات</Text>
+                    <View style={styles.devHeroLocation}>
+                      <Ionicons name="location-sharp" size={11} color="#C9A84C" />
+                      <Text style={styles.devHeroLocationText}>الحصاحيصا، ولاية الجزيرة</Text>
                     </View>
-                    <Text style={[styles.devSocialLabel, { color: item.color }]}>{item.label}</Text>
-                    <Ionicons name="chevron-forward" size={13} color={item.color + "60"} />
                   </View>
-                </AnimatedPress>
-              ))}
+                </View>
 
-              {/* فاصل متوهج */}
-              <LinearGradient
-                colors={["transparent", Colors.violet + "50", Colors.cyber + "50", "transparent"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={[styles.devDivider, { marginTop: 14, marginBottom: 14 }]}
-              />
+                {/* إحصائيات سريعة */}
+                <View style={styles.devStatsRow}>
+                  {[
+                    { value: "5+",  label: "سنوات خبرة" },
+                    { value: "10+", label: "شهادة دولية" },
+                    { value: "3+",  label: "تطبيقات" },
+                  ].map((s, i) => (
+                    <View key={i} style={[styles.devStatItem, i === 1 && styles.devStatItemCenter]}>
+                      <Text style={styles.devStatValue}>{s.value}</Text>
+                      <Text style={styles.devStatLabel}>{s.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </LinearGradient>
 
-              {/* الشهادات والتقنيات */}
-              <Text style={styles.devSectionTitle}>الشهادات والمهارات</Text>
-              <View style={styles.devTechRow}>
-                {[
-                  { label: "React Native",    color: Colors.cyber },
-                  { label: "Data Analytics",  color: Colors.accent },
-                  { label: "Cybersecurity",   color: Colors.danger },
-                  { label: "Cloud DevOps",    color: "#6366F1" },
-                  { label: "Data Science",    color: "#3B82F6" },
-                  { label: "TypeScript",      color: "#60A5FA" },
-                  { label: "Node.js",         color: Colors.primary },
-                ].map(tech => (
-                  <View key={tech.label} style={[styles.devTechBadge, { borderColor: tech.color + "50", backgroundColor: tech.color + "12" }]}>
-                    <View style={[styles.devTechDot, { backgroundColor: tech.color }]} />
-                    <Text style={[styles.devTechText, { color: tech.color }]}>{tech.label}</Text>
-                  </View>
-                ))}
-              </View>
+              {/* ── Body ── */}
+              <View style={styles.devBody}>
 
-              {/* شارة Credly */}
-              <AnimatedPress onPress={() => Linking.openURL("https://www.credly.com/users/asim-abdulrahman")}>
-                <LinearGradient
-                  colors={[Colors.accent + "15", Colors.primary + "10"]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={styles.devCredlyRow}
-                >
-                  <Ionicons name="ribbon-outline" size={16} color={Colors.accent} />
+                {/* النبذة */}
+                <View style={styles.devBioCard}>
+                  <View style={styles.devBioAccent} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.devCredlyTitle}>الشهادات المعتمدة · Credly</Text>
-                    <Text style={styles.devCredlyText}>Google · IBM · Cisco · Intel · Fortinet</Text>
+                    <Text style={styles.devBioHeading}>نبذة تعريفية</Text>
+                    <Text style={styles.devBioText}>
+                      أنا مطوّر تطبيقات جوّال ومحلّل بيانات من مدينة الحصاحيصا، أمتلك خبرةً في بناء تطبيقات React Native وTypeScript وتحليل البيانات والأمن السيبراني. أؤمن بأن التكنولوجيا جسرٌ حقيقي نحو تنمية الأوطان.
+                    </Text>
                   </View>
-                  <Ionicons name="open-outline" size={14} color={Colors.accent + "80"} />
-                </LinearGradient>
-              </AnimatedPress>
+                </View>
 
-              {/* حقوق */}
-              <Text style={styles.devCopyright}>
-                © 2026 · صُنع بـ ❤️ في الحصاحيصا · السودان
-              </Text>
-            </LinearGradient>
+                {/* المهارات */}
+                <View style={styles.devSkillsSection}>
+                  <Text style={styles.devSkillsTitle}>المهارات والتقنيات</Text>
+                  <View style={styles.devSkillsGrid}>
+                    {[
+                      { label: "React Native", color: Colors.cyber,   icon: "phone-portrait-outline" },
+                      { label: "TypeScript",   color: "#60A5FA",      icon: "code-slash-outline" },
+                      { label: "Data Science", color: "#A78BFA",      icon: "analytics-outline" },
+                      { label: "Cybersecurity",color: Colors.danger,  icon: "shield-checkmark-outline" },
+                      { label: "Node.js",      color: Colors.primary, icon: "server-outline" },
+                      { label: "Cloud DevOps", color: "#6366F1",      icon: "cloud-outline" },
+                    ].map(skill => (
+                      <View key={skill.label} style={[styles.devSkillChip, { borderColor: skill.color + "40", backgroundColor: skill.color + "10" }]}>
+                        <Ionicons name={skill.icon as any} size={12} color={skill.color} />
+                        <Text style={[styles.devSkillText, { color: skill.color }]}>{skill.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* الشهادات */}
+                <AnimatedPress onPress={() => Linking.openURL("https://www.credly.com/users/asim-abdulrahman")}>
+                  <LinearGradient
+                    colors={["#C9A84C18", "#C9A84C08"]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.devCertCard}
+                  >
+                    <LinearGradient
+                      colors={["#C9A84C", "#F0C040"]}
+                      style={styles.devCertIcon}
+                    >
+                      <Ionicons name="ribbon" size={18} color="#000" />
+                    </LinearGradient>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.devCertTitle}>الشهادات المعتمدة دولياً</Text>
+                      <Text style={styles.devCertSub}>Google · IBM · Cisco · Intel · Fortinet</Text>
+                    </View>
+                    <View style={styles.devCertArrow}>
+                      <Ionicons name="chevron-back" size={14} color="#C9A84C" />
+                    </View>
+                  </LinearGradient>
+                </AnimatedPress>
+
+                {/* وسائل التواصل */}
+                <Text style={styles.devContactTitle}>وسائل التواصل</Text>
+                <View style={styles.devContactGrid}>
+                  {[
+                    { icon: "logo-whatsapp", color: "#25D366", label: "واتساب",  url: "https://wa.me/966530658285" },
+                    { icon: "logo-linkedin", color: "#0A66C2", label: "لينكدإن", url: "https://www.linkedin.com/in/asim-abdulrahman" },
+                    { icon: "logo-facebook", color: "#1877F2", label: "فيسبوك",  url: "https://www.facebook.com/almhbob2013" },
+                    { icon: "mail",          color: Colors.cyber, label: "الإيميل", url: "mailto:almhbob.iii@gmail.com" },
+                  ].map(item => (
+                    <AnimatedPress key={item.url} onPress={() => Linking.openURL(item.url)}>
+                      <View style={[styles.devContactBtn, { borderColor: item.color + "50", backgroundColor: item.color + "12" }]}>
+                        <Ionicons name={item.icon as any} size={18} color={item.color} />
+                        <Text style={[styles.devContactBtnText, { color: item.color }]}>{item.label}</Text>
+                      </View>
+                    </AnimatedPress>
+                  ))}
+                </View>
+
+                {/* زر عرض الملف */}
+                <AnimatedPress onPress={() => router.push("/designer")}>
+                  <LinearGradient
+                    colors={["#C9A84C", "#F0C040", "#C9A84C"]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.devProfileBtn}
+                  >
+                    <Ionicons name="person-circle" size={18} color="#000" />
+                    <Text style={styles.devProfileBtnText}>عرض الملف الكامل</Text>
+                    <Ionicons name="arrow-back" size={16} color="#000" />
+                  </LinearGradient>
+                </AnimatedPress>
+
+                {/* فوتر */}
+                <Text style={styles.devFooter}>© 2026 · صُنع بـ ❤️ في الحصاحيصا · السودان</Text>
+              </View>
+            </View>
           </LinearGradient>
         </Animated.View>
 
@@ -994,157 +1018,219 @@ const styles = StyleSheet.create({
   /* ── Developer Card ── */
   devCardOuter: {
     marginTop: 32, marginHorizontal: 4,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 20,
+    shadowColor: "#C9A84C",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 30,
+    elevation: 22,
   },
   devCardBorder: {
-    borderRadius: 24,
-    padding: 1.5,
+    borderRadius: 26,
+    padding: 2,
   },
   devCardInner: {
-    borderRadius: 23,
-    padding: 20,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#0A100A",
+  },
+
+  /* Hero */
+  devHero: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 0,
     overflow: "hidden",
   },
-  devGlowTop: {
-    position: "absolute", top: -40, left: "20%",
-    width: 160, height: 160, borderRadius: 80,
-    backgroundColor: Colors.accent + "10",
+  devOrb: {
+    position: "absolute", borderRadius: 999,
   },
-  devGlowBottom: {
-    position: "absolute", bottom: -40, right: "10%",
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: Colors.cyber + "10",
-  },
-  devCardTop: {
+  devHeroTop: {
     flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 18,
+    alignItems: "center", marginBottom: 20,
   },
-  devBadge: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
-    backgroundColor: Colors.accent + "20",
-    borderWidth: 1, borderColor: Colors.accent + "50",
+  devHeroBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    borderWidth: 1, borderColor: "#C9A84C50",
   },
-  devBadgeText: {
-    fontFamily: "Cairo_700Bold", fontSize: 10,
-    color: Colors.accent, letterSpacing: 2,
+  devHeroBadgeDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: "#C9A84C",
   },
-  devAppLabel: {
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10,
+  devHeroBadgeText: {
+    fontFamily: "Cairo_700Bold", fontSize: 9,
+    color: "#C9A84C", letterSpacing: 2,
   },
-  devAppLabelText: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary,
+  devHeroVersion: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    backgroundColor: Colors.primary + "18",
+    borderWidth: 1, borderColor: Colors.primary + "35",
   },
-  devIdentity: {
-    flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 18,
+  devHeroVersionText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primary,
   },
-  devAvatar: {
-    width: 58, height: 58, borderRadius: 18,
+  devHeroIdentity: {
+    flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 22,
+  },
+  devAvatarRing: {
+    width: 80, height: 80, borderRadius: 24,
     justifyContent: "center", alignItems: "center",
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8, shadowRadius: 12, elevation: 10,
+    shadowColor: "#C9A84C",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 16, elevation: 14,
   },
-  devAvatarText: {
-    fontFamily: "Cairo_700Bold", fontSize: 26, color: "#000",
+  devAvatarInner: {
+    width: 72, height: 72, borderRadius: 20,
+    justifyContent: "center", alignItems: "center",
   },
-  devInfo: { flex: 1, gap: 3 },
-  devName: {
-    fontFamily: "Cairo_700Bold", fontSize: 18,
-    color: Colors.textPrimary,
-    textShadowColor: Colors.accent + "60",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+  devAvatarLetter: {
+    fontFamily: "Cairo_700Bold", fontSize: 34, color: "#C9A84C",
   },
-  devRole: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
-  },
-  devContactRow: {
-    flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2,
-  },
-  devContact: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
-  },
-  devDivider: {
-    height: 1, borderRadius: 1, marginBottom: 14,
-  },
-  devBioBox: {
-    backgroundColor: Colors.cardBgElevated,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Colors.accent + "25",
-  },
-  devBioHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
-  },
-  devBioTitle: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.accent,
+  devHeroInfo: { flex: 1, gap: 4 },
+  devHeroName: {
+    fontFamily: "Cairo_700Bold", fontSize: 17,
+    color: "#F5EAC8",
     letterSpacing: 0.3,
   },
-  devBioText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
+  devHeroTitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
     color: Colors.textSecondary,
-    lineHeight: 22,
-    textAlign: "right",
-    writingDirection: "rtl",
   },
-  devTechRow: {
-    flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16,
+  devHeroLocation: {
+    flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2,
   },
-  devTechBadge: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
-    borderWidth: 1,
+  devHeroLocationText: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: "#C9A84CAA",
   },
-  devTechDot: {
-    width: 6, height: 6, borderRadius: 3,
+
+  /* Stats */
+  devStatsRow: {
+    flexDirection: "row",
+    backgroundColor: "#00000030",
+    borderTopWidth: 1, borderTopColor: "#C9A84C20",
+    marginHorizontal: -20,
   },
-  devTechText: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
+  devStatItem: {
+    flex: 1, paddingVertical: 14, alignItems: "center",
   },
-  devBirth: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2,
+  devStatItemCenter: {
+    borderLeftWidth: 1, borderRightWidth: 1,
+    borderLeftColor: "#C9A84C20", borderRightColor: "#C9A84C20",
   },
-  devSocialRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingVertical: 8, paddingHorizontal: 4,
+  devStatValue: {
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C",
   },
-  devSocialIcon: {
-    width: 32, height: 32, borderRadius: 10,
-    justifyContent: "center", alignItems: "center",
-    borderWidth: 1,
+  devStatLabel: {
+    fontFamily: "Cairo_400Regular", fontSize: 10,
+    color: Colors.textMuted, marginTop: 1,
   },
-  devSocialLabel: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, flex: 1,
+
+  /* Body */
+  devBody: {
+    padding: 20,
+    backgroundColor: "#0A100A",
+    gap: 14,
   },
-  devSectionTitle: {
+
+  /* Bio */
+  devBioCard: {
+    flexDirection: "row", gap: 12,
+    backgroundColor: "#FFFFFF07",
+    borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: "#FFFFFF10",
+  },
+  devBioAccent: {
+    width: 3, borderRadius: 3,
+    backgroundColor: "#C9A84C",
+    alignSelf: "stretch",
+    minHeight: 50,
+  },
+  devBioHeading: {
     fontFamily: "Cairo_600SemiBold", fontSize: 12,
-    color: Colors.textMuted, marginBottom: 10, letterSpacing: 0.5,
+    color: "#C9A84C", marginBottom: 6,
   },
-  devCredlyRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    borderRadius: 12, padding: 12, marginTop: 12, marginBottom: 14,
-    borderWidth: 1, borderColor: Colors.accent + "30",
+  devBioText: {
+    fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: Colors.textSecondary, lineHeight: 21,
+    textAlign: "right",
   },
-  devCredlyTitle: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.accent,
+
+  /* Skills */
+  devSkillsSection: {
+    backgroundColor: "#FFFFFF05",
+    borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: "#FFFFFF0D",
   },
-  devCredlyText: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1,
+  devSkillsTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 11,
+    color: Colors.textMuted, marginBottom: 12, letterSpacing: 0.8,
   },
-  devCopyright: {
+  devSkillsGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 8,
+  },
+  devSkillChip: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 10, borderWidth: 1,
+  },
+  devSkillText: {
     fontFamily: "Cairo_400Regular", fontSize: 11,
-    color: Colors.textMuted, textAlign: "center", marginTop: 2,
+  },
+
+  /* Cert */
+  devCertCard: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: "#C9A84C30",
+  },
+  devCertIcon: {
+    width: 42, height: 42, borderRadius: 13,
+    justifyContent: "center", alignItems: "center",
+  },
+  devCertTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#C9A84C",
+  },
+  devCertSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted, marginTop: 2,
+  },
+  devCertArrow: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "#C9A84C15",
+    justifyContent: "center", alignItems: "center",
+  },
+
+  /* Contact */
+  devContactTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 11,
+    color: Colors.textMuted, letterSpacing: 0.8,
+  },
+  devContactGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 8,
+  },
+  devContactBtn: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: 12, borderWidth: 1,
+  },
+  devContactBtnText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 12,
+  },
+
+  /* Profile Button */
+  devProfileBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, borderRadius: 16, paddingVertical: 14,
+    marginTop: 2,
+  },
+  devProfileBtnText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000",
+  },
+
+  /* Footer */
+  devFooter: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted, textAlign: "center",
+    paddingBottom: 4,
   },
 
   /* ─ قاعة التكريم ─ */
