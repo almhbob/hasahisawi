@@ -1144,6 +1144,33 @@ export default function SettingsScreen() {
 
   const [editName, setEditName] = useState(auth.user?.name || "");
 
+  // ── حالة مشوارك علينا ──
+  const [rideStatus, setRideStatus] = useState<"soon" | "maintenance" | "available">("soon");
+  const [rideStatusLoading, setRideStatusLoading] = useState(false);
+
+  useEffect(() => {
+    const base = getApiUrl();
+    if (!base) return;
+    fetch(new URL("/api/app/feature-flags", base).toString())
+      .then(r => r.json())
+      .then((d: any) => { if (d?.ride_status) setRideStatus(d.ride_status); })
+      .catch(() => {});
+  }, []);
+
+  const updateRideStatus = async (status: "soon" | "maintenance" | "available") => {
+    const base = getApiUrl();
+    if (!base || !auth.token) return;
+    setRideStatusLoading(true);
+    try {
+      await fetch(new URL("/api/admin/feature-flags", base).toString(), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ ride_status: status }),
+      });
+      setRideStatus(status);
+    } finally { setRideStatusLoading(false); }
+  };
+
   // ── حالة تعديل الملف الشخصي ──
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileName, setProfileName] = useState(auth.user?.name || "");
@@ -2569,6 +2596,39 @@ export default function SettingsScreen() {
               </View>
             </View>
 
+            {/* ── بطاقة حالة مشوارك علينا ── */}
+            {isAdmin && (
+              <View style={sub_s.rideCard}>
+                <View style={sub_s.rideCardHeader}>
+                  <MaterialCommunityIcons name="car-side" size={20} color="#F97316" />
+                  <Text style={sub_s.rideCardTitle}>حالة "مشوارك علينا"</Text>
+                </View>
+                <Text style={sub_s.rideCardSub}>تحكّم في الشارة الظاهرة على بطاقة الخدمة للمستخدمين</Text>
+                <View style={sub_s.rideToggleRow}>
+                  {(["soon", "maintenance", "available"] as const).map((s) => {
+                    const cfg = {
+                      soon:        { label: "قريباً",  color: "#FBBF24", icon: "clock-fast" },
+                      maintenance: { label: "صيانة",   color: "#F87171", icon: "wrench" },
+                      available:   { label: "متاح",    color: "#3EFF9C", icon: "check-circle" },
+                    }[s];
+                    const active = rideStatus === s;
+                    return (
+                      <TouchableOpacity
+                        key={s}
+                        style={[sub_s.rideToggleBtn, active && { backgroundColor: cfg.color + "25", borderColor: cfg.color }]}
+                        onPress={() => !rideStatusLoading && updateRideStatus(s)}
+                        activeOpacity={0.8}
+                        disabled={rideStatusLoading}
+                      >
+                        <MaterialCommunityIcons name={cfg.icon as any} size={16} color={active ? cfg.color : Colors.textMuted} />
+                        <Text style={[sub_s.rideToggleText, active && { color: cfg.color }]}>{cfg.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* ── قسم المدفوع ── */}
             <View style={sub_s.groupHeader}>
               <View style={[sub_s.groupDot, { backgroundColor: "#EF4444" }]} />
@@ -3166,6 +3226,21 @@ const sub_s = StyleSheet.create({
     alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0, minWidth: 58,
   },
   payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
+
+  rideCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, marginBottom: 18,
+    borderWidth: 1, borderColor: "#F9731630",
+  },
+  rideCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
+  rideCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  rideCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 14, lineHeight: 18 },
+  rideToggleRow: { flexDirection: "row-reverse", gap: 8 },
+  rideToggleBtn: {
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
+    backgroundColor: Colors.divider + "30",
+  },
+  rideToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
 
   devCard: {
     flexDirection: "row-reverse", alignItems: "center", gap: 12,

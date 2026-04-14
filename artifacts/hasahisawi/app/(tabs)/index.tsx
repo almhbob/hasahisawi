@@ -24,6 +24,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
+import type { RideStatus } from "@/lib/feature-flags-context";
 import { getApiUrl } from "@/lib/query-client";
 import AuthModal from "@/components/AuthModal";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -58,18 +59,29 @@ type ServiceItem = {
   id: string; label: string; sub: string; icon: any;
   color: string; bg: string; route: any; iconType: "ionicons" | "material";
   soon?: boolean;
+  rideStatus?: RideStatus;
+};
+
+const RIDE_BADGE: Record<RideStatus, { label: string; color: string; bg: string; icon: string }> = {
+  soon:        { label: "قريباً",  color: "#FBBF24", bg: "#FBBF2420", icon: "clock-fast" },
+  maintenance: { label: "صيانة",   color: "#F87171", bg: "#F8717120", icon: "wrench" },
+  available:   { label: "متاح",    color: "#3EFF9C", bg: "#3EFF9C20", icon: "check-circle" },
 };
 
 function ServiceGridItem({
   item, onPress, index,
 }: { item: ServiceItem; onPress: () => void; index: number }) {
+  const badge = item.rideStatus ? RIDE_BADGE[item.rideStatus] : null;
+  const isAvailable = item.rideStatus === "available";
+  const isSoonOrMaint = badge && !isAvailable;
+
   return (
     <Animated.View
       entering={FadeInDown.delay(180 + index * 45).springify().damping(16)}
       style={styles.gridItemContainer}
     >
       <AnimatedPress onPress={onPress}>
-        <View style={[styles.gridItem, item.soon && { opacity: 0.88 }]}>
+        <View style={[styles.gridItem, (item.soon || isSoonOrMaint) && { opacity: 0.88 }]}>
           {/* توهج خلفي للبطاقة */}
           <View style={[styles.gridGlow, { backgroundColor: item.color + "12" }]} />
           <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
@@ -79,8 +91,15 @@ function ServiceGridItem({
           </View>
           <Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>
           <Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>
-          {/* شارة "قريباً" */}
-          {item.soon && (
+          {/* شارة ديناميكية لمشوارك علينا */}
+          {badge && (
+            <View style={[styles.soonBadge, { backgroundColor: badge.bg }]}>
+              <MaterialCommunityIcons name={badge.icon as any} size={9} color={badge.color} />
+              <Text style={[styles.soonBadgeText, { color: badge.color }]}>{badge.label}</Text>
+            </View>
+          )}
+          {/* شارة قريباً العادية لغير مشوارك */}
+          {item.soon && !item.rideStatus && (
             <View style={styles.soonBadge}>
               <MaterialCommunityIcons name="clock-fast" size={9} color="#FBBF24" />
               <Text style={styles.soonBadgeText}>قريباً</Text>
@@ -115,7 +134,7 @@ export default function HomeScreen() {
   const insets  = useSafeAreaInsets();
   const topPad  = Platform.OS === "web" ? 67 : insets.top;
   const auth    = useAuth();
-  const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = useFeatureFlags();
+  const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled, ride_status } = useFeatureFlags();
   const [showAuth, setShowAuth] = useState(false);
   const [bioLabel, setBioLabel] = useState("البصمة");
   const [bioIcon, setBioIcon]   = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
@@ -181,7 +200,7 @@ export default function HomeScreen() {
     { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
-    { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, soon: true },
+    { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, rideStatus: ride_status },
   ], [lang]);
 
   const handlePress = (route: string) => {

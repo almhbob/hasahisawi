@@ -1223,7 +1223,7 @@ router.patch("/admin/app/version", async (req: Request, res: Response) => {
 router.get("/app/feature-flags", async (_req: Request, res: Response) => {
   try {
     const rows = await query(
-      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled')`
+      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled','ride_status')`
     );
     const map: Record<string, string> = {};
     for (const r of rows.rows) map[r.key] = r.value;
@@ -1231,6 +1231,7 @@ router.get("/app/feature-flags", async (_req: Request, res: Response) => {
       gov_services_enabled:      map.gov_services_enabled      !== "false",
       gov_appointments_enabled:  map.gov_appointments_enabled  !== "false",
       gov_reports_enabled:       map.gov_reports_enabled       !== "false",
+      ride_status:               (map.ride_status as "soon" | "maintenance" | "available") || "soon",
     });
   } catch (err) {
     console.error(err);
@@ -1242,7 +1243,7 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
-    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = req.body;
+    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled, ride_status } = req.body;
     if (gov_services_enabled !== undefined) {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_services_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_services_enabled ? "true" : "false"]);
     }
@@ -1251,6 +1252,9 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
     }
     if (gov_reports_enabled !== undefined) {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_reports_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_reports_enabled ? "true" : "false"]);
+    }
+    if (ride_status !== undefined && ["soon","maintenance","available"].includes(ride_status)) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('ride_status',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [ride_status]);
     }
     return res.json({ ok: true });
   } catch (err) {
