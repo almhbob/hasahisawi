@@ -1,8 +1,11 @@
-const BASE = "/api";
+// يدعم الـ API المحلي في Replit والـ Firebase في الإنتاج
+const FIREBASE_API = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const BASE = FIREBASE_API ? FIREBASE_API.replace(/\/$/, "") : "/api";
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("admin_token");
-  const res = await fetch(`${BASE}${path}`, {
+  const url = FIREBASE_API ? `${BASE}${path}` : `/api${path}`;
+  const res = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",

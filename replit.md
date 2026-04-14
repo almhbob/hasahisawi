@@ -11,12 +11,20 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 - **Node.js**: 24
 - **TypeScript**: 5.9
 - **تطبيق الجوال**: React Native 0.81 (Expo) — New Architecture
-- **الخادم**: Express 5 + PostgreSQL
-- **المصادقة**: Firebase Authentication (اختياري) + Backend مستقل
-- **قاعدة البيانات**: PostgreSQL (مباشر عبر pg) + Drizzle ORM
+- **الخادم (Replit/dev)**: Express 5 + PostgreSQL
+- **الخادم (Firebase/prod)**: Firebase Cloud Functions v2 + Neon PostgreSQL
+- **المصادقة**: Firebase Authentication + Backend مستقل (JWT sessions)
+- **قاعدة البيانات**: PostgreSQL (pg) — Replit local في dev، Neon في prod
 - **التحقق**: Zod, drizzle-zod
-- **API codegen**: Orval (من OpenAPI spec)
-- **البناء**: esbuild
+- **البناء**: esbuild, TypeScript (tsc for Firebase Functions)
+
+## البنية الإنتاجية (Firebase)
+
+- **API URL**: `https://hasahisawi.web.app/api/...`
+- **Firebase Hosting**: يوجّه `/api/**` إلى Cloud Function
+- **Cloud Function**: `api` — منطقة us-central1
+- **Database**: Neon PostgreSQL (sslmode=require)
+- **eas.json**: يحتوي `EXPO_PUBLIC_DOMAIN=hasahisawi.web.app` للـ preview والـ production builds
 
 ## الهيكل
 
