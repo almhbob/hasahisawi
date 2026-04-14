@@ -20,6 +20,8 @@ const NAV: NavItem[] = [
   { path: "/communities",   label: "المجتمعات",        icon: "🏘️" },
   { path: "/ads",           label: "الإعلانات",        icon: "📢" },
   { path: "/honored",       label: "شخصية مكرّمة",    icon: "🏆" },
+  { path: "/missing",       label: "المفقودات",         icon: "🔍" },
+  { path: "/numbers",       label: "الأرقام المهمة",   icon: "📞" },
   { path: "/settings",      label: "الإعدادات",        icon: "⚙️" },
 ];
 

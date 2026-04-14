@@ -13,6 +13,8 @@ import MapPlaces   from "@/pages/MapPlaces";
 import Communities from "@/pages/Communities";
 import Ads         from "@/pages/Ads";
 import Honored     from "@/pages/Honored";
+import Missing     from "@/pages/Missing";
+import Numbers     from "@/pages/Numbers";
 import Settings    from "@/pages/Settings";
 
 const queryClient = new QueryClient({
@@ -53,6 +55,8 @@ function AppRoutes() {
         <Route path="/communities" component={Communities} />
         <Route path="/ads"         component={Ads} />
         <Route path="/honored"     component={Honored} />
+        <Route path="/missing"     component={Missing} />
+        <Route path="/numbers"     component={Numbers} />
         <Route path="/settings"    component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>

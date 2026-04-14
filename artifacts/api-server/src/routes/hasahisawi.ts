@@ -5743,6 +5743,36 @@ router.get("/admin/lost-items", async (req: Request, res: Response) => {
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
+router.patch("/admin/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { item_name, description, last_seen, contact_phone, image_url, status, category, reporter_name } = req.body;
+    const { rows } = await query(
+      `UPDATE lost_items SET
+        item_name=COALESCE($1,item_name),
+        description=COALESCE($2,description),
+        last_seen=COALESCE($3,last_seen),
+        contact_phone=COALESCE($4,contact_phone),
+        image_url=COALESCE($5,image_url),
+        status=COALESCE($6,status),
+        category=COALESCE($7,category),
+        reporter_name=COALESCE($8,reporter_name)
+       WHERE id=$9 RETURNING *`,
+      [item_name, description, last_seen, contact_phone, image_url, status, category, reporter_name, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lost_items WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
 // ════════════════════════════════════════════════════════════════
 // ⚽ الرياضة — Sports
 // ════════════════════════════════════════════════════════════════

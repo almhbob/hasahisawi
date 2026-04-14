@@ -1,6 +1,7 @@
 import {
   getAuth,
   initializeAuth,
+  getReactNativePersistence,
   inMemoryPersistence,
   indexedDBLocalPersistence,
   signInWithEmailAndPassword,
@@ -15,11 +16,11 @@ import {
   Auth,
 } from "firebase/auth";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { app, isFirebaseConfigured } from "./index";
 
 let _auth: Auth | null = null;
 
-// علم لتتبع فشل Firebase أثناء التشغيل (مفتاح غير صالح مثلاً)
 let _firebaseRuntimeFailed = false;
 
 export function markFirebaseRuntimeFailed() {
@@ -35,7 +36,9 @@ function getFirebaseAuth(): Auth {
   if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
   try {
     if (Platform.OS !== "web") {
-      _auth = initializeAuth(app, { persistence: inMemoryPersistence });
+      _auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
     } else {
       _auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
     }
@@ -64,8 +67,6 @@ export function onFirebaseAuthChange(cb: (user: User | null) => void) {
   if (!isFirebaseAvailable()) return () => {};
   try {
     const auth = getFirebaseAuth();
-    // نمرر معالج الخطأ الثالث لـ onAuthStateChanged
-    // هذا يمنع Firebase من رمي unhandled rejection عند مفاتيح غير صالحة
     return onAuthStateChanged(
       auth,
       cb,
@@ -73,7 +74,7 @@ export function onFirebaseAuthChange(cb: (user: User | null) => void) {
         const msg = (error as any)?.message ?? String(error);
         console.warn("[Firebase] Auth state error — disabling Firebase:", msg);
         _firebaseRuntimeFailed = true;
-        cb(null); // تعامل كأن المستخدم غير مسجّل
+        cb(null);
       },
     );
   } catch (e) {
