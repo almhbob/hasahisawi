@@ -977,10 +977,12 @@ export default function SportsScreen() {
     }
     if (matchesData?.matches) {
       setMatches(matchesData.matches.map((m: any) => ({
-        id: String(m.id), teamA: m.home_team, teamB: m.away_team,
-        scoreA: m.home_score != null ? String(m.home_score) : undefined,
-        scoreB: m.away_score != null ? String(m.away_score) : undefined,
-        date: m.match_date, venue: m.venue, status: m.status, notes: m.notes,
+        id: String(m.id), homeTeam: m.home_team, awayTeam: m.away_team,
+        homeScore: m.home_score != null ? Number(m.home_score) : undefined,
+        awayScore: m.away_score != null ? Number(m.away_score) : undefined,
+        date: m.match_date, venue: m.venue, status: m.status,
+        description: m.notes, competition: m.competition || "",
+        time: m.time || "", createdAt: m.created_at || new Date().toISOString(),
       })));
     }
     // Clubs from Firestore (fallback)
@@ -1092,11 +1094,11 @@ export default function SportsScreen() {
   // Matches
   const saveMatch = async (m: KouraMatch) => {
     const result = await apiPost("/api/sports/matches", {
-      home_team: m.teamA, away_team: m.teamB,
-      home_score: m.scoreA != null ? Number(m.scoreA) : null,
-      away_score: m.scoreB != null ? Number(m.scoreB) : null,
+      home_team: m.homeTeam, away_team: m.awayTeam,
+      home_score: m.homeScore != null ? Number(m.homeScore) : null,
+      away_score: m.awayScore != null ? Number(m.awayScore) : null,
       match_date: m.date, venue: m.venue || "ملعب الحصاحيصا",
-      status: m.status || "upcoming", notes: m.notes || "",
+      status: m.status || "upcoming", notes: m.description || "",
     });
     if (result) setMatches(prev => [{ ...m, id: String(result.id) }, ...prev]);
   };

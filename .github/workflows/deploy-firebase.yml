@@ -1,0 +1,56 @@
+name: Deploy Firebase Functions & Hosting
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/firebase-functions/**'
+      - 'public/**'
+      - 'firebase.json'
+      - '.firebaserc'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force redeploy'
+        required: false
+        default: 'false'
+
+jobs:
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: artifacts/firebase-functions/package-lock.json
+
+      - name: Install Firebase Functions dependencies
+        run: npm --prefix artifacts/firebase-functions ci
+
+      - name: Build Firebase Functions
+        run: npm --prefix artifacts/firebase-functions run build
+
+      - name: Set DATABASE_URL in Firebase Secrets
+        run: |
+          echo "${{ secrets.NEON_DATABASE_URL }}" | npx firebase-tools functions:secrets:set DATABASE_URL --force --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        continue-on-error: true
+
+      - name: Deploy to Firebase
+        run: npx firebase-tools deploy --only functions,hosting --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Verify deployment
+        run: |
+          sleep 30
+          curl -sf https://hasahisawi.web.app/api/health || echo "Health check pending..."

@@ -2266,9 +2266,9 @@ export default function SettingsScreen() {
             {lostItems.map(item => (
               <AdminCard
                 key={item.id}
-                title={item.itemName}
-                subtitle={item.contactPhone}
-                meta={item.lastSeen}
+                title={item.item_name}
+                subtitle={item.contact_phone}
+                meta={item.last_seen}
                 statusColor={item.status === "lost" ? Colors.danger : Colors.success}
                 extraBadge={item.status === "found" ? "وُجد" : undefined}
                 onDelete={() => deleteLostItem(item.id)}

@@ -1,7 +1,6 @@
 import {
   getAuth,
   initializeAuth,
-  getReactNativePersistence,
   inMemoryPersistence,
   indexedDBLocalPersistence,
   signInWithEmailAndPassword,
@@ -16,7 +15,6 @@ import {
   Auth,
 } from "firebase/auth";
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { app, isFirebaseConfigured } from "./index";
 
 let _auth: Auth | null = null;
@@ -37,7 +35,7 @@ function getFirebaseAuth(): Auth {
   try {
     if (Platform.OS !== "web") {
       _auth = initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage),
+        persistence: inMemoryPersistence,
       });
     } else {
       _auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });

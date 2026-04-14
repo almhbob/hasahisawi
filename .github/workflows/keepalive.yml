@@ -1,0 +1,25 @@
+name: Keep API Server Alive
+
+on:
+  schedule:
+    # كل 5 دقائق — يمنع Replit من النوم
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping API Health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Replit API
+        run: |
+          echo "🏥 Pinging Hasahisawi API..."
+          REPLIT_STATUS=$(curl -sf https://4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev/api/healthz | head -c 100)
+          echo "✅ Replit API: $REPLIT_STATUS"
+        continue-on-error: true
+
+      - name: Ping Firebase API (if deployed)
+        run: |
+          FIREBASE_STATUS=$(curl -sf https://hasahisawi.web.app/api/health | head -c 100)
+          echo "🔥 Firebase: $FIREBASE_STATUS"
+        continue-on-error: true
