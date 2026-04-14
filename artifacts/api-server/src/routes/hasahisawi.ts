@@ -855,6 +855,24 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ══ جدول الوظائف ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      author_name VARCHAR(150) NOT NULL DEFAULT 'مجهول',
+      title VARCHAR(300) NOT NULL,
+      company VARCHAR(200) NOT NULL DEFAULT '',
+      type VARCHAR(20) NOT NULL DEFAULT 'fulltime' CHECK (type IN ('fulltime','parttime','freelance','volunteer')),
+      location VARCHAR(300) NOT NULL DEFAULT 'الحصاحيصا',
+      description TEXT NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      salary VARCHAR(150),
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // ══ جداول الرياضة ══
   await query(`
     CREATE TABLE IF NOT EXISTS sports_posts (
@@ -6353,6 +6371,265 @@ router.delete("/admin/women-services/:id", async (req: Request, res: Response) =
     await query(`DELETE FROM women_services WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── وظائف العمل (Jobs) ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/jobs — قائمة الوظائف العامة
+router.get("/jobs", async (req: Request, res: Response) => {
+  try {
+    const { type, limit = "50" } = req.query;
+    let q = `SELECT * FROM jobs WHERE is_active=true`;
+    const params: any[] = [];
+    if (type && type !== "all") { q += ` AND type=$${params.length + 1}`; params.push(type); }
+    q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(Number(limit));
+    const { rows } = await query(q, params);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/jobs — نشر وظيفة (مستخدم مسجّل)
+router.post("/jobs", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { title, company, type, location, description, contact_phone, salary } = req.body;
+    if (!title || !description) return res.status(400).json({ error: "العنوان والوصف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO jobs (user_id, author_name, title, company, type, location, description, contact_phone, salary)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [me.id, me.name, title, company ?? "", type ?? "fulltime", location ?? "الحصاحيصا", description, contact_phone ?? "", salary ?? null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/jobs/:id — تعديل وظيفة
+router.patch("/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { rows: existing } = await query(`SELECT * FROM jobs WHERE id=$1`, [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: "الوظيفة غير موجودة" });
+    if (existing[0].user_id !== me.id && me.role !== "admin" && me.role !== "moderator")
+      return res.status(403).json({ error: "غير مصرح" });
+    const { title, company, type, location, description, contact_phone, salary, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE jobs SET
+        title=COALESCE($1,title), company=COALESCE($2,company), type=COALESCE($3,type),
+        location=COALESCE($4,location), description=COALESCE($5,description),
+        contact_phone=COALESCE($6,contact_phone), salary=COALESCE($7,salary),
+        is_active=COALESCE($8,is_active) WHERE id=$9 RETURNING *`,
+      [title, company, type, location, description, contact_phone, salary, is_active, req.params.id]
+    );
+    return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/jobs/:id — حذف وظيفة
+router.delete("/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { rows: existing } = await query(`SELECT * FROM jobs WHERE id=$1`, [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: "الوظيفة غير موجودة" });
+    if (existing[0].user_id !== me.id && me.role !== "admin" && me.role !== "moderator")
+      return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM jobs WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/jobs — كل الوظائف للإدارة
+router.get("/admin/jobs", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query;
+    let q = `SELECT j.*, u.name as user_name_ref FROM jobs j LEFT JOIN users u ON u.id=j.user_id`;
+    if (status === "active") q += ` WHERE j.is_active=true`;
+    else if (status === "inactive") q += ` WHERE j.is_active=false`;
+    q += ` ORDER BY j.created_at DESC`;
+    const { rows } = await query(q);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/jobs/:id — تفعيل/تعطيل وظيفة
+router.patch("/admin/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { is_active, title, company, type, location, description, contact_phone, salary } = req.body;
+    await query(
+      `UPDATE jobs SET
+        is_active=COALESCE($1,is_active), title=COALESCE($2,title), company=COALESCE($3,company),
+        type=COALESCE($4,type), location=COALESCE($5,location), description=COALESCE($6,description),
+        contact_phone=COALESCE($7,contact_phone), salary=COALESCE($8,salary)
+       WHERE id=$9`,
+      [is_active, title, company, type, location, description, contact_phone, salary, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/jobs/:id — حذف وظيفة (مدير)
+router.delete("/admin/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM jobs WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── إحصائيات Dashboard الشاملة ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/admin/full-stats — إحصائيات شاملة لجميع الأقسام
+router.get("/admin/full-stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const [
+      users, posts, jobs, reports, missing, transport,
+      events, merchants, ads, sports, notifications
+    ] = await Promise.all([
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN role='admin' THEN 1 END) AS admins,
+             COUNT(CASE WHEN role='moderator' THEN 1 END) AS moderators,
+             COUNT(CASE WHEN created_at > NOW()-INTERVAL '7 days' THEN 1 END) AS new_this_week
+             FROM users`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN created_at > NOW()-INTERVAL '24 hours' THEN 1 END) AS today
+             FROM social_posts`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN is_active=true THEN 1 END) AS active
+             FROM jobs`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN status='open' THEN 1 END) AS open
+             FROM citizen_reports`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN status='lost' THEN 1 END) AS lost,
+             COUNT(CASE WHEN status='found' THEN 1 END) AS found
+             FROM lost_items`),
+      query(`SELECT COUNT(*) AS total_trips,
+             COUNT(CASE WHEN status='pending' THEN 1 END) AS pending,
+             COUNT(CASE WHEN status='active' THEN 1 END) AS active,
+             COUNT(CASE WHEN status='completed' THEN 1 END) AS completed,
+             (SELECT COUNT(*) FROM transport_drivers WHERE status='approved') AS drivers,
+             (SELECT COUNT(*) FROM transport_drivers WHERE is_online=true) AS online_drivers
+             FROM transport_trips`),
+      query(`SELECT COUNT(*) AS cnt FROM events`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN status='approved' THEN 1 END) AS active FROM merchant_spaces`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN status='approved' THEN 1 END) AS active FROM ads`),
+      query(`SELECT COUNT(*) AS posts FROM sports_posts`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN is_read=false THEN 1 END) AS unread FROM notifications`),
+    ]);
+    return res.json({
+      users: users.rows[0],
+      posts: posts.rows[0],
+      jobs: jobs.rows[0],
+      reports: reports.rows[0],
+      missing: missing.rows[0],
+      transport: transport.rows[0],
+      events: events.rows[0],
+      merchants: merchants.rows[0],
+      ads: ads.rows[0],
+      sports: sports.rows[0],
+      notifications: notifications.rows[0],
+    });
+  } catch (e: any) { console.error("full-stats error:", e?.message); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── إرسال Push Notifications (Expo Push API) ──
+// ══════════════════════════════════════════════════════
+
+async function sendExpoPushToUser(userId: number, title: string, body: string, data?: any) {
+  try {
+    const { rows } = await query(`SELECT token FROM push_tokens WHERE user_id=$1`, [userId]);
+    if (!rows.length) return;
+    const messages = rows
+      .filter((r: any) => r.token && r.token.startsWith("ExponentPushToken"))
+      .map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default", badge: 1 }));
+    if (!messages.length) return;
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", "accept-encoding": "gzip, deflate" },
+      body: JSON.stringify(messages),
+    });
+  } catch (e) { console.error("Push send error:", e); }
+}
+
+async function sendExpoPushBroadcast(title: string, body: string, data?: any) {
+  try {
+    const { rows } = await query(`SELECT token FROM push_tokens WHERE token LIKE 'ExponentPushToken%'`);
+    if (!rows.length) return;
+    const chunks: any[][] = [];
+    for (let i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
+    for (const chunk of chunks) {
+      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default" }));
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(messages),
+      });
+    }
+  } catch (e) { console.error("Broadcast error:", e); }
+}
+
+// POST /api/admin/push/broadcast — إشعار جماعي لجميع المستخدمين
+router.post("/admin/push/broadcast", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { title, body, data } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    // حفظ في DB
+    await query(
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       SELECT id, 'broadcast', $1, $2, $3 FROM users`,
+      [title, body, JSON.stringify(data ?? {})]
+    );
+    // إرسال Push
+    await sendExpoPushBroadcast(title, body, data);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/push/user/:id — إشعار لمستخدم محدد
+router.post("/admin/push/user/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { title, body, data } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    const targetId = Number(req.params.id);
+    await query(
+      `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'direct',$2,$3,$4)`,
+      [targetId, title, body, JSON.stringify(data ?? {})]
+    );
+    await sendExpoPushToUser(targetId, title, body, data);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/push/tokens — عدد أجهزة الإشعارات المسجّلة
+router.get("/admin/push/tokens", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT COUNT(*) AS total,
+       COUNT(CASE WHEN token LIKE 'ExponentPushToken%' THEN 1 END) AS expo_tokens,
+       COUNT(DISTINCT user_id) AS unique_users FROM push_tokens`
+    );
+    return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 export default router;

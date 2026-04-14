@@ -27,6 +27,9 @@ const NAV: NavItem[] = [
   { path: "/education",      label: "التعليم",            icon: "🎓" },
   { path: "/women",          label: "خدمات المرأة",      icon: "👩" },
   { path: "/reports",        label: "بلاغات المواطنين",  icon: "📋" },
+  { path: "/jobs",           label: "الوظائف",            icon: "💼" },
+  { path: "/sports",         label: "الرياضة",            icon: "⚽" },
+  { path: "/notifications",  label: "مركز الإشعارات",     icon: "🔔" },
   { path: "/prayer",         label: "مواقيت الآذان",      icon: "🕌" },
   { path: "/settings",       label: "الإعدادات",         icon: "⚙️" },
 ];
