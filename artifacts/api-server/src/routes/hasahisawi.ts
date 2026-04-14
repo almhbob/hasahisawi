@@ -1310,7 +1310,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     const { phone_or_email, password } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const result = await query(
-      `SELECT * FROM users WHERE phone=$1 OR email=$1`,
+      `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]
     );
     const user = result.rows[0];
@@ -1329,7 +1329,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 router.post("/auth/admin-login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    const result = await query(`SELECT * FROM users WHERE email=$1 AND role='admin'`, [email]);
+    const result = await query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) AND role='admin'`, [email]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -1348,7 +1348,7 @@ router.post("/auth/moderator-login", async (req: Request, res: Response) => {
     const { phone_or_email, password } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const result = await query(
-      `SELECT * FROM users WHERE (phone=$1 OR email=$1) AND role='moderator'`,
+      `SELECT * FROM users WHERE (phone=$1 OR LOWER(email)=LOWER($1)) AND role='moderator'`,
       [phone_or_email]
     );
     const user = result.rows[0];
