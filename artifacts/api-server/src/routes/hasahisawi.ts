@@ -4576,6 +4576,85 @@ router.post("/specialists", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ══════════════════════════════════════════════════════
+// ── إدارة الأطباء والمستوصفات (admin) ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/admin/specialists — جميع الأطباء (بما فيهم المخفيون)
+router.get("/admin/specialists", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { clinic } = req.query as any;
+    let sql = `SELECT * FROM specialists`;
+    const params: any[] = [];
+    if (clinic) { sql += ` WHERE clinic=$1`; params.push(clinic); }
+    sql += ` ORDER BY clinic, order_num, name`;
+    const { rows } = await query(sql, params);
+    // جمّع بالمستوصف
+    const groups: Record<string, any[]> = {};
+    for (const r of rows) {
+      const key = r.clinic || "غير مصنّف";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    }
+    return res.json({ specialists: rows, groups });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/specialists/:id — تحديث طبيب
+router.patch("/admin/specialists/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { name, specialty, bio, clinic, phone, photo_url, fees, order_num, is_active } = req.body as any;
+    const fields: string[] = [];
+    const vals: any[]    = [];
+    let i = 1;
+    if (name       !== undefined) { fields.push(`name=$${i++}`);       vals.push(name); }
+    if (specialty  !== undefined) { fields.push(`specialty=$${i++}`);  vals.push(specialty); }
+    if (bio        !== undefined) { fields.push(`bio=$${i++}`);        vals.push(bio); }
+    if (clinic     !== undefined) { fields.push(`clinic=$${i++}`);     vals.push(clinic); }
+    if (phone      !== undefined) { fields.push(`phone=$${i++}`);      vals.push(phone); }
+    if (photo_url  !== undefined) { fields.push(`photo_url=$${i++}`);  vals.push(photo_url); }
+    if (fees       !== undefined) { fields.push(`fees=$${i++}`);       vals.push(fees); }
+    if (order_num  !== undefined) { fields.push(`order_num=$${i++}`);  vals.push(order_num); }
+    if (is_active  !== undefined) { fields.push(`is_active=$${i++}`);  vals.push(is_active); }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد بيانات للتحديث" });
+    vals.push(id);
+    const { rows } = await query(
+      `UPDATE specialists SET ${fields.join(",")} WHERE id=$${i} RETURNING *`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: "الطبيب غير موجود" });
+    return res.json({ specialist: rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/specialists/:id — حذف طبيب
+router.delete("/admin/specialists/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    await query(`DELETE FROM specialists WHERE id=$1`, [id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/specialists/clinic-toggle — إظهار/إخفاء كل أطباء مستوصف
+router.put("/admin/specialists/clinic-toggle", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { clinic, is_active } = req.body as any;
+    if (!clinic) return res.status(400).json({ error: "اسم المستوصف مطلوب" });
+    const { rowCount } = await query(
+      `UPDATE specialists SET is_active=$1 WHERE clinic=$2`,
+      [!!is_active, clinic]
+    );
+    return res.json({ ok: true, updated: rowCount });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
 // GET /api/appointments/mine
 router.get("/appointments/mine", async (req: Request, res: Response) => {
   try {
