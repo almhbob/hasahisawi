@@ -106,7 +106,7 @@ jobs:
         run: |
           chmod +x artifacts/hasahisawi/android/gradlew
           cd artifacts/hasahisawi/android
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             --no-daemon \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
             -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
@@ -119,6 +119,13 @@ jobs:
         with:
           name: hasahisawi-release-${{ github.run_number }}
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-release-apk-${{ github.run_number }}
+          path: artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
       - name: Upload to Google Play (Internal track — draft)
