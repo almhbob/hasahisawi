@@ -51,7 +51,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
-          EXPO_PUBLIC_DOMAIN=d2426962-1502-4dea-a505-5a51fe17e30a-00-1thi5tsmtuw0o.sisko.replit.dev
+          EXPO_PUBLIC_DOMAIN=4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev
           EOF
 
       - name: Expo prebuild
@@ -64,18 +64,14 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
-          EXPO_PUBLIC_DOMAIN: d2426962-1502-4dea-a505-5a51fe17e30a-00-1thi5tsmtuw0o.sisko.replit.dev
+          EXPO_PUBLIC_DOMAIN: 4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev
           EXPO_NO_GIT_STATUS: '1'
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
-      - name: Decode keystore (KEYSTORE_BASE64)
+      - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
             > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          echo "=== Verifying keystore ==="
-          keytool -list -keystore artifacts/hasahisawi/android/app/hasahisawi-release.keystore \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -alias "${{ secrets.KEY_ALIAS }}" 2>&1 | grep -iE "SHA1|SHA256|fingerprint"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -86,10 +82,9 @@ jobs:
           key: gradle-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*', 'artifacts/hasahisawi/android/**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      - name: Build release AAB
+      - name: Build release APK + AAB
         env:
           NODE_ENV: production
-          NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/artifacts/hasahisawi/node_modules
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -102,7 +97,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: G-8NDWWB1735
-          EXPO_PUBLIC_DOMAIN: d2426962-1502-4dea-a505-5a51fe17e30a-00-1thi5tsmtuw0o.sisko.replit.dev
+          EXPO_PUBLIC_DOMAIN: 4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev
         run: |
           chmod +x artifacts/hasahisawi/android/gradlew
           cd artifacts/hasahisawi/android
@@ -113,22 +108,24 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          echo "=== Build outputs ==="
+          find . -name "*.apk" -o -name "*.aab" 2>/dev/null | grep -v intermediate
 
-      - name: Upload AAB artifact
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-release-${{ github.run_number }}
+          name: hasahisawi-v3.3.3-release-aab
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-release-apk-${{ github.run_number }}
+          name: hasahisawi-v3.3.3-release-apk
           path: artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
-      - name: Upload to Google Play (Internal track — draft)
+      - name: Upload to Google Play
         if: false
         uses: r0adkll/upload-google-play@v1
         with:
