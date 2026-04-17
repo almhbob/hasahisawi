@@ -10,6 +10,10 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import { Audio } from "expo-av";
+
+const ADHAN_SOUND = require("@/assets/sounds/adhan.mp3");
+const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
 const HASAHISA_LAT  = 14.0566;
@@ -161,6 +165,65 @@ export default function PrayerScreen() {
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── الأذان الصوتي ────────────────────────────────────────────────────────────
+  const [adhanEnabled, setAdhanEnabled] = useState(true);
+  const [isPlayingAdhan, setIsPlayingAdhan] = useState(false);
+  const adhanSoundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ADHAN_ENABLED_KEY).then(v => {
+      if (v !== null) setAdhanEnabled(v === "1");
+    });
+    // اضبط وضع الصوت ليُسمع حتى عند الصامت
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
+    return () => {
+      adhanSoundRef.current?.unloadAsync().catch(() => {});
+    };
+  }, []);
+
+  const playAdhan = useCallback(async () => {
+    try {
+      if (adhanSoundRef.current) {
+        await adhanSoundRef.current.unloadAsync();
+        adhanSoundRef.current = null;
+      }
+      const { sound } = await Audio.Sound.createAsync(ADHAN_SOUND, { shouldPlay: true, volume: 1.0 });
+      adhanSoundRef.current = sound;
+      setIsPlayingAdhan(true);
+      sound.setOnPlaybackStatusUpdate((status: any) => {
+        if (status.didJustFinish) {
+          setIsPlayingAdhan(false);
+          sound.unloadAsync().catch(() => {});
+          adhanSoundRef.current = null;
+        }
+      });
+    } catch (e) {
+      setIsPlayingAdhan(false);
+    }
+  }, []);
+
+  const stopAdhan = useCallback(async () => {
+    try {
+      if (adhanSoundRef.current) {
+        await adhanSoundRef.current.stopAsync();
+        await adhanSoundRef.current.unloadAsync();
+        adhanSoundRef.current = null;
+      }
+    } catch (_) {}
+    setIsPlayingAdhan(false);
+  }, []);
+
+  const toggleAdhanEnabled = useCallback(async () => {
+    const next = !adhanEnabled;
+    setAdhanEnabled(next);
+    try { await AsyncStorage.setItem(ADHAN_ENABLED_KEY, next ? "1" : "0"); } catch {}
+    if (!next) stopAdhan();
+  }, [adhanEnabled, stopAdhan]);
+
   // ── الهجري: التقويم الشهري ──────────────────────────────────────────────────
   const [hijriViewMonth, setHijriViewMonth] = useState(1);
   const [hijriViewYear, setHijriViewYear] = useState(1447);
@@ -276,6 +339,8 @@ export default function PrayerScreen() {
     intervalRef.current = setInterval(() => {
       setCountdown(c => {
         if (c <= 1) {
+          // حلّ وقت الصلاة — شغّل الأذان إذا كان مفعّلاً
+          if (adhanEnabled) playAdhan();
           if (times) computeNextPrayer(times);
           return 0;
         }
@@ -389,6 +454,36 @@ export default function PrayerScreen() {
                   <View style={s.countdownRow}>
                     <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
                     <Text style={s.countdownText}>سيحين بعد: {formatCountdown(countdown)}</Text>
+                  </View>
+
+                  {/* أزرار الأذان */}
+                  <View style={s.adhanBtnRow}>
+                    <Pressable
+                      style={[s.adhanBtn, isPlayingAdhan ? s.adhanBtnStop : s.adhanBtnPlay]}
+                      onPress={isPlayingAdhan ? stopAdhan : playAdhan}
+                    >
+                      <Ionicons
+                        name={isPlayingAdhan ? "stop" : "play"}
+                        size={16}
+                        color={isPlayingAdhan ? "#fff" : Colors.primary}
+                      />
+                      <Text style={[s.adhanBtnText, isPlayingAdhan && { color: "#fff" }]}>
+                        {isPlayingAdhan ? "إيقاف الأذان" : "تشغيل الأذان"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[s.adhanToggle, adhanEnabled && s.adhanToggleOn]}
+                      onPress={toggleAdhanEnabled}
+                    >
+                      <Ionicons
+                        name={adhanEnabled ? "notifications" : "notifications-off-outline"}
+                        size={14}
+                        color={adhanEnabled ? Colors.primary : Colors.textMuted}
+                      />
+                      <Text style={[s.adhanToggleText, adhanEnabled && { color: Colors.primary }]}>
+                        {adhanEnabled ? "الأذان مفعّل" : "الأذان معطّل"}
+                      </Text>
+                    </Pressable>
                   </View>
                 </Animated.View>
               )}
@@ -665,6 +760,35 @@ const s = StyleSheet.create({
   nextTime: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary },
   countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
+  adhanBtnRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginTop: 14, flexWrap: "wrap",
+  },
+  adhanBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
+    borderWidth: 1,
+  },
+  adhanBtnPlay: {
+    backgroundColor: Colors.primary + "18",
+    borderColor: Colors.primary + "60",
+  },
+  adhanBtnStop: {
+    backgroundColor: "#E74C3C",
+    borderColor: "#E74C3C",
+  },
+  adhanBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+  adhanToggle: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10,
+    backgroundColor: Colors.cardBgElevated,
+    borderWidth: 1, borderColor: Colors.textMuted + "30",
+  },
+  adhanToggleOn: {
+    backgroundColor: Colors.primary + "12",
+    borderColor: Colors.primary + "50",
+  },
+  adhanToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
 
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
   prayerRow: {

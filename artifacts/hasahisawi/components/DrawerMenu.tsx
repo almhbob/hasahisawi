@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, Pressable,
-  ScrollView, Image, Platform, Dimensions,
+  ScrollView, Image, Platform, Dimensions, I18nManager,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -19,6 +19,7 @@ import { useApiUnread } from "@/lib/api-chat";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320);
+const DRAWER_IS_RTL = I18nManager.isRTL;
 
 const LOGO = require("@/assets/images/logo.png");
 
@@ -129,7 +130,7 @@ export default function DrawerMenu() {
 
   const drawerStyle = useAnimatedStyle(() => ({
     transform: [{
-      translateX: interpolate(progress.value, [0, 1], [DRAWER_W, 0], Extrapolation.CLAMP),
+      translateX: interpolate(progress.value, [0, 1], [DRAWER_IS_RTL ? -DRAWER_W : DRAWER_W, 0], Extrapolation.CLAMP),
     }],
   }));
 
@@ -279,7 +280,8 @@ const styles = StyleSheet.create({
   },
   drawer: {
     position: "absolute",
-    top: 0, right: 0, bottom: 0,
+    top: 0, bottom: 0,
+    ...(DRAWER_IS_RTL ? { left: 0 } : { right: 0 }),
     width: DRAWER_W,
     backgroundColor: "#0D1910",
     borderLeftWidth: 1,

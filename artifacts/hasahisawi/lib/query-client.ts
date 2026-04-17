@@ -39,6 +39,32 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/** يحاول إرسال الطلب مع إعادة محاولة عند فشل الشبكة (يساعد عند إيقاظ الخادم) */
+async function fetchWithRetry(url: string, init: any, attempts = 3): Promise<Response> {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const ctrl = new AbortController();
+      const timeoutMs = i === 0 ? 8000 : 20000; // المحاولة الأولى أقصر، ثم نطيل لإيقاظ الخادم
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      clearTimeout(tid);
+      // إذا أعاد الخادم 502/503/504 (نائم) جرّب مجدداً
+      if ([502, 503, 504].includes(res.status) && i < attempts - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+        continue;
+      }
+      return res;
+    } catch (e: any) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr || new Error("تعذّر الاتصال بالخادم");
+}
+
 export async function apiRequest(
   method: string,
   route: string,
@@ -51,7 +77,7 @@ export async function apiRequest(
 
   const authHeaders = await getAuthHeaders();
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
