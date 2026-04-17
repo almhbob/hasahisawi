@@ -1,3 +1,4 @@
 artifacts/admin-dashboard/public/hasahisawi-v3.3.5-build133.aab filter=lfs diff=lfs merge=lfs -text
 downloads/hasahisawi-v3.3.5-build133.aab filter=lfs diff=lfs merge=lfs -text
 downloads/hasahisawi-v3.3.6-build134.aab filter=lfs diff=lfs merge=lfs -text
+downloads/hasahisawi-v3.3.7-build136.aab filter=lfs diff=lfs merge=lfs -text
