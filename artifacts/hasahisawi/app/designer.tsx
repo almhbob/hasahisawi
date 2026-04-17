@@ -40,22 +40,27 @@ const SKILLS = [
 ];
 
 const CERTS = [
-  { title: "Google Advanced Data Analytics", issuer: "Coursera / Google",                   date: "يناير 2026",   icon: "analytics-outline",       color: "#4285F4" },
-  { title: "IBM Cybersecurity Specialist",   issuer: "Coursera / IBM",                      date: "فبراير 2026",  icon: "shield-checkmark-outline", color: "#052FAD" },
-  { title: "Cloud DevOps",                   issuer: "Intel",                               date: "مارس 2025",   icon: "cloud-outline",            color: "#0071C5" },
-  { title: "Introduction to Design Thinking",issuer: "Virginia Commonwealth University",    date: "مارس 2025",   icon: "bulb-outline",             color: "#8E44AD" },
-  { title: "IBM Cybersecurity Fundamentals", issuer: "IBM SkillsBuild",                     date: "أكتوبر 2024", icon: "lock-closed-outline",      color: "#1F70C1" },
-  { title: "Introduction to Data Science",   issuer: "Cisco",                               date: "مارس 2025",   icon: "bar-chart-outline",        color: "#1BA0D7" },
-  { title: "Introduction to Packet Tracer",  issuer: "Cisco",                               date: "مارس 2025",   icon: "git-network-outline",      color: "#049FD9" },
-  { title: "Agile Explorer",                 issuer: "IBM SkillsBuild",                     date: "مارس 2025",   icon: "refresh-circle-outline",   color: "#0F62FE" },
-  { title: "Threat Landscape 2.0",           issuer: "Fortinet",                            date: "يناير 2025",  icon: "warning-outline",          color: "#EE2222" },
-  { title: "Digital Marketing",              issuer: "Certiprof",                           date: "أبريل 2025",  icon: "megaphone-outline",        color: "#E67E22" },
+  { title: "Google Data Analytics Professional",     issuer: "Coursera / Google",                   date: "أبريل 2026",   icon: "stats-chart-outline",      color: "#4285F4" },
+  { title: "Google Advanced Data Analytics",         issuer: "Coursera / Google",                   date: "يناير 2026",   icon: "analytics-outline",        color: "#34A853" },
+  { title: "IBM Cybersecurity Specialist",           issuer: "Coursera / IBM",                      date: "فبراير 2026",  icon: "shield-checkmark-outline", color: "#052FAD" },
+  { title: "McKinsey.org Forward Program",           issuer: "McKinsey & Company",                  date: "يوليو 2025",   icon: "trending-up-outline",      color: "#051C2C" },
+  { title: "Build an AI Agent",                      issuer: "IBM SkillsBuild",                     date: "سبتمبر 2025", icon: "hardware-chip-outline",    color: "#0F62FE" },
+  { title: "Enterprise Design Thinking Practitioner",issuer: "IBM SkillsBuild",                     date: "سبتمبر 2025", icon: "bulb-outline",             color: "#8E44AD" },
+  { title: "UI/UX Design Capstone Project",          issuer: "Coursera / IBM",                      date: "ديسمبر 2025", icon: "color-palette-outline",    color: "#FF6900" },
+  { title: "Cloud Security",                         issuer: "Intel",                               date: "أبريل 2025",   icon: "shield-outline",           color: "#0071C5" },
+  { title: "Cloud DevOps",                           issuer: "Intel",                               date: "مارس 2025",    icon: "cloud-outline",            color: "#0071C5" },
+  { title: "AI for Networking",                      issuer: "Cisco",                               date: "يناير 2026",   icon: "git-network-outline",      color: "#1BA0D7" },
+  { title: "Cisco Network Automation Essentials",    issuer: "Cisco",                               date: "ديسمبر 2025", icon: "code-working-outline",     color: "#049FD9" },
+  { title: "Python Essentials 1",                    issuer: "Cisco / OpenEDG",                     date: "ديسمبر 2025", icon: "logo-python",              color: "#3776AB" },
+  { title: "Introduction to Design Thinking",        issuer: "Virginia Commonwealth University",    date: "مارس 2025",    icon: "school-outline",           color: "#8E44AD" },
+  { title: "IBM SkillsBuild Faculty",                issuer: "IBM",                                 date: "ديسمبر 2025", icon: "ribbon-outline",           color: "#1F70C1" },
+  { title: "Threat Landscape 2.0",                   issuer: "Fortinet",                            date: "يناير 2025",   icon: "warning-outline",          color: "#EE2222" },
 ];
 
 const VALUES = [
-  { icon: "rocket-outline",      color: "#4285F4", title: "الابتكار",      text: "أُصمّم حلولاً تقنية مبتكرة تُلبّي احتياجات المجتمع المحلي وتُواكب المستقبل." },
-  { icon: "heart-outline",       color: "#C0392B", title: "الخدمة",        text: "أضع خدمة الإنسان في قلب كل مشروع أعمل عليه، من المجتمع وإلى المجتمع." },
-  { icon: "shield-outline",      color: "#27AE60", title: "الثقة والأمان", text: "أُولي الأمن الرقمي وحماية بيانات المستخدم أولويةً قصوى في كل ما أبنيه." },
+  { icon: "rocket-outline", color: "#4285F4", title: "الابتكار",      text: "تصميم حلول رقمية عصرية تواكب المعايير العالمية وتخدم احتياج الإنسان العربي." },
+  { icon: "heart-outline",  color: "#C0392B", title: "الانتماء",      text: "تسخير المعرفة والخبرة في خدمة المجتمع المحلي والارتقاء بأبناء الحصاحيصا." },
+  { icon: "shield-outline", color: "#27AE60", title: "الأمان والثقة", text: "حماية بيانات المستخدمين بأعلى معايير الأمن السيبراني المعتمدة دولياً." },
 ];
 
 function openLink(url: string) {
@@ -68,7 +73,7 @@ export default function DesignerScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const [showAllCerts, setShowAllCerts] = useState(false);
-  const visibleCerts = showAllCerts ? CERTS : CERTS.slice(0, 4);
+  const visibleCerts = showAllCerts ? CERTS : CERTS.slice(0, 6);
 
   return (
     <View style={s.container}>
@@ -119,18 +124,18 @@ export default function DesignerScreen() {
           {/* Stats */}
           <Animated.View entering={FadeInDown.delay(320).springify()} style={s.heroStats}>
             <View style={s.heroStat}>
-              <Text style={s.heroStatNum}>١٠+</Text>
+              <Text style={s.heroStatNum}>+٤٠</Text>
               <Text style={s.heroStatLabel}>شهادة دولية</Text>
             </View>
             <View style={s.heroStatSep} />
             <View style={s.heroStat}>
-              <Text style={s.heroStatNum}>١٩٩١</Text>
-              <Text style={s.heroStatLabel}>سنة الميلاد</Text>
+              <Text style={s.heroStatNum}>+١٢</Text>
+              <Text style={s.heroStatLabel}>جهة معتمِدة</Text>
             </View>
             <View style={s.heroStatSep} />
             <View style={s.heroStat}>
-              <Text style={s.heroStatNum}>8+</Text>
-              <Text style={s.heroStatLabel}>مهارة تقنية</Text>
+              <Text style={s.heroStatNum}>+٩</Text>
+              <Text style={s.heroStatLabel}>تخصصات تقنية</Text>
             </View>
           </Animated.View>
         </LinearGradient>
@@ -172,15 +177,28 @@ export default function DesignerScreen() {
           <Animated.View entering={FadeInDown.delay(140).springify()}>
             <SectionLabel icon="person-circle-outline" color={ACCENT} title="نبذة شخصية" />
             <View style={s.aboutCard}>
+              <View style={s.quoteMark}>
+                <Ionicons name="chatbox-ellipses" size={18} color={ACCENT} />
+              </View>
+
               <Text style={s.aboutLead}>
-                أنا عاصم عبد الرحمن، مطور ومصمم تطبيقات متخصص في تحليل البيانات والأمن السيبراني وبناء الحلول التقنية المجتمعية.
+                مهندس برمجيات ومحلّل بيانات سوداني، شغوف بتسخير التقنية الحديثة لخدمة الإنسان وبناء حلول رقمية تترك أثراً حقيقياً في المجتمع.
               </Text>
+
               <Text style={s.aboutBody}>
-                حصلت على أكثر من عشر شهادات دولية معتمدة من كبرى المؤسسات التقنية كـ Google وIBM وCisco وIntel، إلى جانب شهادات من جامعات عالمية مرموقة. هذا التنوع المعرفي يمنحني رؤيةً شاملة تجمع بين الأمان الرقمي وقوة البيانات وفن التصميم.
+                أحمل أكثر من <Text style={s.aboutHighlight}>أربعين شهادة دولية معتمدة</Text> من كبرى المؤسسات التقنية والأكاديمية حول العالم، من بينها <Text style={s.aboutHighlight}>Google</Text> و<Text style={s.aboutHighlight}>IBM</Text> و<Text style={s.aboutHighlight}>Cisco</Text> و<Text style={s.aboutHighlight}>Intel</Text> و<Text style={s.aboutHighlight}>McKinsey</Text> و<Text style={s.aboutHighlight}>Fortinet</Text> وجامعة <Text style={s.aboutHighlight}>Virginia Commonwealth</Text>. تمتد خبرتي عبر تخصصات متعددة تشمل تحليل البيانات، والأمن السيبراني، والحوسبة السحابية، وذكاء الأعمال، وتطوير تطبيقات الذكاء الاصطناعي، وتصميم تجربة المستخدم.
               </Text>
+
+              <View style={s.aboutDivider} />
+
               <Text style={s.aboutBody}>
-                أؤمن بأن التكنولوجيا يجب أن تكون في خدمة الإنسان وتُحدث فارقاً حقيقياً في حياته اليومية. لذلك، صممت وطورت تطبيق «حصاحيصاوي» بنفسي — بوابة رقمية متكاملة تربط مجتمع الحصاحيصا وتُوفّر خدمات السوق والمواصلات والصحة والتواصل الاجتماعي في مكان واحد، خدمةً لأبناء المدينة والقرى المجاورة.
+                من رحم هذه الرؤية وُلد <Text style={s.aboutHighlight}>«حصاحيصاوي»</Text> — مشروع تقنيّ متكامل صمّمتُه وطوّرتُه بنفسي ليكون <Text style={s.aboutHighlight}>أوّل بوّابة رقمية ذكية</Text> تخدم أبناء مدينة الحصاحيصا والقرى المجاورة. يجمع التطبيق تحت سقف واحد خدمات السوق المحلي، والمواصلات، والدليل الطبي، والمناسبات الاجتماعية، والوظائف، والمفقودات، ومواقيت الصلاة، وصوت الحرفيين والمبدعين — بهندسة عصرية وبمعايير عالمية.
               </Text>
+
+              <View style={s.aboutSignature}>
+                <View style={s.signatureLine} />
+                <Text style={s.signatureText}>عاصم عبد الرحمن محمد عمر</Text>
+              </View>
             </View>
           </Animated.View>
 
@@ -306,9 +324,15 @@ const s = StyleSheet.create({
   infoValue:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   divider:        { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
 
-  aboutCard:      { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4, borderRightColor: ACCENT, gap: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
-  aboutLead:      { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", lineHeight: 28 },
-  aboutBody:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 26 },
+  aboutCard:      { backgroundColor: Colors.cardBg, borderRadius: 22, padding: 22, paddingTop: 26, borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4, borderRightColor: ACCENT, gap: 14, elevation: 3, shadowColor: ACCENT, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 12, position: "relative" },
+  quoteMark:      { position: "absolute", top: -14, right: 18, width: 32, height: 32, borderRadius: 16, backgroundColor: ACCENT_LIGHT, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: ACCENT + "40" },
+  aboutLead:      { fontFamily: "Cairo_700Bold", fontSize: 15.5, color: Colors.textPrimary, textAlign: "right", lineHeight: 30 },
+  aboutBody:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 28 },
+  aboutHighlight: { fontFamily: "Cairo_700Bold", color: ACCENT },
+  aboutDivider:   { height: 1, backgroundColor: Colors.divider, marginVertical: 4, opacity: 0.6 },
+  aboutSignature: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 6, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.divider },
+  signatureLine:  { width: 24, height: 2, backgroundColor: ACCENT, borderRadius: 1 },
+  signatureText:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT, letterSpacing: 0.2 },
 
   valuesGrid:     { gap: 10 },
   valueCard:      { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, borderTopWidth: 3, borderWidth: 1, borderColor: Colors.divider, alignItems: "flex-end", gap: 8, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
