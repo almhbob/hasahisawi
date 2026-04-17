@@ -114,14 +114,14 @@ jobs:
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v3.3.4-release-aab
+          name: hasahisawi-v3.3.5-release-aab
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v3.3.4-release-apk
+          name: hasahisawi-v3.3.5-release-apk
           path: artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
