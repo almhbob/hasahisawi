@@ -1,0 +1,34 @@
+name: Deploy Firebase Rules & Indexes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'storage.rules'
+      - 'firebase.json'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools
+
+      - name: Deploy Firestore Rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          firebase deploy \
+            --only firestore:rules,firestore:indexes,storage:rules \
+            --project hasahisawi \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive

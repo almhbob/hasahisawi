@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function under10MB() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    function under50MB() {
+      return request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // الصور الشخصية للمستخدمين
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isImage() && under10MB();
+    }
+
+    // صور المنشورات
+    match /posts/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isImage() && under10MB();
+    }
+
+    // صور السوق
+    match /market/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isImage() && under10MB();
+    }
+
+    // مرفقات المحادثات
+    match /chats/{chatId}/{fileName} {
+      allow read, write: if isSignedIn() && under50MB();
+    }
+
+    // صور المعالم
+    match /landmarks/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && under10MB();
+    }
+
+    // أي ملف عام (للقراءة فقط)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // افتراضي آمن
+    match /{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}
