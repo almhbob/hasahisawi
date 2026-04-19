@@ -2,32 +2,43 @@ import app from "./app";
 import { logger } from "./lib/logger";
 
 process.on("uncaughtException", (err) => {
-  console.error("⚠️  uncaughtException (server stays running):", err.message);
+  console.error("⚠️  uncaughtException:", err.message, err.stack);
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error("⚠️  unhandledRejection (server stays running):", reason);
+  console.error("⚠️  unhandledRejection:", reason);
+});
+
+process.on("SIGTERM", () => {
+  console.log("🛑  Received SIGTERM — exiting gracefully");
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("🛑  Received SIGINT — exiting gracefully");
+  process.exit(0);
 });
 
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
+  console.error("❌  PORT env var is not set — defaulting to 3000");
 }
 
-const port = Number(rawPort);
+const port = Number(rawPort ?? "3000");
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  console.error(`❌  Invalid PORT value: "${rawPort}" — defaulting to 3000`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const listenPort = (Number.isNaN(port) || port <= 0) ? 3000 : port;
 
-  logger.info({ port }, "Server listening");
+console.log(`🚀  Starting server on port ${listenPort} (NODE_ENV=${process.env.NODE_ENV})`);
+
+const server = app.listen(listenPort, () => {
+  logger.info({ port: listenPort }, "Server listening");
+});
+
+server.on("error", (err) => {
+  console.error("❌  Server error:", err);
 });
