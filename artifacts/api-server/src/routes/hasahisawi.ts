@@ -6,7 +6,12 @@ import { checkContent } from "../lib/content-moderator";
 
 const router = Router();
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5_000,
+  idleTimeoutMillis: 10_000,
+  max: 5,
+});
 pool.on("error", (err) => console.error("pg pool idle-client error:", err));
 
 // ══════════════════════════════════════════════════════
