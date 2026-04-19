@@ -102,9 +102,15 @@ async function buildAll() {
       "electron",
     ],
     sourcemap: "linked",
+    // Tree-shake dev-only code by replacing NODE_ENV at build time
+    define: {
+      "process.env.NODE_ENV": JSON.stringify("production"),
+    },
     plugins: [
-      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
+      // In production we use plain JSON stdout — pino-pretty is dev-only.
+      // Omitting it here prevents thread-stream workers from being bundled,
+      // which avoids path-resolution failures on hosted platforms (e.g. Render).
+      esbuildPluginPino({ transports: [] })
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {
