@@ -1,6 +1,14 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 
+process.on("uncaughtException", (err) => {
+  console.error("⚠️  uncaughtException (server stays running):", err.message);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("⚠️  unhandledRejection (server stays running):", reason);
+});
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
