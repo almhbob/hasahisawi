@@ -6,13 +6,40 @@ import { checkContent } from "../lib/content-moderator";
 
 const router = Router();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 5_000,
-  idleTimeoutMillis: 10_000,
-  max: 5,
-});
-pool.on("error", (err) => console.error("pg pool idle-client error:", err));
+// Only create a real pool when DATABASE_URL is a valid external connection string.
+// Without this guard, pg opens TCP sockets that hang silently on hosted platforms
+// (e.g. Render) causing an ETIMEDOUT crash after ~60 s even when errors are caught.
+const _dbUrl = process.env.DATABASE_URL ?? "";
+const _dbEnabled =
+  _dbUrl.length > 0 &&
+  !_dbUrl.includes(".invalid") &&
+  !_dbUrl.includes("placeholder") &&
+  !_dbUrl.includes("nodb");
+
+const pool: Pool | null = _dbEnabled
+  ? new Pool({
+      connectionString: _dbUrl,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 10_000,
+      max: 5,
+    })
+  : null;
+
+if (pool) {
+  pool.on("error", (err) => console.error("pg pool idle-client error:", err));
+} else {
+  console.warn("⚠️  DATABASE_URL not set or is a placeholder — DB features are disabled until a real URL is configured.");
+}
+
+async function query(sql: string, params: unknown[] = []) {
+  if (!pool) throw Object.assign(new Error("db_not_configured"), { code: "DB_NOT_CONFIGURED" });
+  const client = await pool.connect();
+  try {
+    return await client.query(sql, params);
+  } finally {
+    client.release();
+  }
+}
 
 // ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
@@ -40,15 +67,6 @@ async function sendPushToUser(
   } catch {}
 }
 
-async function query(sql: string, params: unknown[] = []) {
-  const client = await pool.connect();
-  try {
-    return await client.query(sql, params);
-  } finally {
-    client.release();
-  }
-}
-
 const DEFAULT_ADMIN_PIN = "4444";
 
 function maskNationalId(id: string | null | undefined): string | null {
@@ -67,6 +85,10 @@ function safeUserPayload(user: Record<string, unknown>) {
 }
 
 export async function initHasahisawiDb() {
+  if (!pool) {
+    console.warn("⚠️  initHasahisawiDb: skipped — no valid DATABASE_URL");
+    return;
+  }
   // ══ جدول المستخدمين أولاً — لأن كل الجداول الأخرى تُشير إليه ══
   await query(`
     CREATE TABLE IF NOT EXISTS users (
