@@ -22,7 +22,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev",
+        "EXPO_PUBLIC_DOMAIN": "hasahisawi.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://hasahisawi.onrender.com",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
@@ -36,7 +37,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev",
+        "EXPO_PUBLIC_DOMAIN": "hasahisawi.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://hasahisawi.onrender.com",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
