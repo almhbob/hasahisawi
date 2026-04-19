@@ -5858,7 +5858,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-})();
+})().catch(e => console.error("events init:", e));
 
 // ── GET /events ──────────────────────────────
 router.get("/events", async (req: Request, res: Response) => {
