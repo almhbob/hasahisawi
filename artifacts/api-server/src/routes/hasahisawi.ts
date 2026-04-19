@@ -7,6 +7,7 @@ import { checkContent } from "../lib/content-moderator";
 const router = Router();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+pool.on("error", (err) => console.error("pg pool idle-client error:", err));
 
 // ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
