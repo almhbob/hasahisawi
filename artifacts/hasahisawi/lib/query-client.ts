@@ -8,7 +8,7 @@ const USER_TOKEN_KEY = "auth_backend_token"; // يطابق BACKEND_TOKEN_KEY ف�
  * Gets the base URL for the Express API server.
  * Falls back to the production Replit domain when EXPO_PUBLIC_DOMAIN is not set.
  */
-const FALLBACK_DOMAIN = "4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev";
+const FALLBACK_DOMAIN = "hasahisawi.onrender.com";
 
 export function getApiUrl(): string {
   const host = process.env.EXPO_PUBLIC_DOMAIN || FALLBACK_DOMAIN;
