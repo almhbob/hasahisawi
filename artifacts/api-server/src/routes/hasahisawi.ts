@@ -7,6 +7,7 @@ import { checkContent } from "../lib/content-moderator";
 const router = Router();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+pool.on("error", (err) => console.error("pg pool idle-client error:", err));
 
 // ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
@@ -5858,7 +5859,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-})();
+})().catch(e => console.error("events init:", e));
 
 // ── GET /events ──────────────────────────────
 router.get("/events", async (req: Request, res: Response) => {

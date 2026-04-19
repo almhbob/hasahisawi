@@ -23,6 +23,22 @@ export function isApiConfigured(): boolean {
   return true;
 }
 
+/**
+ * يُرسل ping خفيف إلى السيرفر لإيقاظه قبل أي طلب حقيقي.
+ * يُستدعى عند فتح التطبيق لتقليل وقت الانتظار للمستخدم.
+ */
+export async function wakeUpServer(): Promise<void> {
+  try {
+    const url = getApiUrl() + "/api/healthz";
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 30000);
+    await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+  } catch {
+    // تجاهل أي خطأ - هذا مجرد إيقاظ مبكر
+  }
+}
+
 /** يُعيد Authorization header إذا كان المستخدم مسجلاً */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {

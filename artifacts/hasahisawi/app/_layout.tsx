@@ -15,7 +15,7 @@ import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { queryClient } from "@/lib/query-client";
+import { queryClient, wakeUpServer } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { FeatureFlagsProvider } from "@/lib/feature-flags-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
@@ -160,6 +160,11 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
+
+  useEffect(() => {
+    // إيقاظ السيرفر مبكراً عند فتح التطبيق لتقليل وقت الانتظار
+    wakeUpServer();
+  }, []);
 
   useEffect(() => {
     getStoredLang().then((lang) => {
