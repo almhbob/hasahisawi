@@ -26,6 +26,7 @@ export interface FareMatrix {
 }
 
 // ─── تعريف المناطق ────────────────────────────────────────────────────────────
+// الأحياء تُدار ديناميكياً من لوحة الإدارة — هنا القائمة فارغة عمداً
 export const TRANSPORT_ZONES: TransportZone[] = [
   {
     id: 1,
@@ -34,11 +35,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     color: "#F97316",
     icon: "city",
     description: "الأحياء الداخلية — المركز الرئيسي للمدينة",
-    neighborhoods: [
-      "الحي الشرقي", "الحي الأوسط", "حي الواحة", "حي الصفاء",
-      "حي الزهور", "حي العمدة", "حي الموظفين", "حي كريمة",
-      "حي الفيحاء", "حي الصداقة",
-    ],
+    neighborhoods: [],
   },
   {
     id: 2,
@@ -47,10 +44,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     color: "#3E9CBF",
     icon: "home-city",
     description: "الأحياء المحيطة بالمركز",
-    neighborhoods: [
-      "حي المايقوما", "حي الضقالة", "حي فور", "الامتداد",
-      "الحلة الجديدة", "المنصورة", "المزاد",
-    ],
+    neighborhoods: [],
   },
   {
     id: 3,
@@ -59,10 +53,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     color: "#A855F7",
     icon: "map-marker-radius",
     description: "كمبو والجملونات وما يحيط بها",
-    neighborhoods: [
-      "الكرمك", "كمبو المحالج", "الجملونات", "الطائف",
-      "ود الكامل", "أركويت", "الطالباب", "الكشامر",
-    ],
+    neighborhoods: [],
   },
   {
     id: 4,
@@ -71,11 +62,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     color: "#3EFF9C",
     icon: "map-marker-outline",
     description: "المناطق الطرفية الفرعية",
-    neighborhoods: [
-      "أم دغينة", "أم عضام", "ود السيد", "أبو فروع",
-      "عمارة أبيد", "ود سلفاب", "ود الفادني", "أبو جيلي",
-      "ودشمو", "أربجي",
-    ],
+    neighborhoods: [],
   },
   {
     id: 5,
@@ -84,13 +71,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     color: "#FBBF24",
     icon: "terrain",
     description: "قرى ووحدات إدارية تابعة للمحلية",
-    neighborhoods: [
-      "المسلمية", "ود حبوبة", "أبو قوتة", "الربع", "طابت",
-      "المحيريبا", "قرية الولي", "ود بهاي", "طيبة الشيخ القرشي",
-      "كبنة", "تنة", "بانت", "الجلاد", "ود العباس", "طابية",
-      "بمبان", "هيصة", "ود النيل", "أم ضباع", "حلفاية الحصاحيصا",
-      "الشيخ حماد", "الشيخ طيب", "ود بلال", "أبو عشر", "الدوينيب",
-    ],
+    neighborhoods: [],
   },
 ];
 
