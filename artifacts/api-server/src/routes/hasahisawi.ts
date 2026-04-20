@@ -2220,7 +2220,7 @@ router.get("/admin/users/:id/stats", async (req: Request, res: Response) => {
     if (!me || (me.role !== "admin" && me.role !== "moderator")) {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const uid = parseInt(req.params.id);
+    const uid = parseInt(req.params["id"] as string);
     if (isNaN(uid)) return res.status(400).json({ error: "معرف غير صالح" });
 
     const [userR, postsR, commentsR, likesR, reportsR, msgsR, adsR, apptR, sessionsR] =
@@ -3625,7 +3625,7 @@ router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
     if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
@@ -3645,7 +3645,7 @@ router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) =
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
     return res.json({ success: true });
@@ -3828,6 +3828,7 @@ router.get("/institution-applications/contract-pdf", (_req: Request, res: Respon
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", 'attachment; filename="institution-contract.pdf"');
   createReadStream(pdfPath).pipe(res);
+  return;
 });
 
 // تقديم طلب انضمام
@@ -4547,7 +4548,7 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
 // الأخصائيون والاستشارات الطبية — Medical Specialists & Consultations
 // ══════════════════════════════════════════════════════
 
-(async () => {
+setImmediate(() => (async () => {
   try {
     // جدول الأخصائيين
     await query(`
@@ -4598,7 +4599,7 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
     await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS facility_name VARCHAR(300)`);
     await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
   } catch {}
-})();
+})());
 
 // GET /api/specialists
 router.get("/specialists", async (_req: Request, res: Response) => {
@@ -4816,7 +4817,7 @@ router.post("/medical-consultations/:id/reply", async (req: Request, res: Respon
 // ══════════════════════════════════════════════════════
 
 // تهيئة جدول الجلسات وعمود توافر الخدمات (يُنفَّذ عند الاستيراد)
-(async () => {
+setImmediate(() => (async () => {
   try {
     await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS services_availability JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS payment_settings JSONB DEFAULT '{}'`);
@@ -4832,7 +4833,7 @@ router.post("/medical-consultations/:id/reply", async (req: Request, res: Respon
       )
     `);
   } catch {}
-})();
+})());
 
 // دالة التحقق من جلسة المؤسسة
 async function getInstitutionSession(req: Request): Promise<{ institutionId: number; instName: string } | null> {
@@ -5389,7 +5390,7 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
 // ══════════════════════════════════════════════════════════════════
 // مكتبات الخدمات الطلابية + مساحة التجار — إنشاء الجداول
 // ══════════════════════════════════════════════════════════════════
-(async () => {
+setImmediate(() => (async () => {
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS student_libraries (
@@ -5429,7 +5430,7 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
       )
     `);
   } catch (e) { console.error("student_libraries/merchant_spaces init:", e); }
-})();
+})());
 
 // ────────────────────────────────────────────────────────────────
 // مكتبات الخدمات الطلابية — Public
@@ -5849,7 +5850,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
 // ════════════════════════════════════════════════════════════════
 //  EVENTS  – الفعاليات
 // ════════════════════════════════════════════════════════════════
-(async () => {
+setImmediate(() => (async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS events (
       id               SERIAL PRIMARY KEY,
@@ -5886,7 +5887,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-})().catch(e => console.error("events init:", e));
+})().catch(e => console.error("events init:", e)));
 
 // ── GET /events ──────────────────────────────
 router.get("/events", async (req: Request, res: Response) => {
