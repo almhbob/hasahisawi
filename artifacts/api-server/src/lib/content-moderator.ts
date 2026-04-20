@@ -1,9 +1,16 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI | null {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey || !baseURL) return null;
+  if (!_openai) {
+    _openai = new OpenAI({ baseURL, apiKey });
+  }
+  return _openai;
+}
 
 export type ModerationResult = {
   allowed: boolean;
@@ -35,7 +42,8 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
     return { allowed: true };
   }
 
-  if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || !process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+  const openai = getOpenAI();
+  if (!openai) {
     return { allowed: true };
   }
 
