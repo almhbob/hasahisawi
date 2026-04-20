@@ -250,7 +250,7 @@ function ComingSoonScreen({ note }: { note?: string }) {
             <LinearGradient colors={[ACCENT + "20", ACCENT2 + "10"]} style={cs.ctaGrad}>
               <MaterialCommunityIcons name="clock-time-four-outline" size={36} color={ACCENT} style={{ marginBottom: 10 }} />
               <Text style={cs.ctaTitle}>الخدمة قيد التجهيز</Text>
-              <Text style={cs.ctaSub}>فريقنا يعمل على إطلاق الخدمة قريباً.{"\n"}سيتم إشعارك فور التفعيل الرسمي.</Text>
+              <Text style={cs.ctaSub}>فريقنا يعمل على إطلاق الخدمة.{"\n"}سيتم إشعارك فور التفعيل الرسمي.</Text>
             </LinearGradient>
           </Animated.View>
         </View>
@@ -293,7 +293,7 @@ function MaintenanceScreen({ note }: { note?: string }) {
             الخدمة تحت الصيانة
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
-            نعمل على تحسين تجربتك — نعود قريباً بشكل أفضل
+            نعمل على تحسين تجربتك — نعود بشكل أفضل
           </Animated.Text>
         </LinearGradient>
         <Animated.View entering={FadeInDown.delay(400).springify()} style={{ marginHorizontal: 20, marginTop: 20 }}>
@@ -301,7 +301,7 @@ function MaintenanceScreen({ note }: { note?: string }) {
             <MaterialCommunityIcons name="information-outline" size={22} color="#F59E0B" style={{ marginBottom: 8 }} />
             <Text style={[cs.ctaTitle, { color: "#F59E0B" }]}>جارٍ العمل على التحسين</Text>
             <Text style={[cs.ctaSub, { marginTop: 6 }]}>
-              {note || "نقوم بصيانة الخدمة لضمان أفضل تجربة ممكنة لك.\nشكراً لصبرك — ستعود الخدمة قريباً."}
+              {note || "نقوم بصيانة الخدمة لضمان أفضل تجربة ممكنة لك.\nشكراً لصبرك — ستعود الخدمة بشكل أفضل."}
             </Text>
           </LinearGradient>
         </Animated.View>
