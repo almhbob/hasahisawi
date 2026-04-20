@@ -568,7 +568,7 @@ export default function PrayerScreen() {
                     {isPlayingAdhan && <PulseRing color={nextPrayer.color} />}
                     <View style={[s.nextPrayerIcon, { backgroundColor: nextPrayer.color + "20" }]}>
                       <Ionicons
-                        name={PRAYER_LIST.find(p => p.key === nextPrayer.key)?.icon ?? "time-outline"}
+                        name={(PRAYER_LIST.find(p => p.key === nextPrayer.key)?.icon ?? "time-outline") as any}
                         size={28}
                         color={nextPrayer.color}
                       />
@@ -645,7 +645,7 @@ export default function PrayerScreen() {
                     <Animated.View key={p.key} entering={FadeInDown.delay(i * 60).springify().damping(18)}>
                       <View style={[s.prayerRow, isNext && s.prayerRowActive, { borderRightColor: p.color }]}>
                         <View style={[s.prayerIconBox, { backgroundColor: p.color + "18" }]}>
-                          <Ionicons name={p.icon} size={20} color={p.color} />
+                          <Ionicons name={p.icon as any} size={20} color={p.color} />
                         </View>
                         <View style={s.prayerInfo}>
                           <Text style={[s.prayerName, isNext && { color: p.color }]}>{p.name}</Text>

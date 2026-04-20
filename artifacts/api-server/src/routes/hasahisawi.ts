@@ -2220,7 +2220,7 @@ router.get("/admin/users/:id/stats", async (req: Request, res: Response) => {
     if (!me || (me.role !== "admin" && me.role !== "moderator")) {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const uid = parseInt(req.params.id);
+    const uid = parseInt(req.params["id"] as string);
     if (isNaN(uid)) return res.status(400).json({ error: "معرف غير صالح" });
 
     const [userR, postsR, commentsR, likesR, reportsR, msgsR, adsR, apptR, sessionsR] =
@@ -3625,7 +3625,7 @@ router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
     if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
@@ -3645,7 +3645,7 @@ router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) =
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { key } = req.params;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
     return res.json({ success: true });
@@ -3828,6 +3828,7 @@ router.get("/institution-applications/contract-pdf", (_req: Request, res: Respon
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", 'attachment; filename="institution-contract.pdf"');
   createReadStream(pdfPath).pipe(res);
+  return;
 });
 
 // تقديم طلب انضمام

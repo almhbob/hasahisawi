@@ -43,7 +43,7 @@ const upload = multer({
 });
 
 // POST /api/upload — يستقبل ملفاً واحداً بحقل اسمه "file"
-router.post("/upload", upload.single("file"), (req: Request, res: Response) => {
+router.post("/upload", upload.single("file") as any, (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: "لم يتم إرسال أي ملف أو نوع الملف غير مدعوم" });
     return;

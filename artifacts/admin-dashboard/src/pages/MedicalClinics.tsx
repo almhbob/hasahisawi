@@ -255,11 +255,12 @@ export default function MedicalClinics() {
                         onClick={() => toggleClinic(clinicName, allActive)}
                         disabled={isTogglingClinic}
                         style={{
-                          padding: "7px 18px", borderRadius: 10, border: "none", cursor: isTogglingClinic ? "wait" : "pointer",
+                          padding: "7px 18px", borderRadius: 10, cursor: isTogglingClinic ? "wait" : "pointer",
                           fontWeight: 700, fontSize: 13,
                           background: allActive ? red + "20" : green + "20",
                           color: allActive ? red : green,
-                          border: `1px solid ${allActive ? red + "40" : green + "40"}`
+                          borderStyle: "solid", borderWidth: 1,
+                          borderColor: allActive ? red + "40" : green + "40"
                         }}
                       >
                         {isTogglingClinic ? "..." : allActive ? "🔒 إخفاء الكل" : "👁 إظهار الكل"}

@@ -38,7 +38,13 @@ export default function Missing() {
   const [list,     setList]     = useState<LostItem[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<"all" | "lost" | "found">("all");
-  const [form,     setForm]     = useState<typeof EMPTY>({ ...EMPTY });
+  const [form,     setForm]     = useState<{
+    item_name: string; description: string; last_seen: string;
+    contact_phone: string; image_url: string;
+    status: "lost" | "found";
+    category: "person" | "animal" | "object" | "other";
+    reporter_name: string;
+  }>({ ...EMPTY });
   const [editing,  setEditing]  = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving,   setSaving]   = useState(false);
@@ -73,8 +79,8 @@ export default function Missing() {
       last_seen: item.last_seen || "",
       contact_phone: item.contact_phone || "",
       image_url: item.image_url || "",
-      status: item.status || "lost",
-      category: item.category || "person",
+      status: (item.status || "lost") as "lost" | "found",
+      category: (item.category || "person") as "person" | "animal" | "object" | "other",
       reporter_name: item.reporter_name || item.user_display_name || "",
     });
     setShowForm(true);
