@@ -903,6 +903,21 @@ export async function initHasahisawiDb() {
     WHERE fare_motorcycle = 0
   `);
 
+  // ══ جدول الأحياء ومناطق التغطية ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_neighborhoods (
+      id          SERIAL PRIMARY KEY,
+      name        VARCHAR(200) NOT NULL,
+      zone_id     INTEGER NOT NULL CHECK (zone_id BETWEEN 1 AND 5),
+      status      VARCHAR(20)  NOT NULL DEFAULT 'active' CHECK (status IN ('active','pending','rejected')),
+      submitted_by VARCHAR(100) NOT NULL DEFAULT '',
+      notes       TEXT         NOT NULL DEFAULT '',
+      created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tn_zone ON transport_neighborhoods(zone_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tn_status ON transport_neighborhoods(status)`);
+
   // تفعيل الخدمة افتراضياً
   await query(`INSERT INTO admin_settings (key,value) VALUES ('transport_status','available') ON CONFLICT (key) DO NOTHING`);
   await query(`INSERT INTO admin_settings (key,value) VALUES ('transport_note','') ON CONFLICT (key) DO NOTHING`);
@@ -5451,6 +5466,92 @@ router.delete("/admin/transport/operators/:id", async (req: Request, res: Respon
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "المديرون فقط" });
     await query(`DELETE FROM transport_operators WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// مناطق التغطية — الأحياء والقرى
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/transport/neighborhoods — قائمة الأحياء العامة (المعتمدة)
+router.get("/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const r = await query(`SELECT id, name, zone_id FROM transport_neighborhoods WHERE status='active' ORDER BY zone_id, name`);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/transport/neighborhoods/suggest — اقتراح حي من مستخدم
+router.post("/transport/neighborhoods/suggest", async (req: Request, res: Response) => {
+  try {
+    const { name, zone_id, submitted_by } = req.body;
+    if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
+    // تحقق من عدم التكرار
+    const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
+    if (exists.rows.length > 0) return res.status(409).json({ error: "هذا الحي موجود بالفعل أو قيد المراجعة" });
+    const r = await query(
+      `INSERT INTO transport_neighborhoods (name, zone_id, status, submitted_by) VALUES ($1,$2,'pending',$3) RETURNING *`,
+      [name.trim(), zone_id, submitted_by || ""]
+    );
+    return res.json({ success: true, neighborhood: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/neighborhoods — كل الأحياء (إداري)
+router.get("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM transport_neighborhoods ORDER BY status DESC, zone_id, name`);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/transport/neighborhoods — إضافة حي (إداري مباشر)
+router.post("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, zone_id, notes } = req.body;
+    if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
+    const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
+    if (exists.rows.length > 0) return res.status(409).json({ error: "هذا الحي موجود بالفعل" });
+    const r = await query(
+      `INSERT INTO transport_neighborhoods (name, zone_id, status, submitted_by, notes) VALUES ($1,$2,'active',$3,$4) RETURNING *`,
+      [name.trim(), zone_id, me.name || me.email, notes || ""]
+    );
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/transport/neighborhoods/:id — تعديل حالة أو بيانات
+router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, name, zone_id, notes } = req.body;
+    const fields: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+    if (status)  { fields.push(`status=$${i++}`);  vals.push(status); }
+    if (name)    { fields.push(`name=$${i++}`);    vals.push(name.trim()); }
+    if (zone_id) { fields.push(`zone_id=$${i++}`); vals.push(zone_id); }
+    if (notes !== undefined) { fields.push(`notes=$${i++}`); vals.push(notes); }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد حقول للتحديث" });
+    vals.push(req.params.id);
+    const r = await query(`UPDATE transport_neighborhoods SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
+    if (!r.rows[0]) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/neighborhoods/:id — حذف
+router.delete("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM transport_neighborhoods WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
