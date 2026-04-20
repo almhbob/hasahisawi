@@ -97,15 +97,15 @@ const DRIVER_QUIZ: QuizQuestion[] = [
     hint: "يظهر للمستخدم نجوم التقييم (١–٥) مع تعليق اختياري بعد انتهاء كل رحلة مكتملة.",
   },
   {
-    q: "ما أنواع المركبات المقبولة في الخدمة؟",
+    q: "ما أنواع المركبات المقبولة في خدمة مشاويرك علينا؟",
     options: [
       "سيارة فقط",
       "ركشة فقط",
-      "سيارة وركشة",
-      "دراجة نارية وسيارة فقط",
+      "سيارة وركشة فقط",
+      "سيارة وركشة ودراجة نارية",
     ],
-    correct: 2,
-    hint: "يدعم التطبيق نوعين: سيارة وركشة، إضافةً لخيار التوصيل (شحنات) بكلا النوعين.",
+    correct: 3,
+    hint: "تدعم الخدمة ثلاثة أنواع: سيارة 🚗 وركشة 🛺 ودراجة نارية 🏍️ — إضافةً لخيار توصيل الشحنات.",
   },
   {
     q: "عند استلام طلب توصيل شحنة، ما الذي يجب على السائق مراجعته أولاً؟",
@@ -377,8 +377,8 @@ function FareEstimateCard({
   fromZone: ZoneId | null;
   toZone: ZoneId | null;
   fareMatrix: FareMatrix;
-  vehicleType: "car" | "rickshaw" | "delivery";
-  onVehicleChange: (v: "car" | "rickshaw" | "delivery") => void;
+  vehicleType: "car" | "rickshaw" | "delivery" | "motorcycle";
+  onVehicleChange: (v: "car" | "rickshaw" | "delivery" | "motorcycle") => void;
 }) {
   if (!fromZone || !toZone) {
     return (
@@ -396,9 +396,10 @@ function FareEstimateCard({
   const toZ   = TRANSPORT_ZONES.find(z => z.id === toZone);
 
   const vehicles = [
-    { key: "car" as const,      icon: "car-side",        label: "سيارة",       color: BLUE,      fare: fares.car      },
-    { key: "rickshaw" as const,  icon: "rickshaw",        label: "ركشة",        color: ACCENT,    fare: fares.rickshaw },
-    { key: "delivery" as const,  icon: "package-variant", label: "توصيل طلب",  color: "#A855F7", fare: fares.delivery },
+    { key: "car"        as const, icon: "car-side",           label: "سيارة",       color: BLUE,      fare: (fares as any).car        },
+    { key: "rickshaw"   as const, icon: "rickshaw",            label: "ركشة",        color: ACCENT,    fare: (fares as any).rickshaw   },
+    { key: "motorcycle" as const, icon: "motorcycle",          label: "دراجة نارية", color: GREEN,     fare: (fares as any).motorcycle },
+    { key: "delivery"   as const, icon: "package-variant",    label: "توصيل طلب",   color: "#A855F7", fare: (fares as any).delivery   },
   ];
 
   return (
@@ -454,7 +455,7 @@ export default function TransportScreen() {
   const [toZone,     setToZone]    = useState<ZoneId | null>(null);
   const [fromDetail, setFromDetail] = useState("");
   const [toDetail,   setToDetail]   = useState("");
-  const [vehicleType, setVehicleType] = useState<"car" | "rickshaw" | "delivery">("car");
+  const [vehicleType, setVehicleType] = useState<"car" | "rickshaw" | "delivery" | "motorcycle">("car");
   const [userName,   setUserName]   = useState(user?.name || "");
   const [userPhone,  setUserPhone]  = useState("");
   const [notes,        setNotes]        = useState("");
@@ -940,8 +941,9 @@ export default function TransportScreen() {
                           name={vehicleType === "delivery" ? "package-variant-closed" : "car-arrow-right"}
                           size={18} color="#fff" />
                         <Text style={s.submitBtnText}>
-                          {vehicleType === "delivery" ? "إرسال طلب التوصيل" :
-                           vehicleType === "rickshaw"  ? "طلب مشوار ركشة" : "طلب مشوار سيارة"}
+                          {vehicleType === "delivery"   ? "إرسال طلب التوصيل" :
+                           vehicleType === "rickshaw"   ? "طلب مشوار ركشة"    :
+                           vehicleType === "motorcycle" ? "طلب مشوار دراجة"   : "طلب مشوار سيارة"}
                         </Text>
                       </>}
                 </LinearGradient>
@@ -990,8 +992,9 @@ export default function TransportScreen() {
                   {[
                     { label: "الكل",       val: drivers.length,                          color: Colors.textSecondary },
                     { label: "متاح الآن", val: drivers.filter(d => d.is_online).length, color: GREEN  },
-                    { label: "سيارة",      val: drivers.filter(d => d.vehicle_type === "سيارة").length, color: BLUE   },
-                    { label: "ركشة",       val: drivers.filter(d => d.vehicle_type === "ركشة").length,  color: ACCENT },
+                    { label: "سيارة",   val: drivers.filter(d => d.vehicle_type === "سيارة").length,   color: BLUE   },
+                    { label: "ركشة",    val: drivers.filter(d => d.vehicle_type === "ركشة").length,    color: ACCENT },
+                    { label: "دراجة",   val: drivers.filter(d => d.vehicle_type === "دراجة نارية").length, color: GREEN },
                   ].map((f, i) => (
                     <View key={i} style={{ flex: 1, backgroundColor: f.color + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: f.color + "30" }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: f.color }}>{f.val}</Text>
@@ -1316,13 +1319,17 @@ export default function TransportScreen() {
                       ))}
 
                       <Text style={s.fieldLabel}>نوع المركبة *</Text>
-                      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
-                        {["سيارة", "ركشة"].map(v => (
-                          <TouchableOpacity key={v} onPress={() => setRegVehicle(v)}
-                            style={[s.typeBtn, regVehicle === v && { borderColor: ACCENT, backgroundColor: ACCENT + "15" }]}>
-                            <MaterialCommunityIcons name={v === "سيارة" ? "car-side" : "rickshaw"} size={20}
-                              color={regVehicle === v ? ACCENT : Colors.textSecondary} />
-                            <Text style={[s.typeBtnLabel, regVehicle === v && { color: ACCENT }]}>{v}</Text>
+                      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                        {[
+                          { label: "سيارة",       icon: "car-side",   color: BLUE   },
+                          { label: "ركشة",        icon: "rickshaw",   color: ACCENT },
+                          { label: "دراجة نارية", icon: "motorcycle", color: GREEN  },
+                        ].map(v => (
+                          <TouchableOpacity key={v.label} onPress={() => setRegVehicle(v.label)}
+                            style={[s.typeBtn, regVehicle === v.label && { borderColor: v.color, backgroundColor: v.color + "15" }]}>
+                            <MaterialCommunityIcons name={v.icon as any} size={20}
+                              color={regVehicle === v.label ? v.color : Colors.textSecondary} />
+                            <Text style={[s.typeBtnLabel, regVehicle === v.label && { color: v.color }]}>{v.label}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -1538,8 +1545,9 @@ function TripCard({
     pending: "انتظار", accepted: "جارٍ التنفيذ", completed: "مكتمل", cancelled: "ملغي",
   };
   const sc     = STATUS_COLORS[localStatus] ?? Colors.textMuted;
-  const vcIcon = trip.vehicle_preference === "rickshaw" ? "rickshaw" :
-                 trip.vehicle_preference === "delivery" ? "package-variant" : "car-side";
+  const vcIcon = trip.vehicle_preference === "rickshaw"   ? "rickshaw"         :
+                 trip.vehicle_preference === "delivery"   ? "package-variant"   :
+                 trip.vehicle_preference === "motorcycle" ? "motorcycle"         : "car-side";
 
   const fromZ = TRANSPORT_ZONES.find(z => z.id === trip.from_zone);
   const toZ   = TRANSPORT_ZONES.find(z => z.id === trip.to_zone);
@@ -1576,8 +1584,9 @@ function TripCard({
         <View style={[tc.typeBadge, { backgroundColor: ACCENT + "15" }]}>
           <MaterialCommunityIcons name={vcIcon as any} size={14} color={ACCENT} />
           <Text style={tc.typeText}>
-            {trip.vehicle_preference === "rickshaw" ? "ركشة" :
-             trip.vehicle_preference === "delivery" ? "توصيل" : "سيارة"}
+            {trip.vehicle_preference === "rickshaw"   ? "ركشة"         :
+             trip.vehicle_preference === "delivery"   ? "توصيل"        :
+             trip.vehicle_preference === "motorcycle" ? "دراجة نارية"  : "سيارة"}
           </Text>
         </View>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
