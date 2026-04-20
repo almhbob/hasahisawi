@@ -12,7 +12,16 @@
           "package_name": "com.almhbob.hasahisawi"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "133656291161-android-debug",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.almhbob.hasahisawi",
+            "certificate_hash": "7bc4a4fc7a923705d36653b1e067794d6bd4c208"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8"

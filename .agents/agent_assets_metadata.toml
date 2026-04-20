@@ -233,3 +233,9 @@ id = "uNjlTvJPOnyWm2YDSu4vR"
 uri = "file://screenshots/booklet/hasahisawi-complete-4k.pdf"
 type = "pdf"
 title = "حصاحيصاوي — الكتيب الشامل لجميع الخدمات — 19 صفحة — دقة 4K"
+
+[[outputs]]
+id = "0y9L_1DDrFcCdOUVvCIZ8"
+uri = "file://hasahisawi-project-data.md"
+type = "text"
+title = "بيانات مشروع حصاحيصاوي — كاملة"
