@@ -440,6 +440,18 @@ function FareEstimateCard({
   );
 }
 
+// ─── أنواع الخريطة المجتمعية ─────────────────────────────────────────────────
+type CommunityNh = { id: number; name: string; zone_id: number; submitted_by: string; created_at: string };
+type CommunityStats = { total: number; pending: number; contributors: number; recent: { name: string; zone_id: number; submitted_by: string; created_at: string }[] };
+
+const ZONE_META_MOB: Record<number, { name: string; color: string; icon: string }> = {
+  1: { name: "قلب المدينة",       color: "#F97316", icon: "city-variant" },
+  2: { name: "الأحياء الوسطى",   color: "#3E9CBF", icon: "home-group" },
+  3: { name: "أطراف المدينة",    color: "#A855F7", icon: "map-marker-radius" },
+  4: { name: "المناطق الفرعية",  color: "#34D399", icon: "terrain" },
+  5: { name: "القرى المحيطة",    color: "#FBBF24", icon: "pine-tree" },
+};
+
 // ─── الشاشة الرئيسية ──────────────────────────────────────────────────────────
 export default function TransportScreen() {
   const insets = useSafeAreaInsets();
@@ -491,32 +503,47 @@ export default function TransportScreen() {
   const [quizScore,    setQuizScore]    = useState(0);
   const [quizPassed,   setQuizPassed]   = useState(false);
 
-  // اقتراح حي
-  const [showSuggestModal, setShowSuggestModal] = useState(false);
-  const [suggestZone, setSuggestZone] = useState<number>(1);
-  const [suggestName, setSuggestName] = useState("");
-  const [suggestNote, setSuggestNote] = useState("");
-  const [suggestSending, setSuggestSending] = useState(false);
-  const [suggestMsg, setSuggestMsg] = useState("");
+  // ── خريطة الأحياء المجتمعية ──
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
+  const [showAddForm,         setShowAddForm]         = useState(false);
+  const [allNeighborhoods,    setAllNeighborhoods]    = useState<CommunityNh[]>([]);
+  const [communityStats,      setCommunityStats]      = useState<CommunityStats | null>(null);
+  const [statsLoading,        setStatsLoading]        = useState(false);
+  const [expandedZone,        setExpandedZone]        = useState<number | null>(null);
+  const [addZone,     setAddZone]     = useState<number>(1);
+  const [addName,     setAddName]     = useState("");
+  const [addNote,     setAddNote]     = useState("");
+  const [addSending,  setAddSending]  = useState(false);
+  const [addSuccess,  setAddSuccess]  = useState(false);
+  const [addError,    setAddError]    = useState("");
 
-  const submitSuggestion = async () => {
-    if (!suggestName.trim()) return;
-    setSuggestSending(true);
+  const loadCommunityStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/transport/neighborhoods/community-stats`);
+      if (res.ok) setCommunityStats(await res.json());
+    } catch {} finally { setStatsLoading(false); }
+  }, [apiUrl]);
+
+  const submitAddition = async () => {
+    if (!addName.trim()) return;
+    setAddSending(true); setAddError("");
     try {
       const res = await fetch(`${apiUrl}/api/transport/neighborhoods/suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: suggestName.trim(), zone_id: suggestZone, notes: suggestNote, submitted_by: user?.name || "مجهول" }),
+        body: JSON.stringify({ name: addName.trim(), zone_id: addZone, notes: addNote, submitted_by: user?.name || "عضو" }),
       });
       if (res.ok) {
-        setSuggestMsg("✅ شكراً! سيتمّ مراجعة اقتراحك من قِبَل الإدارة.");
-        setSuggestName(""); setSuggestNote("");
+        setAddSuccess(true);
+        setAddName(""); setAddNote("");
+        loadCommunityStats();
       } else {
         const e = await res.json().catch(() => ({}));
-        setSuggestMsg("❌ " + ((e as any).error ?? "تعذّر الإرسال"));
+        setAddError((e as any).error ?? "تعذّر الإرسال");
       }
-    } catch { setSuggestMsg("❌ تعذّر الاتصال بالخادم"); }
-    setSuggestSending(false);
+    } catch { setAddError("تعذّر الاتصال بالخادم"); }
+    setAddSending(false);
   };
 
   // ── التحميل ──
@@ -538,9 +565,10 @@ export default function TransportScreen() {
     try {
       const res = await fetch(`${apiUrl}/api/transport/neighborhoods`);
       if (res.ok) {
-        const list: { zone_id: number; name: string; status: string }[] = await res.json();
+        const list: CommunityNh[] = await res.json();
+        setAllNeighborhoods(list);
         const grouped: Record<number, string[]> = {};
-        list.filter(n => n.status === "active").forEach(n => {
+        list.forEach(n => {
           if (!grouped[n.zone_id]) grouped[n.zone_id] = [];
           grouped[n.zone_id].push(n.name);
         });
@@ -576,7 +604,7 @@ export default function TransportScreen() {
     } catch {}
   }, [apiUrl, token]);
 
-  useEffect(() => { loadStatus(); loadFares(); loadNeighborhoods(); }, []);
+  useEffect(() => { loadStatus(); loadFares(); loadNeighborhoods(); loadCommunityStats(); }, []);
   useEffect(() => {
     if (enabled) { loadDrivers(); loadMyTrips(); }
   }, [enabled]);
@@ -872,11 +900,44 @@ export default function TransportScreen() {
               </View>
             </View>
 
-            {/* اقتراح حي */}
-            <TouchableOpacity onPress={() => { setSuggestMsg(""); setShowSuggestModal(true); }} activeOpacity={0.75}
-              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 4 }}>
-              <Text style={{ fontSize: 12, color: Colors.textMuted, fontFamily: "Tajawal-Regular" }}>لم تجد حيّك في القائمة؟</Text>
-              <Text style={{ fontSize: 12, color: ACCENT, fontFamily: "Tajawal-Bold" }}>اقترح إضافته ←</Text>
+            {/* بطاقة الخريطة المجتمعية */}
+            <TouchableOpacity onPress={() => { setShowCommunityModal(true); loadCommunityStats(); }} activeOpacity={0.85}>
+              <LinearGradient
+                colors={[ACCENT + "18", BLUE + "12"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 18, padding: 16, borderWidth: 1, borderColor: ACCENT + "30" }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: ACCENT + "22", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: ACCENT + "35" }}>
+                    <MaterialCommunityIcons name="map-marker-multiple-outline" size={24} color={ACCENT} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>خريطة الأحياء التفاعلية</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 }}>
+                      {allNeighborhoods.length > 0
+                        ? `${allNeighborhoods.length} حياً مُسجَّلاً • أضف حيّك لخريطة المدينة`
+                        : "ساهم في بناء خريطة مناطق حصاحيصا"}
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: ACCENT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" }}>+ أضف</Text>
+                  </View>
+                </View>
+                {allNeighborhoods.length > 0 && (
+                  <View style={{ flexDirection: "row-reverse", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+                    {[1,2,3,4,5].map(z => {
+                      const zm = ZONE_META_MOB[z];
+                      const cnt = allNeighborhoods.filter(n => n.zone_id === z).length;
+                      if (!cnt) return null;
+                      return (
+                        <View key={z} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: zm.color + "15", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: zm.color + "30" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: zm.color }}>{cnt}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: zm.color }}>م{z}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* بطاقة التعرفة */}
@@ -1535,63 +1596,280 @@ export default function TransportScreen() {
         </Pressable>
       </Modal>
 
-      {/* ─── مودال اقتراح حي ─── */}
-      <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "#000000AA", justifyContent: "flex-end" }} onPress={() => setShowSuggestModal(false)}>
-          <View style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 }}>
-            <Pressable onPress={e => e.stopPropagation()}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 }} />
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "right", marginBottom: 4 }}>🗺️ اقترح إضافة حي</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 18 }}>سيتم مراجعة اقتراحك من قِبَل فريق حصاحيصاوي</Text>
-
-              {suggestMsg ? (
-                <View style={{ padding: 12, borderRadius: 10, backgroundColor: suggestMsg.startsWith("✅") ? GREEN + "15" : "#f8717115", marginBottom: 16 }}>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: suggestMsg.startsWith("✅") ? GREEN : "#f87171", textAlign: "right" }}>{suggestMsg}</Text>
+      {/* ══════════ خريطة الأحياء التفاعلية — Modal رئيسي ══════════ */}
+      <Modal visible={showCommunityModal} transparent animationType="slide" onRequestClose={() => setShowCommunityModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "#000000CC" }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowCommunityModal(false)} />
+          <View style={{ backgroundColor: Colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%", flex: 0 }}>
+            {/* Hero Header */}
+            <LinearGradient
+              colors={[ACCENT + "22", BLUE + "14", Colors.background]}
+              style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 14, paddingBottom: 20, paddingHorizontal: 20 }}>
+              <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 }} />
+              <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "right" }}>خريطة الأحياء التفاعلية</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 4, lineHeight: 20 }}>
+                    أبناء حصاحيصا يبنون خريطتهم معاً — أضف حيّك وساهم في تسهيل التنقّل للجميع
+                  </Text>
                 </View>
-              ) : null}
+                <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.inputBg, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+                  <MaterialCommunityIcons name="close" size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
 
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>المنطقة</Text>
-              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-                {[1,2,3,4,5].map(z => (
-                  <TouchableOpacity key={z} onPress={() => setSuggestZone(z)} activeOpacity={0.8}
-                    style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, borderColor: suggestZone === z ? ACCENT : Colors.divider, backgroundColor: suggestZone === z ? ACCENT + "15" : "transparent" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: suggestZone === z ? ACCENT : Colors.textMuted }}>م{z}</Text>
-                  </TouchableOpacity>
+              {/* Stats */}
+              <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 16 }}>
+                {[
+                  { val: statsLoading ? "…" : String(communityStats?.total ?? allNeighborhoods.length), label: "حي مُسجَّل", color: ACCENT },
+                  { val: statsLoading ? "…" : String(communityStats?.contributors ?? 0), label: "مساهم", color: BLUE },
+                  { val: "٥", label: "مناطق", color: "#A855F7" },
+                ].map(s => (
+                  <View key={s.label} style={{ flex: 1, backgroundColor: s.color + "12", borderRadius: 14, borderWidth: 1, borderColor: s.color + "25", padding: 12, alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: s.color }}>{s.val}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>{s.label}</Text>
+                  </View>
                 ))}
               </View>
+            </LinearGradient>
 
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>اسم الحي أو القرية *</Text>
-              <TextInput
-                value={suggestName}
-                onChangeText={setSuggestName}
-                placeholder="مثال: حي الصداقة، ود حبوبة..."
-                placeholderTextColor={Colors.textMuted}
-                textAlign="right"
-                style={{ backgroundColor: Colors.inputBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, marginBottom: 12 }}
-              />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}>
 
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>ملاحظات إضافية (اختياري)</Text>
-              <TextInput
-                value={suggestNote}
-                onChangeText={setSuggestNote}
-                placeholder="وصف إضافي للموقع..."
-                placeholderTextColor={Colors.textMuted}
-                textAlign="right"
-                style={{ backgroundColor: Colors.inputBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, marginBottom: 20 }}
-              />
+              {/* آخر الإضافات */}
+              {communityStats?.recent && communityStats.recent.length > 0 && (
+                <View style={{ marginBottom: 20 }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <MaterialCommunityIcons name="clock-fast" size={16} color={ACCENT} />
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>أحدث الإضافات</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
+                    {communityStats.recent.map((r, i) => {
+                      const zm = ZONE_META_MOB[r.zone_id];
+                      return (
+                        <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, minWidth: 150, borderWidth: 1, borderColor: zm?.color + "25" }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: zm?.color + "20", alignItems: "center", justifyContent: "center" }}>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: zm?.color }}>م{r.zone_id}</Text>
+                            </View>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.name}</Text>
+                          </View>
+                          {r.submitted_by ? (
+                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+                              <MaterialCommunityIcons name="account-circle" size={13} color={Colors.textMuted} />
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{r.submitted_by}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
 
-              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
-                <TouchableOpacity onPress={submitSuggestion} disabled={!suggestName.trim() || suggestSending} activeOpacity={0.85}
-                  style={{ flex: 1, borderRadius: 12, backgroundColor: suggestName.trim() ? ACCENT : Colors.divider, padding: 14, alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: suggestName.trim() ? "#fff" : Colors.textMuted }}>
-                    {suggestSending ? "جارٍ الإرسال..." : "📤 إرسال الاقتراح"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowSuggestModal(false)} activeOpacity={0.8}
-                  style={{ paddingHorizontal: 18, borderRadius: 12, backgroundColor: Colors.inputBg, justifyContent: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
-                </TouchableOpacity>
+              {/* خريطة المناطق */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <MaterialCommunityIcons name="map-outline" size={16} color={ACCENT} />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>خريطة مناطق التغطية</Text>
               </View>
+
+              {[1,2,3,4,5].map(z => {
+                const zm = ZONE_META_MOB[z];
+                const zNhs = allNeighborhoods.filter(n => n.zone_id === z);
+                const isExpanded = expandedZone === z;
+                return (
+                  <View key={z} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: zm.color + "30", marginBottom: 10, overflow: "hidden" }}>
+                    <TouchableOpacity onPress={() => setExpandedZone(isExpanded ? null : z)} activeOpacity={0.8}
+                      style={{ flexDirection: "row-reverse", alignItems: "center", padding: 14, gap: 12 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: zm.color + "18", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: zm.color + "30" }}>
+                        <MaterialCommunityIcons name={zm.icon as any} size={20} color={zm.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>{zm.name}</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                          منطقة {z} • {zNhs.length > 0 ? `${zNhs.length} حي مُضاف` : "لا توجد أحياء بعد"}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                        {zNhs.length > 0 && (
+                          <View style={{ backgroundColor: zm.color + "20", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: zm.color }}>{zNhs.length}</Text>
+                          </View>
+                        )}
+                        <MaterialCommunityIcons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View style={{ paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: zm.color + "20" }}>
+                        {zNhs.length === 0 ? (
+                          <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                            <MaterialCommunityIcons name="map-marker-plus-outline" size={28} color={Colors.textMuted} />
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginTop: 8 }}>
+                              لم يُضف أحد حيّاً هنا بعد — كن الأول!
+                            </Text>
+                            <TouchableOpacity onPress={() => { setAddZone(z); setAddSuccess(false); setAddError(""); setShowAddForm(true); }} activeOpacity={0.8}
+                              style={{ marginTop: 12, backgroundColor: zm.color, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 }}>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>+ أضف أول حي في م{z}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, paddingTop: 12 }}>
+                            {zNhs.map((n, i) => (
+                              <View key={i} style={{ backgroundColor: zm.color + "12", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: zm.color + "25" }}>
+                                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: zm.color }}>{n.name}</Text>
+                                {n.submitted_by ? (
+                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                                    ✦ {n.submitted_by}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+
+              {/* دعوة للمشاركة */}
+              <View style={{ marginTop: 8, backgroundColor: ACCENT + "10", borderRadius: 16, borderWidth: 1, borderColor: ACCENT + "25", padding: 18, alignItems: "center" }}>
+                <MaterialCommunityIcons name="account-group-outline" size={30} color={ACCENT} />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, marginTop: 10, textAlign: "center" }}>
+                  ساهم في بناء الخريطة
+                </Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+                  كل إضافة تُسهِّل على جيرانك تحديد موقعهم{"\n"}وتجعل خدمة المشاوير أدق وأسرع للجميع
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* CTA ثابت في الأسفل */}
+            <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 30 }}>
+              <LinearGradient colors={[Colors.background + "00", Colors.background]} style={{ position: "absolute", top: -20, left: 0, right: 0, height: 50 }} />
+              <TouchableOpacity onPress={() => { setAddSuccess(false); setAddError(""); setAddName(""); setShowAddForm(true); }} activeOpacity={0.9}>
+                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={{ borderRadius: 16, paddingVertical: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <MaterialCommunityIcons name="map-marker-plus" size={20} color="#fff" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>أضف حياً أو قرية</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════ نموذج الإضافة — Modal فرعي ══════════ */}
+      <Modal visible={showAddForm} transparent animationType="slide" onRequestClose={() => setShowAddForm(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "flex-end" }} onPress={() => setShowAddForm(false)}>
+          <View style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingBottom: 36 }}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginTop: 14, marginBottom: 6 }} />
+
+              {addSuccess ? (
+                /* حالة النجاح */
+                <View style={{ padding: 30, alignItems: "center" }}>
+                  <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: GREEN + "20", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                    <MaterialCommunityIcons name="check-circle" size={44} color={GREEN} />
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center" }}>شكراً لمساهمتك!</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginTop: 10, lineHeight: 22 }}>
+                    تمّ إرسال إضافتك للإدارة للمراجعة.{"\n"}
+                    بعد الاعتماد ستظهر حيّاً للجميع في التطبيق.
+                  </Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 24, width: "100%" }}>
+                    <TouchableOpacity onPress={() => { setAddSuccess(false); setAddError(""); }} activeOpacity={0.85}
+                      style={{ flex: 1, backgroundColor: ACCENT + "15", borderRadius: 12, padding: 14, alignItems: "center", borderWidth: 1, borderColor: ACCENT + "30" }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: ACCENT }}>+ أضف حياً آخر</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => { setShowAddForm(false); setAddSuccess(false); }} activeOpacity={0.85}
+                      style={{ flex: 1, backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, alignItems: "center" }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted }}>إغلاق</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                /* نموذج الإضافة */
+                <View style={{ padding: 24 }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ACCENT + "18", alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name="map-marker-plus" size={22} color={ACCENT} />
+                    </View>
+                    <View>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text }}>أضف حياً أو قرية</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1 }}>تُراجعها الإدارة وتعتمدها للجميع</Text>
+                    </View>
+                  </View>
+
+                  {addError ? (
+                    <View style={{ backgroundColor: "#f8717115", borderRadius: 10, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: "#f8717135" }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#f87171", textAlign: "right" }}>⚠️ {addError}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* اختيار المنطقة */}
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>المنطقة *</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 2 }}>
+                    {[1,2,3,4,5].map(z => {
+                      const zm = ZONE_META_MOB[z];
+                      const sel = addZone === z;
+                      return (
+                        <TouchableOpacity key={z} onPress={() => setAddZone(z)} activeOpacity={0.8}
+                          style={{ alignItems: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: sel ? zm.color : Colors.divider, backgroundColor: sel ? zm.color + "15" : "transparent", minWidth: 80 }}>
+                          <MaterialCommunityIcons name={zm.icon as any} size={18} color={sel ? zm.color : Colors.textMuted} />
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: sel ? zm.color : Colors.textMuted, marginTop: 4 }}>{zm.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* اسم الحي */}
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>
+                  <TextInput
+                    value={addName}
+                    onChangeText={setAddName}
+                    placeholder="مثال: حي الصداقة، ود حبوبة، الملازمين..."
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                    style={{ backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1.5, borderColor: addName.trim() ? ACCENT + "50" : Colors.divider }}
+                  />
+
+                  {/* ملاحظات */}
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>ملاحظات إضافية (اختياري)</Text>
+                  <TextInput
+                    value={addNote}
+                    onChangeText={setAddNote}
+                    placeholder="وصف الموقع، حدوده، معالمه..."
+                    placeholderTextColor={Colors.textMuted}
+                    textAlign="right"
+                    style={{ backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, minHeight: 70 }}
+                    multiline
+                  />
+
+                  {/* أزرار */}
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 22 }}>
+                    <TouchableOpacity onPress={submitAddition} disabled={!addName.trim() || addSending} activeOpacity={0.88}
+                      style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+                      <LinearGradient
+                        colors={addName.trim() ? [ACCENT, ACCENT2] : [Colors.divider, Colors.divider]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={{ paddingVertical: 15, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}>
+                        {addSending
+                          ? <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: addName.trim() ? "#fff" : Colors.textMuted }}>جارٍ الإرسال…</Text>
+                          : <>
+                              <MaterialCommunityIcons name="send" size={16} color={addName.trim() ? "#fff" : Colors.textMuted} />
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: addName.trim() ? "#fff" : Colors.textMuted }}>إرسال للمراجعة</Text>
+                            </>
+                        }
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowAddForm(false)} activeOpacity={0.8}
+                      style={{ paddingHorizontal: 18, borderRadius: 14, backgroundColor: Colors.inputBg, justifyContent: "center" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </Pressable>
           </View>
         </Pressable>
