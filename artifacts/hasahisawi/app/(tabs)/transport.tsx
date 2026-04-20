@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, useSharedValue, useAnimatedStyle,
-  withRepeat, withTiming, withSequence, Easing, ZoomIn,
+  withRepeat, withTiming, Easing, ZoomIn,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -164,22 +164,14 @@ type Trip = {
 function ComingSoonScreen({ note }: { note?: string }) {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const shimmer = useSharedValue(0);
   const scale   = useSharedValue(0.8);
   const opacity = useSharedValue(1);
 
   useEffect(() => {
-    shimmer.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-      ), -1,
-    );
     scale.value   = withRepeat(withTiming(1.6, { duration: 1800, easing: Easing.out(Easing.ease) }), -1, false);
     opacity.value = withRepeat(withTiming(0,   { duration: 1800, easing: Easing.out(Easing.ease) }), -1, false);
   }, []);
 
-  const soonStyle  = useAnimatedStyle(() => ({ opacity: 0.7 + shimmer.value * 0.3 }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
 
   return (
@@ -206,14 +198,7 @@ function ComingSoonScreen({ note }: { note?: string }) {
             </View>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={cs.soonBadgeWrap}>
-            <Animated.View style={[cs.soonBadge, soonStyle]}>
-              <MaterialCommunityIcons name="clock-fast" size={13} color={ACCENT2} />
-              <Text style={cs.soonBadgeText}>قريباً · سيتم التفعيل</Text>
-            </Animated.View>
-          </Animated.View>
-
-          <Animated.Text entering={FadeInDown.delay(280).springify()} style={cs.heroTitle}>
+          <Animated.Text entering={FadeInDown.delay(200).springify()} style={cs.heroTitle}>
             مشوارك علينا{"\n"}مشاويرك علينا
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
