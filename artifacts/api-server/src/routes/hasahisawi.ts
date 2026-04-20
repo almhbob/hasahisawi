@@ -5477,8 +5477,24 @@ router.delete("/admin/transport/operators/:id", async (req: Request, res: Respon
 // GET /api/transport/neighborhoods — قائمة الأحياء العامة (المعتمدة)
 router.get("/transport/neighborhoods", async (req: Request, res: Response) => {
   try {
-    const r = await query(`SELECT id, name, zone_id FROM transport_neighborhoods WHERE status='active' ORDER BY zone_id, name`);
+    const r = await query(`SELECT id, name, zone_id, submitted_by, created_at FROM transport_neighborhoods WHERE status='active' ORDER BY zone_id, name`);
     return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/neighborhoods/community-stats — إحصائيات المجتمع
+router.get("/transport/neighborhoods/community-stats", async (req: Request, res: Response) => {
+  try {
+    const total     = await query(`SELECT COUNT(*) FROM transport_neighborhoods WHERE status='active'`);
+    const pending   = await query(`SELECT COUNT(*) FROM transport_neighborhoods WHERE status='pending'`);
+    const contribs  = await query(`SELECT COUNT(DISTINCT submitted_by) FROM transport_neighborhoods WHERE status='active' AND submitted_by != ''`);
+    const recent    = await query(`SELECT name, zone_id, submitted_by, created_at FROM transport_neighborhoods WHERE status='active' AND submitted_by != '' ORDER BY created_at DESC LIMIT 5`);
+    return res.json({
+      total:       parseInt(total.rows[0].count),
+      pending:     parseInt(pending.rows[0].count),
+      contributors: parseInt(contribs.rows[0].count),
+      recent:      recent.rows,
+    });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
