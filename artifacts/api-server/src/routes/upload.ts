@@ -8,21 +8,10 @@ import crypto from "node:crypto";
 const router = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = path.join(__dirname, "..", "..", "public", "uploads");
 
-// In production (Render), use /tmp which is always writable.
-// When bundled by esbuild, __dirname points to dist/ not src/routes/,
-// so relative path navigation to public/ breaks; /tmp/uploads is the safe choice.
-const UPLOADS_DIR =
-  process.env.NODE_ENV === "production"
-    ? "/tmp/uploads"
-    : path.join(__dirname, "..", "..", "public", "uploads");
-
-try {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-} catch (e: unknown) {
-  const msg = e instanceof Error ? e.message : String(e);
-  console.warn("⚠️  Could not create uploads dir:", msg);
-}
+// إنشاء المجلد إن لم يكن موجوداً
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
