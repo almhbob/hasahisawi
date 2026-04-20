@@ -9,6 +9,6 @@ router.use(healthRouter);
 router.use(uploadRouter);
 router.use(hasahisawiRouter);
 
-initHasahisawiDb().catch(console.error);
+setImmediate(() => initHasahisawiDb().catch(console.error));
 
 export default router;
