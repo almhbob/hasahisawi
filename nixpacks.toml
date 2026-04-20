@@ -1,17 +1,17 @@
 [phases.setup]
-  nixPkgs = ["nodejs_22"]
+    nixPkgs = ["nodejs_20"]
 
-  [phases.install]
-  cmds = [
-    "npm install -g pnpm",
-    "pnpm install"
-  ]
+    [phases.install]
+    cmds = [
+      "npm install -g pnpm",
+      "pnpm install"
+    ]
 
-  [phases.build]
-  cmds = [
-    "node artifacts/api-server/build.mjs"
-  ]
+    [phases.build]
+    cmds = [
+      "node artifacts/api-server/build.mjs"
+    ]
 
-  [start]
-  cmd = "node artifacts/api-server/dist/index.mjs"
+    [start]
+    cmd = "node artifacts/api-server/dist/index.mjs"
   
