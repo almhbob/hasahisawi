@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal,
-  ActivityIndicator, Platform, TextInput,
+  ActivityIndicator, Platform, Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { Audio } from "expo-av";
+import * as Notifications from "expo-notifications";
 
 const ADHAN_SOUND = require("@/assets/sounds/adhan.mp3");
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
@@ -19,17 +20,18 @@ const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
 const HASAHISA_LAT  = 14.0566;
 const HASAHISA_LON  = 33.4001;
 const SETTINGS_KEY  = "prayer_settings_v2";
+const NOTIF_CHANNEL = "adhan-channel";
 
 const PRAYER_LIST = [
-  { key: "Fajr",    name: "الفجر",   icon: "moon-outline"       as any, color: "#818CF8" },
-  { key: "Sunrise", name: "الشروق",  icon: "sunny-outline"      as any, color: "#F0A500" },
-  { key: "Dhuhr",   name: "الظهر",   icon: "sunny"              as any, color: "#27AE68" },
-  { key: "Asr",     name: "العصر",   icon: "partly-sunny-outline" as any, color: "#3E9CBF" },
-  { key: "Maghrib", name: "المغرب",  icon: "sunset-outline"     as any, color: "#F97316" },
-  { key: "Isha",    name: "العشاء",  icon: "moon"               as any, color: "#A78BFA" },
+  { key: "Fajr",    name: "الفجر",   icon: "moon-outline"         as const, color: "#818CF8" },
+  { key: "Sunrise", name: "الشروق",  icon: "sunny-outline"        as const, color: "#F0A500" },
+  { key: "Dhuhr",   name: "الظهر",   icon: "sunny"                as const, color: "#27AE68" },
+  { key: "Asr",     name: "العصر",   icon: "partly-sunny-outline" as const, color: "#3E9CBF" },
+  { key: "Maghrib", name: "المغرب",  icon: "sunset-outline"       as const, color: "#F97316" },
+  { key: "Isha",    name: "العشاء",  icon: "moon"                 as const, color: "#A78BFA" },
 ];
 
-const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]; // الصلوات الخمس للعد التنازلي
+const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 const METHODS = [
   { id: 3,  name: "الهيئة المصرية العامة للمساحة (موصى به للسودان)" },
@@ -54,7 +56,7 @@ const HIJRI_MONTHS = [
 const WEEKDAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 const WEEKDAYS_SHORT_AR = ["أح", "إث", "ثل", "أر", "خم", "جم", "سب"];
 
-// ─── إعدادات افتراضية ─────────────────────────────────────────────────────────
+// ─── أنواع ──────────────────────────────────────────────────────────────────
 type PrayerSettings = {
   method: number;
   school: number;
@@ -111,6 +113,69 @@ function jdWeekday(jd: number): number {
   return Math.floor(jd + 1.5) % 7;
 }
 
+// ─── إشعارات الأذان المحلية ───────────────────────────────────────────────────
+async function ensureAndroidChannel() {
+  if (Platform.OS !== "android") return;
+  try {
+    await Notifications.setNotificationChannelAsync(NOTIF_CHANNEL, {
+      name: "أذان الصلاة",
+      importance: Notifications.AndroidImportance.MAX,
+      sound: "default",
+      enableVibrate: true,
+      vibrationPattern: [0, 300, 200, 300],
+      lightColor: "#27AE68",
+      enableLights: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: false,
+      showBadge: false,
+    });
+  } catch {}
+}
+
+async function requestNotifPermission(): Promise<boolean> {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    if (existing === "granted") return true;
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === "granted";
+  } catch {
+    return false;
+  }
+}
+
+async function scheduleAdhanNotifications(times: Record<string, string>) {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    const now = new Date();
+    for (const key of ATHAN_PRAYERS) {
+      const timeStr = times[key];
+      if (!timeStr) continue;
+      const [h, m] = timeStr.split(":").map(Number);
+      const prayerDate = new Date();
+      prayerDate.setHours(h, m, 0, 0);
+      if (prayerDate <= now) continue;
+      const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `🕌 حان وقت صلاة ${prayerName}`,
+          body: `الله أكبر — ${formatTime(timeStr)}`,
+          sound: "default",
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
+        } as any,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: prayerDate,
+        },
+      });
+    }
+  } catch {}
+}
+
+async function cancelAdhanNotifications() {
+  try { await Notifications.cancelAllScheduledNotificationsAsync(); } catch {}
+}
+
 // ─── مكوّن خلية اليوم الهجري ─────────────────────────────────────────────────
 function HijriDayCell({
   day, isToday, isHoliday, onPress,
@@ -129,23 +194,39 @@ function HijriDayCell({
   );
 }
 
-// أيام مشهورة في الشهر الهجري (تواريخ مقدسة)
 const HIJRI_SPECIAL: Record<number, number[]> = {
-  1: [1, 10], // محرم: رأس السنة، عاشوراء
-  3: [12],    // ربيع الأول: المولد النبوي
-  7: [27],    // رجب: الإسراء والمعراج (تقريبي)
-  8: [15],    // شعبان: نصف شعبان
-  9: [1, 17, 21, 23, 27, 29, 30], // رمضان: أوله، ليلة القدر، نهايته
-  10: [1, 2, 3], // شوال: عيد الفطر
-  12: [8, 9, 10, 11, 12, 13], // ذو الحجة: الحج وعيد الأضحى
+  1: [1, 10],
+  3: [12],
+  7: [27],
+  8: [15],
+  9: [1, 17, 21, 23, 27, 29, 30],
+  10: [1, 2, 3],
+  12: [8, 9, 10, 11, 12, 13],
 };
+
+// ─── مكوّن النبضة ─────────────────────────────────────────────────────────────
+function PulseRing({ color }: { color: string }) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.6);
+  useEffect(() => {
+    scale.value = withRepeat(withTiming(1.6, { duration: 1200, easing: Easing.out(Easing.ease) }), -1, false);
+    opacity.value = withRepeat(withTiming(0, { duration: 1200, easing: Easing.out(Easing.ease) }), -1, false);
+  }, []);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+    position: "absolute",
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: color + "40",
+  }));
+  return <Animated.View style={animStyle} />;
+}
 
 // ─── المكوّن الرئيسي ───────────────────────────────────────────────────────────
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  // ── الحالة ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<"prayer" | "hijri">("prayer");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,47 +242,75 @@ export default function PrayerScreen() {
   const [settings, setSettings] = useState<PrayerSettings>(DEFAULT_SETTINGS);
   const [editSettings, setEditSettings] = useState<PrayerSettings>(DEFAULT_SETTINGS);
 
-  const [nextPrayer, setNextPrayer] = useState<{ name: string; key: string; color: string; time: string; secsLeft: number } | null>(null);
+  const [nextPrayer, setNextPrayer] = useState<{
+    name: string; key: string; color: string; time: string; secsLeft: number;
+  } | null>(null);
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── الأذان الصوتي ────────────────────────────────────────────────────────────
+  // ── الأذان ────────────────────────────────────────────────────────────────
   const [adhanEnabled, setAdhanEnabled] = useState(true);
   const [isPlayingAdhan, setIsPlayingAdhan] = useState(false);
-  const adhanSoundRef = useRef<Audio.Sound | null>(null);
+  const adhanEnabledRef = useRef(true);           // ← ref لحل stale closure
+  const adhanSoundRef  = useRef<Audio.Sound | null>(null);
+  const timesRef       = useRef<Record<string, string> | null>(null);
 
+  // مزامنة الـ ref مع الحالة
+  useEffect(() => { adhanEnabledRef.current = adhanEnabled; }, [adhanEnabled]);
+  useEffect(() => { timesRef.current = times; }, [times]);
+
+  // ── تهيئة الصوت والإشعارات عند التحميل ────────────────────────────────────
   useEffect(() => {
     AsyncStorage.getItem(ADHAN_ENABLED_KEY).then(v => {
-      if (v !== null) setAdhanEnabled(v === "1");
+      const enabled = v === null ? true : v === "1";
+      setAdhanEnabled(enabled);
+      adhanEnabledRef.current = enabled;
     });
-    // اضبط وضع الصوت ليُسمع حتى عند الصامت
+
     Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: false,
     }).catch(() => {});
+
+    ensureAndroidChannel();
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+
     return () => {
       adhanSoundRef.current?.unloadAsync().catch(() => {});
     };
   }, []);
 
+  // ── تشغيل الأذان ──────────────────────────────────────────────────────────
   const playAdhan = useCallback(async () => {
     try {
       if (adhanSoundRef.current) {
         await adhanSoundRef.current.unloadAsync();
         adhanSoundRef.current = null;
       }
-      const { sound } = await Audio.Sound.createAsync(ADHAN_SOUND, { shouldPlay: true, volume: 1.0 });
+      const { sound } = await Audio.Sound.createAsync(
+        ADHAN_SOUND,
+        { shouldPlay: true, volume: 1.0 },
+      );
       adhanSoundRef.current = sound;
       setIsPlayingAdhan(true);
       sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.didJustFinish) {
+        if (status.didJustFinish || status.isLoaded === false) {
           setIsPlayingAdhan(false);
           sound.unloadAsync().catch(() => {});
           adhanSoundRef.current = null;
         }
       });
-    } catch (e) {
+    } catch {
       setIsPlayingAdhan(false);
     }
   }, []);
@@ -213,59 +322,67 @@ export default function PrayerScreen() {
         await adhanSoundRef.current.unloadAsync();
         adhanSoundRef.current = null;
       }
-    } catch (_) {}
+    } catch {}
     setIsPlayingAdhan(false);
   }, []);
 
-  const toggleAdhanEnabled = useCallback(async () => {
-    const next = !adhanEnabled;
+  // ── تفعيل / إيقاف الأذان ─────────────────────────────────────────────────
+  const toggleAdhanEnabled = useCallback(async (next: boolean) => {
     setAdhanEnabled(next);
+    adhanEnabledRef.current = next;
     try { await AsyncStorage.setItem(ADHAN_ENABLED_KEY, next ? "1" : "0"); } catch {}
-    if (!next) stopAdhan();
-  }, [adhanEnabled, stopAdhan]);
 
-  // ── الهجري: التقويم الشهري ──────────────────────────────────────────────────
+    if (!next) {
+      stopAdhan();
+      cancelAdhanNotifications();
+    } else {
+      const granted = await requestNotifPermission();
+      if (granted && timesRef.current) {
+        scheduleAdhanNotifications(timesRef.current);
+      }
+    }
+  }, [stopAdhan]);
+
+  // ── التقويم الهجري ─────────────────────────────────────────────────────────
   const [hijriViewMonth, setHijriViewMonth] = useState(1);
-  const [hijriViewYear, setHijriViewYear] = useState(1447);
+  const [hijriViewYear,  setHijriViewYear]  = useState(1447);
 
-  // ── تحميل الإعدادات ─────────────────────────────────────────────────────────
+  // ── تحميل الإعدادات ────────────────────────────────────────────────────────
   const loadSettings = useCallback(async () => {
     try {
-      // حاول جلب الإعدادات من الـ Backend
       const apiBase = getApiUrl();
-      if (!apiBase) return;
-      const res = await fetch(`${apiBase}/api/prayer-settings`, { signal: AbortSignal.timeout(4000) });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.settings) {
-          const merged: PrayerSettings = {
-            method: data.settings.method ?? DEFAULT_SETTINGS.method,
-            school: data.settings.school ?? DEFAULT_SETTINGS.school,
-            latitude: parseFloat(data.settings.latitude) || DEFAULT_SETTINGS.latitude,
-            longitude: parseFloat(data.settings.longitude) || DEFAULT_SETTINGS.longitude,
-            offsets: {
-              Fajr:    data.settings.fajr_offset    ?? 0,
-              Dhuhr:   data.settings.dhuhr_offset   ?? 0,
-              Asr:     data.settings.asr_offset     ?? 0,
-              Maghrib: data.settings.maghrib_offset ?? 0,
-              Isha:    data.settings.isha_offset    ?? 0,
-            },
-          };
-          // تحقق من الإعدادات المحلية (للأولوية المحلية)
-          const local = await AsyncStorage.getItem(SETTINGS_KEY);
-          if (local) {
-            const parsed = JSON.parse(local);
-            setSettings({ ...merged, ...parsed });
-            setEditSettings({ ...merged, ...parsed });
-          } else {
-            setSettings(merged);
-            setEditSettings(merged);
+      if (apiBase) {
+        const res = await fetch(`${apiBase}/api/prayer-settings`, { signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            const merged: PrayerSettings = {
+              method:    data.settings.method    ?? DEFAULT_SETTINGS.method,
+              school:    data.settings.school    ?? DEFAULT_SETTINGS.school,
+              latitude:  parseFloat(data.settings.latitude)  || DEFAULT_SETTINGS.latitude,
+              longitude: parseFloat(data.settings.longitude) || DEFAULT_SETTINGS.longitude,
+              offsets: {
+                Fajr:    data.settings.fajr_offset    ?? 0,
+                Dhuhr:   data.settings.dhuhr_offset   ?? 0,
+                Asr:     data.settings.asr_offset     ?? 0,
+                Maghrib: data.settings.maghrib_offset ?? 0,
+                Isha:    data.settings.isha_offset    ?? 0,
+              },
+            };
+            const local = await AsyncStorage.getItem(SETTINGS_KEY);
+            if (local) {
+              const parsed = JSON.parse(local);
+              setSettings({ ...merged, ...parsed });
+              setEditSettings({ ...merged, ...parsed });
+            } else {
+              setSettings(merged);
+              setEditSettings(merged);
+            }
+            return;
           }
-          return;
         }
       }
-    } catch (_) {}
-    // Fallback: الإعدادات المحلية
+    } catch {}
     try {
       const local = await AsyncStorage.getItem(SETTINGS_KEY);
       if (local) {
@@ -273,7 +390,28 @@ export default function PrayerScreen() {
         setSettings(parsed);
         setEditSettings(parsed);
       }
-    } catch (_) {}
+    } catch {}
+  }, []);
+
+  // ── حساب الصلاة القادمة ─────────────────────────────────────────────────────
+  const computeNextPrayer = useCallback((t: Record<string, string>) => {
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    for (const key of ATHAN_PRAYERS) {
+      const mins = parseTime(t[key]);
+      if (mins > nowMins) {
+        const diff = (mins - nowMins) * 60 - now.getSeconds();
+        const info = PRAYER_LIST.find(p => p.key === key)!;
+        setNextPrayer({ key, name: info.name, color: info.color, time: t[key], secsLeft: diff });
+        setCountdown(diff);
+        return;
+      }
+    }
+    // بعد العشاء → الفجر غداً
+    const fajrMins = parseTime(t["Fajr"]);
+    const diff     = ((24 * 60 - nowMins) + fajrMins) * 60 - now.getSeconds();
+    setNextPrayer({ key: "Fajr", name: "الفجر", color: "#818CF8", time: t["Fajr"], secsLeft: diff });
+    setCountdown(diff);
   }, []);
 
   // ── جلب أوقات الصلاة ────────────────────────────────────────────────────────
@@ -282,56 +420,34 @@ export default function PrayerScreen() {
     setError(null);
     try {
       const tune = `0,${s.offsets.Fajr},0,${s.offsets.Dhuhr},${s.offsets.Asr},${s.offsets.Maghrib},0,${s.offsets.Isha},0`;
-      const url = `https://api.aladhan.com/v1/timings?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      const url  = `https://api.aladhan.com/v1/timings?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`;
+      const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error("فشل الاتصال");
       const json = await res.json();
       const data = json.data;
+
       setTimes(data.timings);
       setGregorian(data.date.gregorian);
       const h = data.date.hijri;
       setHijri({
-        day: h.day,
-        month: parseInt(h.month.number, 10),
-        monthName: h.month.ar,
-        year: h.year,
-        weekday: h.weekday.ar,
+        day: h.day, month: parseInt(h.month.number, 10),
+        monthName: h.month.ar, year: h.year, weekday: h.weekday.ar,
       });
       setHijriViewMonth(parseInt(h.month.number, 10));
       setHijriViewYear(parseInt(h.year, 10));
       computeNextPrayer(data.timings);
-    } catch (e: any) {
+
+      // جدولة الإشعارات المحلية إذا كان الأذان مفعّلاً
+      if (adhanEnabledRef.current) {
+        const granted = await requestNotifPermission();
+        if (granted) scheduleAdhanNotifications(data.timings);
+      }
+    } catch {
       setError("تعذّر جلب مواقيت الآذان. تحقق من اتصالك بالإنترنت.");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // ── حساب الصلاة القادمة ─────────────────────────────────────────────────────
-  const computeNextPrayer = useCallback((t: Record<string, string>) => {
-    const now = new Date();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    let found = false;
-    for (const key of ATHAN_PRAYERS) {
-      const mins = parseTime(t[key]);
-      if (mins > nowMins) {
-        const diff = (mins - nowMins) * 60 - now.getSeconds();
-        const info = PRAYER_LIST.find(p => p.key === key)!;
-        setNextPrayer({ key, name: info.name, color: info.color, time: t[key], secsLeft: diff });
-        setCountdown(diff);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // بعد العشاء: الصلاة القادمة هي الفجر غداً
-      const fajrMins = parseTime(t["Fajr"]);
-      const minsLeft = (24 * 60 - nowMins) + fajrMins;
-      const diff = minsLeft * 60 - now.getSeconds();
-      setNextPrayer({ key: "Fajr", name: "الفجر", color: "#818CF8", time: t["Fajr"], secsLeft: diff });
-      setCountdown(diff);
-    }
-  }, []);
+  }, [computeNextPrayer]);
 
   // ── العداد التنازلي ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -339,44 +455,36 @@ export default function PrayerScreen() {
     intervalRef.current = setInterval(() => {
       setCountdown(c => {
         if (c <= 1) {
-          // حلّ وقت الصلاة — شغّل الأذان إذا كان مفعّلاً
-          if (adhanEnabled) playAdhan();
-          if (times) computeNextPrayer(times);
+          // حلّ وقت الصلاة — نستخدم الـ ref لتجنب stale closure
+          if (adhanEnabledRef.current) playAdhan();
+          const currentTimes = timesRef.current;
+          if (currentTimes) computeNextPrayer(currentTimes);
           return 0;
         }
         return c - 1;
       });
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [times]);
+  }, [playAdhan, computeNextPrayer]);
 
-  // ── التهيئة ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    loadSettings().then(() => {});
-  }, []);
+  // ── التهيئة ───────────────────────────────────────────────────────────────
+  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => { fetchTimes(settings); }, [settings]);
 
-  useEffect(() => {
-    fetchTimes(settings);
-  }, [settings]);
-
-  // ── حفظ الإعدادات ───────────────────────────────────────────────────────────
+  // ── حفظ الإعدادات ──────────────────────────────────────────────────────────
   const saveSettings = async () => {
     try {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(editSettings));
       setSettings(editSettings);
       setSettingsVisible(false);
-    } catch (_) {}
+    } catch {}
   };
 
-  const resetSettings = () => {
-    setEditSettings(DEFAULT_SETTINGS);
-  };
-
-  // ── بيانات التقويم الهجري ───────────────────────────────────────────────────
+  // ── بيانات التقويم ──────────────────────────────────────────────────────────
   const hijriCalendarCells = React.useMemo(() => {
     const totalDays = hijriMonthDays(hijriViewYear, hijriViewMonth);
-    const firstJD = hijriToJD(hijriViewYear, hijriViewMonth, 1);
-    const firstWd = jdWeekday(firstJD); // 0=Sun
+    const firstJD   = hijriToJD(hijriViewYear, hijriViewMonth, 1);
+    const firstWd   = jdWeekday(firstJD);
     const cells: (number | null)[] = Array(firstWd).fill(null);
     for (let d = 1; d <= totalDays; d++) cells.push(d);
     while (cells.length % 7 !== 0) cells.push(null);
@@ -385,9 +493,10 @@ export default function PrayerScreen() {
 
   const specialDays = HIJRI_SPECIAL[hijriViewMonth] ?? [];
 
-  // ── UI ───────────────────────────────────────────────────────────────────────
+  // ─── UI ────────────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
+
       {/* Header */}
       <View style={[s.header, { paddingTop: topPad + 12 }]}>
         <Pressable style={s.settingsBtn} onPress={() => { setEditSettings(settings); setSettingsVisible(true); }}>
@@ -427,7 +536,7 @@ export default function PrayerScreen() {
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 120 }}>
 
-          {/* ── شريط التاريخ ── */}
+          {/* شريط التاريخ */}
           {hijri && (
             <Animated.View entering={FadeIn.duration(400)} style={s.dateBar}>
               <View style={s.dateBarRight}>
@@ -440,55 +549,95 @@ export default function PrayerScreen() {
             </Animated.View>
           )}
 
-          {/* ── تبويب الأوقات ── */}
           {tab === "prayer" && times && (
             <>
-              {/* بطاقة الصلاة القادمة */}
+              {/* ── بطاقة الصلاة القادمة ── */}
               {nextPrayer && (
-                <Animated.View entering={FadeInDown.duration(500).springify()} style={[s.nextCard, { borderColor: nextPrayer.color + "40" }]}>
-                  <View style={[s.nextBadge, { backgroundColor: nextPrayer.color + "18" }]}>
+                <Animated.View entering={FadeInDown.duration(500).springify()} style={[s.nextCard, { borderColor: nextPrayer.color + "50" }]}>
+
+                  {/* حالة التشغيل */}
+                  {isPlayingAdhan && (
+                    <View style={s.playingBanner}>
+                      <View style={s.playingDot} />
+                      <Text style={s.playingText}>يُبَثّ الأذان الآن</Text>
+                    </View>
+                  )}
+
+                  {/* اسم الصلاة + وقتها */}
+                  <View style={s.nextPrayerIconWrap}>
+                    {isPlayingAdhan && <PulseRing color={nextPrayer.color} />}
+                    <View style={[s.nextPrayerIcon, { backgroundColor: nextPrayer.color + "20" }]}>
+                      <Ionicons
+                        name={(PRAYER_LIST.find(p => p.key === nextPrayer.key)?.icon ?? "time-outline") as any}
+                        size={28}
+                        color={nextPrayer.color}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={s.nextBadge}>
                     <Text style={[s.nextBadgeText, { color: nextPrayer.color }]}>الصلاة القادمة</Text>
                   </View>
                   <Text style={[s.nextName, { color: nextPrayer.color }]}>{nextPrayer.name}</Text>
                   <Text style={s.nextTime}>{formatTime(nextPrayer.time, fmt24)}</Text>
+
+                  {/* العداد التنازلي */}
                   <View style={s.countdownRow}>
-                    <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+                    <Ionicons name="timer-outline" size={16} color={Colors.textMuted} />
                     <Text style={s.countdownText}>سيحين بعد: {formatCountdown(countdown)}</Text>
                   </View>
 
-                  {/* أزرار الأذان */}
-                  <View style={s.adhanBtnRow}>
+                  {/* ── أزرار الأذان ── */}
+                  <View style={s.adhanControlRow}>
+
+                    {/* زر التشغيل / الإيقاف */}
                     <Pressable
-                      style={[s.adhanBtn, isPlayingAdhan ? s.adhanBtnStop : s.adhanBtnPlay]}
+                      style={[s.playBtn, isPlayingAdhan ? s.playBtnStop : s.playBtnPlay]}
                       onPress={isPlayingAdhan ? stopAdhan : playAdhan}
+                      android_ripple={{ color: "#fff3" }}
                     >
                       <Ionicons
-                        name={isPlayingAdhan ? "stop" : "play"}
-                        size={16}
+                        name={isPlayingAdhan ? "stop-circle" : "play-circle"}
+                        size={20}
                         color={isPlayingAdhan ? "#fff" : Colors.primary}
                       />
-                      <Text style={[s.adhanBtnText, isPlayingAdhan && { color: "#fff" }]}>
+                      <Text style={[s.playBtnText, isPlayingAdhan && s.playBtnTextStop]}>
                         {isPlayingAdhan ? "إيقاف الأذان" : "تشغيل الأذان"}
                       </Text>
                     </Pressable>
-                    <Pressable
-                      style={[s.adhanToggle, adhanEnabled && s.adhanToggleOn]}
-                      onPress={toggleAdhanEnabled}
-                    >
+
+                    {/* مفتاح التفعيل */}
+                    <View style={[s.toggleWrap, adhanEnabled && s.toggleWrapOn]}>
                       <Ionicons
                         name={adhanEnabled ? "notifications" : "notifications-off-outline"}
-                        size={14}
+                        size={15}
                         color={adhanEnabled ? Colors.primary : Colors.textMuted}
                       />
-                      <Text style={[s.adhanToggleText, adhanEnabled && { color: Colors.primary }]}>
-                        {adhanEnabled ? "الأذان مفعّل" : "الأذان معطّل"}
+                      <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
+                        {adhanEnabled ? "مفعّل" : "معطّل"}
                       </Text>
-                    </Pressable>
+                      <Switch
+                        value={adhanEnabled}
+                        onValueChange={toggleAdhanEnabled}
+                        trackColor={{ false: Colors.divider, true: Colors.primary + "60" }}
+                        thumbColor={adhanEnabled ? Colors.primary : Colors.textMuted}
+                        ios_backgroundColor={Colors.divider}
+                        style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
+                      />
+                    </View>
                   </View>
+
+                  {/* ملاحظة الإشعارات */}
+                  {adhanEnabled && (
+                    <Text style={s.notifHint}>
+                      <Ionicons name="information-circle-outline" size={11} color={Colors.textMuted} />
+                      {" "}ستصلك إشعارات بوقت الأذان حتى عند إغلاق التطبيق
+                    </Text>
+                  )}
                 </Animated.View>
               )}
 
-              {/* قائمة الصلوات */}
+              {/* قائمة أوقات الصلوات */}
               <View style={s.prayerList}>
                 {PRAYER_LIST.map((p, i) => {
                   const isNext = nextPrayer?.key === p.key;
@@ -496,13 +645,15 @@ export default function PrayerScreen() {
                     <Animated.View key={p.key} entering={FadeInDown.delay(i * 60).springify().damping(18)}>
                       <View style={[s.prayerRow, isNext && s.prayerRowActive, { borderRightColor: p.color }]}>
                         <View style={[s.prayerIconBox, { backgroundColor: p.color + "18" }]}>
-                          <Ionicons name={p.icon} size={20} color={p.color} />
+                          <Ionicons name={p.icon as any} size={20} color={p.color} />
                         </View>
                         <View style={s.prayerInfo}>
                           <Text style={[s.prayerName, isNext && { color: p.color }]}>{p.name}</Text>
-                          {isNext && <Text style={[s.prayerSub, { color: p.color }]}>● الآن</Text>}
+                          {isNext && (
+                            <Text style={[s.prayerSub, { color: p.color }]}>● القادمة</Text>
+                          )}
                         </View>
-                        <Text style={[s.prayerTime, isNext && { color: p.color }]}>
+                        <Text style={[s.prayerTime, isNext && { color: p.color, fontFamily: "Cairo_700Bold" }]}>
                           {times[p.key] ? formatTime(times[p.key], fmt24) : "--"}
                         </Text>
                       </View>
@@ -511,18 +662,16 @@ export default function PrayerScreen() {
                 })}
               </View>
 
-              {/* معلومة الحساب */}
               <Text style={s.calcNote}>
                 طريقة الحساب: {METHODS.find(m => m.id === settings.method)?.name?.split("(")[0] ?? "—"}
-                {" | "}{SCHOOLS.find(s => s.id === settings.school)?.name?.split("(")[0] ?? "—"}
+                {" | "}{SCHOOLS.find(sc => sc.id === settings.school)?.name?.split("(")[0] ?? "—"}
               </Text>
             </>
           )}
 
-          {/* ── تبويب التقويم الهجري ── */}
+          {/* ── التقويم الهجري ── */}
           {tab === "hijri" && (
             <>
-              {/* شريط تنقل الشهر الهجري */}
               <View style={s.monthNav}>
                 <AnimatedPress style={s.navBtn} onPress={() => {
                   if (hijriViewMonth === 1) { setHijriViewMonth(12); setHijriViewYear(y => y - 1); }
@@ -542,17 +691,14 @@ export default function PrayerScreen() {
                 </AnimatedPress>
               </View>
 
-              {/* الشبكة الهجرية */}
               <Animated.View key={`${hijriViewYear}-${hijriViewMonth}`} entering={FadeIn.duration(300)} style={s.calCard}>
-                {/* أيام الأسبوع */}
                 <View style={hc.weekRow}>
                   {WEEKDAYS_SHORT_AR.map((d, i) => (
                     <View key={i} style={hc.weekHeader}>
-                      <Text style={[hc.weekHeaderText, (i === 5) && { color: Colors.accent }]}>{d}</Text>
+                      <Text style={[hc.weekHeaderText, i === 5 && { color: Colors.accent }]}>{d}</Text>
                     </View>
                   ))}
                 </View>
-                {/* خلايا الأيام */}
                 {Array.from({ length: hijriCalendarCells.length / 7 }, (_, row) => (
                   <View key={row} style={hc.weekRow}>
                     {hijriCalendarCells.slice(row * 7, row * 7 + 7).map((day, col) => (
@@ -561,9 +707,9 @@ export default function PrayerScreen() {
                         day={day}
                         isToday={
                           day !== null &&
-                          hijriViewMonth === (hijri ? hijri.month : -1) &&
-                          hijriViewYear === (hijri ? parseInt(hijri.year) : -1) &&
-                          String(day) === (hijri?.day ?? "")
+                          hijriViewMonth === (hijri?.month ?? -1) &&
+                          hijriViewYear  === (hijri ? parseInt(hijri.year) : -1) &&
+                          String(day)    === (hijri?.day ?? "")
                         }
                         isHoliday={day !== null && specialDays.includes(day)}
                       />
@@ -572,7 +718,6 @@ export default function PrayerScreen() {
                 ))}
               </Animated.View>
 
-              {/* الأيام المميزة للشهر */}
               {specialDays.length > 0 && (
                 <View style={s.specialSection}>
                   <Text style={s.specialTitle}>أيام مميزة في {HIJRI_MONTHS[hijriViewMonth - 1]}</Text>
@@ -585,7 +730,6 @@ export default function PrayerScreen() {
                 </View>
               )}
 
-              {/* معلومة عن الشهر الهجري */}
               <View style={s.hijriInfoCard}>
                 <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
                 <Text style={s.hijriInfoText}>
@@ -602,7 +746,7 @@ export default function PrayerScreen() {
         </ScrollView>
       )}
 
-      {/* ─── نافذة الإعدادات ─────────────────────────────────────────────────── */}
+      {/* ── نافذة الإعدادات ── */}
       <Modal visible={settingsVisible} transparent animationType="slide" onRequestClose={() => setSettingsVisible(false)}>
         <View style={ms.overlay}>
           <Pressable style={ms.backdrop} onPress={() => setSettingsVisible(false)} />
@@ -616,7 +760,6 @@ export default function PrayerScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* طريقة الحساب */}
               <Text style={ms.sectionLabel}>طريقة الحساب</Text>
               {METHODS.map(m => (
                 <Pressable key={m.id}
@@ -630,7 +773,6 @@ export default function PrayerScreen() {
                 </Pressable>
               ))}
 
-              {/* المذهب */}
               <Text style={ms.sectionLabel}>مذهب صلاة العصر</Text>
               {SCHOOLS.map(school => (
                 <Pressable key={school.id}
@@ -644,20 +786,23 @@ export default function PrayerScreen() {
                 </Pressable>
               ))}
 
-              {/* تعديل الدقائق */}
               <Text style={ms.sectionLabel}>تعديل الدقائق (+ أو -)</Text>
               <Text style={ms.sectionSub}>للتصحيح الدقيق لمواقيت بلدك</Text>
               {(["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"] as const).map(key => {
-                const nameMap: Record<string, string> = { Fajr: "الفجر", Dhuhr: "الظهر", Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء" };
+                const nameMap: Record<string, string> = {
+                  Fajr: "الفجر", Dhuhr: "الظهر", Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء",
+                };
                 return (
                   <View key={key} style={ms.offsetRow}>
                     <Text style={ms.offsetLabel}>{nameMap[key]}</Text>
                     <View style={ms.offsetControls}>
-                      <Pressable style={ms.offsetBtn} onPress={() => setEditSettings(s => ({ ...s, offsets: { ...s.offsets, [key]: s.offsets[key] - 1 } }))}>
+                      <Pressable style={ms.offsetBtn}
+                        onPress={() => setEditSettings(s => ({ ...s, offsets: { ...s.offsets, [key]: s.offsets[key] - 1 } }))}>
                         <Ionicons name="remove" size={18} color={Colors.primary} />
                       </Pressable>
                       <Text style={ms.offsetVal}>{editSettings.offsets[key] > 0 ? "+" : ""}{editSettings.offsets[key]}</Text>
-                      <Pressable style={ms.offsetBtn} onPress={() => setEditSettings(s => ({ ...s, offsets: { ...s.offsets, [key]: s.offsets[key] + 1 } }))}>
+                      <Pressable style={ms.offsetBtn}
+                        onPress={() => setEditSettings(s => ({ ...s, offsets: { ...s.offsets, [key]: s.offsets[key] + 1 } }))}>
                         <Ionicons name="add" size={18} color={Colors.primary} />
                       </Pressable>
                     </View>
@@ -665,9 +810,8 @@ export default function PrayerScreen() {
                 );
               })}
 
-              {/* أزرار */}
               <View style={ms.btnRow}>
-                <AnimatedPress style={ms.resetBtn} onPress={resetSettings} scaleDown={0.95}>
+                <AnimatedPress style={ms.resetBtn} onPress={() => setEditSettings(DEFAULT_SETTINGS)} scaleDown={0.95}>
                   <Text style={ms.resetBtnText}>إعادة تعيين</Text>
                 </AnimatedPress>
                 <AnimatedPress style={ms.saveBtn} onPress={saveSettings} scaleDown={0.95}>
@@ -682,7 +826,7 @@ export default function PrayerScreen() {
   );
 }
 
-// ─── الأنماط ───────────────────────────────────────────────────────────────────
+// ─── الأنماط ────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
@@ -690,7 +834,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
+  headerTitle:  { fontFamily: "Cairo_700Bold",  fontSize: 20, color: Colors.textPrimary },
   settingsBtn: {
     width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.cardBg,
     alignItems: "center", justifyContent: "center",
@@ -703,26 +847,22 @@ const s = StyleSheet.create({
   },
   fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
 
-  tabRow: {
-    flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8,
-  },
+  tabRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   tabBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 6, paddingVertical: 8, borderRadius: 12,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
   },
-  tabBtnActive: {
-    backgroundColor: Colors.primary + "18",
-    borderColor: Colors.primary + "40",
-  },
+  tabBtnActive: { backgroundColor: Colors.primary + "18", borderColor: Colors.primary + "40" },
   tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
 
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
   loadingText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },
-  errorWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 32 },
-  errorText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted, textAlign: "center" },
+  errorWrap:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 32 },
+  errorText:   { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted, textAlign: "center" },
   retryBtn: {
-    backgroundColor: Colors.primary + "18", borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: Colors.primary + "18", borderRadius: 12,
+    paddingHorizontal: 20, paddingVertical: 10,
     borderWidth: 1, borderColor: Colors.primary + "40",
   },
   retryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
@@ -734,81 +874,97 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  dateBarRight: { gap: 2 },
-  dateHijri: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  dateBarRight:  { gap: 2 },
+  dateHijri:     { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   dateGregorian: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   moonIcon: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: Colors.accent + "18",
-    alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: Colors.accent + "30",
   },
 
+  // ── بطاقة الصلاة القادمة ──
   nextCard: {
     marginHorizontal: 16, marginTop: 10, marginBottom: 4,
-    backgroundColor: Colors.cardBgElevated, borderRadius: 20,
-    padding: 20, alignItems: "center", gap: 6,
+    backgroundColor: Colors.cardBgElevated, borderRadius: 22,
+    padding: 20, alignItems: "center", gap: 5,
     borderWidth: 1.5,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 6,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
+  },
+  playingBanner: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.primary + "20", borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 5, marginBottom: 4,
+    borderWidth: 1, borderColor: Colors.primary + "40",
+  },
+  playingDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary,
+  },
+  playingText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
+
+  nextPrayerIconWrap: {
+    width: 64, height: 64, alignItems: "center", justifyContent: "center", marginBottom: 4,
+  },
+  nextPrayerIcon: {
+    width: 64, height: 64, borderRadius: 32,
+    alignItems: "center", justifyContent: "center",
   },
   nextBadge: {
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 4,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 2,
   },
   nextBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  nextName: { fontFamily: "Cairo_700Bold", fontSize: 32 },
+  nextName: { fontFamily: "Cairo_700Bold", fontSize: 34 },
   nextTime: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary },
-  countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-  countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  adhanBtnRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, marginTop: 14, flexWrap: "wrap",
-  },
-  adhanBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
-    borderWidth: 1,
-  },
-  adhanBtnPlay: {
-    backgroundColor: Colors.primary + "18",
-    borderColor: Colors.primary + "60",
-  },
-  adhanBtnStop: {
-    backgroundColor: "#E74C3C",
-    borderColor: "#E74C3C",
-  },
-  adhanBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
-  adhanToggle: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10,
-    backgroundColor: Colors.cardBgElevated,
-    borderWidth: 1, borderColor: Colors.textMuted + "30",
-  },
-  adhanToggleOn: {
-    backgroundColor: Colors.primary + "12",
-    borderColor: Colors.primary + "50",
-  },
-  adhanToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+  countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
+  // ── أزرار التحكم بالأذان ──
+  adhanControlRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginTop: 14, width: "100%", flexWrap: "wrap",
+  },
+  playBtn: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
+    flex: 1,
+  },
+  playBtnPlay: { backgroundColor: Colors.primary + "15", borderColor: Colors.primary + "55" },
+  playBtnStop: { backgroundColor: "#E74C3C", borderColor: "#C0392B" },
+  playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, flex: 1, textAlign: "center" },
+  playBtnTextStop: { color: "#fff" },
+
+  toggleWrap: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 6, borderRadius: 12,
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  toggleWrapOn: { backgroundColor: Colors.primary + "10", borderColor: Colors.primary + "40" },
+  toggleLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+
+  notifHint: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    textAlign: "center", paddingHorizontal: 8, marginTop: 4,
+  },
+
+  // ── قائمة الصلوات ──
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
   prayerRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.divider,
-    borderRightWidth: 4,
+    borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4,
   },
   prayerRowActive: {
     backgroundColor: Colors.cardBgElevated,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
+    shadowOpacity: 0.1, shadowRadius: 6, elevation: 3,
   },
-  prayerIconBox: {
-    width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center",
-  },
-  prayerInfo: { flex: 1, gap: 2 },
-  prayerName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  prayerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" },
-  prayerTime: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textSecondary },
+  prayerIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  prayerInfo:    { flex: 1, gap: 2 },
+  prayerName:    { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  prayerSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" },
+  prayerTime:    { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textSecondary },
 
   calcNote: {
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
@@ -826,25 +982,22 @@ const s = StyleSheet.create({
   },
   monthTitleWrap: { alignItems: "center" },
   monthTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
-  yearText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  yearText:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   calCard: {
     marginHorizontal: 16, backgroundColor: Colors.cardBg,
-    borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: Colors.divider,
+    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: Colors.divider,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
   specialSection: {
     marginHorizontal: 16, marginTop: 12,
-    backgroundColor: Colors.accent + "0C",
-    borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.accent + "25",
-    gap: 8,
+    backgroundColor: Colors.accent + "0C", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.accent + "25", gap: 8,
   },
   specialTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.accent, textAlign: "right" },
-  specialItem: { flexDirection: "row", alignItems: "center", gap: 8 },
-  specialDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
-  specialText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  specialItem:  { flexDirection: "row", alignItems: "center", gap: 8 },
+  specialDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
+  specialText:  { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   hijriInfoCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     marginHorizontal: 16, marginTop: 10, padding: 12,
@@ -860,25 +1013,23 @@ const s = StyleSheet.create({
 const CELL_SIZE = (Platform.OS === "web" ? 400 : 360) / 7;
 
 const hc = StyleSheet.create({
-  weekRow: { flexDirection: "row" },
-  weekHeader: { width: CELL_SIZE, alignItems: "center", paddingBottom: 6 },
-  weekHeaderText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
-  cell: { width: CELL_SIZE, height: CELL_SIZE, alignItems: "center", justifyContent: "center", borderRadius: 8 },
-  cellToday: { backgroundColor: Colors.primary },
-  cellHoliday: { backgroundColor: Colors.accent + "1A" },
-  dayNum: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary },
-  dayNumToday: { color: "#fff", fontFamily: "Cairo_700Bold" },
+  weekRow:       { flexDirection: "row" },
+  weekHeader:    { width: CELL_SIZE, alignItems: "center", paddingBottom: 6 },
+  weekHeaderText:{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  cell:          { width: CELL_SIZE, height: CELL_SIZE, alignItems: "center", justifyContent: "center", borderRadius: 8 },
+  cellToday:     { backgroundColor: Colors.primary },
+  cellHoliday:   { backgroundColor: Colors.accent + "1A" },
+  dayNum:        { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary },
+  dayNumToday:   { color: "#fff", fontFamily: "Cairo_700Bold" },
 });
 
-// ─── أنماط نافذة الإعدادات ───────────────────────────────────────────────────
 const ms = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "flex-end" },
+  overlay:  { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
   sheet: {
     backgroundColor: "#0D1910",
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    maxHeight: "88%",
-    paddingHorizontal: 20, paddingBottom: 40,
+    maxHeight: "88%", paddingHorizontal: 20, paddingBottom: 40,
     borderTopWidth: 1, borderColor: Colors.primary + "30",
   },
   handle: {
@@ -889,8 +1040,8 @@ const ms = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 14, marginBottom: 4,
   },
-  sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  sectionLabel: {
+  sheetTitle:  { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  sectionLabel:{
     fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary,
     marginTop: 16, marginBottom: 6, textAlign: "right",
   },
@@ -905,12 +1056,9 @@ const ms = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
   },
   optionRowActive: { borderColor: Colors.primary + "50", backgroundColor: Colors.primary + "0D" },
-  radio: {
-    width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted,
-    alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2,
-  },
-  radioActive: { borderColor: Colors.primary },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  radio:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted, alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
+  radioActive:{ borderColor: Colors.primary },
+  radioDot:   { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
   optionText: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   offsetRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -918,23 +1066,17 @@ const ms = StyleSheet.create({
     marginBottom: 6, backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  offsetLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  offsetControls: { flexDirection: "row", alignItems: "center", gap: 12 },
+  offsetLabel:   { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+  offsetControls:{ flexDirection: "row", alignItems: "center", gap: 12 },
   offsetBtn: {
     width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.primary + "18",
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: Colors.primary + "35",
   },
   offsetVal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, minWidth: 30, textAlign: "center" },
-  btnRow: { flexDirection: "row", gap: 12, marginTop: 20 },
-  resetBtn: {
-    flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center",
-    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
-  },
-  resetBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
-  saveBtn: {
-    flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center",
-    backgroundColor: Colors.primary,
-  },
+  btnRow:    { flexDirection: "row", gap: 12, marginTop: 20 },
+  resetBtn:  { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
+  resetBtnText:{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
+  saveBtn:   { flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: Colors.primary },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
