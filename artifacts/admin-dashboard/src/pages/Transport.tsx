@@ -37,6 +37,10 @@ type Operator = {
   active_drivers?: number; total_trips?: number;
   total_revenue?: number; total_operator_revenue?: number; total_platform_revenue?: number;
 };
+type Neighborhood = {
+  id: number; name: string; zone_id: number; status: "active" | "pending" | "rejected";
+  submitted_by: string; notes: string; created_at: string;
+};
 type Reports = {
   overall: {
     completed_trips: number; cancelled_trips: number; pending_trips: number; active_trips: number;
@@ -148,6 +152,14 @@ export default function Transport() {
   const [supForm, setSupForm] = useState({ name: "", email: "", password: "" });
   const [supMsg, setSupMsg] = useState("");
 
+  // Neighborhoods
+  const [neighborhoods,  setNeighborhoods] = useState<Neighborhood[]>([]);
+  const [nhFilter,       setNhFilter]      = useState<"all" | "active" | "pending" | "rejected">("all");
+  const [nhZone,         setNhZone]        = useState<number>(0); // 0 = all
+  const [showNhForm,     setShowNhForm]    = useState(false);
+  const [nhForm,         setNhForm]        = useState({ name: "", zone_id: "1", notes: "" });
+  const [nhSaving,       setNhSaving]      = useState(false);
+
   // ─── Load ─────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
@@ -190,8 +202,16 @@ export default function Transport() {
     } catch {}
   }, []);
 
+  const loadNeighborhoods = useCallback(async () => {
+    try {
+      const r = await apiJson<Neighborhood[]>("/admin/transport/neighborhoods");
+      setNeighborhoods(Array.isArray(r) ? r : []);
+    } catch {}
+  }, []);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === "reports") loadReports(); }, [tab, loadReports]);
+  useEffect(() => { if (tab === "zones") loadNeighborhoods(); }, [tab, loadNeighborhoods]);
 
   // ─── Actions ─────────────────────────────────────────────────────────────
   const setDriverStatus = async (id: number, status: string, note?: string) => {
@@ -251,6 +271,32 @@ export default function Transport() {
     await apiFetch(`/admin/transport/operators/${id}`, { method: "DELETE" });
     setOperators(prev => prev.filter(o => o.id !== id));
   };
+  // Neighborhood actions
+  const addNeighborhood = async () => {
+    if (!nhForm.name.trim()) return;
+    setNhSaving(true);
+    const res = await apiFetch("/admin/transport/neighborhoods", { method: "POST", body: JSON.stringify({ name: nhForm.name.trim(), zone_id: +nhForm.zone_id, notes: nhForm.notes }) });
+    if (res.ok) {
+      const nh = await res.json();
+      setNeighborhoods(prev => [nh, ...prev]);
+      setNhForm({ name: "", zone_id: nhForm.zone_id, notes: "" });
+      setShowNhForm(false);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert((err as any).error ?? "تعذّر الإضافة");
+    }
+    setNhSaving(false);
+  };
+  const updateNhStatus = async (id: number, status: "active" | "rejected") => {
+    const res = await apiFetch(`/admin/transport/neighborhoods/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+    if (res.ok) setNeighborhoods(prev => prev.map(n => n.id === id ? { ...n, status } : n));
+  };
+  const deleteNeighborhood = async (id: number) => {
+    if (!confirm("حذف هذا الحي نهائياً؟")) return;
+    await apiFetch(`/admin/transport/neighborhoods/${id}`, { method: "DELETE" });
+    setNeighborhoods(prev => prev.filter(n => n.id !== id));
+  };
+
   const createSupervisor = async () => {
     setSupMsg("");
     const res = await apiFetch("/auth/register-transport-supervisor", { method: "POST", body: JSON.stringify(supForm) });
@@ -279,10 +325,12 @@ export default function Transport() {
   });
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
-  const TABS: { id: string; label: string; icon: string }[] = [
+  const pendingNh = neighborhoods.filter(n => n.status === "pending").length;
+  const TABS: { id: string; label: string; icon: string; badge?: number }[] = [
     { id: "overview",  label: "نظرة عامة",   icon: "📊" },
     { id: "drivers",   label: `السائقون (${drivers.length})`, icon: "🚗" },
     { id: "trips",     label: `الرحلات (${trips.length})`,    icon: "📍" },
+    { id: "zones",     label: "مناطق التغطية", icon: "🗺️", badge: pendingNh || undefined },
     { id: "fares",     label: "التعرفة",      icon: "💰" },
     { id: "operators", label: `الشركات (${operators.length})`, icon: "🏢" },
     { id: "reports",   label: "التقارير",     icon: "📈" },
@@ -705,6 +753,206 @@ export default function Transport() {
     );
   };
 
+  const ZONE_META: Record<number, { name: string; color: string; desc: string }> = {
+    1: { name: "قلب المدينة",      color: "#F97316", desc: "الأحياء الداخلية — المركز الرئيسي" },
+    2: { name: "الأحياء الوسطى",  color: "#3E9CBF", desc: "الأحياء المحيطة بالمركز" },
+    3: { name: "أطراف المدينة",   color: "#A855F7", desc: "كمبو والجملونات وما يحيط بها" },
+    4: { name: "المناطق الفرعية", color: "#3EFF9C", desc: "المناطق الطرفية الفرعية" },
+    5: { name: "القرى المحيطة",   color: "#FBBF24", desc: "قرى ووحدات إدارية تابعة للمحلية" },
+  };
+
+  const renderZones = () => {
+    const filteredNh = neighborhoods.filter(n =>
+      (nhFilter === "all" || n.status === nhFilter) &&
+      (nhZone === 0 || n.zone_id === nhZone)
+    );
+    const pendingList = neighborhoods.filter(n => n.status === "pending");
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "hsl(210 40% 90%)" }}>🗺️ إدارة مناطق التغطية</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "hsl(215 20% 50%)" }}>
+              أضف الأحياء والقرى لكل منطقة، واعتمد الاقتراحات الواردة من المستخدمين
+            </p>
+          </div>
+          <button onClick={() => { setShowNhForm(true); }}
+            style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: "#3E9CBF", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 700 }}>
+            + إضافة حي أو قرية
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {[
+            { label: "الكل",           val: neighborhoods.length,                              color: "hsl(215 20% 55%)" },
+            { label: "معتمد ✅",       val: neighborhoods.filter(n=>n.status==="active").length,  color: "#34d399" },
+            { label: "قيد المراجعة ⏳", val: pendingList.length,                                color: "#fbbf24" },
+            { label: "مرفوض ✗",        val: neighborhoods.filter(n=>n.status==="rejected").length, color: "#f87171" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "hsl(222 47% 10%)", border: `1px solid ${s.color}30`, borderRadius: 14, padding: "14px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.val}</div>
+              <div style={{ fontSize: 12, color: "hsl(215 20% 50%)", marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pending Approval */}
+        {pendingList.length > 0 && (
+          <div style={{ background: "rgba(251,191,36,.06)", border: "1px solid rgba(251,191,36,.25)", borderRadius: 16, padding: "18px 20px" }}>
+            <SectionTitle>⏳ اقتراحات بانتظار الموافقة ({pendingList.length})</SectionTitle>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {pendingList.map(n => (
+                <div key={n.id} style={{ background: "hsl(222 47% 11%)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, color: "hsl(210 40% 90%)", fontSize: 14 }}>{n.name}</div>
+                    <div style={{ fontSize: 12, color: "hsl(215 20% 50%)", marginTop: 2 }}>
+                      <span style={{ color: ZONE_META[n.zone_id]?.color ?? "#fff", fontWeight: 700 }}>م{n.zone_id} · {ZONE_META[n.zone_id]?.name}</span>
+                      {n.submitted_by && <span> · قدّمه: {n.submitted_by}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => updateNhStatus(n.id, "active")}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid rgba(52,211,153,.4)", background: "rgba(52,211,153,.12)", color: "#34d399", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>
+                      ✓ اعتماد
+                    </button>
+                    <button onClick={() => updateNhStatus(n.id, "rejected")}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid rgba(248,113,113,.3)", background: "rgba(248,113,113,.1)", color: "#f87171", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>
+                      ✗ رفض
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filters */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["all","active","pending","rejected"] as const).map(f => (
+              <button key={f} onClick={() => setNhFilter(f)}
+                style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid hsl(217 32% 18%)", background: nhFilter === f ? "#3E9CBF" : "transparent", color: nhFilter === f ? "#fff" : "hsl(215 20% 60%)", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: nhFilter === f ? 700 : 400 }}>
+                {f === "all" ? "الكل" : f === "active" ? "معتمد" : f === "pending" ? "انتظار" : "مرفوض"}
+              </button>
+            ))}
+          </div>
+          <select value={nhZone} onChange={e => setNhZone(+e.target.value)}
+            style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid hsl(217 32% 18%)", background: "hsl(222 47% 9%)", color: "hsl(210 40% 88%)", fontFamily: "inherit", fontSize: 13 }}>
+            <option value={0}>كل المناطق</option>
+            {[1,2,3,4,5].map(z => <option key={z} value={z}>م{z} · {ZONE_META[z]?.name}</option>)}
+          </select>
+          <span style={{ fontSize: 13, color: "hsl(215 20% 50%)", marginRight: "auto" }}>{filteredNh.length} نتيجة</span>
+        </div>
+
+        {/* Zone Groups */}
+        {[1,2,3,4,5].filter(z => nhZone === 0 || nhZone === z).map(z => {
+          const zm = ZONE_META[z];
+          const zNh = filteredNh.filter(n => n.zone_id === z);
+          if (zNh.length === 0 && nhFilter !== "all") return null;
+          return (
+            <div key={z} style={{ background: "hsl(222 47% 10%)", border: `1px solid ${zm.color}25`, borderRadius: 16, overflow: "hidden" }}>
+              {/* Zone Header */}
+              <div style={{ background: zm.color + "12", borderBottom: `1px solid ${zm.color}25`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: zm.color + "20", border: `1px solid ${zm.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: zm.color }}>م{z}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: "hsl(210 40% 90%)", fontSize: 15 }}>{zm.name}</div>
+                    <div style={{ fontSize: 12, color: "hsl(215 20% 50%)", marginTop: 1 }}>{zm.desc}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, color: zm.color, fontWeight: 700 }}>
+                    {neighborhoods.filter(n => n.zone_id === z && n.status === "active").length} حي معتمد
+                  </span>
+                  <button onClick={() => { setNhForm(f => ({ ...f, zone_id: String(z) })); setShowNhForm(true); }}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${zm.color}40`, background: zm.color + "15", color: zm.color, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>
+                    + إضافة
+                  </button>
+                </div>
+              </div>
+              {/* Neighborhoods */}
+              <div style={{ padding: "12px 20px" }}>
+                {zNh.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "hsl(215 20% 40%)", fontSize: 13 }}>
+                    لا توجد أحياء مضافة لهذه المنطقة بعد
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                    {zNh.map(n => (
+                      <div key={n.id} style={{ background: "hsl(222 47% 13%)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: `1px solid ${n.status === "active" ? zm.color+"20" : n.status === "pending" ? "rgba(251,191,36,.2)" : "rgba(248,113,113,.15)"}` }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "hsl(210 40% 90%)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.name}</div>
+                          <div style={{ fontSize: 11, marginTop: 2, color: n.status === "active" ? "#34d399" : n.status === "pending" ? "#fbbf24" : "#f87171" }}>
+                            {n.status === "active" ? "✓ معتمد" : n.status === "pending" ? "⏳ انتظار" : "✗ مرفوض"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                          {n.status === "pending" && (
+                            <button onClick={() => updateNhStatus(n.id, "active")} title="اعتماد"
+                              style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(52,211,153,.3)", background: "rgba(52,211,153,.1)", color: "#34d399", cursor: "pointer", fontSize: 12 }}>✓</button>
+                          )}
+                          {n.status === "active" && (
+                            <button onClick={() => updateNhStatus(n.id, "rejected")} title="إيقاف"
+                              style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(251,191,36,.3)", background: "rgba(251,191,36,.1)", color: "#fbbf24", cursor: "pointer", fontSize: 12 }}>⏸</button>
+                          )}
+                          <button onClick={() => deleteNeighborhood(n.id)} title="حذف"
+                            style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(248,113,113,.25)", background: "rgba(248,113,113,.08)", color: "#f87171", cursor: "pointer", fontSize: 12 }}>🗑</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add Form Modal */}
+        {showNhForm && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowNhForm(false)}>
+            <div style={{ background: "hsl(222 47% 11%)", border: "1px solid hsl(217 32% 18%)", borderRadius: 20, padding: "28px 30px", width: "100%", maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "hsl(210 40% 90%)" }}>🗺️ إضافة حي أو قرية</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 55%)" }}>اسم الحي أو القرية *</label>
+                  <input
+                    value={nhForm.name} onChange={e => setNhForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="مثال: حي الزهور، ود حبوبة..."
+                    style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 14px", borderRadius: 10, border: "1px solid hsl(217 32% 20%)", background: "hsl(222 47% 9%)", color: "hsl(210 40% 90%)", fontFamily: "inherit", fontSize: 14, boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 55%)" }}>المنطقة *</label>
+                  <select value={nhForm.zone_id} onChange={e => setNhForm(f => ({ ...f, zone_id: e.target.value }))}
+                    style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 14px", borderRadius: 10, border: "1px solid hsl(217 32% 20%)", background: "hsl(222 47% 9%)", color: "hsl(210 40% 90%)", fontFamily: "inherit", fontSize: 14, boxSizing: "border-box" }}>
+                    {[1,2,3,4,5].map(z => <option key={z} value={z}>م{z} · {ZONE_META[z]?.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 55%)" }}>ملاحظات (اختياري)</label>
+                  <input value={nhForm.notes} onChange={e => setNhForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="وصف إضافي..."
+                    style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 14px", borderRadius: 10, border: "1px solid hsl(217 32% 20%)", background: "hsl(222 47% 9%)", color: "hsl(210 40% 90%)", fontFamily: "inherit", fontSize: 14, boxSizing: "border-box" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+                <button onClick={addNeighborhood} disabled={!nhForm.name.trim() || nhSaving}
+                  style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: "#3E9CBF", color: "#fff", cursor: nhForm.name.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", fontSize: 14, fontWeight: 700, opacity: !nhForm.name.trim() ? 0.5 : 1 }}>
+                  {nhSaving ? "جارٍ الحفظ..." : "✓ إضافة معتمدة"}
+                </button>
+                <button onClick={() => setShowNhForm(false)}
+                  style={{ padding: "12px 20px", borderRadius: 12, border: "1px solid hsl(217 32% 20%)", background: "transparent", color: "hsl(215 20% 55%)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>إلغاء</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettings = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Service Status */}
@@ -776,8 +1024,9 @@ export default function Transport() {
       <div style={{ display: "flex", gap: 4, marginBottom: 24, flexWrap: "wrap", borderBottom: "1px solid hsl(217 32% 14%)", paddingBottom: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => { setSearch(""); setTab(t.id as any); }}
-            style={{ padding: "10px 16px", border: "none", borderBottom: tab === t.id ? `2px solid ${orange}` : "2px solid transparent", background: "transparent", color: tab === t.id ? orange : "hsl(215 20% 52%)", fontFamily: "inherit", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", transition: "all .15s", marginBottom: -1, whiteSpace: "nowrap" }}>
+            style={{ padding: "10px 16px", border: "none", borderBottom: tab === t.id ? `2px solid ${orange}` : "2px solid transparent", background: "transparent", color: tab === t.id ? orange : "hsl(215 20% 52%)", fontFamily: "inherit", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", transition: "all .15s", marginBottom: -1, whiteSpace: "nowrap", position: "relative" }}>
             {t.icon} {t.label}
+            {t.badge ? <span style={{ position: "absolute", top: 4, left: 4, minWidth: 16, height: 16, borderRadius: 8, background: "#fbbf24", color: "#000", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{t.badge}</span> : null}
           </button>
         ))}
         <button onClick={load} style={{ marginRight: "auto", padding: "8px 14px", border: "1px solid hsl(217 32% 18%)", borderRadius: 10, background: "transparent", color: "hsl(215 20% 50%)", fontFamily: "inherit", fontSize: 12, cursor: "pointer" }}>🔄 تحديث</button>
@@ -787,6 +1036,7 @@ export default function Transport() {
       {tab === "overview"  && renderOverview()}
       {tab === "drivers"   && renderDrivers()}
       {tab === "trips"     && renderTrips()}
+      {tab === "zones"     && renderZones()}
       {tab === "fares"     && renderFares()}
       {tab === "operators" && renderOperators()}
       {tab === "reports"   && renderReports()}

@@ -312,11 +312,12 @@ function MaintenanceScreen({ note }: { note?: string }) {
 
 // ─── اختيار المنطقة ───────────────────────────────────────────────────────────
 function ZonePicker({
-  label, value, onChange,
+  label, value, onChange, neighborhoodsByZone,
 }: {
   label: string;
   value: ZoneId | null;
   onChange: (z: ZoneId) => void;
+  neighborhoodsByZone: Record<number, string[]>;
 }) {
   const [open, setOpen] = useState(false);
   const zone = value ? TRANSPORT_ZONES.find(z => z.id === value) : null;
@@ -344,23 +345,30 @@ function ZonePicker({
               <View style={zp.handle} />
               <Text style={zp.sheetTitle}>{label}</Text>
               <ScrollView showsVerticalScrollIndicator={false}>
-                {TRANSPORT_ZONES.map(z => (
-                  <TouchableOpacity key={z.id}
-                    onPress={() => { onChange(z.id); setOpen(false); }}
-                    style={[zp.zoneRow, value === z.id && { backgroundColor: z.color + "15" }]}
-                    activeOpacity={0.75}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={zp.zoneName}>{z.name}</Text>
-                      <Text style={zp.zoneDesc}>{z.neighborhoods.slice(0, 4).join(" · ")}
-                        {z.neighborhoods.length > 4 ? ` +${z.neighborhoods.length - 4}` : ""}
-                      </Text>
-                    </View>
-                    <View style={[zp.zoneNumBadge, { backgroundColor: z.color + "20", borderColor: z.color + "40" }]}>
-                      <Text style={[zp.zoneNum, { color: z.color }]}>منطقة {z.id}</Text>
-                    </View>
-                    {value === z.id && <Ionicons name="checkmark-circle" size={18} color={z.color} style={{ marginRight: 6 }} />}
-                  </TouchableOpacity>
-                ))}
+                {TRANSPORT_ZONES.map(z => {
+                  const nhs = neighborhoodsByZone[z.id] ?? [];
+                  const preview = nhs.slice(0, 4).join(" · ");
+                  const extra = nhs.length > 4 ? ` +${nhs.length - 4}` : "";
+                  return (
+                    <TouchableOpacity key={z.id}
+                      onPress={() => { onChange(z.id); setOpen(false); }}
+                      style={[zp.zoneRow, value === z.id && { backgroundColor: z.color + "15" }]}
+                      activeOpacity={0.75}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={zp.zoneName}>{z.name}</Text>
+                        {preview ? (
+                          <Text style={zp.zoneDesc}>{preview}{extra}</Text>
+                        ) : (
+                          <Text style={[zp.zoneDesc, { color: Colors.textMuted + "80" }]}>{z.description}</Text>
+                        )}
+                      </View>
+                      <View style={[zp.zoneNumBadge, { backgroundColor: z.color + "20", borderColor: z.color + "40" }]}>
+                        <Text style={[zp.zoneNum, { color: z.color }]}>منطقة {z.id}</Text>
+                      </View>
+                      {value === z.id && <Ionicons name="checkmark-circle" size={18} color={z.color} style={{ marginRight: 6 }} />}
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </Pressable>
           </Animated.View>
@@ -442,6 +450,7 @@ export default function TransportScreen() {
   const [enabled,    setEnabled]   = useState<boolean | null>(null);
   const [transportStatus, setTransportStatus] = useState<"available" | "coming_soon" | "maintenance">("coming_soon");
   const [note,       setNote]      = useState("");
+  const [neighborhoodsByZone, setNeighborhoodsByZone] = useState<Record<number, string[]>>({});
   const [loading,    setLoading]   = useState(true);
   const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register">("book");
 
@@ -482,6 +491,34 @@ export default function TransportScreen() {
   const [quizScore,    setQuizScore]    = useState(0);
   const [quizPassed,   setQuizPassed]   = useState(false);
 
+  // اقتراح حي
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [suggestZone, setSuggestZone] = useState<number>(1);
+  const [suggestName, setSuggestName] = useState("");
+  const [suggestNote, setSuggestNote] = useState("");
+  const [suggestSending, setSuggestSending] = useState(false);
+  const [suggestMsg, setSuggestMsg] = useState("");
+
+  const submitSuggestion = async () => {
+    if (!suggestName.trim()) return;
+    setSuggestSending(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/transport/neighborhoods/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: suggestName.trim(), zone_id: suggestZone, notes: suggestNote, submitted_by: user?.name || "مجهول" }),
+      });
+      if (res.ok) {
+        setSuggestMsg("✅ شكراً! سيتمّ مراجعة اقتراحك من قِبَل الإدارة.");
+        setSuggestName(""); setSuggestNote("");
+      } else {
+        const e = await res.json().catch(() => ({}));
+        setSuggestMsg("❌ " + ((e as any).error ?? "تعذّر الإرسال"));
+      }
+    } catch { setSuggestMsg("❌ تعذّر الاتصال بالخادم"); }
+    setSuggestSending(false);
+  };
+
   // ── التحميل ──
   const loadStatus = useCallback(async () => {
     try {
@@ -495,6 +532,21 @@ export default function TransportScreen() {
       }
     } catch { setEnabled(false); setTransportStatus("coming_soon"); }
     finally { setLoading(false); }
+  }, [apiUrl]);
+
+  const loadNeighborhoods = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/transport/neighborhoods`);
+      if (res.ok) {
+        const list: { zone_id: number; name: string; status: string }[] = await res.json();
+        const grouped: Record<number, string[]> = {};
+        list.filter(n => n.status === "active").forEach(n => {
+          if (!grouped[n.zone_id]) grouped[n.zone_id] = [];
+          grouped[n.zone_id].push(n.name);
+        });
+        setNeighborhoodsByZone(grouped);
+      }
+    } catch {}
   }, [apiUrl]);
 
   const loadFares = useCallback(async () => {
@@ -524,7 +576,7 @@ export default function TransportScreen() {
     } catch {}
   }, [apiUrl, token]);
 
-  useEffect(() => { loadStatus(); loadFares(); }, []);
+  useEffect(() => { loadStatus(); loadFares(); loadNeighborhoods(); }, []);
   useEffect(() => {
     if (enabled) { loadDrivers(); loadMyTrips(); }
   }, [enabled]);
@@ -785,7 +837,7 @@ export default function TransportScreen() {
                 <View style={[s.zoneSelectDot, { backgroundColor: GREEN }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.zoneSelectLabel}>منطقة الانطلاق</Text>
-                  <ZonePicker label="اختر منطقة البداية" value={fromZone} onChange={setFromZone} />
+                  <ZonePicker label="اختر منطقة البداية" value={fromZone} onChange={setFromZone} neighborhoodsByZone={neighborhoodsByZone} />
                   <TextInput
                     style={s.zoneDetailInput}
                     value={fromDetail}
@@ -807,7 +859,7 @@ export default function TransportScreen() {
                 <View style={[s.zoneSelectDot, { backgroundColor: ACCENT }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.zoneSelectLabel}>منطقة الوجهة</Text>
-                  <ZonePicker label="اختر منطقة الوصول" value={toZone} onChange={setToZone} />
+                  <ZonePicker label="اختر منطقة الوصول" value={toZone} onChange={setToZone} neighborhoodsByZone={neighborhoodsByZone} />
                   <TextInput
                     style={s.zoneDetailInput}
                     value={toDetail}
@@ -819,6 +871,13 @@ export default function TransportScreen() {
                 </View>
               </View>
             </View>
+
+            {/* اقتراح حي */}
+            <TouchableOpacity onPress={() => { setSuggestMsg(""); setShowSuggestModal(true); }} activeOpacity={0.75}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 4 }}>
+              <Text style={{ fontSize: 12, color: Colors.textMuted, fontFamily: "Tajawal-Regular" }}>لم تجد حيّك في القائمة؟</Text>
+              <Text style={{ fontSize: 12, color: ACCENT, fontFamily: "Tajawal-Bold" }}>اقترح إضافته ←</Text>
+            </TouchableOpacity>
 
             {/* بطاقة التعرفة */}
             <FareEstimateCard
@@ -1473,6 +1532,68 @@ export default function TransportScreen() {
               </View>
             </Pressable>
           </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ─── مودال اقتراح حي ─── */}
+      <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => setShowSuggestModal(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "#000000AA", justifyContent: "flex-end" }} onPress={() => setShowSuggestModal(false)}>
+          <View style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 }}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 }} />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "right", marginBottom: 4 }}>🗺️ اقترح إضافة حي</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 18 }}>سيتم مراجعة اقتراحك من قِبَل فريق حصاحيصاوي</Text>
+
+              {suggestMsg ? (
+                <View style={{ padding: 12, borderRadius: 10, backgroundColor: suggestMsg.startsWith("✅") ? GREEN + "15" : "#f8717115", marginBottom: 16 }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: suggestMsg.startsWith("✅") ? GREEN : "#f87171", textAlign: "right" }}>{suggestMsg}</Text>
+                </View>
+              ) : null}
+
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>المنطقة</Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {[1,2,3,4,5].map(z => (
+                  <TouchableOpacity key={z} onPress={() => setSuggestZone(z)} activeOpacity={0.8}
+                    style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, borderColor: suggestZone === z ? ACCENT : Colors.divider, backgroundColor: suggestZone === z ? ACCENT + "15" : "transparent" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: suggestZone === z ? ACCENT : Colors.textMuted }}>م{z}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>اسم الحي أو القرية *</Text>
+              <TextInput
+                value={suggestName}
+                onChangeText={setSuggestName}
+                placeholder="مثال: حي الصداقة، ود حبوبة..."
+                placeholderTextColor={Colors.textMuted}
+                textAlign="right"
+                style={{ backgroundColor: Colors.inputBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, marginBottom: 12 }}
+              />
+
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>ملاحظات إضافية (اختياري)</Text>
+              <TextInput
+                value={suggestNote}
+                onChangeText={setSuggestNote}
+                placeholder="وصف إضافي للموقع..."
+                placeholderTextColor={Colors.textMuted}
+                textAlign="right"
+                style={{ backgroundColor: Colors.inputBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, marginBottom: 20 }}
+              />
+
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                <TouchableOpacity onPress={submitSuggestion} disabled={!suggestName.trim() || suggestSending} activeOpacity={0.85}
+                  style={{ flex: 1, borderRadius: 12, backgroundColor: suggestName.trim() ? ACCENT : Colors.divider, padding: 14, alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: suggestName.trim() ? "#fff" : Colors.textMuted }}>
+                    {suggestSending ? "جارٍ الإرسال..." : "📤 إرسال الاقتراح"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowSuggestModal(false)} activeOpacity={0.8}
+                  style={{ paddingHorizontal: 18, borderRadius: 12, backgroundColor: Colors.inputBg, justifyContent: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </View>
         </Pressable>
       </Modal>
 
