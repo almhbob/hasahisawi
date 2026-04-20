@@ -113,14 +113,24 @@ async function buildAll() {
       esbuildPluginPino({ transports: [] })
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
+    // Use non-prefixed module IDs for broadest Node.js compatibility (avoids 'node:' prefix issues)
     banner: {
-      js: `import { createRequire as __bannerCrReq } from 'node:module';
-import __bannerPath from 'node:path';
-import __bannerUrl from 'node:url';
+      js: `import { createRequire as __bannerCrReq } from 'module';
+import __bannerPath from 'path';
+import __bannerUrl from 'url';
 
 globalThis.require = __bannerCrReq(import.meta.url);
 globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
 globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+
+// Register EARLY catch-all handlers BEFORE any module-level code runs.
+// This prevents crashes from any sync throws that occur during module loading.
+process.on('uncaughtException', function(err) {
+  console.error('[EARLY] uncaughtException:', err && err.message, err && err.stack);
+});
+process.on('unhandledRejection', function(reason) {
+  console.error('[EARLY] unhandledRejection:', reason && (reason.message || reason));
+});
     `,
     },
   });
