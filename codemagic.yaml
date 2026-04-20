@@ -1,0 +1,42 @@
+workflows:
+  android-release:
+    name: Android Release AAB (EAS)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 22.x
+      groups:
+        - hasahisawi_eas
+      vars:
+        PACKAGE_NAME: com.almhbob.hasahisawi
+
+    cache:
+      cache_paths:
+        - $HOME/.npm
+
+    scripts:
+      - name: Install dependencies
+        script: npm install
+
+      - name: Install EAS CLI
+        script: npm install -g eas-cli
+
+      - name: Authenticate with Expo
+        script: eas whoami --token $EXPO_TOKEN
+
+      - name: Build Android AAB via EAS
+        script: |
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --no-wait \
+            --token $EXPO_TOKEN
+
+    publishing:
+      email:
+        recipients:
+          - almhbob2026@gmail.com
+        notify:
+          success: true
+          failure: true
