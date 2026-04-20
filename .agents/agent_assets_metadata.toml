@@ -239,3 +239,9 @@ id = "0y9L_1DDrFcCdOUVvCIZ8"
 uri = "file://hasahisawi-project-data.md"
 type = "text"
 title = "بيانات مشروع حصاحيصاوي — كاملة"
+
+[[outputs]]
+id = "sowPei9vHhlO0WjW3cyl6"
+uri = "file://artifacts/hasahisawi/حصاحيصاوي-بيانات-حيوية.md"
+type = "text"
+title = "البيانات الحيوية - حصاحيصاوي"
