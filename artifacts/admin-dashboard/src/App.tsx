@@ -26,6 +26,7 @@ import Jobs           from "@/pages/Jobs";
 import Sports         from "@/pages/Sports";
 import Notifications  from "@/pages/Notifications";
 import MedicalClinics from "@/pages/MedicalClinics";
+import Services       from "@/pages/Services";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="/sports"         component={Sports} />
         <Route path="/notifications"  component={Notifications} />
         <Route path="/medical"        component={MedicalClinics} />
+        <Route path="/services"       component={Services} />
         <Route path="/settings"       component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>

@@ -32,7 +32,8 @@ const NAV: NavItem[] = [
   { path: "/sports",         label: "الرياضة",            icon: "⚽" },
   { path: "/notifications",  label: "مركز الإشعارات",     icon: "🔔" },
   { path: "/prayer",         label: "مواقيت الآذان",      icon: "🕌" },
-  { path: "/settings",       label: "الإعدادات",         icon: "⚙️" },
+  { path: "/services",       label: "الإشتراكات والخدمات", icon: "🛰️" },
+  { path: "/settings",       label: "الإعدادات",           icon: "⚙️" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
