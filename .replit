@@ -34,3 +34,5 @@ channel = "stable-25_05"
 [userenv.shared]
 RENDER_SERVICE_URL = "https://hasahisawi.onrender.com"
 VITE_API_BASE_URL = "https://hasahisawi.onrender.com"
+RECAPTCHA_SECRET = "6LdgPMEsAAAAABbG8X8YbONJ7e-3Ptq-MipWaJb4"
+VITE_RECAPTCHA_SITE_KEY = "6LdgPMEsAAAAAC0Vncabpa_jKrc3vAuqrlQfvuD8"

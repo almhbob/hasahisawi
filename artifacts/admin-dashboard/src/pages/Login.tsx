@@ -1,8 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 
 type Mode = "login" | "reset";
+
+const SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+    _rcCallback: () => void;
+  }
+}
+
+function useRecaptcha(containerId: string, active: boolean) {
+  const widgetIdRef = useRef<number | null>(null);
+  const [ready, setReady] = useState(false);
+
+  const renderWidget = useCallback(() => {
+    const container = document.getElementById(containerId);
+    if (!container || !window.grecaptcha || !SITE_KEY) return;
+    if (widgetIdRef.current !== null) return;
+    try {
+      widgetIdRef.current = window.grecaptcha.render(container, {
+        sitekey: SITE_KEY,
+        theme: "dark",
+        size: "normal",
+      });
+      setReady(true);
+    } catch {}
+  }, [containerId]);
+
+  useEffect(() => {
+    if (!active || !SITE_KEY) { setReady(true); return; }
+    if (window.grecaptcha) {
+      renderWidget();
+      return;
+    }
+    window._rcCallback = renderWidget;
+    const existing = document.getElementById("recaptcha-script");
+    if (!existing) {
+      const s = document.createElement("script");
+      s.id = "recaptcha-script";
+      s.src = "https://www.google.com/recaptcha/api.js?onload=_rcCallback&render=explicit";
+      s.async = true; s.defer = true;
+      document.head.appendChild(s);
+    }
+  }, [active, renderWidget]);
+
+  const getToken = useCallback((): string | null => {
+    if (!SITE_KEY) return "skip";
+    if (widgetIdRef.current === null || !window.grecaptcha) return null;
+    return window.grecaptcha.getResponse(widgetIdRef.current) || null;
+  }, []);
+
+  const reset = useCallback(() => {
+    if (widgetIdRef.current !== null && window.grecaptcha) {
+      window.grecaptcha.reset(widgetIdRef.current);
+    }
+  }, []);
+
+  return { ready, getToken, reset };
+}
 
 export default function Login() {
   const { login, verifyPin, pinRequired, user } = useAuth();
@@ -12,8 +71,7 @@ export default function Login() {
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Reset password state
-  const [mode, setMode]           = useState<Mode>("login");
+  const [mode, setMode]             = useState<Mode>("login");
   const [resetEmail,  setResetEmail]   = useState("");
   const [resetPass,   setResetPass]    = useState("");
   const [resetPass2,  setResetPass2]   = useState("");
@@ -21,14 +79,23 @@ export default function Login() {
   const [resetError,  setResetError]   = useState("");
   const [resetLoading,setResetLoading] = useState(false);
 
+  const isLoginMode = !pinRequired && mode === "login";
+  const { ready: rcReady, getToken, reset: rcReset } = useRecaptcha("recaptcha-container", isLoginMode);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const rcToken = getToken();
+    if (SITE_KEY && !rcToken) {
+      setError("يرجى إكمال التحقق من reCAPTCHA أولاً");
+      return;
+    }
     setLoading(true);
     try {
-      await login(email, pass);
+      await login(email, pass, rcToken ?? undefined);
     } catch (err: any) {
       setError(err.message);
+      rcReset();
     } finally {
       setLoading(false);
     }
@@ -72,21 +139,10 @@ export default function Login() {
     }
   };
 
-  const cardStyle: React.CSSProperties = {
-    width: "100%", maxWidth: 420,
-    background: "hsl(222 47% 9%)",
-    borderRadius: 24,
-    border: "1px solid hsl(217 32% 14%)",
-    padding: "40px 36px",
-    boxShadow: "0 24px 80px -16px rgba(0,0,0,0.5)",
-    position: "relative",
-  };
-
+  const green = "hsl(147 60% 42%)";
   const labelStyle: React.CSSProperties = {
     fontSize: 13, fontWeight: 600, color: "hsl(215 20% 65%)", display: "block", marginBottom: 8,
   };
-
-  const green = "hsl(147 60% 42%)";
 
   return (
     <div style={{
@@ -100,7 +156,12 @@ export default function Login() {
         background: `${green}0f`, filter: "blur(80px)", pointerEvents: "none",
       }} />
 
-      <div style={cardStyle}>
+      <div style={{
+        width: "100%", maxWidth: 420,
+        background: "hsl(222 47% 9%)", borderRadius: 24,
+        border: "1px solid hsl(217 32% 14%)", padding: "40px 36px",
+        boxShadow: "0 24px 80px -16px rgba(0,0,0,0.5)", position: "relative",
+      }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
@@ -168,7 +229,7 @@ export default function Login() {
             </div>
             {resetError && <ErrorBox msg={resetError} />}
             {resetMsg && (
-              <div style={{ padding: "10px 14px", borderRadius: 10, background: "hsl(147 60% 42% / 0.15)", border: `1px solid ${green}4d`, color: green, fontSize: 13, marginBottom: 16, textAlign: "center" }}>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: `${green}26`, border: `1px solid ${green}4d`, color: green, fontSize: 13, marginBottom: 16, textAlign: "center" }}>
                 ✓ {resetMsg}
               </div>
             )}
@@ -195,7 +256,7 @@ export default function Login() {
                 required autoFocus
               />
             </div>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <label style={labelStyle}>كلمة المرور</label>
                 <button
@@ -212,9 +273,26 @@ export default function Login() {
                 required
               />
             </div>
-            <div style={{ marginBottom: 24 }} />
+
+            {/* reCAPTCHA widget */}
+            {SITE_KEY && (
+              <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
+                <div id="recaptcha-container" />
+                {!rcReady && (
+                  <div style={{ fontSize: 12, color: "hsl(215 20% 45%)", padding: "10px 0" }}>
+                    جارٍ تحميل التحقق...
+                  </div>
+                )}
+              </div>
+            )}
+
             {error && <ErrorBox msg={error} />}
-            <button type="submit" className="btn-primary" style={{ width: "100%", justifyContent: "center" }} disabled={loading}>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ width: "100%", justifyContent: "center" }}
+              disabled={loading || (SITE_KEY ? !rcReady : false)}
+            >
               {loading ? "جارٍ التحقق..." : "دخول للوحة التحكم"}
             </button>
           </form>

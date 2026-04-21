@@ -69,6 +69,23 @@ async function sendPushToUser(
 
 const DEFAULT_ADMIN_PIN = "4444";
 
+// ── reCAPTCHA v2 verification ────────────────────────────────────────────────
+async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
+  const secret = process.env.RECAPTCHA_SECRET;
+  if (!secret) return true; // skip if not configured
+  if (!token)  return false;
+  try {
+    const res = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`,
+      { method: "POST" }
+    );
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
 function maskNationalId(id: string | null | undefined): string | null {
   if (!id) return null;
   if (id.length <= 4) return "****";
@@ -1399,8 +1416,10 @@ router.put("/auth/profile", async (req: Request, res: Response) => {
 
 router.post("/auth/login", async (req: Request, res: Response) => {
   try {
-    const { phone_or_email, password } = req.body;
+    const { phone_or_email, password, recaptcha_token } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const captchaOk = await verifyRecaptcha(recaptcha_token);
+    if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
     const result = await query(
       `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]

@@ -7,7 +7,7 @@ type AdminUser = {
 type AuthCtx = {
   user: AdminUser | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, recaptchaToken?: string) => Promise<void>;
   verifyPin: (pin: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -41,10 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, recaptchaToken?: string) => {
     const res = await apiFetch("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ phone_or_email: email, password }),
+      body: JSON.stringify({ phone_or_email: email, password, recaptcha_token: recaptchaToken }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
