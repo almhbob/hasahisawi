@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. 5.5.5)'
+        description: 'Version name (e.g. 5.5.6)'
         required: false
-        default: '5.5.5'
+        default: '5.5.6'
 
 jobs:
   build:
@@ -28,18 +28,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: npm install --legacy-peer-deps
 
       - name: Write .env for Firebase and API
-        working-directory: artifacts/hasahisawi
         run: |
-          cat > .env << EOF
+          cat > .env << 'EOF'
           EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
           EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
@@ -51,18 +45,21 @@ jobs:
           EOF
 
       - name: Expo Prebuild (generate Android native code)
-        working-directory: artifacts/hasahisawi
-        run: pnpm exec expo prebuild --platform android --clean --no-install
+        run: npx expo prebuild --platform android --clean --no-install
         env:
           EXPO_NO_TELEMETRY: 1
 
       - name: Decode Keystore
-        working-directory: artifacts/hasahisawi/android
+        working-directory: android
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "Keystore SHA1:"
+          keytool -list -v -keystore release.keystore \
+            -alias ${{ secrets.KEY_ALIAS }} \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>/dev/null | grep SHA1 | head -1
 
       - name: Build AAB with Gradle
-        working-directory: artifacts/hasahisawi/android
+        working-directory: android
         run: |
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
@@ -73,7 +70,7 @@ jobs:
       - name: Rename AAB
         run: |
           mkdir -p release
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
+          cp android/app/build/outputs/bundle/release/app-release.aab \
              release/hasahisawi-v${{ github.event.inputs.version }}.aab
 
       - name: Upload AAB as artifact
