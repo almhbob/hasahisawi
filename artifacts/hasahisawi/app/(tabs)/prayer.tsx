@@ -147,27 +147,31 @@ async function scheduleAdhanNotifications(times: Record<string, string>) {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
     const now = new Date();
-    for (const key of ATHAN_PRAYERS) {
-      const timeStr = times[key];
-      if (!timeStr) continue;
-      const [h, m] = timeStr.split(":").map(Number);
-      const prayerDate = new Date();
-      prayerDate.setHours(h, m, 0, 0);
-      if (prayerDate <= now) continue;
-      const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `🕌 حان وقت صلاة ${prayerName}`,
-          body: `الله أكبر — ${formatTime(timeStr)}`,
-          sound: "default",
-          priority: Notifications.AndroidNotificationPriority.MAX,
-          ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
-        } as any,
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: prayerDate,
-        },
-      });
+    // جدول للأيام الـ 7 القادمة حتى لا يضطر المستخدم لفتح التطبيق يومياً
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      for (const key of ATHAN_PRAYERS) {
+        const timeStr = times[key];
+        if (!timeStr) continue;
+        const [h, m] = timeStr.split(":").map(Number);
+        const prayerDate = new Date();
+        prayerDate.setDate(prayerDate.getDate() + dayOffset);
+        prayerDate.setHours(h, m, 0, 0);
+        if (prayerDate <= now) continue;
+        const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🕌 حان وقت صلاة ${prayerName}`,
+            body: `الله أكبر — ${formatTime(timeStr)}`,
+            sound: "default",
+            priority: Notifications.AndroidNotificationPriority.MAX,
+            ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
+          } as any,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: prayerDate,
+          },
+        });
+      }
     }
   } catch {}
 }
@@ -587,52 +591,44 @@ export default function PrayerScreen() {
                     <Text style={s.countdownText}>سيحين بعد: {formatCountdown(countdown)}</Text>
                   </View>
 
-                  {/* ── أزرار الأذان ── */}
+                  {/* ── التحكم بالأذان التلقائي ── */}
                   <View style={s.adhanControlRow}>
-
-                    {/* زر التشغيل / الإيقاف */}
-                    <Pressable
-                      style={[s.playBtn, isPlayingAdhan ? s.playBtnStop : s.playBtnPlay]}
-                      onPress={isPlayingAdhan ? stopAdhan : playAdhan}
-                      android_ripple={{ color: "#fff3" }}
-                    >
-                      <Ionicons
-                        name={isPlayingAdhan ? "stop-circle" : "play-circle"}
-                        size={20}
-                        color={isPlayingAdhan ? "#fff" : Colors.primary}
-                      />
-                      <Text style={[s.playBtnText, isPlayingAdhan && s.playBtnTextStop]}>
-                        {isPlayingAdhan ? "إيقاف الأذان" : "تشغيل الأذان"}
-                      </Text>
-                    </Pressable>
 
                     {/* مفتاح التفعيل */}
                     <View style={[s.toggleWrap, adhanEnabled && s.toggleWrapOn]}>
                       <Ionicons
                         name={adhanEnabled ? "notifications" : "notifications-off-outline"}
-                        size={15}
+                        size={16}
                         color={adhanEnabled ? Colors.primary : Colors.textMuted}
                       />
-                      <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
-                        {adhanEnabled ? "مفعّل" : "معطّل"}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
+                          {adhanEnabled ? "الأذان مُفعَّل" : "الأذان معطّل"}
+                        </Text>
+                        <Text style={s.toggleSub}>
+                          {adhanEnabled ? "سيؤذَّن تلقائياً عند كل صلاة" : "اضغط لتفعيل الأذان التلقائي"}
+                        </Text>
+                      </View>
                       <Switch
                         value={adhanEnabled}
                         onValueChange={toggleAdhanEnabled}
                         trackColor={{ false: Colors.divider, true: Colors.primary + "60" }}
                         thumbColor={adhanEnabled ? Colors.primary : Colors.textMuted}
                         ios_backgroundColor={Colors.divider}
-                        style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
                       />
                     </View>
                   </View>
 
-                  {/* ملاحظة الإشعارات */}
-                  {adhanEnabled && (
-                    <Text style={s.notifHint}>
-                      <Ionicons name="information-circle-outline" size={11} color={Colors.textMuted} />
-                      {" "}ستصلك إشعارات بوقت الأذان حتى عند إغلاق التطبيق
-                    </Text>
+                  {/* زر الإيقاف — يظهر فقط عند تشغيل الأذان */}
+                  {isPlayingAdhan && (
+                    <Pressable
+                      style={s.stopBtn}
+                      onPress={stopAdhan}
+                      android_ripple={{ color: "#fff3" }}
+                    >
+                      <Ionicons name="stop-circle" size={18} color="#fff" />
+                      <Text style={s.stopBtnText}>إيقاف الأذان</Text>
+                    </Pressable>
                   )}
                 </Animated.View>
               )}
@@ -919,34 +915,27 @@ const s = StyleSheet.create({
   countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
   countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
-  // ── أزرار التحكم بالأذان ──
+  // ── التحكم بالأذان ──
   adhanControlRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, marginTop: 14, width: "100%", flexWrap: "wrap",
+    marginTop: 14, width: "100%",
   },
-  playBtn: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
-    flex: 1,
-  },
-  playBtnPlay: { backgroundColor: Colors.primary + "15", borderColor: Colors.primary + "55" },
-  playBtnStop: { backgroundColor: "#E74C3C", borderColor: "#C0392B" },
-  playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, flex: 1, textAlign: "center" },
-  playBtnTextStop: { color: "#fff" },
-
   toggleWrap: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 8, paddingVertical: 6, borderRadius: 12,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16,
     backgroundColor: Colors.cardBg,
-    borderWidth: 1, borderColor: Colors.divider,
+    borderWidth: 1.5, borderColor: Colors.divider,
+    width: "100%",
   },
-  toggleWrapOn: { backgroundColor: Colors.primary + "10", borderColor: Colors.primary + "40" },
-  toggleLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+  toggleWrapOn: { backgroundColor: Colors.primary + "0D", borderColor: Colors.primary + "50" },
+  toggleLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted },
+  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 
-  notifHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
-    textAlign: "center", paddingHorizontal: 8, marginTop: 4,
+  stopBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#E74C3C", borderRadius: 12,
+    paddingVertical: 10, marginTop: 10, width: "100%",
   },
+  stopBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // ── قائمة الصلوات ──
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
