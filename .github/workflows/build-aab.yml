@@ -35,6 +35,9 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: npm install --legacy-peer-deps
 
+      - name: Symlink node_modules to repo root (for Metro bundler)
+        run: ln -sf $(pwd)/${{ env.APP_DIR }}/node_modules ./node_modules
+
       - name: Write .env for Firebase and API
         working-directory: ${{ env.APP_DIR }}
         run: |
