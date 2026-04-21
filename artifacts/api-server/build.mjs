@@ -31,9 +31,17 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  // When aliasing workspace packages, their imports resolve relative to lib/,
+  // not artifacts/api-server/node_modules. Adding nodePaths fixes this so esbuild
+  // finds packages like `zod` in our standalone node_modules.
+  const extraNodePaths = Object.keys(wsAlias).length > 0
+    ? [path.join(artifactDir, "node_modules")]
+    : [];
+
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     alias: wsAlias,
+    nodePaths: extraNodePaths,
     platform: "node",
     bundle: true,
     format: "esm",
