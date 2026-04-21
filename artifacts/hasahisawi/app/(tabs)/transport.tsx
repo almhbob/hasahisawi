@@ -1600,10 +1600,10 @@ export default function TransportScreen() {
       <Modal visible={showCommunityModal} transparent animationType="slide" onRequestClose={() => setShowCommunityModal(false)}>
         <View style={{ flex: 1, backgroundColor: "#000000CC" }}>
           <Pressable style={{ flex: 1 }} onPress={() => setShowCommunityModal(false)} />
-          <View style={{ backgroundColor: Colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%", flex: 0 }}>
+          <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%", flex: 0 }}>
             {/* Hero Header */}
             <LinearGradient
-              colors={[ACCENT + "22", BLUE + "14", Colors.background]}
+              colors={[ACCENT + "22", BLUE + "14", Colors.bg]}
               style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 14, paddingBottom: 20, paddingHorizontal: 20 }}>
               <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 }} />
               <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -1613,7 +1613,7 @@ export default function TransportScreen() {
                     أبناء حصاحيصا يبنون خريطتهم معاً — أضف حيّك وساهم في تسهيل التنقّل للجميع
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.inputBg, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+                <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
                   <MaterialCommunityIcons name="close" size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -1746,7 +1746,7 @@ export default function TransportScreen() {
 
             {/* CTA ثابت في الأسفل */}
             <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 30 }}>
-              <LinearGradient colors={[Colors.background + "00", Colors.background]} style={{ position: "absolute", top: -20, left: 0, right: 0, height: 50 }} />
+              <LinearGradient colors={[Colors.bg + "00", Colors.bg]} style={{ position: "absolute", top: -20, left: 0, right: 0, height: 50 }} />
               <TouchableOpacity onPress={() => { setAddSuccess(false); setAddError(""); setAddName(""); setShowAddForm(true); }} activeOpacity={0.9}>
                 <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={{ borderRadius: 16, paddingVertical: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10 }}>
@@ -1783,7 +1783,7 @@ export default function TransportScreen() {
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: ACCENT }}>+ أضف حياً آخر</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => { setShowAddForm(false); setAddSuccess(false); }} activeOpacity={0.85}
-                      style={{ flex: 1, backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, alignItems: "center" }}>
+                      style={{ flex: 1, backgroundColor: Colors.cardBgElevated, borderRadius: 12, padding: 14, alignItems: "center" }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted }}>إغلاق</Text>
                     </TouchableOpacity>
                   </View>
@@ -1831,7 +1831,7 @@ export default function TransportScreen() {
                     placeholder="مثال: حي الصداقة، ود حبوبة، الملازمين..."
                     placeholderTextColor={Colors.textMuted}
                     textAlign="right"
-                    style={{ backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1.5, borderColor: addName.trim() ? ACCENT + "50" : Colors.divider }}
+                    style={{ backgroundColor: Colors.cardBgElevated, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1.5, borderColor: addName.trim() ? ACCENT + "50" : Colors.divider }}
                   />
 
                   {/* ملاحظات */}
@@ -1842,7 +1842,7 @@ export default function TransportScreen() {
                     placeholder="وصف الموقع، حدوده، معالمه..."
                     placeholderTextColor={Colors.textMuted}
                     textAlign="right"
-                    style={{ backgroundColor: Colors.inputBg, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, minHeight: 70 }}
+                    style={{ backgroundColor: Colors.cardBgElevated, borderRadius: 12, padding: 14, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.divider, minHeight: 70 }}
                     multiline
                   />
 
@@ -1864,7 +1864,7 @@ export default function TransportScreen() {
                       </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setShowAddForm(false)} activeOpacity={0.8}
-                      style={{ paddingHorizontal: 18, borderRadius: 14, backgroundColor: Colors.inputBg, justifyContent: "center" }}>
+                      style={{ paddingHorizontal: 18, borderRadius: 14, backgroundColor: Colors.cardBgElevated, justifyContent: "center" }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
                     </TouchableOpacity>
                   </View>

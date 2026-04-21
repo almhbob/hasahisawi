@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import BrandPattern from "@/components/BrandPattern";
 import { useApiUnread } from "@/lib/api-chat";
 
@@ -29,6 +30,7 @@ type Section = {
   route: string;
   color?: string;
   soon?: boolean;
+  isTransport?: boolean;
 };
 
 type Group = { label: string; items: Section[] };
@@ -89,7 +91,7 @@ const GROUPS: Group[] = [
   {
     label: "نقل وتوصيل",
     items: [
-      { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", soon: true },
+      { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", isTransport: true },
     ],
   },
   {
@@ -105,9 +107,16 @@ const GROUPS: Group[] = [
   },
 ];
 
+const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  available:    { label: "متاح",   color: "#3EFF9C", bg: "#3EFF9C18", border: "#3EFF9C45" },
+  soon:         { label: "قريباً", color: "#FBBF24", bg: "#FBBF2418", border: "#FBBF2445" },
+  maintenance:  { label: "صيانة",  color: "#F87171", bg: "#F8717118", border: "#F8717145" },
+};
+
 export default function DrawerMenu() {
   const { isOpen, close } = useDrawer();
   const { user, token, isGuest } = useAuth();
+  const { ride_status } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const unreadCount = useApiUnread(isGuest ? null : (token ?? null));
   const progress = useSharedValue(0);
@@ -234,7 +243,15 @@ export default function DrawerMenu() {
                       <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />
                     </View>
                     <Text style={styles.itemLabel}>{item.title}</Text>
-                    {item.soon && (
+                    {item.isTransport && (() => {
+                      const tb = TRANSPORT_BADGE[ride_status] ?? TRANSPORT_BADGE.soon;
+                      return (
+                        <View style={[styles.soonChip, { backgroundColor: tb.bg, borderColor: tb.border }]}>
+                          <Text style={[styles.soonChipText, { color: tb.color }]}>{tb.label}</Text>
+                        </View>
+                      );
+                    })()}
+                    {item.soon && !item.isTransport && (
                       <View style={styles.soonChip}>
                         <Text style={styles.soonChipText}>قريباً</Text>
                       </View>

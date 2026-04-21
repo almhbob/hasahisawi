@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { checkContent } from "../lib/content-moderator";
+import { authLimiter, pinLimiter } from "../lib/rate-limiters";
 
 const router = Router();
 
@@ -67,7 +68,24 @@ async function sendPushToUser(
   } catch {}
 }
 
-const DEFAULT_ADMIN_PIN = "4444";
+const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
+
+// ── reCAPTCHA v2 verification ────────────────────────────────────────────────
+async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
+  const secret = process.env.RECAPTCHA_SECRET;
+  if (!secret) return true; // skip if not configured
+  if (!token)  return false;
+  try {
+    const res = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`,
+      { method: "POST" }
+    );
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
 
 function maskNationalId(id: string | null | undefined): string | null {
   if (!id) return null;
@@ -1208,21 +1226,30 @@ async function getSessionUser(req: Request): Promise<Record<string, unknown> | n
 }
 
 // مساعد: هل المستخدم مدير أو مشرف ترحيل؟
-function isTransportAdmin(role: string): boolean {
+function isTransportAdmin(role: unknown): boolean {
   return role === "admin" || role === "transport_supervisor";
+}
+
+function safeCompare(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a.padEnd(64, "\0"));
+    const bb = Buffer.from(b.padEnd(64, "\0"));
+    return timingSafeEqual(ba, bb) && a.length === b.length;
+  } catch {
+    return false;
+  }
 }
 
 async function isAdminRequest(req: Request): Promise<boolean> {
   const user = await getSessionUser(req);
   if (user?.role === "admin") return true;
-  // Support PIN-based admin access (for mobile app users without accounts)
   const pinHeader = req.headers["x-admin-pin"] as string | undefined;
   const pinBody = req.body?.admin_pin as string | undefined;
   const submittedPin = pinHeader || pinBody;
-  if (submittedPin) {
+  if (submittedPin && submittedPin.length >= 4 && submittedPin.length <= 20) {
     const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
     const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    return submittedPin === storedPin;
+    return safeCompare(submittedPin, storedPin);
   }
   return false;
 }
@@ -1233,6 +1260,8 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
     if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    if (password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
+    if (name.length > 100) return res.status(400).json({ error: "الاسم طويل جداً" });
     const validGender = ["male", "female"].includes(gender) ? gender : null;
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
@@ -1397,10 +1426,12 @@ router.put("/auth/profile", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/auth/login", async (req: Request, res: Response) => {
+router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   try {
-    const { phone_or_email, password } = req.body;
+    const { phone_or_email, password, recaptcha_token } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const captchaOk = await verifyRecaptcha(recaptcha_token);
+    if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
     const result = await query(
       `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]
@@ -1538,12 +1569,15 @@ router.patch("/auth/me/gender", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/admin/validate-pin", async (req: Request, res: Response) => {
+router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { pin } = req.body;
+    if (!pin || typeof pin !== "string" || pin.length < 4 || pin.length > 20) {
+      return res.status(400).json({ valid: false });
+    }
     const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
     const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    return res.json({ valid: pin === storedPin });
+    return res.json({ valid: safeCompare(pin, storedPin) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -4357,12 +4391,14 @@ router.patch("/users/me/bio", async (req: Request, res: Response) => {
 });
 
 // ── استعادة كلمة المرور ───────────────────────────────────────────────────────
-router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, email, identifier, new_password } = req.body;
     const lookup = (identifier || phone || email || "").trim();
     if (!lookup || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني وكلمة المرور الجديدة" });
+    if (lookup.length > 200) return res.status(400).json({ error: "بيانات غير صالحة" });
     if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    if (new_password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
 
     const isEmail = lookup.includes("@");
     const userR = isEmail
@@ -5123,6 +5159,11 @@ router.put("/admin/transport/settings", async (req: Request, res: Response) => {
     if (transport_status !== undefined && valid.includes(transport_status)) {
       entries.push(["transport_status", transport_status]);
       entries.push(["transport_enabled", String(transport_status === "available")]);
+      // مزامنة ride_status مع transport_status للشارة في الصفحة الرئيسية
+      const rideStatusMap: Record<string, string> = {
+        available: "available", maintenance: "maintenance", coming_soon: "soon"
+      };
+      entries.push(["ride_status", rideStatusMap[transport_status] ?? "soon"]);
     }
     if (transport_note !== undefined) entries.push(["transport_note", transport_note]);
     if (transport_phone !== undefined) entries.push(["transport_phone", transport_phone]);
