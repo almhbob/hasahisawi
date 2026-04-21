@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
@@ -10,12 +11,29 @@ globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
+// When running without pnpm workspace (e.g. Render standalone build),
+// workspace packages won't be in node_modules — resolve them by path instead.
+const wsAlias = {};
+const wsRoot = path.resolve(artifactDir, "../../lib");
+const wsPkgs = {
+  "@workspace/api-zod": path.join(wsRoot, "api-zod/src/index.ts"),
+  "@workspace/db": path.join(wsRoot, "db/src/index.ts"),
+};
+for (const [pkg, src] of Object.entries(wsPkgs)) {
+  const inNodeModules = existsSync(path.join(artifactDir, "node_modules", pkg));
+  if (!inNodeModules && existsSync(src)) {
+    wsAlias[pkg] = src;
+    console.log(`[build] aliasing ${pkg} → ${src}`);
+  }
+}
+
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    alias: wsAlias,
     platform: "node",
     bundle: true,
     format: "esm",
@@ -113,14 +131,24 @@ async function buildAll() {
       esbuildPluginPino({ transports: [] })
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
+    // Use non-prefixed module IDs for broadest Node.js compatibility (avoids 'node:' prefix issues)
     banner: {
-      js: `import { createRequire as __bannerCrReq } from 'node:module';
-import __bannerPath from 'node:path';
-import __bannerUrl from 'node:url';
+      js: `import { createRequire as __bannerCrReq } from 'module';
+import __bannerPath from 'path';
+import __bannerUrl from 'url';
 
 globalThis.require = __bannerCrReq(import.meta.url);
 globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
 globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+
+// Register EARLY catch-all handlers BEFORE any module-level code runs.
+// This prevents crashes from any sync throws that occur during module loading.
+process.on('uncaughtException', function(err) {
+  console.error('[EARLY] uncaughtException:', err && err.message, err && err.stack);
+});
+process.on('unhandledRejection', function(reason) {
+  console.error('[EARLY] unhandledRejection:', reason && (reason.message || reason));
+});
     `,
     },
   });
