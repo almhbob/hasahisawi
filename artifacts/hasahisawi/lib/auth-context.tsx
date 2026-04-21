@@ -11,6 +11,7 @@ import {
   firebaseLoginEmail,
   firebaseRegisterEmail,
   firebaseLogout,
+  firebaseLoginGoogle,
   onFirebaseAuthChange,
   getCurrentFirebaseUser,
   isFirebaseAvailable,
@@ -55,6 +56,7 @@ type AuthContextValue = {
   biometricsAvailable: boolean;
   biometricsEnabled: boolean;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   loginModerator: (phoneOrEmail: string, password: string) => Promise<void>;
@@ -443,6 +445,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح للدخول عبر Google");
+    const fbUser = await firebaseLoginGoogle(idToken);
+    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+    let authUser: AuthUser;
+    if (profile) {
+      const backendIdToken = await fbUser.getIdToken();
+      authUser = profileToAuthUser(profile, backendIdToken);
+    } else {
+      const newProfile: UserProfile = {
+        uid: fbUser.uid,
+        name: fbUser.displayName || "مستخدم Google",
+        email: fbUser.email || undefined,
+        role: "user",
+        permissions: [],
+      };
+      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, newProfile, false);
+      authUser = profileToAuthUser(newProfile, "");
+      authUser.email = fbUser.email ?? null;
+      authUser.avatar_url = fbUser.photoURL ?? null;
+    }
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role
+    );
+    const idTok = await fbUser.getIdToken();
+    await saveSession(authUser, idTok, backendTok);
+  };
+
   const login = async (phoneOrEmail: string, password: string) => {
     const isServerUnavailable = (err: unknown) => {
       const msg = err instanceof Error ? err.message : "";
@@ -817,7 +847,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
-        login, loginWithBiometrics, loginAdmin, loginModerator,
+        login, loginWithGoogle, loginWithBiometrics, loginAdmin, loginModerator,
         register, setUserGender, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,

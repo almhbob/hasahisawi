@@ -11,6 +11,7 @@ import {
   updateProfile,
   PhoneAuthProvider,
   signInWithCredential,
+  GoogleAuthProvider,
   User,
   Auth,
 } from "firebase/auth";
@@ -136,6 +137,14 @@ export function getCurrentFirebaseUser(): User | null {
   } catch {
     return null;
   }
+}
+
+export async function firebaseLoginGoogle(idToken: string) {
+  if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح");
+  const auth = getFirebaseAuth();
+  const credential = GoogleAuthProvider.credential(idToken);
+  const cred = await signInWithCredential(auth, credential);
+  return cred.user;
 }
 
 export { PhoneAuthProvider, signInWithCredential };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
   Pressable, ScrollView, Platform, ActivityIndicator, Image,
@@ -8,15 +8,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com";
 
 type Mode = "login" | "register";
 
 export default function AuthModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
-  const { login, register, enterAsGuest } = useAuth();
+  const { login, register, enterAsGuest, loginWithGoogle } = useAuth();
   const { t, isRTL } = useLang();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -28,7 +34,27 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [_request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    scopes: ["profile", "email"],
+  });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const idToken = response.params?.id_token;
+      if (idToken) handleGoogleSignIn(idToken);
+      else setError("فشل الحصول على بيانات Google");
+    } else if (response?.type === "error") {
+      setGoogleLoading(false);
+      setError("تم إلغاء تسجيل الدخول عبر Google");
+    } else if (response?.type === "dismiss" || response?.type === "cancel") {
+      setGoogleLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response]);
 
   const reset = () => {
     setName(""); setNationalId(""); setIdentifier(""); setPassword(""); setConfirmPassword("");
@@ -41,6 +67,29 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     enterAsGuest();
     handleClose();
+  };
+
+  const handleGoogleSignIn = async (idToken: string) => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      await loginWithGoogle(idToken);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      reset();
+      onClose();
+    } catch (e: any) {
+      setError(e.message || "فشل تسجيل الدخول عبر Google");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGooglePress = async () => {
+    setError("");
+    setGoogleLoading(true);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await promptAsync();
   };
 
   const validate = (): string | null => {
@@ -332,6 +381,30 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                 <View style={s.dividerLine} />
               </View>
 
+              {/* زر Google */}
+              <TouchableOpacity
+                style={[s.googleBtn, googleLoading && { opacity: 0.7 }]}
+                onPress={handleGooglePress}
+                disabled={googleLoading || loading}
+                activeOpacity={0.85}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#4285F4" size="small" />
+                ) : (
+                  <>
+                    <Image
+                      source={{ uri: "https://www.google.com/favicon.ico" }}
+                      style={s.googleIcon}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.googleBtnTitle}>المتابعة مع Google</Text>
+                      <Text style={s.googleBtnSub}>تسجيل الدخول بحساب Google</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                  </>
+                )}
+              </TouchableOpacity>
+
               {/* زر الزائر */}
               <TouchableOpacity style={s.guestBtn} onPress={handleGuest} activeOpacity={0.8}>
                 <Ionicons name="eye-outline" size={18} color={Colors.textSecondary} />
@@ -499,6 +572,23 @@ const s = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
+  },
+
+  /* Google */
+  googleBtn: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.cardBgElevated, borderRadius: 14, padding: 14,
+    borderWidth: 1.5, borderColor: "#4285F4" + "40",
+    minHeight: 54,
+  },
+  googleIcon: {
+    width: 22, height: 22, borderRadius: 4,
+  },
+  googleBtnTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right",
+  },
+  googleBtnSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
   },
 
   /* Guest */
