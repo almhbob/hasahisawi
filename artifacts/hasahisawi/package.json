@@ -68,6 +68,7 @@
     "expo-localization": "~17.0.8",
     "expo-notifications": "^0.32.16",
     "firebase": "^12.10.0",
+    "leaflet": "^1.9.4",
     "react-native-webview": "13.15.0"
   }
 }

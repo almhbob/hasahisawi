@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Linking, Alert, Platform, ScrollView, Pressable,
+  Linking, Alert, Platform, ScrollView,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import * as Location from "expo-location";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
 const BG     = Colors.bg   ?? "#0A1A10";
@@ -57,8 +58,8 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>${LEAFLET_CSS}</style>
+<script>${LEAFLET_JS}</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #map { width:100%; height:100%; background:#0A1A10; }
@@ -294,10 +295,14 @@ export default function MapScreen() {
         ) : (
           <WebView
             ref={webRef}
-            source={{ html: mapHtml }}
+            source={{ html: mapHtml, baseUrl: "https://hasahisawi.onrender.com" }}
             style={s.webview}
+            originWhitelist={["*"]}
             javaScriptEnabled
             domStorageEnabled
+            allowFileAccess
+            allowUniversalAccessFromFileURLs
+            mixedContentMode="always"
             startInLoadingState
             onLoad={() => setMapReady(true)}
             onMessage={handleMsg}
