@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -11,6 +12,7 @@ import {
   firebaseLoginEmail,
   firebaseRegisterEmail,
   firebaseLogout,
+  firebaseLoginGoogle,
   onFirebaseAuthChange,
   getCurrentFirebaseUser,
   isFirebaseAvailable,
@@ -55,6 +57,7 @@ type AuthContextValue = {
   biometricsAvailable: boolean;
   biometricsEnabled: boolean;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   loginModerator: (phoneOrEmail: string, password: string) => Promise<void>;
@@ -241,6 +244,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canPost = !isGuest && user !== null;
 
   useEffect(() => {
+    try {
+      GoogleSignin.configure({
+        webClientId: "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com",
+        offlineAccess: false,
+      });
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     (async () => {
       const available = await isBiometricsAvailable();
       setBiometricsAvailable(available);
@@ -325,17 +337,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AsyncStorage.getItem(TOKEN_KEY),
             AsyncStorage.getItem(USER_KEY),
           ]);
-          if (savedToken && savedUser) {
-            // Verify the token is still valid by checking it's not a Firebase ID token
-            // Firebase ID tokens are JWTs (contain dots), backend tokens are hex strings
-            const isBackendToken = savedToken.length === 64 && !savedToken.includes(".");
-            if (isBackendToken) {
-              setUser(JSON.parse(savedUser));
-              setToken(savedToken);
-              setIsGuest(false);
-              setIsLoading(false);
-              return;
-            }
+
+          const isBackendToken = !!(savedToken && savedToken.length === 64 && !savedToken.includes("."));
+
+          if (isBackendToken && savedToken && savedUser) {
+            // Restore session immediately for fast startup
+            setUser(JSON.parse(savedUser));
+            setToken(savedToken);
+            setIsGuest(false);
+            setIsLoading(false);
+
+            // Sync user to PostgreSQL in background (ensures all Firebase users appear in admin)
+            (async () => {
+              try {
+                const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+                if (profile) {
+                  const newToken = await exchangeForBackendToken(
+                    fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+                  );
+                  if (newToken && newToken !== savedToken) {
+                    await AsyncStorage.setItem(TOKEN_KEY, newToken);
+                    setToken(newToken);
+                  }
+                }
+              } catch {}
+            })();
+            return;
           }
 
           const idToken = await fbUser.getIdToken();
@@ -441,6 +468,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return false;
     }
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
+    if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح للدخول عبر Google");
+    const fbUser = await firebaseLoginGoogle(idToken);
+    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+    let authUser: AuthUser;
+    if (profile) {
+      const backendIdToken = await fbUser.getIdToken();
+      authUser = profileToAuthUser(profile, backendIdToken);
+    } else {
+      const newProfile: UserProfile = {
+        uid: fbUser.uid,
+        name: fbUser.displayName || "مستخدم Google",
+        email: fbUser.email || undefined,
+        role: "user",
+        permissions: [],
+      };
+      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, newProfile, false);
+      authUser = profileToAuthUser(newProfile, "");
+      authUser.email = fbUser.email ?? null;
+      authUser.avatar_url = fbUser.photoURL ?? null;
+    }
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role
+    );
+    const idTok = await fbUser.getIdToken();
+    await saveSession(authUser, idTok, backendTok);
   };
 
   const login = async (phoneOrEmail: string, password: string) => {
@@ -817,7 +872,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
-        login, loginWithBiometrics, loginAdmin, loginModerator,
+        login, loginWithGoogle, loginWithBiometrics, loginAdmin, loginModerator,
         register, setUserGender, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
