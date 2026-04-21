@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
@@ -10,12 +11,37 @@ globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
+// When running without pnpm workspace (e.g. Render standalone build),
+// workspace packages won't be in node_modules — resolve them by path instead.
+const wsAlias = {};
+const wsRoot = path.resolve(artifactDir, "../../lib");
+const wsPkgs = {
+  "@workspace/api-zod": path.join(wsRoot, "api-zod/src/index.ts"),
+  "@workspace/db": path.join(wsRoot, "db/src/index.ts"),
+};
+for (const [pkg, src] of Object.entries(wsPkgs)) {
+  const inNodeModules = existsSync(path.join(artifactDir, "node_modules", pkg));
+  if (!inNodeModules && existsSync(src)) {
+    wsAlias[pkg] = src;
+    console.log(`[build] aliasing ${pkg} → ${src}`);
+  }
+}
+
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  // When aliasing workspace packages, their imports resolve relative to lib/,
+  // not artifacts/api-server/node_modules. Adding nodePaths fixes this so esbuild
+  // finds packages like `zod` in our standalone node_modules.
+  const extraNodePaths = Object.keys(wsAlias).length > 0
+    ? [path.join(artifactDir, "node_modules")]
+    : [];
+
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    alias: wsAlias,
+    nodePaths: extraNodePaths,
     platform: "node",
     bundle: true,
     format: "esm",
