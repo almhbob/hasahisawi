@@ -5123,6 +5123,11 @@ router.put("/admin/transport/settings", async (req: Request, res: Response) => {
     if (transport_status !== undefined && valid.includes(transport_status)) {
       entries.push(["transport_status", transport_status]);
       entries.push(["transport_enabled", String(transport_status === "available")]);
+      // مزامنة ride_status مع transport_status للشارة في الصفحة الرئيسية
+      const rideStatusMap: Record<string, string> = {
+        available: "available", maintenance: "maintenance", coming_soon: "soon"
+      };
+      entries.push(["ride_status", rideStatusMap[transport_status] ?? "soon"]);
     }
     if (transport_note !== undefined) entries.push(["transport_note", transport_note]);
     if (transport_phone !== undefined) entries.push(["transport_phone", transport_phone]);
