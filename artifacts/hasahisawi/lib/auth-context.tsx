@@ -337,17 +337,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AsyncStorage.getItem(TOKEN_KEY),
             AsyncStorage.getItem(USER_KEY),
           ]);
-          if (savedToken && savedUser) {
-            // Verify the token is still valid by checking it's not a Firebase ID token
-            // Firebase ID tokens are JWTs (contain dots), backend tokens are hex strings
-            const isBackendToken = savedToken.length === 64 && !savedToken.includes(".");
-            if (isBackendToken) {
-              setUser(JSON.parse(savedUser));
-              setToken(savedToken);
-              setIsGuest(false);
-              setIsLoading(false);
-              return;
-            }
+
+          const isBackendToken = !!(savedToken && savedToken.length === 64 && !savedToken.includes("."));
+
+          if (isBackendToken && savedToken && savedUser) {
+            // Restore session immediately for fast startup
+            setUser(JSON.parse(savedUser));
+            setToken(savedToken);
+            setIsGuest(false);
+            setIsLoading(false);
+
+            // Sync user to PostgreSQL in background (ensures all Firebase users appear in admin)
+            (async () => {
+              try {
+                const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+                if (profile) {
+                  const newToken = await exchangeForBackendToken(
+                    fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+                  );
+                  if (newToken && newToken !== savedToken) {
+                    await AsyncStorage.setItem(TOKEN_KEY, newToken);
+                    setToken(newToken);
+                  }
+                }
+              } catch {}
+            })();
+            return;
           }
 
           const idToken = await fbUser.getIdToken();

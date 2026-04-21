@@ -3623,10 +3623,15 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
       const hash = await bcrypt.hash(randomBytes(16).toString("hex"), 6);
       // لا تحفظ بريد @hasahisawi.app الوهمي
       const realEmail = (email && !email.includes("@hasahisawi.app")) ? email : null;
+      // استخرج رقم الهاتف من البريد الوهمي إن وُجد
+      const phoneFromEmail = (email && email.includes("@hasahisawi.app"))
+        ? email.split("@")[0]
+        : null;
+      const realPhone = (phoneFromEmail && /^\d{9,15}$/.test(phoneFromEmail)) ? phoneFromEmail : null;
       userRow = (await query(
-        `INSERT INTO users (firebase_uid, name, email, password_hash, role)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [firebase_uid, name || "مستخدم", realEmail, hash, requestedRole]
+        `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [firebase_uid, name || "مستخدم", realEmail, realPhone, hash, requestedRole]
       )).rows[0];
     }
 
