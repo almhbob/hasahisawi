@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: hasahisawi
+    runtime: node
+    region: frankfurt
+    plan: starter
+    branch: master
+    rootDir: .
+    buildCommand: >
+      npm install -g pnpm &&
+      pnpm install --filter @workspace/api-server... --ignore-scripts &&
+      cd artifacts/api-server && node build.mjs
+    startCommand: node artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
