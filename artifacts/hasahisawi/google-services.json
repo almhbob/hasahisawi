@@ -20,6 +20,10 @@
             "package_name": "com.almhbob.hasahisawi",
             "certificate_hash": "7bc4a4fc7a923705d36653b1e067794d6bd4c208"
           }
+        },
+        {
+          "client_id": "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -29,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -62,6 +62,7 @@
   "dependencies": {
     "@expo/config-plugins": "~54.0.4",
     "@react-native-community/netinfo": "11.4.1",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "expo-auth-session": "^7.0.10",
     "expo-av": "^16.0.8",
     "expo-local-authentication": "~17.0.8",

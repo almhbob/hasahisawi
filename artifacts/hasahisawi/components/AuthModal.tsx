@@ -8,15 +8,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
-
-WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_WEB_CLIENT_ID = "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com";
 
 type Mode = "login" | "register";
 
@@ -37,24 +32,6 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [_request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    scopes: ["profile", "email"],
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const idToken = response.params?.id_token;
-      if (idToken) handleGoogleSignIn(idToken);
-      else setError("فشل الحصول على بيانات Google");
-    } else if (response?.type === "error") {
-      setGoogleLoading(false);
-      setError("تم إلغاء تسجيل الدخول عبر Google");
-    } else if (response?.type === "dismiss" || response?.type === "cancel") {
-      setGoogleLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [response]);
 
   const reset = () => {
     setName(""); setNationalId(""); setIdentifier(""); setPassword(""); setConfirmPassword("");
@@ -89,7 +66,24 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
     setError("");
     setGoogleLoading(true);
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await promptAsync();
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const signInResult = await GoogleSignin.signIn();
+      const idToken = signInResult.data?.idToken ?? (signInResult as any).idToken;
+      if (!idToken) throw new Error("لم يتم الحصول على بيانات Google");
+      await handleGoogleSignIn(idToken);
+    } catch (e: any) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+        setError("");
+      } else if (e.code === statusCodes.IN_PROGRESS) {
+        setError("تسجيل الدخول جارٍ بالفعل");
+      } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("خدمات Google Play غير متاحة على هذا الجهاز");
+      } else {
+        setError(e.message || "فشل تسجيل الدخول عبر Google");
+      }
+      setGoogleLoading(false);
+    }
   };
 
   const validate = (): string | null => {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -241,6 +242,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
 
   const canPost = !isGuest && user !== null;
+
+  useEffect(() => {
+    try {
+      GoogleSignin.configure({
+        webClientId: "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com",
+        offlineAccess: false,
+      });
+    } catch {}
+  }, []);
 
   useEffect(() => {
     (async () => {
