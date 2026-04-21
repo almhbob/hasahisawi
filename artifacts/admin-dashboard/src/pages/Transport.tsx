@@ -111,7 +111,7 @@ function Input({ label, value, onChange, type = "text", required }: { label: str
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Transport() {
-  const [tab, setTab] = useState<"overview" | "drivers" | "trips" | "fares" | "operators" | "reports" | "settings">("overview");
+  const [tab, setTab] = useState<"overview" | "drivers" | "trips" | "fares" | "operators" | "reports" | "settings" | "zones">("overview");
   const [overview,   setOverview]   = useState<any>(null);
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [trips,      setTrips]      = useState<Trip[]>([]);
