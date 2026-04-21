@@ -1,86 +1,42 @@
 workflows:
   android-release:
-    name: Android Release AAB
+    name: Android Release AAB (EAS)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       node: 22.x
-      android_signing:
-        - hasahisawi_release
       groups:
         - hasahisawi_firebase
+        - hasahisawi_eas
       vars:
         PACKAGE_NAME: com.almhbob.hasahisawi
+
     cache:
       cache_paths:
-        - $HOME/.gradle/caches
         - $HOME/.npm
+
     scripts:
       - name: Install pnpm
         script: npm install -g pnpm
 
+      - name: Install EAS CLI
+        script: npm install -g eas-cli
+
       - name: Install dependencies
         script: pnpm install --frozen-lockfile
 
-      - name: Expo Prebuild (Android)
+      - name: Authenticate with Expo
+        script: |
+          echo $EXPO_TOKEN | eas whoami || eas login --token $EXPO_TOKEN
+
+      - name: Build Android AAB via EAS
         working_directory: artifacts/hasahisawi
-        script: npx expo prebuild --platform android --clean
-
-      - name: Inject signing config into build.gradle
-        working_directory: artifacts/hasahisawi/android
         script: |
-          # كتابة keystore.properties بقيم Codemagic
-          cat > keystore.properties << EOF
-          storeFile=$CM_KEYSTORE_PATH
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          keyPassword=$CM_KEY_PASSWORD
-          EOF
-
-          # تعديل app/build.gradle لإضافة إعداد التوقيع
-          node -e "
-          const fs = require('fs');
-          const path = 'app/build.gradle';
-          let c = fs.readFileSync(path, 'utf8');
-
-          const header = \`def keystoreProps = new Properties()
-          def ksPropFile = rootProject.file('keystore.properties')
-          if (ksPropFile.exists()) { keystoreProps.load(new FileInputStream(ksPropFile)) }
-
-          \`;
-
-          if (!c.includes('keystoreProps')) c = header + c;
-
-          if (!c.includes('signingConfigs')) {
-            c = c.replace('android {', \`android {
-              signingConfigs {
-                  release {
-                      storeFile keystoreProps['storeFile'] ? file(keystoreProps['storeFile']) : null
-                      storePassword keystoreProps['storePassword']
-                      keyAlias keystoreProps['keyAlias']
-                      keyPassword keystoreProps['keyPassword']
-                  }
-              }\`);
-          }
-
-          if (!c.includes('signingConfig signingConfigs.release')) {
-            c = c.replace(/buildTypes\s*\{([^}]*release\s*\{)/, m => m + '\n            signingConfig signingConfigs.release');
-          }
-
-          fs.writeFileSync(path, c);
-          console.log('build.gradle patched with signing config');
-          "
-
-      - name: Build Android release AAB
-        working_directory: artifacts/hasahisawi/android
-        script: |
-          chmod +x gradlew
-          ./gradlew bundleRelease \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
-            --no-daemon
-
-    artifacts:
-      - artifacts/hasahisawi/android/app/build/outputs/bundle/release/*.aab
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --no-wait
 
     publishing:
       email:
