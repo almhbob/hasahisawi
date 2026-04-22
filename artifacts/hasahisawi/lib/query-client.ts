@@ -24,18 +24,28 @@ export function isApiConfigured(): boolean {
 }
 
 /**
- * يُرسل ping خفيف إلى السيرفر لإيقاظه قبل أي طلب حقيقي.
- * يُستدعى عند فتح التطبيق لتقليل وقت الانتظار للمستخدم.
+ * يُرسل ping متكرر إلى السيرفر حتى يستيقظ تماماً قبل أي طلب حقيقي.
+ * يتعامل مع cold-start في Render بإعادة المحاولة كل 5 ثواني لمدة 90 ثانية.
  */
 export async function wakeUpServer(): Promise<void> {
-  try {
-    const url = getApiUrl() + "/api/healthz";
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 30000);
-    await fetch(url, { signal: ctrl.signal });
-    clearTimeout(tid);
-  } catch {
-    // تجاهل أي خطأ - هذا مجرد إيقاظ مبكر
+  const url = getApiUrl() + "/api/healthz";
+  const MAX_ATTEMPTS = 6;
+  const ATTEMPT_TIMEOUT = 15000;
+  const RETRY_DELAY = 5000;
+
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), ATTEMPT_TIMEOUT);
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (res.ok) return;
+    } catch {
+      // السيرفر لم يستيقظ بعد
+    }
+    if (i < MAX_ATTEMPTS - 1) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
+    }
   }
 }
 
