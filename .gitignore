@@ -51,3 +51,10 @@ Thumbs.db
 # Production secrets
 .env.production.local
 *.local.env
+
+# Sensitive credentials — never commit
+attached_assets/*adminsdk*.json
+attached_assets/*service_account*.json
+attached_assets/*client_secret*.json
+*serviceAccountKey*.json
+*-adminsdk-*.json
