@@ -106,26 +106,77 @@ function maskNationalId(id?: string): string | null {
   return "*".repeat(id.length - 4) + id.slice(-4);
 }
 
+/**
+ * يُرسل طلباً مع timeout وإعادة المحاولة التلقائية عند فشل الخادم.
+ * يحل مشكلة cold-start في Render وأي استجابة غير JSON.
+ *
+ * @param url     - عنوان الطلب
+ * @param options - خيارات fetch
+ * @param retries - عدد المحاولات (افتراضي 3)
+ * @param timeoutMs - مهلة كل محاولة بالمللي ثانية (افتراضي 45 ثانية)
+ */
+async function safeFetchJson(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  timeoutMs = 45000,
+): Promise<{ res: Response; json: Record<string, unknown> }> {
+  let lastError: Error = new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, 3000 * attempt));
+    }
+
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+      res = await fetch(url, { ...options, signal: ctrl.signal });
+      clearTimeout(tid);
+    } catch (err: any) {
+      clearTimeout(tid);
+      if (err?.name === "AbortError") {
+        lastError = new Error("انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة");
+      } else {
+        lastError = new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
+      }
+      continue;
+    }
+
+    const text = await res.text();
+    let json: Record<string, unknown>;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      if (res.status >= 500 || text.trim().startsWith("<")) {
+        lastError = new Error("الخادم يستيقظ، جاري إعادة المحاولة…");
+        continue;
+      }
+      lastError = new Error("استجابة غير متوقعة من الخادم");
+      continue;
+    }
+
+    return { res, json };
+  }
+
+  throw lastError;
+}
+
 async function backendLogin(phoneOrEmail: string, password: string): Promise<{ user: AuthUser; token: string }> {
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
-  let res: Response;
-  try {
-    res = await fetch(`${base}/api/auth/login`, {
+
+  const { res, json } = await safeFetchJson(
+    `${base}/api/auth/login`,
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone_or_email: phoneOrEmail, password }),
-    });
-  } catch (err) {
-    throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-  }
-  const text = await res.text();
-  let json: Record<string, unknown>;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
-  }
+    },
+  );
+
   if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
   const u = json.user as Record<string, unknown>;
   const authUser: AuthUser = {
@@ -154,9 +205,10 @@ async function backendRegister(
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
   const isEmail = phoneOrEmail.includes("@");
-  let res: Response;
-  try {
-    res = await fetch(`${base}/api/auth/register`, {
+
+  const { res, json } = await safeFetchJson(
+    `${base}/api/auth/register`,
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -169,17 +221,9 @@ async function backendRegister(
         neighborhood: neighborhood || undefined,
         gender: gender || undefined,
       }),
-    });
-  } catch {
-    throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-  }
-  const text = await res.text();
-  let json: Record<string, unknown>;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
-  }
+    },
+  );
+
   if (!res.ok) throw new Error((json.error as string) || "فشل إنشاء الحساب");
   const u = json.user as Record<string, unknown>;
   const authUser: AuthUser = {
@@ -564,17 +608,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAdmin = async (email: string, password: string) => {
-    // Try backend admin login first
     const base = getApiUrl();
     if (base) {
       try {
-        const res = await fetch(`${base}/api/auth/admin-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-        });
+        const { res, json } = await safeFetchJson(
+          `${base}/api/auth/admin-login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+          },
+        );
         if (res.ok) {
-          const json = await res.json();
           const u = json.user as Record<string, unknown>;
           const authUser: AuthUser = {
             id: u.id as number,
@@ -589,8 +634,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await saveSession(authUser, json.token as string, json.token as string);
           return;
         }
-        const errData = await res.json().catch(() => ({})) as Record<string, unknown>;
-        if (res.status === 401) throw new Error((errData.error as string) || "بيانات غير صحيحة");
+        if (res.status === 401) throw new Error((json.error as string) || "بيانات غير صحيحة");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
         if (msg === "بيانات غير صحيحة") throw err;
@@ -622,17 +666,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginModerator = async (phoneOrEmail: string, password: string) => {
     const base = getApiUrl();
     if (!base) throw new Error("الخادم غير متاح");
-    let res: Response;
-    try {
-      res = await fetch(`${base}/api/auth/moderator-login`, {
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/moderator-login`,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_or_email: phoneOrEmail.trim(), password }),
-      });
-    } catch {
-      throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-    }
-    const json = await res.json() as Record<string, unknown>;
+      },
+    );
     if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
     const u = json.user as Record<string, unknown>;
     const authUser: AuthUser = {
