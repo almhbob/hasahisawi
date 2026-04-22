@@ -18,13 +18,15 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 - **التحقق**: Zod, drizzle-zod
 - **البناء**: esbuild, TypeScript (tsc for Firebase Functions)
 
-## البنية الإنتاجية (Firebase)
+## البنية الإنتاجية
 
-- **API URL**: `https://hasahisawi.web.app/api/...`
-- **Firebase Hosting**: يوجّه `/api/**` إلى Cloud Function
-- **Cloud Function**: `api` — منطقة us-central1
-- **Database**: Neon PostgreSQL (sslmode=require)
-- **eas.json**: يحتوي `EXPO_PUBLIC_DOMAIN=hasahisawi.web.app` للـ preview والـ production builds
+- **API URL**: `https://hasahisawi.onrender.com` (Render.com)
+- **قاعدة البيانات**: PostgreSQL على Render
+- **المصادقة**: Firebase Authentication + Backend JWT sessions
+- **بناء AAB**: GitHub Actions → `.github/workflows/build-aab.yml`
+- **توقيع التطبيق**: مفتاح الرفع SHA-1 `7bc4a4fc7a923705d36653b1e067794d6bd4c208`
+- **Firebase project**: `hasahisawi` | Package: `com.almhbob.hasahisawi`
+- **webClientId (Google Sign-In)**: `133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com`
 
 ## الهيكل
 
@@ -224,6 +226,25 @@ pnpm --filter @workspace/api-spec run codegen
 **نظام مصادقة الأدمن المزدوج:**
 - `isAdminRequest()` يدعم: Bearer token للمستخدمين المسجلين + رأس `x-admin-pin` للدخول بـ PIN
 - `POST /api/admin/validate-pin` — التحقق من PIN
+
+## آخر تحديث (v5.5.9 / versionCode 159)
+
+### إصلاحات Cold-Start — Render.com
+- `safeFetchJson` في `auth-context.tsx`: مهلة 45 ث + 3 محاولات + كشف HTML (جميع طلبات Auth)
+- `fetchWithRetry` في `query-client.ts`: مهلة 45 ث + React Query retry:2 مع backoff
+- `wakeUpServer`: 6 محاولات على `healthz/` قبل أي طلب حقيقي
+- `apiFetch` في `api-chat.ts`: مهلة 30 ث + retry عند 5xx
+
+### إعداد Firebase للإنتاج
+- `google-services.json` حقيقي: app ID `1:133656291161:android:c91938f519fa219d418e48`
+- OAuth client نوع 1 (Android) بـ SHA-1 مفتاح الرفع الصحيح
+- تنبيه: يجب إضافة SHA-1 لـ Play App Signing (من Play Console → App Integrity) إلى Firebase
+
+### بناء AAB المُوقَّع
+- Workflow: `.github/workflows/build-aab.yml`
+- يقرأ الإصدار تلقائياً من `app.json`
+- حجم الـ AAB: ~67.7 MB
+- آخر بناء ناجح: v5.5.8 (run 24756325592)، بناء v5.5.9 قيد التنفيذ (run 24757441946)
 
 ## ثوابت مهمة
 

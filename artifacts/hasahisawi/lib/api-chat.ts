@@ -37,31 +37,51 @@ export type ApiUser = {
   avatar_url: string | null;
 };
 
-// ── دالة fetch مساعدة ─────────────────────────────────────────────────────────
+// ── دالة fetch مساعدة مع timeout وretry ────────────────────────────────────────
 
-async function apiFetch(path: string, token: string, opts?: RequestInit) {
+const CHAT_TIMEOUT_MS = 30_000;
+
+async function apiFetch(path: string, token: string, opts?: RequestInit, attempts = 2) {
   const base = getApiUrl().replace(/\/$/, "");
   if (!base) throw new Error("API not configured");
   // اقبل المسارات سواء بدأت بـ /api أو لا — تجنّب الازدواج
   const cleanPath = path.startsWith("/api/") ? path : `/api${path.startsWith("/") ? "" : "/"}${path}`;
-  const res = await fetch(`${base}${cleanPath}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(opts?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
+  const url = `${base}${cleanPath}`;
+
+  let lastErr: Error = new Error("تعذّر الاتصال بالخادم");
+
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, 3000));
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), CHAT_TIMEOUT_MS);
     try {
-      const json = await res.json();
-      if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض المحتوى من نظام المراقبة"}`);
-      throw new Error(json.error || `HTTP ${res.status}`);
-    } catch (e) {
-      throw e instanceof Error ? e : new Error(`HTTP ${res.status}`);
+      const res = await fetch(url, {
+        ...opts,
+        signal: ctrl.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          ...(opts?.headers ?? {}),
+        },
+      });
+      clearTimeout(tid);
+      if (res.status >= 500 && i < attempts - 1) continue; // retry on server error
+      if (!res.ok) {
+        let json: any = {};
+        try { json = await res.json(); } catch {}
+        if (json.blocked) throw new Error(`🚫 ${json.reason ?? "تم رفض المحتوى من نظام المراقبة"}`);
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    } catch (e: any) {
+      clearTimeout(tid);
+      if (e?.message?.includes("🚫") || e?.message?.includes("HTTP ")) throw e;
+      lastErr = e?.name === "AbortError"
+        ? new Error("انتهت مهلة الاتصال")
+        : new Error("تعذّر الاتصال بالخادم");
     }
   }
-  return res.json();
+  throw lastErr;
 }
 
 // ── جلب قائمة المستخدمين ──────────────────────────────────────────────────────
