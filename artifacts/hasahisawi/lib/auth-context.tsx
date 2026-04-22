@@ -249,14 +249,17 @@ async function exchangeForBackendToken(
   try {
     const base = getApiUrl();
     if (!base) return null;
-    const res = await fetch(`${base}/api/auth/firebase-exchange`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firebase_uid, name, email, role }),
-    });
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/firebase-exchange`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firebase_uid, name, email, role }),
+      },
+      2, // محاولتان فقط — استدعاء خلفي
+    );
     if (!res.ok) return null;
-    const data = await res.json() as { token?: string };
-    return data.token ?? null;
+    return (json as { token?: string }).token ?? null;
   } catch {
     return null;
   }
@@ -693,12 +696,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUserGender = async (gender: "male" | "female") => {
     const base = getApiUrl();
     if (!base || !token) throw new Error("غير مصرح");
-    const res = await fetch(`${base}/api/auth/me/gender`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ gender }),
-    });
-    if (!res.ok) throw new Error("تعذّر تحديث الجنس");
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/me/gender`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ gender }),
+      },
+    );
+    if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث الجنس");
     setUser(prev => prev ? { ...prev, gender } : prev);
   };
 
@@ -760,17 +766,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Register in backend first (uses admin PIN as admin_code)
     const base = getApiUrl();
     if (!base) throw new Error("الخادم غير متاح");
-    let res: Response;
-    try {
-      res = await fetch(`${base}/api/auth/register-admin`, {
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/register-admin`,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email: email.trim().toLowerCase(), password, admin_code: adminCode }),
-      });
-    } catch {
-      throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-    }
-    const json = await res.json() as Record<string, unknown>;
+      },
+    );
     if (!res.ok) throw new Error((json.error as string) || "فشل إنشاء حساب المشرف");
 
     const backendTok = json.token as string;
@@ -823,12 +826,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const base = getApiUrl();
         if (base) {
-          const res = await fetch(`${base}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${currentToken}` },
-          });
+          const { res, json } = await safeFetchJson(
+            `${base}/api/auth/me`,
+            { headers: { Authorization: `Bearer ${currentToken}` } },
+            2,
+          );
           if (res.ok) {
-            const data = await res.json() as { user: Record<string, unknown> };
-            const u = data.user;
+            const u = (json as { user: Record<string, unknown> }).user;
             const updated: AuthUser = {
               id: u.id as number,
               name: u.name as string,
@@ -891,14 +895,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!backendToken) throw new Error("غير مصرح");
     const base = getApiUrl();
     if (!base) throw new Error("الخادم غير متاح");
-    const res = await fetch(`${base}/api/auth/profile`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${backendToken}` },
-      body: JSON.stringify(updates),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "فشل التحديث");
-    const u = json.user;
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/profile`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${backendToken}` },
+        body: JSON.stringify(updates),
+      },
+    );
+    if (!res.ok) throw new Error((json.error as string) || "فشل التحديث");
+    const u = json.user as Record<string, unknown>;
     const updated: AuthUser = {
       ...(user ?? { id: 0, name: "", role: "user" }),
       ...u,
