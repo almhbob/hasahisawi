@@ -61,31 +61,43 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    // إذا كانت الاستجابة HTML (خطأ من proxy) أعطِ رسالة واضحة
+    if (text.trim().startsWith("<")) {
+      throw new Error(`${res.status}: الخادم غير متاح مؤقتاً`);
+    }
     throw new Error(`${res.status}: ${text}`);
   }
 }
 
-/** يحاول إرسال الطلب مع إعادة محاولة عند فشل الشبكة (يساعد عند إيقاظ الخادم) */
+/**
+ * يُرسل الطلب مع retry وtimeout مناسبَين لمواجهة cold-start في Render.
+ * - timeout: 45 ثانية لكل محاولة
+ * - يُعيد المحاولة عند: انتهاء المهلة، خطأ شبكة، 5xx، HTML بدلاً من JSON
+ */
 async function fetchWithRetry(url: string, init: any, attempts = 3): Promise<Response> {
   let lastErr: any;
+  const TIMEOUT_MS = 45000;
+  const RETRY_DELAY = 4000;
+
   for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY * i));
+    }
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
-      const ctrl = new AbortController();
-      const timeoutMs = i === 0 ? 8000 : 20000; // المحاولة الأولى أقصر، ثم نطيل لإيقاظ الخادم
-      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
       const res = await fetch(url, { ...init, signal: ctrl.signal });
       clearTimeout(tid);
-      // إذا أعاد الخادم 502/503/504 (نائم) جرّب مجدداً
-      if ([502, 503, 504].includes(res.status) && i < attempts - 1) {
-        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      // إذا أعاد الخادم 5xx جرّب مجدداً
+      if (res.status >= 500 && i < attempts - 1) {
         continue;
       }
       return res;
     } catch (e: any) {
-      lastErr = e;
-      if (i < attempts - 1) {
-        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
-      }
+      clearTimeout(tid);
+      lastErr = e?.name === "AbortError"
+        ? new Error("انتهت مهلة الاتصال، جاري إعادة المحاولة…")
+        : new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
     }
   }
   throw lastErr || new Error("تعذّر الاتصال بالخادم");
@@ -131,14 +143,21 @@ export function getQueryFn<T>(options: {
 
     const authHeaders = await getAuthHeaders();
 
-    const res = await fetch(url, { headers: authHeaders });
+    const res = await fetchWithRetry(url, { headers: authHeaders });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null as unknown as T;
     }
 
     await throwIfResNotOk(res);
-    return (await res.json()) as T;
+
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // إذا كانت الاستجابة HTML (cold-start) أعطِ خطأ واضح
+      throw new Error("الخادم يستيقظ، أعد المحاولة بعد لحظة");
+    }
   };
 }
 
@@ -149,7 +168,8 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: 2,
+      retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 15000),
     },
     mutations: {
       retry: false,
