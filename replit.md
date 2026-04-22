@@ -244,11 +244,16 @@ pnpm --filter @workspace/api-spec run codegen
    Android يستخدم `1:133656291161:android:...` ومفتاح `AIzaSyDD1dx...` من `google-services.json`.
 5. **`lib/firebase/chat.ts`** — توحيد `getDB()` ليستخدم `isFirebaseAvailable()` للتعامل مع فشل runtime.
 
-### إجراء يدوي مطلوب من الكونسول
+### App Check (مُفعَّل ✅)
+- **Android**: مُسجَّل بـ Play Integrity في Firebase Console.
+- **Web**: مُسجَّل بـ reCAPTCHA.
+- **الكود**: `lib/firebase/app-check.ts` يُهيِّئ App Check تلقائياً عند بدء التطبيق
+  (الويب فقط — Native يتجاوز بأمان لأن SDK جافاسكريبت لا يفرض على Native).
+- **متغير اختياري**: `EXPO_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` (يقع على `VITE_RECAPTCHA_SITE_KEY` كاحتياط).
+
+### إجراء يدوي وحيد متبقّي
 - **تفعيل Firebase Storage**: https://console.firebase.google.com/project/hasahisawi/storage → Get Started
-  ثم إعادة تشغيل: `firebase deploy --only storage:rules`
-- **تفعيل App Check** (موصى به للإنتاج): Firebase Console → App Check → Register Android app
-  بـ Play Integrity (للإنتاج) أو Debug Token (للتطوير).
+  ثم نشر القواعد: `firebase deploy --only storage:rules --project hasahisawi`
 
 ## آخر تحديث (v5.5.9 / versionCode 159)
 
