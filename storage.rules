@@ -9,14 +9,25 @@ service firebase.storage {
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
     function isImage() {
       return request.resource.contentType.matches('image/.*');
+    }
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
     }
     function under10MB() {
       return request.resource.size < 10 * 1024 * 1024;
     }
     function under50MB() {
       return request.resource.size < 50 * 1024 * 1024;
+    }
+    function under100MB() {
+      return request.resource.size < 100 * 1024 * 1024;
     }
 
     // الصور الشخصية للمستخدمين
@@ -29,6 +40,42 @@ service firebase.storage {
     match /posts/{userId}/{fileName} {
       allow read: if true;
       allow write: if isOwner(userId) && isImage() && under10MB();
+    }
+
+    // فيديوهات المنشورات
+    match /posts_videos/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isVideo() && under100MB();
+    }
+
+    // صور البلاغات
+    match /reports/{reportId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isImage() && under10MB();
+    }
+
+    // صور الإعلانات
+    match /ads/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && under10MB();
+    }
+
+    // صور قاعة التكريم
+    match /honored-figures/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && under10MB();
+    }
+
+    // إثباتات الدفع (خاصة)
+    match /payment-proofs/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && isImage() && under10MB();
+    }
+
+    // صور المفقودين
+    match /missing-persons/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && under10MB();
     }
 
     // صور السوق

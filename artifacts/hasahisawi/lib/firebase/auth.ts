@@ -1,8 +1,9 @@
 import {
   getAuth,
   initializeAuth,
-  inMemoryPersistence,
   indexedDBLocalPersistence,
+  // @ts-ignore — مُصدَّر فعلاً في firebase/auth لـ React Native
+  getReactNativePersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -11,10 +12,12 @@ import {
   updateProfile,
   PhoneAuthProvider,
   signInWithCredential,
+  GoogleAuthProvider,
   User,
   Auth,
 } from "firebase/auth";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { app, isFirebaseConfigured } from "./index";
 
 let _auth: Auth | null = null;
@@ -33,12 +36,13 @@ function getFirebaseAuth(): Auth {
   if (_auth) return _auth;
   if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
   try {
-    if (Platform.OS !== "web") {
-      _auth = initializeAuth(app, {
-        persistence: inMemoryPersistence,
-      });
-    } else {
+    if (Platform.OS === "web") {
       _auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
+    } else {
+      // الموبايل: استخدم AsyncStorage للحفاظ على الجلسة بين عمليات التشغيل
+      _auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
     }
   } catch {
     try {
@@ -136,6 +140,14 @@ export function getCurrentFirebaseUser(): User | null {
   } catch {
     return null;
   }
+}
+
+export async function firebaseLoginGoogle(idToken: string) {
+  if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح");
+  const auth = getFirebaseAuth();
+  const credential = GoogleAuthProvider.credential(idToken);
+  const cred = await signInWithCredential(auth, credential);
+  return cred.user;
 }
 
 export { PhoneAuthProvider, signInWithCredential };

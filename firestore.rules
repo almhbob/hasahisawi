@@ -52,7 +52,7 @@ service cloud.firestore {
     }
 
     // ---------- المفقودات ----------
-    match /missing/{itemId} {
+    match /missing_persons/{itemId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isAdmin() ||
@@ -60,21 +60,61 @@ service cloud.firestore {
     }
 
     // ---------- الأرقام المهمة ----------
-    match /important_numbers/{id} {
+    match /emergency_numbers/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
     // ---------- الدليل الطبي ----------
-    match /medical/{id} {
+    match /medical_facilities/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // ---------- الرياضة ----------
-    match /sports/{id} {
+    // ---------- المراكز الثقافية ----------
+    match /cultural_centers/{id} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // ---------- الرياضة — منشورات ----------
+    match /sports_posts/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // ---------- الرياضة — أندية ولاعبون ----------
+    match /sports_clubs/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- التعليقات على المنشورات ----------
+    match /post_comments/{id} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // ---------- المواعيد ----------
+    match /appointments/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // ---------- الفعاليات ----------
+    match /events/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- التحليلات ----------
+    match /analytics/{id} {
+      allow read, write: if isAdmin();
     }
 
     // ---------- المحادثات ----------
@@ -105,6 +145,11 @@ service cloud.firestore {
     // ---------- الإشعارات للمستخدم ----------
     match /notifications/{userId}/items/{notifId} {
       allow read, write: if isOwner(userId);
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
     }
 
     // ---------- مشوارك علينا (المواصلات) ----------

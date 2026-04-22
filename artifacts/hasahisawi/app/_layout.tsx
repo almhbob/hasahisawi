@@ -21,6 +21,7 @@ import { FeatureFlagsProvider } from "@/lib/feature-flags-context";
 import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
+import { initAppCheck } from "@/lib/firebase/app-check";
 import { I18nManager, Platform, View, LogBox } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -141,7 +142,8 @@ function RootLayoutNav() {
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="admin"           options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="admin"            options={{ headerShown: false, animation: "slide_from_left" }} />
+        <Stack.Screen name="admin-transport" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -164,6 +166,8 @@ export default function RootLayout() {
   useEffect(() => {
     // إيقاظ السيرفر مبكراً عند فتح التطبيق لتقليل وقت الانتظار
     wakeUpServer();
+    // تهيئة Firebase App Check (الويب فقط — تخطّي صامت على الموبايل)
+    initAppCheck().catch(() => {});
   }, []);
 
   useEffect(() => {
