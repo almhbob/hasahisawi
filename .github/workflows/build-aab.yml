@@ -2,11 +2,6 @@ name: Build Android AAB
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g. 2.2.8)'
-        required: false
-        default: '2.2.8'
 
 jobs:
   build:
@@ -32,6 +27,15 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
+
+      - name: Read app version from app.json
+        id: app_version
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          VERSION_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "📦 Building v$VERSION (versionCode: $VERSION_CODE)"
 
       - name: Get pnpm store
         id: pnpm-cache
@@ -81,15 +85,19 @@ jobs:
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
-      - name: Rename AAB
+      - name: Package AAB
         run: |
           mkdir -p release
+          VERSION="${{ steps.app_version.outputs.version }}"
+          VERSION_CODE="${{ steps.app_version.outputs.version_code }}"
           cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
-             release/hasahisawi-v${{ github.event.inputs.version }}.aab
+             release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
+          echo "✅ AAB ready: hasahisawi-v${VERSION}-code${VERSION_CODE}.aab"
+          ls -lh release/
 
       - name: Upload AAB as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v${{ github.event.inputs.version }}-aab
-          path: release/hasahisawi-v${{ github.event.inputs.version }}.aab
+          name: hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}-aab
+          path: release/hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}.aab
           retention-days: 30
