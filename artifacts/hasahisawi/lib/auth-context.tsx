@@ -608,17 +608,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAdmin = async (email: string, password: string) => {
-    // Try backend admin login first
     const base = getApiUrl();
     if (base) {
       try {
-        const res = await fetch(`${base}/api/auth/admin-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-        });
+        const { res, json } = await safeFetchJson(
+          `${base}/api/auth/admin-login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+          },
+        );
         if (res.ok) {
-          const json = await res.json();
           const u = json.user as Record<string, unknown>;
           const authUser: AuthUser = {
             id: u.id as number,
@@ -633,8 +634,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await saveSession(authUser, json.token as string, json.token as string);
           return;
         }
-        const errData = await res.json().catch(() => ({})) as Record<string, unknown>;
-        if (res.status === 401) throw new Error((errData.error as string) || "بيانات غير صحيحة");
+        if (res.status === 401) throw new Error((json.error as string) || "بيانات غير صحيحة");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
         if (msg === "بيانات غير صحيحة") throw err;
@@ -666,17 +666,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginModerator = async (phoneOrEmail: string, password: string) => {
     const base = getApiUrl();
     if (!base) throw new Error("الخادم غير متاح");
-    let res: Response;
-    try {
-      res = await fetch(`${base}/api/auth/moderator-login`, {
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/moderator-login`,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_or_email: phoneOrEmail.trim(), password }),
-      });
-    } catch {
-      throw new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-    }
-    const json = await res.json() as Record<string, unknown>;
+      },
+    );
     if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
     const u = json.user as Record<string, unknown>;
     const authUser: AuthUser = {
