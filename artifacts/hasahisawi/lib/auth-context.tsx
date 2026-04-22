@@ -331,9 +331,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(true);
         setUser({ id: 0, name: "زائر", role: "guest" });
       } else if (savedToken && savedUser) {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser) as AuthUser;
+        setUser(parsedUser);
         setToken(savedToken);
         setIsGuest(false);
+        // إذا كان مستخدم Google (له uid)، جدّد backend token في الخلفية بهدوء
+        if (parsedUser.uid) {
+          exchangeForBackendToken(
+            parsedUser.uid,
+            parsedUser.name,
+            parsedUser.email ?? null,
+            parsedUser.role,
+          ).then((freshTok) => {
+            if (freshTok) {
+              setToken(freshTok);
+              AsyncStorage.setItem(TOKEN_KEY, freshTok).catch(() => {});
+            }
+          }).catch(() => {});
+        }
       }
     } catch {}
     setIsLoading(false);
@@ -364,10 +379,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               AsyncStorage.getItem(USER_KEY),
             ]);
             if (savedToken && savedUser) {
-              setUser(JSON.parse(savedUser));
+              const parsedUser = JSON.parse(savedUser) as AuthUser;
+              setUser(parsedUser);
               setToken(savedToken);
               setIsGuest(false);
               setIsLoading(false);
+              // جدّد backend token في الخلفية لمستخدمي Google
+              if (parsedUser.uid) {
+                exchangeForBackendToken(
+                  parsedUser.uid,
+                  parsedUser.name,
+                  parsedUser.email ?? null,
+                  parsedUser.role,
+                ).then((freshTok) => {
+                  if (freshTok) {
+                    setToken(freshTok);
+                    AsyncStorage.setItem(TOKEN_KEY, freshTok).catch(() => {});
+                  }
+                }).catch(() => {});
+              }
               return;
             }
             const bioEnabled = await isBiometricsEnabled();
