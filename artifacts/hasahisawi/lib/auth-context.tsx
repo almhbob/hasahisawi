@@ -145,16 +145,26 @@ async function safeFetchJson(
       continue;
     }
 
-    const text = await res.text();
+    let text = "";
+    try {
+      text = await res.text();
+    } catch {
+      lastError = new Error("تعذّر قراءة رد الخادم — تحقق من الإنترنت");
+      continue;
+    }
+
     let json: Record<string, unknown>;
     try {
       json = JSON.parse(text);
     } catch {
-      if (res.status >= 500 || text.trim().startsWith("<")) {
-        lastError = new Error("الخادم يستيقظ، جاري إعادة المحاولة…");
-        continue;
-      }
-      lastError = new Error("استجابة غير متوقعة من الخادم");
+      // أي استجابة غير JSON مشكلة مؤقتة — نُعيد المحاولة دائماً
+      lastError = new Error(
+        res.status >= 500 || text.trim().startsWith("<")
+          ? "الخادم يستيقظ، جاري إعادة المحاولة…"
+          : res.status >= 400
+            ? `خطأ في الخادم (${res.status}) — جاري إعادة المحاولة`
+            : "الخادم يستيقظ، جاري إعادة المحاولة…",
+      );
       continue;
     }
 
@@ -722,12 +732,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender
     );
     await saveSession(authUser, backendTok, backendTok);
-    // Firebase اختياري
+    // Firebase اختياري — يُستخدم للمزامنة والدردشة والقسم الاجتماعي
     if (isFirebaseAvailable()) {
       try {
-        const email = identifierToEmail(phoneOrEmail);
+        const firebaseEmail = identifierToEmail(phoneOrEmail);
         const isActualEmail = isEmail || phoneOrEmail.includes("@");
-        const fbUser = await firebaseRegisterEmail(email, password, name);
+
+        let fbUser: import("firebase/auth").User;
+        try {
+          fbUser = await firebaseRegisterEmail(firebaseEmail, password, name);
+        } catch (regErr: any) {
+          const code = regErr?.code ?? "";
+          if (code === "auth/email-already-in-use") {
+            // حساب Firebase موجود مسبقاً — ندخل بدلاً من التسجيل
+            fbUser = await firebaseLoginEmail(firebaseEmail, password);
+          } else {
+            throw regErr;
+          }
+        }
+
         const profile: UserProfile = {
           uid: fbUser.uid,
           name: name.trim(),
@@ -741,18 +764,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...(birthDate ? { birthDate } : {}),
         };
         await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
-        // Exchange and update token — pass null email for phone users to avoid duplication
+
+        // تبادل التوكن مع الخادم
         const backendTok2 = await exchangeForBackendToken(
           fbUser.uid, authUser.name,
           isActualEmail ? (authUser.email ?? null) : null,
-          "user"
+          "user",
         );
         if (backendTok2) {
           setToken(backendTok2);
           await AsyncStorage.setItem(TOKEN_KEY, backendTok2);
         }
       } catch {
-        // Firebase فشل — لا بأس
+        // Firebase فشل — لا بأس، حساب Backend نشط
       }
     }
   };
@@ -907,8 +931,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const u = json.user as Record<string, unknown>;
     const updated: AuthUser = {
       ...(user ?? { id: 0, name: "", role: "user" }),
-      ...u,
-      avatar_url: u.avatar_url ?? null,
+      id: (u.id as number) ?? user?.id ?? 0,
+      name: (u.name as string) ?? user?.name ?? "",
+      phone: (u.phone as string | null) ?? null,
+      email: (u.email as string | null) ?? null,
+      role: (u.role as AuthUser["role"]) ?? user?.role ?? "user",
+      neighborhood: (u.neighborhood as string | null) ?? null,
+      avatar_url: (u.avatar_url as string | null) ?? null,
+      gender: (u.gender as "male" | "female" | null) ?? null,
     };
     setUser(updated);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));

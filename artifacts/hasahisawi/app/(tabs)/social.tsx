@@ -65,7 +65,7 @@ type Post = {
   video_url?: string | null;
 };
 
-function fsPostToPost(fp: FsPost): Post {
+function fsPostToPost(fp: FsPost, likedIds?: Set<string>): Post {
   const ts = fp.createdAt as any;
   const created_at = ts?.seconds
     ? new Date(ts.seconds * 1000).toISOString()
@@ -77,7 +77,7 @@ function fsPostToPost(fp: FsPost): Post {
     category: fp.category,
     likes_count: fp.likes,
     comments_count: fp.comments,
-    liked_by_me: false,
+    liked_by_me: likedIds ? likedIds.has(fp.id) : false,
     created_at,
     image_url: (fp as any).image_url ?? null,
     video_url: (fp as any).video_url ?? null,
@@ -551,7 +551,8 @@ function AddPostModal({
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
       >
         <Pressable style={ms.overlay} onPress={onClose}>
           <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -803,7 +804,8 @@ function CommentsModal({
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
       >
         <Pressable style={[ms.overlay, { justifyContent: "flex-end" }]} onPress={onClose}>
           <Pressable style={[cs.sheet, { paddingBottom: insets.bottom + 8 }]}>
@@ -1095,8 +1097,18 @@ export default function SocialScreen() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
 
-  const posts: Post[] = isFirestoreEnabled ? fsPosts.map(fsPostToPost) : apiPosts;
+  // تحميل الإعجابات المحفوظة من الذاكرة
+  useEffect(() => {
+    AsyncStorage.getItem("social_liked_posts").then((v) => {
+      if (v) { try { setLikedPostIds(new Set(JSON.parse(v))); } catch {} }
+    });
+  }, []);
+
+  // استخدام Firebase للمنشورات إن كان متاحاً، أو الـ API كبديل
+  const fsMapped = isFirestoreEnabled ? fsPosts.map((fp) => fsPostToPost(fp, likedPostIds)) : [];
+  const posts: Post[] = fsMapped.length > 0 ? fsMapped : apiPosts;
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
@@ -1111,7 +1123,6 @@ export default function SocialScreen() {
 
   const loadFromApi = useCallback(
     async (quiet = false) => {
-      if (isFirestoreEnabled) return;
       if (!quiet) setLoading(true);
       setError("");
       try {
@@ -1179,8 +1190,19 @@ export default function SocialScreen() {
   const handleLike = async (postId: string | number) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isFirestoreEnabled) {
+      const postKey = String(postId);
+      const alreadyLiked = likedPostIds.has(postKey);
+      // تحديث فوري للواجهة
+      const newLiked = new Set(likedPostIds);
+      if (alreadyLiked) { newLiked.delete(postKey); } else { newLiked.add(postKey); }
+      setLikedPostIds(newLiked);
+      AsyncStorage.setItem("social_liked_posts", JSON.stringify([...newLiked]));
+      // تحديث العداد في Firestore
       const post = fsPosts.find((p) => p.id === postId);
-      if (post) await fsUpdateDoc(COLLECTIONS.POSTS, String(postId), { likes: post.likes + 1 });
+      if (post) {
+        const newCount = alreadyLiked ? Math.max(0, post.likes - 1) : post.likes + 1;
+        await fsUpdateDoc(COLLECTIONS.POSTS, postKey, { likes: newCount });
+      }
       return;
     }
     if (!deviceId) return;
@@ -1263,6 +1285,12 @@ export default function SocialScreen() {
               </View>
             )}
             <Text style={styles.headerTitle}>{t("social", "title")}</Text>
+            {isFirestoreEnabled && !loading && (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>مباشر</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity style={styles.newPostFab} onPress={handleComposePress}>
             <Ionicons name="create-outline" size={19} color="#fff" />
@@ -1534,6 +1562,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.divider,
   },
   emptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
+
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#27AE6015",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#27AE6030",
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#27AE60",
+  },
+  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#27AE60" },
 });
 
 // ─── Modal Styles ──────────────────────────────────────────────────────────────

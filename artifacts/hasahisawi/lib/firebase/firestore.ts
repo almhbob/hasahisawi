@@ -122,10 +122,14 @@ export function fsListen<T = DocumentData>(
     return onSnapshot(
       q,
       (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))),
-      (err) => { console.warn("[Firestore] snapshot error:", err.message); },
+      (err) => {
+        console.warn("[Firestore] snapshot error:", err.message);
+        cb([]); // أعطِ قائمة فارغة عند الخطأ حتى تتوقف حالة التحميل
+      },
     );
   } catch (e) {
     console.warn("[Firestore] fsListen failed:", e);
+    cb([]); // أعطِ قائمة فارغة لإيقاف spinner
     return () => {};
   }
 }
