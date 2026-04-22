@@ -227,6 +227,29 @@ pnpm --filter @workspace/api-spec run codegen
 - `isAdminRequest()` يدعم: Bearer token للمستخدمين المسجلين + رأس `x-admin-pin` للدخول بـ PIN
 - `POST /api/admin/validate-pin` — التحقق من PIN
 
+## مراجعة Firebase الاحترافية (تم الإصلاح)
+
+### الإصلاحات المنفَّذة
+1. **`storage.rules`** — إضافة 6 مسارات كانت ترفض الكتابة افتراضياً:
+   `posts_videos/`, `reports/`, `ads/`, `honored-figures/`, `payment-proofs/`, `missing-persons/`
+   + إضافة دالة `isAdmin()` تستخدم `firestore.exists/get` + حد 100MB للفيديوهات.
+2. **`firestore.rules`** — تصحيح أسماء المجموعات لتطابق الكود:
+   `missing` → `missing_persons`، `important_numbers` → `emergency_numbers`،
+   `medical` → `medical_facilities`، `sports` → `sports_posts` + `sports_clubs`،
+   + قواعد جديدة: `cultural_centers`, `post_comments`, `appointments`, `events`, `analytics`.
+   ✅ نُشِرت إلى Firebase (`firebase deploy --only firestore:rules,indexes`).
+3. **`lib/firebase/auth.ts`** — استبدال `inMemoryPersistence` بـ
+   `getReactNativePersistence(AsyncStorage)` على الموبايل لحفظ الجلسة بين عمليات التشغيل.
+4. **`lib/firebase/index.ts`** — App ID و API Key افتراضيان مختلفان حسب المنصة:
+   Android يستخدم `1:133656291161:android:...` ومفتاح `AIzaSyDD1dx...` من `google-services.json`.
+5. **`lib/firebase/chat.ts`** — توحيد `getDB()` ليستخدم `isFirebaseAvailable()` للتعامل مع فشل runtime.
+
+### إجراء يدوي مطلوب من الكونسول
+- **تفعيل Firebase Storage**: https://console.firebase.google.com/project/hasahisawi/storage → Get Started
+  ثم إعادة تشغيل: `firebase deploy --only storage:rules`
+- **تفعيل App Check** (موصى به للإنتاج): Firebase Console → App Check → Register Android app
+  بـ Play Integrity (للإنتاج) أو Debug Token (للتطوير).
+
 ## آخر تحديث (v5.5.9 / versionCode 159)
 
 ### إصلاحات Cold-Start — Render.com

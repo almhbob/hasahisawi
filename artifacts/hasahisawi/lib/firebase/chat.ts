@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   collection,
   doc,
@@ -16,9 +16,9 @@ import {
   Timestamp,
   getFirestore,
   increment,
-  arrayUnion,
 } from "firebase/firestore";
 import { app, isFirebaseConfigured } from "./index";
+import { isFirebaseAvailable } from "./auth";
 
 // ── الأنواع ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ export type Chat = {
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 
 function getDB() {
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
   return getFirestore(app);
 }
 
