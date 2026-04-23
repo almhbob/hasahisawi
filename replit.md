@@ -22,11 +22,18 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 
 - **API URL**: `https://hasahisawi.onrender.com` (Render.com)
 - **قاعدة البيانات**: PostgreSQL على Render
-- **المصادقة**: Firebase Authentication + Backend JWT sessions
+- **المصادقة**: Firebase Authentication + Backend JWT sessions + Firebase Admin SDK للتحقق من ID tokens خادمياً
 - **بناء AAB**: GitHub Actions → `.github/workflows/build-aab.yml`
 - **توقيع التطبيق**: مفتاح الرفع SHA-1 `7bc4a4fc7a923705d36653b1e067794d6bd4c208`
 - **Firebase project**: `hasahisawi` | Package: `com.almhbob.hasahisawi`
 - **webClientId (Google Sign-In)**: `133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com`
+
+### بنية النشر على Render (مهم جداً)
+- **buildCommand الفعلي على Render** (مختلف عن render.yaml): `cd artifacts/api-server && cp package.render.json package.json && npm install --include=dev --legacy-peer-deps && node build.mjs`
+- ⚠️ **`package.render.json`** هو الملف المُستخدَم على Render (يُنسخ فوق package.json). أي dependency جديد للـ api-server يجب إضافته هنا أيضاً.
+- **Deploy hook + API key** محفوظان في Replit Secrets: `RENDER_DEPLOY_HOOK`, `RENDER_API_KEY` — يمكن للـ agent تشغيل النشر وقراءة logs بنفسه.
+- **Service ID**: `srv-d7hnfmvaqgkc739ea5f0`
+- **Auto-deploy**: مفعّل من master branch.
 
 ## الهيكل
 
