@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
@@ -10,6 +11,20 @@ import { rm } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure runtime deps that get bundled (not externalized) actually exist on disk.
+// On Render, `pnpm install --filter` sometimes fails to create the symlink for
+// these packages in artifacts/api-server/node_modules. Install them defensively.
+const requiredRuntimeDeps = ["firebase-admin"];
+for (const dep of requiredRuntimeDeps) {
+  const depPath = path.join(artifactDir, "node_modules", dep);
+  if (!existsSync(depPath)) {
+    console.log(`[build] ${dep} missing — installing via npm`);
+    execSync(`npm install ${dep} --no-save --prefix .`, {
+      cwd: artifactDir, stdio: "inherit",
+    });
+  }
+}
 
 // When running without pnpm workspace (e.g. Render standalone build),
 // workspace packages won't be in node_modules — resolve them by path instead.
