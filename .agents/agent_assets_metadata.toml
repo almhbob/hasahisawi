@@ -364,16 +364,16 @@ title = "تحديث جديد — تباين مصحح (1080×1080)"
 id = "VkMPZXshumfbuvQxrfIZd"
 uri = "file://exports/fb_wow_luxury.png"
 type = "image"
-title = "Luxury Gold — فاخر ذهبي على أسود (1080×1350)"
+title = "A — ذهبي فاخر (1080×1350)"
 
 [[outputs]]
 id = "MqgNvHLKEOZakynIJr_Mx"
 uri = "file://exports/fb_wow_neon.png"
 type = "image"
-title = "Neon Mesh — تدرج لوني متفجّر (1200×628)"
+title = "B — نيون متدرج (1200×628)"
 
 [[outputs]]
 id = "HQEco-awENw-GNhF7cCui"
 uri = "file://exports/fb_wow_split.png"
 type = "image"
-title = "Bold Split — داكن وفاتح متوازن (1080×1080)"
+title = "C — داكن/فاتح منقسم (1080×1080)"
