@@ -9,7 +9,9 @@ services:
     buildCommand: >
       npm install -g pnpm &&
       pnpm install --filter @workspace/api-server... --ignore-scripts &&
-      cd artifacts/api-server && node build.mjs
+      cd artifacts/api-server &&
+      npm install firebase-admin@^13.4.0 --no-save --no-package-lock &&
+      node build.mjs
     startCommand: node artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:

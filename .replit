@@ -50,3 +50,4 @@ FIREBASE_SERVICE_ACCOUNT_JSON = '''
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hasahisawi-admin-374%40hasahisawi.iam.gserviceaccount.com",
     "universe_domain": "googleapis.com"
   }'''
+RENDER_DEPLOY_HOOK = "https://api.render.com/deploy/srv-d7hnfmvaqgkc739ea5f0?key=Hlk91B8gk6s"
