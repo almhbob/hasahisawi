@@ -3,7 +3,10 @@ import { apiFetch } from "./api";
 
 type AdminUser = {
   id: number; name: string; email: string; role: string;
+  operator_id?: number | null;
 };
+
+const ALLOWED_ROLES = ["admin", "moderator", "transport_supervisor"];
 type AuthCtx = {
   user: AdminUser | null;
   token: string | null;
@@ -27,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiFetch("/auth/me")
         .then(r => r.ok ? r.json() : null)
         .then(d => {
-          if (d?.user && (d.user.role === "admin" || d.user.role === "moderator")) {
+          if (d?.user && ALLOWED_ROLES.includes(d.user.role)) {
             setUser(d.user);
           } else {
             setToken(null);
@@ -51,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(d.error || "بيانات خاطئة");
     }
     const d = await res.json();
-    if (!d.user || (d.user.role !== "admin" && d.user.role !== "moderator")) {
+    if (!d.user || !ALLOWED_ROLES.includes(d.user.role)) {
       throw new Error("ليس لديك صلاحية الدخول للوحة التحكم");
     }
     localStorage.setItem("admin_token", d.token);

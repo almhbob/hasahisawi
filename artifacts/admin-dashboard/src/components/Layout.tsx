@@ -81,7 +81,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Nav items */}
         <nav style={{ flex: 1, padding: "12px 8px" }}>
-          {NAV.map(item => {
+          {(user?.role === "transport_supervisor"
+            ? NAV.filter(n => n.path === "/transport")
+            : NAV
+          ).map(item => {
             const active = location === item.path || (item.path !== "/" && location.startsWith(item.path));
             return (
               <Link key={item.path} href={item.path}>

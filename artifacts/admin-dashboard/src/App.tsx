@@ -55,6 +55,20 @@ function AppRoutes() {
     return <Login />;
   }
 
+  // مشرف الشركة المشغّلة: يصل فقط لشاشة "مشوارك علينا"
+  if (user.role === "transport_supervisor") {
+    return (
+      <Layout>
+        <Switch>
+          <Route path="/transport" component={Transport} />
+          <Route>
+            <Transport />
+          </Route>
+        </Switch>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <Switch>
