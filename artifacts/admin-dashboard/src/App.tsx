@@ -27,6 +27,9 @@ import Sports         from "@/pages/Sports";
 import Notifications  from "@/pages/Notifications";
 import MedicalClinics from "@/pages/MedicalClinics";
 import Services       from "@/pages/Services";
+import LawyersAdmin   from "@/pages/Lawyers";
+import AppVersion    from "@/pages/AppVersion";
+import ActivityLog   from "@/pages/ActivityLog";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -51,6 +54,20 @@ function AppRoutes() {
 
   if (!user || pinRequired) {
     return <Login />;
+  }
+
+  // مشرف الشركة المشغّلة: يصل فقط لشاشة "مشوارك علينا"
+  if (user.role === "transport_supervisor") {
+    return (
+      <Layout>
+        <Switch>
+          <Route path="/transport" component={Transport} />
+          <Route>
+            <Transport />
+          </Route>
+        </Switch>
+      </Layout>
+    );
   }
 
   return (
@@ -79,6 +96,9 @@ function AppRoutes() {
         <Route path="/notifications"  component={Notifications} />
         <Route path="/medical"        component={MedicalClinics} />
         <Route path="/services"       component={Services} />
+        <Route path="/lawyers"        component={LawyersAdmin} />
+        <Route path="/app-version"    component={AppVersion} />
+        <Route path="/activity-log"   component={ActivityLog} />
         <Route path="/settings"       component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>

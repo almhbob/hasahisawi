@@ -27,12 +27,15 @@ const NAV: NavItem[] = [
   { path: "/education",      label: "التعليم",            icon: "🎓" },
   { path: "/women",          label: "خدمات المرأة",      icon: "👩" },
   { path: "/medical",        label: "الدليل الطبي",       icon: "🏥" },
+  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },
   { path: "/reports",        label: "بلاغات المواطنين",  icon: "📋" },
   { path: "/jobs",           label: "الوظائف",            icon: "💼" },
   { path: "/sports",         label: "الرياضة",            icon: "⚽" },
   { path: "/notifications",  label: "مركز الإشعارات",     icon: "🔔" },
   { path: "/prayer",         label: "مواقيت الآذان",      icon: "🕌" },
   { path: "/services",       label: "الإشتراكات والخدمات", icon: "🛰️" },
+  { path: "/activity-log",   label: "سجل النشاط",          icon: "🕐" },
+  { path: "/app-version",    label: "إصدار التطبيق",        icon: "🔄" },
   { path: "/settings",       label: "الإعدادات",           icon: "⚙️" },
 ];
 
@@ -79,7 +82,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Nav items */}
         <nav style={{ flex: 1, padding: "12px 8px" }}>
-          {NAV.map(item => {
+          {(user?.role === "transport_supervisor"
+            ? NAV.filter(n => n.path === "/transport")
+            : NAV
+          ).map(item => {
             const active = location === item.path || (item.path !== "/" && location.startsWith(item.path));
             return (
               <Link key={item.path} href={item.path}>

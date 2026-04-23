@@ -33,6 +33,7 @@ type LawyerAd      = { id: number; title: string; body: string; cta_text: string
 type LegalForm     = { id: number; title: string; category: string; description: string; is_official: boolean };
 type LegalFormFull = LegalForm & { content_html: string };
 type Contract      = { id: number; lawyer_id: number; lawyer_name: string; lawyer_phone: string; service_title: string; status: string; contract_no: string; created_at: string; preferred_date: string | null; details: string };
+type MyApp         = { id: number; full_name: string; status: "pending"|"approved"|"rejected"; admin_note: string; lawyer_id: number | null; created_at: string; reviewed_at?: string };
 
 const SPECIALTIES = ["الكل","تجارية","عقارات","شركات","أحوال شخصية","ميراث","نفقة","حضانة","جنائية","عمل","تحكيم","عقود"];
 
@@ -57,6 +58,7 @@ const STATUS_AR: Record<string,{label:string;color:string}> = {
   completed:   { label: "مكتمل",         color: "#10B981" },
   rejected:    { label: "مرفوض",         color: "#EF4444" },
   cancelled:   { label: "ملغي",          color: "#6B7280" },
+  approved:    { label: "مقبول ✓",       color: "#10B981" },
 };
 
 // ─── Star ─────────────────────────────────────────────────────────────────────
@@ -126,6 +128,18 @@ export default function LawyersScreen() {
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
   const [contractsLoading, setContractsLoading] = useState(false);
 
+  // lawyer join application
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [myApps, setMyApps] = useState<MyApp[]>([]);
+  const EMPTY_APP = {
+    full_name: user?.name || "", title: "محامي", phone: user?.phone || "", whatsapp: "",
+    email: "", bar_number: "", experience_y: "", specialties: "",
+    bio: "", office_addr: "", district: "", consult_fee: "",
+    bar_card_url: "", agree: false,
+  };
+  const [appForm, setAppForm] = useState<typeof EMPTY_APP>(EMPTY_APP);
+
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadDirectory = useCallback(async () => {
     setLoading(true);
@@ -150,12 +164,47 @@ export default function LawyersScreen() {
     if (!deviceId && !token) return;
     setContractsLoading(true);
     try {
-      const r = await apiFetch(`/api/my-lawyer-contracts?device_id=${encodeURIComponent(deviceId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (r.ok) setMyContracts(await r.json());
+      const [cr, ar] = await Promise.all([
+        apiFetch(`/api/my-lawyer-contracts?device_id=${encodeURIComponent(deviceId)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }),
+        apiFetch(`/api/lawyer-applications/mine?device_id=${encodeURIComponent(deviceId)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }),
+      ]);
+      if (cr.ok) setMyContracts(await cr.json());
+      if (ar.ok) setMyApps(await ar.json());
     } catch {} finally { setContractsLoading(false); }
   }, [deviceId, token]);
+
+  const submitJoinApplication = async () => {
+    if (!appForm.full_name.trim() || !appForm.phone.trim() || !appForm.bar_number.trim() || !appForm.specialties.trim()) {
+      Alert.alert("بيانات ناقصة", "الاسم والهاتف ورقم النقابة والتخصصات مطلوبة"); return;
+    }
+    if (!appForm.agree) {
+      Alert.alert("شروط التعاقد", "يجب الموافقة على شروط التعاقد للمتابعة"); return;
+    }
+    setJoinSubmitting(true);
+    try {
+      const r = await apiFetch(`/api/lawyer-applications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          ...appForm,
+          experience_y: Number(appForm.experience_y) || 0,
+          agree_terms: appForm.agree,
+          device_id: deviceId,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "فشل الإرسال");
+      Alert.alert("✅ تم استلام طلبك", "ستتم مراجعة طلب التعاقد من قبل الإدارة. تابع الحالة من تبويب \"تعاقداتي\".");
+      setJoinOpen(false); setAppForm(EMPTY_APP); loadMyContracts();
+      setTab("contracts");
+    } catch (e: any) {
+      Alert.alert("تعذّر إرسال الطلب", e?.message || "حاول لاحقاً");
+    } finally { setJoinSubmitting(false); }
+  };
 
   useFocusEffect(useCallback(() => { loadDirectory(); }, [loadDirectory]));
   useEffect(() => { if (tab === "forms")     loadForms();       }, [tab, loadForms]);
@@ -379,6 +428,18 @@ export default function LawyersScreen() {
                 </ScrollView>
               )}
 
+              {/* انضم كمحامي */}
+              <TouchableOpacity onPress={() => setJoinOpen(true)} activeOpacity={0.85} style={s.joinBanner}>
+                <View style={s.joinIcon}>
+                  <MaterialCommunityIcons name="briefcase-plus" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.joinTitle}>هل أنت محامي؟ انضم لقائمتنا</Text>
+                  <Text style={s.joinSub}>قدّم طلب تعاقد · مراجعة من الإدارة · ظهور في القائمة</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color="#fff" />
+              </TouchableOpacity>
+
               {/* بحث */}
               <View style={s.searchBox}>
                 <Ionicons name="search" size={17} color="#9CA3AF" />
@@ -492,6 +553,44 @@ export default function LawyersScreen() {
         <FlatList
           data={myContracts} keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 14, paddingBottom: 30 }}
+          ListHeaderComponent={
+            myApps.length > 0 ? (
+              <View style={{ marginBottom: 14 }}>
+                <Text style={s.contractsSectionTitle}>طلبات انضمامك كمحامي</Text>
+                {myApps.map(a => {
+                  const st = STATUS_AR[a.status] || { label: a.status, color: "#888" };
+                  return (
+                    <View key={a.id} style={[s.contractCard, { borderColor: st.color + "55" }]}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <MaterialCommunityIcons name="briefcase-plus" size={14} color={st.color} />
+                          <Text style={s.contractNo}>طلب #{a.id}</Text>
+                        </View>
+                        <View style={[s.statusPill, { backgroundColor: st.color + "22", borderColor: st.color + "55" }]}>
+                          <Text style={[s.statusPillText, { color: st.color }]}>{st.label}</Text>
+                        </View>
+                      </View>
+                      <Text style={s.contractLawyer}>{a.full_name}</Text>
+                      <Text style={s.contractMeta}>قُدّم في {new Date(a.created_at).toLocaleDateString("ar-SD")}</Text>
+                      {a.admin_note && (
+                        <View style={{ marginTop: 8, padding: 9, backgroundColor: st.color + "11", borderRadius: 8 }}>
+                          <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>ملاحظة الإدارة:</Text>
+                          <Text style={{ color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 }}>{a.admin_note}</Text>
+                        </View>
+                      )}
+                      {a.status === "approved" && (
+                        <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                          <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+                {myContracts.length > 0 && <Text style={[s.contractsSectionTitle, { marginTop: 18 }]}>طلبات الخدمات القانونية</Text>}
+              </View>
+            ) : null
+          }
           renderItem={({ item, index }) => {
             const st = STATUS_AR[item.status] || { label: item.status, color: "#888" };
             return (
@@ -525,13 +624,90 @@ export default function LawyersScreen() {
           }}
           ListEmptyComponent={contractsLoading
             ? <View style={s.centerBox}><ActivityIndicator color="#8B5CF6" /></View>
-            : <View style={s.centerBox}>
+            : myApps.length === 0 ? (
+              <View style={s.centerBox}>
                 <MaterialCommunityIcons name="handshake-outline" size={42} color="#4A5568" />
                 <Text style={s.emptyText}>لا توجد تعاقدات بعد</Text>
-                <Text style={[s.emptyText, { fontSize: 11 }]}>اختر محامياً وأرسل طلب خدمة لتظهر هنا</Text>
-              </View>}
+                <Text style={[s.emptyText, { fontSize: 11 }]}>اختر محامياً وأرسل طلب خدمة، أو قدّم طلب الانضمام كمحامٍ</Text>
+              </View>
+            ) : null}
         />
       )}
+
+      {/* ═══ Lawyer Join Modal ═══ */}
+      <Modal visible={joinOpen} animationType="slide" onRequestClose={() => setJoinOpen(false)} transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalOverlay}>
+          <View style={[s.modalSheet, { maxHeight: "94%" }]}>
+            <View style={s.modalHandle} />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
+              <View style={s.joinHead}>
+                <View style={s.joinHeadIcon}>
+                  <MaterialCommunityIcons name="briefcase-plus" size={26} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.detailName}>طلب تعاقد كمحامٍ</Text>
+                  <Text style={s.detailTitle}>سيتم مراجعة الطلب من إدارة التطبيق</Text>
+                </View>
+                <TouchableOpacity onPress={() => setJoinOpen(false)} style={s.closeBtn}>
+                  <Ionicons name="close" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* قسم المعلومات الأساسية */}
+              <Text style={s.joinSectionTitle}>المعلومات الأساسية *</Text>
+              <Field label="الاسم الكامل *" value={appForm.full_name} onChange={(v: string) => setAppForm(f => ({ ...f, full_name: v }))} placeholder="مثال: أحمد محمد علي" />
+              <Field label="المسمّى المهني" value={appForm.title} onChange={(v: string) => setAppForm(f => ({ ...f, title: v }))} placeholder="محامي / مستشار قانوني" />
+              <Field label="رقم الهاتف *" value={appForm.phone} onChange={(v: string) => setAppForm(f => ({ ...f, phone: v }))} placeholder="09xxxxxxxx" keyboardType="phone-pad" />
+              <Field label="واتساب" value={appForm.whatsapp} onChange={(v: string) => setAppForm(f => ({ ...f, whatsapp: v }))} placeholder="09xxxxxxxx" keyboardType="phone-pad" />
+              <Field label="البريد الإلكتروني" value={appForm.email} onChange={(v: string) => setAppForm(f => ({ ...f, email: v }))} placeholder="email@example.com" keyboardType="email-address" />
+
+              <Text style={s.joinSectionTitle}>التراخيص والخبرة *</Text>
+              <Field label="رقم النقابة *" value={appForm.bar_number} onChange={(v: string) => setAppForm(f => ({ ...f, bar_number: v }))} placeholder="BAR-YYYY-XXXX" />
+              <Field label="سنوات الخبرة" value={appForm.experience_y} onChange={(v: string) => setAppForm(f => ({ ...f, experience_y: v.replace(/\D/g, "") }))} placeholder="0" keyboardType="number-pad" />
+              <Field label="التخصصات *" value={appForm.specialties} onChange={(v: string) => setAppForm(f => ({ ...f, specialties: v }))} placeholder="مثال: تجاري, عقارات, أحوال شخصية" multiline />
+              <Field label="رابط صورة كرت النقابة (اختياري)" value={appForm.bar_card_url} onChange={(v: string) => setAppForm(f => ({ ...f, bar_card_url: v }))} placeholder="https://..." />
+
+              <Text style={s.joinSectionTitle}>المكتب والعنوان</Text>
+              <Field label="عنوان المكتب" value={appForm.office_addr} onChange={(v: string) => setAppForm(f => ({ ...f, office_addr: v }))} placeholder="العنوان التفصيلي" />
+              <Field label="الحي / المنطقة" value={appForm.district} onChange={(v: string) => setAppForm(f => ({ ...f, district: v }))} placeholder="مثال: حي الشرق" />
+              <Field label="رسوم الاستشارة" value={appForm.consult_fee} onChange={(v: string) => setAppForm(f => ({ ...f, consult_fee: v }))} placeholder="مثال: 5,000 ج.س / 30 دقيقة" />
+
+              <Text style={s.joinSectionTitle}>نبذة تعريفية</Text>
+              <Field label="نبذة عنك (تظهر في ملفك)" value={appForm.bio} onChange={(v: string) => setAppForm(f => ({ ...f, bio: v }))} placeholder="اكتب نبذة موجزة عن خبراتك وأسلوب عملك…" multiline />
+
+              {/* شروط التعاقد */}
+              <View style={s.termsBox}>
+                <Text style={s.termsTitle}>شروط التعاقد</Text>
+                <Text style={s.termsText}>
+                  • أتعهد بصحة جميع البيانات والوثائق المقدّمة وأتحمّل مسؤوليتها كاملة.{"\n"}
+                  • ألتزم بالأخلاقيات المهنية وقواعد نقابة المحامين السودانية.{"\n"}
+                  • أوافق على عرض ملفي الشخصي وخدماتي لمستخدمي التطبيق وتلقّي طلبات الخدمة منهم.{"\n"}
+                  • للتطبيق الحق في إيقاف الملف عند ثبوت أي شكوى موثّقة أو معلومات غير صحيحة.{"\n"}
+                  • يحق للمحامي طلب إخفاء ملفه أو حذفه في أي وقت بإشعار الإدارة.
+                </Text>
+              </View>
+
+              <Pressable onPress={() => setAppForm(f => ({ ...f, agree: !f.agree }))} style={s.agreeRow}>
+                <View style={[s.checkbox, appForm.agree && s.checkboxOn]}>
+                  {appForm.agree && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+                <Text style={s.agreeText}>أوافق على شروط التعاقد أعلاه وأؤكد صحة بياناتي</Text>
+              </Pressable>
+
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={() => setJoinOpen(false)} style={s.cancelBtn}>
+                  <Text style={s.cancelBtnText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={submitJoinApplication} disabled={joinSubmitting} style={[s.submitBtn, joinSubmitting && { opacity: 0.6 }]}>
+                  {joinSubmitting ? <ActivityIndicator color="#fff" /> : (
+                    <><MaterialCommunityIcons name="send-check" size={16} color="#fff" /><Text style={s.submitBtnText}>إرسال طلب التعاقد</Text></>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ═══ Lawyer Detail Modal ═══ */}
       <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)} transparent>
@@ -853,4 +1029,20 @@ const s = StyleSheet.create({
   rateModal: { backgroundColor: "#0F1A14", borderRadius: 18, padding: 22, borderWidth: 1, borderColor: "#1F2937" },
   rateTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
   rateInput: { backgroundColor: "#0A0F0C", borderRadius: 10, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
+
+  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#8B5CF6", padding: 14, borderRadius: 14, marginBottom: 14 },
+  joinIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  joinTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  joinSub: { color: "#EDE9FE", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 2 },
+  joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
+  joinHeadIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
+  joinSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
+  termsBox: { backgroundColor: "#1a0f2e", borderRadius: 12, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#8B5CF655" },
+  termsTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
+  termsText: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 22 },
+  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#0F1A14", borderRadius: 10, borderWidth: 1, borderColor: "#1F2937" },
+  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
+  checkboxOn: { backgroundColor: "#8B5CF6" },
+  agreeText: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
+  contractsSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
 });
