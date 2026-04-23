@@ -1,67 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 
 type Mode = "login" | "reset";
-
-const SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
-
-declare global {
-  interface Window {
-    grecaptcha: any;
-    _rcCallback: () => void;
-  }
-}
-
-function useRecaptcha(containerId: string, active: boolean) {
-  const widgetIdRef = useRef<number | null>(null);
-  const [ready, setReady] = useState(false);
-
-  const renderWidget = useCallback(() => {
-    const container = document.getElementById(containerId);
-    if (!container || !window.grecaptcha || !SITE_KEY) return;
-    if (widgetIdRef.current !== null) return;
-    try {
-      widgetIdRef.current = window.grecaptcha.render(container, {
-        sitekey: SITE_KEY,
-        theme: "dark",
-        size: "normal",
-      });
-      setReady(true);
-    } catch {}
-  }, [containerId]);
-
-  useEffect(() => {
-    if (!active || !SITE_KEY) { setReady(true); return; }
-    if (window.grecaptcha) {
-      renderWidget();
-      return;
-    }
-    window._rcCallback = renderWidget;
-    const existing = document.getElementById("recaptcha-script");
-    if (!existing) {
-      const s = document.createElement("script");
-      s.id = "recaptcha-script";
-      s.src = "https://www.google.com/recaptcha/api.js?onload=_rcCallback&render=explicit";
-      s.async = true; s.defer = true;
-      document.head.appendChild(s);
-    }
-  }, [active, renderWidget]);
-
-  const getToken = useCallback((): string | null => {
-    if (!SITE_KEY) return "skip";
-    if (widgetIdRef.current === null || !window.grecaptcha) return null;
-    return window.grecaptcha.getResponse(widgetIdRef.current) || null;
-  }, []);
-
-  const reset = useCallback(() => {
-    if (widgetIdRef.current !== null && window.grecaptcha) {
-      window.grecaptcha.reset(widgetIdRef.current);
-    }
-  }, []);
-
-  return { ready, getToken, reset };
-}
 
 export default function Login() {
   const { login, verifyPin, pinRequired, user } = useAuth();
@@ -79,23 +20,14 @@ export default function Login() {
   const [resetError,  setResetError]   = useState("");
   const [resetLoading,setResetLoading] = useState(false);
 
-  const isLoginMode = !pinRequired && mode === "login";
-  const { ready: rcReady, getToken, reset: rcReset } = useRecaptcha("recaptcha-container", isLoginMode);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const rcToken = getToken();
-    if (SITE_KEY && !rcToken) {
-      setError("يرجى إكمال التحقق من reCAPTCHA أولاً");
-      return;
-    }
     setLoading(true);
     try {
-      await login(email, pass, rcToken ?? undefined);
+      await login(email, pass);
     } catch (err: any) {
       setError(err.message);
-      rcReset();
     } finally {
       setLoading(false);
     }
@@ -274,24 +206,12 @@ export default function Login() {
               />
             </div>
 
-            {/* reCAPTCHA widget */}
-            {SITE_KEY && (
-              <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
-                <div id="recaptcha-container" />
-                {!rcReady && (
-                  <div style={{ fontSize: 12, color: "hsl(215 20% 45%)", padding: "10px 0" }}>
-                    جارٍ تحميل التحقق...
-                  </div>
-                )}
-              </div>
-            )}
-
             {error && <ErrorBox msg={error} />}
             <button
               type="submit"
               className="btn-primary"
               style={{ width: "100%", justifyContent: "center" }}
-              disabled={loading || (SITE_KEY ? !rcReady : false)}
+              disabled={loading}
             >
               {loading ? "جارٍ التحقق..." : "دخول للوحة التحكم"}
             </button>
