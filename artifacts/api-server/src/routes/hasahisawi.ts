@@ -807,6 +807,242 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ═══════════ المحامون والخدمات القانونية ═══════════
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyers (
+      id           SERIAL PRIMARY KEY,
+      full_name    VARCHAR(150) NOT NULL,
+      title        VARCHAR(100) NOT NULL DEFAULT 'محامي',
+      specialties  TEXT NOT NULL DEFAULT '',
+      bio          TEXT NOT NULL DEFAULT '',
+      phone        VARCHAR(25) NOT NULL DEFAULT '',
+      whatsapp     VARCHAR(25) NOT NULL DEFAULT '',
+      email        VARCHAR(150) NOT NULL DEFAULT '',
+      office_addr  VARCHAR(250) NOT NULL DEFAULT '',
+      district     VARCHAR(100) NOT NULL DEFAULT '',
+      bar_number   VARCHAR(50)  NOT NULL DEFAULT '',
+      experience_y INTEGER NOT NULL DEFAULT 0,
+      photo_url    TEXT NOT NULL DEFAULT '',
+      languages    VARCHAR(150) NOT NULL DEFAULT 'العربية',
+      consult_fee  VARCHAR(80) NOT NULL DEFAULT '',
+      is_featured  BOOLEAN NOT NULL DEFAULT FALSE,
+      is_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+      entity_id    INTEGER REFERENCES rated_entities(id) ON DELETE SET NULL,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyers_active   ON lawyers(is_active)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyers_featured ON lawyers(is_featured)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_services (
+      id          SERIAL PRIMARY KEY,
+      lawyer_id   INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      title       VARCHAR(150) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price_text  VARCHAR(100) NOT NULL DEFAULT '',
+      duration    VARCHAR(80)  NOT NULL DEFAULT '',
+      sort_order  INTEGER NOT NULL DEFAULT 99,
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_services_lawyer ON lawyer_services(lawyer_id)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_contracts (
+      id           SERIAL PRIMARY KEY,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      service_id   INTEGER REFERENCES lawyer_services(id) ON DELETE SET NULL,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      device_id    VARCHAR(200),
+      client_name  VARCHAR(150) NOT NULL,
+      client_phone VARCHAR(25)  NOT NULL,
+      service_title VARCHAR(200) NOT NULL DEFAULT '',
+      details      TEXT NOT NULL DEFAULT '',
+      preferred_date DATE,
+      status       VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','in_progress','completed','rejected','cancelled')),
+      lawyer_note  TEXT NOT NULL DEFAULT '',
+      contract_no  VARCHAR(40) NOT NULL DEFAULT '',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_lawyer ON lawyer_contracts(lawyer_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_user   ON lawyer_contracts(user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_device ON lawyer_contracts(device_id)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_ads (
+      id          SERIAL PRIMARY KEY,
+      lawyer_id   INTEGER REFERENCES lawyers(id) ON DELETE CASCADE,
+      title       VARCHAR(200) NOT NULL,
+      body        TEXT NOT NULL DEFAULT '',
+      cta_text    VARCHAR(60)  NOT NULL DEFAULT 'تواصل الآن',
+      cta_phone   VARCHAR(25)  NOT NULL DEFAULT '',
+      banner_color VARCHAR(20) NOT NULL DEFAULT '#8B5CF6',
+      starts_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ends_at     TIMESTAMPTZ,
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order  INTEGER NOT NULL DEFAULT 99,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS legal_forms (
+      id            SERIAL PRIMARY KEY,
+      title         VARCHAR(200) NOT NULL,
+      category      VARCHAR(80)  NOT NULL DEFAULT 'عام',
+      description   TEXT NOT NULL DEFAULT '',
+      content_html  TEXT NOT NULL DEFAULT '',
+      lawyer_id     INTEGER REFERENCES lawyers(id) ON DELETE SET NULL,
+      is_official   BOOLEAN NOT NULL DEFAULT FALSE,
+      sort_order    INTEGER NOT NULL DEFAULT 99,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_legal_forms_cat ON legal_forms(category)`);
+
+  // seed lawyers + forms (مرة واحدة)
+  await (async () => {
+    const c = await query(`SELECT COUNT(*)::int AS c FROM lawyers`);
+    if (c.rows[0].c === 0) {
+      const seedLawyers = [
+        ["د. عبدالله محمد الحاج",  "محامي ومستشار قانوني", "قضايا تجارية, عقارات, شركات",         "خبرة 15 عاماً في القضايا التجارية والعقارية. مستشار قانوني لعدد من الشركات بالحصاحيصا.", "0912345001","0912345001","abdullah@law.sd","شارع النيل — أمام محكمة الحصاحيصا","وسط المدينة","BAR-2010-0521", 15, "العربية, English","استشارة 30 دقيقة: 5,000 ج.س", true,  true],
+        ["أ. فاطمة عثمان",          "محامية أحوال شخصية",   "أحوال شخصية, نفقة, حضانة, ميراث",     "متخصصة في قضايا الأسرة والأحوال الشخصية، تركز على حقوق المرأة والطفل.",                "0912345002","0912345002","fatima@law.sd","حي الشرق — مجمع المحامين","حي الشرق","BAR-2014-0233", 11, "العربية",        "استشارة 30 دقيقة: 4,000 ج.س", true,  true],
+        ["أ. محمد أحمد سليمان",     "محامي جنائي",          "قضايا جنائية, مرافعات, طعون",          "محامي مرافعات أمام جميع درجات التقاضي. خبرة في القضايا الجنائية الكبرى.",              "0912345003","0912345003","mohamed@law.sd","شارع المحكمة — مكتب رقم 7","وسط المدينة","BAR-2008-0118", 17, "العربية",        "استشارة هاتفية: 3,000 ج.س",   false, true],
+        ["أ. سلمى الأمين",           "محامية عقارات وعمل",   "عقارات, عقود, قضايا عمالية",          "متخصصة في صياغة العقود والتوثيق العقاري وقضايا العمل والعمال.",                       "0912345004","0912345004","salma@law.sd",  "حي الجامعة","حي الجامعة","BAR-2017-0445",  8, "العربية",        "صياغة عقد: من 7,000 ج.س",     false, true],
+        ["أ. الطاهر بابكر",          "محامي ومحكّم",          "تحكيم, تسوية نزاعات, تجاري",          "محكّم معتمد في الغرفة التجارية. حلول بديلة للنزاعات قبل الوصول للمحاكم.",              "0912345005","0912345005","tahir@law.sd",  "السوق المركزي — مكتب أعلى البنك","السوق المركزي","BAR-2005-0087", 20, "العربية, English","جلسة تحكيم: من 10,000 ج.س",  false, true],
+      ];
+      for (const r of seedLawyers) {
+        const ent = await query(
+          `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes, is_verified)
+           VALUES ('lawyer',$1,$2,'قانون',$3,$4,$5,TRUE) RETURNING id`,
+          [r[0], r[1], r[5], r[8], r[3]]
+        );
+        const ins = await query(
+          `INSERT INTO lawyers (full_name,title,specialties,bio,phone,whatsapp,email,office_addr,district,bar_number,experience_y,languages,consult_fee,is_featured,is_verified,entity_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+          [r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14], ent.rows[0].id]
+        );
+        const lawyerId = ins.rows[0].id;
+        // خدمات افتراضية
+        const svcSets: Record<number, [string, string, string, string][]> = {
+          1: [
+            ["استشارة قانونية تجارية",  "تحليل وضعك القانوني وتقديم رأي مكتوب",       "5,000 ج.س",  "30–45 دقيقة"],
+            ["تأسيس شركة",             "إعداد العقد التأسيسي والنظام الأساسي والتسجيل","60,000 ج.س", "أسبوعان"],
+            ["مراجعة عقد عقاري",        "مراجعة وتعديل بنود العقد قبل التوقيع",        "8,000 ج.س",  "3 أيام"],
+          ],
+          2: [
+            ["دعوى نفقة / حضانة",       "إعداد ومتابعة الدعوى أمام المحكمة",            "حسب الدرجة", "—"],
+            ["استشارة أحوال شخصية",     "جلسة استشارية مع توصيات عملية",                "4,000 ج.س",  "30 دقيقة"],
+            ["قسمة ميراث",              "حصر التركة وإعداد قسمة شرعية موثقة",          "من 15,000 ج.س","حسب التعقيد"],
+          ],
+          3: [
+            ["دفاع جنائي",              "مرافعة أمام محكمة الجنايات",                   "حسب القضية", "—"],
+            ["استشارة جنائية هاتفية",   "تقييم سريع لموقفك القانوني",                   "3,000 ج.س",  "20 دقيقة"],
+            ["طعن واستئناف",            "إعداد ومتابعة الطعن أمام محكمة أعلى",         "حسب الدرجة", "—"],
+          ],
+          4: [
+            ["صياغة عقد عمل",           "عقد متوافق مع قانون العمل السوداني",          "7,000 ج.س",  "يومان"],
+            ["توثيق عقد عقاري",          "صياغة وتوثيق العقد لدى الشهر العقاري",        "12,000 ج.س", "أسبوع"],
+            ["دعوى مطالبة عمالية",      "متابعة حقوق العامل أمام المحكمة",              "حسب القضية","—"],
+          ],
+          5: [
+            ["جلسة تحكيم تجاري",        "حل النزاع التجاري عبر التحكيم بدل المحكمة",   "10,000 ج.س", "حسب الجدول"],
+            ["وساطة وتسوية ودية",       "جلسة تفاوض بين الأطراف",                       "6,000 ج.س",  "ساعتان"],
+          ],
+        };
+        const svcs = svcSets[lawyerId] || [];
+        for (let i = 0; i < svcs.length; i++) {
+          const [t, d, p, du] = svcs[i];
+          await query(
+            `INSERT INTO lawyer_services (lawyer_id,title,description,price_text,duration,sort_order)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [lawyerId, t, d, p, du, i]
+          );
+        }
+        // تقييمات تجريبية
+        const sample = [[5,"محامي ممتاز ودقيق"],[4,"خدمة احترافية"],[5,"حل قضيتي بسرعة"]];
+        for (const [stars, comm] of sample) {
+          await query(
+            `INSERT INTO ratings (entity_id, rating, comment, target_type, target_id) VALUES ($1,$2,$3,'lawyer',$4)`,
+            [ent.rows[0].id, stars, comm, String(lawyerId)]
+          );
+        }
+      }
+      // إعلانات
+      await query(`INSERT INTO lawyer_ads (lawyer_id, title, body, cta_text, cta_phone, banner_color, sort_order)
+        VALUES (1, 'استشارتك الأولى مجاناً', 'مكتب د. عبدالله — استشارة تجارية وعقارية بأمانة', 'احجز الآن', '0912345001', '#8B5CF6', 1)`);
+      await query(`INSERT INTO lawyer_ads (lawyer_id, title, body, cta_text, cta_phone, banner_color, sort_order)
+        VALUES (2, 'حقوق المرأة والأسرة', 'الأستاذة فاطمة — تخصص دقيق في الأحوال الشخصية', 'تواصل معنا', '0912345002', '#EC4899', 2)`);
+
+      // استمارات قانونية جاهزة للطباعة
+      const forms: [string,string,string,string,boolean][] = [
+        ["توكيل عام", "توكيلات",
+          "توكيل عام للمحامي للترافع نيابة عن الموكّل أمام كافة المحاكم.",
+          `<h2 style="text-align:center">توكيل عام</h2>
+           <p>أنا الموقّع أدناه: <b>__________________________</b> رقم الهوية: __________________</p>
+           <p>أوكّل المحامي / ________________________ بالترافع عني أمام جميع المحاكم بمختلف درجاتها في القضية رقم: ______ / ______</p>
+           <p>وله صلاحية: تقديم العرائض، استلام الأوراق، الصلح، التنازل، استلام المستحقات، والتوقيع نيابة عني.</p>
+           <p style="margin-top:30px">المُوكِّل: ________________ التاريخ: __ / __ / 20__</p>
+           <p>التوقيع: ________________</p>`, true],
+        ["إقرار صلح", "تسويات",
+          "إقرار صلح بين طرفين بشأن نزاع قائم.",
+          `<h2 style="text-align:center">إقرار صلح</h2>
+           <p>الطرف الأول: ________________________ الهوية: ____________</p>
+           <p>الطرف الثاني: ________________________ الهوية: ____________</p>
+           <p>اتفق الطرفان على إنهاء النزاع القائم بينهما بشأن: ______________________ بالشروط التالية:</p>
+           <ol><li>________________________________________</li><li>________________________________________</li><li>________________________________________</li></ol>
+           <p>توقيع الطرف الأول: ________ توقيع الطرف الثاني: ________ التاريخ: __/__/20__</p>`, true],
+        ["عقد إيجار سكني", "عقود",
+          "نموذج عقد إيجار سكني وفق قانون الإيجارات السوداني.",
+          `<h2 style="text-align:center">عقد إيجار سكني</h2>
+           <p>المؤجِّر: ___________________ — العنوان: ___________________</p>
+           <p>المستأجِر: ___________________ — الهوية: ___________________</p>
+           <p>العقار: شقة / منزل بـ ________________ المكوّن من ____ غرف.</p>
+           <p>قيمة الإيجار الشهري: ______ ج.س — مدة العقد: من __/__/20__ إلى __/__/20__</p>
+           <p>التزامات المستأجر: ____________________________________</p>
+           <p>التزامات المؤجر: ____________________________________</p>
+           <p>توقيع المؤجر: ________ توقيع المستأجر: ________ شاهد: ________</p>`, true],
+        ["عريضة دعوى مدنية", "عرائض",
+          "نموذج عريضة دعوى مدنية ابتدائية.",
+          `<h2 style="text-align:center">عريضة دعوى مدنية</h2>
+           <p>محكمة _______________ الابتدائية</p>
+           <p>المدّعي: _______________ — العنوان: _______________</p>
+           <p>المدّعى عليه: _______________ — العنوان: _______________</p>
+           <p><b>موضوع الدعوى:</b> __________________________________</p>
+           <p><b>الوقائع:</b><br/>__________________________________________________________</p>
+           <p><b>الطلبات:</b><br/>1) __________________________________________<br/>2) __________________________________________</p>
+           <p>تحريراً في __/__/20__ — توقيع المحامي: ________</p>`, true],
+        ["تنازل عن دعوى", "تنازلات",
+          "إقرار تنازل عن دعوى منظورة أمام المحكمة.",
+          `<h2 style="text-align:center">إقرار تنازل عن دعوى</h2>
+           <p>أنا: _______________ هوية: __________ المدعي في القضية رقم ______ / ______ المنظورة أمام محكمة _______________</p>
+           <p>أُقرّ بتنازلي الكامل عن هذه الدعوى وعن جميع ما يترتب عليها من حقوق بسبب: ______________________</p>
+           <p>التوقيع: ________ التاريخ: __/__/20__</p>`, true],
+        ["إنذار عدلي", "إنذارات",
+          "إنذار عدلي لمطالبة بدين أو إخلاء.",
+          `<h2 style="text-align:center">إنذار عدلي</h2>
+           <p>المُنذِر: _______________ — العنوان: _______________</p>
+           <p>المُنذَر إليه: _______________ — العنوان: _______________</p>
+           <p><b>الموضوع:</b> ______________________________________</p>
+           <p>أُنذركم بـ: ____________________________________________ خلال (15) يوماً من تاريخ استلام هذا الإنذار وإلا اتخذت بحقكم الإجراءات القانونية اللازمة.</p>
+           <p>التوقيع: ________ التاريخ: __/__/20__</p>`, true],
+      ];
+      for (let i = 0; i < forms.length; i++) {
+        const [t, cat, desc, html, off] = forms[i];
+        await query(
+          `INSERT INTO legal_forms (title, category, description, content_html, is_official, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [t, cat, desc, html, off, i]
+        );
+      }
+    }
+  })();
+
   // ── جداول ترحال والتوصيل ──
   await query(`
     CREATE TABLE IF NOT EXISTS transport_drivers (
@@ -7520,6 +7756,169 @@ router.get("/admin/push/tokens", async (req: Request, res: Response) => {
        COUNT(CASE WHEN token LIKE 'ExponentPushToken%' THEN 1 END) AS expo_tokens,
        COUNT(DISTINCT user_id) AS unique_users FROM push_tokens`
     );
+    return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// المحامون والخدمات القانونية
+// ═══════════════════════════════════════════════════════════════════════════
+
+// قائمة المحامين (مع متوسط التقييم وعدد المراجعات)
+router.get("/lawyers", async (req: Request, res: Response) => {
+  try {
+    const specialty = String(req.query.specialty || "").trim();
+    const search    = String(req.query.search || "").trim();
+    const params: any[] = [];
+    let where = "l.is_active = TRUE";
+    if (specialty) { params.push(`%${specialty}%`); where += ` AND l.specialties ILIKE $${params.length}`; }
+    if (search)    { params.push(`%${search}%`);    where += ` AND (l.full_name ILIKE $${params.length} OR l.specialties ILIKE $${params.length} OR l.district ILIKE $${params.length})`; }
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE r.entity_id = l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count
+       FROM lawyers l WHERE ${where}
+       ORDER BY l.is_featured DESC, l.experience_y DESC, l.id`, params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تفاصيل محامي + خدماته
+router.get("/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE r.entity_id = l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count
+       FROM lawyers l WHERE l.id = $1`, [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id = $1 AND is_active = TRUE ORDER BY sort_order, id`, [id]);
+    const reviews  = await query(
+      `SELECT r.id, r.rating, r.comment, r.created_at,
+              COALESCE(u.name, 'مستخدم') AS user_name
+       FROM ratings r LEFT JOIN users u ON u.id = r.user_id
+       WHERE r.entity_id = $1 ORDER BY r.created_at DESC LIMIT 30`,
+      [rows[0].entity_id]
+    );
+    return res.json({ ...rows[0], services: services.rows, reviews: reviews.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إعلانات المحامين النشطة
+router.get("/lawyer-ads", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT a.*, l.full_name AS lawyer_name FROM lawyer_ads a
+       LEFT JOIN lawyers l ON l.id = a.lawyer_id
+       WHERE a.is_active = TRUE AND (a.ends_at IS NULL OR a.ends_at > NOW())
+       ORDER BY a.sort_order, a.id`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// إنشاء عقد / طلب خدمة
+router.post("/lawyers/:id/contracts", async (req: Request, res: Response) => {
+  try {
+    const lawyerId = Number(req.params.id);
+    const { service_id, client_name, client_phone, service_title, details, preferred_date, device_id } = req.body || {};
+    if (!client_name || !client_phone) return res.status(400).json({ error: "الاسم ورقم الهاتف مطلوبان" });
+    // user من token إن وجد
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    const contractNo = `CT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+    const ins = await query(
+      `INSERT INTO lawyer_contracts (lawyer_id, service_id, user_id, device_id, client_name, client_phone, service_title, details, preferred_date, contract_no)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [lawyerId, service_id || null, userId, device_id || null, String(client_name).slice(0,150), String(client_phone).slice(0,25),
+       String(service_title || "").slice(0,200), String(details || "").slice(0,2000), preferred_date || null, contractNo]
+    );
+    return res.json(ins.rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// عقود المستخدم (بحسب user_id أو device_id)
+router.get("/my-lawyer-contracts", async (req: Request, res: Response) => {
+  try {
+    const deviceId = String(req.query.device_id || "").trim();
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    if (!userId && !deviceId) return res.json([]);
+    const { rows } = await query(
+      `SELECT c.*, l.full_name AS lawyer_name, l.phone AS lawyer_phone, l.title AS lawyer_title
+       FROM lawyer_contracts c JOIN lawyers l ON l.id = c.lawyer_id
+       WHERE ${userId ? `c.user_id = $1` : `c.device_id = $1`}
+       ORDER BY c.created_at DESC LIMIT 50`,
+      [userId || deviceId]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقييم محامي (يستخدم نظام التقييم القائم لكن بـ entity_id)
+router.post("/lawyers/:id/ratings", async (req: Request, res: Response) => {
+  try {
+    const lawyerId = Number(req.params.id);
+    const { rating, comment, device_id } = req.body || {};
+    const r = Math.max(1, Math.min(5, Number(rating) || 0));
+    if (!r) return res.status(400).json({ error: "التقييم بين 1 و 5" });
+    const lw = await query(`SELECT entity_id FROM lawyers WHERE id = $1`, [lawyerId]);
+    if (!lw.rows[0]?.entity_id) return res.status(404).json({ error: "Not found" });
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    await query(
+      `INSERT INTO ratings (entity_id, rating, comment, target_type, target_id, user_id, device_id)
+       VALUES ($1,$2,$3,'lawyer',$4,$5,$6)`,
+      [lw.rows[0].entity_id, r, String(comment || "").slice(0,500), String(lawyerId), userId, device_id || null]
+    );
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة الاستمارات القانونية (للقراءة العامة)
+router.get("/legal-forms", async (req: Request, res: Response) => {
+  try {
+    const cat = String(req.query.category || "").trim();
+    const params: any[] = [];
+    let where = "1=1";
+    if (cat) { params.push(cat); where += ` AND category = $${params.length}`; }
+    const { rows } = await query(
+      `SELECT id, title, category, description, is_official, sort_order FROM legal_forms WHERE ${where} ORDER BY sort_order, id`,
+      params
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// محتوى استمارة محددة (HTML للطباعة)
+router.get("/legal-forms/:id", async (req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM legal_forms WHERE id = $1`, [Number(req.params.id)]);
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
     return res.json(rows[0]);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });

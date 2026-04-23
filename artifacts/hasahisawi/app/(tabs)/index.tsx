@@ -470,6 +470,30 @@ export default function HomeScreen() {
           </AnimatedPress>
         </Animated.View>
 
+        {/* ── بانر الخدمات القانونية ── */}
+        <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginBottom: 6 }}>
+          <AnimatedPress onPress={() => handlePress("/(tabs)/lawyers")}>
+            <LinearGradient
+              colors={["#8B5CF622", "#1a0f2e"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 12,
+                padding: 14, borderRadius: 14,
+                borderWidth: 1, borderColor: "#8B5CF655",
+              }}
+            >
+              <View style={{ width: 46, height: 46, borderRadius: 12, backgroundColor: "#8B5CF633", borderWidth: 1, borderColor: "#8B5CF6", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="briefcase" size={22} color="#C4B5FD" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 14 }}>المحامون والخدمات القانونية</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", color: "#C4B5FD", fontSize: 11, marginTop: 2 }}>محامون · استشارات · استمارات قابلة للطباعة</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#C4B5FD" />
+            </LinearGradient>
+          </AnimatedPress>
+        </Animated.View>
+
         {/* ── بانر الإعلان المميز ── */}
         {featuredAd && (
           <Animated.View entering={FadeInDown.delay(120).springify()}>

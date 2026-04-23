@@ -158,6 +158,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="greetings"   options={{ href: null }} />
       <Tabs.Screen name="events"      options={{ href: null }} />
       <Tabs.Screen name="map"         options={{ href: null }} />
+      <Tabs.Screen name="lawyers"     options={{ href: null }} />
     </Tabs>
   );
 }
