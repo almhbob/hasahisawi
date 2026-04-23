@@ -363,6 +363,175 @@ export default function LawyersScreen() {
     } catch (e:any) { Alert.alert("تعذّر الطباعة", e?.message); }
   };
 
+  // ── طباعة عقد الانضمام (محامي ↔ تطبيق) ──
+  const printJoinContract = async (a: MyApp) => {
+    try {
+      // نجلب التفاصيل الكاملة من جدول الطلبات
+      const fr = await apiFetch(`/api/lawyer-applications/mine?device_id=${encodeURIComponent(deviceId)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const list: any[] = fr.ok ? await fr.json() : [];
+      const full = list.find(x => x.id === a.id) || a;
+      const today = new Date();
+      const dStr = today.toLocaleDateString("ar-SD", { year: "numeric", month: "long", day: "numeric" });
+      const hijri = (() => {
+        try { return new Intl.DateTimeFormat("ar-SD-u-ca-islamic-umalqura", { year: "numeric", month: "long", day: "numeric" }).format(today); }
+        catch { return ""; }
+      })();
+      const status = STATUS_AR[a.status] || { label: a.status, color: "#666" };
+      const isApproved = a.status === "approved";
+      const contractNo = `LAW-${String(a.id).padStart(5, "0")}-${today.getFullYear()}`;
+
+      const html = `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
+        <style>
+          @page { size: A4; margin: 18mm 16mm; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, "Helvetica Neue", "Segoe UI", Tahoma, Arial; color: #1a1a1a; margin: 0; line-height: 1.85; font-size: 13px; }
+
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 3px double #8B5CF6; margin-bottom: 18px; }
+          .brand { font-size: 22px; font-weight: 800; color: #8B5CF6; margin: 0; }
+          .brand-sub { color: #555; font-size: 11px; margin-top: 2px; }
+          .meta { text-align: left; font-size: 10px; color: #666; line-height: 1.6; }
+          .meta b { color: #111; }
+
+          .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #4C1D95; margin: 8px 0 4px; letter-spacing: 0.5px; }
+          .doc-sub   { text-align: center; font-size: 11px; color: #777; margin-bottom: 18px; }
+
+          .stamp { position: absolute; top: 90px; left: 28px; transform: rotate(-14deg); border: 3px solid ${isApproved ? "#10B981" : "#F59E0B"}; color: ${isApproved ? "#10B981" : "#F59E0B"}; padding: 6px 14px; font-weight: 800; font-size: 16px; border-radius: 8px; opacity: 0.85; letter-spacing: 1px; }
+
+          .preamble { background: #faf8ff; border-right: 4px solid #8B5CF6; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
+
+          h3 { color: #4C1D95; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; }
+          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
+          .party { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+          .party h4 { margin: 0 0 6px; color: #6D28D9; font-size: 12px; }
+          .party .row { font-size: 11px; padding: 3px 0; color: #333; }
+          .party .row b { color: #000; }
+
+          ol.terms { padding-right: 22px; }
+          ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
+          ol.terms li b { color: #4C1D95; }
+
+          .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
+          .sig-box { text-align: center; }
+          .sig-line { border-top: 1.5px solid #333; padding-top: 6px; font-size: 11px; color: #333; margin-top: 36px; }
+          .sig-name { font-weight: 700; font-size: 12px; }
+          .sig-role { color: #666; font-size: 10px; margin-top: 2px; }
+
+          .footer { margin-top: 28px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #888; font-size: 9px; line-height: 1.6; }
+          .verify { font-family: "Courier New", monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 10px; color: #4C1D95; }
+        </style></head><body>
+
+        <div class="stamp">${isApproved ? "تم الاعتماد ✓" : "قيد المراجعة"}</div>
+
+        <div class="header">
+          <div>
+            <h1 class="brand">⚖️ تطبيق حصاحيصاوي</h1>
+            <div class="brand-sub">القسم القانوني — مدينة حصاحيصا، السودان</div>
+          </div>
+          <div class="meta">
+            <div>رقم العقد: <b>${contractNo}</b></div>
+            <div>التاريخ الميلادي: <b>${dStr}</b></div>
+            ${hijri ? `<div>التاريخ الهجري: <b>${hijri}</b></div>` : ""}
+            <div>الحالة: <b style="color:${status.color}">${status.label}</b></div>
+          </div>
+        </div>
+
+        <div class="doc-title">عقد انضمام محامٍ إلى منصة حصاحيصاوي</div>
+        <div class="doc-sub">Lawyer Onboarding Agreement</div>
+
+        <div class="preamble">
+          إنه في يوم ${dStr}، تم الاتفاق والتراضي بين الطرفين الموقّعَين أدناه على ما يلي،
+          وذلك بكامل الأهلية المعتبرة شرعاً وقانوناً، ورغبةً في تنظيم العلاقة المهنية بينهما
+          وفقاً لأحكام قانون نقابة المحامين السودانية والأنظمة المعمول بها.
+        </div>
+
+        <h3>أطراف العقد</h3>
+        <div class="parties">
+          <div class="party">
+            <h4>الطرف الأول — منصة التطبيق</h4>
+            <div class="row"><b>الاسم:</b> تطبيق حصاحيصاوي</div>
+            <div class="row"><b>المقر:</b> حصاحيصا، ولاية الجزيرة، السودان</div>
+            <div class="row"><b>القسم:</b> الإدارة القانونية</div>
+            <div class="row"><b>الصفة:</b> الجهة المنظِّمة للخدمة</div>
+          </div>
+          <div class="party">
+            <h4>الطرف الثاني — المحامي</h4>
+            <div class="row"><b>الاسم:</b> ${full.full_name}</div>
+            <div class="row"><b>المسمّى:</b> ${full.title || "محامي"}</div>
+            <div class="row"><b>رقم النقابة:</b> ${full.bar_number || "—"}</div>
+            <div class="row"><b>الخبرة:</b> ${full.experience_y || 0} سنة</div>
+            <div class="row"><b>التخصصات:</b> ${full.specialties || "—"}</div>
+            <div class="row"><b>الهاتف:</b> ${full.phone}</div>
+            ${full.email ? `<div class="row"><b>البريد:</b> ${full.email}</div>` : ""}
+            ${full.office_addr ? `<div class="row"><b>العنوان:</b> ${full.office_addr}</div>` : ""}
+          </div>
+        </div>
+
+        <h3>تمهيد</h3>
+        <p style="font-size:12px;text-align:justify;margin:0 0 6px;">
+          حيث إن الطرف الأول يدير منصةً رقمية لربط المواطنين بمقدّمي الخدمات القانونية في مدينة حصاحيصا والمناطق المجاورة،
+          وحيث إن الطرف الثاني محامٍ مرخّص ومسجَّل لدى نقابة المحامين السودانية ويرغب في تقديم خدماته القانونية عبر هذه المنصة،
+          فقد اتفق الطرفان على البنود التالية:
+        </p>
+
+        <h3>بنود العقد</h3>
+        <ol class="terms">
+          <li><b>موضوع العقد:</b> يلتزم الطرف الثاني بتقديم استشاراته وخدماته القانونية لمستخدمي المنصة وفق تخصصاته المُعلنة، ويلتزم الطرف الأول بعرض ملف الطرف الثاني وتسهيل وصول طالبي الخدمة إليه.</li>
+          <li><b>صحة البيانات:</b> يقرّ الطرف الثاني بصحة جميع البيانات والوثائق المقدّمة، ويتحمّل المسؤولية الكاملة شرعاً وقانوناً عن أي معلومة غير صحيحة أو منتحَلة.</li>
+          <li><b>الترخيص المهني:</b> يلتزم الطرف الثاني بأن يكون ترخيصه ساريَ المفعول طيلة فترة العقد، وعليه إخطار الإدارة فوراً بأي إيقاف أو تعليق صادر من نقابة المحامين.</li>
+          <li><b>الأخلاقيات المهنية:</b> يلتزم الطرف الثاني بالقواعد الأخلاقية لمهنة المحاماة، وبسرية بيانات موكّليه، وبعدم استخدام المنصة في أي نشاط مخالف للقانون أو الآداب العامة.</li>
+          <li><b>جودة الخدمة:</b> يلتزم الطرف الثاني بالرد على طلبات الخدمة في وقت معقول، وبإبلاغ المستخدم بحالة طلبه، وبتقديم الخدمة بالمستوى المهني المتعارف عليه.</li>
+          <li><b>الأتعاب:</b> يحقّ للطرف الثاني تحديد أتعابه واستلامها مباشرة من موكّليه، والمنصة ليست طرفاً في العلاقة المالية بين المحامي وموكّله إلا إذا اتُّفق على غير ذلك صراحة.</li>
+          <li><b>الإعلان والظهور:</b> يوافق الطرف الثاني على عرض اسمه وصورته وملفه التعريفي وتقييماته من قِبل المستخدمين بشكل علني داخل التطبيق وعلى منصاته الرسمية.</li>
+          <li><b>الشكاوى والتأديب:</b> يحقّ للطرف الأول إيقاف ملف الطرف الثاني مؤقتاً عند تلقّي أي شكوى موثّقة، ريثما يتمّ التحقّق منها، ولديه الحقّ في الإيقاف الدائم عند ثبوت المخالفة.</li>
+          <li><b>حق الانسحاب:</b> يحقّ للطرف الثاني طلب إخفاء ملفه أو حذفه نهائياً من المنصة في أي وقت بإشعار خطّي للإدارة، مع الالتزام بإكمال أي تعاقدات قائمة قبل الإخفاء.</li>
+          <li><b>الملكية الفكرية:</b> تظلّ الملكية الفكرية للمحتوى الذي يقدّمه كل طرف عائدةً لصاحبها، مع منح الطرف الثاني المنصةَ ترخيصاً غير حصري لعرض ملفه ضمن خدماتها.</li>
+          <li><b>تعديل الشروط:</b> يحقّ للطرف الأول تحديث شروط الخدمة بعد إشعار الطرف الثاني عبر التطبيق بمدة لا تقلّ عن (15) يوماً، ويُعدّ استمرار النشاط بعد المدة قبولاً ضمنياً.</li>
+          <li><b>فضّ النزاعات:</b> يُحلّ أيّ نزاع ينشأ عن هذا العقد ودّياً، فإذا تعذّر ذلك يُحال إلى الجهات القضائية المختصة في ولاية الجزيرة وفقاً لأحكام القانون السوداني.</li>
+          <li><b>سريان العقد:</b> يسري هذا العقد من تاريخ اعتماده من إدارة المنصة، ويستمرّ ساري المفعول حتى يتم إنهاؤه برغبة أحد الطرفين وفق البند (9).</li>
+        </ol>
+
+        ${full.admin_note ? `
+        <h3>ملاحظات الإدارة</h3>
+        <div style="background:#fef3c7;border-right:4px solid #F59E0B;padding:10px 12px;border-radius:6px;font-size:12px;">${full.admin_note}</div>
+        ` : ""}
+
+        <div class="sigs">
+          <div class="sig-box">
+            <div style="font-size:11px;color:#666;margin-bottom:4px;">الطرف الأول</div>
+            <div class="sig-line">
+              <div class="sig-name">إدارة تطبيق حصاحيصاوي</div>
+              <div class="sig-role">القسم القانوني</div>
+              ${isApproved ? `<div style="margin-top:8px;color:#10B981;font-size:14px;font-weight:800;">✓ معتمد إلكترونياً</div>` : ""}
+            </div>
+          </div>
+          <div class="sig-box">
+            <div style="font-size:11px;color:#666;margin-bottom:4px;">الطرف الثاني</div>
+            <div class="sig-line">
+              <div class="sig-name">${full.full_name}</div>
+              <div class="sig-role">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
+              <div style="margin-top:8px;color:#10B981;font-size:11px;">✓ موافق إلكترونياً عبر التطبيق بتاريخ ${new Date(full.created_at).toLocaleDateString("ar-SD")}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          هذه نسخة إلكترونية من العقد صادرة من تطبيق حصاحيصاوي · رقم التحقق:
+          <span class="verify">${contractNo}-${String(full.created_at).slice(0,10).replace(/-/g,"")}</span>
+          <br/>للاستعلام أو الإبلاغ عن أي تعديل، يُرجى التواصل مع الإدارة عبر التطبيق.
+        </div>
+      </body></html>`;
+
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync())
+        await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "حفظ / مشاركة عقد الانضمام" });
+      else await Print.printAsync({ html });
+    } catch (e: any) {
+      Alert.alert("تعذّر إصدار العقد", e?.message || "حاول لاحقاً");
+    }
+  };
+
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -583,6 +752,16 @@ export default function LawyersScreen() {
                           <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                           <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
                         </View>
+                      )}
+                      {a.status !== "rejected" && (
+                        <TouchableOpacity onPress={() => printJoinContract(a)} activeOpacity={0.85}
+                          style={s.contractDownloadBtn}>
+                          <MaterialCommunityIcons name="file-document-outline" size={15} color="#fff" />
+                          <Text style={s.contractDownloadText}>
+                            {a.status === "approved" ? "تحميل نسخة العقد المعتمد (PDF)" : "عرض / تحميل مسودّة العقد (PDF)"}
+                          </Text>
+                          <Ionicons name="download-outline" size={14} color="#fff" />
+                        </TouchableOpacity>
                       )}
                     </View>
                   );
@@ -1045,4 +1224,6 @@ const s = StyleSheet.create({
   checkboxOn: { backgroundColor: "#8B5CF6" },
   agreeText: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
   contractsSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
+  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#8B5CF6" },
+  contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "center" },
 });
