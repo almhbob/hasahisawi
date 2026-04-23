@@ -203,7 +203,7 @@ export default function OrgJoinScreen() {
   const [serviceCatFilter, setServiceCatFilter] = useState("الكل");
 
   // إعدادات العقد
-  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966597083352");
   const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
   const [signedContractUrl, setSignedContractUrl] = useState<string | null>(null);
 
@@ -872,7 +872,7 @@ export default function OrgJoinScreen() {
                 <View style={s.contractParties}>
                   <View style={s.contractParty}>
                     <Text style={s.contractPartyTitle}>الطرف الأول — المنصة</Text>
-                    <Text style={s.contractPartyText}>Almhbob.iii@gmail.com</Text>
+                    <Text style={s.contractPartyText}>Hasahisawi@hotmail.com</Text>
                     <Text style={s.contractPartyText}>{contractWhatsapp}</Text>
                     <Text style={s.contractPartyText}>مدينة الحصاحيصا</Text>
                   </View>

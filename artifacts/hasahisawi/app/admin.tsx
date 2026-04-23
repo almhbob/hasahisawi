@@ -319,7 +319,7 @@ export default function AdminDashboard() {
   const [showAdsSettingsModal, setShowAdsSettingsModal] = useState(false);
 
   // ── Contract Settings ──
-  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966597083352");
   const [savingContractSettings, setSavingContractSettings] = useState(false);
 
   // ── Neighborhoods ──
@@ -763,7 +763,7 @@ export default function AdminDashboard() {
   const loadContractSettings = useCallback(async () => {
     try {
       const res = await apiFetch("/api/admin/contract-settings", token);
-      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966530658285"); }
+      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966597083352"); }
     } catch {}
   }, [token]);
 
@@ -2458,7 +2458,7 @@ export default function AdminDashboard() {
                 <TextInput
                   value={contractWhatsapp}
                   onChangeText={setContractWhatsapp}
-                  placeholder="+966530658285"
+                  placeholder="+966597083352"
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="phone-pad"
                   style={{

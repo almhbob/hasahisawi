@@ -622,7 +622,7 @@ export default function Services() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 40px" }}>
           {[
             { label: "API Base URL",       value: API_URL,                  id: "ref-api"   },
-            { label: "Admin Email",        value: "Almhbob.iii@gmail.com",  id: "ref-email" },
+            { label: "Admin Email",        value: "Hasahisawi@hotmail.com", id: "ref-email" },
             { label: "Admin PIN",          value: "4444",                   id: "ref-pin"   },
             { label: "Firebase Project",   value: "hasahisawi",             id: "ref-fbp"   },
             { label: "Render Service ID",  value: "srv-d7hnfmvaqgkc739ea5f0", id: "ref-srv" },
