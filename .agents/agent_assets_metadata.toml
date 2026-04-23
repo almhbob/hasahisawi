@@ -245,3 +245,9 @@ id = "sowPei9vHhlO0WjW3cyl6"
 uri = "file://artifacts/hasahisawi/حصاحيصاوي-بيانات-حيوية.md"
 type = "text"
 title = "البيانات الحيوية - حصاحيصاوي"
+
+[[outputs]]
+id = "Fn-paTofCAncs-qaCXJUx"
+uri = "file://exports/lawyer_contract_sample.pdf"
+type = "pdf"
+title = "عقد انضمام محامٍ — نسخة احترافية (PDF)"
