@@ -341,3 +341,21 @@ id = "fXwxDKdJ2vgxhq0BxC5Bi"
 uri = "file://exports/fb_v3_update.png"
 type = "image"
 title = "تحديث جديد — Bento Grid (1080×1080)"
+
+[[outputs]]
+id = "3-4LT6IRCvOGUUXK_PSa1"
+uri = "file://exports/fb_final_lawyers.png"
+type = "image"
+title = "دعوة المحامين — تباين مصحح (1080×1350)"
+
+[[outputs]]
+id = "aBX53VesUsJo2wBsNXl2z"
+uri = "file://exports/fb_final_institutions.png"
+type = "image"
+title = "دعوة المؤسسات — تباين مصحح (1200×628)"
+
+[[outputs]]
+id = "ueAnSLuRHEp0RORkbjKkN"
+uri = "file://exports/fb_final_update.png"
+type = "image"
+title = "تحديث جديد — تباين مصحح (1080×1080)"
