@@ -127,6 +127,9 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+  // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
 
   await query(`
     CREATE TABLE IF NOT EXISTS social_posts (
@@ -1260,6 +1263,23 @@ function isTransportAdmin(role: unknown): boolean {
   return role === "admin" || role === "transport_supervisor";
 }
 
+// نطاق الوصول للوحة "مشوارك علينا":
+//   - admin (المنصة)               → يرى كل الشركات. operatorId=null, isFullAdmin=true
+//   - transport_supervisor + op_id → يرى شركته فقط. operatorId=رقم
+//   - transport_supervisor بدون op_id → عرض كامل (مشرف عام للنقل، توافقاً للخلف)
+type TransportScope = { isFullAdmin: boolean; operatorId: number | null };
+function getTransportScope(me: any): TransportScope {
+  if (!me || !isTransportAdmin(me.role)) return { isFullAdmin: false, operatorId: null };
+  if (me.role === "admin") return { isFullAdmin: true, operatorId: null };
+  // transport_supervisor
+  const opId = me.operator_id != null ? Number(me.operator_id) : null;
+  return { isFullAdmin: opId == null, operatorId: opId };
+}
+// هل لمستخدم الحق في إجراءات على مستوى المنصة (شركات/تعرفة/إعدادات/أحياء)؟
+function isPlatformAdmin(me: any): boolean {
+  return !!me && me.role === "admin";
+}
+
 function safeCompare(a: string, b: string): boolean {
   try {
     const ba = Buffer.from(a.padEnd(64, "\0"));
@@ -1543,12 +1563,12 @@ router.post("/auth/register-transport-supervisor", async (req: Request, res: Res
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "المديرون فقط يمكنهم إنشاء مشرف ترحيل" });
-    const { name, email, password } = req.body;
+    const { name, email, password, operator_id } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'transport_supervisor') RETURNING id, name, role`,
-      [name, email, hash]
+      `INSERT INTO users (name, email, password_hash, role, operator_id) VALUES ($1,$2,$3,'transport_supervisor',$4) RETURNING id, name, role, operator_id`,
+      [name, email, hash, operator_id ?? null]
     );
     return res.status(201).json({ user: result.rows[0] });
   } catch (err: any) {
@@ -5193,11 +5213,11 @@ router.get("/admin/transport/settings", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/settings — تحديث إعدادات الخدمة (مدير فقط)
+// PUT /api/admin/transport/settings — تحديث إعدادات الخدمة (مدير المنصة فقط)
 router.put("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الإعدادات العامة" });
     const { transport_status, transport_note, transport_phone } = req.body;
     const valid = ["available", "coming_soon", "maintenance"];
     const entries: [string, string][] = [];
@@ -5372,42 +5392,62 @@ router.get("/admin/transport/stats", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
+    const opAnd = scope.operatorId != null ? `AND operator_id=${Number(scope.operatorId)}` : "";
     const [drivers, trips, pending, revenue] = await Promise.all([
-      query(`SELECT status, COUNT(*) as cnt FROM transport_drivers GROUP BY status`),
-      query(`SELECT status, COUNT(*) as cnt FROM transport_trips GROUP BY status`),
-      query(`SELECT COUNT(*) as cnt FROM transport_drivers WHERE status='pending'`),
-      query(`SELECT COALESCE(SUM(actual_fare),0) AS total_fare, COALESCE(SUM(platform_revenue),0) AS platform_revenue, COALESCE(SUM(operator_revenue),0) AS operator_revenue FROM transport_trips WHERE status='completed'`),
+      query(`SELECT status, COUNT(*) as cnt FROM transport_drivers ${opF} GROUP BY status`),
+      query(`SELECT status, COUNT(*) as cnt FROM transport_trips ${opF} GROUP BY status`),
+      query(`SELECT COUNT(*) as cnt FROM transport_drivers WHERE status='pending' ${opAnd}`),
+      query(`SELECT COALESCE(SUM(actual_fare),0) AS total_fare, COALESCE(SUM(platform_revenue),0) AS platform_revenue, COALESCE(SUM(operator_revenue),0) AS operator_revenue FROM transport_trips WHERE status='completed' ${opAnd}`),
     ]);
     return res.json({
       drivers: drivers.rows,
       trips: trips.rows,
       pendingDrivers: parseInt(pending.rows[0]?.cnt ?? "0"),
       revenue: revenue.rows[0],
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/drivers — جميع السائقين
+// GET /api/admin/transport/drivers — جميع السائقين (مفلترة حسب نطاق الشركة)
 router.get("/admin/transport/drivers", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
     const { status } = req.query;
     let q = `SELECT d.*, u.name AS user_name_ref, o.name AS operator_name FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id LEFT JOIN transport_operators o ON o.id=d.operator_id`;
     const params: any[] = [];
-    if (status && status !== "all") { q += ` WHERE d.status=$1`; params.push(status); }
+    const where: string[] = [];
+    if (scope.operatorId != null) { where.push(`d.operator_id=$${params.length+1}`); params.push(scope.operatorId); }
+    if (status && status !== "all") { where.push(`d.status=$${params.length+1}`); params.push(status); }
+    if (where.length) q += ` WHERE ${where.join(" AND ")}`;
     q += ` ORDER BY d.created_at DESC`;
     const { rows } = await query(q, params);
     return res.json(rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق
+// PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق (مفلتر حسب الشركة)
 router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const { status, admin_note, operator_id } = req.body;
+    const scope = getTransportScope(me);
+    // تأكد أن السائق ضمن نطاق المشرف
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+      const cur = own.rows[0].operator_id;
+      // مشرف الشركة يستطيع فقط: إدارة سائقي شركته، أو ضمّ سائق غير مرتبط بأي شركة (cur=null) إلى شركته
+      if (cur != null && Number(cur) !== scope.operatorId) return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+    }
+    const { status, admin_note } = req.body;
+    let { operator_id } = req.body;
+    // مشرف الشركة لا يستطيع تغيير operator_id لشركة أخرى — يُفرض = شركته
+    if (scope.operatorId != null) operator_id = scope.operatorId;
     await query(
       `UPDATE transport_drivers SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note), operator_id=COALESCE($3,operator_id) WHERE id=$4`,
       [status, admin_note, operator_id ?? null, req.params.id]
@@ -5416,47 +5456,68 @@ router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response)
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// DELETE /api/admin/transport/drivers/:id — حذف سائق
+// DELETE /api/admin/transport/drivers/:id — حذف سائق (ضمن النطاق فقط)
 router.delete("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+      if (Number(own.rows[0].operator_id) !== scope.operatorId) return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+    }
     await query(`DELETE FROM transport_drivers WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/trips — جميع الرحلات
+// GET /api/admin/transport/trips — جميع الرحلات (مفلترة)
 router.get("/admin/transport/trips", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
     const { status } = req.query;
     let q = `SELECT t.*, d.name AS driver_name_ref, d.phone AS driver_phone, o.name AS operator_name
              FROM transport_trips t
              LEFT JOIN transport_drivers d ON d.id=t.driver_id
              LEFT JOIN transport_operators o ON o.id=t.operator_id`;
     const params: any[] = [];
-    if (status && status !== "all") { q += ` WHERE t.status=$1`; params.push(status); }
+    const where: string[] = [];
+    if (scope.operatorId != null) { where.push(`t.operator_id=$${params.length+1}`); params.push(scope.operatorId); }
+    if (status && status !== "all") { where.push(`t.status=$${params.length+1}`); params.push(status); }
+    if (where.length) q += ` WHERE ${where.join(" AND ")}`;
     q += ` ORDER BY t.created_at DESC LIMIT 200`;
     const { rows } = await query(q, params);
     return res.json(rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/trips/:id/complete — إتمام رحلة مع الأجرة الفعلية
+// PATCH /api/admin/transport/trips/:id/complete — إتمام رحلة (مع عزل الشركة)
 router.patch("/admin/transport/trips/:id/complete", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const { actual_fare, operator_id } = req.body;
+    const scope = getTransportScope(me);
+    const { actual_fare } = req.body;
+    let { operator_id } = req.body;
     if (!actual_fare || actual_fare <= 0) return res.status(400).json({ error: "الأجرة الفعلية مطلوبة" });
 
-    // احسب توزيع الأرباح بناءً على الشركة المشغّلة
-    let platformRevenue = actual_fare;
-    let operatorRevenue = 0;
+    // التحقق من ملكية الرحلة
+    const tripRow = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+    if (!tripRow.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+    const curOp = tripRow.rows[0].operator_id;
+    if (scope.operatorId != null) {
+      if (curOp != null && Number(curOp) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+      // مشرف الشركة لا يستطيع نقل الرحلة لشركة أخرى — يُفرض على شركته
+      operator_id = scope.operatorId;
+    }
     const opId = operator_id ?? null;
 
+    // احسب توزيع الأرباح
+    let platformRevenue = actual_fare;
+    let operatorRevenue = 0;
     if (opId) {
       const opRes = await query(`SELECT operator_share_pct, platform_share_pct FROM transport_operators WHERE id=$1`, [opId]);
       if (opRes.rows[0]) {
@@ -5475,11 +5536,17 @@ router.patch("/admin/transport/trips/:id/complete", async (req: Request, res: Re
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// DELETE /api/admin/transport/trips/:id — حذف رحلة
+// DELETE /api/admin/transport/trips/:id — حذف رحلة (ضمن النطاق)
 router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+      if (Number(own.rows[0].operator_id) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+    }
     await query(`DELETE FROM transport_trips WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
@@ -5487,11 +5554,13 @@ router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) 
 
 // ── مسارات الشركات المشغّلة (Operators) ──
 
-// GET /api/admin/transport/operators
+// GET /api/admin/transport/operators — قائمة الشركات (admin يرى الكل، مشرف الشركة يرى شركته فقط)
 router.get("/admin/transport/operators", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE o.id=${Number(scope.operatorId)}` : "";
     const { rows } = await query(`
       SELECT o.*,
         COUNT(DISTINCT d.id) FILTER (WHERE d.status='approved')::int AS active_drivers,
@@ -5502,6 +5571,7 @@ router.get("/admin/transport/operators", async (req: Request, res: Response) => 
       FROM transport_operators o
       LEFT JOIN transport_drivers d ON d.operator_id=o.id
       LEFT JOIN transport_trips t ON t.operator_id=o.id
+      ${opF}
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `);
@@ -5509,11 +5579,11 @@ router.get("/admin/transport/operators", async (req: Request, res: Response) => 
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// POST /api/admin/transport/operators
+// POST /api/admin/transport/operators — إنشاء شركة (مدير المنصة فقط)
 router.post("/admin/transport/operators", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه إنشاء شركات" });
     const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, notes } = req.body;
     if (!name) return res.status(400).json({ error: "اسم الشركة مطلوب" });
     const opShare = Number(operator_share_pct ?? 70);
@@ -5528,11 +5598,11 @@ router.post("/admin/transport/operators", async (req: Request, res: Response) =>
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/operators/:id
+// PATCH /api/admin/transport/operators/:id — تعديل شركة (مدير المنصة فقط)
 router.patch("/admin/transport/operators/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه تعديل بيانات الشركة" });
     const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, status, notes } = req.body;
     if (operator_share_pct !== undefined && platform_share_pct !== undefined) {
       const s = Number(operator_share_pct) + Number(platform_share_pct);
@@ -5615,28 +5685,28 @@ router.get("/admin/transport/neighborhoods", async (req: Request, res: Response)
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// POST /api/admin/transport/neighborhoods — إضافة حي (إداري مباشر)
+// POST /api/admin/transport/neighborhoods — إضافة حي (مدير المنصة فقط)
 router.post("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع إضافة الأحياء" });
     const { name, zone_id, notes } = req.body;
     if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
     const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
     if (exists.rows.length > 0) return res.status(409).json({ error: "هذا الحي موجود بالفعل" });
     const r = await query(
       `INSERT INTO transport_neighborhoods (name, zone_id, status, submitted_by, notes) VALUES ($1,$2,'active',$3,$4) RETURNING *`,
-      [name.trim(), zone_id, me.name || me.email, notes || ""]
+      [name.trim(), zone_id, (me as any).name || (me as any).email || "admin", notes || ""]
     );
     return res.json(r.rows[0]);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/neighborhoods/:id — تعديل حالة أو بيانات
+// PATCH /api/admin/transport/neighborhoods/:id — تعديل حالة أو بيانات (مدير المنصة فقط)
 router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الأحياء" });
     const { status, name, zone_id, notes } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -5653,11 +5723,11 @@ router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Res
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// DELETE /api/admin/transport/neighborhoods/:id — حذف
+// DELETE /api/admin/transport/neighborhoods/:id — حذف (مدير المنصة فقط)
 router.delete("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع حذف الأحياء" });
     await query(`DELETE FROM transport_neighborhoods WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
@@ -5668,6 +5738,9 @@ router.get("/admin/transport/operators/:id/report", async (req: Request, res: Re
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null && Number(req.params.id) !== scope.operatorId)
+      return res.status(403).json({ error: "تستطيع عرض تقرير شركتك فقط" });
     const opId = req.params.id;
     const [opRes, driversRes, tripsRes, monthlyRes] = await Promise.all([
       query(`SELECT * FROM transport_operators WHERE id=$1`, [opId]),
@@ -5703,11 +5776,18 @@ router.get("/admin/transport/operators/:id/report", async (req: Request, res: Re
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/reports — تقارير الإيرادات الشاملة
+// GET /api/admin/transport/reports — تقارير الإيرادات الشاملة (مفلترة حسب نطاق الشركة)
 router.get("/admin/transport/reports", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opId = scope.operatorId;
+    const tWhereOp  = opId != null ? `WHERE operator_id=${Number(opId)}` : "";
+    const tAndOp    = opId != null ? `AND operator_id=${Number(opId)}`   : "";
+    const tWhereOpJ = opId != null ? `WHERE t.operator_id=${Number(opId)}`: "";
+    const tAndOpJ   = opId != null ? `AND t.operator_id=${Number(opId)}`  : "";
+    const oWhereOp  = opId != null ? `WHERE o.id=${Number(opId)}`         : "";
     const [overall, byVehicle, byOperator, monthly, recent] = await Promise.all([
       query(`
         SELECT
@@ -5719,12 +5799,12 @@ router.get("/admin/transport/reports", async (req: Request, res: Response) => {
           COALESCE(SUM(platform_revenue) FILTER (WHERE status='completed'),0)::int AS platform_revenue,
           COALESCE(SUM(operator_revenue) FILTER (WHERE status='completed'),0)::int AS operator_revenue,
           COALESCE(AVG(actual_fare) FILTER (WHERE status='completed'),0)::int AS avg_fare
-        FROM transport_trips`),
+        FROM transport_trips ${tWhereOp}`),
       query(`
         SELECT vehicle_preference,
           COUNT(*) FILTER (WHERE status='completed')::int AS trips,
           COALESCE(SUM(actual_fare) FILTER (WHERE status='completed'),0)::int AS revenue
-        FROM transport_trips GROUP BY vehicle_preference ORDER BY trips DESC`),
+        FROM transport_trips ${tWhereOp} GROUP BY vehicle_preference ORDER BY trips DESC`),
       query(`
         SELECT o.id, o.name, o.operator_share_pct, o.platform_share_pct,
           COUNT(t.id) FILTER (WHERE t.status='completed')::int AS trips,
@@ -5733,6 +5813,7 @@ router.get("/admin/transport/reports", async (req: Request, res: Response) => {
           COALESCE(SUM(t.platform_revenue) FILTER (WHERE t.status='completed'),0)::int AS platform_share
         FROM transport_operators o
         LEFT JOIN transport_trips t ON t.operator_id=o.id
+        ${oWhereOp}
         GROUP BY o.id ORDER BY revenue DESC`),
       query(`
         SELECT DATE_TRUNC('day', completed_at) AS day,
@@ -5740,12 +5821,12 @@ router.get("/admin/transport/reports", async (req: Request, res: Response) => {
           COALESCE(SUM(actual_fare),0)::int AS revenue,
           COALESCE(SUM(platform_revenue),0)::int AS platform_revenue
         FROM transport_trips
-        WHERE status='completed' AND completed_at >= NOW()-INTERVAL '30 days'
+        WHERE status='completed' AND completed_at >= NOW()-INTERVAL '30 days' ${tAndOp}
         GROUP BY day ORDER BY day DESC`),
       query(`
         SELECT t.*, o.name AS operator_name FROM transport_trips t
         LEFT JOIN transport_operators o ON o.id=t.operator_id
-        WHERE t.status='completed' ORDER BY t.completed_at DESC LIMIT 20`),
+        WHERE t.status='completed' ${tAndOpJ} ORDER BY t.completed_at DESC LIMIT 20`),
     ]);
     return res.json({
       overall: overall.rows[0],
@@ -5753,6 +5834,7 @@ router.get("/admin/transport/reports", async (req: Request, res: Response) => {
       byOperator: byOperator.rows,
       daily: monthly.rows,
       recent: recent.rows,
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: opId },
     });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
@@ -5781,11 +5863,11 @@ router.get("/transport/fares", async (_req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة
+// PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير المنصة فقط)
 router.put("/admin/transport/fares", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
     const { from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle } = req.body;
     if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
     await query(
@@ -5802,11 +5884,11 @@ router.put("/admin/transport/fares", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل
+// PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل (مدير المنصة فقط)
 router.put("/admin/transport/fares/bulk", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
     const { fares } = req.body as { fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number; fare_motorcycle?: number }> };
     if (!Array.isArray(fares)) return res.status(400).json({ error: "تنسيق خاطئ" });
     for (const f of fares) {
@@ -5841,14 +5923,34 @@ router.get("/transport/fare-estimate", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة
+// PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة (ضمن النطاق)
 router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const { driver_id, status, operator_id } = req.body;
+    const scope = getTransportScope(me);
+    const { driver_id, status } = req.body;
+    let { operator_id } = req.body;
     let driverName = null;
     let opId = operator_id ?? null;
+
+    // التحقق أن الرحلة ضمن نطاق المشرف
+    if (scope.operatorId != null) {
+      const tripRow = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+      if (!tripRow.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+      const cur = tripRow.rows[0].operator_id;
+      if (cur != null && Number(cur) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+      // لا يحق له تخصيص سائق من شركة أخرى
+      if (driver_id) {
+        const dr = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [driver_id]);
+        if (!dr.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+        if (dr.rows[0].operator_id != null && Number(dr.rows[0].operator_id) !== scope.operatorId)
+          return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+      }
+      // يُفرض النطاق
+      opId = scope.operatorId;
+    }
+
     if (driver_id) {
       const dr = await query(`SELECT name, operator_id FROM transport_drivers WHERE id=$1`, [driver_id]);
       driverName = dr.rows[0]?.name || null;
@@ -5867,17 +5969,20 @@ router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Resp
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/overview — نظرة عامة متكاملة للمدير
+// GET /api/admin/transport/overview — نظرة عامة متكاملة (مفلترة حسب النطاق)
 router.get("/admin/transport/overview", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
+    const opOnlyMine = scope.operatorId != null ? `AND id=${Number(scope.operatorId)}` : "";
     const [drivers, trips, fares, settings, operators] = await Promise.all([
-      query(`SELECT status, vehicle_type, COUNT(*) as cnt FROM transport_drivers GROUP BY status, vehicle_type`),
-      query(`SELECT status, trip_type, COUNT(*) as cnt FROM transport_trips GROUP BY status, trip_type`),
+      query(`SELECT status, vehicle_type, COUNT(*) as cnt FROM transport_drivers ${opF} GROUP BY status, vehicle_type`),
+      query(`SELECT status, trip_type, COUNT(*) as cnt FROM transport_trips ${opF} GROUP BY status, trip_type`),
       query(`SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle FROM transport_fares ORDER BY from_zone, to_zone`),
       query(`SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_status','transport_note','transport_phone')`),
-      query(`SELECT id, name, status, operator_share_pct FROM transport_operators WHERE status='active' ORDER BY name`),
+      query(`SELECT id, name, status, operator_share_pct FROM transport_operators WHERE status='active' ${opOnlyMine} ORDER BY name`),
     ]);
     const settingsMap: Record<string, string> = {};
     for (const r of settings.rows) settingsMap[r.key] = r.value;
@@ -5887,7 +5992,63 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
       fares: fares.rows,
       settings: settingsMap,
       operators: operators.rows,
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/transport/operators/:id/supervisor — إنشاء/ربط حساب مشرف لشركة (مدير المنصة فقط)
+router.post("/admin/transport/operators/:id/supervisor", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    const opId = Number(req.params.id);
+    const { name, email, password, link_existing_user_id } = req.body as { name?: string; email?: string; password?: string; link_existing_user_id?: number };
+    const opRow = await query(`SELECT id, name FROM transport_operators WHERE id=$1`, [opId]);
+    if (!opRow.rows[0]) return res.status(404).json({ error: "الشركة غير موجودة" });
+
+    // 1) ربط مستخدم موجود
+    if (link_existing_user_id) {
+      await query(`UPDATE users SET role='transport_supervisor', operator_id=$1 WHERE id=$2`, [opId, link_existing_user_id]);
+      const u = await query(`SELECT id, name, email, role, operator_id FROM users WHERE id=$1`, [link_existing_user_id]);
+      return res.json({ user: u.rows[0], operator: opRow.rows[0] });
+    }
+    // 2) إنشاء حساب جديد
+    if (!name || !email || !password) return res.status(400).json({ error: "الاسم والبريد وكلمة المرور مطلوبة" });
+    if (password.length < 6) return res.status(400).json({ error: "كلمة المرور 6 أحرف على الأقل" });
+    const hash = await bcrypt.hash(password, 10);
+    const ins = await query(
+      `INSERT INTO users (name, email, password_hash, role, operator_id) VALUES ($1,$2,$3,'transport_supervisor',$4) RETURNING id, name, email, role, operator_id`,
+      [name, email, hash, opId]
+    );
+    return res.status(201).json({ user: ins.rows[0], operator: opRow.rows[0] });
+  } catch (err: any) {
+    if (err?.code === "23505") return res.status(400).json({ error: "البريد مستخدم مسبقاً" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/admin/transport/operators/:id/supervisors — قائمة المشرفين المرتبطين بشركة (مدير المنصة فقط)
+router.get("/admin/transport/operators/:id/supervisors", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    const opId = Number(req.params.id);
+    const r = await query(
+      `SELECT id, name, email, role, created_at FROM users WHERE role='transport_supervisor' AND operator_id=$1 ORDER BY created_at DESC`,
+      [opId]
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/operators/:id/supervisor/:userId — فك ربط مشرف عن شركة (مدير المنصة فقط)
+router.delete("/admin/transport/operators/:id/supervisor/:userId", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    await query(`UPDATE users SET operator_id=NULL WHERE id=$1 AND operator_id=$2`, [req.params.userId, req.params.id]);
+    return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
