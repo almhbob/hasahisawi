@@ -801,14 +801,14 @@ function CommentsModal({
   const textStyle = { textAlign: isRTL ? ("right" as const) : ("left" as const) };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={0}
       >
         <Pressable style={[ms.overlay, { justifyContent: "flex-end" }]} onPress={onClose}>
-          <Pressable style={[cs.sheet, { paddingBottom: insets.bottom + 8 }]}>
+          <Pressable style={[cs.sheet, { paddingBottom: insets.bottom + 8 }]} onPress={(e) => e.stopPropagation()}>
             <Animated.View entering={FadeIn.duration(250)}>
               <View style={ms.handle} />
               <View style={[ms.sheetHead, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

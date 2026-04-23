@@ -197,7 +197,7 @@ export default function RootLayout() {
               <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                  <View style={{ flex: 1, backgroundColor: "#0A1410", direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
                     <NetworkBanner />
                     <UpdateBanner />
