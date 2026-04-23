@@ -287,3 +287,21 @@ id = "ujNDAUB-zstR49NR91Jb7"
 uri = "file://exports/hasahisawi_legal_poster_4k_v2.png"
 type = "image"
 title = "حصاحيصاوي — بوستر ترويجي 4K بهوية التطبيق"
+
+[[outputs]]
+id = "AR52J4LEK5Yg0_xCtCtEL"
+uri = "file://exports/fb_poster_institutions.png"
+type = "image"
+title = "بوستر 1 — دعوة المؤسسات والشركات (1200×628)"
+
+[[outputs]]
+id = "C-YLwkeXOKgFWtB0QOiNp"
+uri = "file://exports/fb_poster_lawyers.png"
+type = "image"
+title = "بوستر 2 — دعوة المحامين (1080×1080)"
+
+[[outputs]]
+id = "N7GO0onQElYprBgDPymhN"
+uri = "file://exports/fb_poster_updates.png"
+type = "image"
+title = "بوستر 3 — أخبار التحديث الجديد (1200×628)"
