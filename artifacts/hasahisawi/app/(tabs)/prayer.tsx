@@ -5,15 +5,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
-import { Audio } from "expo-av";
+// ملاحظة: تم إزالة expo-av عمداً.
+// الأذان الآن يعمل عبر إشعارات النظام المحلية فقط (تؤذن في وقتها حتى لو كان التطبيق مغلقاً)
+// ولا يُشغّل أي صوت من داخل التطبيق نفسه.
 import * as Notifications from "expo-notifications";
 
-const ADHAN_SOUND = require("@/assets/sounds/adhan.mp3");
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
@@ -147,27 +148,31 @@ async function scheduleAdhanNotifications(times: Record<string, string>) {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
     const now = new Date();
-    for (const key of ATHAN_PRAYERS) {
-      const timeStr = times[key];
-      if (!timeStr) continue;
-      const [h, m] = timeStr.split(":").map(Number);
-      const prayerDate = new Date();
-      prayerDate.setHours(h, m, 0, 0);
-      if (prayerDate <= now) continue;
-      const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `🕌 حان وقت صلاة ${prayerName}`,
-          body: `الله أكبر — ${formatTime(timeStr)}`,
-          sound: "default",
-          priority: Notifications.AndroidNotificationPriority.MAX,
-          ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
-        } as any,
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: prayerDate,
-        },
-      });
+    // جدول للأيام الـ 7 القادمة حتى لا يضطر المستخدم لفتح التطبيق يومياً
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      for (const key of ATHAN_PRAYERS) {
+        const timeStr = times[key];
+        if (!timeStr) continue;
+        const [h, m] = timeStr.split(":").map(Number);
+        const prayerDate = new Date();
+        prayerDate.setDate(prayerDate.getDate() + dayOffset);
+        prayerDate.setHours(h, m, 0, 0);
+        if (prayerDate <= now) continue;
+        const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🕌 حان وقت صلاة ${prayerName}`,
+            body: `الله أكبر — ${formatTime(timeStr)}`,
+            sound: "default",
+            priority: Notifications.AndroidNotificationPriority.MAX,
+            ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
+          } as any,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: prayerDate,
+          },
+        });
+      }
     }
   } catch {}
 }
@@ -204,24 +209,6 @@ const HIJRI_SPECIAL: Record<number, number[]> = {
   12: [8, 9, 10, 11, 12, 13],
 };
 
-// ─── مكوّن النبضة ─────────────────────────────────────────────────────────────
-function PulseRing({ color }: { color: string }) {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.6);
-  useEffect(() => {
-    scale.value = withRepeat(withTiming(1.6, { duration: 1200, easing: Easing.out(Easing.ease) }), -1, false);
-    opacity.value = withRepeat(withTiming(0, { duration: 1200, easing: Easing.out(Easing.ease) }), -1, false);
-  }, []);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-    position: "absolute",
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: color + "40",
-  }));
-  return <Animated.View style={animStyle} />;
-}
-
 // ─── المكوّن الرئيسي ───────────────────────────────────────────────────────────
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
@@ -248,30 +235,21 @@ export default function PrayerScreen() {
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── الأذان ────────────────────────────────────────────────────────────────
+  // ── الأذان (إشعارات نظام محلية فقط — لا تشغيل صوت داخل التطبيق) ─────────
   const [adhanEnabled, setAdhanEnabled] = useState(true);
-  const [isPlayingAdhan, setIsPlayingAdhan] = useState(false);
-  const adhanEnabledRef = useRef(true);           // ← ref لحل stale closure
-  const adhanSoundRef  = useRef<Audio.Sound | null>(null);
-  const timesRef       = useRef<Record<string, string> | null>(null);
+  const adhanEnabledRef = useRef(true);
+  const timesRef        = useRef<Record<string, string> | null>(null);
 
-  // مزامنة الـ ref مع الحالة
   useEffect(() => { adhanEnabledRef.current = adhanEnabled; }, [adhanEnabled]);
   useEffect(() => { timesRef.current = times; }, [times]);
 
-  // ── تهيئة الصوت والإشعارات عند التحميل ────────────────────────────────────
+  // تهيئة الإشعارات عند التحميل (بدون أي صوت داخلي)
   useEffect(() => {
     AsyncStorage.getItem(ADHAN_ENABLED_KEY).then(v => {
       const enabled = v === null ? true : v === "1";
       setAdhanEnabled(enabled);
       adhanEnabledRef.current = enabled;
     });
-
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: false,
-    }).catch(() => {});
 
     ensureAndroidChannel();
 
@@ -284,56 +262,15 @@ export default function PrayerScreen() {
         shouldShowList: true,
       }),
     });
-
-    return () => {
-      adhanSoundRef.current?.unloadAsync().catch(() => {});
-    };
   }, []);
 
-  // ── تشغيل الأذان ──────────────────────────────────────────────────────────
-  const playAdhan = useCallback(async () => {
-    try {
-      if (adhanSoundRef.current) {
-        await adhanSoundRef.current.unloadAsync();
-        adhanSoundRef.current = null;
-      }
-      const { sound } = await Audio.Sound.createAsync(
-        ADHAN_SOUND,
-        { shouldPlay: true, volume: 1.0 },
-      );
-      adhanSoundRef.current = sound;
-      setIsPlayingAdhan(true);
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.didJustFinish || status.isLoaded === false) {
-          setIsPlayingAdhan(false);
-          sound.unloadAsync().catch(() => {});
-          adhanSoundRef.current = null;
-        }
-      });
-    } catch {
-      setIsPlayingAdhan(false);
-    }
-  }, []);
-
-  const stopAdhan = useCallback(async () => {
-    try {
-      if (adhanSoundRef.current) {
-        await adhanSoundRef.current.stopAsync();
-        await adhanSoundRef.current.unloadAsync();
-        adhanSoundRef.current = null;
-      }
-    } catch {}
-    setIsPlayingAdhan(false);
-  }, []);
-
-  // ── تفعيل / إيقاف الأذان ─────────────────────────────────────────────────
+  // ── تفعيل / إيقاف جدولة الأذان ───────────────────────────────────────────
   const toggleAdhanEnabled = useCallback(async (next: boolean) => {
     setAdhanEnabled(next);
     adhanEnabledRef.current = next;
     try { await AsyncStorage.setItem(ADHAN_ENABLED_KEY, next ? "1" : "0"); } catch {}
 
     if (!next) {
-      stopAdhan();
       cancelAdhanNotifications();
     } else {
       const granted = await requestNotifPermission();
@@ -341,7 +278,7 @@ export default function PrayerScreen() {
         scheduleAdhanNotifications(timesRef.current);
       }
     }
-  }, [stopAdhan]);
+  }, []);
 
   // ── التقويم الهجري ─────────────────────────────────────────────────────────
   const [hijriViewMonth, setHijriViewMonth] = useState(1);
@@ -449,14 +386,13 @@ export default function PrayerScreen() {
     }
   }, [computeNextPrayer]);
 
-  // ── العداد التنازلي ──────────────────────────────────────────────────────────
+  // ── العداد التنازلي (لا يُشغّل أي صوت — الأذان يأتي من إشعار النظام) ────
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       setCountdown(c => {
         if (c <= 1) {
-          // حلّ وقت الصلاة — نستخدم الـ ref لتجنب stale closure
-          if (adhanEnabledRef.current) playAdhan();
+          // حلّ وقت الصلاة — أعِد حساب الصلاة القادمة فقط
           const currentTimes = timesRef.current;
           if (currentTimes) computeNextPrayer(currentTimes);
           return 0;
@@ -465,7 +401,7 @@ export default function PrayerScreen() {
       });
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [playAdhan, computeNextPrayer]);
+  }, [computeNextPrayer]);
 
   // ── التهيئة ───────────────────────────────────────────────────────────────
   useEffect(() => { loadSettings(); }, []);
@@ -555,17 +491,8 @@ export default function PrayerScreen() {
               {nextPrayer && (
                 <Animated.View entering={FadeInDown.duration(500).springify()} style={[s.nextCard, { borderColor: nextPrayer.color + "50" }]}>
 
-                  {/* حالة التشغيل */}
-                  {isPlayingAdhan && (
-                    <View style={s.playingBanner}>
-                      <View style={s.playingDot} />
-                      <Text style={s.playingText}>يُبَثّ الأذان الآن</Text>
-                    </View>
-                  )}
-
                   {/* اسم الصلاة + وقتها */}
                   <View style={s.nextPrayerIconWrap}>
-                    {isPlayingAdhan && <PulseRing color={nextPrayer.color} />}
                     <View style={[s.nextPrayerIcon, { backgroundColor: nextPrayer.color + "20" }]}>
                       <Ionicons
                         name={(PRAYER_LIST.find(p => p.key === nextPrayer.key)?.icon ?? "time-outline") as any}
@@ -587,53 +514,34 @@ export default function PrayerScreen() {
                     <Text style={s.countdownText}>سيحين بعد: {formatCountdown(countdown)}</Text>
                   </View>
 
-                  {/* ── أزرار الأذان ── */}
+                  {/* ── التحكم بالأذان التلقائي ── */}
                   <View style={s.adhanControlRow}>
-
-                    {/* زر التشغيل / الإيقاف */}
-                    <Pressable
-                      style={[s.playBtn, isPlayingAdhan ? s.playBtnStop : s.playBtnPlay]}
-                      onPress={isPlayingAdhan ? stopAdhan : playAdhan}
-                      android_ripple={{ color: "#fff3" }}
-                    >
-                      <Ionicons
-                        name={isPlayingAdhan ? "stop-circle" : "play-circle"}
-                        size={20}
-                        color={isPlayingAdhan ? "#fff" : Colors.primary}
-                      />
-                      <Text style={[s.playBtnText, isPlayingAdhan && s.playBtnTextStop]}>
-                        {isPlayingAdhan ? "إيقاف الأذان" : "تشغيل الأذان"}
-                      </Text>
-                    </Pressable>
 
                     {/* مفتاح التفعيل */}
                     <View style={[s.toggleWrap, adhanEnabled && s.toggleWrapOn]}>
                       <Ionicons
                         name={adhanEnabled ? "notifications" : "notifications-off-outline"}
-                        size={15}
+                        size={16}
                         color={adhanEnabled ? Colors.primary : Colors.textMuted}
                       />
-                      <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
-                        {adhanEnabled ? "مفعّل" : "معطّل"}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
+                          {adhanEnabled ? "الأذان مُفعَّل" : "الأذان معطّل"}
+                        </Text>
+                        <Text style={s.toggleSub}>
+                          {adhanEnabled ? "سيؤذَّن تلقائياً عند كل صلاة" : "اضغط لتفعيل الأذان التلقائي"}
+                        </Text>
+                      </View>
                       <Switch
                         value={adhanEnabled}
                         onValueChange={toggleAdhanEnabled}
                         trackColor={{ false: Colors.divider, true: Colors.primary + "60" }}
                         thumbColor={adhanEnabled ? Colors.primary : Colors.textMuted}
                         ios_backgroundColor={Colors.divider}
-                        style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
                       />
                     </View>
                   </View>
 
-                  {/* ملاحظة الإشعارات */}
-                  {adhanEnabled && (
-                    <Text style={s.notifHint}>
-                      <Ionicons name="information-circle-outline" size={11} color={Colors.textMuted} />
-                      {" "}ستصلك إشعارات بوقت الأذان حتى عند إغلاق التطبيق
-                    </Text>
-                  )}
                 </Animated.View>
               )}
 
@@ -892,17 +800,6 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
   },
-  playingBanner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.primary + "20", borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 5, marginBottom: 4,
-    borderWidth: 1, borderColor: Colors.primary + "40",
-  },
-  playingDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary,
-  },
-  playingText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
-
   nextPrayerIconWrap: {
     width: 64, height: 64, alignItems: "center", justifyContent: "center", marginBottom: 4,
   },
@@ -919,34 +816,20 @@ const s = StyleSheet.create({
   countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
   countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
-  // ── أزرار التحكم بالأذان ──
+  // ── التحكم بالأذان ──
   adhanControlRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, marginTop: 14, width: "100%", flexWrap: "wrap",
+    marginTop: 14, width: "100%",
   },
-  playBtn: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
-    flex: 1,
-  },
-  playBtnPlay: { backgroundColor: Colors.primary + "15", borderColor: Colors.primary + "55" },
-  playBtnStop: { backgroundColor: "#E74C3C", borderColor: "#C0392B" },
-  playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, flex: 1, textAlign: "center" },
-  playBtnTextStop: { color: "#fff" },
-
   toggleWrap: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 8, paddingVertical: 6, borderRadius: 12,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16,
     backgroundColor: Colors.cardBg,
-    borderWidth: 1, borderColor: Colors.divider,
+    borderWidth: 1.5, borderColor: Colors.divider,
+    width: "100%",
   },
-  toggleWrapOn: { backgroundColor: Colors.primary + "10", borderColor: Colors.primary + "40" },
-  toggleLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
-
-  notifHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
-    textAlign: "center", paddingHorizontal: 8, marginTop: 4,
-  },
+  toggleWrapOn: { backgroundColor: Colors.primary + "0D", borderColor: Colors.primary + "50" },
+  toggleLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted },
+  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 
   // ── قائمة الصلوات ──
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
