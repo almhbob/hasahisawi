@@ -146,6 +146,7 @@ function RootLayoutNav() {
         <Stack.Screen name="admin-transport" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="external-partnership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
@@ -197,7 +198,7 @@ export default function RootLayout() {
               <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <View style={{ flex: 1, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                  <View style={{ flex: 1, backgroundColor: "#0A1410", direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
                     <NetworkBanner />
                     <UpdateBanner />
