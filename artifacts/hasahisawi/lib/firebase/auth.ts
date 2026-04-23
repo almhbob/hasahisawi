@@ -38,7 +38,9 @@ function getFirebaseAuth(): Auth {
   if (!isFirebaseAvailable()) throw new Error("Firebase not configured");
   try {
     if (Platform.OS === "web") {
-      _auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
+      // على الويب: getAuth() يكتشف الـ persistence تلقائياً (browserLocalPersistence)
+      // initializeAuth على الويب يسبب auth/argument-error في إصدارات Firebase الحديثة
+      _auth = getAuth(app);
     } else {
       // الموبايل: استخدم AsyncStorage للحفاظ على الجلسة بين عمليات التشغيل
       _auth = initializeAuth(app, {
