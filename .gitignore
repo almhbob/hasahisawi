@@ -51,3 +51,7 @@ Thumbs.db
 # Production secrets
 .env.production.local
 *.local.env
+
+# Android release artifacts (use GitHub Releases instead)
+*.aab
+*.apk
