@@ -49,10 +49,22 @@ router.post("/upload", upload.single("file") as any, (req: Request, res: Respons
     return;
   }
 
-  // بناء الـ URL الكامل
-  const host = process.env["REPLIT_DEV_DOMAIN"]
-    ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
-    : `http://localhost:${process.env["PORT"] ?? 8080}`;
+  // بناء URL ديناميكي حسب البيئة:
+  // 1) PUBLIC_BASE_URL (يُضبط يدوياً في Render مثلاً)
+  // 2) Host header من الطلب (يعمل تلقائياً على Render/أي proxy)
+  // 3) REPLIT_DEV_DOMAIN (للتطوير على Replit)
+  // 4) localhost (آخر fallback)
+  let host: string;
+  if (process.env["PUBLIC_BASE_URL"]) {
+    host = process.env["PUBLIC_BASE_URL"].replace(/\/$/, "");
+  } else if (req.headers.host) {
+    const proto = (req.headers["x-forwarded-proto"] as string) || (req.protocol === "https" ? "https" : "https");
+    host = `${proto}://${req.headers.host}`;
+  } else if (process.env["REPLIT_DEV_DOMAIN"]) {
+    host = `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  } else {
+    host = `http://localhost:${process.env["PORT"] ?? 8080}`;
+  }
 
   const url = `${host}/uploads/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
