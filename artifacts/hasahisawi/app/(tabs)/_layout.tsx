@@ -18,14 +18,15 @@ type TabItem = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
+  color: string; // لون القسم المخصص
 };
 
 const TAB_ITEMS: TabItem[] = [
-  { name: "index",        label: "الرئيسية", icon: "home-outline",       activeIcon: "home"         },
-  { name: "prayer",       label: "الآذان",   icon: "moon-outline",       activeIcon: "moon"         },
-  { name: "medical",      label: "الطب",     icon: "medkit-outline",     activeIcon: "medkit"       },
-  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline",activeIcon: "chatbubbles"  },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",   activeIcon: "calendar"     },
+  { name: "index",        label: "الرئيسية", icon: "home-outline",       activeIcon: "home",        color: Colors.primary },
+  { name: "prayer",       label: "الآذان",   icon: "moon-outline",       activeIcon: "moon",        color: Colors.sections.prayer.primary },
+  { name: "medical",      label: "الطب",     icon: "medkit-outline",     activeIcon: "medkit",      color: Colors.sections.medical.primary },
+  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline",activeIcon: "chatbubbles", color: Colors.sections.chat.primary },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",   activeIcon: "calendar",    color: Colors.sections.appointments.primary },
 ];
 
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
@@ -54,12 +55,15 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             accessibilityRole="button"
           >
             {/* مؤشر الأعلى */}
-            <View style={[styles.topIndicator, focused && styles.topIndicatorActive]} />
-            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+            <View style={[styles.topIndicator, focused && { backgroundColor: item.color }]} />
+            <View style={[
+              styles.iconWrap,
+              focused && { backgroundColor: item.color + "1F", borderWidth: 1, borderColor: item.color + "40" }
+            ]}>
               <Ionicons
                 name={focused ? item.activeIcon : item.icon}
                 size={22}
-                color={focused ? Colors.primary : "#6E9E84"}
+                color={focused ? item.color : "#6E9E84"}
               />
               {/* شارة عدد الرسائل غير المقروءة */}
               {isChatTab && unread > 0 && (
@@ -70,7 +74,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 </View>
               )}
             </View>
-            <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+            <Text style={[styles.tabLabel, focused && { color: item.color, fontFamily: "Cairo_700Bold" }]}>
               {item.label}
             </Text>
           </Pressable>
