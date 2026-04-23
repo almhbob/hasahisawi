@@ -13,6 +13,7 @@ import {
   PhoneAuthProvider,
   signInWithCredential,
   GoogleAuthProvider,
+  signInWithPopup,
   User,
   Auth,
 } from "firebase/auth";
@@ -147,6 +148,18 @@ export async function firebaseLoginGoogle(idToken: string) {
   const auth = getFirebaseAuth();
   const credential = GoogleAuthProvider.credential(idToken);
   const cred = await signInWithCredential(auth, credential);
+  return cred.user;
+}
+
+// تسجيل الدخول عبر Google من المتصفح (web) باستخدام نافذة منبثقة
+// يُستخدم بدل @react-native-google-signin (الذي يحتاج Play Services الأصلية)
+export async function firebaseLoginGoogleWeb() {
+  if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح");
+  if (Platform.OS !== "web") throw new Error("هذه الدالة للويب فقط");
+  const auth = getFirebaseAuth();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  const cred = await signInWithPopup(auth, provider);
   return cred.user;
 }
 

@@ -32,7 +32,8 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, register, enterAsGuest, loginWithBiometrics,
           enableBiometrics, biometricsAvailable, biometricsEnabled,
-          loginWithGoogle } = useAuth();
+          loginWithGoogle,
+          loginWithGoogleWeb } = useAuth();
 
   const [mode, setMode]               = useState<Mode>("login");
   const [name, setName]               = useState("");
@@ -189,22 +190,34 @@ export default function LoginScreen() {
     setError("");
     setLoading(true);
     try {
+      // على الويب نستخدم نافذة Firebase المنبثقة (لا حاجة لـ Play Services)
+      if (Platform.OS === "web") {
+        await loginWithGoogleWeb();
+        return;
+      }
+
+      // على الموبايل نستخدم Google Sign-In الأصلي
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const response = await GoogleSignin.signIn();
       // استخراج idToken بطريقة تدعم كلا الإصدارين من المكتبة
       const idToken = (response as any)?.data?.idToken ?? (response as any)?.idToken;
       if (!idToken) throw new Error("تعذّر الحصول على رمز Google");
       await loginWithGoogle(idToken);
-      if (Platform.OS !== "web")
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const code = e?.code ?? "";
+      // إلغاء النافذة المنبثقة من المستخدم — تجاهل بصمت
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return;
+      }
       if (code === statusCodes.SIGN_IN_CANCELLED) {
         // المستخدم ألغى — لا خطأ
       } else if (code === statusCodes.IN_PROGRESS) {
         // تسجيل جارٍ بالفعل — تجاهل
       } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setError("خدمات Google غير متاحة على هذا الجهاز");
+      } else if (code === "auth/popup-blocked") {
+        setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
       } else {
         setError(e?.message || "فشل تسجيل الدخول عبر Google");
       }
