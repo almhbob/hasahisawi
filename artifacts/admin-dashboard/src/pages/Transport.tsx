@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type Driver = {
@@ -111,7 +112,11 @@ function Input({ label, value, onChange, type = "text", required }: { label: str
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Transport() {
-  const [tab, setTab] = useState<"overview" | "drivers" | "trips" | "fares" | "operators" | "reports" | "settings">("overview");
+  const { user } = useAuth();
+  const isPlatformAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isOperatorSupervisor = user?.role === "transport_supervisor" && !!user?.operator_id;
+  const myOperatorId = user?.operator_id ?? null;
+  const [tab, setTab] = useState<"overview" | "drivers" | "trips" | "fares" | "operators" | "reports" | "settings" | "zones">("overview");
   const [overview,   setOverview]   = useState<any>(null);
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [trips,      setTrips]      = useState<Trip[]>([]);
@@ -147,10 +152,15 @@ export default function Transport() {
   const [editOp,       setEditOp]       = useState<Operator | null>(null);
   const [opForm, setOpForm] = useState({ name: "", contact_name: "", phone: "", email: "", contract_start: "", contract_end: "", operator_share_pct: "70", platform_share_pct: "30", notes: "", status: "active" });
 
-  // Supervisor form
-  const [showSupForm, setShowSupForm] = useState(false);
+  // Supervisor form (per-operator)
+  const [supForOp, setSupForOp] = useState<Operator | null>(null);
+  const [supList, setSupList] = useState<Array<{ id: number; name: string; email: string }>>([]);
+  const [supLoading, setSupLoading] = useState(false);
   const [supForm, setSupForm] = useState({ name: "", email: "", password: "" });
   const [supMsg, setSupMsg] = useState("");
+
+  // اسم شركتي (لمشرف الشركة)
+  const [myOperatorName, setMyOperatorName] = useState<string>("");
 
   // Neighborhoods
   const [neighborhoods,  setNeighborhoods] = useState<Neighborhood[]>([]);
@@ -212,6 +222,14 @@ export default function Transport() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === "reports") loadReports(); }, [tab, loadReports]);
   useEffect(() => { if (tab === "zones") loadNeighborhoods(); }, [tab, loadNeighborhoods]);
+
+  // اسم شركتي (لمشرف الشركة) — يأتي ضمن قائمة operators المُفلترة على الخادم
+  useEffect(() => {
+    if (isOperatorSupervisor && myOperatorId && !myOperatorName) {
+      const mine = operators.find(o => o.id === myOperatorId);
+      if (mine) setMyOperatorName(mine.name);
+    }
+  }, [isOperatorSupervisor, myOperatorId, operators, myOperatorName]);
 
   // ─── Actions ─────────────────────────────────────────────────────────────
   const setDriverStatus = async (id: number, status: string, note?: string) => {
@@ -297,11 +315,39 @@ export default function Transport() {
     setNeighborhoods(prev => prev.filter(n => n.id !== id));
   };
 
+  // ── Supervisors per-operator ─────────────────────────────────────────────
+  const openSupervisors = async (op: Operator) => {
+    setSupForOp(op); setSupMsg(""); setSupList([]); setSupLoading(true);
+    setSupForm({ name: "", email: "", password: "" });
+    try {
+      const j = await apiJson<{ supervisors: Array<{ id: number; name: string; email: string }> }>(`/admin/transport/operators/${op.id}/supervisors`);
+      setSupList(j?.supervisors ?? []);
+    } catch {}
+    setSupLoading(false);
+  };
   const createSupervisor = async () => {
+    if (!supForOp) return;
     setSupMsg("");
-    const res = await apiFetch("/auth/register-transport-supervisor", { method: "POST", body: JSON.stringify(supForm) });
-    if (res.ok) { setSupMsg("✅ تم إنشاء حساب المشرف بنجاح"); setSupForm({ name: "", email: "", password: "" }); setShowSupForm(false); }
-    else { const err = await res.json().catch(() => ({})); setSupMsg("❌ " + ((err as any).error ?? "خطأ")); }
+    if (!supForm.name.trim() || !supForm.email.trim() || supForm.password.length < 6) {
+      setSupMsg("❌ الاسم والبريد وكلمة سر (٦ أحرف على الأقل) مطلوبة"); return;
+    }
+    const res = await apiFetch(`/admin/transport/operators/${supForOp.id}/supervisor`, {
+      method: "POST", body: JSON.stringify(supForm),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setSupList(prev => [...prev, j.supervisor]);
+      setSupForm({ name: "", email: "", password: "" });
+      setSupMsg("✅ تم إنشاء الحساب وربطه بالشركة");
+    } else {
+      setSupMsg("❌ " + ((j as any).error ?? "خطأ"));
+    }
+  };
+  const unlinkSupervisor = async (uid: number) => {
+    if (!supForOp) return;
+    if (!confirm("فك ارتباط هذا المشرف بالشركة؟")) return;
+    const res = await apiFetch(`/admin/transport/operators/${supForOp.id}/supervisor/${uid}`, { method: "DELETE" });
+    if (res.ok) setSupList(prev => prev.filter(u => u.id !== uid));
   };
 
   // ─── Derived ──────────────────────────────────────────────────────────────
@@ -326,16 +372,17 @@ export default function Transport() {
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   const pendingNh = neighborhoods.filter(n => n.status === "pending").length;
-  const TABS: { id: string; label: string; icon: string; badge?: number }[] = [
+  const ALL_TABS: { id: string; label: string; icon: string; badge?: number; platformOnly?: boolean }[] = [
     { id: "overview",  label: "نظرة عامة",   icon: "📊" },
     { id: "drivers",   label: `السائقون (${drivers.length})`, icon: "🚗" },
     { id: "trips",     label: `الرحلات (${trips.length})`,    icon: "📍" },
-    { id: "zones",     label: "مناطق التغطية", icon: "🗺️", badge: pendingNh || undefined },
-    { id: "fares",     label: "التعرفة",      icon: "💰" },
-    { id: "operators", label: `الشركات (${operators.length})`, icon: "🏢" },
+    { id: "zones",     label: "مناطق التغطية", icon: "🗺️", badge: pendingNh || undefined, platformOnly: true },
+    { id: "fares",     label: "التعرفة",      icon: "💰", platformOnly: true },
+    { id: "operators", label: isPlatformAdmin ? `الشركات (${operators.length})` : "شركتي", icon: "🏢" },
     { id: "reports",   label: "التقارير",     icon: "📈" },
-    { id: "settings",  label: "الإعدادات",    icon: "⚙️" },
+    { id: "settings",  label: "الإعدادات",    icon: "⚙️", platformOnly: true },
   ];
+  const TABS = ALL_TABS.filter(t => isPlatformAdmin || !t.platformOnly);
 
   // ─── Modals ────────────────────────────────────────────────────────────────
   const modalBg: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 };
@@ -586,10 +633,12 @@ export default function Transport() {
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "hsl(210 40% 90%)" }}>🏢 الشركات المشغّلة</h3>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "hsl(215 20% 50%)" }}>إدارة شركاء التشغيل وتوزيع الأرباح</p>
         </div>
-        <button onClick={() => { setEditOp(null); setOpForm({ name: "", contact_name: "", phone: "", email: "", contract_start: "", contract_end: "", operator_share_pct: "70", platform_share_pct: "30", notes: "", status: "active" }); setShowOpForm(true); }}
-          style={{ padding: "9px 20px", borderRadius: 12, border: `1px solid ${orange}50`, background: orange + "15", color: orange, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>
-          + إضافة شركة
-        </button>
+        {isPlatformAdmin && (
+          <button onClick={() => { setEditOp(null); setOpForm({ name: "", contact_name: "", phone: "", email: "", contract_start: "", contract_end: "", operator_share_pct: "70", platform_share_pct: "30", notes: "", status: "active" }); setShowOpForm(true); }}
+            style={{ padding: "9px 20px", borderRadius: 12, border: `1px solid ${orange}50`, background: orange + "15", color: orange, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>
+            + إضافة شركة
+          </button>
+        )}
       </div>
 
       {operators.length === 0 ? (
@@ -635,11 +684,19 @@ export default function Transport() {
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#a78bfa" }}>{fmt(op.total_operator_revenue)} ج.س</div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                <button onClick={() => { setEditOp(op); setOpForm({ name: op.name, contact_name: op.contact_name, phone: op.phone, email: op.email, contract_start: op.contract_start ?? "", contract_end: op.contract_end ?? "", operator_share_pct: String(op.operator_share_pct), platform_share_pct: String(op.platform_share_pct), notes: op.notes, status: op.status }); setShowOpForm(true); }}
-                  style={{ padding: "7px 14px", borderRadius: 10, border: `1px solid ${orange}40`, background: `${orange}10`, color: orange, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>✏️ تعديل</button>
-                <button onClick={() => deleteOperator(op.id)}
-                  style={{ padding: "7px 12px", borderRadius: 10, border: "1px solid rgba(248,113,113,.25)", background: "rgba(248,113,113,.07)", color: "#f87171", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>🗑</button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+                {isPlatformAdmin && (
+                  <button onClick={() => { setEditOp(op); setOpForm({ name: op.name, contact_name: op.contact_name, phone: op.phone, email: op.email, contract_start: op.contract_start ?? "", contract_end: op.contract_end ?? "", operator_share_pct: String(op.operator_share_pct), platform_share_pct: String(op.platform_share_pct), notes: op.notes, status: op.status }); setShowOpForm(true); }}
+                    style={{ padding: "7px 14px", borderRadius: 10, border: `1px solid ${orange}40`, background: `${orange}10`, color: orange, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>✏️ تعديل</button>
+                )}
+                {isPlatformAdmin && (
+                  <button onClick={() => openSupervisors(op)}
+                    style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #60a5fa40", background: "#60a5fa12", color: "#60a5fa", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>👤 المشرفون</button>
+                )}
+                {isPlatformAdmin && (
+                  <button onClick={() => deleteOperator(op.id)}
+                    style={{ padding: "7px 12px", borderRadius: 10, border: "1px solid rgba(248,113,113,.25)", background: "rgba(248,113,113,.07)", color: "#f87171", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>🗑</button>
+                )}
               </div>
             </div>
           ))}
@@ -985,26 +1042,11 @@ export default function Transport() {
         </button>
       </div>
 
-      {/* Supervisor management */}
-      <div style={{ background: "hsl(222 47% 10%)", borderRadius: 16, border: "1px solid hsl(217 32% 15%)", padding: "22px 24px", maxWidth: 560 }}>
-        <SectionTitle>👮 مشرفو الترحيل</SectionTitle>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: "hsl(215 20% 52%)" }}>
-          مشرفو الترحيل لهم صلاحيات إدارة كاملة لخدمة المشاوير: قبول السائقين، متابعة الرحلات، إدارة الشركات والتعرفة — بدون دخول لباقي لوحة الإدارة.
-        </p>
-        {supMsg && <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: supMsg.startsWith("✅") ? "rgba(52,211,153,.12)" : "rgba(248,113,113,.12)", color: supMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize: 13 }}>{supMsg}</div>}
-        {!showSupForm ? (
-          <button onClick={() => { setShowSupForm(true); setSupMsg(""); }} style={{ padding: "9px 20px", borderRadius: 12, border: "1px solid rgba(52,211,153,.4)", background: "rgba(52,211,153,.1)", color: "#34d399", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>+ إضافة مشرف ترحيل</button>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Input label="الاسم" value={supForm.name} onChange={v => setSupForm(s => ({ ...s, name: v }))} required />
-            <Input label="البريد الإلكتروني" value={supForm.email} onChange={v => setSupForm(s => ({ ...s, email: v }))} type="email" required />
-            <Input label="كلمة المرور" value={supForm.password} onChange={v => setSupForm(s => ({ ...s, password: v }))} type="password" required />
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={createSupervisor} style={{ padding: "9px 20px", borderRadius: 12, border: "none", background: "#34d399", color: "#000", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>✓ إنشاء الحساب</button>
-              <button onClick={() => setShowSupForm(false)} style={{ padding: "9px 16px", borderRadius: 12, border: "1px solid hsl(217 32% 20%)", background: "transparent", color: "hsl(215 20% 60%)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>إلغاء</button>
-            </div>
-          </div>
-        )}
+      {/* قسم المشرفين انتقل لتبويب "الشركات" — زر "المشرفون" بكل شركة */}
+      <div style={{ background: "rgba(96,165,250,.07)", borderRadius: 16, border: "1px solid rgba(96,165,250,.25)", padding: "16px 20px", maxWidth: 560 }}>
+        <div style={{ fontSize: 13, color: "#60a5fa", lineHeight: 1.7 }}>
+          ℹ️ لإدارة حسابات مديري كل شركة مشغّلة، انتقل إلى تبويب <b>الشركات</b>، ثم اضغط زر <b>المشرفون</b> بجانب الشركة.
+        </div>
       </div>
     </div>
   );
@@ -1016,8 +1058,14 @@ export default function Transport() {
     <div style={{ maxWidth: 1200, margin: "0 auto", fontFamily: "inherit" }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "hsl(210 40% 95%)" }}>🚖 مشاويرك علينا</h2>
-        <p style={{ margin: 0, fontSize: 13, color: "hsl(215 20% 50%)" }}>إدارة خدمة الترحيل · السائقون · الرحلات · الشركات المشغّلة · التقارير</p>
+        <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "hsl(210 40% 95%)" }}>
+          🚖 مشاويرك علينا{isOperatorSupervisor && myOperatorName ? ` — ${myOperatorName}` : ""}
+        </h2>
+        <p style={{ margin: 0, fontSize: 13, color: "hsl(215 20% 50%)" }}>
+          {isOperatorSupervisor
+            ? "لوحة شركتك — تدير سائقيها ورحلاتها وأرباحها بمعزل عن باقي الشركات"
+            : "إدارة خدمة الترحيل · السائقون · الرحلات · الشركات المشغّلة · التقارير"}
+        </p>
       </div>
 
       {/* Tabs */}
@@ -1217,6 +1265,63 @@ export default function Transport() {
               </button>
               <button onClick={() => setShowOpForm(false)}
                 style={{ padding: "11px 20px", borderRadius: 12, border: "1px solid hsl(217 32% 20%)", background: "transparent", color: "hsl(215 20% 55%)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Supervisors Modal (per-operator) ── */}
+      {supForOp && (
+        <div style={modalBg} onClick={() => setSupForOp(null)}>
+          <div style={modalBox} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "hsl(210 40% 90%)" }}>
+              👤 مشرفو شركة: {supForOp.name}
+            </h3>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: "hsl(215 20% 55%)" }}>
+              أنشئ حساباً واحداً أو أكثر يدير سائقي ورحلات هذه الشركة فقط، دون الوصول لأي شركة أخرى أو إعدادات المنصة.
+            </p>
+
+            {supMsg && (
+              <div style={{ marginBottom: 12, padding: "9px 13px", borderRadius: 10, background: supMsg.startsWith("✅") ? "rgba(52,211,153,.12)" : "rgba(248,113,113,.12)", color: supMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize: 12 }}>{supMsg}</div>
+            )}
+
+            {/* قائمة المشرفين */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(215 20% 60%)", marginBottom: 8 }}>المشرفون الحاليون</div>
+              {supLoading ? (
+                <div style={{ fontSize: 12, color: "hsl(215 20% 50%)" }}>جارٍ التحميل…</div>
+              ) : supList.length === 0 ? (
+                <div style={{ fontSize: 12, color: "hsl(215 20% 50%)", fontStyle: "italic" }}>لا يوجد مشرفون مرتبطون بعد</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {supList.map(u => (
+                    <div key={u.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 10, background: "hsl(222 47% 9%)", border: "1px solid hsl(217 32% 14%)" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(210 40% 90%)" }}>{u.name}</div>
+                        <div style={{ fontSize: 11, color: "hsl(215 20% 55%)" }}>{u.email}</div>
+                      </div>
+                      <button onClick={() => unlinkSupervisor(u.id)}
+                        style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(248,113,113,.3)", background: "rgba(248,113,113,.08)", color: "#f87171", cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700 }}>فك</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* إنشاء جديد */}
+            <div style={{ borderTop: "1px solid hsl(217 32% 14%)", paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(215 20% 60%)", marginBottom: 10 }}>إنشاء حساب مدير جديد</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <Input label="الاسم" value={supForm.name} onChange={v => setSupForm(s => ({ ...s, name: v }))} required />
+                <Input label="البريد الإلكتروني" value={supForm.email} onChange={v => setSupForm(s => ({ ...s, email: v }))} type="email" required />
+                <Input label="كلمة المرور (٦ أحرف على الأقل)" value={supForm.password} onChange={v => setSupForm(s => ({ ...s, password: v }))} type="password" required />
+                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                  <button onClick={createSupervisor}
+                    style={{ padding: "9px 20px", borderRadius: 12, border: "none", background: "#34d399", color: "#000", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>✓ إنشاء وربط</button>
+                  <button onClick={() => setSupForOp(null)}
+                    style={{ padding: "9px 16px", borderRadius: 12, border: "1px solid hsl(217 32% 20%)", background: "transparent", color: "hsl(215 20% 60%)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>إغلاق</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

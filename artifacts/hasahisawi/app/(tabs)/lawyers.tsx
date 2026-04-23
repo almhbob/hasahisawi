@@ -364,9 +364,10 @@ export default function LawyersScreen() {
   };
 
   // ── طباعة عقد الانضمام (محامي ↔ تطبيق) ──
+  // قبل الاعتماد: نموذج/مسودّة بعلامة مائية واضحة وبدون أي توثيق
+  // بعد الاعتماد: عقد موثّق رسمياً بختم وتوقيع رقمي ورمز QR للتحقّق العام
   const printJoinContract = async (a: MyApp) => {
     try {
-      // نجلب التفاصيل الكاملة من جدول الطلبات
       const fr = await apiFetch(`/api/lawyer-applications/mine?device_id=${encodeURIComponent(deviceId)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
@@ -378,80 +379,44 @@ export default function LawyersScreen() {
         try { return new Intl.DateTimeFormat("ar-SD-u-ca-islamic-umalqura", { year: "numeric", month: "long", day: "numeric" }).format(today); }
         catch { return ""; }
       })();
-      const status = STATUS_AR[a.status] || { label: a.status, color: "#666" };
       const isApproved = a.status === "approved";
       const contractNo = `LAW-${String(a.id).padStart(5, "0")}-${today.getFullYear()}`;
+      // توقيع رقمي مختصر مستقل عن أي مكتبة (FNV-1a 32bit + base36)
+      const fnv = (s: string) => {
+        let h = 0x811c9dc5 >>> 0;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+        return h.toString(36).toUpperCase().padStart(7, "0");
+      };
+      const approvedAt = full.reviewed_at || full.created_at || today.toISOString();
+      const sigPayload = `${a.id}|${full.full_name}|${full.bar_number||""}|${full.phone||""}|${approvedAt}|HSWAY-LEGAL-V1`;
+      const digSig = `${fnv(sigPayload)}-${fnv(sigPayload.split("").reverse().join(""))}`;
+      const verifyUrl = `https://hasahisawi.onrender.com/api/lawyer-applications/verify/${encodeURIComponent(contractNo)}`;
+      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=2&data=${encodeURIComponent(verifyUrl)}`;
 
-      const html = `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
-        <style>
-          @page { size: A4; margin: 18mm 16mm; }
-          * { box-sizing: border-box; }
-          body { font-family: -apple-system, "Helvetica Neue", "Segoe UI", Tahoma, Arial; color: #1a1a1a; margin: 0; line-height: 1.85; font-size: 13px; }
+      // ── ألوان وعناصر مشتركة ───────────────────────────────
+      const TERMS = [
+        ["موضوع العقد", "يلتزم الطرف الثاني بتقديم استشاراته وخدماته القانونية لمستخدمي المنصة وفق تخصصاته المُعلنة، ويلتزم الطرف الأول بعرض ملف الطرف الثاني وتسهيل وصول طالبي الخدمة إليه."],
+        ["صحة البيانات", "يقرّ الطرف الثاني بصحة جميع البيانات والوثائق المقدّمة، ويتحمّل المسؤولية الكاملة شرعاً وقانوناً عن أي معلومة غير صحيحة أو منتحَلة."],
+        ["الترخيص المهني", "يلتزم الطرف الثاني بأن يكون ترخيصه ساريَ المفعول طيلة فترة العقد، وعليه إخطار الإدارة فوراً بأي إيقاف أو تعليق صادر من نقابة المحامين."],
+        ["الأخلاقيات المهنية", "يلتزم الطرف الثاني بالقواعد الأخلاقية لمهنة المحاماة، وبسرية بيانات موكّليه، وبعدم استخدام المنصة في أي نشاط مخالف للقانون أو الآداب العامة."],
+        ["جودة الخدمة", "يلتزم الطرف الثاني بالرد على طلبات الخدمة في وقت معقول، وبإبلاغ المستخدم بحالة طلبه، وبتقديم الخدمة بالمستوى المهني المتعارف عليه."],
+        ["الأتعاب", "يحقّ للطرف الثاني تحديد أتعابه واستلامها مباشرة من موكّليه، والمنصة ليست طرفاً في العلاقة المالية بين المحامي وموكّله إلا إذا اتُّفق على غير ذلك صراحة."],
+        ["الإعلان والظهور", "يوافق الطرف الثاني على عرض اسمه وصورته وملفه التعريفي وتقييماته من قِبل المستخدمين بشكل علني داخل التطبيق وعلى منصاته الرسمية."],
+        ["الشكاوى والتأديب", "يحقّ للطرف الأول إيقاف ملف الطرف الثاني مؤقتاً عند تلقّي أي شكوى موثّقة، ريثما يتمّ التحقّق منها، ولديه الحقّ في الإيقاف الدائم عند ثبوت المخالفة."],
+        ["حق الانسحاب", "يحقّ للطرف الثاني طلب إخفاء ملفه أو حذفه نهائياً من المنصة في أي وقت بإشعار خطّي للإدارة، مع الالتزام بإكمال أي تعاقدات قائمة قبل الإخفاء."],
+        ["الملكية الفكرية", "تظلّ الملكية الفكرية للمحتوى الذي يقدّمه كل طرف عائدةً لصاحبها، مع منح الطرف الثاني المنصةَ ترخيصاً غير حصري لعرض ملفه ضمن خدماتها."],
+        ["تعديل الشروط", "يحقّ للطرف الأول تحديث شروط الخدمة بعد إشعار الطرف الثاني عبر التطبيق بمدة لا تقلّ عن (15) يوماً، ويُعدّ استمرار النشاط بعد المدة قبولاً ضمنياً."],
+        ["فضّ النزاعات", "يُحلّ أيّ نزاع ينشأ عن هذا العقد ودّياً، فإذا تعذّر ذلك يُحال إلى الجهات القضائية المختصة في ولاية الجزيرة وفقاً لأحكام القانون السوداني."],
+        ["سريان العقد", "يسري هذا العقد من تاريخ اعتماده من إدارة المنصة، ويستمرّ ساري المفعول حتى يتم إنهاؤه برغبة أحد الطرفين وفق البند (9)."],
+      ];
+      const termsHtml = TERMS.map(([t, b]) => `<li><b>${t}:</b> ${b}</li>`).join("");
 
-          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 3px double #8B5CF6; margin-bottom: 18px; }
-          .brand { font-size: 22px; font-weight: 800; color: #8B5CF6; margin: 0; }
-          .brand-sub { color: #555; font-size: 11px; margin-top: 2px; }
-          .meta { text-align: left; font-size: 10px; color: #666; line-height: 1.6; }
-          .meta b { color: #111; }
-
-          .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #4C1D95; margin: 8px 0 4px; letter-spacing: 0.5px; }
-          .doc-sub   { text-align: center; font-size: 11px; color: #777; margin-bottom: 18px; }
-
-          .stamp { position: absolute; top: 90px; left: 28px; transform: rotate(-14deg); border: 3px solid ${isApproved ? "#10B981" : "#F59E0B"}; color: ${isApproved ? "#10B981" : "#F59E0B"}; padding: 6px 14px; font-weight: 800; font-size: 16px; border-radius: 8px; opacity: 0.85; letter-spacing: 1px; }
-
-          .preamble { background: #faf8ff; border-right: 4px solid #8B5CF6; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
-
-          h3 { color: #4C1D95; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; }
-          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
-          .party { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-          .party h4 { margin: 0 0 6px; color: #6D28D9; font-size: 12px; }
-          .party .row { font-size: 11px; padding: 3px 0; color: #333; }
-          .party .row b { color: #000; }
-
-          ol.terms { padding-right: 22px; }
-          ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
-          ol.terms li b { color: #4C1D95; }
-
-          .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
-          .sig-box { text-align: center; }
-          .sig-line { border-top: 1.5px solid #333; padding-top: 6px; font-size: 11px; color: #333; margin-top: 36px; }
-          .sig-name { font-weight: 700; font-size: 12px; }
-          .sig-role { color: #666; font-size: 10px; margin-top: 2px; }
-
-          .footer { margin-top: 28px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #888; font-size: 9px; line-height: 1.6; }
-          .verify { font-family: "Courier New", monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 10px; color: #4C1D95; }
-        </style></head><body>
-
-        <div class="stamp">${isApproved ? "تم الاعتماد ✓" : "قيد المراجعة"}</div>
-
-        <div class="header">
-          <div>
-            <h1 class="brand">⚖️ تطبيق حصاحيصاوي</h1>
-            <div class="brand-sub">القسم القانوني — مدينة حصاحيصا، السودان</div>
-          </div>
-          <div class="meta">
-            <div>رقم العقد: <b>${contractNo}</b></div>
-            <div>التاريخ الميلادي: <b>${dStr}</b></div>
-            ${hijri ? `<div>التاريخ الهجري: <b>${hijri}</b></div>` : ""}
-            <div>الحالة: <b style="color:${status.color}">${status.label}</b></div>
-          </div>
-        </div>
-
-        <div class="doc-title">عقد انضمام محامٍ إلى منصة حصاحيصاوي</div>
-        <div class="doc-sub">Lawyer Onboarding Agreement</div>
-
-        <div class="preamble">
-          إنه في يوم ${dStr}، تم الاتفاق والتراضي بين الطرفين الموقّعَين أدناه على ما يلي،
-          وذلك بكامل الأهلية المعتبرة شرعاً وقانوناً، ورغبةً في تنظيم العلاقة المهنية بينهما
-          وفقاً لأحكام قانون نقابة المحامين السودانية والأنظمة المعمول بها.
-        </div>
-
-        <h3>أطراف العقد</h3>
+      const partiesHtml = `
         <div class="parties">
           <div class="party">
             <h4>الطرف الأول — منصة التطبيق</h4>
             <div class="row"><b>الاسم:</b> تطبيق حصاحيصاوي</div>
-            <div class="row"><b>المقر:</b> حصاحيصا، ولاية الجزيرة، السودان</div>
+            <div class="row"><b>المقر:</b> الحصاحيصا، ولاية الجزيرة، السودان</div>
             <div class="row"><b>القسم:</b> الإدارة القانونية</div>
             <div class="row"><b>الصفة:</b> الجهة المنظِّمة للخدمة</div>
           </div>
@@ -466,62 +431,315 @@ export default function LawyersScreen() {
             ${full.email ? `<div class="row"><b>البريد:</b> ${full.email}</div>` : ""}
             ${full.office_addr ? `<div class="row"><b>العنوان:</b> ${full.office_addr}</div>` : ""}
           </div>
-        </div>
+        </div>`;
 
+      const preamble = `
+        <div class="preamble">
+          إنه في يوم ${dStr}، تم الاتفاق والتراضي بين الطرفين الموقّعَين أدناه على ما يلي،
+          وذلك بكامل الأهلية المعتبرة شرعاً وقانوناً، ورغبةً في تنظيم العلاقة المهنية بينهما
+          وفقاً لأحكام قانون نقابة المحامين السودانية والأنظمة المعمول بها.
+        </div>
+        <h3>أطراف العقد</h3>${partiesHtml}
         <h3>تمهيد</h3>
         <p style="font-size:12px;text-align:justify;margin:0 0 6px;">
-          حيث إن الطرف الأول يدير منصةً رقمية لربط المواطنين بمقدّمي الخدمات القانونية في مدينة حصاحيصا والمناطق المجاورة،
+          حيث إن الطرف الأول يدير منصةً رقمية لربط المواطنين بمقدّمي الخدمات القانونية في مدينة الحصاحيصا والمناطق المجاورة،
           وحيث إن الطرف الثاني محامٍ مرخّص ومسجَّل لدى نقابة المحامين السودانية ويرغب في تقديم خدماته القانونية عبر هذه المنصة،
           فقد اتفق الطرفان على البنود التالية:
         </p>
-
         <h3>بنود العقد</h3>
-        <ol class="terms">
-          <li><b>موضوع العقد:</b> يلتزم الطرف الثاني بتقديم استشاراته وخدماته القانونية لمستخدمي المنصة وفق تخصصاته المُعلنة، ويلتزم الطرف الأول بعرض ملف الطرف الثاني وتسهيل وصول طالبي الخدمة إليه.</li>
-          <li><b>صحة البيانات:</b> يقرّ الطرف الثاني بصحة جميع البيانات والوثائق المقدّمة، ويتحمّل المسؤولية الكاملة شرعاً وقانوناً عن أي معلومة غير صحيحة أو منتحَلة.</li>
-          <li><b>الترخيص المهني:</b> يلتزم الطرف الثاني بأن يكون ترخيصه ساريَ المفعول طيلة فترة العقد، وعليه إخطار الإدارة فوراً بأي إيقاف أو تعليق صادر من نقابة المحامين.</li>
-          <li><b>الأخلاقيات المهنية:</b> يلتزم الطرف الثاني بالقواعد الأخلاقية لمهنة المحاماة، وبسرية بيانات موكّليه، وبعدم استخدام المنصة في أي نشاط مخالف للقانون أو الآداب العامة.</li>
-          <li><b>جودة الخدمة:</b> يلتزم الطرف الثاني بالرد على طلبات الخدمة في وقت معقول، وبإبلاغ المستخدم بحالة طلبه، وبتقديم الخدمة بالمستوى المهني المتعارف عليه.</li>
-          <li><b>الأتعاب:</b> يحقّ للطرف الثاني تحديد أتعابه واستلامها مباشرة من موكّليه، والمنصة ليست طرفاً في العلاقة المالية بين المحامي وموكّله إلا إذا اتُّفق على غير ذلك صراحة.</li>
-          <li><b>الإعلان والظهور:</b> يوافق الطرف الثاني على عرض اسمه وصورته وملفه التعريفي وتقييماته من قِبل المستخدمين بشكل علني داخل التطبيق وعلى منصاته الرسمية.</li>
-          <li><b>الشكاوى والتأديب:</b> يحقّ للطرف الأول إيقاف ملف الطرف الثاني مؤقتاً عند تلقّي أي شكوى موثّقة، ريثما يتمّ التحقّق منها، ولديه الحقّ في الإيقاف الدائم عند ثبوت المخالفة.</li>
-          <li><b>حق الانسحاب:</b> يحقّ للطرف الثاني طلب إخفاء ملفه أو حذفه نهائياً من المنصة في أي وقت بإشعار خطّي للإدارة، مع الالتزام بإكمال أي تعاقدات قائمة قبل الإخفاء.</li>
-          <li><b>الملكية الفكرية:</b> تظلّ الملكية الفكرية للمحتوى الذي يقدّمه كل طرف عائدةً لصاحبها، مع منح الطرف الثاني المنصةَ ترخيصاً غير حصري لعرض ملفه ضمن خدماتها.</li>
-          <li><b>تعديل الشروط:</b> يحقّ للطرف الأول تحديث شروط الخدمة بعد إشعار الطرف الثاني عبر التطبيق بمدة لا تقلّ عن (15) يوماً، ويُعدّ استمرار النشاط بعد المدة قبولاً ضمنياً.</li>
-          <li><b>فضّ النزاعات:</b> يُحلّ أيّ نزاع ينشأ عن هذا العقد ودّياً، فإذا تعذّر ذلك يُحال إلى الجهات القضائية المختصة في ولاية الجزيرة وفقاً لأحكام القانون السوداني.</li>
-          <li><b>سريان العقد:</b> يسري هذا العقد من تاريخ اعتماده من إدارة المنصة، ويستمرّ ساري المفعول حتى يتم إنهاؤه برغبة أحد الطرفين وفق البند (9).</li>
-        </ol>
+        <ol class="terms">${termsHtml}</ol>
+        ${full.admin_note ? `<h3>ملاحظات الإدارة</h3>
+          <div style="background:#fef3c7;border-right:4px solid #F59E0B;padding:10px 12px;border-radius:6px;font-size:12px;">${full.admin_note}</div>` : ""}
+      `;
 
-        ${full.admin_note ? `
-        <h3>ملاحظات الإدارة</h3>
-        <div style="background:#fef3c7;border-right:4px solid #F59E0B;padding:10px 12px;border-radius:6px;font-size:12px;">${full.admin_note}</div>
-        ` : ""}
+      // ──────────────────────────────────────────────────────
+      // (1) صيغة المسودّة (قبل الاعتماد): بدون أي توثيق
+      // ──────────────────────────────────────────────────────
+      const draftHtml = `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
+        <style>
+          @page { size: A4; margin: 18mm 16mm; }
+          * { box-sizing: border-box; }
+          html, body { margin:0; padding:0; }
+          body {
+            font-family: -apple-system, "Helvetica Neue", "Segoe UI", Tahoma, Arial;
+            color: #2a2a2a; line-height: 1.85; font-size: 13px;
+            background:
+              repeating-linear-gradient(135deg, rgba(180,180,180,0.06) 0 80px, transparent 80px 160px);
+            position: relative;
+          }
+          /* علامة مائية قطرية ضخمة عبر الصفحة */
+          body::before {
+            content: "نموذج • مسودّة غير موثّقة • DRAFT";
+            position: fixed; top: 35%; left: -10%; right: -10%;
+            transform: rotate(-22deg);
+            text-align: center; font-size: 92px; font-weight: 900;
+            color: rgba(220, 38, 38, 0.10);
+            letter-spacing: 8px; pointer-events: none; z-index: 0;
+          }
+          .page { position: relative; z-index: 1; }
 
-        <div class="sigs">
-          <div class="sig-box">
-            <div style="font-size:11px;color:#666;margin-bottom:4px;">الطرف الأول</div>
-            <div class="sig-line">
-              <div class="sig-name">إدارة تطبيق حصاحيصاوي</div>
-              <div class="sig-role">القسم القانوني</div>
-              ${isApproved ? `<div style="margin-top:8px;color:#10B981;font-size:14px;font-weight:800;">✓ معتمد إلكترونياً</div>` : ""}
+          .draft-banner {
+            background: linear-gradient(90deg, #FEF2F2, #FEF3C7);
+            border: 2px dashed #DC2626;
+            color: #991B1B;
+            text-align: center; padding: 10px 14px; border-radius: 8px;
+            font-weight: 800; font-size: 14px; margin-bottom: 14px;
+            letter-spacing: 0.5px;
+          }
+          .draft-banner small { display:block; color:#7C2D12; font-weight:600; font-size:10px; margin-top:3px; letter-spacing:0; }
+
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px dashed #9CA3AF; margin-bottom: 18px; }
+          .brand { font-size: 22px; font-weight: 800; color: #6B7280; margin: 0; }
+          .brand-sub { color: #6B7280; font-size: 11px; margin-top: 2px; }
+          .meta { text-align: left; font-size: 10px; color: #6B7280; line-height: 1.6; }
+          .meta b { color: #374151; }
+
+          .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #4B5563; margin: 8px 0 4px; }
+          .doc-sub   { text-align: center; font-size: 11px; color: #9CA3AF; margin-bottom: 18px; }
+
+          .preamble { background: #F9FAFB; border-right: 4px solid #9CA3AF; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
+          h3 { color: #4B5563; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #E5E7EB; }
+          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
+          .party { background: #ffffff; border: 1px dashed #D1D5DB; border-radius: 8px; padding: 12px; }
+          .party h4 { margin: 0 0 6px; color: #6B7280; font-size: 12px; }
+          .party .row { font-size: 11px; padding: 3px 0; color: #374151; }
+          .party .row b { color: #111827; }
+          ol.terms { padding-right: 22px; }
+          ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
+          ol.terms li b { color: #4B5563; }
+
+          .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
+          .sig-box { text-align: center; }
+          .sig-line { border-top: 1.5px dashed #9CA3AF; padding-top: 6px; font-size: 11px; color: #6B7280; margin-top: 36px; }
+          .sig-pending { color:#9CA3AF; font-style:italic; font-size:11px; margin-top:6px; }
+
+          .notice {
+            margin-top: 24px; background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px;
+            padding:12px 14px; color:#92400E; font-size:11px; line-height:1.7;
+          }
+          .notice b { color:#78350F; }
+
+          .footer { margin-top: 24px; padding-top: 10px; border-top: 1px dashed #D1D5DB; text-align: center; color: #9CA3AF; font-size: 9px; line-height: 1.6; }
+        </style></head><body>
+        <div class="page">
+          <div class="draft-banner">
+            ⚠️ نموذج / مسودّة عقد — غير موثّق ولا يُحتجّ به أمام أي جهة
+            <small>هذه نسخة أولية للاطلاع فقط، تصدر قبل اعتماد الطلب من إدارة المنصة</small>
+          </div>
+
+          <div class="header">
+            <div>
+              <h1 class="brand">⚖️ تطبيق حصاحيصاوي</h1>
+              <div class="brand-sub">القسم القانوني — مدينة الحصاحيصا، السودان</div>
+            </div>
+            <div class="meta">
+              <div>مرجع المسودّة: <b>${contractNo}</b></div>
+              <div>التاريخ الميلادي: <b>${dStr}</b></div>
+              ${hijri ? `<div>التاريخ الهجري: <b>${hijri}</b></div>` : ""}
+              <div>الحالة: <b style="color:#DC2626">قيد المراجعة — لم يُعتمد بعد</b></div>
             </div>
           </div>
-          <div class="sig-box">
-            <div style="font-size:11px;color:#666;margin-bottom:4px;">الطرف الثاني</div>
-            <div class="sig-line">
-              <div class="sig-name">${full.full_name}</div>
-              <div class="sig-role">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
-              <div style="margin-top:8px;color:#10B981;font-size:11px;">✓ موافق إلكترونياً عبر التطبيق بتاريخ ${new Date(full.created_at).toLocaleDateString("ar-SD")}</div>
+
+          <div class="doc-title">مسودّة عقد انضمام محامٍ إلى منصة حصاحيصاوي</div>
+          <div class="doc-sub">Lawyer Onboarding Agreement — DRAFT (Unverified)</div>
+
+          ${preamble}
+
+          <div class="sigs">
+            <div class="sig-box">
+              <div style="font-size:11px;color:#9CA3AF;margin-bottom:4px;">الطرف الأول</div>
+              <div class="sig-line">
+                <div style="font-weight:700;font-size:12px;color:#6B7280;">إدارة تطبيق حصاحيصاوي</div>
+                <div style="color:#9CA3AF;font-size:10px;margin-top:2px;">القسم القانوني</div>
+                <div class="sig-pending">— لم يُعتمد بعد —</div>
+              </div>
+            </div>
+            <div class="sig-box">
+              <div style="font-size:11px;color:#9CA3AF;margin-bottom:4px;">الطرف الثاني</div>
+              <div class="sig-line">
+                <div style="font-weight:700;font-size:12px;color:#6B7280;">${full.full_name}</div>
+                <div style="color:#9CA3AF;font-size:10px;margin-top:2px;">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
+                <div class="sig-pending">— بانتظار اعتماد الإدارة —</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="footer">
-          هذه نسخة إلكترونية من العقد صادرة من تطبيق حصاحيصاوي · رقم التحقق:
-          <span class="verify">${contractNo}-${String(full.created_at).slice(0,10).replace(/-/g,"")}</span>
-          <br/>للاستعلام أو الإبلاغ عن أي تعديل، يُرجى التواصل مع الإدارة عبر التطبيق.
+          <div class="notice">
+            <b>تنبيه قانوني:</b> هذه الوثيقة عبارة عن <b>نموذج/مسودّة</b> صادر بصورة آلية من تطبيق حصاحيصاوي،
+            وهي <b>غير موثّقة وغير معتمدة</b> ولا تحمل أي ختم رسمي أو رقم تحقق، ولا تترتّب عليها أي آثار قانونية.
+            بمجرّد اعتماد الطلب من إدارة المنصة، ستصدر النسخة الرسمية الموثّقة بختم الاعتماد ورمز التحقق العام.
+          </div>
+
+          <div class="footer">
+            مسودّة آلية صادرة من تطبيق حصاحيصاوي — لا تُعتبر عقداً سارياً.
+          </div>
         </div>
       </body></html>`;
+
+      // ──────────────────────────────────────────────────────
+      // (2) صيغة العقد الموثّق رسمياً (بعد الاعتماد)
+      // ──────────────────────────────────────────────────────
+      const notarizedHtml = `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
+        <style>
+          @page { size: A4; margin: 18mm 16mm; }
+          * { box-sizing: border-box; }
+          html, body { margin:0; padding:0; }
+          body {
+            font-family: -apple-system, "Helvetica Neue", "Segoe UI", Tahoma, Arial;
+            color: #111827; line-height: 1.85; font-size: 13px; position: relative;
+          }
+          /* علامة مائية ناعمة "موثّق" */
+          body::before {
+            content: "✓ موثّق رسمياً";
+            position: fixed; top: 38%; left: 0; right: 0;
+            transform: rotate(-18deg);
+            text-align: center; font-size: 110px; font-weight: 900;
+            color: rgba(16, 185, 129, 0.06);
+            letter-spacing: 6px; pointer-events: none; z-index: 0;
+          }
+          .page { position: relative; z-index: 1; }
+
+          .verified-banner {
+            background: linear-gradient(90deg, #ECFDF5, #D1FAE5);
+            border: 2px solid #10B981;
+            color: #065F46;
+            text-align: center; padding: 10px 14px; border-radius: 8px;
+            font-weight: 800; font-size: 14px; margin-bottom: 14px;
+            letter-spacing: 0.5px;
+          }
+          .verified-banner small { display:block; color:#047857; font-weight:600; font-size:10px; margin-top:3px; letter-spacing:0; }
+
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 3px double #10B981; margin-bottom: 18px; }
+          .brand { font-size: 22px; font-weight: 800; color: #065F46; margin: 0; }
+          .brand-sub { color: #047857; font-size: 11px; margin-top: 2px; }
+          .meta { text-align: left; font-size: 10px; color: #374151; line-height: 1.6; }
+          .meta b { color: #065F46; }
+
+          .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #064E3B; margin: 8px 0 4px; letter-spacing: 0.5px; }
+          .doc-sub   { text-align: center; font-size: 11px; color: #047857; margin-bottom: 18px; }
+
+          /* ختم دائري احترافي */
+          .seal-wrap { position: absolute; top: 84px; left: 30px; z-index: 5; transform: rotate(-12deg); }
+          .seal {
+            width: 130px; height: 130px; border-radius: 50%;
+            border: 4px double #047857;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(16,185,129,0.07);
+            color: #047857; text-align: center; font-weight: 900;
+            box-shadow: 0 0 0 2px rgba(16,185,129,0.25) inset;
+            position: relative;
+          }
+          .seal::before {
+            content: ""; position: absolute; inset: 8px; border: 1px dashed #047857; border-radius: 50%;
+          }
+          .seal-inner { font-size: 11px; line-height: 1.4; }
+          .seal-inner .big { display:block; font-size:15px; margin: 2px 0; }
+          .seal-inner .small { display:block; font-size:8px; color:#065F46; }
+
+          .preamble { background: #F0FDF4; border-right: 4px solid #10B981; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
+          h3 { color: #064E3B; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #D1FAE5; }
+          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
+          .party { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; }
+          .party h4 { margin: 0 0 6px; color: #047857; font-size: 12px; }
+          .party .row { font-size: 11px; padding: 3px 0; color: #1F2937; }
+          .party .row b { color: #000; }
+          ol.terms { padding-right: 22px; }
+          ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
+          ol.terms li b { color: #065F46; }
+
+          .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+          .sig-box { text-align: center; }
+          .sig-line { border-top: 1.5px solid #065F46; padding-top: 6px; font-size: 11px; color: #1F2937; margin-top: 36px; }
+          .sig-name { font-weight: 800; font-size: 12px; color: #065F46; }
+          .sig-role { color: #047857; font-size: 10px; margin-top: 2px; }
+          .sig-stamp { margin-top: 8px; color: #047857; font-size: 12px; font-weight: 800; }
+
+          .verify-block {
+            margin-top: 26px; display:grid; grid-template-columns: 140px 1fr; gap: 14px;
+            background:#F0FDF4; border: 1.5px solid #10B981; border-radius: 10px; padding: 12px;
+            align-items: center;
+          }
+          .verify-block img { width:130px; height:130px; border:1px solid #D1FAE5; background:#fff; border-radius:6px; }
+          .verify-block .info { font-size: 11px; color: #064E3B; line-height: 1.85; }
+          .verify-block .info b { color: #047857; }
+          .verify-block .sig-hash { font-family: "Courier New", monospace; background:#fff; border:1px dashed #10B981; padding:4px 8px; border-radius:4px; font-size:10px; color:#064E3B; display:inline-block; margin-top:4px; word-break: break-all; }
+
+          .footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #D1FAE5; text-align: center; color: #047857; font-size: 9px; line-height: 1.6; }
+        </style></head><body>
+        <div class="page">
+          <div class="verified-banner">
+            ✅ عقد موثّق رسمياً ومعتمد من إدارة منصة حصاحيصاوي
+            <small>وثيقة سارية المفعول — يمكن التحقّق من صحتها عبر رمز الاستجابة السريعة أدناه</small>
+          </div>
+
+          <div class="seal-wrap">
+            <div class="seal">
+              <div class="seal-inner">
+                <span class="small">★ ختم الاعتماد ★</span>
+                <span class="big">موثّق</span>
+                <span class="small">القسم القانوني</span>
+                <span class="small">${contractNo}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header">
+            <div>
+              <h1 class="brand">⚖️ تطبيق حصاحيصاوي</h1>
+              <div class="brand-sub">القسم القانوني — مدينة الحصاحيصا، السودان</div>
+            </div>
+            <div class="meta">
+              <div>رقم العقد: <b>${contractNo}</b></div>
+              <div>تاريخ الإصدار: <b>${dStr}</b></div>
+              ${hijri ? `<div>التاريخ الهجري: <b>${hijri}</b></div>` : ""}
+              <div>تاريخ الاعتماد: <b>${new Date(approvedAt).toLocaleDateString("ar-SD")}</b></div>
+              <div>الحالة: <b style="color:#047857">معتمد ✓</b></div>
+            </div>
+          </div>
+
+          <div class="doc-title">عقد انضمام محامٍ إلى منصة حصاحيصاوي</div>
+          <div class="doc-sub">Lawyer Onboarding Agreement — Notarized</div>
+
+          ${preamble}
+
+          <div class="sigs">
+            <div class="sig-box">
+              <div style="font-size:11px;color:#374151;margin-bottom:4px;">الطرف الأول</div>
+              <div class="sig-line">
+                <div class="sig-name">إدارة تطبيق حصاحيصاوي</div>
+                <div class="sig-role">القسم القانوني</div>
+                <div class="sig-stamp">✓ معتمد إلكترونياً بختم رسمي</div>
+              </div>
+            </div>
+            <div class="sig-box">
+              <div style="font-size:11px;color:#374151;margin-bottom:4px;">الطرف الثاني</div>
+              <div class="sig-line">
+                <div class="sig-name">${full.full_name}</div>
+                <div class="sig-role">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
+                <div class="sig-stamp" style="font-size:11px;">✓ موافقة موثّقة عبر التطبيق<br/>بتاريخ ${new Date(full.created_at).toLocaleDateString("ar-SD")}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verify-block">
+            <img src="${qrSrc}" alt="QR التحقق"/>
+            <div class="info">
+              <div><b>التحقّق من صحة الوثيقة</b></div>
+              <div>رقم العقد: <b>${contractNo}</b></div>
+              <div>رمز التحقّق العام: <b>${contractNo}-${String(approvedAt).slice(0,10).replace(/-/g,"")}</b></div>
+              <div>التوقيع الرقمي (FNV‑1a): <span class="sig-hash">${digSig}</span></div>
+              <div style="margin-top:6px;">رابط التحقّق: <span class="sig-hash">${verifyUrl}</span></div>
+              <div style="margin-top:4px;color:#064E3B;">امسح رمز QR للتحقّق الفوري من حالة الاعتماد عبر خادم المنصة الرسمي.</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            وثيقة إلكترونية موثّقة صادرة من تطبيق حصاحيصاوي · أي تعديل أو محو يُبطل صلاحيتها · جميع الحقوق محفوظة © ${today.getFullYear()}
+          </div>
+        </div>
+      </body></html>`;
+
+      const html = isApproved ? notarizedHtml : draftHtml;
 
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync())

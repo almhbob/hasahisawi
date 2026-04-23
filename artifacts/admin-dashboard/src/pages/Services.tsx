@@ -378,8 +378,8 @@ export default function Services() {
                   cost: "$7",
                   priority: "حرجة", priorityColor: C.red,
                   status: "تنتهي 20 مايو 2026", statusColor: C.red,
-                  btnLabel: "ترقية الآن", btnColor: C.red,
-                  href: "https://dashboard.render.com/new/database",
+                  btnLabel: "ترقية الخطة", btnColor: C.red,
+                  href: "https://dashboard.render.com/d/dpg-d7iqkae7r5hc73cd8icg-a",
                 },
                 {
                   service: "🔥 Firebase",
@@ -387,8 +387,8 @@ export default function Services() {
                   cost: "$0*",
                   priority: "متوسطة", priorityColor: C.yellow,
                   status: "Spark مجاني", statusColor: C.green,
-                  btnLabel: "ترقية مجانية",  btnColor: C.orange,
-                  href: "https://console.firebase.google.com/project/hasahisawi/usage/details",
+                  btnLabel: "ترقية الخطة",  btnColor: C.orange,
+                  href: "https://console.firebase.google.com/project/hasahisawi/settings/usage",
                 },
                 {
                   service: "🐙 GitHub",
@@ -466,7 +466,7 @@ export default function Services() {
             <ActionBtn href={RENDER_SVC_URL}                              icon="📊" label="لوحة التحكم"   color={C.green} />
             <ActionBtn href={`${RENDER_SVC_URL}/logs`}                   icon="📄" label="سجلات التشغيل" color={C.green} outline />
             <ActionBtn href={`${RENDER_SVC_URL}/settings`}               icon="⚙️" label="الإعدادات"      color={C.green} outline />
-            <ActionBtn href="https://dashboard.render.com/billing"        icon="💳" label="الفواتير"        color={C.muted} outline />
+            <ActionBtn href="https://dashboard.render.com/billing/info"   icon="💳" label="الفواتير"        color={C.muted} outline />
           </div>
           <div style={{
             marginTop: 14, padding: "10px 14px", borderRadius: 8,
