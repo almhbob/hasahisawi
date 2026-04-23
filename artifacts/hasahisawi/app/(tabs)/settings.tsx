@@ -2635,20 +2635,20 @@ export default function SettingsScreen() {
               <Text style={sub_s.groupTitle}>الخدمات المدفوعة</Text>
             </View>
 
-            {/* Replit */}
+            {/* Render — الخادم الفعلي */}
             <View style={[sub_s.card, sub_s.cardPaid]}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#F2620720" }]}>
-                <Ionicons name="server-outline" size={22} color="#F26207" />
+              <View style={[sub_s.iconBox, { backgroundColor: "#46E3B720" }]}>
+                <Ionicons name="server-outline" size={22} color="#46E3B7" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Replit Core</Text>
+                  <Text style={sub_s.cardName}>Render — Web Service + DB</Text>
                   <View style={[sub_s.planBadge, { backgroundColor: "#EF444420" }]}>
                     <Text style={[sub_s.planText, { color: "#EF4444" }]}>● مدفوع</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  استضافة الخادم الخلفي (Express) وقاعدة البيانات (PostgreSQL) — العمود الفقري للتطبيق
+                  استضافة الخادم الخلفي (Express) وقاعدة البيانات (PostgreSQL) على hasahisawi.onrender.com — العمود الفقري للتطبيق
                 </Text>
                 <View style={sub_s.tagRow}>
                   <View style={sub_s.tag}><Text style={sub_s.tagText}>API Server</Text></View>
@@ -2657,8 +2657,8 @@ export default function SettingsScreen() {
                 </View>
               </View>
               <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#F26207" }]}
-                onPress={() => Linking.openURL("https://replit.com/pricing")}
+                style={[sub_s.payBtn, { backgroundColor: "#46E3B7" }]}
+                onPress={() => Linking.openURL("https://dashboard.render.com/billing/info")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="card-outline" size={15} color="#fff" />
@@ -2694,7 +2694,7 @@ export default function SettingsScreen() {
               </View>
               <TouchableOpacity
                 style={[sub_s.payBtn, { backgroundColor: "#F57F17" }]}
-                onPress={() => Linking.openURL("https://console.firebase.google.com")}
+                onPress={() => Linking.openURL("https://console.firebase.google.com/project/hasahisawi/authentication")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={15} color="#fff" />
@@ -2724,7 +2724,7 @@ export default function SettingsScreen() {
               </View>
               <TouchableOpacity
                 style={[sub_s.payBtn, { backgroundColor: "#4630EB" }]}
-                onPress={() => Linking.openURL("https://expo.dev/settings/billing")}
+                onPress={() => Linking.openURL("https://expo.dev/accounts/almhbob2026/settings/billing")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={15} color="#fff" />
