@@ -96,6 +96,24 @@ uri = "file://exports/hasahisawi_legal_poster_4k_v2.png"
 type = "image"
 title = "hasahisawi branded legal poster 4K v2"
 
+[[generated]]
+id = "9McggupcRw2mHnvrhETw1"
+uri = "file://exports/post_intro.png"
+type = "image"
+title = "hasahisawi intro post design"
+
+[[generated]]
+id = "-nFEMTXdjXIw7aMbOZ9Jn"
+uri = "file://exports/post_motivational.png"
+type = "image"
+title = "hasahisawi motivational post design"
+
+[[generated]]
+id = "egusFrhKSQmHkyk9wGxyl"
+uri = "file://exports/post_update.png"
+type = "image"
+title = "hasahisawi update announcement post"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
@@ -389,3 +407,21 @@ id = "czm8JaQ-RFCz0WQSFeFJU"
 uri = "file://exports/hasahisawi_proposal_2025.pdf"
 type = "pdf"
 title = "الكتيّب التعريفي الشامل — جودة 4K | أرقام مصححة"
+
+[[outputs]]
+id = "ukgy4Sb7oNcZCsJhKd94J"
+uri = "file://exports/post_intro.png"
+type = "image"
+title = "① منشور تعريفي عام"
+
+[[outputs]]
+id = "ZRwzrwhlAZXeIVM4xND5w"
+uri = "file://exports/post_motivational.png"
+type = "image"
+title = "② منشور تحفيزي"
+
+[[outputs]]
+id = "aHHWLQjbTLtAu-kkS-RBO"
+uri = "file://exports/post_update.png"
+type = "image"
+title = "③ إعلان تحديث"
