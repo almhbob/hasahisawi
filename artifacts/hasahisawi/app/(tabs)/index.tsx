@@ -746,10 +746,10 @@ export default function HomeScreen() {
                 <Text style={styles.devContactTitle}>وسائل التواصل</Text>
                 <View style={styles.devContactGrid}>
                   {[
-                    { icon: "logo-whatsapp", color: "#25D366", label: "واتساب",  url: "https://wa.me/966530658285" },
+                    { icon: "logo-whatsapp", color: "#25D366", label: "واتساب",  url: "https://wa.me/966597083352" },
                     { icon: "logo-linkedin", color: "#0A66C2", label: "لينكدإن", url: "https://www.linkedin.com/in/asim-abdulrahman" },
                     { icon: "logo-facebook", color: "#1877F2", label: "فيسبوك",  url: "https://www.facebook.com/almhbob2013" },
-                    { icon: "mail",          color: Colors.cyber, label: "الإيميل", url: "mailto:almhbob.iii@gmail.com" },
+                    { icon: "mail",          color: Colors.cyber, label: "الإيميل", url: "mailto:Hasahisawi@hotmail.com" },
                   ].map(item => (
                     <AnimatedPress key={item.url} onPress={() => Linking.openURL(item.url)}>
                       <View style={[styles.devContactBtn, { borderColor: item.color + "50", backgroundColor: item.color + "12" }]}>

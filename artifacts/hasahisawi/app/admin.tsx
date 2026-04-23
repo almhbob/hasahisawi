@@ -319,7 +319,7 @@ export default function AdminDashboard() {
   const [showAdsSettingsModal, setShowAdsSettingsModal] = useState(false);
 
   // ── Contract Settings ──
-  const [contractWhatsapp, setContractWhatsapp] = useState("+966530658285");
+  const [contractWhatsapp, setContractWhatsapp] = useState("+966597083352");
   const [savingContractSettings, setSavingContractSettings] = useState(false);
 
   // ── Neighborhoods ──
@@ -421,12 +421,24 @@ export default function AdminDashboard() {
   }, [user]);
 
   // ── Data fetchers ────────────────────────────────────────────────────────
+  const [statsError, setStatsError] = useState<string | null>(null);
   const loadStats = useCallback(async () => {
     setLoadingStats(true);
+    setStatsError(null);
     try {
       const res = await apiFetch("/api/admin/dashboard-stats", token);
-      if (res.ok) setStats(await res.json());
-    } catch {}
+      if (res.ok) {
+        setStats(await res.json());
+      } else if (res.status === 401) {
+        setStatsError("الجلسة منتهية — يرجى تسجيل الدخول من جديد");
+      } else if (res.status === 403) {
+        setStatsError("ليس لديك صلاحية مدير. تواصل مع مدير النظام لمنحك الصلاحية.");
+      } else {
+        setStatsError(`فشل التحميل (رمز ${res.status})`);
+      }
+    } catch (e: any) {
+      setStatsError(`تعذّر الاتصال بالخادم: ${e?.message ?? "خطأ شبكة"}`);
+    }
     finally { setLoadingStats(false); }
   }, [token]);
 
@@ -751,7 +763,7 @@ export default function AdminDashboard() {
   const loadContractSettings = useCallback(async () => {
     try {
       const res = await apiFetch("/api/admin/contract-settings", token);
-      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966530658285"); }
+      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966597083352"); }
     } catch {}
   }, [token]);
 
@@ -990,7 +1002,6 @@ export default function AdminDashboard() {
     if (tab === "neighborhoods") loadNeighborhoods();
     if (tab === "ai_settings")   loadAiSettings();
     if (tab === "security")      loadSecurity();
-    if (tab === "transport")       loadTransportData();
     if (tab === "updates")         loadUpdates();
     if (tab === "libraries")       loadAdminLibraries();
     if (tab === "merchants_admin") loadAdminMerchants();
@@ -1393,7 +1404,7 @@ export default function AdminDashboard() {
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
-    { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true, badge: transportStats?.pendingDrivers || undefined },
+    { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
@@ -1550,7 +1561,10 @@ export default function AdminDashboard() {
               <TouchableOpacity
                 key={t.key}
                 style={[s.tabBtn, active && { backgroundColor: t.color + "20", borderColor: t.color + "80" }]}
-                onPress={() => setTab(t.key)}
+                onPress={() => {
+                  if (t.key === "transport") { router.push("/admin-transport" as any); return; }
+                  setTab(t.key);
+                }}
                 activeOpacity={0.75}
               >
                 <View style={{ position: "relative" }}>
@@ -1618,7 +1632,18 @@ export default function AdminDashboard() {
               </View>
             </>
           ) : (
-            <Text style={s.empty}>تعذّر تحميل البيانات</Text>
+            <View style={{ alignItems: "center", paddingHorizontal: 24, paddingTop: 60, gap: 16 }}>
+              <Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />
+              <Text style={[s.empty, { textAlign: "center" }]}>
+                {statsError ?? "تعذّر تحميل البيانات"}
+              </Text>
+              <TouchableOpacity
+                onPress={loadStats}
+                style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+              >
+                <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
       )}
@@ -2433,7 +2458,7 @@ export default function AdminDashboard() {
                 <TextInput
                   value={contractWhatsapp}
                   onChangeText={setContractWhatsapp}
-                  placeholder="+966530658285"
+                  placeholder="+966597083352"
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="phone-pad"
                   style={{
@@ -3300,595 +3325,6 @@ export default function AdminDashboard() {
         </ScrollView>
       )}
 
-      {/* ══ مشوارك علينا — لوحة الإشراف ══ */}
-      {tab === "transport" && isAdmin && (() => {
-        const TRANSPORT_ZONE_NAMES = ["قلب المدينة", "الأحياء الوسطى", "أطراف المدينة", "المناطق الفرعية", "القرى المحيطة"];
-        const ZONE_COLORS = ["#F97316", "#3E9CBF", "#A855F7", "#3EFF9C", "#FBBF24"];
-        const totalDrivers = transportStats ? transportStats.drivers.reduce((a:number,d:any)=>a+parseInt(d.cnt),0) : 0;
-        const approvedDrivers = transportStats ? (transportStats.drivers.find((d:any)=>d.status==="approved")?.cnt || 0) : 0;
-        const totalTrips = transportStats ? transportStats.trips.reduce((a:number,t:any)=>a+parseInt(t.cnt),0) : 0;
-        const pendingTrips = transportStats ? (transportStats.trips.find((t:any)=>t.status==="pending")?.cnt || 0) : 0;
-
-        return (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-
-            {/* ─── الشريط العلوي — النظرة الإجمالية ─── */}
-            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
-              {[
-                { label: "في انتظار القبول", val: transportStats?.pendingDrivers || 0, color: "#F97316", icon: "account-clock" },
-                { label: "سائق معتمد", val: Number(approvedDrivers), color: "#3EFF9C", icon: "steering" },
-                { label: "إجمالي الرحلات", val: totalTrips, color: "#3E9CBF", icon: "map-marker-path" },
-                { label: "رحلة انتظار", val: Number(pendingTrips), color: "#FBBF24", icon: "clock-outline" },
-              ].map((st, i) => (
-                <View key={i} style={{ flex: 1, backgroundColor: st.color + "15", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: st.color + "30", alignItems: "center", gap: 4 }}>
-                  <MaterialCommunityIcons name={st.icon as any} size={18} color={st.color} />
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: st.color }}>{st.val}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary, textAlign: "center" }}>{st.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* ─── شريط التنقل ─── */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 14, flexDirection: "row-reverse" }}>
-              {([
-                { v: "overview", label: "نظرة عامة", icon: "view-dashboard-outline" },
-                { v: "fares",    label: "جدول التعرفة", icon: "calculator-variant" },
-                { v: "drivers",  label: "السائقون", icon: "steering" },
-                { v: "trips",    label: "الرحلات", icon: "map-marker-path" },
-                { v: "settings", label: "الإعدادات", icon: "cog-outline" },
-              ] as const).map(nav => (
-                <TouchableOpacity key={nav.v} onPress={() => setTransportView(nav.v)}
-                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-                    backgroundColor: transportView === nav.v ? "#F97316" : Colors.cardBg,
-                    borderWidth: 1, borderColor: transportView === nav.v ? "#F97316" : Colors.divider }}>
-                  <MaterialCommunityIcons name={nav.icon} size={14} color={transportView === nav.v ? "#fff" : Colors.textSecondary} />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: transportView === nav.v ? "#fff" : Colors.textSecondary }}>
-                    {nav.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {loadingTransport && <ActivityIndicator color="#F97316" style={{ marginVertical: 20 }} />}
-
-            {/* ══ نظرة عامة ══ */}
-            {!loadingTransport && transportView === "overview" && (
-              <View style={{ gap: 12 }}>
-                {/* حالة الخدمة */}
-                <View style={s.card}>
-                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
-                      <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
-                        <MaterialCommunityIcons name="car-side" size={20} color="#F97316" />
-                      </View>
-                      <Text style={s.cardTitle}>حالة الخدمة</Text>
-                    </View>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6,
-                      backgroundColor: transportStatus === "available" ? "#3EFF9C20" : transportStatus === "maintenance" ? "#F59E0B20" : "#6366F120",
-                      paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
-                      borderWidth: 1, borderColor: transportStatus === "available" ? "#3EFF9C40" : transportStatus === "maintenance" ? "#F59E0B40" : "#6366F140" }}>
-                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }} />
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1" }}>
-                        {transportStatus === "available" ? "متاحة" : transportStatus === "maintenance" ? "قيد الصيانة" : "قريباً"}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                    <TouchableOpacity onPress={() => setTransportView("settings")}
-                      style={{ flex: 1, backgroundColor: "#F9731620", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#F9731640" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>إعدادات الخدمة</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setTransportView("fares")}
-                      style={{ flex: 1, backgroundColor: "#FBBF2420", borderRadius: 10, paddingVertical: 9, alignItems: "center", borderWidth: 1, borderColor: "#FBBF2440" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل التعرفة</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* توزيع السائقين */}
-                {transportStats && (
-                  <View style={s.card}>
-                    <View style={s.cardHeaderRow}>
-                      <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                        <MaterialCommunityIcons name="steering" size={20} color="#3EFF9C" />
-                      </View>
-                      <Text style={s.cardTitle}>توزيع السائقين</Text>
-                    </View>
-                    {[
-                      { label: "في انتظار المراجعة", status: "pending",  color: "#F97316" },
-                      { label: "معتمدون",            status: "approved", color: "#3EFF9C" },
-                      { label: "مرفوضون",            status: "rejected", color: "#E05567" },
-                    ].map(r => {
-                      const cnt = Number(transportStats.drivers.find((d:any) => d.status === r.status)?.cnt || 0);
-                      const pct = totalDrivers > 0 ? (cnt / totalDrivers) * 100 : 0;
-                      return (
-                        <View key={r.status} style={{ marginBottom: 10 }}>
-                          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 4 }}>
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{r.label}</Text>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: r.color }}>{cnt}</Text>
-                          </View>
-                          <View style={{ height: 6, backgroundColor: Colors.divider, borderRadius: 3 }}>
-                            <View style={{ height: 6, width: `${pct}%` as any, backgroundColor: r.color, borderRadius: 3 }} />
-                          </View>
-                        </View>
-                      );
-                    })}
-                    <TouchableOpacity onPress={() => { setTransportDriverFilter("pending"); setTransportView("drivers"); }}
-                      style={{ alignSelf: "flex-end", marginTop: 6 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>
-                        مراجعة طلبات الانضمام ({transportStats.pendingDrivers}) ←
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* توزيع الرحلات */}
-                {transportStats && (
-                  <View style={s.card}>
-                    <View style={s.cardHeaderRow}>
-                      <View style={[s.cardIcon, { backgroundColor: "#3E9CBF20" }]}>
-                        <MaterialCommunityIcons name="map-marker-path" size={20} color="#3E9CBF" />
-                      </View>
-                      <Text style={s.cardTitle}>حالة الرحلات</Text>
-                    </View>
-                    {[
-                      { label: "انتظار",    status: "pending",   color: "#FBBF24" },
-                      { label: "جارية",    status: "accepted",  color: "#3E9CBF" },
-                      { label: "مكتملة",  status: "completed", color: "#3EFF9C" },
-                      { label: "ملغاة",   status: "cancelled", color: "#E05567" },
-                    ].map(r => {
-                      const cnt = Number(transportStats.trips.find((t:any) => t.status === r.status)?.cnt || 0);
-                      return (
-                        <View key={r.status} style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.divider }}>
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary }}>{r.label}</Text>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: r.color }}>{cnt}</Text>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: r.color }} />
-                          </View>
-                        </View>
-                      );
-                    })}
-                    <TouchableOpacity onPress={() => { setTransportTripFilter("pending"); setTransportView("trips"); }}
-                      style={{ alignSelf: "flex-end", marginTop: 10 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3EFF9C" }}>عرض الرحلات ←</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* خلاصة التعرفة */}
-                <View style={s.card}>
-                  <View style={s.cardHeaderRow}>
-                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
-                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
-                    </View>
-                    <Text style={s.cardTitle}>ملخص التعرفة الحالية</Text>
-                  </View>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 }}>
-                    التعرفة الأساسية داخل المنطقة الواحدة (بالجنيه السوداني)
-                  </Text>
-                  <View style={{ flexDirection: "row-reverse", gap: 6 }}>
-                    {[1,2,3,4,5].map(z => {
-                      const fare = fareMatrix[z]?.[z];
-                      return (
-                        <View key={z} style={{ flex: 1, backgroundColor: ZONE_COLORS[z-1] + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: ZONE_COLORS[z-1] + "30" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: ZONE_COLORS[z-1] }}>م{z}</Text>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, marginTop: 4 }}>{fare?.car || "—"}</Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>سيارة</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <TouchableOpacity onPress={() => setTransportView("fares")} style={{ alignSelf: "flex-end", marginTop: 10 }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>تعديل الجدول الكامل ←</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* ══ جدول التعرفة ══ */}
-            {!loadingTransport && transportView === "fares" && (
-              <View style={{ gap: 10 }}>
-                <View style={s.card}>
-                  <View style={s.cardHeaderRow}>
-                    <View style={[s.cardIcon, { backgroundColor: "#FBBF2420" }]}>
-                      <MaterialCommunityIcons name="calculator-variant" size={20} color="#FBBF24" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.cardTitle}>جدول التعرفة (بالجنيه السوداني)</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
-                        يمكنك تعديل التعرفة بين أي منطقتين لكل نوع مركبة
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 }}>
-                    أيقونات الأعمدة: 🚗 سيارة · 🛺 ركشة · 📦 توصيل
-                  </Text>
-                </View>
-
-                {[1,2,3,4,5].map(fromZ => (
-                  <View key={fromZ} style={s.card}>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: ZONE_COLORS[fromZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: ZONE_COLORS[fromZ-1] }}>م{fromZ}</Text>
-                      </View>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>
-                        من: {TRANSPORT_ZONE_NAMES[fromZ-1]}
-                      </Text>
-                    </View>
-                    <View style={{ gap: 8 }}>
-                      {[1,2,3,4,5].map(toZ => {
-                        const key = `${fromZ}-${toZ}`;
-                        const ef = editingFares[key] || { car: "", rickshaw: "", delivery: "" };
-                        return (
-                          <View key={toZ} style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: ZONE_COLORS[toZ-1] + "30" }}>
-                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: ZONE_COLORS[toZ-1] + "25", alignItems: "center", justifyContent: "center" }}>
-                                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: ZONE_COLORS[toZ-1] }}>م{toZ}</Text>
-                              </View>
-                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>
-                                إلى: {TRANSPORT_ZONE_NAMES[toZ-1]}
-                              </Text>
-                            </View>
-                            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
-                              {([
-                                { field: "car" as const,      label: "🚗", placeholder: "سيارة" },
-                                { field: "rickshaw" as const,  label: "🛺", placeholder: "ركشة"  },
-                                { field: "delivery" as const,  label: "📦", placeholder: "توصيل" },
-                              ]).map(inp => (
-                                <View key={inp.field} style={{ flex: 1, alignItems: "center", gap: 3 }}>
-                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12 }}>{inp.label}</Text>
-                                  <TextInput
-                                    style={{ backgroundColor: Colors.cardBg, borderRadius: 6, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 6, paddingVertical: 5, fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "center", width: "100%" }}
-                                    value={ef[inp.field]}
-                                    onChangeText={v => updateFareField(fromZ, toZ, inp.field, v)}
-                                    keyboardType="numeric"
-                                    placeholder={inp.placeholder}
-                                    placeholderTextColor={Colors.textMuted}
-                                  />
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
-
-                <TouchableOpacity onPress={saveFares} disabled={savingFares}
-                  style={{ backgroundColor: "#FBBF24", borderRadius: 14, paddingVertical: 14, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 20 }}>
-                  <MaterialCommunityIcons name="content-save-outline" size={18} color="#000" />
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000" }}>
-                    {savingFares ? "جارٍ حفظ التعرفة..." : "حفظ جدول التعرفة كاملاً"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* ══ السائقون ══ */}
-            {!loadingTransport && transportView === "drivers" && (
-              <View style={s.card}>
-                <View style={s.cardHeaderRow}>
-                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
-                    <MaterialCommunityIcons name="steering" size={20} color="#F97316" />
-                  </View>
-                  <Text style={s.cardTitle}>إدارة السائقين</Text>
-                </View>
-
-                <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 12 }}>
-                  {(["pending", "approved", "rejected", "all"] as const).map(f => (
-                    <TouchableOpacity key={f} onPress={() => setTransportDriverFilter(f)}
-                      style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: "center",
-                        backgroundColor: transportDriverFilter === f ? "#F97316" : Colors.bg,
-                        borderWidth: 1, borderColor: transportDriverFilter === f ? "#F97316" : Colors.divider }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
-                        color: transportDriverFilter === f ? "#fff" : Colors.textSecondary }}>
-                        {f === "pending" ? "انتظار" : f === "approved" ? "مقبول" : f === "rejected" ? "مرفوض" : "الكل"}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity onPress={loadTransportData}
-                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
-                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
-                </TouchableOpacity>
-
-                {transportDrivers.length === 0
-                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا يوجد سائقون في هذه الفئة</Text>
-                  : transportDrivers.map(driver => (
-                    <Animated.View entering={FadeInDown.springify()} key={driver.id}
-                      style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1,
-                        borderColor: driver.status === "approved" ? "#3EFF9C30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }}>
-                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#F9731620", alignItems: "center", justifyContent: "center" }}>
-                          <MaterialCommunityIcons name={driver.vehicle_type === "ركشة" ? "rickshaw" : "steering"} size={22} color="#F97316" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{driver.name}</Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
-                            {driver.vehicle_type} · {driver.phone}
-                          </Text>
-                        </View>
-                        <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-                          backgroundColor: driver.status === "approved" ? "#3EFF9C20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11,
-                            color: driver.status === "approved" ? "#3EFF9C" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
-                            {driver.status === "approved" ? "معتمد" : driver.status === "rejected" ? "مرفوض" : "انتظار"}
-                          </Text>
-                        </View>
-                      </View>
-                      {driver.area ? (
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>
-                          📍 {driver.area} | اللوحة: {driver.plate || "—"}
-                        </Text>
-                      ) : null}
-                      {driver.vehicle_desc ? (
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
-                          {driver.vehicle_desc}
-                        </Text>
-                      ) : null}
-                      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                        {driver.status !== "approved" && (
-                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "approved")}
-                            style={{ flex: 1, backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C40" }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>✓ قبول</Text>
-                          </TouchableOpacity>
-                        )}
-                        {driver.status !== "rejected" && (
-                          <TouchableOpacity onPress={() => approveTransportDriver(driver, "rejected")}
-                            style={{ flex: 1, backgroundColor: "#E0556720", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#E0556740" }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#E05567" }}>✗ رفض</Text>
-                          </TouchableOpacity>
-                        )}
-                        {driver.phone ? (
-                          <TouchableOpacity onPress={() => Linking.openURL(`tel:${driver.phone}`)}
-                            style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C30" }}>
-                            <Ionicons name="call-outline" size={16} color="#3EFF9C" />
-                          </TouchableOpacity>
-                        ) : null}
-                        <TouchableOpacity onPress={() => deleteTransportDriver(driver.id)}
-                          style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
-                          <Ionicons name="trash-outline" size={16} color={Colors.textMuted} />
-                        </TouchableOpacity>
-                      </View>
-                    </Animated.View>
-                  ))}
-              </View>
-            )}
-
-            {/* ══ الرحلات ══ */}
-            {!loadingTransport && transportView === "trips" && (
-              <View style={s.card}>
-                <View style={s.cardHeaderRow}>
-                  <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                    <MaterialCommunityIcons name="map-marker-path" size={20} color="#3EFF9C" />
-                  </View>
-                  <Text style={s.cardTitle}>مراقبة الرحلات والتوصيل</Text>
-                </View>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12, flexDirection: "row-reverse" }}>
-                  {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
-                    <TouchableOpacity key={f} onPress={() => setTransportTripFilter(f)}
-                      style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
-                        backgroundColor: transportTripFilter === f ? "#3EFF9C20" : Colors.bg,
-                        borderWidth: 1, borderColor: transportTripFilter === f ? "#3EFF9C" : Colors.divider }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
-                        color: transportTripFilter === f ? "#3EFF9C" : Colors.textSecondary }}>
-                        {f === "all" ? "الكل" : f === "pending" ? "انتظار" : f === "accepted" ? "جارية" : f === "completed" ? "مكتملة" : "ملغاة"}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <TouchableOpacity onPress={loadTransportData}
-                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, alignSelf: "flex-end" }}>
-                  <Ionicons name="refresh-outline" size={15} color={Colors.primary} />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>تحديث</Text>
-                </TouchableOpacity>
-
-                {transportTrips.length === 0
-                  ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", paddingVertical: 24 }}>لا توجد رحلات في هذه الفئة</Text>
-                  : transportTrips.map(trip => {
-                    const sc = trip.status === "completed" ? "#3EFF9C" : trip.status === "cancelled" ? "#E05567" : trip.status === "accepted" ? "#3E9CBF" : "#F97316";
-                    const sl = trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "جارية" : trip.status === "completed" ? "مكتملة" : "ملغاة";
-                    return (
-                      <Animated.View entering={FadeInDown.springify()} key={trip.id}
-                        style={{ backgroundColor: Colors.bg, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: sc + "30" }}>
-                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                            <MaterialCommunityIcons
-                              name={trip.trip_type === "delivery" ? "package-variant" : "car-side"}
-                              size={16} color="#F97316" />
-                            <View>
-                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>{trip.user_name}</Text>
-                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{trip.user_phone}</Text>
-                            </View>
-                          </View>
-                          <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: sc + "20", borderWidth: 1, borderColor: sc + "40" }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: sc }}>{sl}</Text>
-                          </View>
-                        </View>
-
-                        <View style={{ gap: 4, marginBottom: 8 }}>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#3EFF9C" }} />
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
-                              {(trip as any).from_zone ? `منطقة ${(trip as any).from_zone} — ` : ""}{trip.from_location}
-                            </Text>
-                          </View>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F97316" }} />
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
-                              {(trip as any).to_zone ? `منطقة ${(trip as any).to_zone} — ` : ""}{trip.to_location}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* التعرفة التقديرية */}
-                        {trip.fare_estimate ? (
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6, backgroundColor: "#FBBF2415", borderRadius: 8, padding: 6 }}>
-                            <MaterialCommunityIcons name="calculator-variant" size={13} color="#FBBF24" />
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FBBF24" }}>
-                              التعرفة التقديرية: {trip.fare_estimate.toLocaleString("ar-SD")} جنيه
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        {/* وصف الشحنة (للتوصيل) */}
-                        {trip.delivery_desc ? (
-                          <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 6, marginBottom: 8, backgroundColor: "#F9731610", borderRadius: 8, padding: 8 }}>
-                            <MaterialCommunityIcons name="package-variant" size={14} color="#F97316" />
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 }}>
-                              {trip.delivery_desc}
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        {/* معلومات السائق */}
-                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                            <MaterialCommunityIcons name="steering" size={14} color={trip.driver_name ? "#3EFF9C" : Colors.textMuted} />
-                            <Text style={{ fontFamily: trip.driver_name ? "Cairo_600SemiBold" : "Cairo_400Regular", fontSize: 12, color: trip.driver_name ? "#3EFF9C" : Colors.textMuted }}>
-                              {trip.driver_name ? trip.driver_name : "لم يُعيَّن سائق بعد"}
-                            </Text>
-                          </View>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
-                            {new Date(trip.created_at).toLocaleDateString("ar-SD")}
-                          </Text>
-                        </View>
-
-                        {/* أزرار الإجراءات */}
-                        <View style={{ flexDirection: "row-reverse", gap: 6 }}>
-                          {/* تعيين سائق — للرحلات المعلقة فقط */}
-                          {trip.status === "pending" && (
-                            <TouchableOpacity
-                              onPress={() => openAssignModal(trip.id)}
-                              disabled={updatingTripId === trip.id}
-                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
-                                backgroundColor: "#3E9CBF20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3E9CBF40" }}>
-                              <MaterialCommunityIcons name="steering" size={14} color="#3E9CBF" />
-                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3E9CBF" }}>تعيين سائق</Text>
-                            </TouchableOpacity>
-                          )}
-
-                          {/* إنهاء الرحلة — للرحلات الجارية */}
-                          {trip.status === "accepted" && (
-                            <TouchableOpacity
-                              onPress={() => updateTripStatus(trip.id, "completed")}
-                              disabled={updatingTripId === trip.id}
-                              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
-                                backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3EFF9C40" }}>
-                              {updatingTripId === trip.id
-                                ? <ActivityIndicator size="small" color="#3EFF9C" />
-                                : <>
-                                    <Ionicons name="checkmark-circle-outline" size={14} color="#3EFF9C" />
-                                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>إنهاء الرحلة</Text>
-                                  </>}
-                            </TouchableOpacity>
-                          )}
-
-                          {/* إلغاء — للمعلقة والجارية */}
-                          {(trip.status === "pending" || trip.status === "accepted") && (
-                            <TouchableOpacity
-                              onPress={() => updateTripStatus(trip.id, "cancelled")}
-                              disabled={updatingTripId === trip.id}
-                              style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
-                                backgroundColor: "#E0556715", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#E0556730" }}>
-                              <Ionicons name="close-circle-outline" size={14} color="#E05567" />
-                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#E05567" }}>إلغاء</Text>
-                            </TouchableOpacity>
-                          )}
-
-                          {/* حذف */}
-                          <TouchableOpacity onPress={() => deleteTransportTrip(trip.id)}
-                            style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10,
-                              alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.divider }}>
-                            <Ionicons name="trash-outline" size={15} color={Colors.textMuted} />
-                          </TouchableOpacity>
-                        </View>
-                      </Animated.View>
-                    );
-                  })}
-              </View>
-            )}
-
-            {/* ══ الإعدادات ══ */}
-            {!loadingTransport && transportView === "settings" && (
-              <View style={s.card}>
-                <View style={s.cardHeaderRow}>
-                  <View style={[s.cardIcon, { backgroundColor: "#F9731620" }]}>
-                    <Ionicons name="settings-outline" size={20} color="#F97316" />
-                  </View>
-                  <Text style={s.cardTitle}>إعدادات خدمة مشوارك علينا</Text>
-                </View>
-
-                <Text style={[s.fieldLabel, { marginBottom: 10 }]}>حالة الخدمة</Text>
-                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                  {([
-                    { key: "available",   label: "متاحة",         icon: "checkmark-circle", color: "#22C55E" },
-                    { key: "maintenance", label: "قيد الصيانة",   icon: "construct",        color: "#F59E0B" },
-                    { key: "coming_soon", label: "قريباً",        icon: "time",             color: "#6366F1" },
-                  ] as const).map(opt => {
-                    const active = transportStatus === opt.key;
-                    return (
-                      <TouchableOpacity
-                        key={opt.key}
-                        onPress={() => setTransportStatus(opt.key)}
-                        style={{
-                          flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12,
-                          borderWidth: 2,
-                          borderColor: active ? opt.color : Colors.divider,
-                          backgroundColor: active ? opt.color + "18" : Colors.cardBg,
-                          gap: 6,
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name={opt.icon as any} size={22} color={active ? opt.color : Colors.textMuted} />
-                        <Text style={{
-                          fontFamily: active ? "Cairo_700Bold" : "Cairo_500Medium",
-                          fontSize: 12,
-                          color: active ? opt.color : Colors.textMuted,
-                        }}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={[s.fieldHint, { marginTop: 8 }]}>
-                  {transportStatus === "available"   && "✅ الخدمة متاحة — يرى المستخدمون واجهة الحجز الكاملة"}
-                  {transportStatus === "maintenance" && "🔧 قيد الصيانة — يرى المستخدمون إشعار صيانة مؤقتة"}
-                  {transportStatus === "coming_soon" && "🕐 قريباً — يرى المستخدمون شاشة الإطلاق القادم"}
-                </Text>
-
-                <Text style={s.fieldLabel}>رقم هاتف دعم القسم (اختياري)</Text>
-                <TextInput style={s.fieldInput} value={transportPhone}
-                  onChangeText={setTransportPhone}
-                  placeholder="+249..." placeholderTextColor={Colors.textMuted}
-                  textAlign="right" keyboardType="phone-pad" />
-
-                <Text style={s.fieldLabel}>ملاحظة للمستخدمين عندما تكون الخدمة موقوفة</Text>
-                <TextInput style={[s.fieldInput, { minHeight: 72, textAlignVertical: "top" }]}
-                  value={transportNote} onChangeText={setTransportNote}
-                  placeholder="مثال: سيتم الإطلاق خلال أسبوعين..."
-                  placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
-
-                <TouchableOpacity
-                  onPress={saveTransportSettings}
-                  disabled={savingTransportSettings}
-                  style={{ backgroundColor: "#F97316", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 8, flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}>
-                  <Ionicons name="save-outline" size={16} color="#fff" />
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
-                    {savingTransportSettings ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-          </ScrollView>
-        );
-      })()}
-
       {/* ══ التحديثات ══ */}
       {tab === "updates" && isAdmin && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
@@ -4266,101 +3702,6 @@ export default function AdminDashboard() {
           )}
         </ScrollView>
       )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          ── مودال تعيين سائق للرحلة
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={showAssignModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => { setShowAssignModal(false); setAssigningTripId(null); }}
-      >
-        <Pressable style={ps.backdrop} onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}>
-          <Animated.View entering={FadeInDown.springify().damping(22)} style={[ps.sheet, { maxHeight: "80%" }]}>
-            <Pressable onPress={e => e.stopPropagation()}>
-              <View style={ps.handle} />
-
-              {/* العنوان */}
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                <MaterialCommunityIcons name="steering" size={22} color="#3E9CBF" />
-                <View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>تعيين سائق للرحلة</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>اختر من السائقين المعتمدين</Text>
-                </View>
-              </View>
-
-              {/* قائمة السائقين */}
-              {approvedDriversList.length === 0 ? (
-                <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                  <MaterialCommunityIcons name="account-off-outline" size={48} color={Colors.textMuted} />
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, marginTop: 10 }}>
-                    لا يوجد سائقون معتمدون حالياً
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
-                  {approvedDriversList.map(driver => {
-                    const vtIcon = driver.vehicle_type === "car" ? "car-side" :
-                                   driver.vehicle_type === "rickshaw" ? "rickshaw" : "package-variant";
-                    const vtLabel = driver.vehicle_type === "car" ? "سيارة" :
-                                    driver.vehicle_type === "rickshaw" ? "ركشة" : "توصيل";
-                    return (
-                      <TouchableOpacity
-                        key={driver.id}
-                        onPress={() => assignDriverToTrip(driver)}
-                        disabled={assigningTrip === driver.id}
-                        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12,
-                          padding: 14, borderRadius: 12, marginBottom: 8,
-                          backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider }}>
-                        {/* أيقونة المركبة */}
-                        <View style={{ width: 44, height: 44, borderRadius: 22,
-                          backgroundColor: "#3E9CBF20", alignItems: "center", justifyContent: "center" }}>
-                          <MaterialCommunityIcons name={vtIcon as any} size={20} color="#3E9CBF" />
-                        </View>
-                        {/* المعلومات */}
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{driver.name}</Text>
-                          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 2 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{vtLabel}</Text>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.area}</Text>
-                            {driver.rating > 0 ? (
-                              <>
-                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>•</Text>
-                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#FBBF24" }}>
-                                  ★ {driver.rating.toFixed(1)}
-                                </Text>
-                              </>
-                            ) : null}
-                          </View>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{driver.phone}</Text>
-                        </View>
-                        {/* حالة الاتصال */}
-                        <View style={{ alignItems: "center", gap: 4 }}>
-                          <View style={{ width: 8, height: 8, borderRadius: 4,
-                            backgroundColor: driver.is_online ? "#3EFF9C" : Colors.textMuted }} />
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>
-                            {driver.is_online ? "متاح" : "غير متاح"}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-
-              {/* إلغاء */}
-              <TouchableOpacity
-                onPress={() => { setShowAssignModal(false); setAssigningTripId(null); }}
-                style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10,
-                  backgroundColor: Colors.divider, alignItems: "center" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>إلغاء</Text>
-              </TouchableOpacity>
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════
           ── مودال إحصائيات المستخدم

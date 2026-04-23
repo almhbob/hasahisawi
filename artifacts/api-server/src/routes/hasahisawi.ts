@@ -645,7 +645,7 @@ export async function initHasahisawiDb() {
     ["ad_promo_text",         "انضم إلى منصة حصاحيصاوي وأوصل إعلانك لآلاف أبناء المدينة مباشرةً"],
     ["ad_partner_email",      ""],
     ["ad_bank_info",          ""],
-    ["contract_whatsapp",     "+966530658285"],
+    ["contract_whatsapp",     "+966597083352"],
   ];
   for (const [k, v] of adsDefaults) {
     await query(
@@ -3362,7 +3362,7 @@ router.get("/admin/contract-settings", async (req: Request, res: Response) => {
     );
     const settings: Record<string, string> = {};
     for (const r of rows) settings[r.key] = r.value;
-    return res.json({ contract_whatsapp: settings["contract_whatsapp"] || "+966530658285" });
+    return res.json({ contract_whatsapp: settings["contract_whatsapp"] || "+966597083352" });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
@@ -3964,7 +3964,7 @@ router.get("/institution-applications/contract-settings", async (_req: Request, 
     const settings: Record<string, string> = {};
     for (const r of rows) settings[r.key] = r.value;
     return res.json({
-      contract_whatsapp: settings["contract_whatsapp"] || "+966530658285",
+      contract_whatsapp: settings["contract_whatsapp"] || "+966597083352",
     });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });

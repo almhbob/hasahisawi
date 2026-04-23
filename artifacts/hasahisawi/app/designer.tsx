@@ -23,8 +23,8 @@ const DARK_HERO_MID = "#0A3828";
 const DARK_HERO_BOT = "#0D4F36";
 
 const CONTACT = [
-  { icon: "logo-whatsapp",  color: "#25D366", label: "واتساب",  url: "https://wa.me/966530658285",                         value: "+966 530 658 285" },
-  { icon: "mail-outline",   color: "#EA4335", label: "البريد",  url: "mailto:almhbob.iii@gmail.com",                       value: "almhbob.iii@gmail.com" },
+  { icon: "logo-whatsapp",  color: "#25D366", label: "واتساب",  url: "https://wa.me/966597083352",                         value: "+966 59 708 3352" },
+  { icon: "mail-outline",   color: "#EA4335", label: "البريد",  url: "mailto:Hasahisawi@hotmail.com",                      value: "Hasahisawi@hotmail.com" },
   { icon: "ribbon-outline", color: "#FF6900", label: "Credly",  url: "https://www.credly.com/users/asim-abdulrahman",       value: "credly.com/users/asim-abdulrahman" },
 ];
 

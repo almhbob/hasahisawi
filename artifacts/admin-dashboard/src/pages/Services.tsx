@@ -323,6 +323,130 @@ export default function Services() {
         </div>
       </div>
 
+      {/* ── Subscriptions Payment Table */}
+      <div style={{
+        marginBottom: 28, background: C.surface, border: `1px solid ${C.border}`,
+        borderRadius: 16, overflow: "hidden",
+      }}>
+        <div style={{
+          padding: "16px 24px", borderBottom: `1px solid ${C.border}`,
+          background: C.purple + "10",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>💳</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: C.text }}>جدول الاشتراكات والمدفوعات</div>
+              <div style={{ fontSize: 12, color: C.muted }}>روابط مباشرة لإدارة كل اشتراك والسداد</div>
+            </div>
+          </div>
+          <div style={{
+            background: C.green + "20", border: `1px solid ${C.green}40`,
+            borderRadius: 10, padding: "8px 16px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 11, color: C.muted }}>الإجمالي الشهري</div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: C.green }}>$7 <span style={{ fontSize: 12 }}>كحد أدنى</span></div>
+          </div>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "hsl(217 32% 13%)" }}>
+                {["الخدمة", "الخطة", "التكلفة / شهر", "الأولوية", "الحالة", "إجراء"].map(h => (
+                  <th key={h} style={{
+                    padding: "12px 16px", textAlign: "right", color: C.muted,
+                    fontWeight: 600, fontSize: 12, borderBottom: `1px solid ${C.border}`,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                {
+                  service: "🖥️ Render — API Server",
+                  plan: "Starter (مُوصى به)",
+                  cost: "$7",
+                  priority: "عالية", priorityColor: C.red,
+                  status: "مجاني حالياً ينام", statusColor: C.yellow,
+                  btnLabel: "ترقية الآن", btnColor: C.red,
+                  href: "https://dashboard.render.com/web/srv-d7hnfmvaqgkc739ea5f0/settings",
+                },
+                {
+                  service: "🗄️ Render — PostgreSQL",
+                  plan: "Starter DB (قبل 20 مايو)",
+                  cost: "$7",
+                  priority: "حرجة", priorityColor: C.red,
+                  status: "تنتهي 20 مايو 2026", statusColor: C.red,
+                  btnLabel: "ترقية الآن", btnColor: C.red,
+                  href: "https://dashboard.render.com/new/database",
+                },
+                {
+                  service: "🔥 Firebase",
+                  plan: "Blaze (ادفع عند الاستهلاك)",
+                  cost: "$0*",
+                  priority: "متوسطة", priorityColor: C.yellow,
+                  status: "Spark مجاني", statusColor: C.green,
+                  btnLabel: "ترقية مجانية",  btnColor: C.orange,
+                  href: "https://console.firebase.google.com/project/hasahisawi/usage/details",
+                },
+                {
+                  service: "🐙 GitHub",
+                  plan: "Free",
+                  cost: "$0",
+                  priority: "—", priorityColor: C.muted,
+                  status: "يعمل", statusColor: C.green,
+                  btnLabel: "إدارة", btnColor: C.purple,
+                  href: "https://github.com/almhbob/hasahisawi",
+                },
+                {
+                  service: "🎮 Google Play",
+                  plan: "رسوم تسجيل (مدفوعة)",
+                  cost: "$0",
+                  priority: "—", priorityColor: C.muted,
+                  status: "منشور", statusColor: C.green,
+                  btnLabel: "Play Console", btnColor: C.green,
+                  href: "https://play.google.com/console/",
+                },
+              ].map((row, i) => (
+                <tr key={i} style={{
+                  borderBottom: `1px solid ${C.border}`,
+                  background: i % 2 === 0 ? "transparent" : "hsl(217 32% 10%)",
+                  transition: "background 0.15s",
+                }}>
+                  <td style={{ padding: "13px 16px", color: C.text, fontWeight: 600 }}>{row.service}</td>
+                  <td style={{ padding: "13px 16px", color: C.muted }}>{row.plan}</td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: C.text, fontFamily: "monospace" }}>{row.cost}</span>
+                  </td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <Badge label={row.priority} color={row.priorityColor} />
+                  </td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <span style={{ color: row.statusColor, fontWeight: 600, fontSize: 12 }}>● {row.status}</span>
+                  </td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <a href={row.href} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: "inline-block", padding: "6px 14px", borderRadius: 8,
+                        background: row.btnColor + "20", color: row.btnColor,
+                        border: `1px solid ${row.btnColor}50`,
+                        fontSize: 12, fontWeight: 700, textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >{row.btnLabel}</a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ padding: "10px 24px", background: "hsl(217 32% 10%)", fontSize: 11, color: C.muted }}>
+          * Firebase Blaze مجاني حتى تتجاوز الحد المجاني (50K قراءة/يوم) — لا رسوم ثابتة
+        </div>
+      </div>
+
       {/* ── Cards Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
@@ -419,7 +543,7 @@ export default function Services() {
           <InfoRow label="معرف المشروع"  value="0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"      copyId="eas-id"   copied={copied} onCopy={copy} mono />
           <InfoRow label="المالك"        value="almhbob2026" />
           <InfoRow label="اسم الحزمة"   value="com.almhbob.hasahisawi"                      copyId="pkg"      copied={copied} onCopy={copy} mono />
-          <InfoRow label="الإصدار الحالي" value="3.3.8 (versionCode 137)" />
+          <InfoRow label="الإصدار الحالي" value="5.5.6 (versionCode 156)" />
           <InfoRow label="أمر البناء"   value="eas build --platform android --profile production" copyId="build-cmd" copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn href="https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service" icon="🚀" label="Expo Dashboard" color={C.blue} />
@@ -443,7 +567,7 @@ export default function Services() {
         >
           <InfoRow label="اسم التطبيق"  value="حصاحيصاوي" />
           <InfoRow label="اسم الحزمة"   value="com.almhbob.hasahisawi"   copyId="gplay-pkg"  copied={copied} onCopy={copy} mono />
-          <InfoRow label="الإصدار"      value="3.3.8 (versionCode 137)" />
+          <InfoRow label="الإصدار"      value="5.5.6 (versionCode 156)" />
           <InfoRow label="SHA-1 (Play)" value="7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08" copyId="sha1" copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn
@@ -498,7 +622,7 @@ export default function Services() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 40px" }}>
           {[
             { label: "API Base URL",       value: API_URL,                  id: "ref-api"   },
-            { label: "Admin Email",        value: "Almhbob.iii@gmail.com",  id: "ref-email" },
+            { label: "Admin Email",        value: "Hasahisawi@hotmail.com", id: "ref-email" },
             { label: "Admin PIN",          value: "4444",                   id: "ref-pin"   },
             { label: "Firebase Project",   value: "hasahisawi",             id: "ref-fbp"   },
             { label: "Render Service ID",  value: "srv-d7hnfmvaqgkc739ea5f0", id: "ref-srv" },

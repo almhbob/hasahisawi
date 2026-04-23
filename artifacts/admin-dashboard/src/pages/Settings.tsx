@@ -265,7 +265,7 @@ export default function Settings() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {[
-                  { icon: "📧", label: "البريد الإلكتروني للمسؤول", value: "almhbob.iii@gmail.com" },
+                  { icon: "📧", label: "البريد الإلكتروني للمسؤول", value: "Hasahisawi@hotmail.com" },
                   { icon: "🔢", label: "PIN المسؤول", value: "مشفّر في قاعدة البيانات" },
                   { icon: "🔑", label: "نوع المصادقة", value: "Session-based Tokens" },
                   { icon: "🛡️", label: "صلاحيات متاحة", value: "admin · moderator" },
