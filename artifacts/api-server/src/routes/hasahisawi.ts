@@ -905,6 +905,38 @@ export async function initHasahisawiDb() {
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_legal_forms_cat ON legal_forms(category)`);
 
+  // طلبات انضمام المحامين
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_applications (
+      id            SERIAL PRIMARY KEY,
+      full_name     VARCHAR(150) NOT NULL,
+      title         VARCHAR(120) NOT NULL DEFAULT 'محامي',
+      phone         VARCHAR(25)  NOT NULL,
+      whatsapp      VARCHAR(25)  NOT NULL DEFAULT '',
+      email         VARCHAR(150) NOT NULL DEFAULT '',
+      bar_number    VARCHAR(50)  NOT NULL DEFAULT '',
+      experience_y  INTEGER      NOT NULL DEFAULT 0,
+      specialties   TEXT         NOT NULL DEFAULT '',
+      bio           TEXT         NOT NULL DEFAULT '',
+      office_addr   VARCHAR(250) NOT NULL DEFAULT '',
+      district      VARCHAR(100) NOT NULL DEFAULT '',
+      languages     VARCHAR(150) NOT NULL DEFAULT 'العربية',
+      consult_fee   VARCHAR(80)  NOT NULL DEFAULT '',
+      bar_card_url  TEXT         NOT NULL DEFAULT '',
+      photo_url     TEXT         NOT NULL DEFAULT '',
+      agree_terms   BOOLEAN      NOT NULL DEFAULT FALSE,
+      device_id     VARCHAR(200),
+      user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      status        VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_note    TEXT NOT NULL DEFAULT '',
+      reviewed_at   TIMESTAMPTZ,
+      reviewed_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      lawyer_id     INTEGER REFERENCES lawyers(id) ON DELETE SET NULL,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_apps_status ON lawyer_applications(status)`);
+
   // seed lawyers + forms (مرة واحدة)
   await (async () => {
     const c = await query(`SELECT COUNT(*)::int AS c FROM lawyers`);
@@ -7911,6 +7943,186 @@ router.get("/legal-forms", async (req: Request, res: Response) => {
       params
     );
     return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقديم طلب انضمام محامٍ (عام)
+router.post("/lawyer-applications", async (req: Request, res: Response) => {
+  try {
+    const b = req.body || {};
+    if (!b.full_name || !b.phone || !b.bar_number || !b.specialties)
+      return res.status(400).json({ error: "الاسم والهاتف ورقم النقابة والتخصصات مطلوبة" });
+    if (!b.agree_terms)
+      return res.status(400).json({ error: "يجب الموافقة على شروط التعاقد" });
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const t = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [t]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    // منع التكرار من نفس الهاتف خلال 24 ساعة
+    const dup = await query(
+      `SELECT id, status FROM lawyer_applications WHERE phone = $1 AND created_at > NOW() - INTERVAL '24 hours' ORDER BY id DESC LIMIT 1`,
+      [String(b.phone).slice(0,25)]
+    );
+    if (dup.rows[0] && dup.rows[0].status === 'pending')
+      return res.status(409).json({ error: "لديك طلب قيد المراجعة بهذا الرقم" });
+    const ins = await query(
+      `INSERT INTO lawyer_applications
+       (full_name,title,phone,whatsapp,email,bar_number,experience_y,specialties,bio,office_addr,district,languages,consult_fee,bar_card_url,photo_url,agree_terms,device_id,user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id, created_at`,
+      [
+        String(b.full_name).slice(0,150),
+        String(b.title || "محامي").slice(0,120),
+        String(b.phone).slice(0,25),
+        String(b.whatsapp || "").slice(0,25),
+        String(b.email || "").slice(0,150),
+        String(b.bar_number).slice(0,50),
+        Number(b.experience_y) || 0,
+        String(b.specialties).slice(0,500),
+        String(b.bio || "").slice(0,2000),
+        String(b.office_addr || "").slice(0,250),
+        String(b.district || "").slice(0,100),
+        String(b.languages || "العربية").slice(0,150),
+        String(b.consult_fee || "").slice(0,80),
+        String(b.bar_card_url || "").slice(0,1000),
+        String(b.photo_url || "").slice(0,1000),
+        true,
+        b.device_id || null,
+        userId,
+      ]
+    );
+    return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// متابعة طلب الانضمام (للمتقدّم)
+router.get("/lawyer-applications/mine", async (req: Request, res: Response) => {
+  try {
+    const deviceId = String(req.query.device_id || "").trim();
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const t = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [t]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    if (!userId && !deviceId) return res.json([]);
+    const { rows } = await query(
+      `SELECT id, full_name, status, admin_note, lawyer_id, created_at, reviewed_at
+       FROM lawyer_applications
+       WHERE ${userId ? `user_id = $1` : `device_id = $1`}
+       ORDER BY created_at DESC LIMIT 10`,
+      [userId || deviceId]
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة طلبات الانضمام (إدارة)
+router.get("/admin/lawyer-applications", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const status = String(req.query.status || "").trim();
+    const params: any[] = [];
+    let where = "1=1";
+    if (status) { params.push(status); where += ` AND status = $${params.length}`; }
+    const { rows } = await query(
+      `SELECT * FROM lawyer_applications WHERE ${where}
+       ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC`,
+      params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قبول طلب انضمام → ينشئ المحامي تلقائياً (تعاقد)
+router.post("/admin/lawyer-applications/:id/approve", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const { admin_note, is_featured } = req.body || {};
+    const { rows } = await query(`SELECT * FROM lawyer_applications WHERE id = $1`, [id]);
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    if (rows[0].status === "approved") return res.status(400).json({ error: "تم قبول الطلب مسبقاً" });
+    const a = rows[0];
+    // 1) أنشئ rated_entity
+    const ent = await query(
+      `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes, is_verified)
+       VALUES ('lawyer',$1,$2,'قانون',$3,$4,$5,TRUE) RETURNING id`,
+      [a.full_name, a.title, a.phone, a.district, a.bio]
+    );
+    // 2) أنشئ المحامي
+    const lw = await query(
+      `INSERT INTO lawyers
+       (full_name,title,specialties,bio,phone,whatsapp,email,office_addr,district,bar_number,experience_y,languages,consult_fee,photo_url,is_featured,is_verified,is_active,entity_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,TRUE,TRUE,$16) RETURNING id`,
+      [a.full_name, a.title, a.specialties, a.bio, a.phone, a.whatsapp, a.email, a.office_addr,
+       a.district, a.bar_number, a.experience_y, a.languages, a.consult_fee, a.photo_url, !!is_featured, ent.rows[0].id]
+    );
+    // 3) حدّث الطلب
+    await query(
+      `UPDATE lawyer_applications SET status='approved', admin_note=$2, reviewed_at=NOW(), lawyer_id=$3 WHERE id=$1`,
+      [id, String(admin_note || "").slice(0, 500), lw.rows[0].id]
+    );
+    return res.json({ ok: true, lawyer_id: lw.rows[0].id });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// رفض طلب انضمام
+router.post("/admin/lawyer-applications/:id/reject", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const { admin_note } = req.body || {};
+    const r = await query(
+      `UPDATE lawyer_applications SET status='rejected', admin_note=$2, reviewed_at=NOW()
+       WHERE id=$1 AND status='pending' RETURNING id`,
+      [id, String(admin_note || "").slice(0, 500)]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "Not found or already reviewed" });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة المحامين للإدارة (يشمل غير الفعّال)
+router.get("/admin/lawyers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.*, COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id = l.id),0)::int AS contracts_count
+       FROM lawyers l ORDER BY l.is_featured DESC, l.id DESC`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of ["full_name","title","specialties","phone","whatsapp","email","office_addr","district","consult_fee","is_featured","is_verified","is_active"]) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(id);
+    await query(`UPDATE lawyers SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lawyers WHERE id = $1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 

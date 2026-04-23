@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { path: "/education",      label: "التعليم",            icon: "🎓" },
   { path: "/women",          label: "خدمات المرأة",      icon: "👩" },
   { path: "/medical",        label: "الدليل الطبي",       icon: "🏥" },
+  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },
   { path: "/reports",        label: "بلاغات المواطنين",  icon: "📋" },
   { path: "/jobs",           label: "الوظائف",            icon: "💼" },
   { path: "/sports",         label: "الرياضة",            icon: "⚽" },
