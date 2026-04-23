@@ -421,12 +421,24 @@ export default function AdminDashboard() {
   }, [user]);
 
   // ── Data fetchers ────────────────────────────────────────────────────────
+  const [statsError, setStatsError] = useState<string | null>(null);
   const loadStats = useCallback(async () => {
     setLoadingStats(true);
+    setStatsError(null);
     try {
       const res = await apiFetch("/api/admin/dashboard-stats", token);
-      if (res.ok) setStats(await res.json());
-    } catch {}
+      if (res.ok) {
+        setStats(await res.json());
+      } else if (res.status === 401) {
+        setStatsError("الجلسة منتهية — يرجى تسجيل الدخول من جديد");
+      } else if (res.status === 403) {
+        setStatsError("ليس لديك صلاحية مدير. تواصل مع مدير النظام لمنحك الصلاحية.");
+      } else {
+        setStatsError(`فشل التحميل (رمز ${res.status})`);
+      }
+    } catch (e: any) {
+      setStatsError(`تعذّر الاتصال بالخادم: ${e?.message ?? "خطأ شبكة"}`);
+    }
     finally { setLoadingStats(false); }
   }, [token]);
 
@@ -1620,7 +1632,18 @@ export default function AdminDashboard() {
               </View>
             </>
           ) : (
-            <Text style={s.empty}>تعذّر تحميل البيانات</Text>
+            <View style={{ alignItems: "center", paddingHorizontal: 24, paddingTop: 60, gap: 16 }}>
+              <Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />
+              <Text style={[s.empty, { textAlign: "center" }]}>
+                {statsError ?? "تعذّر تحميل البيانات"}
+              </Text>
+              <TouchableOpacity
+                onPress={loadStats}
+                style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+              >
+                <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
       )}
