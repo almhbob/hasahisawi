@@ -13,6 +13,7 @@ import {
   firebaseRegisterEmail,
   firebaseLogout,
   firebaseLoginGoogle,
+  firebaseLoginGoogleWeb,
   onFirebaseAuthChange,
   getCurrentFirebaseUser,
   isFirebaseAvailable,
@@ -58,6 +59,7 @@ type AuthContextValue = {
   biometricsEnabled: boolean;
   login: (phoneOrEmail: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithGoogleWeb: () => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   loginModerator: (phoneOrEmail: string, password: string) => Promise<void>;
@@ -558,9 +560,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (idToken: string) => {
-    if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح للدخول عبر Google");
-    const fbUser = await firebaseLoginGoogle(idToken);
+  // مساعد داخلي يكمل تدفق الدخول بعد أي طريقة Google (native أو web)
+  const finalizeGoogleLogin = async (
+    fbUser: import("firebase/auth").User
+  ) => {
     const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
     let authUser: AuthUser;
     if (profile) {
@@ -584,6 +587,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role, idTok
     );
     await saveSession(authUser, idTok, backendTok);
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
+    if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح للدخول عبر Google");
+    const fbUser = await firebaseLoginGoogle(idToken);
+    await finalizeGoogleLogin(fbUser);
+  };
+
+  const loginWithGoogleWeb = async () => {
+    if (!isFirebaseAvailable()) throw new Error("Firebase غير متاح للدخول عبر Google");
+    const fbUser = await firebaseLoginGoogleWeb();
+    await finalizeGoogleLogin(fbUser);
   };
 
   const login = async (phoneOrEmail: string, password: string) => {
@@ -1019,7 +1034,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
-        login, loginWithGoogle, loginWithBiometrics, loginAdmin, loginModerator,
+        login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics, loginAdmin, loginModerator,
         register, setUserGender, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,

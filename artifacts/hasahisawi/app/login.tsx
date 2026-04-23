@@ -4,6 +4,7 @@ import {
   ScrollView, Platform, ActivityIndicator, Image,
   KeyboardAvoidingView, Pressable, Dimensions, Alert,
 } from "react-native";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import Animated, {
   FadeIn, FadeInDown, FadeInUp,
   useSharedValue, useAnimatedStyle, withSpring, withTiming,
@@ -30,7 +31,9 @@ type Mode = "login" | "register";
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, register, enterAsGuest, loginWithBiometrics,
-          enableBiometrics, biometricsAvailable, biometricsEnabled } = useAuth();
+          enableBiometrics, biometricsAvailable, biometricsEnabled,
+          loginWithGoogle,
+          loginWithGoogleWeb } = useAuth();
 
   const [mode, setMode]               = useState<Mode>("login");
   const [name, setName]               = useState("");
@@ -179,6 +182,49 @@ export default function LoginScreen() {
       }
     } finally {
       setBioLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    try {
+      // على الويب نستخدم نافذة Firebase المنبثقة (لا حاجة لـ Play Services)
+      if (Platform.OS === "web") {
+        await loginWithGoogleWeb();
+        return;
+      }
+
+      // على الموبايل نستخدم Google Sign-In الأصلي
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+      // استخراج idToken بطريقة تدعم كلا الإصدارين من المكتبة
+      const idToken = (response as any)?.data?.idToken ?? (response as any)?.idToken;
+      if (!idToken) throw new Error("تعذّر الحصول على رمز Google");
+      await loginWithGoogle(idToken);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const code = e?.code ?? "";
+      // إلغاء النافذة المنبثقة من المستخدم — تجاهل بصمت
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return;
+      }
+      if (code === statusCodes.SIGN_IN_CANCELLED) {
+        // المستخدم ألغى — لا خطأ
+      } else if (code === statusCodes.IN_PROGRESS) {
+        // تسجيل جارٍ بالفعل — تجاهل
+      } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("خدمات Google غير متاحة على هذا الجهاز");
+      } else if (code === "auth/popup-blocked") {
+        setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
+      } else {
+        setError(e?.message || "فشل تسجيل الدخول عبر Google");
+      }
+      if (Platform.OS !== "web")
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -615,6 +661,27 @@ export default function LoginScreen() {
             </Animated.View>
           )}
 
+          {/* زر Google */}
+          {mode === "login" && (
+            <TouchableOpacity
+              style={styles.googleBtn}
+              onPress={handleGoogleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.textPrimary} size="small" />
+              ) : (
+                <>
+                  <View style={styles.googleIconFallback}>
+                    <Text style={styles.googleIconLetter}>G</Text>
+                  </View>
+                  <Text style={styles.googleBtnText}>المتابعة عبر Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           {/* فاصل */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -904,6 +971,35 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 8,
     backgroundColor: Colors.divider,
     alignItems: "center", justifyContent: "center",
+  },
+
+  /* Google Sign-In */
+  googleBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1.5,
+    borderColor: Colors.divider,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  googleIcon: { width: 22, height: 22 },
+  googleIconFallback: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#DADCE0",
+    alignItems: "center", justifyContent: "center",
+  },
+  googleIconLetter: {
+    fontSize: 14, fontFamily: "Cairo_700Bold", color: "#4285F4",
+  },
+  googleBtnText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 15,
+    color: Colors.textPrimary,
   },
 });
 
