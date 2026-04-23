@@ -1825,31 +1825,70 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          {/* ─── تواصل مع المنصة ─── */}
+          {/* ─── دعم التطبيق ─── */}
           <View style={contactSty.card}>
+            {/* رأس البطاقة */}
             <View style={contactSty.headerRow}>
               <View style={contactSty.iconBox}>
                 <MaterialCommunityIcons name="headset" size={22} color={Colors.primary} />
               </View>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={contactSty.title}>تواصل مع حصاحيصاوي</Text>
-                <Text style={contactSty.sub}>نحن هنا للمساعدة — راسلنا بأي وقت</Text>
+                <Text style={contactSty.title}>دعم تطبيق حصاحيصاوي</Text>
+                <Text style={contactSty.sub}>فريق الدعم جاهز — راسلنا عبر واتساب أعمال</Text>
               </View>
             </View>
+
+            {/* زر الإبلاغ عن مشكلة */}
+            <TouchableOpacity
+              style={contactSty.actionBtn}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Linking.openURL(PLATFORM.waSupport(auth.user?.name)).catch(() =>
+                  Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
+                );
+              }}
+              activeOpacity={0.82}
+            >
+              <View style={contactSty.actionIconBox}>
+                <MaterialCommunityIcons name="bug-outline" size={20} color="#E74C3C" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={contactSty.actionTitle}>الإبلاغ عن مشكلة</Text>
+                <Text style={contactSty.actionSub}>أرسل تقرير مشكلة عبر واتساب</Text>
+              </View>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+            </TouchableOpacity>
+
+            {/* زر الاقتراح */}
+            <TouchableOpacity
+              style={[contactSty.actionBtn, { borderColor: "#F39C1220" }]}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Linking.openURL(PLATFORM.waSuggest(auth.user?.name)).catch(() =>
+                  Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
+                );
+              }}
+              activeOpacity={0.82}
+            >
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#F39C1215", borderColor: "#F39C1230" }]}>
+                <Ionicons name="bulb-outline" size={20} color="#F39C12" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={contactSty.actionTitle}>اقتراح أو ملاحظة</Text>
+                <Text style={contactSty.actionSub}>ساعدنا في تطوير التطبيق</Text>
+              </View>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+            </TouchableOpacity>
+
+            {/* فاصل */}
+            <View style={contactSty.divider}>
+              <View style={contactSty.dividerLine} />
+              <Text style={contactSty.dividerText}>وسائل أخرى</Text>
+              <View style={contactSty.dividerLine} />
+            </View>
+
+            {/* اتصال وإيميل */}
             <View style={contactSty.btnRow}>
-              <TouchableOpacity
-                style={[contactSty.btn, { backgroundColor: "#25D36620" }]}
-                onPress={() => {
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Linking.openURL(PLATFORM.waLink()).catch(() =>
-                    Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
-                  );
-                }}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="whatsapp" size={20} color="#25D366" />
-                <Text style={[contactSty.btnText, { color: "#25D366" }]}>واتساب</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[contactSty.btn, { backgroundColor: "#2980B920" }]}
                 onPress={() => {
@@ -1860,23 +1899,24 @@ export default function SettingsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="call-outline" size={20} color="#2980B9" />
+                <Ionicons name="call-outline" size={18} color="#2980B9" />
                 <Text style={[contactSty.btnText, { color: "#2980B9" }]}>اتصال</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[contactSty.btn, { backgroundColor: Colors.primary + "20" }]}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Linking.openURL(PLATFORM.mailLink()).catch(() =>
+                  Linking.openURL(PLATFORM.mailLink("دعم — حصاحيصاوي")).catch(() =>
                     Alert.alert("تنبيه", "لا يمكن فتح تطبيق البريد الإلكتروني")
                   );
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="mail-outline" size={20} color={Colors.primary} />
+                <Ionicons name="mail-outline" size={18} color={Colors.primary} />
                 <Text style={[contactSty.btnText, { color: Colors.primary }]}>إيميل</Text>
               </TouchableOpacity>
             </View>
+
             <Text style={contactSty.infoText}>
               {PLATFORM.whatsapp}  •  {PLATFORM.phoneSudan}
             </Text>
@@ -3490,6 +3530,49 @@ const contactSty = StyleSheet.create({
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  // أزرار الإجراءات الرئيسية (إبلاغ / اقتراح)
+  actionBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: Colors.surface1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E74C3C20",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 0,
+  },
+  actionIconBox: {
+    width: 40, height: 40, borderRadius: 11,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "#E74C3C15",
+    borderWidth: 1, borderColor: "#E74C3C30",
+  },
+  actionTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14,
+    color: Colors.textPrimary, textAlign: "right",
+  },
+  actionSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted, textAlign: "right",
+    marginTop: 1,
+  },
+  // فاصل
+  divider: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 2,
+  },
+  dividerLine: {
+    flex: 1, height: 1,
+    backgroundColor: Colors.divider,
+  },
+  dividerText: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted,
+  },
+  // أزرار ثانوية (اتصال / إيميل)
   btnRow: { flexDirection: "row-reverse", gap: 10 },
   btn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
