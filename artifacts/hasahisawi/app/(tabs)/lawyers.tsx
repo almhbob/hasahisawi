@@ -26,6 +26,9 @@ type Lawyer = {
   consult_fee: string; is_featured: boolean; is_verified: boolean;
   avg_rating: number; review_count: number; entity_id: number | null;
   photo_url?: string;
+  // بيانات الاشتراك
+  plan_name?: string; plan_name_ar?: string; plan_color?: string; plan_icon?: string;
+  has_priority?: boolean; has_unlimited_contacts?: boolean; plan_monthly_contacts?: number;
 };
 type LawyerService = { id: number; lawyer_id: number; title: string; description: string; price_text: string; duration: string };
 type LawyerReview  = { id: number; rating: number; comment: string | null; user_name: string; created_at: string };
@@ -822,10 +825,25 @@ export default function LawyersScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.joinTitle}>هل أنت محامي؟ انضم لقائمتنا</Text>
-                  <Text style={s.joinSub}>قدّم طلب تعاقد · مراجعة من الإدارة · ظهور في القائمة</Text>
+                  <Text style={s.joinSub}>ابدأ مجاناً · أو اختر خطة مدفوعة لمزيد من المميزات</Text>
                 </View>
                 <Ionicons name="chevron-back" size={18} color="#fff" />
               </TouchableOpacity>
+              {/* بانر الخطط المدمج */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 2, gap: 8 }} style={{ marginHorizontal: -2, marginBottom: 4 }}>
+                {[
+                  { icon: "🔓", name: "مجاني", sub: "5 تواصلات/شهر", color: "#6B7280" },
+                  { icon: "⭐", name: "أساسي",  sub: "500 ج.س · تواصل غير محدود", color: "#3B82F6" },
+                  { icon: "💎", name: "محترف", sub: "1,500 ج.س · إعلانات + موثّق", color: "#8B5CF6" },
+                  { icon: "👑", name: "بريميوم", sub: "3,000 ج.س · الصدارة + 8%", color: "#F59E0B" },
+                ].map(p => (
+                  <View key={p.name} style={{ backgroundColor: p.color + "18", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: p.color + "44", alignItems: "center", minWidth: 110 }}>
+                    <Text style={{ fontSize: 18, marginBottom: 2 }}>{p.icon}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: p.color }}>{p.name}</Text>
+                    <Text style={{ fontSize: 9, color: "#6B7280", textAlign: "center", marginTop: 2 }}>{p.sub}</Text>
+                  </View>
+                ))}
+              </ScrollView>
 
               {/* بحث */}
               <View style={s.searchBox}>
@@ -852,40 +870,66 @@ export default function LawyersScreen() {
               </ScrollView>
             </View>
           }
-          renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(40 * index).springify()}>
-              <TouchableOpacity onPress={() => openLawyer(item)} activeOpacity={0.85} style={s.lawyerCard}>
-                {item.is_featured && (
-                  <View style={s.featBadge}><MaterialCommunityIcons name="star-circle" size={11} color="#FBBF24" /><Text style={s.featBadgeText}>مميّز</Text></View>
-                )}
-                <View style={s.lawyerHead}>
-                  <View style={s.avatar}>
-                    <MaterialCommunityIcons name="account-tie" size={28} color="#C4B5FD" />
+          renderItem={({ item, index }) => {
+            const planColor = item.plan_color || "#6B7280";
+            const isPremium  = item.plan_name === "premium";
+            const isPro      = item.plan_name === "professional";
+            const isBasic    = item.plan_name === "basic";
+            const hasPlan    = !!item.plan_name && item.plan_name !== "free";
+            return (
+              <Animated.View entering={FadeInDown.delay(40 * index).springify()}>
+                <TouchableOpacity onPress={() => openLawyer(item)} activeOpacity={0.85}
+                  style={[s.lawyerCard, isPremium && { borderColor: "#F59E0B", borderWidth: 1.5 }, isPro && { borderColor: "#8B5CF6", borderWidth: 1 }]}>
+                  {/* شارة الخطة / مميّز */}
+                  <View style={{ position: "absolute", top: 10, left: 10, flexDirection: "row", gap: 5, zIndex: 2 }}>
+                    {hasPlan && (
+                      <View style={{ backgroundColor: planColor + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: planColor + "66" }}>
+                        <Text style={{ fontSize: 11 }}>{item.plan_icon}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: planColor }}>{item.plan_name_ar}</Text>
+                      </View>
+                    )}
+                    {item.is_featured && !hasPlan && (
+                      <View style={s.featBadge}><MaterialCommunityIcons name="star-circle" size={11} color="#FBBF24" /><Text style={s.featBadgeText}>مميّز</Text></View>
+                    )}
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={s.lawyerName} numberOfLines={1}>{item.full_name}</Text>
-                      {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#3EFF9C" />}
+                  <View style={[s.lawyerHead, hasPlan && { marginTop: 22 }]}>
+                    <View style={[s.avatar, hasPlan && { borderWidth: 2, borderColor: planColor + "88" }]}>
+                      <MaterialCommunityIcons name="account-tie" size={28} color={hasPlan ? planColor : "#C4B5FD"} />
                     </View>
-                    <Text style={s.lawyerTitle} numberOfLines={1}>{item.title}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-                      <Stars value={item.avg_rating} size={12} />
-                      <Text style={s.lawyerMeta}>{item.avg_rating.toFixed(1)} ({item.review_count})</Text>
-                      <Text style={s.lawyerMeta}>· {item.experience_y} سنة خبرة</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={s.lawyerName} numberOfLines={1}>{item.full_name}</Text>
+                        {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#3EFF9C" />}
+                        {isPremium && <Text style={{ fontSize: 14 }}>👑</Text>}
+                        {isPro && !isPremium && <Text style={{ fontSize: 13 }}>💎</Text>}
+                        {isBasic && <Text style={{ fontSize: 13 }}>⭐</Text>}
+                      </View>
+                      <Text style={s.lawyerTitle} numberOfLines={1}>{item.title}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                        <Stars value={item.avg_rating} size={12} />
+                        <Text style={s.lawyerMeta}>{item.avg_rating.toFixed(1)} ({item.review_count})</Text>
+                        <Text style={s.lawyerMeta}>· {item.experience_y} سنة خبرة</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-                <Text style={s.lawyerSpec} numberOfLines={2}>{item.specialties}</Text>
-                <View style={s.lawyerFooter}>
-                  <View style={s.lawyerLocPill}>
-                    <Ionicons name="location-outline" size={11} color="#9CA3AF" />
-                    <Text style={s.lawyerLocText} numberOfLines={1}>{item.district || "الحصاحيصا"}</Text>
+                  <Text style={s.lawyerSpec} numberOfLines={2}>{item.specialties}</Text>
+                  <View style={s.lawyerFooter}>
+                    <View style={s.lawyerLocPill}>
+                      <Ionicons name="location-outline" size={11} color="#9CA3AF" />
+                      <Text style={s.lawyerLocText} numberOfLines={1}>{item.district || "الحصاحيصا"}</Text>
+                    </View>
+                    <Text style={s.lawyerFee} numberOfLines={1}>{item.consult_fee || "تواصل للتفاصيل"}</Text>
                   </View>
-                  <Text style={s.lawyerFee} numberOfLines={1}>{item.consult_fee || "تواصل للتفاصيل"}</Text>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+                  {/* شريط أسفل البطاقة للبريميوم */}
+                  {isPremium && (
+                    <View style={{ marginTop: 8, backgroundColor: "#F59E0B22", borderRadius: 6, padding: 6, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={{ fontSize: 10, color: "#B45309", fontWeight: "700" }}>👑 محامي بريميوم — أعلى مستوى من الخدمة القانونية</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          }}
           ListEmptyComponent={loading ? (
             <View style={s.centerBox}><ActivityIndicator color="#8B5CF6" /></View>
           ) : (

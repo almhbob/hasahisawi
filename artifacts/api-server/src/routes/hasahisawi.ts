@@ -937,6 +937,64 @@ export async function initHasahisawiDb() {
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_apps_status ON lawyer_applications(status)`);
 
+  // ── خطط اشتراكات المحامين ──────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscription_plans (
+      id               SERIAL PRIMARY KEY,
+      name             VARCHAR(40)  NOT NULL UNIQUE,
+      name_ar          VARCHAR(60)  NOT NULL,
+      price_sdg        INTEGER      NOT NULL DEFAULT 0,
+      price_label      VARCHAR(80)  NOT NULL DEFAULT 'مجاناً',
+      monthly_contacts INTEGER      NOT NULL DEFAULT 5,
+      has_unlimited_contacts BOOLEAN NOT NULL DEFAULT FALSE,
+      has_ads          BOOLEAN      NOT NULL DEFAULT FALSE,
+      has_featured     BOOLEAN      NOT NULL DEFAULT FALSE,
+      has_verified_badge BOOLEAN    NOT NULL DEFAULT FALSE,
+      has_priority     BOOLEAN      NOT NULL DEFAULT FALSE,
+      commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 0,
+      color            VARCHAR(20)  NOT NULL DEFAULT '#6B7280',
+      icon             VARCHAR(10)  NOT NULL DEFAULT '🔓',
+      sort_order       INTEGER      NOT NULL DEFAULT 99,
+      is_active        BOOLEAN      NOT NULL DEFAULT TRUE
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscriptions (
+      id               SERIAL PRIMARY KEY,
+      lawyer_id        INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      plan_id          INTEGER NOT NULL REFERENCES lawyer_subscription_plans(id),
+      commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 0,
+      started_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      expires_at       TIMESTAMPTZ,
+      is_active        BOOLEAN      NOT NULL DEFAULT TRUE,
+      payment_ref      VARCHAR(120) NOT NULL DEFAULT '',
+      admin_note       TEXT         NOT NULL DEFAULT '',
+      created_by       INTEGER      REFERENCES users(id) ON DELETE SET NULL,
+      created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_lawyer_active_sub UNIQUE (lawyer_id)
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_subs_lawyer ON lawyer_subscriptions(lawyer_id)`);
+  // seed خطط الاشتراك (مرة واحدة)
+  const plansCount = await query(`SELECT COUNT(*)::int AS c FROM lawyer_subscription_plans`);
+  if (plansCount.rows[0].c === 0) {
+    const plans = [
+      ["free",         "مجاني",             0,    "مجاناً — دائماً",               5,  false, false, false, false, false, 0,   "#6B7280", "🔓", 1],
+      ["basic",        "أساسي",          500,  "500 ج.س / شهر",                  0,  true,  false, false, true,  false, 0,   "#3B82F6", "⭐", 2],
+      ["professional", "محترف",         1500, "1,500 ج.س / شهر",                0,  true,  true,  true,  true,  true,  5,   "#8B5CF6", "💎", 3],
+      ["premium",      "بريميوم",  3000, "3,000 ج.س / شهر",                0,  true,  true,  true,  true,  true,  8,   "#F59E0B", "👑", 4],
+    ];
+    for (const [name,name_ar,price,label,mc,unl,ads,feat,ver,pri,com,color,icon,sort] of plans) {
+      await query(
+        `INSERT INTO lawyer_subscription_plans
+          (name,name_ar,price_sdg,price_label,monthly_contacts,has_unlimited_contacts,has_ads,has_featured,has_verified_badge,has_priority,commission_pct,color,icon,sort_order)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ON CONFLICT (name) DO NOTHING`,
+        [name,name_ar,price,label,mc,unl,ads,feat,ver,pri,com,color,icon,sort]
+      );
+    }
+  }
+
   // seed lawyers + forms (مرة واحدة)
   await (async () => {
     const c = await query(`SELECT COUNT(*)::int AS c FROM lawyers`);
@@ -7808,9 +7866,14 @@ router.get("/lawyers", async (req: Request, res: Response) => {
     const { rows } = await query(
       `SELECT l.*,
               COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE r.entity_id = l.entity_id),0)::float AS avg_rating,
-              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count
-       FROM lawyers l WHERE ${where}
-       ORDER BY l.is_featured DESC, l.experience_y DESC, l.id`, params
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+              p.has_priority, p.has_unlimited_contacts, p.monthly_contacts AS plan_monthly_contacts
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        WHERE ${where}
+       ORDER BY p.sort_order NULLS LAST, l.is_featured DESC, l.experience_y DESC, l.id`, params
     );
     return res.json(rows);
   } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
@@ -8124,13 +8187,113 @@ router.post("/admin/lawyer-applications/:id/reject", async (req: Request, res: R
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// قائمة المحامين للإدارة (يشمل غير الفعّال)
+// ── خطط الاشتراك (عام) ──────────────────────────────────────
+router.get("/subscription-plans", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM lawyer_subscription_plans WHERE is_active=TRUE ORDER BY sort_order`);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── اشتراك محامي بعينه (عام — يُرجع بيانات الخطة) ──────────
+router.get("/lawyers/:id/subscription", async (req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT s.*, p.name, p.name_ar, p.color, p.icon, p.price_label,
+              p.has_unlimited_contacts, p.has_ads, p.has_featured, p.has_verified_badge,
+              p.has_priority, p.monthly_contacts
+         FROM lawyer_subscriptions s
+         JOIN lawyer_subscription_plans p ON p.id = s.plan_id
+        WHERE s.lawyer_id = $1 AND s.is_active = TRUE`,
+      [Number(req.params.id)]
+    );
+    return res.json(rows[0] || null);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── نظرة عامة على الاشتراكات (إدارة) ───────────────────────
+router.get("/admin/subscriptions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.id AS lawyer_id, l.full_name, l.phone, l.district,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color, p.icon, p.price_label,
+              s.commission_pct, s.started_at, s.expires_at, s.payment_ref, s.admin_note,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS contracts_count
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY p.sort_order NULLS LAST, l.id DESC`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── تعيين/تحديث اشتراك محامي (إدارة) ──────────────────────
+router.put("/admin/lawyers/:id/subscription", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const lawyerId = Number(req.params.id);
+    const { plan_name, commission_pct, expires_at, payment_ref, admin_note } = req.body || {};
+    if (!plan_name) return res.status(400).json({ error: "plan_name مطلوب" });
+    const planR = await query(`SELECT id, commission_pct AS default_com FROM lawyer_subscription_plans WHERE name=$1`, [plan_name]);
+    if (!planR.rows[0]) return res.status(400).json({ error: "خطة غير موجودة" });
+    const planId = planR.rows[0].id;
+    const com = commission_pct !== undefined ? Number(commission_pct) : Number(planR.rows[0].default_com);
+    await query(
+      `INSERT INTO lawyer_subscriptions (lawyer_id, plan_id, commission_pct, expires_at, payment_ref, admin_note, started_at)
+          VALUES ($1,$2,$3,$4,$5,$6,NOW())
+       ON CONFLICT (lawyer_id) DO UPDATE
+          SET plan_id=$2, commission_pct=$3, expires_at=$4, payment_ref=$5, admin_note=$6,
+              started_at=NOW(), is_active=TRUE`,
+      [lawyerId, planId, com, expires_at || null, String(payment_ref||"").slice(0,120), String(admin_note||"").slice(0,500)]
+    );
+    // مزامنة is_featured و is_verified مع الخطة
+    const planInfo = await query(`SELECT has_featured, has_verified_badge FROM lawyer_subscription_plans WHERE id=$1`, [planId]);
+    if (planInfo.rows[0]) {
+      const { has_featured, has_verified_badge } = planInfo.rows[0];
+      await query(`UPDATE lawyers SET is_featured=$1, is_verified=$2 WHERE id=$3`, [has_featured, has_verified_badge, lawyerId]);
+    }
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── إحصائيات الاشتراكات (إدارة) ────────────────────────────
+router.get("/admin/subscription-stats", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT p.name, p.name_ar, p.icon, p.price_sdg, p.color,
+              COUNT(s.id)::int AS subscribers,
+              COALESCE(SUM(p.price_sdg), 0)::int AS monthly_revenue,
+              AVG(s.commission_pct)::numeric(5,2) AS avg_commission
+         FROM lawyer_subscription_plans p
+         LEFT JOIN lawyer_subscriptions s ON s.plan_id=p.id AND s.is_active=TRUE
+        GROUP BY p.id ORDER BY p.sort_order`
+    );
+    const total = await query(`SELECT COUNT(*)::int AS c FROM lawyer_subscriptions WHERE is_active=TRUE`);
+    const free_count = await query(
+      `SELECT COUNT(*)::int AS c FROM lawyers l WHERE NOT EXISTS
+        (SELECT 1 FROM lawyer_subscriptions s JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+          WHERE s.lawyer_id=l.id AND s.is_active=TRUE AND p.name != 'free')`
+    );
+    return res.json({ plans: rows, total_paid: total.rows[0].c, free_lawyers: free_count.rows[0].c });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة المحامين للإدارة (يشمل غير الفعّال + بيانات الاشتراك)
 router.get("/admin/lawyers", async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { rows } = await query(
-      `SELECT l.*, COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id = l.id),0)::int AS contracts_count
-       FROM lawyers l ORDER BY l.is_featured DESC, l.id DESC`
+      `SELECT l.*,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id = l.id),0)::int AS contracts_count,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+              s.commission_pct AS sub_commission, s.expires_at AS sub_expires, s.started_at AS sub_started
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY p.sort_order NULLS LAST, l.is_featured DESC, l.id DESC`
     );
     return res.json(rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
