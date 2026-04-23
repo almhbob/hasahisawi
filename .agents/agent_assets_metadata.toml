@@ -90,6 +90,12 @@ uri = "file://exports/hasahisawi_legal_poster_4k.png"
 type = "image"
 title = "hasahisawi legal promotional poster 4K"
 
+[[generated]]
+id = "roEaWguXfX4Th6y3NiJQO"
+uri = "file://exports/hasahisawi_legal_poster_4k_v2.png"
+type = "image"
+title = "hasahisawi branded legal poster 4K v2"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
@@ -275,3 +281,9 @@ id = "B7nSd2urvXUZflxNRtlhM"
 uri = "file://exports/hasahisawi_legal_poster_4k.png"
 type = "image"
 title = "بوستر حصاحيصاوي — ترويجي للجهات القانونية 4K"
+
+[[outputs]]
+id = "ujNDAUB-zstR49NR91Jb7"
+uri = "file://exports/hasahisawi_legal_poster_4k_v2.png"
+type = "image"
+title = "حصاحيصاوي — بوستر ترويجي 4K بهوية التطبيق"
