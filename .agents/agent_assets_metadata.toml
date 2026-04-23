@@ -377,3 +377,9 @@ id = "HQEco-awENw-GNhF7cCui"
 uri = "file://exports/fb_wow_split.png"
 type = "image"
 title = "C — داكن/فاتح منقسم (1080×1080)"
+
+[[outputs]]
+id = "qx5vxDAgdUbmPfv8yb2IN"
+uri = "file://exports/hasahisawi_brochure_2025.pdf"
+type = "pdf"
+title = "منشور حصاحيصاوي 2025 — دليل الخدمات الشامل"
