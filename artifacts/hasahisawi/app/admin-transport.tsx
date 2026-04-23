@@ -84,11 +84,18 @@ const BLANK_OP = {
 export default function AdminTransportScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const userRole = (user?.role as string) || "";
+  const isPlatformAdmin = userRole === "admin";
+  const isOperatorSupervisor = userRole === "transport_supervisor" && !!(user as any)?.operator_id;
+  const canEnter = isPlatformAdmin || userRole === "transport_supervisor";
 
   useEffect(() => {
-    if (user && !isAdmin) router.replace("/admin" as any);
+    if (user && !canEnter) router.replace("/admin" as any);
   }, [user]);
+
+  // نطاق الوصول: للمشرف المرتبط بشركة، نُخفي شؤون المنصة
+  const myOperatorId: number | null = (user as any)?.operator_id ?? null;
+  const [myOperatorName, setMyOperatorName] = useState<string>("");
 
   // ── view state
   const [view, setView] = useState<TransportView>("overview");
@@ -137,6 +144,16 @@ export default function AdminTransportScreen() {
   const [loadingOps,     setLoadingOps]     = useState(false);
   const [showOpForm,     setShowOpForm]     = useState(false);
   const [editingOp,      setEditingOp]      = useState<Operator | null>(null);
+
+  // ── supervisors modal (لإدارة مشرفي شركة محدّدة)
+  const [showSupModal,   setShowSupModal]   = useState(false);
+  const [supOp,          setSupOp]          = useState<Operator | null>(null);
+  const [supList,        setSupList]        = useState<Array<{ id: number; name: string; email: string }>>([]);
+  const [loadingSup,     setLoadingSup]     = useState(false);
+  const [newSupName,     setNewSupName]     = useState("");
+  const [newSupEmail,    setNewSupEmail]    = useState("");
+  const [newSupPass,     setNewSupPass]     = useState("");
+  const [savingSup,      setSavingSup]      = useState(false);
   const [opForm,         setOpForm]         = useState({ ...BLANK_OP });
   const [savingOp,       setSavingOp]       = useState(false);
 
@@ -200,6 +217,22 @@ export default function AdminTransportScreen() {
   }, [token]);
 
   useEffect(() => { loadData(); }, []);
+
+  // لمشرف الشركة: حمّل اسم الشركة لعرضه في الهيدر
+  useEffect(() => {
+    if (isOperatorSupervisor && myOperatorId && !myOperatorName) {
+      (async () => {
+        try {
+          const r = await apiFetch("/api/admin/transport/operators", token);
+          if (r.ok) {
+            const list = await r.json();
+            const mine = list.find((o: Operator) => o.id === myOperatorId);
+            if (mine) setMyOperatorName(mine.name);
+          }
+        } catch {}
+      })();
+    }
+  }, [isOperatorSupervisor, myOperatorId, token]);
 
   useEffect(() => {
     if (view === "drivers") loadDrivers();
@@ -424,6 +457,52 @@ export default function AdminTransportScreen() {
     setSavingOp(false);
   };
 
+  // ── Supervisors management ────────────────────────────────────────────────
+  const openSupervisors = async (op: Operator) => {
+    setSupOp(op);
+    setShowSupModal(true);
+    setLoadingSup(true);
+    setSupList([]);
+    setNewSupName(""); setNewSupEmail(""); setNewSupPass("");
+    try {
+      const r = await apiFetch(`/api/admin/transport/operators/${op.id}/supervisors`, token);
+      const j = await r.json();
+      setSupList(j.supervisors || []);
+    } catch {} finally { setLoadingSup(false); }
+  };
+
+  const createSupervisor = async () => {
+    if (!supOp) return;
+    if (!newSupName.trim() || !newSupEmail.trim() || newSupPass.length < 6) {
+      Alert.alert("بيانات ناقصة", "الاسم والبريد وكلمة سر (٦ أحرف على الأقل)"); return;
+    }
+    setSavingSup(true);
+    try {
+      const r = await apiFetch(`/api/admin/transport/operators/${supOp.id}/supervisor`, token, {
+        method: "POST",
+        body: JSON.stringify({ name: newSupName.trim(), email: newSupEmail.trim(), password: newSupPass }),
+      });
+      const j = await r.json();
+      if (!r.ok) { Alert.alert("خطأ", j.error || "تعذّر الإنشاء"); return; }
+      setSupList(prev => [...prev, j.supervisor]);
+      setNewSupName(""); setNewSupEmail(""); setNewSupPass("");
+      Alert.alert("تم", "تم إنشاء حساب المشرف وربطه بالشركة");
+    } catch { Alert.alert("خطأ", "فشل الإتصال"); } finally { setSavingSup(false); }
+  };
+
+  const unlinkSupervisor = (uid: number) => {
+    if (!supOp) return;
+    Alert.alert("فك الارتباط", "سيُزال هذا المستخدم من إدارة هذه الشركة.", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "فك", style: "destructive", onPress: async () => {
+        try {
+          await apiFetch(`/api/admin/transport/operators/${supOp.id}/supervisor/${uid}`, token, { method: "DELETE" });
+          setSupList(prev => prev.filter(u => u.id !== uid));
+        } catch {}
+      }}
+    ]);
+  };
+
   const deleteOp = (op: Operator) => {
     Alert.alert("حذف الشركة", `هل تريد حذف "${op.name}"؟ سيُلغى ارتباطها بالسائقين والرحلات.`, [
       { text: "إلغاء", style: "cancel" },
@@ -461,6 +540,11 @@ export default function AdminTransportScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={s.headerTitle}>مشوارك علينا</Text>
+          {isOperatorSupervisor && myOperatorName ? (
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#F97316", marginTop: 2 }}>
+              لوحة شركة: {myOperatorName}
+            </Text>
+          ) : null}
           <View style={[s.statusPill, { backgroundColor: statusColor + "20", borderColor: statusColor + "40" }]}>
             <View style={[s.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
@@ -510,17 +594,17 @@ export default function AdminTransportScreen() {
         ))}
       </View>
 
-      {/* ── Nav Tabs ── */}
+      {/* ── Nav Tabs ── (مشرف الشركة لا يرى الشركاء/التعرفة/الإعدادات العامة) */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navBar}>
-        {([
-          { v: "overview",   label: "نظرة عامة",    icon: "view-dashboard-outline" },
-          { v: "reports",    label: "التقارير",      icon: "chart-line" },
-          { v: "operators",  label: "الشركاء",       icon: "office-building" },
-          { v: "fares",      label: "التعرفة",       icon: "calculator-variant" },
-          { v: "drivers",    label: "السائقون",      icon: "steering" },
-          { v: "trips",      label: "الرحلات",       icon: "map-marker-path" },
-          { v: "settings",   label: "الإعدادات",     icon: "cog-outline" },
-        ] as const).map(nav => (
+        {(([
+          { v: "overview",   label: "نظرة عامة",    icon: "view-dashboard-outline", platformOnly: false },
+          { v: "reports",    label: "التقارير",      icon: "chart-line",             platformOnly: false },
+          { v: "operators",  label: isPlatformAdmin ? "الشركاء" : "شركتي", icon: "office-building", platformOnly: false },
+          { v: "fares",      label: "التعرفة",       icon: "calculator-variant",     platformOnly: true },
+          { v: "drivers",    label: "السائقون",      icon: "steering",               platformOnly: false },
+          { v: "trips",      label: "الرحلات",       icon: "map-marker-path",        platformOnly: false },
+          { v: "settings",   label: "الإعدادات",     icon: "cog-outline",            platformOnly: true },
+        ] as const).filter(n => isPlatformAdmin || !n.platformOnly)).map(nav => (
           <TouchableOpacity key={nav.v} onPress={() => setView(nav.v)}
             style={[s.navTab, view === nav.v && { backgroundColor: "#F97316", borderColor: "#F97316" }]}>
             <MaterialCommunityIcons name={nav.icon} size={13} color={view === nav.v ? "#fff" : Colors.textSecondary} />
@@ -795,11 +879,13 @@ export default function AdminTransportScreen() {
                 </View>
               </View>
 
-              {/* زر إضافة */}
-              <TouchableOpacity onPress={openAddOp} style={[s.saveBtn, { backgroundColor: "#F97316" }]}>
-                <Ionicons name="add-circle-outline" size={18} color="#fff" />
-                <Text style={s.saveBtnText}>إضافة شريك مشغّل</Text>
-              </TouchableOpacity>
+              {/* زر إضافة (للأدمن العام فقط) */}
+              {isPlatformAdmin && (
+                <TouchableOpacity onPress={openAddOp} style={[s.saveBtn, { backgroundColor: "#F97316" }]}>
+                  <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                  <Text style={s.saveBtnText}>إضافة شريك مشغّل</Text>
+                </TouchableOpacity>
+              )}
 
               {loadingOps ? (
                 <ActivityIndicator color="#F97316" style={{ marginTop: 20 }} />
@@ -867,21 +953,31 @@ export default function AdminTransportScreen() {
                       </Text>
                     ) : null}
 
-                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                      <TouchableOpacity onPress={() => openEditOp(op)}
-                        style={{ flex: 1, backgroundColor: "#F9731620", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#F9731640" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>تعديل</Text>
-                      </TouchableOpacity>
+                    <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
+                      {isPlatformAdmin && (
+                        <TouchableOpacity onPress={() => openEditOp(op)}
+                          style={{ flex: 1, backgroundColor: "#F9731620", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#F9731640" }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F97316" }}>تعديل</Text>
+                        </TouchableOpacity>
+                      )}
+                      {isPlatformAdmin && (
+                        <TouchableOpacity onPress={() => openSupervisors(op)}
+                          style={{ flex: 1, backgroundColor: "#3E9CBF20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3E9CBF40" }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3E9CBF" }}>المشرفون</Text>
+                        </TouchableOpacity>
+                      )}
                       {op.phone ? (
                         <TouchableOpacity onPress={() => Linking.openURL(`tel:${op.phone}`)}
                           style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#3EFF9C30" }}>
                           <Ionicons name="call-outline" size={15} color="#3EFF9C" />
                         </TouchableOpacity>
                       ) : null}
-                      <TouchableOpacity onPress={() => deleteOp(op)}
-                        style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider }}>
-                        <Ionicons name="trash-outline" size={15} color={Colors.textMuted} />
-                      </TouchableOpacity>
+                      {isPlatformAdmin && (
+                        <TouchableOpacity onPress={() => deleteOp(op)}
+                          style={{ backgroundColor: Colors.bg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider }}>
+                          <Ionicons name="trash-outline" size={15} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </Animated.View>
                 ))
@@ -1432,6 +1528,80 @@ export default function AdminTransportScreen() {
                   {savingOp
                     ? <ActivityIndicator color="#fff" />
                     : <><Ionicons name="save-outline" size={16} color="#fff" /><Text style={s.saveBtnText}>{editingOp ? "تحديث البيانات" : "إضافة الشريك"}</Text></>}
+                </TouchableOpacity>
+              </ScrollView>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Supervisors Modal ── */}
+      <Modal visible={showSupModal} transparent animationType="slide"
+        onRequestClose={() => setShowSupModal(false)}>
+        <Pressable style={s.backdrop} onPress={() => setShowSupModal(false)}>
+          <Animated.View entering={FadeInDown.springify().damping(22)} style={[s.sheet, { maxHeight: "90%" }]}>
+            <Pressable onPress={e => e.stopPropagation()}>
+              <View style={s.handle} />
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>
+                    مشرفو شركة: {supOp?.name || ""}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowSupModal(false)} style={s.iconBtn}>
+                    <Ionicons name="close" size={20} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[s.card, { backgroundColor: "#3E9CBF10", borderColor: "#3E9CBF30" }]}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#3E9CBF", textAlign: "right", lineHeight: 20 }}>
+                    أنشئ حساباً واحداً أو أكثر لمدير الشركة. سيستطيع إدارة سائقيها ورحلاتها فقط، دون الوصول لشركات أخرى أو لإعدادات المنصة.
+                  </Text>
+                </View>
+
+                {/* قائمة المشرفين */}
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, marginTop: 14, marginBottom: 8, textAlign: "right" }}>
+                  المشرفون الحاليون
+                </Text>
+                {loadingSup ? (
+                  <ActivityIndicator color="#F97316" />
+                ) : supList.length === 0 ? (
+                  <View style={[s.card, { alignItems: "center" }]}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>لا يوجد مشرفون مرتبطون بعد</Text>
+                  </View>
+                ) : supList.map(u => (
+                  <View key={u.id} style={[s.card, { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{u.name}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{u.email}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => unlinkSupervisor(u.id)}
+                      style={{ backgroundColor: "#E0556720", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: "#E0556740" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#E05567" }}>فك الارتباط</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {/* إنشاء مشرف جديد */}
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, marginTop: 16, marginBottom: 8, textAlign: "right" }}>
+                  إنشاء حساب مدير جديد للشركة
+                </Text>
+                <TextInput value={newSupName} onChangeText={setNewSupName} placeholder="الاسم الكامل"
+                  placeholderTextColor={Colors.textMuted}
+                  style={{ backgroundColor: Colors.cardBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 8, borderWidth: 1, borderColor: Colors.divider }} />
+                <TextInput value={newSupEmail} onChangeText={setNewSupEmail} placeholder="البريد الإلكتروني"
+                  placeholderTextColor={Colors.textMuted} autoCapitalize="none" keyboardType="email-address"
+                  style={{ backgroundColor: Colors.cardBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 8, borderWidth: 1, borderColor: Colors.divider }} />
+                <TextInput value={newSupPass} onChangeText={setNewSupPass} placeholder="كلمة السر (٦ أحرف على الأقل)"
+                  placeholderTextColor={Colors.textMuted} secureTextEntry
+                  style={{ backgroundColor: Colors.cardBg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 12, borderWidth: 1, borderColor: Colors.divider }} />
+                <TouchableOpacity onPress={createSupervisor} disabled={savingSup}
+                  style={[s.saveBtn, { backgroundColor: "#3E9CBF", opacity: savingSup ? 0.6 : 1 }]}>
+                  {savingSup ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Ionicons name="person-add-outline" size={16} color="#fff" />
+                      <Text style={s.saveBtnText}>إنشاء وربط بالشركة</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </ScrollView>
             </Pressable>
