@@ -12,6 +12,7 @@ import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import JoinOrgBanner from "@/components/JoinOrgBanner";
+import ExternalPartnershipBanner from "@/components/ExternalPartnershipBanner";
 import { getApiUrl } from "@/lib/query-client";
 
 // ══════════════════════════════════════════════════════
@@ -242,6 +243,9 @@ export default function OrgsScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+            {/* ── شراكات المؤسسات الخارجية ── */}
+            <ExternalPartnershipBanner />
+
             {/* ── دعوة المؤسسات للانضمام ── */}
             <JoinOrgBanner />
 

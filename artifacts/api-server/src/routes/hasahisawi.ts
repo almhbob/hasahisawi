@@ -1104,6 +1104,35 @@ export async function initHasahisawiDb() {
     }
   }
 
+  // ══ جدول طلبات تعاون المؤسسات الخارجية (خارج المدينة) ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS external_partnerships (
+      id SERIAL PRIMARY KEY,
+      org_name VARCHAR(200) NOT NULL,
+      org_type VARCHAR(50) NOT NULL DEFAULT 'other',
+      sector VARCHAR(100) NOT NULL DEFAULT '',
+      city VARCHAR(120) NOT NULL DEFAULT '',
+      country VARCHAR(120) NOT NULL DEFAULT '',
+      website VARCHAR(300) NOT NULL DEFAULT '',
+      logo_url VARCHAR(500) NOT NULL DEFAULT '',
+      contact_person VARCHAR(200) NOT NULL DEFAULT '',
+      contact_role VARCHAR(150) NOT NULL DEFAULT '',
+      email VARCHAR(200) NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      whatsapp VARCHAR(50) NOT NULL DEFAULT '',
+      cooperation_scope TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      services_offered TEXT[] NOT NULL DEFAULT '{}',
+      target_audience VARCHAR(300) NOT NULL DEFAULT '',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      admin_notes TEXT NOT NULL DEFAULT '',
+      is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMPTZ
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_ext_partner_status ON external_partnerships(status)`);
+
   // ══ جدول المؤسسات التعليمية ══
   await query(`
     CREATE TABLE IF NOT EXISTS educational_institutions (
@@ -6849,6 +6878,105 @@ router.delete("/admin/organizations/:id", async (req: Request, res: Response) =>
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM organizations WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🤝 شراكات المؤسسات الخارجية — External Partnerships
+// ════════════════════════════════════════════════════════════════
+
+// قائمة الشركاء المعتمدين (عام)
+router.get("/external-partnerships", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = `SELECT id, org_name, org_type, sector, city, country, website, logo_url,
+               cooperation_scope, description, services_offered, target_audience, is_featured, created_at
+               FROM external_partnerships WHERE status='approved'`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND org_type=$${params.length}`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ partnerships: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقديم طلب تعاون جديد (عام)
+router.post("/external-partnerships/apply", async (req: Request, res: Response) => {
+  try {
+    const {
+      org_name, org_type, sector, city, country, website, logo_url,
+      contact_person, contact_role, email, phone, whatsapp,
+      cooperation_scope, description, services_offered, target_audience,
+    } = req.body || {};
+    if (!org_name?.trim() || !contact_person?.trim() || (!email?.trim() && !phone?.trim())) {
+      return res.status(400).json({ error: "اسم المؤسسة واسم المسؤول ووسيلة تواصل واحدة على الأقل (هاتف أو إيميل) مطلوبة" });
+    }
+    const services = Array.isArray(services_offered)
+      ? services_offered.filter((s: unknown) => typeof s === "string" && s.trim()).map((s: string) => s.trim()).slice(0, 12)
+      : [];
+    const { rows } = await query(
+      `INSERT INTO external_partnerships
+       (org_name,org_type,sector,city,country,website,logo_url,contact_person,contact_role,
+        email,phone,whatsapp,cooperation_scope,description,services_offered,target_audience)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       RETURNING id, org_name, status, created_at`,
+      [
+        org_name.trim(), (org_type || "other").trim(), (sector || "").trim(),
+        (city || "").trim(), (country || "").trim(), (website || "").trim(), (logo_url || "").trim(),
+        contact_person.trim(), (contact_role || "").trim(),
+        (email || "").trim(), (phone || "").trim(), (whatsapp || "").trim(),
+        (cooperation_scope || "").trim(), (description || "").trim(),
+        services, (target_audience || "").trim(),
+      ]
+    );
+    return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
+  } catch (e) { console.error("external-partnerships/apply", e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إدارة الطلبات (مسؤول)
+router.get("/admin/external-partnerships", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query;
+    let sql = `SELECT * FROM external_partnerships`;
+    const params: unknown[] = [];
+    if (status && typeof status === "string") { params.push(status); sql += ` WHERE status=$${params.length}`; }
+    sql += ` ORDER BY created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ partnerships: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_notes, is_featured, org_name, org_type, sector, city, country, website, logo_url, cooperation_scope, description, services_offered, target_audience } = req.body || {};
+    const reviewed = status && ["approved", "rejected"].includes(status);
+    const { rows } = await query(
+      `UPDATE external_partnerships SET
+         org_name=COALESCE($1,org_name), org_type=COALESCE($2,org_type),
+         sector=COALESCE($3,sector), city=COALESCE($4,city), country=COALESCE($5,country),
+         website=COALESCE($6,website), logo_url=COALESCE($7,logo_url),
+         cooperation_scope=COALESCE($8,cooperation_scope), description=COALESCE($9,description),
+         services_offered=COALESCE($10,services_offered), target_audience=COALESCE($11,target_audience),
+         status=COALESCE($12,status), admin_notes=COALESCE($13,admin_notes),
+         is_featured=COALESCE($14,is_featured),
+         reviewed_at=CASE WHEN $15::boolean THEN NOW() ELSE reviewed_at END
+       WHERE id=$16 RETURNING *`,
+      [org_name, org_type, sector, city, country, website, logo_url, cooperation_scope, description,
+       Array.isArray(services_offered) ? services_offered : null,
+       target_audience, status, admin_notes, is_featured, reviewed, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM external_partnerships WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
