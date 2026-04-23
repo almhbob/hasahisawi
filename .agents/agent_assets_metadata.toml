@@ -305,3 +305,21 @@ id = "N7GO0onQElYprBgDPymhN"
 uri = "file://exports/fb_poster_updates.png"
 type = "image"
 title = "بوستر 3 — أخبار التحديث الجديد (1200×628)"
+
+[[outputs]]
+id = "npYC8LSVYqz_Cb7xiIVb2"
+uri = "file://exports/fb_v2_lawyers.png"
+type = "image"
+title = "دعوة المحامين — Aurora أورورا (1080×1350)"
+
+[[outputs]]
+id = "jkcO4NlUYu5PU9TDWjovM"
+uri = "file://exports/fb_v2_institutions.png"
+type = "image"
+title = "دعوة المؤسسات — تصميم تحريري (1200×628)"
+
+[[outputs]]
+id = "VYwf-WCaDiUfGLl1oZqYa"
+uri = "file://exports/fb_v2_update.png"
+type = "image"
+title = "تحديث جديد — Bento Grid مستقبلي (1080×1080)"
