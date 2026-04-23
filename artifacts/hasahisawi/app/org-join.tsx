@@ -11,6 +11,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
+import { PLATFORM } from "@/constants/platform";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { uploadFile } from "@/lib/firebase/storage";
@@ -203,7 +204,7 @@ export default function OrgJoinScreen() {
   const [serviceCatFilter, setServiceCatFilter] = useState("الكل");
 
   // إعدادات العقد
-  const [contractWhatsapp, setContractWhatsapp] = useState("+966597083352");
+  const [contractWhatsapp, setContractWhatsapp] = useState(PLATFORM.whatsapp);
   const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
   const [signedContractUrl, setSignedContractUrl] = useState<string | null>(null);
 
@@ -872,7 +873,7 @@ export default function OrgJoinScreen() {
                 <View style={s.contractParties}>
                   <View style={s.contractParty}>
                     <Text style={s.contractPartyTitle}>الطرف الأول — المنصة</Text>
-                    <Text style={s.contractPartyText}>Hasahisawi@hotmail.com</Text>
+                    <Text style={s.contractPartyText}>{PLATFORM.email}</Text>
                     <Text style={s.contractPartyText}>{contractWhatsapp}</Text>
                     <Text style={s.contractPartyText}>مدينة الحصاحيصا</Text>
                   </View>

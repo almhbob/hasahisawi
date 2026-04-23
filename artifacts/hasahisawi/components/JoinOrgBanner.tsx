@@ -8,6 +8,7 @@ import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, wit
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
+import { PLATFORM } from "@/constants/platform";
 
 // أنواع المؤسسات المدعوة للانضمام
 const ORG_TYPES = [
@@ -28,8 +29,8 @@ const BENEFITS = [
   { icon: "chatbubbles-outline", text: "تواصل مباشر مع أبناء المجتمع والمتطوعين",      color: "#E74C6F" },
 ] as const;
 
-const CONTACT_PHONE    = "+249912345600";
-const CONTACT_WHATSAPP = "+249912345600";
+const CONTACT_PHONE    = PLATFORM.whatsapp;
+const CONTACT_WHATSAPP = PLATFORM.whatsapp;
 
 export default function JoinOrgBanner() {
   const pulse = useSharedValue(1);
