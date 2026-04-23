@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter } from "../lib/rate-limiters";
+import { verifyIdToken } from "../lib/firebase-admin";
 
 const router = Router();
 
@@ -3609,13 +3610,28 @@ router.delete("/admin/ads/:id", async (req: Request, res: Response) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
   try {
-    const { firebase_uid, name, email, role } = req.body as {
-      firebase_uid: string;
+    const body = req.body as {
+      idToken?: string;
+      firebase_uid?: string;
       name?: string;
       email?: string;
       role?: string;
     };
-    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid مطلوب" });
+    let { firebase_uid, name, email, role } = body;
+
+    // التحقق المُفضّل: idToken عبر Firebase Admin SDK
+    if (body.idToken) {
+      const verified = await verifyIdToken(body.idToken);
+      if (verified) {
+        firebase_uid = verified.uid;
+        if (!email && verified.email) email = verified.email;
+        if (!name && verified.name) name = verified.name;
+      } else if (!firebase_uid) {
+        return res.status(401).json({ error: "Invalid Firebase ID token" });
+      }
+    }
+
+    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid أو idToken مطلوب" });
 
     // ترتيب الصلاحيات: منع تخفيض الدور
     const roleRank: Record<string, number> = { user: 0, moderator: 1, admin: 2 };

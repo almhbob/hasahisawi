@@ -255,6 +255,7 @@ async function exchangeForBackendToken(
   name: string,
   email: string | null,
   role: string,
+  idToken?: string | null,
 ): Promise<string | null> {
   try {
     const base = getApiUrl();
@@ -264,7 +265,7 @@ async function exchangeForBackendToken(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebase_uid, name, email, role }),
+        body: JSON.stringify({ idToken, firebase_uid, name, email, role }),
       },
       2, // محاولتان فقط — استدعاء خلفي
     );
@@ -459,7 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const authUser = profileToAuthUser(profile, idToken);
             // Exchange Firebase token for backend session token
             const backendTok = await exchangeForBackendToken(
-              fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+              fbUser.uid, profile.name, fbUser.email ?? null, profile.role, idToken
             );
             setUser(authUser);
             setIsGuest(false);
@@ -578,10 +579,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authUser.email = fbUser.email ?? null;
       authUser.avatar_url = fbUser.photoURL ?? null;
     }
-    const backendTok = await exchangeForBackendToken(
-      fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role
-    );
     const idTok = await fbUser.getIdToken();
+    const backendTok = await exchangeForBackendToken(
+      fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role, idTok
+    );
     await saveSession(authUser, idTok, backendTok);
   };
 
@@ -602,6 +603,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           profile?.name ?? fbUser.displayName ?? "مستخدم",
           fbUser.email && !fbUser.email.includes("@hasahisawi.app") ? fbUser.email : email,
           profile?.role ?? "user",
+          idToken,
         );
 
         const authUser: AuthUser = profile
@@ -697,7 +699,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const authUser = profileToAuthUser(profile, idToken);
       const backendTok = await exchangeForBackendToken(
-        fbUser.uid, authUser.name, authUser.email ?? null, authUser.role
+        fbUser.uid, authUser.name, authUser.email ?? null, authUser.role, idToken
       );
       await saveSession(authUser, idToken, backendTok);
       return;
@@ -808,6 +810,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name.trim(),
           isActualEmail ? phoneOrEmail.trim().toLowerCase() : firebaseEmail,
           "user",
+          idToken,
         );
 
         // في الخلفية: حاول إنشاء صف Backend كامل بكل الحقول (national_id, birth_date, ...)
@@ -952,7 +955,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         const authUser = profileToAuthUser(profile, idToken);
         const backendTok = await exchangeForBackendToken(
-          fbUser.uid, profile.name, fbUser.email ?? null, profile.role
+          fbUser.uid, profile.name, fbUser.email ?? null, profile.role, idToken
         );
         setUser(authUser);
         if (backendTok) {

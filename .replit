@@ -36,3 +36,17 @@ RENDER_SERVICE_URL = "https://hasahisawi.onrender.com"
 VITE_API_BASE_URL = "https://hasahisawi.onrender.com"
 RECAPTCHA_SECRET = "6LdgPMEsAAAAABbG8X8YbONJ7e-3Ptq-MipWaJb4"
 VITE_RECAPTCHA_SITE_KEY = "6LdgPMEsAAAAAC0Vncabpa_jKrc3vAuqrlQfvuD8"
+FIREBASE_SERVICE_ACCOUNT_JSON = '''
+{
+  "type": "service_account",
+  "project_id": "hasahisawi",
+  "private_key_id": "4608ed64853d8f54b2650a1f84f8d3dcc82e2120",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC6nKd5VRX7+7tU\nh56l9taA6ckhvKvmzlheh8fkQda/G9jCFDGiTGGY3kGrgG3IAZ/dcLcxOe/t/9Et\n1N/0i9p419MEcPbHph2LfopRno7cVHUlAXY8l6RQM3TxuHB4yUKge5h6I3xQJHys\ntBYMm0bEqushG9vR9XPuATkHM+Mi2eh653LKs1j7/oygoroj0TCrQttV8DaWBrec\niW/5MtWG4/rTxOiyVfZSuEhDHFQKsK5kOiaW3rcUV1H8O6i5TYnXnEG6pTWWUwZ8\nLQljcWyQjVO7DTUixQZinM1ZbKt/nj5AxBqvapz4WCpjlWwy3XQAsiCDDTF31dg+\nSDLodtrjAgMBAAECggEADpVGay9wh+AcvBbbGYooKiva6XWGk4NlmYGP5/ETOJ0S\n+9u7Iz1H1TvtMttW+O3TkekIj+LAsr8umB/OHpy9RntLRMoVJvX+0hNh+M3kySga\nfXlXRZXuI8xZo7gvpejIeaUe/dB/Gv429gIexP5vcdgPhudX7tj5JczXqY3u/p6Z\nen11uG9AWZgrvUSxOf3Pu2BCAqFs9H1r/2puTxk1+eVQAVG+y5C7DAWPs6/iJEM6\nobhK2N6XuuvYPxrULX3pRPp5t1mYJbm+S3lLtC9U6LvHeM3Jel/AG/6ouktCLj/y\neal/GAyAXhAmTbC82PqRuzd+KPUMaxYapc6QcZg+lQKBgQDyLMIKlzcj3KvkCp2D\neGYCE0Em4/ugGktncp+WRbCcubLd5nTa0Zjowz5Ayry8S7lkIA9Xey3DRuX3Nepr\nK7NsYXBWCreARsbMw2VEKtnRhqNTwosLUt32wZ/swV3Fu1sHdB7RE1QpKh+ODuy3\n5ksrp7fgnr79selj2CCEhYBnFwKBgQDFQ+CREcV/LvE4bALW6dk2rpm9srCNsKwe\nQu9JnfBiyK3BpavSVG2lR0R1bPKO6o9GnrHKhsNKwFfHWGu384SIiSdcvOJcmIHA\npXtCSQ+ECs3sP1MjVLosztxmlQKAnvEtRY/H8ghiu3nMWYFp9caoIVUnc5P87rXo\nscWyhwSKFQKBgHByM87zE5lFN1L1Utnep47DHfdO2GEolGZ+JHeD+FNtLg42mX+Y\n3qUFMvympifQCU7iS/1UppULcG/uyt/kNLVYMO7inv2i31/oQjb6ppTRLTkRFbq2\nSXXvxbAKwN209rlpQ33Uubk7Y9d0OpnRBopIn+peC1SErVe83KxryIkVAoGAMYXx\n6dmhUGWzj2umZtf8fTrmQ/aJVnkFLO+27S9mexZQcO4rrbkeccDrkeNRHcoLQDp0\n/hhJDQouv1AWcu8C1dhA9opA9egfowKoaCK5b3fa7LWVJKiPuNISCPrdzvaYK7pr\n91FvA4J3eHL8B2L5hZogq6/bdkNjjdCbhk9ZN2UCgYEAgEI2JLIT0kQocr7PrGz5\nx+zYmvafuYpqp1aXIqN52pRuOEynRWagd2gDdTHjleVbNsvMvMzuEV1IErW+Cc+F\nnZIAJE7baUS5MPGUZbuecnETZMwKm+wBFHSbXN8gxbKQ7lE39laCKs+IPuc95Eqj\nQOOWNu6MmRDsoUoh020weUc=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@hasahisawi.iam.gserviceaccount.com",
+  "client_id": "113399828054691442201",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40hasahisawi.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}'''
