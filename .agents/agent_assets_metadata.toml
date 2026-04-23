@@ -323,3 +323,21 @@ id = "VYwf-WCaDiUfGLl1oZqYa"
 uri = "file://exports/fb_v2_update.png"
 type = "image"
 title = "تحديث جديد — Bento Grid مستقبلي (1080×1080)"
+
+[[outputs]]
+id = "Z25sTG2ALMxL8AmdQD7qb"
+uri = "file://exports/fb_v3_lawyers.png"
+type = "image"
+title = "دعوة المحامين — Aurora (1080×1350)"
+
+[[outputs]]
+id = "oOXvcBgHU1k6JP519IqGn"
+uri = "file://exports/fb_v3_institutions.png"
+type = "image"
+title = "دعوة المؤسسات — Split (1200×628)"
+
+[[outputs]]
+id = "fXwxDKdJ2vgxhq0BxC5Bi"
+uri = "file://exports/fb_v3_update.png"
+type = "image"
+title = "تحديث جديد — Bento Grid (1080×1080)"
