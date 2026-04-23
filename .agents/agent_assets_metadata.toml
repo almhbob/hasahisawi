@@ -251,3 +251,15 @@ id = "Fn-paTofCAncs-qaCXJUx"
 uri = "file://exports/lawyer_contract_sample.pdf"
 type = "pdf"
 title = "عقد انضمام محامٍ — نسخة احترافية (PDF)"
+
+[[outputs]]
+id = "UDGQm7VF0NEBpciDCsrNt"
+uri = "file://exports/lawyer_contract_DRAFT.pdf"
+type = "pdf"
+title = "نموذج / مسودّة عقد — قبل الاعتماد (غير موثّق)"
+
+[[outputs]]
+id = "m5LaX63XfPIS5P0Dj7mHZ"
+uri = "file://exports/lawyer_contract_NOTARIZED.pdf"
+type = "pdf"
+title = "العقد الموثّق رسمياً — بعد الاعتماد (بختم وQR)"

@@ -8074,6 +8074,40 @@ router.post("/admin/lawyer-applications/:id/approve", async (req: Request, res: 
   } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
 });
 
+// تحقّق عام من صحة عقد محامي عبر رقم العقد (للقراءة فقط — للاستخدام من رمز QR)
+// يقبل LAW-00012-2026 ويستخرج id = 12
+router.get("/lawyer-applications/verify/:contractNo", async (req: Request, res: Response) => {
+  try {
+    const cn = String(req.params.contractNo || "");
+    const m = cn.match(/^LAW-(\d{1,9})-(\d{4})$/i);
+    if (!m) return res.status(400).json({ valid: false, error: "صيغة رقم العقد غير صحيحة" });
+    const id = Number(m[1]);
+    const { rows } = await query(
+      `SELECT id, full_name, title, bar_number, district, status, reviewed_at, created_at, lawyer_id
+         FROM lawyer_applications WHERE id = $1`, [id]
+    );
+    const a = rows[0];
+    if (!a) return res.status(404).json({ valid: false, error: "العقد غير موجود في السجلات" });
+    const isApproved = a.status === "approved";
+    return res.json({
+      valid: isApproved,
+      contract_no: cn.toUpperCase(),
+      status: a.status,
+      status_ar: isApproved ? "موثّق ومعتمد" : (a.status === "pending" ? "قيد المراجعة (غير موثّق)" : "مرفوض"),
+      lawyer: {
+        full_name: a.full_name, title: a.title, bar_number: a.bar_number, district: a.district,
+      },
+      issued_at: a.created_at,
+      approved_at: a.reviewed_at,
+      lawyer_id: a.lawyer_id,
+      issuer: "تطبيق حصاحيصاوي — القسم القانوني",
+      note: isApproved
+        ? "الوثيقة موثّقة رسمياً ومعتمدة من إدارة المنصة"
+        : "هذه النسخة مسودّة/قيد المراجعة ولا تعتبر عقداً موثّقاً",
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ valid: false, error: "خطأ في الخادم" }); }
+});
+
 // رفض طلب انضمام
 router.post("/admin/lawyer-applications/:id/reject", async (req: Request, res: Response) => {
   try {

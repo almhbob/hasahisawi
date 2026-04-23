@@ -915,7 +915,7 @@ export default function TransportScreen() {
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 }}>
                       {allNeighborhoods.length > 0
                         ? `${allNeighborhoods.length} حياً مُسجَّلاً • أضف حيّك لخريطة المدينة`
-                        : "ساهم في بناء خريطة مناطق حصاحيصا"}
+                        : "ساهم في بناء خريطة مناطق الحصاحيصا"}
                     </Text>
                   </View>
                   <View style={{ backgroundColor: ACCENT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
@@ -1610,7 +1610,7 @@ export default function TransportScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "right" }}>خريطة الأحياء التفاعلية</Text>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 4, lineHeight: 20 }}>
-                    أبناء حصاحيصا يبنون خريطتهم معاً — أضف حيّك وساهم في تسهيل التنقّل للجميع
+                    أبناء الحصاحيصا يبنون خريطتهم معاً — أضف حيّك وساهم في تسهيل التنقّل للجميع
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
