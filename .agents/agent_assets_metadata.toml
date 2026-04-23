@@ -84,6 +84,12 @@ uri = "file://artifacts/mockup-sandbox/src/assets/images/sudan-map-expand.png"
 type = "image"
 title = "Map of Sudan lighting up"
 
+[[generated]]
+id = "ZhA-F39FG7cNfj3fFBdTQ"
+uri = "file://exports/hasahisawi_legal_poster_4k.png"
+type = "image"
+title = "hasahisawi legal promotional poster 4K"
+
 [[outputs]]
 id = "XEg4GdBAjCSdY7gXoWqhF"
 uri = "file://attached_assets/generated_images/hasahisawi_poster_square.png"
@@ -263,3 +269,9 @@ id = "m5LaX63XfPIS5P0Dj7mHZ"
 uri = "file://exports/lawyer_contract_NOTARIZED.pdf"
 type = "pdf"
 title = "العقد الموثّق رسمياً — بعد الاعتماد (بختم وQR)"
+
+[[outputs]]
+id = "B7nSd2urvXUZflxNRtlhM"
+uri = "file://exports/hasahisawi_legal_poster_4k.png"
+type = "image"
+title = "بوستر حصاحيصاوي — ترويجي للجهات القانونية 4K"
