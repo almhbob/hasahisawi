@@ -49,7 +49,7 @@ jobs:
           restore-keys: pnpm-
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Write .env for Firebase and API
         working-directory: artifacts/hasahisawi
@@ -76,22 +76,29 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
 
-      - name: Build AAB with Gradle
+      - name: Build AAB + APK with Gradle
         working-directory: artifacts/hasahisawi/android
         run: |
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
-      - name: Package AAB
+      - name: Package AAB + APK
+        id: package
         run: |
           mkdir -p release
           VERSION="${{ steps.app_version.outputs.version }}"
           VERSION_CODE="${{ steps.app_version.outputs.version_code }}"
           cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
              release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
+          # APK قد يكون موزَّعاً حسب ABI أو universal
+          APK_SRC=$(find artifacts/hasahisawi/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -n "$APK_SRC" ]; then
+            cp "$APK_SRC" release/hasahisawi-v${VERSION}-code${VERSION_CODE}.apk
+            echo "✅ APK ready: hasahisawi-v${VERSION}-code${VERSION_CODE}.apk"
+          fi
           echo "✅ AAB ready: hasahisawi-v${VERSION}-code${VERSION_CODE}.aab"
           ls -lh release/
 
@@ -101,3 +108,11 @@ jobs:
           name: hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}-aab
           path: release/hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}.aab
           retention-days: 30
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}-apk
+          path: release/hasahisawi-v${{ steps.app_version.outputs.version }}-code${{ steps.app_version.outputs.version_code }}.apk
+          retention-days: 30
+          if-no-files-found: warn
