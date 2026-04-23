@@ -1851,6 +1851,19 @@ export default function SettingsScreen() {
                 <Text style={[contactSty.btnText, { color: "#25D366" }]}>واتساب</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={[contactSty.btn, { backgroundColor: "#2980B920" }]}
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(`tel:${PLATFORM.phoneSudan}`).catch(() =>
+                    Alert.alert("تنبيه", "لا يمكن الاتصال من هذا الجهاز")
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="call-outline" size={20} color="#2980B9" />
+                <Text style={[contactSty.btnText, { color: "#2980B9" }]}>اتصال</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[contactSty.btn, { backgroundColor: Colors.primary + "20" }]}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1865,8 +1878,9 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             <Text style={contactSty.infoText}>
-              {PLATFORM.whatsapp}  •  {PLATFORM.email}
+              {PLATFORM.whatsapp}  •  {PLATFORM.phoneSudan}
             </Text>
+            <Text style={contactSty.infoText}>{PLATFORM.email}</Text>
           </View>
 
           {/* ─── بوابة المؤسسات ─── */}

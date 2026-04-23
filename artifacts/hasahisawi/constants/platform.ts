@@ -2,15 +2,19 @@
 export const PLATFORM = {
   name:      "حصاحيصاوي",
   nameEn:    "Hasahisawi",
-  whatsapp:  "+966530658285",
+
+  // أرقام الدعم الرسمية
+  whatsapp:     "+966597083352",   // الرقم السعودي (واتساب رئيسي)
+  phoneSudan:   "+249916897578",   // الرقم السوداني
+
   email:     "Hasahisawi@hotmail.com",
   city:      "الحصاحيصا",
   state:     "ولاية الجزيرة",
   country:   "السودان",
 
-  // روابط واتساب جاهزة
+  // روابط واتساب جاهزة (الرقم السعودي)
   waLink: (msg = "السلام عليكم، أود الاستفسار عن تطبيق حصاحيصاوي") =>
-    `https://wa.me/966530658285?text=${encodeURIComponent(msg)}`,
+    `https://wa.me/966597083352?text=${encodeURIComponent(msg)}`,
 
   // رابط الإيميل
   mailLink: (subject = "استفسار — حصاحيصاوي") =>
