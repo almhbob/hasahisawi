@@ -383,3 +383,9 @@ id = "qx5vxDAgdUbmPfv8yb2IN"
 uri = "file://exports/hasahisawi_brochure_2025.pdf"
 type = "pdf"
 title = "منشور حصاحيصاوي 2025 — دليل الخدمات الشامل"
+
+[[outputs]]
+id = "czm8JaQ-RFCz0WQSFeFJU"
+uri = "file://exports/hasahisawi_proposal_2025.pdf"
+type = "pdf"
+title = "الكتيّب التعريفي الشامل — تطبيق حصاحيصاوي | مقترح رسمي 10 صفحات"
