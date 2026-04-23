@@ -24,31 +24,13 @@ app.use(
 );
 
 // ── CORS ───────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = new Set([
-  "https://hasahisawi.onrender.com",
-  "https://hasahisawi.firebaseapp.com",
-  "https://hasahisawi.web.app",
-  ...(process.env.REPLIT_DEV_DOMAIN
-    ? [`https://${process.env.REPLIT_DEV_DOMAIN}`]
-    : []),
-  ...(process.env.REPLIT_DOMAINS
-    ? process.env.REPLIT_DOMAINS.split(",").map((d) => `https://${d.trim()}`)
-    : []),
-]);
-
+// نسمح لجميع origins لأن:
+// 1. تطبيق React Native (Expo/AAB) قد يرسل Origin مختلف أو لا يرسل أصلاً
+// 2. الحماية الفعلية تتمّ عبر Bearer tokens (x-user-token, x-admin-pin) وليس CORS
+// 3. CORS مصمم لحماية المتصفحات من cookies cross-site؛ تطبيقنا لا يعتمد عليها
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
-      if (
-        process.env.NODE_ENV !== "production" &&
-        (origin.startsWith("http://localhost") || origin.startsWith("http://127."))
-      ) {
-        return callback(null, true);
-      }
-      callback(new Error(`CORS: origin not allowed — ${origin}`));
-    },
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token"],
