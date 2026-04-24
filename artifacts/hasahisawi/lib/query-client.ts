@@ -49,6 +49,22 @@ export async function wakeUpServer(): Promise<void> {
   }
 }
 
+/**
+ * fetch مع AbortController صريح — بديل موثوق لـ AbortSignal.timeout في React Native.
+ * @param url     - العنوان
+ * @param init    - خيارات fetch
+ * @param ms      - مهلة بالمللي ثانية (افتراضي 15 ثانية)
+ */
+export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 15000): Promise<Response> {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 /** يُعيد Authorization header إذا كان المستخدم مسجلاً */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
@@ -74,10 +90,10 @@ async function throwIfResNotOk(res: Response) {
  * - timeout: 45 ثانية لكل محاولة
  * - يُعيد المحاولة عند: انتهاء المهلة، خطأ شبكة، 5xx، HTML بدلاً من JSON
  */
-async function fetchWithRetry(url: string, init: any, attempts = 3): Promise<Response> {
+async function fetchWithRetry(url: string, init: any, attempts = 2): Promise<Response> {
   let lastErr: any;
-  const TIMEOUT_MS = 45000;
-  const RETRY_DELAY = 4000;
+  const TIMEOUT_MS = 15000;
+  const RETRY_DELAY = 3000;
 
   for (let i = 0; i < attempts; i++) {
     if (i > 0) {
