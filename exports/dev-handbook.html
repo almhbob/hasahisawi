@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>دليل المطوّر — حصاحيصاوي</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: 'Cairo', sans-serif; color: #1a1a1a; line-height: 1.7; }
+  body { padding: 28px 36px; font-size: 11pt; background: #fff; }
+
+  /* Cover */
+  .cover {
+    page-break-after: always;
+    height: 95vh;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #1d3557 0%, #457b9d 100%);
+    color: #fff; border-radius: 18px; padding: 60px;
+  }
+  .cover h1 { font-size: 42pt; margin: 0 0 16px; font-weight: 900; }
+  .cover h2 { font-size: 18pt; margin: 0 0 32px; font-weight: 400; opacity: 0.95; }
+  .cover .meta { font-size: 12pt; margin-top: 24px; opacity: 0.9; }
+  .badge { display: inline-block; background: #ffd166; color: #1d3557; padding: 6px 18px;
+           border-radius: 20px; font-weight: 700; margin: 6px; font-size: 11pt; }
+
+  h1.page-title { font-size: 22pt; color: #1d3557; border-bottom: 3px solid #e63946;
+                  padding-bottom: 6px; margin: 32px 0 16px; }
+  h2 { font-size: 15pt; color: #457b9d; margin: 22px 0 8px; border-right: 4px solid #ffd166; padding-right: 10px; }
+  h3 { font-size: 12pt; color: #1d3557; margin: 16px 0 6px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 10pt; }
+  th, td { border: 1px solid #d0d7de; padding: 7px 10px; text-align: right; vertical-align: top; }
+  th { background: #f1f5f9; color: #1d3557; font-weight: 700; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  code, pre { font-family: 'Courier New', monospace; direction: ltr; text-align: left;
+              background: #f6f8fa; border-radius: 6px; }
+  code { padding: 1px 6px; font-size: 9.5pt; color: #b3261e; }
+  pre { padding: 12px 14px; font-size: 9pt; overflow-x: auto; border: 1px solid #e0e6ed;
+        white-space: pre-wrap; word-break: break-all; }
+  pre code { padding: 0; background: none; color: #24292f; }
+
+  ul, ol { padding-right: 24px; padding-left: 0; margin: 6px 0 12px; }
+  li { margin: 4px 0; }
+
+  .callout { border-right: 5px solid; padding: 10px 14px; border-radius: 6px;
+             margin: 12px 0; background: #f8fafc; }
+  .callout.warn { border-color: #e63946; background: #fff5f5; }
+  .callout.info { border-color: #457b9d; background: #f0f7fb; }
+  .callout.ok   { border-color: #2a9d8f; background: #effaf6; }
+  .callout.tip  { border-color: #ffd166; background: #fffbe9; }
+  .callout strong { color: #1d3557; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { border: 1px solid #e0e6ed; border-radius: 10px; padding: 12px 14px;
+          background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .card h3 { margin-top: 0; color: #e63946; }
+  .kv { font-size: 10pt; }
+  .kv b { color: #1d3557; }
+
+  .toc { columns: 2; column-gap: 30px; font-size: 11pt; }
+  .toc a { color: #1d3557; text-decoration: none; }
+
+  .page-break { page-break-before: always; }
+  footer { text-align: center; font-size: 9pt; color: #9aa4b0; margin-top: 24px;
+           border-top: 1px solid #e0e6ed; padding-top: 8px; }
+
+  .pill { display: inline-block; background: #1d3557; color: #fff; border-radius: 12px;
+          padding: 2px 10px; font-size: 9pt; margin-left: 4px; }
+  .pill.green { background: #2a9d8f; }
+  .pill.red { background: #e63946; }
+  .pill.gray { background: #6c757d; }
+</style>
+</head>
+<body>
+
+<!-- ============== COVER ============== -->
+<section class="cover">
+  <h1>حصاحيصاوي</h1>
+  <h2>دليل المطوّر — السلامة والإصدارات القادمة</h2>
+  <div>
+    <span class="badge">الإصدار 5.6.5</span>
+    <span class="badge">versionCode 165</span>
+    <span class="badge">Android · iOS</span>
+  </div>
+  <div class="meta">
+    وثيقة فنّية حيوية لإدارة الأمان، الإصدار، والنشر<br>
+    تاريخ الإنشاء: 24 أبريل 2026
+  </div>
+</section>
+
+<!-- ============== TOC ============== -->
+<h1 class="page-title">فهرس المحتويات</h1>
+<div class="toc">
+<ol>
+  <li>نظرة عامة على المشروع</li>
+  <li>المعلومات الحيوية للهوية والتوقيع</li>
+  <li>المكدّس التقني الكامل</li>
+  <li>البنية الإنتاجية والنشر</li>
+  <li>إدارة الأسرار والمتغيّرات البيئية</li>
+  <li>الأمان والمصادقة</li>
+  <li>رفع الملفات والوسائط</li>
+  <li>قاعدة البيانات والمخطط</li>
+  <li>API ومسارات الخادم</li>
+  <li>تطبيق الموبايل (Expo)</li>
+  <li>لوحة تحكم الإدارة (Web)</li>
+  <li>سير عمل البناء والإصدار</li>
+  <li>قائمة فحص ما قبل النشر</li>
+  <li>إدارة الإصدارات والـ versionCode</li>
+  <li>المخاطر المعروفة وكيفية التعامل معها</li>
+  <li>خطّة الإصدارات القادمة</li>
+  <li>إجراءات الطوارئ (Rollback &amp; Recovery)</li>
+</ol>
+</div>
+
+<!-- ============== 1. نظرة عامة ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">1. نظرة عامة على المشروع</h1>
+<p>
+<b>حصاحيصاوي</b> بوابة ذكية لمدينة الحصاحيصا في السودان: سوق، مواصلات، توصيل، اجتماعي، رياضة،
+وظائف، دليل طبي، إعلانات، تكريم شخصيات، مفقودون، وأكثر. مبني كـ <b>pnpm monorepo</b>
+يحتوي على عدة منتجات مرتبطة:
+</p>
+<table>
+<tr><th>المنتج</th><th>التقنية</th><th>المسار</th><th>الدور</th></tr>
+<tr><td>تطبيق الموبايل</td><td>Expo / React Native 0.81</td><td><code>artifacts/hasahisawi</code></td><td>المنتج الرئيسي للمستخدم النهائي</td></tr>
+<tr><td>خادم API</td><td>Express 5 + Node 24</td><td><code>artifacts/api-server</code></td><td>كل عمليات الـ Backend</td></tr>
+<tr><td>لوحة تحكم</td><td>React + Vite</td><td><code>artifacts/admin-dashboard</code></td><td>إدارة المحتوى والمستخدمين</td></tr>
+<tr><td>Canvas / Mockup</td><td>Vite</td><td><code>artifacts/mockup-sandbox</code></td><td>بيئة معاينة المكوّنات للمصمم</td></tr>
+</table>
+
+<!-- ============== 2. هوية + توقيع ============== -->
+<h1 class="page-title">2. المعلومات الحيوية للهوية والتوقيع</h1>
+<div class="callout warn">
+<strong>تحذير حرج:</strong> أي تغيير على <code>package</code> أو <code>SHA-1</code> سيمنع تحديث التطبيق على Play Store ويفصل Firebase Auth و Google Sign-In. لا تُغيّرها أبداً.
+</div>
+<table>
+<tr><th>الحقل</th><th>القيمة</th></tr>
+<tr><td>اسم التطبيق</td><td>حصاحيصاوي</td></tr>
+<tr><td>Slug (Expo)</td><td><code>al-hasahisa-service</code></td></tr>
+<tr><td>Package (Android)</td><td><code>com.almhbob.hasahisawi</code></td></tr>
+<tr><td>Bundle ID (iOS)</td><td><code>com.almhbob.hasahisawi</code></td></tr>
+<tr><td>Firebase Project</td><td><code>hasahisawi</code></td></tr>
+<tr><td>Sender ID</td><td><code>133656291161</code></td></tr>
+<tr><td>SHA-1 توقيع الرفع</td><td><code>7bc4a4fc7a923705d36653b1e067794d6bd4c208</code></td></tr>
+<tr><td>Google webClientId</td><td><code>133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com</code></td></tr>
+<tr><td>Expo Owner</td><td><code>almhbob2026</code></td></tr>
+<tr><td>EAS Project</td><td><code>al-hasahisa-service</code></td></tr>
+<tr><td>Scheme (Deep Link)</td><td><code>hasahisawi://</code></td></tr>
+</table>
+<h3>ملفات حسّاسة في المستودع</h3>
+<ul>
+  <li><code>google-services.json</code> — لا تُعدّله يدوياً، يُنزَّل من Firebase Console.</li>
+  <li><code>credentials.json</code> + <code>hasahisawi-upload.pem</code> + <code>eas-upload-new.pem</code> — مفاتيح التوقيع (محلية)، يجب نسخها احتياطياً.</li>
+  <li>إذا فُقدت مفاتيح التوقيع: لن تستطيع رفع تحديث جديد على نفس التطبيق إلى Play Store.</li>
+</ul>
+
+<!-- ============== 3. المكدّس ============== -->
+<h1 class="page-title">3. المكدّس التقني الكامل</h1>
+<div class="grid2">
+<div class="card">
+  <h3>Frontend (Mobile)</h3>
+  <ul class="kv">
+    <li><b>Expo</b> 54.0.27 — New Architecture مفعّلة</li>
+    <li><b>React Native</b> 0.81.5</li>
+    <li><b>React</b> 19.1 + React Compiler</li>
+    <li><b>Expo Router</b> 6 (file-based)</li>
+    <li><b>Firebase JS SDK</b> 12.10</li>
+    <li><b>TanStack React Query</b> 5</li>
+    <li><b>Reanimated</b> 4 + Worklets</li>
+    <li><b>expo-image-picker</b> 17 — للوسائط</li>
+    <li><b>expo-notifications</b> + FCM</li>
+    <li><b>expo-local-authentication</b> — البصمة</li>
+    <li><b>react-native-webview</b> — للخرائط</li>
+  </ul>
+</div>
+<div class="card">
+  <h3>Backend</h3>
+  <ul class="kv">
+    <li><b>Node.js</b> 24 (تشغيل الإنتاج)</li>
+    <li><b>Express</b> 5 + Helmet + CORS</li>
+    <li><b>multer</b> — رفع الملفات</li>
+    <li><b>express-rate-limit</b> — حماية</li>
+    <li><b>Pino</b> — تسجيل</li>
+    <li><b>Firebase Admin SDK</b> — تحقّق ID Tokens</li>
+    <li><b>PostgreSQL</b> (pg) + Drizzle ORM</li>
+    <li><b>Zod</b> + drizzle-zod</li>
+    <li><b>esbuild</b> — حزم الإنتاج</li>
+  </ul>
+</div>
+</div>
+<div class="grid2">
+<div class="card">
+  <h3>Admin Dashboard</h3>
+  <ul class="kv">
+    <li><b>React 19</b> + Vite 7</li>
+    <li><b>TypeScript</b> 5.9</li>
+    <li>14 صفحة إدارية</li>
+    <li>مصادقة بالـ session token من API</li>
+  </ul>
+</div>
+<div class="card">
+  <h3>Storage / Media</h3>
+  <ul class="kv">
+    <li><b>Firebase Storage</b> (المسار الأساسي)</li>
+    <li><b>Backend Multer</b> (احتياطي)</li>
+    <li>حدّ الحجم على الخادم: <b>500MB</b></li>
+    <li>مهلة الرفع: <b>15 دقيقة</b></li>
+  </ul>
+</div>
+</div>
+
+<!-- ============== 4. النشر ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">4. البنية الإنتاجية والنشر</h1>
+<table>
+<tr><th>المكوّن</th><th>المزوّد</th><th>عنوان/معرّف</th></tr>
+<tr><td>API الإنتاج</td><td>Render.com</td><td><code>https://hasahisawi.onrender.com</code></td></tr>
+<tr><td>Service ID</td><td>Render</td><td><code>srv-d7hnfmvaqgkc739ea5f0</code></td></tr>
+<tr><td>قاعدة البيانات</td><td>Render PostgreSQL</td><td>متّصلة بمتغيّر <code>DATABASE_URL</code></td></tr>
+<tr><td>Storage الوسائط</td><td>Firebase Storage</td><td><code>hasahisawi.firebasestorage.app</code></td></tr>
+<tr><td>Auth</td><td>Firebase Auth</td><td>مشروع <code>hasahisawi</code></td></tr>
+<tr><td>Push Notifications</td><td>Firebase Cloud Messaging</td><td>Sender <code>133656291161</code></td></tr>
+<tr><td>بناء AAB / APK</td><td>EAS Build</td><td>profiles: development / preview / production</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions + Codemagic</td><td><code>.github/workflows/build-aab.yml</code></td></tr>
+</table>
+
+<div class="callout warn">
+<strong>مهم — أمر بناء Render مختلف عن render.yaml:</strong>
+<pre><code>cd artifacts/api-server &amp;&amp; cp package.render.json package.json &amp;&amp; npm install --include=dev --legacy-peer-deps &amp;&amp; node build.mjs</code></pre>
+عند إضافة dependency جديد للـ <code>api-server</code> يجب إضافته في <code>package.render.json</code> أيضاً وإلا سيفشل النشر.
+</div>
+
+<h3>تشغيل النشر يدوياً</h3>
+<ul>
+  <li>عبر <code>RENDER_DEPLOY_HOOK</code> المخزَّن في Replit Secrets.</li>
+  <li>قراءة الـ logs عبر <code>RENDER_API_KEY</code>.</li>
+  <li>Auto-deploy مفعّل من فرع <code>master</code>.</li>
+</ul>
+
+<!-- ============== 5. الأسرار ============== -->
+<h1 class="page-title">5. إدارة الأسرار والمتغيّرات البيئية</h1>
+<div class="callout warn">
+<strong>القاعدة الذهبية:</strong> لا تكتب أي مفتاح أو سرّ مباشرة في الكود. استخدم Replit Secrets للتطوير، وRender Env Vars للإنتاج، وEAS env للبناء.
+</div>
+<h3>متغيّرات الخادم (Render)</h3>
+<table>
+<tr><th>المتغيّر</th><th>الوصف</th><th>إلزامي؟</th></tr>
+<tr><td><code>PORT</code></td><td>منفذ الاستماع</td><td>تلقائي</td></tr>
+<tr><td><code>NODE_ENV</code></td><td><code>production</code></td><td>نعم</td></tr>
+<tr><td><code>DATABASE_URL</code></td><td>اتصال PostgreSQL</td><td>نعم</td></tr>
+<tr><td><code>FIREBASE_SERVICE_ACCOUNT_JSON</code></td><td>JSON كامل لخدمة Firebase Admin</td><td>نعم — للتحقّق من ID tokens</td></tr>
+<tr><td><code>PUBLIC_BASE_URL</code></td><td>القاعدة العامة لروابط الرفع</td><td>اختياري</td></tr>
+<tr><td><code>GOOGLE_API_KEY</code></td><td>مفتاح Gemini / AI</td><td>اختياري — لميزات AI</td></tr>
+<tr><td><code>ADMIN_PIN</code> (إن وُجد)</td><td>PIN لوحة التحكم</td><td>نعم</td></tr>
+</table>
+
+<h3>متغيّرات Expo (EXPO_PUBLIC_*)</h3>
+<div class="callout info">
+كل متغيّر يبدأ بـ <code>EXPO_PUBLIC_</code> يُضمَّن داخل الـ APK ويُمكن قراءته من العميل. <b>لا تضع فيها أي سرّ حقيقي</b> (مثل service account أو private keys).
+</div>
+<table>
+<tr><th>المتغيّر</th><th>الوصف</th></tr>
+<tr><td><code>EXPO_PUBLIC_API_URL</code></td><td><code>https://hasahisawi.onrender.com</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_DOMAIN</code></td><td><code>hasahisawi.onrender.com</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_API_KEY</code></td><td>مفتاح Firebase العام</td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN</code></td><td><code>hasahisawi.firebaseapp.com</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_PROJECT_ID</code></td><td><code>hasahisawi</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET</code></td><td><code>hasahisawi.firebasestorage.app</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID</code></td><td><code>133656291161</code></td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_APP_ID</code></td><td>مُعرّف تطبيق Firebase</td></tr>
+<tr><td><code>EXPO_PUBLIC_FIREBASE_APPCHECK_SITE_KEY</code></td><td>reCAPTCHA للويب فقط (اختياري)</td></tr>
+</table>
+
+<h3>أسرار CI/CD</h3>
+<ul>
+  <li><code>EXPO_TOKEN</code> — رمز Expo للنشر التلقائي عبر EAS.</li>
+  <li><code>RENDER_DEPLOY_HOOK</code> + <code>RENDER_API_KEY</code> — لتشغيل النشر وقراءة الـ logs.</li>
+  <li>قائمة Codemagic <code>hasahisawi_firebase</code> + <code>hasahisawi_eas</code>.</li>
+</ul>
+
+<!-- ============== 6. الأمان ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">6. الأمان والمصادقة</h1>
+<h3>طبقات المصادقة</h3>
+<ol>
+  <li><b>Firebase Authentication</b> — للمستخدم النهائي (Email/Password, Google Sign-In, Phone).</li>
+  <li><b>Backend JWT Sessions</b> — يصدر الخادم session token بعد التحقّق من الـ ID token عبر Firebase Admin.</li>
+  <li><b>x-user-token</b> — Header لكل طلب محمي.</li>
+  <li><b>x-admin-pin</b> — لمسارات الإدارة الحساسة.</li>
+</ol>
+
+<h3>Rate Limiting (express-rate-limit)</h3>
+<table>
+<tr><th>المسار</th><th>النافذة</th><th>الحد</th></tr>
+<tr><td>عام (كل المسارات)</td><td>15 دقيقة</td><td>300 طلب / IP</td></tr>
+<tr><td>تسجيل الدخول</td><td>15 دقيقة</td><td>10 محاولات فاشلة</td></tr>
+<tr><td>التحقّق من PIN الإدارة</td><td>10 دقائق</td><td>5 محاولات</td></tr>
+</table>
+
+<h3>هيدرز الأمان (Helmet)</h3>
+<ul>
+  <li>مفعّل افتراضياً مع تخصيص <code>crossOriginResourcePolicy: cross-origin</code> ليسمح بتقديم ملفات <code>/uploads</code> للموبايل.</li>
+  <li>CSP موقوف لأن التطبيق Native (لا يمر عبر متصفح).</li>
+</ul>
+
+<h3>CORS</h3>
+<div class="callout info">
+مفعّل لكل الـ origins (<code>origin: true</code>) — الحماية الفعلية عبر Bearer tokens، لأن React Native لا يرسل Origin ثابت.
+</div>
+
+<h3>قائمة فحص الأمان قبل كل إصدار</h3>
+<ul>
+  <li>التأكد من عدم تسريب <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> في أي ملف.</li>
+  <li>التأكد من تشغيل <code>npm audit</code> أو فحص أمان dependencies.</li>
+  <li>التأكد من تحديث Firebase Security Rules (Storage + Firestore).</li>
+  <li>تدوير <code>ADMIN_PIN</code> دورياً (كل 90 يوم).</li>
+  <li>مراجعة <code>SHA-1</code> في Firebase Console مطابق لمفتاح التوقيع.</li>
+</ul>
+
+<!-- ============== 7. الرفع ============== -->
+<h1 class="page-title">7. رفع الملفات والوسائط</h1>
+<table>
+<tr><th>الإعداد</th><th>القيمة</th><th>الموقع</th></tr>
+<tr><td>الحد الأقصى للحجم</td><td><b>500 MB</b></td><td><code>upload.ts</code> · multer.limits.fileSize</td></tr>
+<tr><td>مهلة طلب الخادم</td><td>10 دقائق</td><td><code>upload.ts</code> · req.setTimeout</td></tr>
+<tr><td>مهلة بقاء الاتصال</td><td>15 دقيقة</td><td><code>index.ts</code> · server.requestTimeout</td></tr>
+<tr><td>مهلة العميل (XHR)</td><td>15 دقيقة</td><td><code>storage.ts</code> · xhr.timeout</td></tr>
+<tr><td>جودة الصور (picker)</td><td>1.0 — أقصى</td><td>كل الشاشات</td></tr>
+<tr><td>أنواع مدعومة (صور)</td><td>jpeg / png / webp / gif / heic / heif / bmp / tiff</td><td>—</td></tr>
+<tr><td>أنواع مدعومة (فيديو)</td><td>mp4 / mov / mkv / webm / 3gp / avi / m4v</td><td>—</td></tr>
+<tr><td>التخزين الأساسي</td><td>Firebase Storage</td><td>resumable uploads</td></tr>
+<tr><td>التخزين الاحتياطي</td><td>Backend Multer</td><td><code>/tmp/uploads</code> في الإنتاج (مؤقّت)</td></tr>
+</table>
+<div class="callout warn">
+<strong>تنبيه مهم:</strong> <code>/tmp/uploads</code> على Render <b>مؤقّت</b> ويُمسح عند إعادة تشغيل الخادم. Firebase Storage هو الحلّ الدائم؛ إذا فشل Firebase يتمّ التحويل للـ backend كـ احتياط فقط. للحلّ الدائم في الـ backend استخدم Render Persistent Disk أو Cloudflare R2 / AWS S3.
+</div>
+
+<!-- ============== 8. قاعدة البيانات ============== -->
+<h1 class="page-title">8. قاعدة البيانات والمخطط</h1>
+<ul>
+  <li><b>المحرّك:</b> PostgreSQL (Render في الإنتاج، محلي في التطوير).</li>
+  <li><b>ORM / Schema:</b> Drizzle — <code>artifacts/hasahisawi/shared/schema.ts</code></li>
+  <li><b>Migrations:</b> drizzle-kit — مجلد <code>migrations/</code></li>
+  <li><b>أمر فحص:</b> <code>npx drizzle-kit push</code> أو <code>generate</code></li>
+  <li><b>التحقّق من المدخلات:</b> Zod + drizzle-zod (آلياً).</li>
+</ul>
+<h3>قواعد قبل أي تعديل على المخطط</h3>
+<ol>
+  <li>أنشئ migration بـ <code>drizzle-kit generate</code>، لا تعدّل قاعدة الإنتاج يدوياً.</li>
+  <li>اختبر الـ migration على نسخة محليّة أولاً.</li>
+  <li>خذ نسخة احتياطية قبل التطبيق على الإنتاج.</li>
+  <li>أضف الحقل كـ <i>nullable</i> أوّلاً، ثم اجعله مطلوباً في إصدار لاحق (zero-downtime).</li>
+</ol>
+
+<!-- ============== 9. API ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">9. API ومسارات الخادم</h1>
+<p>إجمالي المسارات في <code>artifacts/api-server/src/routes/hasahisawi.ts</code>: <span class="pill">320 مسار</span></p>
+<h3>المجموعات الرئيسية</h3>
+<table>
+<tr><th>المجموعة</th><th>أمثلة</th></tr>
+<tr><td>المصادقة</td><td><code>/auth/register</code> · <code>/auth/login</code> · <code>/auth/admin-login</code> · <code>/auth/me</code> · <code>/auth/logout</code></td></tr>
+<tr><td>إصدار التطبيق + الميزات</td><td><code>/app/version</code> · <code>/app/feature-flags</code> · <code>/admin/feature-flags</code></td></tr>
+<tr><td>المنشورات</td><td><code>/posts</code> · <code>/posts/:id/comments</code> · <code>/posts/:id/like</code></td></tr>
+<tr><td>الإشعارات</td><td><code>/notifications</code> · <code>/push-tokens</code></td></tr>
+<tr><td>الخريطة</td><td><code>/map/places</code></td></tr>
+<tr><td>التقييمات</td><td><code>/ratings</code> · <code>/ratings/entities</code></td></tr>
+<tr><td>الأخبار</td><td><code>/news</code></td></tr>
+<tr><td>المواعيد + خدمات المرأة</td><td><code>/appointments</code> · <code>/women-services</code></td></tr>
+<tr><td>الصلاة</td><td><code>/prayer-settings</code> · <code>/admin/prayer-settings</code></td></tr>
+<tr><td>الرفع</td><td><code>POST /upload</code></td></tr>
+<tr><td>الصحة</td><td><code>GET /healthz</code></td></tr>
+</table>
+
+<h3>قواعد ذهبية للمسارات</h3>
+<ul>
+  <li>كل مسار محمي يجب أن يقرأ الهوية من <code>x-user-token</code>.</li>
+  <li>كل مسار إداري يجب أن يقرأ <code>x-admin-pin</code> ويُحمى بالـ <code>pinLimiter</code>.</li>
+  <li>التحقّق من المدخلات بـ Zod قبل أي عملية DB.</li>
+  <li>إرجاع رسائل خطأ بالعربية للمستخدم.</li>
+</ul>
+
+<!-- ============== 10. الموبايل ============== -->
+<h1 class="page-title">10. تطبيق الموبايل (Expo)</h1>
+<h3>الهيكل</h3>
+<pre><code>artifacts/hasahisawi/
+├── app/                    Expo Router (file-based)
+│   ├── (tabs)/            22 شاشة رئيسية (sport, social, market, ...)
+│   ├── login.tsx
+│   ├── admin.tsx
+│   ├── conversation.tsx
+│   ├── notifications.tsx
+│   └── _layout.tsx
+├── components/             مكونات مشتركة
+├── lib/
+│   ├── firebase/          (auth, storage, notifications, app-check)
+│   ├── auth-context.tsx
+│   ├── query-client.ts    (getApiUrl)
+│   └── feature-flags-context.tsx
+├── shared/schema.ts        Drizzle schema
+├── plugins/                Expo config plugins (withResizeableActivity)
+├── app.json                إعدادات Expo
+├── eas.json                ملفّات بناء EAS
+└── google-services.json    Firebase Android</code></pre>
+
+<h3>الإعدادات الحرجة في app.json</h3>
+<table>
+<tr><th>الحقل</th><th>القيمة الحالية</th><th>ملاحظة</th></tr>
+<tr><td><code>version</code></td><td>5.6.5</td><td>يظهر للمستخدم — زِدها كل إصدار</td></tr>
+<tr><td><code>android.versionCode</code></td><td>165</td><td><b>يجب زيادتها كل بناء جديد</b></td></tr>
+<tr><td><code>ios.buildNumber</code></td><td>5</td><td>زِده مع كل بناء iOS</td></tr>
+<tr><td><code>newArchEnabled</code></td><td>true</td><td>New Architecture مفعّلة — اختبر جيّداً عند ترقية مكتبات</td></tr>
+<tr><td>الأذونات Android</td><td>BOOT, VIBRATE, NOTIFICATIONS, BIOMETRIC, LOCATION</td><td>راجعها قبل كل إصدار</td></tr>
+</table>
+
+<!-- ============== 11. لوحة التحكم ============== -->
+<h1 class="page-title">11. لوحة تحكم الإدارة</h1>
+<ul>
+  <li>14 صفحة: Dashboard, Users, Posts, Merchants, PhoneShops, Transport, MapPlaces, Communities, Ads, Honored, Missing, Numbers, Settings, PrayerSettings.</li>
+  <li>المصادقة عبر <code>x-admin-pin</code> + session.</li>
+  <li>نقطة الدخول الإنتاجية: تُقدَّم من نفس Express أو Replit dev preview.</li>
+  <li>عند إضافة صفحة جديدة: أضِف الـ route، الـ Layout، و item في الـ sidebar.</li>
+</ul>
+
+<!-- ============== 12. البناء ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">12. سير عمل البناء والإصدار</h1>
+<h3>EAS Profiles المتاحة</h3>
+<table>
+<tr><th>Profile</th><th>المخرَج</th><th>الاستخدام</th></tr>
+<tr><td><code>development</code></td><td>APK + Dev Client</td><td>تطوير محلي مع Hot Reload</td></tr>
+<tr><td><code>preview</code></td><td><b>APK جاهز للتثبيت</b></td><td>اختبار داخلي / مشاركة سريعة</td></tr>
+<tr><td><code>production</code></td><td><b>AAB</b> (Play Store)</td><td>الإصدار الرسمي</td></tr>
+</table>
+
+<h3>أمر بناء APK سريع</h3>
+<pre><code># داخل Replit (بدون git في هذه البيئة):
+cd artifacts/hasahisawi
+EAS_NO_VCS=1 eas build --platform android --profile preview --non-interactive --no-wait
+
+# في بيئة مع git عادية:
+cd artifacts/hasahisawi
+eas build --platform android --profile preview</code></pre>
+
+<h3>أمر بناء AAB للإنتاج</h3>
+<pre><code>cd artifacts/hasahisawi
+eas build --platform android --profile production
+# المخرج: ملف AAB يُرفع يدوياً أو عبر:
+eas submit --platform android --profile production</code></pre>
+
+<h3>Codemagic (بناء سحابي بديل)</h3>
+<ul>
+  <li>الملف: <code>artifacts/hasahisawi/codemagic.yaml</code></li>
+  <li>Workflow: <code>android-release</code> — يبني AAB على mac_mini_m2.</li>
+  <li>إشعارات بريد إلى <code>almhbob2026@gmail.com</code>.</li>
+</ul>
+
+<!-- ============== 13. قائمة فحص ============== -->
+<h1 class="page-title">13. قائمة فحص ما قبل النشر</h1>
+<div class="callout ok">
+<strong>اتّبع هذه الخطوات قبل كل إصدار جديد بدون استثناء:</strong>
+</div>
+<ol>
+  <li>ارفع <code>android.versionCode</code> بـ +1 على الأقل، وحدّث <code>version</code> الدلالي (5.6.5 → 5.6.6).</li>
+  <li>حدّث <code>ios.buildNumber</code> إذا كنت ستبني iOS.</li>
+  <li>شغّل <code>pnpm typecheck</code> — يجب أن يمرّ بدون أخطاء.</li>
+  <li>اختبر تسجيل الدخول، رفع صورة، رفع فيديو، إرسال إشعار.</li>
+  <li>تأكّد أن <code>EXPO_PUBLIC_API_URL</code> يشير إلى <b>الإنتاج</b> وليس Replit dev.</li>
+  <li>تأكّد من تطابق <code>SHA-1</code> في Firebase Console مع مفتاح التوقيع.</li>
+  <li>راجع Firebase Security Rules (Storage + Firestore).</li>
+  <li>افحص Render logs بعد آخر deploy للتأكد من عدم وجود أخطاء حرجة.</li>
+  <li>تحقّق من <code>app/version</code> و <code>app/feature-flags</code> أنّها صحيحة.</li>
+  <li>اعمل APK preview أوّلاً واختبره على جهاز فعلي قبل بناء AAB للنشر.</li>
+  <li>خذ نسخة احتياطية من قاعدة البيانات.</li>
+  <li>دوّن الإصدار الجديد في CHANGELOG (إن وُجد).</li>
+</ol>
+
+<!-- ============== 14. versionCode ============== -->
+<h1 class="page-title">14. إدارة الإصدارات و versionCode</h1>
+<div class="callout warn">
+<strong>القاعدة الأهمّ:</strong> Google Play <b>لن يقبل</b> رفع نسخة بـ <code>versionCode</code> أصغر أو يساوي آخر نسخة منشورة. زِد دائماً.
+</div>
+<h3>الترقيم الموصى به</h3>
+<table>
+<tr><th>نوع التغيير</th><th>version (Semver)</th><th>versionCode</th></tr>
+<tr><td>إصلاح صغير</td><td>5.6.5 → 5.6.6</td><td>165 → 166</td></tr>
+<tr><td>ميزة جديدة</td><td>5.6.5 → 5.7.0</td><td>165 → 170</td></tr>
+<tr><td>تغيير كبير / كسر التوافق</td><td>5.6.5 → 6.0.0</td><td>165 → 200</td></tr>
+</table>
+<h3>Force Update (تحديث إلزامي)</h3>
+<ul>
+  <li>المسار <code>GET /app/version</code> يُرجع أحدث إصدار + <code>min_supported</code>.</li>
+  <li>للإجبار على التحديث: ارفع <code>min_supported</code> عبر <code>PATCH /admin/app/version</code>.</li>
+  <li>التطبيق يعرض شاشة "حدّث التطبيق" تلقائياً عند المقارنة.</li>
+</ul>
+
+<!-- ============== 15. مخاطر ============== -->
+<h1 class="page-title">15. المخاطر المعروفة وكيفية التعامل</h1>
+<table>
+<tr><th>المخاطرة</th><th>التأثير</th><th>الحل</th></tr>
+<tr><td><code>/tmp/uploads</code> يُمسح على Render</td><td>الملفات المرفوعة للخادم تختفي عند restart</td><td>اعتمد على Firebase Storage، لا تستخدم backend إلا للاحتياط</td></tr>
+<tr><td>Free Render Service ينام بعد خمول</td><td>أوّل طلب بطيء (10s+)</td><td>ترقية للخطّة المدفوعة أو ping دوري</td></tr>
+<tr><td>Firebase API Key مكشوف في APK</td><td>هذا طبيعي ومتعمّد</td><td>الحماية عبر Security Rules + App Check</td></tr>
+<tr><td>versionCode منسي</td><td>Play Store يرفض الرفع</td><td>اتّبع قائمة الفحص</td></tr>
+<tr><td>تغيير SHA-1</td><td>كسر Google Sign-In وFCM</td><td>لا تُغيّر مفتاح التوقيع أبداً، احتفظ بنسخة احتياطية</td></tr>
+<tr><td>تجاوز Rate Limit للـ auth</td><td>المستخدم محظور 15 دقيقة</td><td>وضّح للمستخدم في الـ UI</td></tr>
+<tr><td>fileFilter يرفض mime غير معروف</td><td>كان يرفض الفيديوهات</td><td>تمّ الإصلاح: قائمة موسّعة + قبول حسب الامتداد</td></tr>
+<tr><td>New Architecture + مكتبة قديمة</td><td>تعطّل غير متوقّع</td><td>اختبر دائماً preview APK قبل production</td></tr>
+</table>
+
+<!-- ============== 16. roadmap ============== -->
+<div class="page-break"></div>
+<h1 class="page-title">16. خطّة الإصدارات القادمة</h1>
+<div class="grid2">
+<div class="card">
+  <h3>5.7.0 — تحسينات الوسائط</h3>
+  <ul>
+    <li>ضغط الفيديو على الجهاز قبل الرفع.</li>
+    <li>دعم رفع متعدّد (multi-image picker).</li>
+    <li>ضغط الصور التلقائي مع الحفاظ على EXIF.</li>
+    <li>عرض شريط تقدّم محسّن للفيديوهات الكبيرة.</li>
+  </ul>
+</div>
+<div class="card">
+  <h3>5.8.0 — أداء وموثوقية</h3>
+  <ul>
+    <li>Persistent Disk على Render أو Cloudflare R2.</li>
+    <li>Cache للقوائم الكبيرة (RTK / React Query persistor).</li>
+    <li>Sentry / Crashlytics للرصد.</li>
+  </ul>
+</div>
+</div>
+<div class="grid2">
+<div class="card">
+  <h3>6.0.0 — ميزات كبيرة</h3>
+  <ul>
+    <li>دفع إلكتروني (Stripe / محلي).</li>
+    <li>مكالمات صوتية في الدردشة.</li>
+    <li>Stories مؤقّتة في القسم الاجتماعي.</li>
+    <li>دعم متعدّد المدن.</li>
+  </ul>
+</div>
+<div class="card">
+  <h3>صيانة دورية</h3>
+  <ul>
+    <li>تحديث Expo SDK كل 6 أشهر.</li>
+    <li>تحديث Firebase JS SDK كل 3 أشهر.</li>
+    <li>تدوير ADMIN_PIN كل 3 أشهر.</li>
+    <li>مراجعة Security Rules كل إصدار.</li>
+  </ul>
+</div>
+</div>
+
+<!-- ============== 17. طوارئ ============== -->
+<h1 class="page-title">17. إجراءات الطوارئ (Rollback &amp; Recovery)</h1>
+<h3>إذا فشل النشر على Render</h3>
+<ol>
+  <li>افتح Render Dashboard → Service → Manual Deploy → اختر آخر deploy ناجح → Rollback.</li>
+  <li>أو عبر API: <code>POST /v1/services/{id}/rollback</code> باستخدام <code>RENDER_API_KEY</code>.</li>
+  <li>افحص logs لمعرفة سبب الفشل قبل المحاولة الثانية.</li>
+</ol>
+<h3>إذا تعطّل التطبيق بعد إصدار</h3>
+<ol>
+  <li>اقلب feature flag للميزة المتسبّبة عبر <code>/admin/feature-flags</code> فوراً.</li>
+  <li>إذا كان التعطّل عام، فعّل <b>Force Update</b> برفع <code>min_supported</code>.</li>
+  <li>ابنِ نسخة hotfix بـ <code>versionCode</code> أعلى وانشرها.</li>
+</ol>
+<h3>إذا فُقد مفتاح التوقيع</h3>
+<div class="callout warn">
+<strong>كارثة:</strong> لن تستطيع تحديث التطبيق على نفس الـ package. يجب نشر تطبيق جديد بـ package مختلف وفقدان جميع التقييمات والمستخدمين الحاليين. <br>
+<b>الوقاية:</b> احتفظ بنسخ من <code>credentials.json</code> + <code>.pem</code> في 3 أماكن منفصلة (محلي، Drive، USB مشفّر). فعّل Play App Signing من Google لتقليل الخطر.
+</div>
+<h3>إذا تسرّب FIREBASE_SERVICE_ACCOUNT_JSON</h3>
+<ol>
+  <li>افتح Firebase Console → Settings → Service Accounts.</li>
+  <li>احذف المفتاح المسرّب فوراً.</li>
+  <li>أنشئ مفتاحاً جديداً وحدّث <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> على Render.</li>
+  <li>أعد تشغيل الخادم.</li>
+  <li>دقّق سجلّات الوصول للتأكد من عدم سوء استخدام.</li>
+</ol>
+<h3>إذا تعطّلت قاعدة البيانات</h3>
+<ol>
+  <li>افتح Render Dashboard → Database → Backups → استعد آخر نسخة.</li>
+  <li>استخدم <code>pg_restore</code> إذا كان لديك نسخة محلية.</li>
+  <li>الخادم سيرجع تلقائياً عند توفّر القاعدة (لا rebuild مطلوب).</li>
+</ol>
+
+<footer>
+حصاحيصاوي — دليل المطوّر الحيوي · أُنشئ تلقائياً في 24 أبريل 2026 · للاستخدام الداخلي
+</footer>
+
+</body>
+</html>

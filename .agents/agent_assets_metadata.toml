@@ -425,3 +425,9 @@ id = "aHHWLQjbTLtAu-kkS-RBO"
 uri = "file://exports/post_update.png"
 type = "image"
 title = "بوست تحديث v5.6.5"
+
+[[outputs]]
+id = "cxqCrgoximjdET2exPGd-"
+uri = "file://exports/hasahisawi-dev-handbook.pdf"
+type = "pdf"
+title = "حصاحيصاوي — دليل المطوّر الحيوي (السلامة والإصدارات)"
