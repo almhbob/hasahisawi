@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import Colors from "@/constants/colors";
+import { PLATFORM } from "@/constants/platform";
 import type { LostItem } from "./missing";
 import type { Job } from "./jobs";
 import type { Facility } from "./medical";
@@ -22,7 +23,7 @@ import type { SportClub, SportEvent } from "./sports";
 import { SPORT_CLUBS_KEY, SPORT_EVENTS_KEY, loadSportClubs, loadSportEvents, getSportLabel, getSportColor } from "./sports";
 import type { CulturalCenter, CulturalEvent } from "./culture";
 import { CULTURAL_CENTERS_KEY, CULTURAL_EVENTS_KEY, loadCulturalCenters, loadCulturalEvents, getCenterTypeLabel, getCenterTypeColor, getEventTypeLabel, getEventTypeColor } from "./culture";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import UserAvatar from "@/components/UserAvatar";
@@ -855,7 +856,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications`);
+      const res = await fetchWithTimeout(`${base}/api/notifications`);
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -868,7 +869,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications`, {
+      const res = await fetchWithTimeout(`${base}/api/notifications`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), body: newBody.trim(), type: newType }),
@@ -883,7 +884,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications/${id}`, {
+      const res = await fetchWithTimeout(`${base}/api/notifications/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -978,7 +979,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news`);
+      const res = await fetchWithTimeout(`${base}/api/news`);
       if (res.ok) setNews(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -991,7 +992,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news`, {
+      const res = await fetchWithTimeout(`${base}/api/news`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim(), category: newCategory, author_name: newAuthor.trim() || undefined, is_pinned: newPinned }),
@@ -1006,7 +1007,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news/${id}`, {
+      const res = await fetchWithTimeout(`${base}/api/news/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -1162,7 +1163,7 @@ export default function SettingsScreen() {
     if (!base || !auth.token) return;
     setRideStatusLoading(true);
     try {
-      await fetch(new URL("/api/admin/feature-flags", base).toString(), {
+      await fetchWithTimeout(new URL("/api/admin/feature-flags", base).toString(), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ ride_status: status }),
@@ -1190,7 +1191,7 @@ export default function SettingsScreen() {
     if (!perm.granted) { Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      allowsEditing: true, aspect: [1, 1], quality: 1.0,
     });
     if (result.canceled || !result.assets[0]) return;
     if (!isFirebaseAvailable()) {
@@ -1275,7 +1276,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       if (!base) return [];
-      const res = await fetch(`${base}/api/lost-items`);
+      const res = await fetchWithTimeout(`${base}/api/lost-items`);
       if (res.ok) { const d = await res.json(); return d.items || []; }
     } catch {}
     return [];
@@ -1312,7 +1313,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL("/api/landmarks", base).toString();
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url);
       if (res.ok) setLandmarks(await res.json());
     } catch {}
   };
@@ -1321,7 +1322,7 @@ export default function SettingsScreen() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+      mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [16, 9],
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
@@ -1342,7 +1343,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL("/api/admin/landmarks", base).toString();
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1364,7 +1365,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL(`/api/admin/landmarks/${lm.id}`, base).toString();
-      await fetch(url, {
+      await fetchWithTimeout(url, {
         method: "DELETE",
         headers: { ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
       });
@@ -1434,7 +1435,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       if (!base) { setPinChangeError("الخادم غير متاح — تحقق من الإنترنت"); return; }
       const url = `${base}/api/admin/change-pin`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1571,7 +1572,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       const tkn = auth.token;
       if (base && tkn) {
-        await fetch(`${base}/api/lost-items/${id}/status`, {
+        await fetchWithTimeout(`${base}/api/lost-items/${id}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${tkn}` },
           body: JSON.stringify({ status: "found" }),
@@ -1586,7 +1587,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       const tkn = auth.token;
       if (base && tkn) {
-        await fetch(`${base}/api/lost-items/${id}`, {
+        await fetchWithTimeout(`${base}/api/lost-items/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${tkn}` },
         });
@@ -1644,7 +1645,7 @@ export default function SettingsScreen() {
   const loadUsers = async () => {
     if (!isAdmin || !auth.token) return;
     try {
-      const res = await fetch(new URL("/api/admin/users", getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL("/api/admin/users", getApiUrl()).toString(), {
         headers: { Authorization: `Bearer ${auth.token}` },
       });
       if (res.ok) {
@@ -1657,7 +1658,7 @@ export default function SettingsScreen() {
   const changeUserRole = async (userId: number, newRole: "user" | "moderator") => {
     if (!auth.token) return;
     try {
-      const res = await fetch(new URL(`/api/admin/users/${userId}/role`, getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL(`/api/admin/users/${userId}/role`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ role: newRole }),
@@ -1675,7 +1676,7 @@ export default function SettingsScreen() {
   const updateUserPermissions = async (userId: number, sections: string[]) => {
     if (!auth.token) return;
     try {
-      const res = await fetch(new URL(`/api/admin/users/${userId}/permissions`, getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL(`/api/admin/users/${userId}/permissions`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ sections }),
@@ -1695,7 +1696,7 @@ export default function SettingsScreen() {
         { text: lang === "ar" ? "حذف" : "Delete", style: "destructive", onPress: async () => {
           if (!auth.token) return;
           try {
-            await fetch(new URL(`/api/admin/users/${userId}`, getApiUrl()).toString(), {
+            await fetchWithTimeout(new URL(`/api/admin/users/${userId}`, getApiUrl()).toString(), {
               method: "DELETE",
               headers: { Authorization: `Bearer ${auth.token}` },
             });
@@ -1823,6 +1824,104 @@ export default function SettingsScreen() {
               )}
             </View>
           )}
+
+          {/* ─── دعم التطبيق ─── */}
+          <View style={contactSty.card}>
+            {/* رأس البطاقة */}
+            <View style={contactSty.headerRow}>
+              <View style={contactSty.iconBox}>
+                <MaterialCommunityIcons name="headset" size={22} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={contactSty.title}>دعم تطبيق حصاحيصاوي</Text>
+                <Text style={contactSty.sub}>فريق الدعم جاهز — راسلنا عبر واتساب أعمال</Text>
+              </View>
+            </View>
+
+            {/* زر الإبلاغ عن مشكلة */}
+            <TouchableOpacity
+              style={contactSty.actionBtn}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Linking.openURL(PLATFORM.waSupport(auth.user?.name)).catch(() =>
+                  Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
+                );
+              }}
+              activeOpacity={0.82}
+            >
+              <View style={contactSty.actionIconBox}>
+                <MaterialCommunityIcons name="bug-outline" size={20} color="#E74C3C" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={contactSty.actionTitle}>الإبلاغ عن مشكلة</Text>
+                <Text style={contactSty.actionSub}>أرسل تقرير مشكلة عبر واتساب</Text>
+              </View>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+            </TouchableOpacity>
+
+            {/* زر الاقتراح */}
+            <TouchableOpacity
+              style={[contactSty.actionBtn, { borderColor: "#F39C1220" }]}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Linking.openURL(PLATFORM.waSuggest(auth.user?.name)).catch(() =>
+                  Alert.alert("تنبيه", "تأكد من تثبيت واتساب على هاتفك")
+                );
+              }}
+              activeOpacity={0.82}
+            >
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#F39C1215", borderColor: "#F39C1230" }]}>
+                <Ionicons name="bulb-outline" size={20} color="#F39C12" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={contactSty.actionTitle}>اقتراح أو ملاحظة</Text>
+                <Text style={contactSty.actionSub}>ساعدنا في تطوير التطبيق</Text>
+              </View>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+            </TouchableOpacity>
+
+            {/* فاصل */}
+            <View style={contactSty.divider}>
+              <View style={contactSty.dividerLine} />
+              <Text style={contactSty.dividerText}>وسائل أخرى</Text>
+              <View style={contactSty.dividerLine} />
+            </View>
+
+            {/* اتصال وإيميل */}
+            <View style={contactSty.btnRow}>
+              <TouchableOpacity
+                style={[contactSty.btn, { backgroundColor: "#2980B920" }]}
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(`tel:${PLATFORM.phoneSudan}`).catch(() =>
+                    Alert.alert("تنبيه", "لا يمكن الاتصال من هذا الجهاز")
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="call-outline" size={18} color="#2980B9" />
+                <Text style={[contactSty.btnText, { color: "#2980B9" }]}>اتصال</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[contactSty.btn, { backgroundColor: Colors.primary + "20" }]}
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(PLATFORM.mailLink("دعم — حصاحيصاوي")).catch(() =>
+                    Alert.alert("تنبيه", "لا يمكن فتح تطبيق البريد الإلكتروني")
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="mail-outline" size={18} color={Colors.primary} />
+                <Text style={[contactSty.btnText, { color: Colors.primary }]}>إيميل</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={contactSty.infoText}>
+              {PLATFORM.whatsapp}  •  {PLATFORM.phoneSudan}
+            </Text>
+            <Text style={contactSty.infoText}>{PLATFORM.email}</Text>
+          </View>
 
           {/* ─── بوابة المؤسسات ─── */}
           <TouchableOpacity
@@ -3406,5 +3505,84 @@ const instPortalSty = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
     backgroundColor: Colors.primary + "15",
     borderWidth: 1, borderColor: Colors.primary + "30",
+  },
+});
+
+const contactSty = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + "25",
+    padding: 16,
+    gap: 12,
+  },
+  headerRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconBox: {
+    width: 44, height: 44, borderRadius: 13,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: Colors.primary + "18",
+    borderWidth: 1, borderColor: Colors.primary + "30",
+  },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  // أزرار الإجراءات الرئيسية (إبلاغ / اقتراح)
+  actionBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: Colors.surface1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E74C3C20",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 0,
+  },
+  actionIconBox: {
+    width: 40, height: 40, borderRadius: 11,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "#E74C3C15",
+    borderWidth: 1, borderColor: "#E74C3C30",
+  },
+  actionTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14,
+    color: Colors.textPrimary, textAlign: "right",
+  },
+  actionSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted, textAlign: "right",
+    marginTop: 1,
+  },
+  // فاصل
+  divider: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 2,
+  },
+  dividerLine: {
+    flex: 1, height: 1,
+    backgroundColor: Colors.divider,
+  },
+  dividerText: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted,
+  },
+  // أزرار ثانوية (اتصال / إيميل)
+  btnRow: { flexDirection: "row-reverse", gap: 10 },
+  btn: {
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: "transparent",
+  },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  infoText: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: Colors.textMuted, textAlign: "center",
+    letterSpacing: 0.3,
   },
 });
