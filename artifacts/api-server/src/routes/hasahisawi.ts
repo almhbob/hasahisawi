@@ -975,6 +975,22 @@ export async function initHasahisawiDb() {
     )
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_subs_lawyer ON lawyer_subscriptions(lawyer_id)`);
+  // ── سجل تاريخ الاشتراكات ─────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscription_history (
+      id           SERIAL PRIMARY KEY,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      plan_name    VARCHAR(50)  NOT NULL,
+      plan_name_ar VARCHAR(100) NOT NULL DEFAULT '',
+      commission_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
+      started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at   TIMESTAMPTZ,
+      payment_ref  VARCHAR(120) NOT NULL DEFAULT '',
+      admin_note   TEXT         NOT NULL DEFAULT '',
+      changed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_sub_hist_lawyer ON lawyer_subscription_history(lawyer_id)`);
   // seed خطط الاشتراك (مرة واحدة)
   const plansCount = await query(`SELECT COUNT(*)::int AS c FROM lawyer_subscription_plans`);
   if (plansCount.rows[0].c === 0) {
@@ -8248,6 +8264,16 @@ router.put("/admin/lawyers/:id/subscription", async (req: Request, res: Response
               started_at=NOW(), is_active=TRUE`,
       [lawyerId, planId, com, expires_at || null, String(payment_ref||"").slice(0,120), String(admin_note||"").slice(0,500)]
     );
+    // تسجيل التاريخ
+    const planNameR = await query(`SELECT name, name_ar FROM lawyer_subscription_plans WHERE id=$1`, [planId]);
+    if (planNameR.rows[0]) {
+      await query(
+        `INSERT INTO lawyer_subscription_history (lawyer_id, plan_name, plan_name_ar, commission_pct, expires_at, payment_ref, admin_note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [lawyerId, planNameR.rows[0].name, planNameR.rows[0].name_ar, com, expires_at || null,
+         String(payment_ref||"").slice(0,120), String(admin_note||"").slice(0,500)]
+      );
+    }
     // مزامنة is_featured و is_verified مع الخطة
     const planInfo = await query(`SELECT has_featured, has_verified_badge FROM lawyer_subscription_plans WHERE id=$1`, [planId]);
     if (planInfo.rows[0]) {
@@ -8321,6 +8347,122 @@ router.delete("/admin/lawyers/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM lawyers WHERE id = $1`, [Number(req.params.id)]);
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── سجل تاريخ اشتراكات محامي بعينه ─────────────────────────
+router.get("/admin/subscription-history/:lawyerId", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT h.*, l.full_name
+         FROM lawyer_subscription_history h
+         JOIN lawyers l ON l.id = h.lawyer_id
+        WHERE h.lawyer_id = $1
+        ORDER BY h.changed_at DESC
+        LIMIT 50`,
+      [Number(req.params.lawyerId)]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── اشتراكات تنتهي قريباً ─────────────────────────────────
+router.get("/admin/subscriptions/expiring", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const { rows } = await query(
+      `SELECT l.id AS lawyer_id, l.full_name, l.phone, l.district,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color, p.icon,
+              s.expires_at, s.commission_pct, s.payment_ref,
+              EXTRACT(DAY FROM (s.expires_at - NOW()))::int AS days_left
+         FROM lawyer_subscriptions s
+         JOIN lawyers l ON l.id = s.lawyer_id
+         JOIN lawyer_subscription_plans p ON p.id = s.plan_id
+        WHERE s.is_active = TRUE
+          AND s.expires_at IS NOT NULL
+          AND s.expires_at <= NOW() + ($1 || ' days')::INTERVAL
+        ORDER BY s.expires_at ASC`,
+      [String(days)]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── تصدير CSV للمحامين والاشتراكات ──────────────────────────
+router.get("/admin/lawyers/export.csv", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.id, l.full_name, l.title, l.phone, l.whatsapp, l.email, l.district,
+              l.specialties, l.experience_y, l.bar_number, l.consult_fee,
+              l.is_active, l.is_featured, l.is_verified,
+              COALESCE(p.name_ar, 'مجاني') AS plan_name_ar,
+              p.price_sdg,
+              s.commission_pct, s.started_at, s.expires_at, s.payment_ref,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS contracts_count,
+              l.created_at
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY l.id DESC`
+    );
+    const cols = [
+      "id","الاسم الكامل","اللقب","الهاتف","واتساب","البريد","المنطقة",
+      "التخصصات","سنوات الخبرة","رقم النقابة","أتعاب الاستشارة",
+      "فعّال","مميّز","موثّق","الخطة","سعر الخطة (ج.س)",
+      "العمولة %","بداية الاشتراك","انتهاء الاشتراك","مرجع الدفع",
+      "عدد العقود","تاريخ التسجيل"
+    ];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const fmtDate = (d: unknown) => d ? new Date(String(d)).toLocaleDateString("ar-SD") : "";
+    const fmtBool = (b: unknown) => b ? "نعم" : "لا";
+    const csvRows = [cols.map(esc).join(",")];
+    for (const r of rows) {
+      csvRows.push([
+        r.id, r.full_name, r.title, r.phone, r.whatsapp||"", r.email||"",
+        r.district, r.specialties||"", r.experience_y||"", r.bar_number||"",
+        r.consult_fee||"", fmtBool(r.is_active), fmtBool(r.is_featured), fmtBool(r.is_verified),
+        r.plan_name_ar, r.price_sdg||0, r.commission_pct||0,
+        fmtDate(r.started_at), fmtDate(r.expires_at), r.payment_ref||"",
+        r.contracts_count, fmtDate(r.created_at),
+      ].map(esc).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="lawyers_${Date.now()}.csv"`);
+    return res.send("\uFEFF" + csvRows.join("\r\n"));
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── إدارة خطط الاشتراك (إدارة) ─────────────────────────────
+router.get("/admin/subscription-plans", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_subscription_plans ORDER BY sort_order`);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.put("/admin/subscription-plans/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    const allowed = ["name_ar","price_sdg","price_label","monthly_contacts","has_unlimited_contacts",
+                     "has_ads","has_featured","has_verified_badge","has_priority","commission_pct",
+                     "color","icon","is_active"];
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of allowed) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(id);
+    await query(`UPDATE lawyer_subscription_plans SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
 });
 
 // محتوى استمارة محددة (HTML للطباعة)
