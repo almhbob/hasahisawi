@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
@@ -216,7 +216,7 @@ function mapInstitution(row: any): Institution {
 
 export async function loadInstitutions(): Promise<Institution[]> {
   try {
-    const res = await fetch(`${getApiUrl()}/api/educational-institutions`);
+    const res = await fetchWithTimeout(`${getApiUrl()}/api/educational-institutions`);
     if (res.ok) {
       const data = await res.json();
       return (data.institutions || []).map(mapInstitution);
@@ -1188,7 +1188,7 @@ export default function StudentScreen() {
       const params = new URLSearchParams();
       if (libCat !== "all") params.set("category", libCat);
       if (libSearch.trim()) params.set("q", libSearch.trim());
-      const res = await fetch(`${BASE_URL}/api/student-libraries?${params}`);
+      const res = await fetchWithTimeout(`${BASE_URL}/api/student-libraries?${params}`);
       if (res.ok) { const data = await res.json(); setLibraries(data.libraries ?? []); }
     } catch {} finally { setLibLoading(false); }
   };
@@ -1198,7 +1198,7 @@ export default function StudentScreen() {
     if (!libForm.phone.trim() && !libForm.whatsapp.trim()) { Alert.alert("خطأ", "رقم التواصل مطلوب"); return; }
     setLibSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/student-libraries`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/student-libraries`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ ...libForm }),
       });
@@ -1245,7 +1245,7 @@ export default function StudentScreen() {
   // ── Approve Request ──
   const approveRequest = async (req: JoinRequest) => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/admin/educational-institutions`, {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/admin/educational-institutions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
         body: JSON.stringify({
@@ -1277,7 +1277,7 @@ export default function StudentScreen() {
       const url = isNew
         ? `${getApiUrl()}/api/admin/educational-institutions`
         : `${getApiUrl()}/api/admin/educational-institutions/${inst.id}`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: isNew ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
         body: JSON.stringify({
@@ -1300,7 +1300,7 @@ export default function StudentScreen() {
 
   const deleteInst = async (id: string) => {
     try {
-      await fetch(`${getApiUrl()}/api/admin/educational-institutions/${id}`, {
+      await fetchWithTimeout(`${getApiUrl()}/api/admin/educational-institutions/${id}`, {
         method: "DELETE",
         headers: { "x-admin-pin": DEFAULT_PIN },
       });
