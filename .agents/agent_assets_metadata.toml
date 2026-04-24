@@ -412,16 +412,16 @@ title = "الكتيّب التعريفي الشامل — جودة 4K | أرقا
 id = "ukgy4Sb7oNcZCsJhKd94J"
 uri = "file://exports/post_intro.png"
 type = "image"
-title = "① منشور تعريفي — خدمات التطبيق"
+title = "بوست تعريفي — حصاحيصاوي"
 
 [[outputs]]
 id = "ZRwzrwhlAZXeIVM4xND5w"
 uri = "file://exports/post_motivational.png"
 type = "image"
-title = "② منشور تحفيزي — مخصص لمدينتنا"
+title = "بوست تحفيزي — مخصص لمدينتنا"
 
 [[outputs]]
 id = "aHHWLQjbTLtAu-kkS-RBO"
 uri = "file://exports/post_update.png"
 type = "image"
-title = "③ إعلان تحديث v5.6.5"
+title = "بوست تحديث v5.6.5"
