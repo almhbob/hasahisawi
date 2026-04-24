@@ -1,12 +1,47 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { checkContent } from "../lib/content-moderator";
+import { authLimiter, pinLimiter } from "../lib/rate-limiters";
+import { verifyIdToken } from "../lib/firebase-admin";
 
 const router = Router();
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Only create a real pool when DATABASE_URL is a valid external connection string.
+// Without this guard, pg opens TCP sockets that hang silently on hosted platforms
+// (e.g. Render) causing an ETIMEDOUT crash after ~60 s even when errors are caught.
+const _dbUrl = process.env.DATABASE_URL ?? "";
+const _dbEnabled =
+  _dbUrl.length > 0 &&
+  !_dbUrl.includes(".invalid") &&
+  !_dbUrl.includes("placeholder") &&
+  !_dbUrl.includes("nodb");
+
+const pool: Pool | null = _dbEnabled
+  ? new Pool({
+      connectionString: _dbUrl,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 10_000,
+      max: 5,
+    })
+  : null;
+
+if (pool) {
+  pool.on("error", (err) => console.error("pg pool idle-client error:", err));
+} else {
+  console.warn("⚠️  DATABASE_URL not set or is a placeholder — DB features are disabled until a real URL is configured.");
+}
+
+async function query(sql: string, params: unknown[] = []) {
+  if (!pool) throw Object.assign(new Error("db_not_configured"), { code: "DB_NOT_CONFIGURED" });
+  const client = await pool.connect();
+  try {
+    return await client.query(sql, params);
+  } finally {
+    client.release();
+  }
+}
 
 // ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
@@ -34,77 +69,24 @@ async function sendPushToUser(
   } catch {}
 }
 
-// إشعارات المدير — يُرسل لجميع المديرين/المشرفين المسجّلين
-async function sendPushToAdmins(
-  title: string,
-  body: string,
-  data: Record<string, unknown> = {},
-): Promise<void> {
+const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
+
+// ── reCAPTCHA v2 verification ────────────────────────────────────────────────
+async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
+  const secret = process.env.RECAPTCHA_SECRET;
+  if (!secret) return true; // skip if not configured
+  if (!token)  return false;
   try {
-    // 1. جميع مستخدمي التطبيق بصلاحية admin/moderator
-    const { rows: appTokens } = await query(
-      `SELECT pt.token FROM push_tokens pt
-       JOIN users u ON u.id = pt.user_id
-       WHERE u.role IN ('admin','moderator')
-         AND pt.token LIKE 'ExponentPushToken[%'`
+    const res = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`,
+      { method: "POST" }
     );
-    // 2. الرمز المحفوظ يدوياً في إعدادات الإدارة (للإشعارات الخاصة بالمدير)
-    const { rows: settingToken } = await query(
-      `SELECT value FROM admin_settings WHERE key='admin_expo_token' AND value LIKE 'ExponentPushToken[%'`
-    );
-
-    const allTokens = new Set<string>();
-    appTokens.forEach((r: any) => allTokens.add(r.token));
-    settingToken.forEach((r: any) => allTokens.add(r.value));
-
-    for (const token of allTokens) {
-      await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ to: token, title, body, data, sound: "default", badge: 1 }),
-      }).catch(() => {});
-    }
-  } catch {}
-}
-
-// POST /api/admin/push/register-token — تسجيل رمز الإشعارات للمدير
-router.post("/admin/push/register-token", async (req: Request, res: Response) => {
-  try {
-    const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { expo_token } = req.body as { expo_token?: string };
-    if (!expo_token?.startsWith("ExponentPushToken[")) {
-      return res.status(400).json({ error: "رمز غير صالح" });
-    }
-    await query(
-      `INSERT INTO admin_settings (key, value) VALUES ('admin_expo_token', $1)
-       ON CONFLICT (key) DO UPDATE SET value = $1`,
-      [expo_token]
-    );
-    return res.json({ ok: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// GET /api/admin/push/register-token — التحقق من تسجيل الرمز
-router.get("/admin/push/register-token", async (req: Request, res: Response) => {
-  try {
-    const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const { rows } = await query(`SELECT value FROM admin_settings WHERE key='admin_expo_token'`);
-    return res.json({ token: rows[0]?.value || null });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-async function query(sql: string, params: unknown[] = []) {
-  const client = await pool.connect();
-  try {
-    return await client.query(sql, params);
-  } finally {
-    client.release();
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
   }
 }
-
-const DEFAULT_ADMIN_PIN = "4444";
 
 function maskNationalId(id: string | null | undefined): string | null {
   if (!id) return null;
@@ -122,6 +104,33 @@ function safeUserPayload(user: Record<string, unknown>) {
 }
 
 export async function initHasahisawiDb() {
+  if (!pool) {
+    console.warn("⚠️  initHasahisawiDb: skipped — no valid DATABASE_URL");
+    return;
+  }
+  // ══ جدول المستخدمين أولاً — لأن كل الجداول الأخرى تُشير إليه ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      national_id VARCHAR(30) UNIQUE,
+      phone VARCHAR(20) UNIQUE,
+      email VARCHAR(200) UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+  // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
+
   await query(`
     CREATE TABLE IF NOT EXISTS social_posts (
       id SERIAL PRIMARY KEY,
@@ -191,24 +200,6 @@ export async function initHasahisawiDb() {
     INSERT INTO admin_settings (key, value) VALUES ('gov_reports_enabled', 'true')
     ON CONFLICT (key) DO NOTHING
   `);
-  await query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      national_id VARCHAR(30) UNIQUE,
-      phone VARCHAR(20) UNIQUE,
-      email VARCHAR(200) UNIQUE,
-      password_hash VARCHAR(255) NOT NULL,
-      role VARCHAR(20) NOT NULL DEFAULT 'user',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
-  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
       id SERIAL PRIMARY KEY,
@@ -298,6 +289,87 @@ export async function initHasahisawiDb() {
     )
   `);
   // No default communities — they will be added by admin after official agreement with each institution
+
+  // ── تهيئة الأحياء والقرى الحقيقية (مصدر: ويكيبيديا الحصاحيصا) ──────
+  // تُضاف فقط إذا لم تكن موجودة بالفعل في قاعدة البيانات
+  {
+    const existing = await query(`SELECT key FROM admin_settings WHERE key LIKE 'nbr_%' LIMIT 1`);
+    if (existing.rows.length === 0) {
+      const realLocations: Array<{ label: string; type: "neighborhood" | "village" }> = [
+        // أحياء مدينة الحصاحيصا
+        { label: "الحي الشرقي",          type: "neighborhood" },
+        { label: "الحي الأوسط",          type: "neighborhood" },
+        { label: "حي الواحة",            type: "neighborhood" },
+        { label: "حي الصفاء",            type: "neighborhood" },
+        { label: "حي الزهور",            type: "neighborhood" },
+        { label: "حي العمدة",            type: "neighborhood" },
+        { label: "حي الموظفين",          type: "neighborhood" },
+        { label: "حي كريمة",             type: "neighborhood" },
+        { label: "حي الفيحاء",           type: "neighborhood" },
+        { label: "حي الصداقة",           type: "neighborhood" },
+        { label: "حي المايقوما",         type: "neighborhood" },
+        { label: "حي الضقالة",           type: "neighborhood" },
+        { label: "حي فور",               type: "neighborhood" },
+        { label: "الامتداد",             type: "neighborhood" },
+        { label: "الحلة الجديدة",        type: "neighborhood" },
+        { label: "المنصورة",             type: "neighborhood" },
+        { label: "المزاد",               type: "neighborhood" },
+        { label: "الكرمك",               type: "neighborhood" },
+        { label: "الكومبو",              type: "neighborhood" },
+        { label: "الجملونات",            type: "neighborhood" },
+        { label: "الطائف",               type: "neighborhood" },
+        { label: "ود الكامل",            type: "neighborhood" },
+        { label: "أركويت",               type: "neighborhood" },
+        // مناطق فرعية
+        { label: "الطالباب",             type: "neighborhood" },
+        { label: "الكشامر",              type: "neighborhood" },
+        { label: "أم دغينة",             type: "neighborhood" },
+        { label: "أم عضام",              type: "neighborhood" },
+        { label: "ود السيد",             type: "neighborhood" },
+        { label: "أبو فروع",             type: "neighborhood" },
+        { label: "عمارة أبيد",           type: "neighborhood" },
+        { label: "ود سلفاب",             type: "neighborhood" },
+        { label: "ود الفادني",           type: "neighborhood" },
+        { label: "أبو جيلي",             type: "neighborhood" },
+        { label: "ودشمو",                type: "neighborhood" },
+        { label: "أربجي",                type: "neighborhood" },
+        // قرى محلية الحصاحيصا
+        { label: "المسلمية",             type: "village" },
+        { label: "ود حبوبة",             type: "village" },
+        { label: "أبو قوتة",             type: "village" },
+        { label: "الربع",                type: "village" },
+        { label: "طابت",                 type: "village" },
+        { label: "المحيريبا",            type: "village" },
+        { label: "قرية الولي",           type: "village" },
+        { label: "ود بهاي",              type: "village" },
+        { label: "طيبة الشيخ القرشي",   type: "village" },
+        { label: "كبنة",                 type: "village" },
+        { label: "تنة",                  type: "village" },
+        { label: "بانت",                 type: "village" },
+        { label: "الجلاد",               type: "village" },
+        { label: "ود العباس",            type: "village" },
+        { label: "طابية",                type: "village" },
+        { label: "بمبان",                type: "village" },
+        { label: "هيصة",                 type: "village" },
+        { label: "ود النيل",             type: "village" },
+        { label: "أم ضباع",              type: "village" },
+        { label: "حلفاية الحصاحيصا",    type: "village" },
+        { label: "الشيخ حماد",           type: "village" },
+        { label: "الشيخ طيب",            type: "village" },
+        { label: "ود بلال",              type: "village" },
+        { label: "أبو عشر",              type: "village" },
+        { label: "أخرى / خارج الحصاحيصا", type: "village" },
+      ];
+      for (const loc of realLocations) {
+        const k = `nbr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await query(
+          `INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+          [k, JSON.stringify({ label: loc.label, type: loc.type, key: k })]
+        );
+      }
+      console.log(`✅ تم تهيئة ${realLocations.length} حياً وقرية حقيقية في قاعدة البيانات`);
+    }
+  }
 
   // ── جدول الإعلانات المدفوعة ──────────────────────────────────────
   await query(`
@@ -576,7 +648,7 @@ export async function initHasahisawiDb() {
     ["ad_promo_text",         "انضم إلى منصة حصاحيصاوي وأوصل إعلانك لآلاف أبناء المدينة مباشرةً"],
     ["ad_partner_email",      ""],
     ["ad_bank_info",          ""],
-    ["contract_whatsapp",     "+966530658285"],
+    ["contract_whatsapp",     "+966597083352"],
   ];
   for (const [k, v] of adsDefaults) {
     await query(
@@ -735,6 +807,384 @@ export async function initHasahisawiDb() {
     )
   `);
 
+  // ═══════════ المحامون والخدمات القانونية ═══════════
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyers (
+      id           SERIAL PRIMARY KEY,
+      full_name    VARCHAR(150) NOT NULL,
+      title        VARCHAR(100) NOT NULL DEFAULT 'محامي',
+      specialties  TEXT NOT NULL DEFAULT '',
+      bio          TEXT NOT NULL DEFAULT '',
+      phone        VARCHAR(25) NOT NULL DEFAULT '',
+      whatsapp     VARCHAR(25) NOT NULL DEFAULT '',
+      email        VARCHAR(150) NOT NULL DEFAULT '',
+      office_addr  VARCHAR(250) NOT NULL DEFAULT '',
+      district     VARCHAR(100) NOT NULL DEFAULT '',
+      bar_number   VARCHAR(50)  NOT NULL DEFAULT '',
+      experience_y INTEGER NOT NULL DEFAULT 0,
+      photo_url    TEXT NOT NULL DEFAULT '',
+      languages    VARCHAR(150) NOT NULL DEFAULT 'العربية',
+      consult_fee  VARCHAR(80) NOT NULL DEFAULT '',
+      is_featured  BOOLEAN NOT NULL DEFAULT FALSE,
+      is_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+      entity_id    INTEGER REFERENCES rated_entities(id) ON DELETE SET NULL,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyers_active   ON lawyers(is_active)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyers_featured ON lawyers(is_featured)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_services (
+      id          SERIAL PRIMARY KEY,
+      lawyer_id   INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      title       VARCHAR(150) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price_text  VARCHAR(100) NOT NULL DEFAULT '',
+      duration    VARCHAR(80)  NOT NULL DEFAULT '',
+      sort_order  INTEGER NOT NULL DEFAULT 99,
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_services_lawyer ON lawyer_services(lawyer_id)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_contracts (
+      id           SERIAL PRIMARY KEY,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      service_id   INTEGER REFERENCES lawyer_services(id) ON DELETE SET NULL,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      device_id    VARCHAR(200),
+      client_name  VARCHAR(150) NOT NULL,
+      client_phone VARCHAR(25)  NOT NULL,
+      service_title VARCHAR(200) NOT NULL DEFAULT '',
+      details      TEXT NOT NULL DEFAULT '',
+      preferred_date DATE,
+      status       VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','in_progress','completed','rejected','cancelled')),
+      lawyer_note  TEXT NOT NULL DEFAULT '',
+      contract_no  VARCHAR(40) NOT NULL DEFAULT '',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_lawyer ON lawyer_contracts(lawyer_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_user   ON lawyer_contracts(user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_device ON lawyer_contracts(device_id)`);
+
+  // ── دردشة القضية (رسائل بين المحامي والعميل) ──────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_case_messages (
+      id           SERIAL PRIMARY KEY,
+      contract_id  INTEGER NOT NULL REFERENCES lawyer_contracts(id) ON DELETE CASCADE,
+      sender_role  VARCHAR(10) NOT NULL DEFAULT 'client' CHECK (sender_role IN ('lawyer','client')),
+      sender_name  VARCHAR(150) NOT NULL DEFAULT '',
+      body         TEXT NOT NULL DEFAULT '',
+      file_url     TEXT NOT NULL DEFAULT '',
+      file_name    VARCHAR(255) NOT NULL DEFAULT '',
+      file_type    VARCHAR(80)  NOT NULL DEFAULT '',
+      is_read      BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_msgs_contract ON lawyer_case_messages(contract_id)`);
+
+  // ── مستندات القضية ────────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_case_documents (
+      id           SERIAL PRIMARY KEY,
+      contract_id  INTEGER NOT NULL REFERENCES lawyer_contracts(id) ON DELETE CASCADE,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      title        VARCHAR(255) NOT NULL DEFAULT 'مستند',
+      file_url     TEXT NOT NULL DEFAULT '',
+      file_name    VARCHAR(255) NOT NULL DEFAULT '',
+      file_type    VARCHAR(80)  NOT NULL DEFAULT '',
+      file_size    INTEGER NOT NULL DEFAULT 0,
+      uploaded_by  VARCHAR(10) NOT NULL DEFAULT 'lawyer' CHECK (uploaded_by IN ('lawyer','client')),
+      notes        TEXT NOT NULL DEFAULT '',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_docs_contract ON lawyer_case_documents(contract_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_docs_lawyer   ON lawyer_case_documents(lawyer_id)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_ads (
+      id          SERIAL PRIMARY KEY,
+      lawyer_id   INTEGER REFERENCES lawyers(id) ON DELETE CASCADE,
+      title       VARCHAR(200) NOT NULL,
+      body        TEXT NOT NULL DEFAULT '',
+      cta_text    VARCHAR(60)  NOT NULL DEFAULT 'تواصل الآن',
+      cta_phone   VARCHAR(25)  NOT NULL DEFAULT '',
+      banner_color VARCHAR(20) NOT NULL DEFAULT '#8B5CF6',
+      starts_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ends_at     TIMESTAMPTZ,
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order  INTEGER NOT NULL DEFAULT 99,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS legal_forms (
+      id            SERIAL PRIMARY KEY,
+      title         VARCHAR(200) NOT NULL,
+      category      VARCHAR(80)  NOT NULL DEFAULT 'عام',
+      description   TEXT NOT NULL DEFAULT '',
+      content_html  TEXT NOT NULL DEFAULT '',
+      lawyer_id     INTEGER REFERENCES lawyers(id) ON DELETE SET NULL,
+      is_official   BOOLEAN NOT NULL DEFAULT FALSE,
+      sort_order    INTEGER NOT NULL DEFAULT 99,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_legal_forms_cat ON legal_forms(category)`);
+
+  // طلبات انضمام المحامين
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_applications (
+      id            SERIAL PRIMARY KEY,
+      full_name     VARCHAR(150) NOT NULL,
+      title         VARCHAR(120) NOT NULL DEFAULT 'محامي',
+      phone         VARCHAR(25)  NOT NULL,
+      whatsapp      VARCHAR(25)  NOT NULL DEFAULT '',
+      email         VARCHAR(150) NOT NULL DEFAULT '',
+      bar_number    VARCHAR(50)  NOT NULL DEFAULT '',
+      experience_y  INTEGER      NOT NULL DEFAULT 0,
+      specialties   TEXT         NOT NULL DEFAULT '',
+      bio           TEXT         NOT NULL DEFAULT '',
+      office_addr   VARCHAR(250) NOT NULL DEFAULT '',
+      district      VARCHAR(100) NOT NULL DEFAULT '',
+      languages     VARCHAR(150) NOT NULL DEFAULT 'العربية',
+      consult_fee   VARCHAR(80)  NOT NULL DEFAULT '',
+      bar_card_url  TEXT         NOT NULL DEFAULT '',
+      photo_url     TEXT         NOT NULL DEFAULT '',
+      agree_terms   BOOLEAN      NOT NULL DEFAULT FALSE,
+      device_id     VARCHAR(200),
+      user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      status        VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_note    TEXT NOT NULL DEFAULT '',
+      reviewed_at   TIMESTAMPTZ,
+      reviewed_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      lawyer_id     INTEGER REFERENCES lawyers(id) ON DELETE SET NULL,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_apps_status ON lawyer_applications(status)`);
+
+  // ── خطط اشتراكات المحامين ──────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscription_plans (
+      id               SERIAL PRIMARY KEY,
+      name             VARCHAR(40)  NOT NULL UNIQUE,
+      name_ar          VARCHAR(60)  NOT NULL,
+      price_sdg        INTEGER      NOT NULL DEFAULT 0,
+      price_label      VARCHAR(80)  NOT NULL DEFAULT 'مجاناً',
+      monthly_contacts INTEGER      NOT NULL DEFAULT 5,
+      has_unlimited_contacts BOOLEAN NOT NULL DEFAULT FALSE,
+      has_ads          BOOLEAN      NOT NULL DEFAULT FALSE,
+      has_featured     BOOLEAN      NOT NULL DEFAULT FALSE,
+      has_verified_badge BOOLEAN    NOT NULL DEFAULT FALSE,
+      has_priority     BOOLEAN      NOT NULL DEFAULT FALSE,
+      commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 0,
+      color            VARCHAR(20)  NOT NULL DEFAULT '#6B7280',
+      icon             VARCHAR(10)  NOT NULL DEFAULT '🔓',
+      sort_order       INTEGER      NOT NULL DEFAULT 99,
+      is_active        BOOLEAN      NOT NULL DEFAULT TRUE
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscriptions (
+      id               SERIAL PRIMARY KEY,
+      lawyer_id        INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      plan_id          INTEGER NOT NULL REFERENCES lawyer_subscription_plans(id),
+      commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 0,
+      started_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      expires_at       TIMESTAMPTZ,
+      is_active        BOOLEAN      NOT NULL DEFAULT TRUE,
+      payment_ref      VARCHAR(120) NOT NULL DEFAULT '',
+      admin_note       TEXT         NOT NULL DEFAULT '',
+      created_by       INTEGER      REFERENCES users(id) ON DELETE SET NULL,
+      created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_lawyer_active_sub UNIQUE (lawyer_id)
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_subs_lawyer ON lawyer_subscriptions(lawyer_id)`);
+  // ── سجل تاريخ الاشتراكات ─────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_subscription_history (
+      id           SERIAL PRIMARY KEY,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      plan_name    VARCHAR(50)  NOT NULL,
+      plan_name_ar VARCHAR(100) NOT NULL DEFAULT '',
+      commission_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
+      started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at   TIMESTAMPTZ,
+      payment_ref  VARCHAR(120) NOT NULL DEFAULT '',
+      admin_note   TEXT         NOT NULL DEFAULT '',
+      changed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_sub_hist_lawyer ON lawyer_subscription_history(lawyer_id)`);
+  // seed خطط الاشتراك (مرة واحدة)
+  const plansCount = await query(`SELECT COUNT(*)::int AS c FROM lawyer_subscription_plans`);
+  if (plansCount.rows[0].c === 0) {
+    const plans = [
+      ["free",         "مجاني",             0,    "مجاناً — دائماً",               5,  false, false, false, false, false, 0,   "#6B7280", "🔓", 1],
+      ["basic",        "أساسي",          500,  "500 ج.س / شهر",                  0,  true,  false, false, true,  false, 0,   "#3B82F6", "⭐", 2],
+      ["professional", "محترف",         1500, "1,500 ج.س / شهر",                0,  true,  true,  true,  true,  true,  5,   "#8B5CF6", "💎", 3],
+      ["premium",      "بريميوم",  3000, "3,000 ج.س / شهر",                0,  true,  true,  true,  true,  true,  8,   "#F59E0B", "👑", 4],
+    ];
+    for (const [name,name_ar,price,label,mc,unl,ads,feat,ver,pri,com,color,icon,sort] of plans) {
+      await query(
+        `INSERT INTO lawyer_subscription_plans
+          (name,name_ar,price_sdg,price_label,monthly_contacts,has_unlimited_contacts,has_ads,has_featured,has_verified_badge,has_priority,commission_pct,color,icon,sort_order)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ON CONFLICT (name) DO NOTHING`,
+        [name,name_ar,price,label,mc,unl,ads,feat,ver,pri,com,color,icon,sort]
+      );
+    }
+  }
+
+  // seed lawyers + forms (مرة واحدة)
+  await (async () => {
+    const c = await query(`SELECT COUNT(*)::int AS c FROM lawyers`);
+    if (c.rows[0].c === 0) {
+      const seedLawyers = [
+        ["د. عبدالله محمد الحاج",  "محامي ومستشار قانوني", "قضايا تجارية, عقارات, شركات",         "خبرة 15 عاماً في القضايا التجارية والعقارية. مستشار قانوني لعدد من الشركات بالحصاحيصا.", "0912345001","0912345001","abdullah@law.sd","شارع النيل — أمام محكمة الحصاحيصا","وسط المدينة","BAR-2010-0521", 15, "العربية, English","استشارة 30 دقيقة: 5,000 ج.س", true,  true],
+        ["أ. فاطمة عثمان",          "محامية أحوال شخصية",   "أحوال شخصية, نفقة, حضانة, ميراث",     "متخصصة في قضايا الأسرة والأحوال الشخصية، تركز على حقوق المرأة والطفل.",                "0912345002","0912345002","fatima@law.sd","حي الشرق — مجمع المحامين","حي الشرق","BAR-2014-0233", 11, "العربية",        "استشارة 30 دقيقة: 4,000 ج.س", true,  true],
+        ["أ. محمد أحمد سليمان",     "محامي جنائي",          "قضايا جنائية, مرافعات, طعون",          "محامي مرافعات أمام جميع درجات التقاضي. خبرة في القضايا الجنائية الكبرى.",              "0912345003","0912345003","mohamed@law.sd","شارع المحكمة — مكتب رقم 7","وسط المدينة","BAR-2008-0118", 17, "العربية",        "استشارة هاتفية: 3,000 ج.س",   false, true],
+        ["أ. سلمى الأمين",           "محامية عقارات وعمل",   "عقارات, عقود, قضايا عمالية",          "متخصصة في صياغة العقود والتوثيق العقاري وقضايا العمل والعمال.",                       "0912345004","0912345004","salma@law.sd",  "حي الجامعة","حي الجامعة","BAR-2017-0445",  8, "العربية",        "صياغة عقد: من 7,000 ج.س",     false, true],
+        ["أ. الطاهر بابكر",          "محامي ومحكّم",          "تحكيم, تسوية نزاعات, تجاري",          "محكّم معتمد في الغرفة التجارية. حلول بديلة للنزاعات قبل الوصول للمحاكم.",              "0912345005","0912345005","tahir@law.sd",  "السوق المركزي — مكتب أعلى البنك","السوق المركزي","BAR-2005-0087", 20, "العربية, English","جلسة تحكيم: من 10,000 ج.س",  false, true],
+      ];
+      for (const r of seedLawyers) {
+        const ent = await query(
+          `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes, is_verified)
+           VALUES ('lawyer',$1,$2,'قانون',$3,$4,$5,TRUE) RETURNING id`,
+          [r[0], r[1], r[5], r[8], r[3]]
+        );
+        const ins = await query(
+          `INSERT INTO lawyers (full_name,title,specialties,bio,phone,whatsapp,email,office_addr,district,bar_number,experience_y,languages,consult_fee,is_featured,is_verified,entity_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+          [r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14], ent.rows[0].id]
+        );
+        const lawyerId = ins.rows[0].id;
+        // خدمات افتراضية
+        const svcSets: Record<number, [string, string, string, string][]> = {
+          1: [
+            ["استشارة قانونية تجارية",  "تحليل وضعك القانوني وتقديم رأي مكتوب",       "5,000 ج.س",  "30–45 دقيقة"],
+            ["تأسيس شركة",             "إعداد العقد التأسيسي والنظام الأساسي والتسجيل","60,000 ج.س", "أسبوعان"],
+            ["مراجعة عقد عقاري",        "مراجعة وتعديل بنود العقد قبل التوقيع",        "8,000 ج.س",  "3 أيام"],
+          ],
+          2: [
+            ["دعوى نفقة / حضانة",       "إعداد ومتابعة الدعوى أمام المحكمة",            "حسب الدرجة", "—"],
+            ["استشارة أحوال شخصية",     "جلسة استشارية مع توصيات عملية",                "4,000 ج.س",  "30 دقيقة"],
+            ["قسمة ميراث",              "حصر التركة وإعداد قسمة شرعية موثقة",          "من 15,000 ج.س","حسب التعقيد"],
+          ],
+          3: [
+            ["دفاع جنائي",              "مرافعة أمام محكمة الجنايات",                   "حسب القضية", "—"],
+            ["استشارة جنائية هاتفية",   "تقييم سريع لموقفك القانوني",                   "3,000 ج.س",  "20 دقيقة"],
+            ["طعن واستئناف",            "إعداد ومتابعة الطعن أمام محكمة أعلى",         "حسب الدرجة", "—"],
+          ],
+          4: [
+            ["صياغة عقد عمل",           "عقد متوافق مع قانون العمل السوداني",          "7,000 ج.س",  "يومان"],
+            ["توثيق عقد عقاري",          "صياغة وتوثيق العقد لدى الشهر العقاري",        "12,000 ج.س", "أسبوع"],
+            ["دعوى مطالبة عمالية",      "متابعة حقوق العامل أمام المحكمة",              "حسب القضية","—"],
+          ],
+          5: [
+            ["جلسة تحكيم تجاري",        "حل النزاع التجاري عبر التحكيم بدل المحكمة",   "10,000 ج.س", "حسب الجدول"],
+            ["وساطة وتسوية ودية",       "جلسة تفاوض بين الأطراف",                       "6,000 ج.س",  "ساعتان"],
+          ],
+        };
+        const svcs = svcSets[lawyerId] || [];
+        for (let i = 0; i < svcs.length; i++) {
+          const [t, d, p, du] = svcs[i];
+          await query(
+            `INSERT INTO lawyer_services (lawyer_id,title,description,price_text,duration,sort_order)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [lawyerId, t, d, p, du, i]
+          );
+        }
+        // تقييمات تجريبية
+        const sample = [[5,"محامي ممتاز ودقيق"],[4,"خدمة احترافية"],[5,"حل قضيتي بسرعة"]];
+        for (const [stars, comm] of sample) {
+          await query(
+            `INSERT INTO ratings (entity_id, rating, comment, target_type, target_id) VALUES ($1,$2,$3,'lawyer',$4)`,
+            [ent.rows[0].id, stars, comm, String(lawyerId)]
+          );
+        }
+      }
+      // إعلانات
+      await query(`INSERT INTO lawyer_ads (lawyer_id, title, body, cta_text, cta_phone, banner_color, sort_order)
+        VALUES (1, 'استشارتك الأولى مجاناً', 'مكتب د. عبدالله — استشارة تجارية وعقارية بأمانة', 'احجز الآن', '0912345001', '#8B5CF6', 1)`);
+      await query(`INSERT INTO lawyer_ads (lawyer_id, title, body, cta_text, cta_phone, banner_color, sort_order)
+        VALUES (2, 'حقوق المرأة والأسرة', 'الأستاذة فاطمة — تخصص دقيق في الأحوال الشخصية', 'تواصل معنا', '0912345002', '#EC4899', 2)`);
+
+      // استمارات قانونية جاهزة للطباعة
+      const forms: [string,string,string,string,boolean][] = [
+        ["توكيل عام", "توكيلات",
+          "توكيل عام للمحامي للترافع نيابة عن الموكّل أمام كافة المحاكم.",
+          `<h2 style="text-align:center">توكيل عام</h2>
+           <p>أنا الموقّع أدناه: <b>__________________________</b> رقم الهوية: __________________</p>
+           <p>أوكّل المحامي / ________________________ بالترافع عني أمام جميع المحاكم بمختلف درجاتها في القضية رقم: ______ / ______</p>
+           <p>وله صلاحية: تقديم العرائض، استلام الأوراق، الصلح، التنازل، استلام المستحقات، والتوقيع نيابة عني.</p>
+           <p style="margin-top:30px">المُوكِّل: ________________ التاريخ: __ / __ / 20__</p>
+           <p>التوقيع: ________________</p>`, true],
+        ["إقرار صلح", "تسويات",
+          "إقرار صلح بين طرفين بشأن نزاع قائم.",
+          `<h2 style="text-align:center">إقرار صلح</h2>
+           <p>الطرف الأول: ________________________ الهوية: ____________</p>
+           <p>الطرف الثاني: ________________________ الهوية: ____________</p>
+           <p>اتفق الطرفان على إنهاء النزاع القائم بينهما بشأن: ______________________ بالشروط التالية:</p>
+           <ol><li>________________________________________</li><li>________________________________________</li><li>________________________________________</li></ol>
+           <p>توقيع الطرف الأول: ________ توقيع الطرف الثاني: ________ التاريخ: __/__/20__</p>`, true],
+        ["عقد إيجار سكني", "عقود",
+          "نموذج عقد إيجار سكني وفق قانون الإيجارات السوداني.",
+          `<h2 style="text-align:center">عقد إيجار سكني</h2>
+           <p>المؤجِّر: ___________________ — العنوان: ___________________</p>
+           <p>المستأجِر: ___________________ — الهوية: ___________________</p>
+           <p>العقار: شقة / منزل بـ ________________ المكوّن من ____ غرف.</p>
+           <p>قيمة الإيجار الشهري: ______ ج.س — مدة العقد: من __/__/20__ إلى __/__/20__</p>
+           <p>التزامات المستأجر: ____________________________________</p>
+           <p>التزامات المؤجر: ____________________________________</p>
+           <p>توقيع المؤجر: ________ توقيع المستأجر: ________ شاهد: ________</p>`, true],
+        ["عريضة دعوى مدنية", "عرائض",
+          "نموذج عريضة دعوى مدنية ابتدائية.",
+          `<h2 style="text-align:center">عريضة دعوى مدنية</h2>
+           <p>محكمة _______________ الابتدائية</p>
+           <p>المدّعي: _______________ — العنوان: _______________</p>
+           <p>المدّعى عليه: _______________ — العنوان: _______________</p>
+           <p><b>موضوع الدعوى:</b> __________________________________</p>
+           <p><b>الوقائع:</b><br/>__________________________________________________________</p>
+           <p><b>الطلبات:</b><br/>1) __________________________________________<br/>2) __________________________________________</p>
+           <p>تحريراً في __/__/20__ — توقيع المحامي: ________</p>`, true],
+        ["تنازل عن دعوى", "تنازلات",
+          "إقرار تنازل عن دعوى منظورة أمام المحكمة.",
+          `<h2 style="text-align:center">إقرار تنازل عن دعوى</h2>
+           <p>أنا: _______________ هوية: __________ المدعي في القضية رقم ______ / ______ المنظورة أمام محكمة _______________</p>
+           <p>أُقرّ بتنازلي الكامل عن هذه الدعوى وعن جميع ما يترتب عليها من حقوق بسبب: ______________________</p>
+           <p>التوقيع: ________ التاريخ: __/__/20__</p>`, true],
+        ["إنذار عدلي", "إنذارات",
+          "إنذار عدلي لمطالبة بدين أو إخلاء.",
+          `<h2 style="text-align:center">إنذار عدلي</h2>
+           <p>المُنذِر: _______________ — العنوان: _______________</p>
+           <p>المُنذَر إليه: _______________ — العنوان: _______________</p>
+           <p><b>الموضوع:</b> ______________________________________</p>
+           <p>أُنذركم بـ: ____________________________________________ خلال (15) يوماً من تاريخ استلام هذا الإنذار وإلا اتخذت بحقكم الإجراءات القانونية اللازمة.</p>
+           <p>التوقيع: ________ التاريخ: __/__/20__</p>`, true],
+      ];
+      for (let i = 0; i < forms.length; i++) {
+        const [t, cat, desc, html, off] = forms[i];
+        await query(
+          `INSERT INTO legal_forms (title, category, description, content_html, is_official, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [t, cat, desc, html, off, i]
+        );
+      }
+    }
+  })();
+
   // ── جداول ترحال والتوصيل ──
   await query(`
     CREATE TABLE IF NOT EXISTS transport_drivers (
@@ -817,7 +1267,361 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`);
   await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS delivery_desc TEXT`);
 
-  console.log("Hasahisawi DB initialized");
+  // ── شركات التشغيل (المشغّلون الشركاء) ──
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_operators (
+      id                 SERIAL PRIMARY KEY,
+      name               VARCHAR(150) NOT NULL,
+      contact_name       VARCHAR(100) NOT NULL DEFAULT '',
+      phone              VARCHAR(25)  NOT NULL DEFAULT '',
+      email              VARCHAR(150) NOT NULL DEFAULT '',
+      contract_start     DATE,
+      contract_end       DATE,
+      operator_share_pct NUMERIC(5,2) NOT NULL DEFAULT 70.00,
+      platform_share_pct NUMERIC(5,2) NOT NULL DEFAULT 30.00,
+      status             VARCHAR(20)  NOT NULL DEFAULT 'active',
+      notes              TEXT         NOT NULL DEFAULT '',
+      created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // أعمدة إضافية للرحلات: الشركة المشغّلة + الأجرة الفعلية + توزيع الأرباح
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS operator_id      INTEGER REFERENCES transport_operators(id) ON DELETE SET NULL`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS actual_fare      INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS platform_revenue INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS operator_revenue INTEGER`);
+  await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS completed_at     TIMESTAMPTZ`);
+
+  // ربط السائقين بالشركات المشغّلة
+  await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS operator_id INTEGER REFERENCES transport_operators(id) ON DELETE SET NULL`);
+
+  // إضافة تعرفة الدراجة النارية لجدول التعرفة
+  await query(`ALTER TABLE transport_fares ADD COLUMN IF NOT EXISTS fare_motorcycle INTEGER NOT NULL DEFAULT 0`);
+  await query(`
+    UPDATE transport_fares
+    SET fare_motorcycle = ROUND(fare_car * 0.75)
+    WHERE fare_motorcycle = 0
+  `);
+
+  // ══ جدول الأحياء ومناطق التغطية ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS transport_neighborhoods (
+      id          SERIAL PRIMARY KEY,
+      name        VARCHAR(200) NOT NULL,
+      zone_id     INTEGER NOT NULL CHECK (zone_id BETWEEN 1 AND 5),
+      status      VARCHAR(20)  NOT NULL DEFAULT 'active' CHECK (status IN ('active','pending','rejected')),
+      submitted_by VARCHAR(100) NOT NULL DEFAULT '',
+      notes       TEXT         NOT NULL DEFAULT '',
+      created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tn_zone ON transport_neighborhoods(zone_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tn_status ON transport_neighborhoods(status)`);
+
+  // تفعيل الخدمة افتراضياً
+  await query(`INSERT INTO admin_settings (key,value) VALUES ('transport_status','available') ON CONFLICT (key) DO NOTHING`);
+  await query(`INSERT INTO admin_settings (key,value) VALUES ('transport_note','') ON CONFLICT (key) DO NOTHING`);
+
+  // ══ جدول المفقودات والموجودات ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS lost_items (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reporter_name VARCHAR(150) NOT NULL DEFAULT 'مجهول',
+      item_name VARCHAR(200) NOT NULL,
+      category VARCHAR(30) NOT NULL DEFAULT 'other',
+      description TEXT NOT NULL DEFAULT '',
+      last_seen VARCHAR(300) NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      status VARCHAR(10) NOT NULL DEFAULT 'lost' CHECK (status IN ('lost','found')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ══ جدول الوظائف ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      author_name VARCHAR(150) NOT NULL DEFAULT 'مجهول',
+      title VARCHAR(300) NOT NULL,
+      company VARCHAR(200) NOT NULL DEFAULT '',
+      type VARCHAR(20) NOT NULL DEFAULT 'fulltime' CHECK (type IN ('fulltime','parttime','freelance','volunteer')),
+      location VARCHAR(300) NOT NULL DEFAULT 'الحصاحيصا',
+      description TEXT NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      salary VARCHAR(150),
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ══ جداول الرياضة ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_posts (
+      id SERIAL PRIMARY KEY,
+      author_name VARCHAR(100) NOT NULL DEFAULT 'مجهول',
+      author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type VARCHAR(20) NOT NULL DEFAULT 'news' CHECK (type IN ('news','result','announcement','match_preview')),
+      title VARCHAR(300) NOT NULL,
+      content TEXT NOT NULL,
+      team VARCHAR(100),
+      image_url TEXT,
+      likes INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_players (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      position VARCHAR(80) NOT NULL DEFAULT '',
+      team VARCHAR(100) NOT NULL DEFAULT '',
+      age INTEGER,
+      goals INTEGER NOT NULL DEFAULT 0,
+      assists INTEGER NOT NULL DEFAULT 0,
+      matches_played INTEGER NOT NULL DEFAULT 0,
+      photo_url TEXT,
+      bio TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS sports_matches (
+      id SERIAL PRIMARY KEY,
+      home_team VARCHAR(100) NOT NULL,
+      away_team VARCHAR(100) NOT NULL,
+      home_score INTEGER,
+      away_score INTEGER,
+      match_date TIMESTAMPTZ NOT NULL,
+      venue VARCHAR(200) NOT NULL DEFAULT 'ملعب الحصاحيصا',
+      status VARCHAR(20) NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming','live','finished','postponed')),
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // ══ جدول الأرقام الهامة ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS emergency_numbers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      number VARCHAR(50) NOT NULL,
+      category VARCHAR(80) NOT NULL DEFAULT 'general',
+      icon VARCHAR(50) NOT NULL DEFAULT 'call',
+      color VARCHAR(20) NOT NULL DEFAULT '#F97316',
+      note TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 99,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: enRows } = await query(`SELECT COUNT(*) as cnt FROM emergency_numbers`);
+  if (parseInt(enRows[0].cnt, 10) === 0) {
+    const defaultNumbers = [
+      ["الشرطة", "999", "طوارئ", "shield", "#EF4444", "خط طوارئ الشرطة", 1],
+      ["الإسعاف", "1515", "طوارئ", "medical", "#EF4444", "خدمات الإسعاف والطوارئ الطبية", 2],
+      ["الدفاع المدني", "998", "طوارئ", "flame", "#F97316", "مكافحة الحرائق والكوارث", 3],
+      ["مستشفى الحصاحيصا", "0111000001", "صحة", "hospital", "#E74C6F", "المستشفى الرئيسي بالمدينة", 4],
+      ["كهرباء الحصاحيصا", "0111000002", "خدمات", "flash", "#F59E0B", "الإبلاغ عن أعطال الكهرباء", 5],
+      ["مياه الحصاحيصا", "0111000003", "خدمات", "water", "#3B82F6", "الإبلاغ عن مشاكل المياه", 6],
+      ["بلدية الحصاحيصا", "0111000004", "حكومي", "business", "#8B5CF6", "الخدمات البلدية", 7],
+      ["النيابة العامة", "0111000005", "قانوني", "hammer", "#6366F1", "القضايا القانونية", 8],
+    ];
+    for (const [name, number, category, icon, color, note, sort_order] of defaultNumbers) {
+      await query(
+        `INSERT INTO emergency_numbers (name, number, category, icon, color, note, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [name, number, category, icon, color, note, sort_order]
+      );
+    }
+  }
+
+  // ══ جدول المنظمات المجتمعية ══
+  // ترحيل: إذا الجدول القديم يفتقر لعمود contact_phone — أعد الإنشاء
+  {
+    const { rows: orgCols } = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'organizations' AND column_name = 'contact_phone'
+    `);
+    if (orgCols.length === 0) {
+      await query(`DROP TABLE IF EXISTS organizations CASCADE`);
+    }
+  }
+  await query(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'initiative',
+      description TEXT NOT NULL DEFAULT '',
+      full_description TEXT NOT NULL DEFAULT '',
+      contact_phone VARCHAR(50) NOT NULL DEFAULT '',
+      email VARCHAR(200),
+      members_count INTEGER NOT NULL DEFAULT 0,
+      founded_year VARCHAR(20) NOT NULL DEFAULT '',
+      goals TEXT[] NOT NULL DEFAULT '{}',
+      needs TEXT[] NOT NULL DEFAULT '{}',
+      rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+      is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: orgCheck } = await query(`SELECT COUNT(*) as cnt FROM organizations`);
+  if (parseInt(orgCheck[0].cnt, 10) === 0) {
+    const seedOrgs = [
+      ["مبادرة شباب الحصاحيصا","initiative","مبادرة شبابية تهدف لتطوير الخدمات المجتمعية","مبادرة شبابية تطوعية تهدف إلى تطوير الخدمات في مدينة الحصاحيصا ومناطقها القريبة، تتبنى مشاريع البنية التحتية والتوعية الاجتماعية وتنظيم الفعاليات الثقافية والرياضية.","+249912345611","",120,"2019",["تطوير الخدمات المجتمعية","توعية الشباب","دعم المحتاجين"],["متطوعون","تمويل مشاريع","معدات وأدوات"],4.9,true],
+      ["جمعية البر الخيرية","charity","جمعية مسجلة تكفل الأيتام وتساعد الأسر المتعففة","جمعية خيرية مسجلة رسمياً تعنى بكفالة الأيتام ومساعدة الأسر المتعففة والمحتاجين في مدينة الحصاحيصا وقراها.","+249912345612","",45,"2015",["كفالة الأيتام","دعم الأسر المحتاجة","التعليم للجميع"],["تبرعات مالية","ملابس وأغذية","متطوعون"],4.7,true],
+      ["مبادرة شارع الحوادث الطارئة","volunteer","مبادرة طوعية لتوفير الأدوية والمستلزمات للحالات الطارئة","فريق متطوع يقدم خدمات الإسعاف الأولي والأدوية الطارئة للحوادث والطوارئ في الحصاحيصا.","+249912345613","",80,"2021",["خدمات طارئة فورية","دعم الكوارث","التوعية الطبية"],["أدوية ومستلزمات طبية","سيارة إسعاف","متطوعون مؤهلون"],5.0,true],
+      ["جمعية المزارعين التعاونية","cooperative","تعاونية زراعية تدعم مزارعي الحصاحيصا والمناطق المجاورة","جمعية تعاونية تجمع المزارعين في الحصاحيصا والمناطق المجاورة لتبادل الخبرات والموارد.","+249912345614","",200,"2010",["دعم المزارعين","تسويق المنتجات","تطوير الزراعة المحلية"],["بذور ومدخلات","تمويل موسم الزراعة","أسواق تسويق"],4.6,true],
+      ["مبادرة بنات الحصاحيصا","initiative","مبادرة نسائية لتمكين المرأة وتعليم المهارات","مبادرة نسائية شاملة تهدف إلى تمكين المرأة في مدينة الحصاحيصا عبر التدريب المهني وتعليم الحرف اليدوية.","+249912345615","",95,"2020",["تمكين المرأة","التدريب المهني","توفير الدخل للأسر"],["ماكينات خياطة","مواد تدريب","قاعة للتدريب"],4.8,false],
+      ["فريق النظافة والتشجير","volunteer","مبادرة بيئية لتنظيف المدينة وزرع الأشجار","فريق متطوع يعمل على تنظيف شوارع وأحياء الحصاحيصا وزرع الأشجار والحفاظ على البيئة.","+249912345616","",60,"2022",["تنظيف الشوارع","التشجير","التوعية البيئية"],["أدوات نظافة","شتلات أشجار","متطوعون"],4.5,false],
+    ];
+    for (const [name,type,desc,fullDesc,phone,email,members,founded,goals,needs,rating,verified] of seedOrgs) {
+      await query(
+        `INSERT INTO organizations (name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [name,type,desc,fullDesc,phone,email||null,members,founded,goals,needs,rating,verified]
+      );
+    }
+  }
+
+  // ══ جدول طلبات تعاون المؤسسات الخارجية (خارج المدينة) ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS external_partnerships (
+      id SERIAL PRIMARY KEY,
+      org_name VARCHAR(200) NOT NULL,
+      org_type VARCHAR(50) NOT NULL DEFAULT 'other',
+      sector VARCHAR(100) NOT NULL DEFAULT '',
+      city VARCHAR(120) NOT NULL DEFAULT '',
+      country VARCHAR(120) NOT NULL DEFAULT '',
+      website VARCHAR(300) NOT NULL DEFAULT '',
+      logo_url VARCHAR(500) NOT NULL DEFAULT '',
+      contact_person VARCHAR(200) NOT NULL DEFAULT '',
+      contact_role VARCHAR(150) NOT NULL DEFAULT '',
+      email VARCHAR(200) NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      whatsapp VARCHAR(50) NOT NULL DEFAULT '',
+      cooperation_scope TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      services_offered TEXT[] NOT NULL DEFAULT '{}',
+      target_audience VARCHAR(300) NOT NULL DEFAULT '',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      admin_notes TEXT NOT NULL DEFAULT '',
+      is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMPTZ
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_ext_partner_status ON external_partnerships(status)`);
+
+  // ══ جدول المؤسسات التعليمية ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS educational_institutions (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'primary',
+      address TEXT NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      principal VARCHAR(200),
+      email VARCHAR(200),
+      website VARCHAR(300),
+      description TEXT,
+      grades VARCHAR(100),
+      shifts VARCHAR(100),
+      services TEXT[] NOT NULL DEFAULT '{}',
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: eduCheck } = await query(`SELECT COUNT(*) as cnt FROM educational_institutions`);
+  if (parseInt(eduCheck[0].cnt, 10) === 0) {
+    const seedEdu = [
+      ["مدرسة الحصاحيصا الأساسية","primary","وسط المدينة، شارع المدارس","0111100001","أحمد عبدالله",null,null,"مدرسة حكومية أساسية للبنين والبنات","الصف الأول – الثامن","صباحي ومسائي",["results","enrollment","transfer","textbooks"],"active"],
+      ["ثانوية الحصاحيصا للبنين","secondary","حي الضحى","0111100002","محمد إبراهيم",null,null,"ثانوية حكومية للبنين","الصف التاسع – الثاني عشر","صباحي",["results","enrollment","exam","guidance"],"active"],
+      ["ثانوية البنات بالحصاحيصا","secondary","حي السلام","0111100003","فاطمة الزهراء",null,null,"ثانوية حكومية للبنات","الصف التاسع – الثاني عشر","صباحي",["results","enrollment","exam","scholarship"],"active"],
+      ["خلوة القرآن الكريم","quran","قرب المسجد الكبير","0111100004","الشيخ يوسف",null,null,"خلوة لحفظ وتجويد القرآن الكريم",null,"مسائي",["quran"],"active"],
+      ["روضة المستقبل المشرق","kindergarten","حي النهضة","0111100005","أميرة خالد",null,null,"روضة أطفال خاصة","KG1 – KG3","صباحي",["enrollment","activity"],"active"],
+      ["معهد الحوسبة والتقنية","institute","وسط المدينة","0111100006",null,null,null,"معهد تقني متخصص في الحاسوب والبرمجة",null,"مسائي",["enrollment","training","results"],"active"],
+    ];
+    for (const [name,type,address,phone,principal,email,website,description,grades,shifts,services,status] of seedEdu) {
+      await query(
+        `INSERT INTO educational_institutions (name,type,address,phone,principal,email,website,description,grades,shifts,services,status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [name,type,address,phone,principal||null,email||null,website||null,description||null,grades||null,shifts||null,services,status]
+      );
+    }
+  }
+
+  // ══ جدول خدمات المرأة ══
+  // ترحيل: إذا الجدول القديم يفتقر لعمود rating — أعد الإنشاء
+  {
+    const { rows: wsCols } = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'women_services' AND column_name = 'rating'
+    `);
+    if (wsCols.length === 0) {
+      await query(`DROP TABLE IF EXISTS women_services CASCADE`);
+    }
+  }
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_services (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) NOT NULL DEFAULT 'salon',
+      address TEXT NOT NULL DEFAULT '',
+      phone VARCHAR(50) NOT NULL DEFAULT '',
+      hours VARCHAR(100) NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: wsCheck } = await query(`SELECT COUNT(*) as cnt FROM women_services`);
+  if (parseInt(wsCheck[0].cnt, 10) === 0) {
+    const seedWS = [
+      ["صالون ليلى للسيدات","salon","حي السلام","0912000011","8ص – 9م","صالون نسائي متكامل، خدمات حلاقة وتجميل وعناية بالبشرة",4.8,["صالون","تجميل","حلاقة"]],
+      ["أتيليه بنات النيل","sewing","وسط المدينة","0912000012","9ص – 5م","خياطة ملابس سودانية وعصرية، توب وجلابية وعرائس",4.7,["خياطة","تصميم","توب"]],
+      ["عيادة الأم والطفل","health","قرب المستشفى","0912000013","8ص – 2م","متخصصة في صحة المرأة والأطفال والرضّع",4.9,["صحة","طب","أطفال"]],
+      ["مطبخ أم الخير","cooking","حي النهضة","0912000014","7ص – 8م","طبخ سوداني أصيل للمناسبات والتوصيل اليومي",4.6,["طبخ","وجبات","مناسبات"]],
+      ["حضانة أطفالنا","childcare","حي الضحى","0912000015","7ص – 4م","رعاية الأطفال من عمر سنة إلى خمس سنوات",4.8,["حضانة","أطفال","رعاية"]],
+    ];
+    for (const [name,type,address,phone,hours,description,rating,tags] of seedWS) {
+      await query(
+        `INSERT INTO women_services (name,type,address,phone,hours,description,rating,tags)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [name,type,address,phone,hours,description,rating,tags]
+      );
+    }
+  }
+
+  // ══ جدول إعدادات مواقيت الآذان ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS prayer_settings (
+      id INTEGER DEFAULT 1 PRIMARY KEY CHECK (id = 1),
+      method INTEGER NOT NULL DEFAULT 3,
+      school INTEGER NOT NULL DEFAULT 0,
+      latitude NUMERIC(9,6) NOT NULL DEFAULT 14.0566,
+      longitude NUMERIC(9,6) NOT NULL DEFAULT 33.4001,
+      fajr_offset INTEGER NOT NULL DEFAULT 0,
+      dhuhr_offset INTEGER NOT NULL DEFAULT 0,
+      asr_offset INTEGER NOT NULL DEFAULT 0,
+      maghrib_offset INTEGER NOT NULL DEFAULT 0,
+      isha_offset INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: psCheck } = await query(`SELECT COUNT(*) as cnt FROM prayer_settings`);
+  if (parseInt(psCheck[0].cnt, 10) === 0) {
+    await query(`INSERT INTO prayer_settings (id) VALUES (1)`);
+  }
+
+  // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
+  await initPhoneShopsTables();
+
+  console.log("✅ Hasahisawi DB initialized");
 }
 
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
@@ -832,9 +1636,50 @@ async function getSessionUser(req: Request): Promise<Record<string, unknown> | n
   return result.rows[0] || null;
 }
 
+// مساعد: هل المستخدم مدير أو مشرف ترحيل؟
+function isTransportAdmin(role: unknown): boolean {
+  return role === "admin" || role === "transport_supervisor";
+}
+
+// نطاق الوصول للوحة "مشوارك علينا":
+//   - admin (المنصة)               → يرى كل الشركات. operatorId=null, isFullAdmin=true
+//   - transport_supervisor + op_id → يرى شركته فقط. operatorId=رقم
+//   - transport_supervisor بدون op_id → عرض كامل (مشرف عام للنقل، توافقاً للخلف)
+type TransportScope = { isFullAdmin: boolean; operatorId: number | null };
+function getTransportScope(me: any): TransportScope {
+  if (!me || !isTransportAdmin(me.role)) return { isFullAdmin: false, operatorId: null };
+  if (me.role === "admin") return { isFullAdmin: true, operatorId: null };
+  // transport_supervisor
+  const opId = me.operator_id != null ? Number(me.operator_id) : null;
+  return { isFullAdmin: opId == null, operatorId: opId };
+}
+// هل لمستخدم الحق في إجراءات على مستوى المنصة (شركات/تعرفة/إعدادات/أحياء)؟
+function isPlatformAdmin(me: any): boolean {
+  return !!me && me.role === "admin";
+}
+
+function safeCompare(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a.padEnd(64, "\0"));
+    const bb = Buffer.from(b.padEnd(64, "\0"));
+    return timingSafeEqual(ba, bb) && a.length === b.length;
+  } catch {
+    return false;
+  }
+}
+
 async function isAdminRequest(req: Request): Promise<boolean> {
   const user = await getSessionUser(req);
-  return user?.role === "admin";
+  if (user?.role === "admin") return true;
+  const pinHeader = req.headers["x-admin-pin"] as string | undefined;
+  const pinBody = req.body?.admin_pin as string | undefined;
+  const submittedPin = pinHeader || pinBody;
+  if (submittedPin && submittedPin.length >= 4 && submittedPin.length <= 20) {
+    const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+    const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
+    return safeCompare(submittedPin, storedPin);
+  }
+  return false;
 }
 
 router.post("/auth/register", async (req: Request, res: Response) => {
@@ -843,6 +1688,8 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
     if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    if (password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
+    if (name.length > 100) return res.status(400).json({ error: "الاسم طويل جداً" });
     const validGender = ["male", "female"].includes(gender) ? gender : null;
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
@@ -921,7 +1768,7 @@ router.patch("/admin/app/version", async (req: Request, res: Response) => {
 router.get("/app/feature-flags", async (_req: Request, res: Response) => {
   try {
     const rows = await query(
-      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled')`
+      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled','ride_status')`
     );
     const map: Record<string, string> = {};
     for (const r of rows.rows) map[r.key] = r.value;
@@ -929,6 +1776,7 @@ router.get("/app/feature-flags", async (_req: Request, res: Response) => {
       gov_services_enabled:      map.gov_services_enabled      !== "false",
       gov_appointments_enabled:  map.gov_appointments_enabled  !== "false",
       gov_reports_enabled:       map.gov_reports_enabled       !== "false",
+      ride_status:               (map.ride_status as "soon" | "maintenance" | "available") || "soon",
     });
   } catch (err) {
     console.error(err);
@@ -940,7 +1788,7 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
-    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled } = req.body;
+    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled, ride_status } = req.body;
     if (gov_services_enabled !== undefined) {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_services_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_services_enabled ? "true" : "false"]);
     }
@@ -949,6 +1797,9 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
     }
     if (gov_reports_enabled !== undefined) {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_reports_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_reports_enabled ? "true" : "false"]);
+    }
+    if (ride_status !== undefined && ["soon","maintenance","available"].includes(ride_status)) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('ride_status',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [ride_status]);
     }
     return res.json({ ok: true });
   } catch (err) {
@@ -959,16 +1810,15 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
 
 router.post("/auth/register-admin", async (req: Request, res: Response) => {
   try {
-    const { name, email, password, admin_code, role: reqRole } = req.body as { name?: string; email?: string; password?: string; admin_code?: string; role?: string };
+    const { name, email, password, admin_code } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const settingResult = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
     const pin = settingResult.rows[0]?.value || DEFAULT_ADMIN_PIN;
     if (admin_code !== pin) return res.status(403).json({ error: "رمز المشرف غير صحيح" });
-    const assignRole = reqRole === "moderator" ? "moderator" : "admin";
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, name, email, role`,
-      [name, email, hash, assignRole]
+      `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'admin') RETURNING id, name, role`,
+      [name, email, hash]
     );
     const user = result.rows[0];
     const token = randomBytes(32).toString("hex");
@@ -980,29 +1830,6 @@ router.post("/auth/register-admin", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
-
-// POST /api/auth/reset-admin-password — إعادة تعيين كلمة مرور الأدمن/المشرف بالـ PIN
-router.post("/auth/reset-admin-password", async (req: Request, res: Response) => {
-  try {
-    const { email, new_password, admin_code } = req.body as { email?: string; new_password?: string; admin_code?: string };
-    if (!email || !new_password || !admin_code) return res.status(400).json({ error: "البيانات ناقصة" });
-    if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
-    const settingResult = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-    const pin = settingResult.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    if (admin_code !== pin) return res.status(403).json({ error: "رمز PIN غير صحيح" });
-    const userResult = await query(`SELECT id, role FROM users WHERE email=$1`, [email]);
-    const user = userResult.rows[0];
-    if (!user) return res.status(404).json({ error: "البريد الإلكتروني غير موجود" });
-    if (user.role !== "admin" && user.role !== "moderator") return res.status(403).json({ error: "هذا الحساب ليس حساب إدارة" });
-    const hash = await bcrypt.hash(new_password, 10);
-    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hash, user.id]);
-    return res.json({ ok: true, message: "تم تعيين كلمة المرور بنجاح" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
 
 // تحديث الملف الشخصي (الاسم + الصورة الشخصية)
 router.put("/auth/profile", async (req: Request, res: Response) => {
@@ -1027,12 +1854,14 @@ router.put("/auth/profile", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/auth/login", async (req: Request, res: Response) => {
+router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   try {
-    const { phone_or_email, password } = req.body;
+    const { phone_or_email, password, recaptcha_token } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const captchaOk = await verifyRecaptcha(recaptcha_token);
+    if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
     const result = await query(
-      `SELECT * FROM users WHERE phone=$1 OR email=$1`,
+      `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]
     );
     const user = result.rows[0];
@@ -1051,7 +1880,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 router.post("/auth/admin-login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    const result = await query(`SELECT * FROM users WHERE email=$1 AND role='admin'`, [email]);
+    const result = await query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) AND role='admin'`, [email]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -1070,7 +1899,7 @@ router.post("/auth/moderator-login", async (req: Request, res: Response) => {
     const { phone_or_email, password } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const result = await query(
-      `SELECT * FROM users WHERE (phone=$1 OR email=$1) AND role='moderator'`,
+      `SELECT * FROM users WHERE (phone=$1 OR LOWER(email)=LOWER($1)) AND role='moderator'`,
       [phone_or_email]
     );
     const user = result.rows[0];
@@ -1083,6 +1912,45 @@ router.post("/auth/moderator-login", async (req: Request, res: Response) => {
     const safeUser = safeUserPayload(user);
     return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) }, token });
   } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تسجيل دخول مشرف الترحيل
+router.post("/auth/transport-login", async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const result = await query(
+      `SELECT * FROM users WHERE LOWER(email)=LOWER($1) AND role IN ('admin','transport_supervisor')`,
+      [email]
+    );
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: "لا يوجد حساب مشرف ترحيل بهذه البيانات" });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: "كلمة المرور غير صحيحة" });
+    const token = randomBytes(32).toString("hex");
+    await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
+    return res.json({ user: safeUserPayload(user), token });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إنشاء مشرف ترحيل جديد (يتطلب كود المشرف الرئيسي)
+router.post("/auth/register-transport-supervisor", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "المديرون فقط يمكنهم إنشاء مشرف ترحيل" });
+    const { name, email, password, operator_id } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+    const hash = await bcrypt.hash(password, 10);
+    const result = await query(
+      `INSERT INTO users (name, email, password_hash, role, operator_id) VALUES ($1,$2,$3,'transport_supervisor',$4) RETURNING id, name, role, operator_id`,
+      [name, email, hash, operator_id ?? null]
+    );
+    return res.status(201).json({ user: result.rows[0] });
+  } catch (err: any) {
+    if (err.code === "23505") return res.status(400).json({ error: "البريد مستخدم بالفعل" });
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
@@ -1129,12 +1997,15 @@ router.patch("/auth/me/gender", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/admin/validate-pin", async (req: Request, res: Response) => {
+router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { pin } = req.body;
+    if (!pin || typeof pin !== "string" || pin.length < 4 || pin.length > 20) {
+      return res.status(400).json({ valid: false });
+    }
     const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
     const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    return res.json({ valid: pin === storedPin });
+    return res.json({ valid: safeCompare(pin, storedPin) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -1227,6 +2098,46 @@ router.get("/organizations", async (_req: Request, res: Response) => {
   try {
     const result = await query(`SELECT * FROM organizations ORDER BY name`);
     return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إعدادات مواقيت الآذان (عام) ──
+router.get("/prayer-settings", async (_req: Request, res: Response) => {
+  try {
+    const result = await query(`SELECT * FROM prayer_settings WHERE id = 1`);
+    const row = result.rows[0] || {};
+    return res.json({ settings: row });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── إعدادات مواقيت الآذان (إدارة) ──
+router.put("/admin/prayer-settings", async (req: Request, res: Response) => {
+  const isAdmin = await isAdminRequest(req);
+  if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+  const { method, school, latitude, longitude, fajr_offset, dhuhr_offset, asr_offset, maghrib_offset, isha_offset } = req.body;
+  try {
+    await query(`
+      UPDATE prayer_settings SET
+        method         = COALESCE($1, method),
+        school         = COALESCE($2, school),
+        latitude       = COALESCE($3, latitude),
+        longitude      = COALESCE($4, longitude),
+        fajr_offset    = COALESCE($5, fajr_offset),
+        dhuhr_offset   = COALESCE($6, dhuhr_offset),
+        asr_offset     = COALESCE($7, asr_offset),
+        maghrib_offset = COALESCE($8, maghrib_offset),
+        isha_offset    = COALESCE($9, isha_offset),
+        updated_at     = NOW()
+      WHERE id = 1
+    `, [method, school, latitude, longitude, fajr_offset, dhuhr_offset, asr_offset, maghrib_offset, isha_offset]);
+    const result = await query(`SELECT * FROM prayer_settings WHERE id = 1`);
+    return res.json({ success: true, settings: result.rows[0] });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -1870,7 +2781,7 @@ router.get("/admin/users/:id/stats", async (req: Request, res: Response) => {
     if (!me || (me.role !== "admin" && me.role !== "moderator")) {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const uid = parseInt(req.params.id as string);
+    const uid = parseInt(req.params["id"] as string);
     if (isNaN(uid)) return res.status(400).json({ error: "معرف غير صالح" });
 
     const [userR, postsR, commentsR, likesR, reportsR, msgsR, adsR, apptR, sessionsR] =
@@ -1928,6 +2839,22 @@ router.delete("/admin/users/:id", async (req: Request, res: Response) => {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
+});
+
+// PATCH /admin/users/:id/password — تغيير كلمة مرور مستخدم (admin فقط)
+router.patch("/admin/users/:id/password", async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getSessionUser(req);
+    if (!currentUser || currentUser.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const targetId = parseInt(req.params.id as string);
+    if (isNaN(targetId)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { new_password } = req.body as any;
+    if (!new_password || String(new_password).length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    const hash = await bcrypt.hash(String(new_password), 10);
+    const { rowCount } = await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hash, targetId]);
+    if (!rowCount) return res.status(404).json({ error: "المستخدم غير موجود" });
+    return res.json({ ok: true, message: "تم تحديث كلمة المرور بنجاح" });
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
@@ -2862,7 +3789,7 @@ router.get("/admin/contract-settings", async (req: Request, res: Response) => {
     );
     const settings: Record<string, string> = {};
     for (const r of rows) settings[r.key] = r.value;
-    return res.json({ contract_whatsapp: settings["contract_whatsapp"] || "+966530658285" });
+    return res.json({ contract_whatsapp: settings["contract_whatsapp"] || "+966597083352" });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
@@ -3110,13 +4037,28 @@ router.delete("/admin/ads/:id", async (req: Request, res: Response) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
   try {
-    const { firebase_uid, name, email, role } = req.body as {
-      firebase_uid: string;
+    const body = req.body as {
+      idToken?: string;
+      firebase_uid?: string;
       name?: string;
       email?: string;
       role?: string;
     };
-    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid مطلوب" });
+    let { firebase_uid, name, email, role } = body;
+
+    // التحقق المُفضّل: idToken عبر Firebase Admin SDK
+    if (body.idToken) {
+      const verified = await verifyIdToken(body.idToken);
+      if (verified) {
+        firebase_uid = verified.uid;
+        if (!email && verified.email) email = verified.email;
+        if (!name && verified.name) name = verified.name;
+      } else if (!firebase_uid) {
+        return res.status(401).json({ error: "Invalid Firebase ID token" });
+      }
+    }
+
+    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid أو idToken مطلوب" });
 
     // ترتيب الصلاحيات: منع تخفيض الدور
     const roleRank: Record<string, number> = { user: 0, moderator: 1, admin: 2 };
@@ -3158,10 +4100,15 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
       const hash = await bcrypt.hash(randomBytes(16).toString("hex"), 6);
       // لا تحفظ بريد @hasahisawi.app الوهمي
       const realEmail = (email && !email.includes("@hasahisawi.app")) ? email : null;
+      // استخرج رقم الهاتف من البريد الوهمي إن وُجد
+      const phoneFromEmail = (email && email.includes("@hasahisawi.app"))
+        ? email.split("@")[0]
+        : null;
+      const realPhone = (phoneFromEmail && /^\d{9,15}$/.test(phoneFromEmail)) ? phoneFromEmail : null;
       userRow = (await query(
-        `INSERT INTO users (firebase_uid, name, email, password_hash, role)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [firebase_uid, name || "مستخدم", realEmail, hash, requestedRole]
+        `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [firebase_uid, name || "مستخدم", realEmail, realPhone, hash, requestedRole]
       )).rows[0];
     }
 
@@ -3259,7 +4206,7 @@ router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const key = req.params.key as string;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     const { label, type } = req.body as { label: string; type: "neighborhood" | "village" };
     if (!label?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
@@ -3279,7 +4226,7 @@ router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) =
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const key = req.params.key as string;
+    const key = req.params["key"] as string;
     if (!key.startsWith("nbr_")) return res.status(400).json({ error: "مفتاح غير صالح" });
     await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
     return res.json({ success: true });
@@ -3444,7 +4391,7 @@ router.get("/institution-applications/contract-settings", async (_req: Request, 
     const settings: Record<string, string> = {};
     for (const r of rows) settings[r.key] = r.value;
     return res.json({
-      contract_whatsapp: settings["contract_whatsapp"] || "+966530658285",
+      contract_whatsapp: settings["contract_whatsapp"] || "+966597083352",
     });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
@@ -3452,17 +4399,17 @@ router.get("/institution-applications/contract-settings", async (_req: Request, 
 });
 
 // تحميل ملف العقد الرسمي PDF
-router.get("/institution-applications/contract-pdf", (_req: Request, res: Response): void => {
+router.get("/institution-applications/contract-pdf", (_req: Request, res: Response) => {
   const { join } = require("path");
   const { createReadStream, existsSync } = require("fs");
   const pdfPath = join(__dirname, "../public/institution-contract.pdf");
   if (!existsSync(pdfPath)) {
-    res.status(404).json({ error: "ملف العقد غير متاح" });
-    return;
+    return res.status(404).json({ error: "ملف العقد غير متاح" });
   }
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", 'attachment; filename="institution-contract.pdf"');
   createReadStream(pdfPath).pipe(res);
+  return;
 });
 
 // تقديم طلب انضمام
@@ -3511,14 +4458,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
       ]
     );
 
-    const app = result.rows[0];
-    // إشعار المدير بطلب الانضمام الجديد
-    sendPushToAdmins(
-      "🏛️ طلب انضمام مؤسسة جديد",
-      `${inst_name} — ${inst_type === "health" ? "صحة" : inst_type === "education" ? "تعليم" : inst_type}`,
-      { screen: "admin_applications", id: app.id }
-    );
-    return res.json({ application: app });
+    return res.json({ application: result.rows[0] });
   } catch (err) {
     console.error("POST /institution-applications error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -3718,6 +4658,16 @@ router.get("/admin/reports", async (req: Request, res: Response) => {
   }
 });
 
+router.delete("/admin/reports/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM citizen_reports WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // مقترحات وشكاوى — Feedback
 // ══════════════════════════════════════════════════════
@@ -3801,11 +4751,11 @@ router.patch("/admin/feedback/:id/reply", async (req: Request, res: Response) =>
 router.get("/search", async (req: Request, res: Response) => {
   try {
     const q = (req.query.q as string || "").trim();
-    if (!q || q.length < 2) return res.json({ users: [], posts: [], orgs: [], communities: [], landmarks: [], ads: [] });
+    if (!q || q.length < 2) return res.json({ users: [], posts: [], orgs: [], communities: [] });
 
     const like = `%${q}%`;
 
-    const [usersR, postsR, orgsR, commR, landmarksR, adsR] = await Promise.all([
+    const [usersR, postsR, orgsR, commR] = await Promise.all([
       query(
         `SELECT id, name, role, avatar_url, created_at FROM users
          WHERE (name ILIKE $1 OR phone ILIKE $1) AND role != 'guest' LIMIT 15`,
@@ -3828,25 +4778,13 @@ router.get("/search", async (req: Request, res: Response) => {
          WHERE name ILIKE $1 OR description ILIKE $1 LIMIT 10`,
         [like]
       ),
-      query(
-        `SELECT id, name, description, category, image_url FROM city_landmarks
-         WHERE name ILIKE $1 OR description ILIKE $1 OR category ILIKE $1 LIMIT 10`,
-        [like]
-      ),
-      query(
-        `SELECT id, title, description, price, category, image_url FROM ads
-         WHERE (title ILIKE $1 OR description ILIKE $1 OR category ILIKE $1) AND status='active' LIMIT 10`,
-        [like]
-      ),
     ]);
 
     return res.json({
-      users:      usersR.rows,
-      posts:      postsR.rows,
-      orgs:       orgsR.rows,
+      users: usersR.rows,
+      posts: postsR.rows,
+      orgs: orgsR.rows,
       communities: commR.rows,
-      landmarks:  landmarksR.rows,
-      ads:        adsR.rows,
     });
   } catch (err) {
     console.error(err);
@@ -3896,12 +4834,14 @@ router.patch("/users/me/bio", async (req: Request, res: Response) => {
 });
 
 // ── استعادة كلمة المرور ───────────────────────────────────────────────────────
-router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, email, identifier, new_password } = req.body;
     const lookup = (identifier || phone || email || "").trim();
     if (!lookup || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني وكلمة المرور الجديدة" });
+    if (lookup.length > 200) return res.status(400).json({ error: "بيانات غير صالحة" });
     if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    if (new_password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
 
     const isEmail = lookup.includes("@");
     const userR = isEmail
@@ -3949,12 +4889,6 @@ router.post("/women/join-request", async (req: Request, res: Response) => {
       `INSERT INTO women_join_requests (owner_name, service_type, phone, address, description)
        VALUES ($1,$2,$3,$4,$5)`,
       [owner_name.trim(), service_type, phone.trim(), address?.trim() ?? "", description?.trim() ?? ""]
-    );
-    // إشعار المدير بطلب الانضمام لركن المرأة
-    sendPushToAdmins(
-      "👩 طلب انضمام لركن المرأة",
-      `${owner_name} — ${service_type}`,
-      { screen: "admin_women" }
     );
     return res.json({ ok: true });
   } catch (err) {
@@ -4016,12 +4950,6 @@ router.post("/occasions/join-request", async (req: Request, res: Response) => {
       `INSERT INTO occasion_shops (owner_name,shop_name,phone,whatsapp,city_area,description,social_link,status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id`,
       [owner_name, shop_name, phone, whatsapp ?? phone, city_area ?? "", description ?? "", social_link ?? ""]
-    );
-    // إشعار المدير بطلب انضمام المحل
-    sendPushToAdmins(
-      "🛍️ طلب انضمام محل جديد",
-      `${shop_name} — ${owner_name}`,
-      { screen: "admin_occasions", id: r.rows[0].id }
     );
     return res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
@@ -4203,7 +5131,7 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
 // الأخصائيون والاستشارات الطبية — Medical Specialists & Consultations
 // ══════════════════════════════════════════════════════
 
-(async () => {
+setImmediate(() => (async () => {
   try {
     // جدول الأخصائيين
     await query(`
@@ -4254,7 +5182,7 @@ router.delete("/occasions/transport/:id", async (req: Request, res: Response) =>
     await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS facility_name VARCHAR(300)`);
     await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
   } catch {}
-})();
+})());
 
 // GET /api/specialists
 router.get("/specialists", async (_req: Request, res: Response) => {
@@ -4277,6 +5205,85 @@ router.post("/specialists", async (req: Request, res: Response) => {
        JSON.stringify(available_days||[]), fees||null]
     );
     return res.json({ specialist: result.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── إدارة الأطباء والمستوصفات (admin) ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/admin/specialists — جميع الأطباء (بما فيهم المخفيون)
+router.get("/admin/specialists", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { clinic } = req.query as any;
+    let sql = `SELECT * FROM specialists`;
+    const params: any[] = [];
+    if (clinic) { sql += ` WHERE clinic=$1`; params.push(clinic); }
+    sql += ` ORDER BY clinic, order_num, name`;
+    const { rows } = await query(sql, params);
+    // جمّع بالمستوصف
+    const groups: Record<string, any[]> = {};
+    for (const r of rows) {
+      const key = r.clinic || "غير مصنّف";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    }
+    return res.json({ specialists: rows, groups });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/specialists/:id — تحديث طبيب
+router.patch("/admin/specialists/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const { name, specialty, bio, clinic, phone, photo_url, fees, order_num, is_active } = req.body as any;
+    const fields: string[] = [];
+    const vals: any[]    = [];
+    let i = 1;
+    if (name       !== undefined) { fields.push(`name=$${i++}`);       vals.push(name); }
+    if (specialty  !== undefined) { fields.push(`specialty=$${i++}`);  vals.push(specialty); }
+    if (bio        !== undefined) { fields.push(`bio=$${i++}`);        vals.push(bio); }
+    if (clinic     !== undefined) { fields.push(`clinic=$${i++}`);     vals.push(clinic); }
+    if (phone      !== undefined) { fields.push(`phone=$${i++}`);      vals.push(phone); }
+    if (photo_url  !== undefined) { fields.push(`photo_url=$${i++}`);  vals.push(photo_url); }
+    if (fees       !== undefined) { fields.push(`fees=$${i++}`);       vals.push(fees); }
+    if (order_num  !== undefined) { fields.push(`order_num=$${i++}`);  vals.push(order_num); }
+    if (is_active  !== undefined) { fields.push(`is_active=$${i++}`);  vals.push(is_active); }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد بيانات للتحديث" });
+    vals.push(id);
+    const { rows } = await query(
+      `UPDATE specialists SET ${fields.join(",")} WHERE id=$${i} RETURNING *`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: "الطبيب غير موجود" });
+    return res.json({ specialist: rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/specialists/:id — حذف طبيب
+router.delete("/admin/specialists/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const id = parseInt(req.params.id as string);
+    await query(`DELETE FROM specialists WHERE id=$1`, [id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/specialists/clinic-toggle — إظهار/إخفاء كل أطباء مستوصف
+router.put("/admin/specialists/clinic-toggle", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { clinic, is_active } = req.body as any;
+    if (!clinic) return res.status(400).json({ error: "اسم المستوصف مطلوب" });
+    const { rowCount } = await query(
+      `UPDATE specialists SET is_active=$1 WHERE clinic=$2`,
+      [!!is_active, clinic]
+    );
+    return res.json({ ok: true, updated: rowCount });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -4393,7 +5400,7 @@ router.post("/medical-consultations/:id/reply", async (req: Request, res: Respon
 // ══════════════════════════════════════════════════════
 
 // تهيئة جدول الجلسات وعمود توافر الخدمات (يُنفَّذ عند الاستيراد)
-(async () => {
+setImmediate(() => (async () => {
   try {
     await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS services_availability JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS payment_settings JSONB DEFAULT '{}'`);
@@ -4408,39 +5415,8 @@ router.post("/medical-consultations/:id/reply", async (req: Request, res: Respon
         expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '90 days'
       )
     `);
-    await query(`
-      CREATE TABLE IF NOT EXISTS clinic_services (
-        id SERIAL PRIMARY KEY,
-        clinic_id INTEGER NOT NULL REFERENCES institution_applications(id) ON DELETE CASCADE,
-        name VARCHAR(200) NOT NULL,
-        description TEXT,
-        category VARCHAR(100) NOT NULL DEFAULT 'عام',
-        icon VARCHAR(60) NOT NULL DEFAULT 'medical-bag',
-        price NUMERIC(10,2),
-        price_note VARCHAR(100),
-        is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-        show_price BOOLEAN NOT NULL DEFAULT TRUE,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    await query(`
-      CREATE TABLE IF NOT EXISTS clinic_working_hours (
-        id SERIAL PRIMARY KEY,
-        clinic_id INTEGER NOT NULL REFERENCES institution_applications(id) ON DELETE CASCADE,
-        day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-        day_name VARCHAR(20) NOT NULL,
-        is_open BOOLEAN NOT NULL DEFAULT TRUE,
-        open_time VARCHAR(8) NOT NULL DEFAULT '08:00',
-        close_time VARCHAR(8) NOT NULL DEFAULT '16:00',
-        break_start VARCHAR(8),
-        break_end VARCHAR(8),
-        notes VARCHAR(200),
-        UNIQUE(clinic_id, day_of_week)
-      )
-    `);
   } catch {}
-})();
+})());
 
 // دالة التحقق من جلسة المؤسسة
 async function getInstitutionSession(req: Request): Promise<{ institutionId: number; instName: string } | null> {
@@ -4598,35 +5574,39 @@ router.get("/transport/status", async (_req: Request, res: Response) => {
   } catch { return res.json({ enabled: false, status: "coming_soon", note: "" }); }
 });
 
-// GET /api/admin/transport/settings — إعدادات الخدمة (مدير)
+// GET /api/admin/transport/settings — إعدادات الخدمة (مدير أو مشرف ترحيل)
 router.get("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
     const { rows } = await query(
       `SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_status','transport_note','transport_phone')`
     );
     const result: Record<string, string> = {};
     rows.forEach((r: any) => { result[r.key] = r.value; });
-    // ضمان وجود transport_status
     if (!result.transport_status) {
-      result.transport_status = result.transport_enabled === "true" ? "available" : "coming_soon";
+      result.transport_status = result.transport_enabled === "true" ? "available" : "available";
     }
     return res.json(result);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/settings — تحديث إعدادات الخدمة (مدير)
+// PUT /api/admin/transport/settings — تحديث إعدادات الخدمة (مدير المنصة فقط)
 router.put("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الإعدادات العامة" });
     const { transport_status, transport_note, transport_phone } = req.body;
     const valid = ["available", "coming_soon", "maintenance"];
     const entries: [string, string][] = [];
     if (transport_status !== undefined && valid.includes(transport_status)) {
       entries.push(["transport_status", transport_status]);
       entries.push(["transport_enabled", String(transport_status === "available")]);
+      // مزامنة ride_status مع transport_status للشارة في الصفحة الرئيسية
+      const rideStatusMap: Record<string, string> = {
+        available: "available", maintenance: "maintenance", coming_soon: "soon"
+      };
+      entries.push(["ride_status", rideStatusMap[transport_status] ?? "soon"]);
     }
     if (transport_note !== undefined) entries.push(["transport_note", transport_note]);
     if (transport_phone !== undefined) entries.push(["transport_phone", transport_phone]);
@@ -4709,14 +5689,7 @@ router.post("/transport/trips", async (req: Request, res: Response) => {
         delivery_desc ?? null,
       ]
     );
-    const tripId = r.rows[0].id;
-    // إشعار المدير بطلب المشوار الجديد
-    sendPushToAdmins(
-      "🚗 طلب مشوار جديد",
-      `من: ${from_location}  ←  إلى: ${to_location}`,
-      { screen: "admin_transport", id: tripId }
-    );
-    return res.status(201).json({ id: tripId });
+    return res.status(201).json({ id: r.rows[0].id });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -4796,81 +5769,451 @@ router.patch("/transport/drivers/:id/online", async (req: Request, res: Response
 router.get("/admin/transport/stats", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
-    const [drivers, trips, pending] = await Promise.all([
-      query(`SELECT status, COUNT(*) as cnt FROM transport_drivers GROUP BY status`),
-      query(`SELECT status, COUNT(*) as cnt FROM transport_trips GROUP BY status`),
-      query(`SELECT COUNT(*) as cnt FROM transport_drivers WHERE status='pending'`),
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
+    const opAnd = scope.operatorId != null ? `AND operator_id=${Number(scope.operatorId)}` : "";
+    const [drivers, trips, pending, revenue] = await Promise.all([
+      query(`SELECT status, COUNT(*) as cnt FROM transport_drivers ${opF} GROUP BY status`),
+      query(`SELECT status, COUNT(*) as cnt FROM transport_trips ${opF} GROUP BY status`),
+      query(`SELECT COUNT(*) as cnt FROM transport_drivers WHERE status='pending' ${opAnd}`),
+      query(`SELECT COALESCE(SUM(actual_fare),0) AS total_fare, COALESCE(SUM(platform_revenue),0) AS platform_revenue, COALESCE(SUM(operator_revenue),0) AS operator_revenue FROM transport_trips WHERE status='completed' ${opAnd}`),
     ]);
     return res.json({
       drivers: drivers.rows,
       trips: trips.rows,
       pendingDrivers: parseInt(pending.rows[0]?.cnt ?? "0"),
+      revenue: revenue.rows[0],
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/drivers — جميع السائقين
+// GET /api/admin/transport/drivers — جميع السائقين (مفلترة حسب نطاق الشركة)
 router.get("/admin/transport/drivers", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
     const { status } = req.query;
-    let q = `SELECT d.*, u.name AS user_name_ref FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id`;
+    let q = `SELECT d.*, u.name AS user_name_ref, o.name AS operator_name FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id LEFT JOIN transport_operators o ON o.id=d.operator_id`;
     const params: any[] = [];
-    if (status && status !== "all") { q += ` WHERE d.status=$1`; params.push(status); }
+    const where: string[] = [];
+    if (scope.operatorId != null) { where.push(`d.operator_id=$${params.length+1}`); params.push(scope.operatorId); }
+    if (status && status !== "all") { where.push(`d.status=$${params.length+1}`); params.push(status); }
+    if (where.length) q += ` WHERE ${where.join(" AND ")}`;
     q += ` ORDER BY d.created_at DESC`;
     const { rows } = await query(q, params);
     return res.json(rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق
+// PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق (مفلتر حسب الشركة)
 router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    // تأكد أن السائق ضمن نطاق المشرف
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+      const cur = own.rows[0].operator_id;
+      // مشرف الشركة يستطيع فقط: إدارة سائقي شركته، أو ضمّ سائق غير مرتبط بأي شركة (cur=null) إلى شركته
+      if (cur != null && Number(cur) !== scope.operatorId) return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+    }
     const { status, admin_note } = req.body;
+    let { operator_id } = req.body;
+    // مشرف الشركة لا يستطيع تغيير operator_id لشركة أخرى — يُفرض = شركته
+    if (scope.operatorId != null) operator_id = scope.operatorId;
     await query(
-      `UPDATE transport_drivers SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note) WHERE id=$3`,
-      [status, admin_note, req.params.id]
+      `UPDATE transport_drivers SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note), operator_id=COALESCE($3,operator_id) WHERE id=$4`,
+      [status, admin_note, operator_id ?? null, req.params.id]
     );
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// DELETE /api/admin/transport/drivers/:id — حذف سائق
+// DELETE /api/admin/transport/drivers/:id — حذف سائق (ضمن النطاق فقط)
 router.delete("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+      if (Number(own.rows[0].operator_id) !== scope.operatorId) return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+    }
     await query(`DELETE FROM transport_drivers WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/trips — جميع الرحلات
+// GET /api/admin/transport/trips — جميع الرحلات (مفلترة)
 router.get("/admin/transport/trips", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
     const { status } = req.query;
-    let q = `SELECT t.*, d.name AS driver_name_ref, d.phone AS driver_phone FROM transport_trips t LEFT JOIN transport_drivers d ON d.id=t.driver_id`;
+    let q = `SELECT t.*, d.name AS driver_name_ref, d.phone AS driver_phone, o.name AS operator_name
+             FROM transport_trips t
+             LEFT JOIN transport_drivers d ON d.id=t.driver_id
+             LEFT JOIN transport_operators o ON o.id=t.operator_id`;
     const params: any[] = [];
-    if (status && status !== "all") { q += ` WHERE t.status=$1`; params.push(status); }
-    q += ` ORDER BY t.created_at DESC LIMIT 100`;
+    const where: string[] = [];
+    if (scope.operatorId != null) { where.push(`t.operator_id=$${params.length+1}`); params.push(scope.operatorId); }
+    if (status && status !== "all") { where.push(`t.status=$${params.length+1}`); params.push(status); }
+    if (where.length) q += ` WHERE ${where.join(" AND ")}`;
+    q += ` ORDER BY t.created_at DESC LIMIT 200`;
     const { rows } = await query(q, params);
     return res.json(rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// DELETE /api/admin/transport/trips/:id — حذف رحلة
+// PATCH /api/admin/transport/trips/:id/complete — إتمام رحلة (مع عزل الشركة)
+router.patch("/admin/transport/trips/:id/complete", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const { actual_fare } = req.body;
+    let { operator_id } = req.body;
+    if (!actual_fare || actual_fare <= 0) return res.status(400).json({ error: "الأجرة الفعلية مطلوبة" });
+
+    // التحقق من ملكية الرحلة
+    const tripRow = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+    if (!tripRow.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+    const curOp = tripRow.rows[0].operator_id;
+    if (scope.operatorId != null) {
+      if (curOp != null && Number(curOp) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+      // مشرف الشركة لا يستطيع نقل الرحلة لشركة أخرى — يُفرض على شركته
+      operator_id = scope.operatorId;
+    }
+    const opId = operator_id ?? null;
+
+    // احسب توزيع الأرباح
+    let platformRevenue = actual_fare;
+    let operatorRevenue = 0;
+    if (opId) {
+      const opRes = await query(`SELECT operator_share_pct, platform_share_pct FROM transport_operators WHERE id=$1`, [opId]);
+      if (opRes.rows[0]) {
+        const opShare = Number(opRes.rows[0].operator_share_pct) / 100;
+        const platShare = Number(opRes.rows[0].platform_share_pct) / 100;
+        operatorRevenue = Math.round(actual_fare * opShare);
+        platformRevenue = Math.round(actual_fare * platShare);
+      }
+    }
+
+    await query(
+      `UPDATE transport_trips SET status='completed', actual_fare=$1, platform_revenue=$2, operator_revenue=$3, operator_id=COALESCE($4,operator_id), completed_at=NOW() WHERE id=$5`,
+      [actual_fare, platformRevenue, operatorRevenue, opId, req.params.id]
+    );
+    return res.json({ success: true, actual_fare, platform_revenue: platformRevenue, operator_revenue: operatorRevenue });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/trips/:id — حذف رحلة (ضمن النطاق)
 router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null) {
+      const own = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+      if (!own.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+      if (Number(own.rows[0].operator_id) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+    }
     await query(`DELETE FROM transport_trips WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── مسارات الشركات المشغّلة (Operators) ──
+
+// GET /api/admin/transport/operators — قائمة الشركات (admin يرى الكل، مشرف الشركة يرى شركته فقط)
+router.get("/admin/transport/operators", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE o.id=${Number(scope.operatorId)}` : "";
+    const { rows } = await query(`
+      SELECT o.*,
+        COUNT(DISTINCT d.id) FILTER (WHERE d.status='approved')::int AS active_drivers,
+        COUNT(DISTINCT t.id) FILTER (WHERE t.status='completed')::int AS total_trips,
+        COALESCE(SUM(t.actual_fare) FILTER (WHERE t.status='completed'),0)::int AS total_revenue,
+        COALESCE(SUM(t.operator_revenue) FILTER (WHERE t.status='completed'),0)::int AS total_operator_revenue,
+        COALESCE(SUM(t.platform_revenue) FILTER (WHERE t.status='completed'),0)::int AS total_platform_revenue
+      FROM transport_operators o
+      LEFT JOIN transport_drivers d ON d.operator_id=o.id
+      LEFT JOIN transport_trips t ON t.operator_id=o.id
+      ${opF}
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/transport/operators — إنشاء شركة (مدير المنصة فقط)
+router.post("/admin/transport/operators", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه إنشاء شركات" });
+    const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, notes } = req.body;
+    if (!name) return res.status(400).json({ error: "اسم الشركة مطلوب" });
+    const opShare = Number(operator_share_pct ?? 70);
+    const platShare = Number(platform_share_pct ?? 30);
+    if (Math.abs(opShare + platShare - 100) > 0.01) return res.status(400).json({ error: "مجموع نسبتي التشغيل والمنصة يجب أن يساوي ١٠٠٪" });
+    const { rows } = await query(
+      `INSERT INTO transport_operators (name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [name, contact_name || "", phone || "", email || "", contract_start || null, contract_end || null, opShare, platShare, notes || ""]
+    );
+    return res.status(201).json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/transport/operators/:id — تعديل شركة (مدير المنصة فقط)
+router.patch("/admin/transport/operators/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه تعديل بيانات الشركة" });
+    const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, status, notes } = req.body;
+    if (operator_share_pct !== undefined && platform_share_pct !== undefined) {
+      const s = Number(operator_share_pct) + Number(platform_share_pct);
+      if (Math.abs(s - 100) > 0.01) return res.status(400).json({ error: "مجموع النسب يجب أن يساوي ١٠٠٪" });
+    }
+    await query(
+      `UPDATE transport_operators SET
+        name=COALESCE($1,name), contact_name=COALESCE($2,contact_name), phone=COALESCE($3,phone),
+        email=COALESCE($4,email), contract_start=COALESCE($5,contract_start), contract_end=COALESCE($6,contract_end),
+        operator_share_pct=COALESCE($7,operator_share_pct), platform_share_pct=COALESCE($8,platform_share_pct),
+        status=COALESCE($9,status), notes=COALESCE($10,notes)
+       WHERE id=$11`,
+      [name, contact_name, phone, email, contract_start || null, contract_end || null, operator_share_pct, platform_share_pct, status, notes, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/operators/:id
+router.delete("/admin/transport/operators/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "المديرون فقط" });
+    await query(`DELETE FROM transport_operators WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// مناطق التغطية — الأحياء والقرى
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/transport/neighborhoods — قائمة الأحياء العامة (المعتمدة)
+router.get("/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const r = await query(`SELECT id, name, zone_id, submitted_by, created_at FROM transport_neighborhoods WHERE status='active' ORDER BY zone_id, name`);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/transport/neighborhoods/community-stats — إحصائيات المجتمع
+router.get("/transport/neighborhoods/community-stats", async (req: Request, res: Response) => {
+  try {
+    const total     = await query(`SELECT COUNT(*) FROM transport_neighborhoods WHERE status='active'`);
+    const pending   = await query(`SELECT COUNT(*) FROM transport_neighborhoods WHERE status='pending'`);
+    const contribs  = await query(`SELECT COUNT(DISTINCT submitted_by) FROM transport_neighborhoods WHERE status='active' AND submitted_by != ''`);
+    const recent    = await query(`SELECT name, zone_id, submitted_by, created_at FROM transport_neighborhoods WHERE status='active' AND submitted_by != '' ORDER BY created_at DESC LIMIT 5`);
+    return res.json({
+      total:       parseInt(total.rows[0].count),
+      pending:     parseInt(pending.rows[0].count),
+      contributors: parseInt(contribs.rows[0].count),
+      recent:      recent.rows,
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/transport/neighborhoods/suggest — اقتراح حي من مستخدم
+router.post("/transport/neighborhoods/suggest", async (req: Request, res: Response) => {
+  try {
+    const { name, zone_id, submitted_by } = req.body;
+    if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
+    // تحقق من عدم التكرار
+    const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
+    if (exists.rows.length > 0) return res.status(409).json({ error: "هذا الحي موجود بالفعل أو قيد المراجعة" });
+    const r = await query(
+      `INSERT INTO transport_neighborhoods (name, zone_id, status, submitted_by) VALUES ($1,$2,'pending',$3) RETURNING *`,
+      [name.trim(), zone_id, submitted_by || ""]
+    );
+    return res.json({ success: true, neighborhood: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/neighborhoods — كل الأحياء (إداري)
+router.get("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM transport_neighborhoods ORDER BY status DESC, zone_id, name`);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/transport/neighborhoods — إضافة حي (مدير المنصة فقط)
+router.post("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع إضافة الأحياء" });
+    const { name, zone_id, notes } = req.body;
+    if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
+    const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
+    if (exists.rows.length > 0) return res.status(409).json({ error: "هذا الحي موجود بالفعل" });
+    const r = await query(
+      `INSERT INTO transport_neighborhoods (name, zone_id, status, submitted_by, notes) VALUES ($1,$2,'active',$3,$4) RETURNING *`,
+      [name.trim(), zone_id, (me as any).name || (me as any).email || "admin", notes || ""]
+    );
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/transport/neighborhoods/:id — تعديل حالة أو بيانات (مدير المنصة فقط)
+router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الأحياء" });
+    const { status, name, zone_id, notes } = req.body;
+    const fields: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+    if (status)  { fields.push(`status=$${i++}`);  vals.push(status); }
+    if (name)    { fields.push(`name=$${i++}`);    vals.push(name.trim()); }
+    if (zone_id) { fields.push(`zone_id=$${i++}`); vals.push(zone_id); }
+    if (notes !== undefined) { fields.push(`notes=$${i++}`); vals.push(notes); }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد حقول للتحديث" });
+    vals.push(req.params.id);
+    const r = await query(`UPDATE transport_neighborhoods SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
+    if (!r.rows[0]) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/neighborhoods/:id — حذف (مدير المنصة فقط)
+router.delete("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع حذف الأحياء" });
+    await query(`DELETE FROM transport_neighborhoods WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/operators/:id/report — تقرير مفصّل لشركة مشغّلة
+router.get("/admin/transport/operators/:id/report", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    if (scope.operatorId != null && Number(req.params.id) !== scope.operatorId)
+      return res.status(403).json({ error: "تستطيع عرض تقرير شركتك فقط" });
+    const opId = req.params.id;
+    const [opRes, driversRes, tripsRes, monthlyRes] = await Promise.all([
+      query(`SELECT * FROM transport_operators WHERE id=$1`, [opId]),
+      query(`SELECT COUNT(*) FILTER (WHERE status='approved')::int AS active, COUNT(*)::int AS total FROM transport_drivers WHERE operator_id=$1`, [opId]),
+      query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status='completed')::int AS completed,
+          COUNT(*) FILTER (WHERE status='cancelled')::int AS cancelled,
+          COUNT(*) FILTER (WHERE status='pending')::int AS pending,
+          COALESCE(SUM(actual_fare) FILTER (WHERE status='completed'),0)::int AS total_fare,
+          COALESCE(SUM(operator_revenue) FILTER (WHERE status='completed'),0)::int AS operator_revenue,
+          COALESCE(SUM(platform_revenue) FILTER (WHERE status='completed'),0)::int AS platform_revenue,
+          COALESCE(AVG(actual_fare) FILTER (WHERE status='completed'),0)::int AS avg_fare
+        FROM transport_trips WHERE operator_id=$1`, [opId]),
+      query(`
+        SELECT
+          DATE_TRUNC('month', completed_at) AS month,
+          COUNT(*)::int AS trips,
+          COALESCE(SUM(actual_fare),0)::int AS revenue,
+          COALESCE(SUM(operator_revenue),0)::int AS operator_share,
+          COALESCE(SUM(platform_revenue),0)::int AS platform_share
+        FROM transport_trips
+        WHERE operator_id=$1 AND status='completed' AND completed_at IS NOT NULL
+        GROUP BY month ORDER BY month DESC LIMIT 12`, [opId]),
+    ]);
+    if (!opRes.rows[0]) return res.status(404).json({ error: "الشركة غير موجودة" });
+    return res.json({
+      operator: opRes.rows[0],
+      drivers: driversRes.rows[0],
+      trips: tripsRes.rows[0],
+      monthly: monthlyRes.rows,
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/transport/reports — تقارير الإيرادات الشاملة (مفلترة حسب نطاق الشركة)
+router.get("/admin/transport/reports", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opId = scope.operatorId;
+    const tWhereOp  = opId != null ? `WHERE operator_id=${Number(opId)}` : "";
+    const tAndOp    = opId != null ? `AND operator_id=${Number(opId)}`   : "";
+    const tWhereOpJ = opId != null ? `WHERE t.operator_id=${Number(opId)}`: "";
+    const tAndOpJ   = opId != null ? `AND t.operator_id=${Number(opId)}`  : "";
+    const oWhereOp  = opId != null ? `WHERE o.id=${Number(opId)}`         : "";
+    const [overall, byVehicle, byOperator, monthly, recent] = await Promise.all([
+      query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status='completed')::int AS completed_trips,
+          COUNT(*) FILTER (WHERE status='cancelled')::int AS cancelled_trips,
+          COUNT(*) FILTER (WHERE status='pending')::int AS pending_trips,
+          COUNT(*) FILTER (WHERE status='in_progress')::int AS active_trips,
+          COALESCE(SUM(actual_fare) FILTER (WHERE status='completed'),0)::int AS total_revenue,
+          COALESCE(SUM(platform_revenue) FILTER (WHERE status='completed'),0)::int AS platform_revenue,
+          COALESCE(SUM(operator_revenue) FILTER (WHERE status='completed'),0)::int AS operator_revenue,
+          COALESCE(AVG(actual_fare) FILTER (WHERE status='completed'),0)::int AS avg_fare
+        FROM transport_trips ${tWhereOp}`),
+      query(`
+        SELECT vehicle_preference,
+          COUNT(*) FILTER (WHERE status='completed')::int AS trips,
+          COALESCE(SUM(actual_fare) FILTER (WHERE status='completed'),0)::int AS revenue
+        FROM transport_trips ${tWhereOp} GROUP BY vehicle_preference ORDER BY trips DESC`),
+      query(`
+        SELECT o.id, o.name, o.operator_share_pct, o.platform_share_pct,
+          COUNT(t.id) FILTER (WHERE t.status='completed')::int AS trips,
+          COALESCE(SUM(t.actual_fare) FILTER (WHERE t.status='completed'),0)::int AS revenue,
+          COALESCE(SUM(t.operator_revenue) FILTER (WHERE t.status='completed'),0)::int AS operator_share,
+          COALESCE(SUM(t.platform_revenue) FILTER (WHERE t.status='completed'),0)::int AS platform_share
+        FROM transport_operators o
+        LEFT JOIN transport_trips t ON t.operator_id=o.id
+        ${oWhereOp}
+        GROUP BY o.id ORDER BY revenue DESC`),
+      query(`
+        SELECT DATE_TRUNC('day', completed_at) AS day,
+          COUNT(*)::int AS trips,
+          COALESCE(SUM(actual_fare),0)::int AS revenue,
+          COALESCE(SUM(platform_revenue),0)::int AS platform_revenue
+        FROM transport_trips
+        WHERE status='completed' AND completed_at >= NOW()-INTERVAL '30 days' ${tAndOp}
+        GROUP BY day ORDER BY day DESC`),
+      query(`
+        SELECT t.*, o.name AS operator_name FROM transport_trips t
+        LEFT JOIN transport_operators o ON o.id=t.operator_id
+        WHERE t.status='completed' ${tAndOpJ} ORDER BY t.completed_at DESC LIMIT 20`),
+    ]);
+    return res.json({
+      overall: overall.rows[0],
+      byVehicle: byVehicle.rows,
+      byOperator: byOperator.rows,
+      daily: monthly.rows,
+      recent: recent.rows,
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: opId },
+    });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -4878,58 +6221,59 @@ router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) 
 // ── مسارات التعرفة والمناطق ──
 // ══════════════════════════════════════════════════════
 
-// GET /api/transport/fares — جلب مصفوفة التعرفة (عام)
+// GET /api/transport/fares — جلب مصفوفة التعرفة (عام) - تشمل الدراجة النارية
 router.get("/transport/fares", async (_req: Request, res: Response) => {
   try {
     const { rows } = await query(
-      `SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery FROM transport_fares ORDER BY from_zone, to_zone`
+      `SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle FROM transport_fares ORDER BY from_zone, to_zone`
     );
-    // تحويل إلى مصفوفة متداخلة
-    const matrix: Record<number, Record<number, { car: number; rickshaw: number; delivery: number }>> = {};
+    const matrix: Record<number, Record<number, { car: number; rickshaw: number; delivery: number; motorcycle: number }>> = {};
     for (const row of rows) {
       if (!matrix[row.from_zone]) matrix[row.from_zone] = {};
       matrix[row.from_zone][row.to_zone] = {
         car: Number(row.fare_car),
         rickshaw: Number(row.fare_rickshaw),
         delivery: Number(row.fare_delivery),
+        motorcycle: Number(row.fare_motorcycle),
       };
     }
     return res.json(matrix);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير/مشرف)
+// PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير المنصة فقط)
 router.put("/admin/transport/fares", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
-    const { from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery } = req.body;
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
+    const { from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle } = req.body;
     if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
     await query(
       `UPDATE transport_fares SET
          fare_car = COALESCE($3, fare_car),
          fare_rickshaw = COALESCE($4, fare_rickshaw),
          fare_delivery = COALESCE($5, fare_delivery),
+         fare_motorcycle = COALESCE($6, fare_motorcycle),
          updated_at = NOW()
        WHERE from_zone=$1 AND to_zone=$2`,
-      [from_zone, to_zone, fare_car ?? null, fare_rickshaw ?? null, fare_delivery ?? null],
+      [from_zone, to_zone, fare_car ?? null, fare_rickshaw ?? null, fare_delivery ?? null, fare_motorcycle ?? null],
     );
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل
+// PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل (مدير المنصة فقط)
 router.put("/admin/transport/fares/bulk", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
-    const { fares } = req.body as { fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number }> };
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
+    const { fares } = req.body as { fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number; fare_motorcycle?: number }> };
     if (!Array.isArray(fares)) return res.status(400).json({ error: "تنسيق خاطئ" });
     for (const f of fares) {
       await query(
-        `UPDATE transport_fares SET fare_car=$3, fare_rickshaw=$4, fare_delivery=$5, updated_at=NOW()
+        `UPDATE transport_fares SET fare_car=$3, fare_rickshaw=$4, fare_delivery=$5, fare_motorcycle=COALESCE($6,fare_motorcycle), updated_at=NOW()
          WHERE from_zone=$1 AND to_zone=$2`,
-        [f.from_zone, f.to_zone, f.fare_car, f.fare_rickshaw, f.fare_delivery],
+        [f.from_zone, f.to_zone, f.fare_car, f.fare_rickshaw, f.fare_delivery, f.fare_motorcycle ?? null],
       );
     }
     return res.json({ success: true, updated: fares.length });
@@ -4942,7 +6286,7 @@ router.get("/transport/fare-estimate", async (req: Request, res: Response) => {
     const { from_zone, to_zone } = req.query;
     if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
     const { rows } = await query(
-      `SELECT fare_car, fare_rickshaw, fare_delivery FROM transport_fares WHERE from_zone=$1 AND to_zone=$2`,
+      `SELECT fare_car, fare_rickshaw, fare_delivery, fare_motorcycle FROM transport_fares WHERE from_zone=$1 AND to_zone=$2`,
       [Number(from_zone), Number(to_zone)],
     );
     if (!rows[0]) return res.status(404).json({ error: "لا توجد تعرفة لهذا المسار" });
@@ -4952,43 +6296,71 @@ router.get("/transport/fare-estimate", async (req: Request, res: Response) => {
       car: Number(rows[0].fare_car),
       rickshaw: Number(rows[0].fare_rickshaw),
       delivery: Number(rows[0].fare_delivery),
+      motorcycle: Number(rows[0].fare_motorcycle),
     });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة
+// PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة (ضمن النطاق)
 router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
     const { driver_id, status } = req.body;
+    let { operator_id } = req.body;
     let driverName = null;
+    let opId = operator_id ?? null;
+
+    // التحقق أن الرحلة ضمن نطاق المشرف
+    if (scope.operatorId != null) {
+      const tripRow = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
+      if (!tripRow.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
+      const cur = tripRow.rows[0].operator_id;
+      if (cur != null && Number(cur) !== scope.operatorId) return res.status(403).json({ error: "هذه الرحلة ليست ضمن شركتك" });
+      // لا يحق له تخصيص سائق من شركة أخرى
+      if (driver_id) {
+        const dr = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [driver_id]);
+        if (!dr.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
+        if (dr.rows[0].operator_id != null && Number(dr.rows[0].operator_id) !== scope.operatorId)
+          return res.status(403).json({ error: "هذا السائق ليس ضمن شركتك" });
+      }
+      // يُفرض النطاق
+      opId = scope.operatorId;
+    }
+
     if (driver_id) {
-      const dr = await query(`SELECT name FROM transport_drivers WHERE id=$1`, [driver_id]);
+      const dr = await query(`SELECT name, operator_id FROM transport_drivers WHERE id=$1`, [driver_id]);
       driverName = dr.rows[0]?.name || null;
+      if (!opId && dr.rows[0]?.operator_id) opId = dr.rows[0].operator_id;
     }
     await query(
       `UPDATE transport_trips SET
-         driver_id = COALESCE($1, driver_id),
-         driver_name = COALESCE($2, driver_name),
-         status = COALESCE($3, status)
-       WHERE id=$4`,
-      [driver_id ?? null, driverName, status ?? null, req.params.id],
+         driver_id    = COALESCE($1, driver_id),
+         driver_name  = COALESCE($2, driver_name),
+         status       = COALESCE($3, status),
+         operator_id  = COALESCE($4, operator_id)
+       WHERE id=$5`,
+      [driver_id ?? null, driverName, status ?? null, opId, req.params.id],
     );
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/admin/transport/overview — نظرة عامة متكاملة للمدير
+// GET /api/admin/transport/overview — نظرة عامة متكاملة (مفلترة حسب النطاق)
 router.get("/admin/transport/overview", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
-    const [drivers, trips, fares, settings] = await Promise.all([
-      query(`SELECT status, vehicle_type, COUNT(*) as cnt FROM transport_drivers GROUP BY status, vehicle_type`),
-      query(`SELECT status, trip_type, COUNT(*) as cnt FROM transport_trips GROUP BY status, trip_type`),
-      query(`SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery FROM transport_fares ORDER BY from_zone, to_zone`),
-      query(`SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_note','transport_phone')`),
+    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const scope = getTransportScope(me);
+    const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
+    const opOnlyMine = scope.operatorId != null ? `AND id=${Number(scope.operatorId)}` : "";
+    const [drivers, trips, fares, settings, operators] = await Promise.all([
+      query(`SELECT status, vehicle_type, COUNT(*) as cnt FROM transport_drivers ${opF} GROUP BY status, vehicle_type`),
+      query(`SELECT status, trip_type, COUNT(*) as cnt FROM transport_trips ${opF} GROUP BY status, trip_type`),
+      query(`SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle FROM transport_fares ORDER BY from_zone, to_zone`),
+      query(`SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_status','transport_note','transport_phone')`),
+      query(`SELECT id, name, status, operator_share_pct FROM transport_operators WHERE status='active' ${opOnlyMine} ORDER BY name`),
     ]);
     const settingsMap: Record<string, string> = {};
     for (const r of settings.rows) settingsMap[r.key] = r.value;
@@ -4997,14 +6369,71 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
       trips: trips.rows,
       fares: fares.rows,
       settings: settingsMap,
+      operators: operators.rows,
+      scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/transport/operators/:id/supervisor — إنشاء/ربط حساب مشرف لشركة (مدير المنصة فقط)
+router.post("/admin/transport/operators/:id/supervisor", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    const opId = Number(req.params.id);
+    const { name, email, password, link_existing_user_id } = req.body as { name?: string; email?: string; password?: string; link_existing_user_id?: number };
+    const opRow = await query(`SELECT id, name FROM transport_operators WHERE id=$1`, [opId]);
+    if (!opRow.rows[0]) return res.status(404).json({ error: "الشركة غير موجودة" });
+
+    // 1) ربط مستخدم موجود
+    if (link_existing_user_id) {
+      await query(`UPDATE users SET role='transport_supervisor', operator_id=$1 WHERE id=$2`, [opId, link_existing_user_id]);
+      const u = await query(`SELECT id, name, email, role, operator_id FROM users WHERE id=$1`, [link_existing_user_id]);
+      return res.json({ user: u.rows[0], operator: opRow.rows[0] });
+    }
+    // 2) إنشاء حساب جديد
+    if (!name || !email || !password) return res.status(400).json({ error: "الاسم والبريد وكلمة المرور مطلوبة" });
+    if (password.length < 6) return res.status(400).json({ error: "كلمة المرور 6 أحرف على الأقل" });
+    const hash = await bcrypt.hash(password, 10);
+    const ins = await query(
+      `INSERT INTO users (name, email, password_hash, role, operator_id) VALUES ($1,$2,$3,'transport_supervisor',$4) RETURNING id, name, email, role, operator_id`,
+      [name, email, hash, opId]
+    );
+    return res.status(201).json({ user: ins.rows[0], operator: opRow.rows[0] });
+  } catch (err: any) {
+    if (err?.code === "23505") return res.status(400).json({ error: "البريد مستخدم مسبقاً" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/admin/transport/operators/:id/supervisors — قائمة المشرفين المرتبطين بشركة (مدير المنصة فقط)
+router.get("/admin/transport/operators/:id/supervisors", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    const opId = Number(req.params.id);
+    const r = await query(
+      `SELECT id, name, email, role, created_at FROM users WHERE role='transport_supervisor' AND operator_id=$1 ORDER BY created_at DESC`,
+      [opId]
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/transport/operators/:id/supervisor/:userId — فك ربط مشرف عن شركة (مدير المنصة فقط)
+router.delete("/admin/transport/operators/:id/supervisor/:userId", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    await query(`UPDATE users SET operator_id=NULL WHERE id=$1 AND operator_id=$2`, [req.params.userId, req.params.id]);
+    return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
 // مكتبات الخدمات الطلابية + مساحة التجار — إنشاء الجداول
 // ══════════════════════════════════════════════════════════════════
-(async () => {
+setImmediate(() => (async () => {
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS student_libraries (
@@ -5044,7 +6473,7 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
       )
     `);
   } catch (e) { console.error("student_libraries/merchant_spaces init:", e); }
-})();
+})());
 
 // ────────────────────────────────────────────────────────────────
 // مكتبات الخدمات الطلابية — Public
@@ -5266,8 +6695,6 @@ async function initPhoneShopsTables() {
     )
   `);
 }
-initPhoneShopsTables().catch(console.error);
-
 // ─── helper: is owner of shop ────────────────────────────────────
 async function isShopOwner(req: Request, shopId: number): Promise<boolean> {
   const user = await getSessionUser(req);
@@ -5313,12 +6740,6 @@ router.post("/phone-shops", async (req: Request, res: Response) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [user?.id ?? null, shop_name, owner_name, phone||null, whatsapp||null, address||null, description||null,
        specialties||[], working_hours||null, facebook||null, logo_emoji||'📱']
-    );
-    // إشعار المدير بتسجيل محل هواتف جديد
-    sendPushToAdmins(
-      "📱 طلب تسجيل محل هواتف",
-      `${shop_name} — ${owner_name}`,
-      { screen: "admin_phones", id: result.rows[0].id }
     );
     return res.status(201).json({ shop: result.rows[0] });
   } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
@@ -5472,7 +6893,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
 // ════════════════════════════════════════════════════════════════
 //  EVENTS  – الفعاليات
 // ════════════════════════════════════════════════════════════════
-(async () => {
+setImmediate(() => (async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS events (
       id               SERIAL PRIMARY KEY,
@@ -5509,7 +6930,7 @@ router.delete("/admin/phone-shops/:id", async (req: Request, res: Response) => {
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-})();
+})().catch(e => console.error("events init:", e)));
 
 // ── GET /events ──────────────────────────────
 router.get("/events", async (req: Request, res: Response) => {
@@ -5641,308 +7062,1797 @@ router.delete("/admin/event-rentals/:id", async (req: Request, res: Response) =>
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
-// ── إرسال إشعار جماعي (Admin) ────────────────────────────────────────────────
-async function sendPushBroadcast(title: string, body: string, data: Record<string, unknown> = {}): Promise<{ sent: number; failed: number }> {
-  const { rows } = await query(`SELECT DISTINCT ON (user_id) token FROM push_tokens ORDER BY user_id, updated_at DESC`);
-  const tokens = (rows as { token: string }[]).map(r => r.token).filter(t => t.startsWith("ExponentPushToken["));
-  if (!tokens.length) return { sent: 0, failed: 0 };
+// ════════════════════════════════════════════════════════════════
+// 🔍 المفقودات والموجودات — Lost & Found
+// ════════════════════════════════════════════════════════════════
 
-  let sent = 0; let failed = 0;
-  const chunks: string[][] = [];
-  for (let i = 0; i < tokens.length; i += 100) chunks.push(tokens.slice(i, i + 100));
+router.get("/lost-items", async (req: Request, res: Response) => {
+  try {
+    const { status } = req.query;
+    let sql = `SELECT li.*, u.name as user_display_name FROM lost_items li LEFT JOIN users u ON u.id = li.user_id`;
+    const params: unknown[] = [];
+    if (status === "lost" || status === "found") {
+      sql += ` WHERE li.status=$1`;
+      params.push(status);
+    }
+    sql += ` ORDER BY li.created_at DESC LIMIT 200`;
+    const { rows } = await query(sql, params);
+    return res.json({ items: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
 
-  for (const chunk of chunks) {
-    try {
-      const messages = chunk.map(to => ({ to, title, body, data, sound: "default", badge: 1 }));
-      const r = await fetch("https://exp.host/--/api/v2/push/send", {
+router.post("/lost-items", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { item_name, category, description, last_seen, contact_phone } = req.body;
+    if (!item_name?.trim() || !contact_phone?.trim()) {
+      return res.status(400).json({ error: "اسم الغرض ورقم التواصل مطلوبان" });
+    }
+    const reporter_name = user ? (user.name as string) : "مجهول";
+    const { rows } = await query(
+      `INSERT INTO lost_items (user_id, reporter_name, item_name, category, description, last_seen, contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [user?.id ?? null, reporter_name, item_name.trim(), category || "other",
+       description || "", last_seen || "", contact_phone.trim()]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/lost-items/:id/status", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    if (!["lost", "found"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const { rows } = await query(
+      `UPDATE lost_items SET status=$1 WHERE id=$2 AND (user_id=$3 OR $4::boolean) RETURNING *`,
+      [status, req.params.id, user.id, user.role === "admin"]
+    );
+    if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `DELETE FROM lost_items WHERE id=$1 AND (user_id=$2 OR $3::boolean) RETURNING id`,
+      [req.params.id, user.id, user.role === "admin"]
+    );
+    if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/lost-items", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT li.*, u.name as user_display_name FROM lost_items li LEFT JOIN users u ON u.id = li.user_id ORDER BY li.created_at DESC LIMIT 500`);
+    return res.json({ items: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { item_name, description, last_seen, contact_phone, image_url, status, category, reporter_name } = req.body;
+    const { rows } = await query(
+      `UPDATE lost_items SET
+        item_name=COALESCE($1,item_name),
+        description=COALESCE($2,description),
+        last_seen=COALESCE($3,last_seen),
+        contact_phone=COALESCE($4,contact_phone),
+        image_url=COALESCE($5,image_url),
+        status=COALESCE($6,status),
+        category=COALESCE($7,category),
+        reporter_name=COALESCE($8,reporter_name)
+       WHERE id=$9 RETURNING *`,
+      [item_name, description, last_seen, contact_phone, image_url, status, category, reporter_name, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/lost-items/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lost_items WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ⚽ الرياضة — Sports
+// ════════════════════════════════════════════════════════════════
+
+router.get("/sports/posts", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_posts ORDER BY created_at DESC LIMIT 100`);
+    return res.json({ posts: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/posts", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    if (user.role !== "admin" && user.role !== "moderator") return res.status(403).json({ error: "غير مصرح" });
+    const { title, content, type, team, image_url } = req.body;
+    if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO sports_posts (author_name, author_id, title, content, type, team, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [user.name, user.id, title.trim(), content.trim(), type || "news", team || null, image_url || null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/posts/:id/like", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`UPDATE sports_posts SET likes=likes+1 WHERE id=$1 RETURNING likes`, [_req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ likes: rows[0].likes });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/posts/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_posts WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/sports/players", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_players ORDER BY goals DESC, name ASC LIMIT 200`);
+    return res.json({ players: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/players", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO sports_players (name, position, team, age, goals, assists, matches_played, photo_url, bio)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [name.trim(), position || "", team || "", age || null, goals || 0, assists || 0, matches_played || 0, photo_url || null, bio || null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/players/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
+    const { rows } = await query(
+      `UPDATE sports_players SET name=COALESCE($1,name), position=COALESCE($2,position), team=COALESCE($3,team),
+       age=COALESCE($4,age), goals=COALESCE($5,goals), assists=COALESCE($6,assists),
+       matches_played=COALESCE($7,matches_played), photo_url=COALESCE($8,photo_url), bio=COALESCE($9,bio)
+       WHERE id=$10 RETURNING *`,
+      [name, position, team, age, goals, assists, matches_played, photo_url, bio, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/players/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_players WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/sports/matches", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM sports_matches ORDER BY match_date DESC LIMIT 100`);
+    return res.json({ matches: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/sports/matches", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { home_team, away_team, home_score, away_score, match_date, venue, status, notes } = req.body;
+    if (!home_team?.trim() || !away_team?.trim() || !match_date) return res.status(400).json({ error: "الفريقان والتاريخ مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO sports_matches (home_team, away_team, home_score, away_score, match_date, venue, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [home_team.trim(), away_team.trim(), home_score ?? null, away_score ?? null, match_date,
+       venue || "ملعب الحصاحيصا", status || "upcoming", notes || ""]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/sports/matches/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { home_score, away_score, status, notes } = req.body;
+    const { rows } = await query(
+      `UPDATE sports_matches SET home_score=COALESCE($1,home_score), away_score=COALESCE($2,away_score),
+       status=COALESCE($3,status), notes=COALESCE($4,notes) WHERE id=$5 RETURNING *`,
+      [home_score, away_score, status, notes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/sports/matches/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM sports_matches WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 📞 الأرقام المهمة — Emergency Numbers
+// ════════════════════════════════════════════════════════════════
+
+router.get("/emergency-numbers", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM emergency_numbers WHERE is_active=TRUE ORDER BY sort_order ASC, name ASC`);
+    return res.json({ numbers: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/emergency-numbers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM emergency_numbers ORDER BY sort_order ASC, name ASC`);
+    return res.json({ numbers: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/emergency-numbers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, number, category, icon, color, note, sort_order } = req.body;
+    if (!name?.trim() || !number?.trim()) return res.status(400).json({ error: "الاسم والرقم مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO emergency_numbers (name, number, category, icon, color, note, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name.trim(), number.trim(), category || "general", icon || "call", color || "#F97316", note || "", sort_order || 99]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/emergency-numbers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, number, category, icon, color, note, sort_order, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE emergency_numbers SET
+       name=COALESCE($1,name), number=COALESCE($2,number), category=COALESCE($3,category),
+       icon=COALESCE($4,icon), color=COALESCE($5,color), note=COALESCE($6,note),
+       sort_order=COALESCE($7,sort_order), is_active=COALESCE($8,is_active)
+       WHERE id=$9 RETURNING *`,
+      [name, number, category, icon, color, note, sort_order, is_active, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/emergency-numbers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM emergency_numbers WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🏢 المنظمات المجتمعية — Organizations
+// ════════════════════════════════════════════════════════════════
+
+router.get("/organizations", async (req: Request, res: Response) => {
+  try {
+    const { type, search } = req.query;
+    let sql = `SELECT * FROM organizations WHERE is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND type=$${params.length}`; }
+    if (search) { params.push(`%${search}%`); sql += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length})`; }
+    sql += ` ORDER BY is_verified DESC, rating DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ organizations: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/organizations", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM organizations ORDER BY created_at DESC`);
+    return res.json({ organizations: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/organizations", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, description, full_description, contact_phone, email, members_count, founded_year, goals, needs, rating, is_verified } = req.body;
+    if (!name?.trim() || !contact_phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO organizations (name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [name.trim(),type||"initiative",description||"",full_description||"",contact_phone.trim(),email||null,members_count||0,founded_year||"",goals||[],needs||[],rating||5.0,is_verified||false]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/organizations/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, description, full_description, contact_phone, email, members_count, founded_year, goals, needs, rating, is_verified, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE organizations SET
+        name=COALESCE($1,name), type=COALESCE($2,type), description=COALESCE($3,description),
+        full_description=COALESCE($4,full_description), contact_phone=COALESCE($5,contact_phone),
+        email=COALESCE($6,email), members_count=COALESCE($7,members_count),
+        founded_year=COALESCE($8,founded_year), goals=COALESCE($9,goals), needs=COALESCE($10,needs),
+        rating=COALESCE($11,rating), is_verified=COALESCE($12,is_verified), is_active=COALESCE($13,is_active)
+       WHERE id=$14 RETURNING *`,
+      [name,type,description,full_description,contact_phone,email,members_count,founded_year,goals,needs,rating,is_verified,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/organizations/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM organizations WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🤝 شراكات المؤسسات الخارجية — External Partnerships
+// ════════════════════════════════════════════════════════════════
+
+// قائمة الشركاء المعتمدين (عام)
+router.get("/external-partnerships", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = `SELECT id, org_name, org_type, sector, city, country, website, logo_url,
+               cooperation_scope, description, services_offered, target_audience, is_featured, created_at
+               FROM external_partnerships WHERE status='approved'`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND org_type=$${params.length}`; }
+    sql += ` ORDER BY is_featured DESC, created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ partnerships: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقديم طلب تعاون جديد (عام)
+router.post("/external-partnerships/apply", async (req: Request, res: Response) => {
+  try {
+    const {
+      org_name, org_type, sector, city, country, website, logo_url,
+      contact_person, contact_role, email, phone, whatsapp,
+      cooperation_scope, description, services_offered, target_audience,
+    } = req.body || {};
+    if (!org_name?.trim() || !contact_person?.trim() || (!email?.trim() && !phone?.trim())) {
+      return res.status(400).json({ error: "اسم المؤسسة واسم المسؤول ووسيلة تواصل واحدة على الأقل (هاتف أو إيميل) مطلوبة" });
+    }
+    const services = Array.isArray(services_offered)
+      ? services_offered.filter((s: unknown) => typeof s === "string" && s.trim()).map((s: string) => s.trim()).slice(0, 12)
+      : [];
+    const { rows } = await query(
+      `INSERT INTO external_partnerships
+       (org_name,org_type,sector,city,country,website,logo_url,contact_person,contact_role,
+        email,phone,whatsapp,cooperation_scope,description,services_offered,target_audience)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       RETURNING id, org_name, status, created_at`,
+      [
+        org_name.trim(), (org_type || "other").trim(), (sector || "").trim(),
+        (city || "").trim(), (country || "").trim(), (website || "").trim(), (logo_url || "").trim(),
+        contact_person.trim(), (contact_role || "").trim(),
+        (email || "").trim(), (phone || "").trim(), (whatsapp || "").trim(),
+        (cooperation_scope || "").trim(), (description || "").trim(),
+        services, (target_audience || "").trim(),
+      ]
+    );
+    return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
+  } catch (e) { console.error("external-partnerships/apply", e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إدارة الطلبات (مسؤول)
+router.get("/admin/external-partnerships", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query;
+    let sql = `SELECT * FROM external_partnerships`;
+    const params: unknown[] = [];
+    if (status && typeof status === "string") { params.push(status); sql += ` WHERE status=$${params.length}`; }
+    sql += ` ORDER BY created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json({ partnerships: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_notes, is_featured, org_name, org_type, sector, city, country, website, logo_url, cooperation_scope, description, services_offered, target_audience } = req.body || {};
+    const reviewed = status && ["approved", "rejected"].includes(status);
+    const { rows } = await query(
+      `UPDATE external_partnerships SET
+         org_name=COALESCE($1,org_name), org_type=COALESCE($2,org_type),
+         sector=COALESCE($3,sector), city=COALESCE($4,city), country=COALESCE($5,country),
+         website=COALESCE($6,website), logo_url=COALESCE($7,logo_url),
+         cooperation_scope=COALESCE($8,cooperation_scope), description=COALESCE($9,description),
+         services_offered=COALESCE($10,services_offered), target_audience=COALESCE($11,target_audience),
+         status=COALESCE($12,status), admin_notes=COALESCE($13,admin_notes),
+         is_featured=COALESCE($14,is_featured),
+         reviewed_at=CASE WHEN $15::boolean THEN NOW() ELSE reviewed_at END
+       WHERE id=$16 RETURNING *`,
+      [org_name, org_type, sector, city, country, website, logo_url, cooperation_scope, description,
+       Array.isArray(services_offered) ? services_offered : null,
+       target_audience, status, admin_notes, is_featured, reviewed, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM external_partnerships WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🎓 المؤسسات التعليمية — Educational Institutions
+// ════════════════════════════════════════════════════════════════
+
+router.get("/educational-institutions", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM educational_institutions WHERE is_active=TRUE ORDER BY type, name`);
+    return res.json({ institutions: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/educational-institutions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM educational_institutions ORDER BY created_at DESC`);
+    return res.json({ institutions: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/educational-institutions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, principal, email, website, description, grades, shifts, services, status } = req.body;
+    if (!name?.trim() || !phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO educational_institutions (name,type,address,phone,principal,email,website,description,grades,shifts,services,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [name.trim(),type||"primary",address||"",phone.trim(),principal||null,email||null,website||null,description||null,grades||null,shifts||null,services||[],status||"active"]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/educational-institutions/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, principal, email, website, description, grades, shifts, services, status, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE educational_institutions SET
+        name=COALESCE($1,name), type=COALESCE($2,type), address=COALESCE($3,address),
+        phone=COALESCE($4,phone), principal=COALESCE($5,principal), email=COALESCE($6,email),
+        website=COALESCE($7,website), description=COALESCE($8,description), grades=COALESCE($9,grades),
+        shifts=COALESCE($10,shifts), services=COALESCE($11,services), status=COALESCE($12,status),
+        is_active=COALESCE($13,is_active)
+       WHERE id=$14 RETURNING *`,
+      [name,type,address,phone,principal,email,website,description,grades,shifts,services,status,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/educational-institutions/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM educational_institutions WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 👩 خدمات المرأة — Women Services
+// ════════════════════════════════════════════════════════════════
+
+router.get("/women-services", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = `SELECT * FROM women_services WHERE is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type && type !== "all") { params.push(type); sql += ` AND type=$${params.length}`; }
+    sql += ` ORDER BY rating DESC, name`;
+    const { rows } = await query(sql, params);
+    return res.json({ services: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/women-services", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM women_services ORDER BY created_at DESC`);
+    return res.json({ services: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/women-services", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, hours, description, rating, tags } = req.body;
+    if (!name?.trim() || !phone?.trim()) return res.status(400).json({ error: "الاسم والهاتف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO women_services (name,type,address,phone,hours,description,rating,tags)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name.trim(),type||"salon",address||"",phone.trim(),hours||"",description||"",rating||5.0,tags||[]]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/women-services/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, type, address, phone, hours, description, rating, tags, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE women_services SET
+        name=COALESCE($1,name), type=COALESCE($2,type), address=COALESCE($3,address),
+        phone=COALESCE($4,phone), hours=COALESCE($5,hours), description=COALESCE($6,description),
+        rating=COALESCE($7,rating), tags=COALESCE($8,tags), is_active=COALESCE($9,is_active)
+       WHERE id=$10 RETURNING *`,
+      [name,type,address,phone,hours,description,rating,tags,is_active,req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(rows[0]);
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/women-services/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM women_services WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── وظائف العمل (Jobs) ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/jobs — قائمة الوظائف العامة
+router.get("/jobs", async (req: Request, res: Response) => {
+  try {
+    const { type, limit = "50" } = req.query;
+    let q = `SELECT * FROM jobs WHERE is_active=true`;
+    const params: any[] = [];
+    if (type && type !== "all") { q += ` AND type=$${params.length + 1}`; params.push(type); }
+    q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(Number(limit));
+    const { rows } = await query(q, params);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/jobs — نشر وظيفة (مستخدم مسجّل)
+router.post("/jobs", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { title, company, type, location, description, contact_phone, salary } = req.body;
+    if (!title || !description) return res.status(400).json({ error: "العنوان والوصف مطلوبان" });
+    const { rows } = await query(
+      `INSERT INTO jobs (user_id, author_name, title, company, type, location, description, contact_phone, salary)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [me.id, me.name, title, company ?? "", type ?? "fulltime", location ?? "الحصاحيصا", description, contact_phone ?? "", salary ?? null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/jobs/:id — تعديل وظيفة
+router.patch("/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { rows: existing } = await query(`SELECT * FROM jobs WHERE id=$1`, [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: "الوظيفة غير موجودة" });
+    if (existing[0].user_id !== me.id && me.role !== "admin" && me.role !== "moderator")
+      return res.status(403).json({ error: "غير مصرح" });
+    const { title, company, type, location, description, contact_phone, salary, is_active } = req.body;
+    const { rows } = await query(
+      `UPDATE jobs SET
+        title=COALESCE($1,title), company=COALESCE($2,company), type=COALESCE($3,type),
+        location=COALESCE($4,location), description=COALESCE($5,description),
+        contact_phone=COALESCE($6,contact_phone), salary=COALESCE($7,salary),
+        is_active=COALESCE($8,is_active) WHERE id=$9 RETURNING *`,
+      [title, company, type, location, description, contact_phone, salary, is_active, req.params.id]
+    );
+    return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/jobs/:id — حذف وظيفة
+router.delete("/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "تسجيل الدخول مطلوب" });
+    const { rows: existing } = await query(`SELECT * FROM jobs WHERE id=$1`, [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: "الوظيفة غير موجودة" });
+    if (existing[0].user_id !== me.id && me.role !== "admin" && me.role !== "moderator")
+      return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM jobs WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/jobs — كل الوظائف للإدارة
+router.get("/admin/jobs", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.query;
+    let q = `SELECT j.*, u.name as user_name_ref FROM jobs j LEFT JOIN users u ON u.id=j.user_id`;
+    if (status === "active") q += ` WHERE j.is_active=true`;
+    else if (status === "inactive") q += ` WHERE j.is_active=false`;
+    q += ` ORDER BY j.created_at DESC`;
+    const { rows } = await query(q);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/jobs/:id — تفعيل/تعطيل وظيفة
+router.patch("/admin/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { is_active, title, company, type, location, description, contact_phone, salary } = req.body;
+    await query(
+      `UPDATE jobs SET
+        is_active=COALESCE($1,is_active), title=COALESCE($2,title), company=COALESCE($3,company),
+        type=COALESCE($4,type), location=COALESCE($5,location), description=COALESCE($6,description),
+        contact_phone=COALESCE($7,contact_phone), salary=COALESCE($8,salary)
+       WHERE id=$9`,
+      [is_active, title, company, type, location, description, contact_phone, salary, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/jobs/:id — حذف وظيفة (مدير)
+router.delete("/admin/jobs/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM jobs WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── إحصائيات Dashboard الشاملة ──
+// ══════════════════════════════════════════════════════
+
+// GET /api/admin/full-stats — إحصائيات شاملة لجميع الأقسام
+router.get("/admin/full-stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const [
+      users, posts, jobs, reports, missing, transport,
+      events, merchants, ads, sports, notifications
+    ] = await Promise.all([
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN role='admin' THEN 1 END) AS admins,
+             COUNT(CASE WHEN role='moderator' THEN 1 END) AS moderators,
+             COUNT(CASE WHEN created_at > NOW()-INTERVAL '7 days' THEN 1 END) AS new_this_week
+             FROM users`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN created_at > NOW()-INTERVAL '24 hours' THEN 1 END) AS today
+             FROM social_posts`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN is_active=true THEN 1 END) AS active
+             FROM jobs`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN status='open' THEN 1 END) AS open
+             FROM citizen_reports`),
+      query(`SELECT COUNT(*) AS cnt,
+             COUNT(CASE WHEN status='lost' THEN 1 END) AS lost,
+             COUNT(CASE WHEN status='found' THEN 1 END) AS found
+             FROM lost_items`),
+      query(`SELECT COUNT(*) AS total_trips,
+             COUNT(CASE WHEN status='pending' THEN 1 END) AS pending,
+             COUNT(CASE WHEN status='active' THEN 1 END) AS active,
+             COUNT(CASE WHEN status='completed' THEN 1 END) AS completed,
+             (SELECT COUNT(*) FROM transport_drivers WHERE status='approved') AS drivers,
+             (SELECT COUNT(*) FROM transport_drivers WHERE is_online=true) AS online_drivers
+             FROM transport_trips`),
+      query(`SELECT COUNT(*) AS cnt FROM events`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN status='approved' THEN 1 END) AS active FROM merchant_spaces`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN status='approved' THEN 1 END) AS active FROM ads`),
+      query(`SELECT COUNT(*) AS posts FROM sports_posts`),
+      query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN is_read=false THEN 1 END) AS unread FROM notifications`),
+    ]);
+    return res.json({
+      users: users.rows[0],
+      posts: posts.rows[0],
+      jobs: jobs.rows[0],
+      reports: reports.rows[0],
+      missing: missing.rows[0],
+      transport: transport.rows[0],
+      events: events.rows[0],
+      merchants: merchants.rows[0],
+      ads: ads.rows[0],
+      sports: sports.rows[0],
+      notifications: notifications.rows[0],
+    });
+  } catch (e: any) { console.error("full-stats error:", e?.message); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════
+// ── إرسال Push Notifications (Expo Push API) ──
+// ══════════════════════════════════════════════════════
+
+async function sendExpoPushToUser(userId: number, title: string, body: string, data?: any) {
+  try {
+    const { rows } = await query(`SELECT token FROM push_tokens WHERE user_id=$1`, [userId]);
+    if (!rows.length) return;
+    const messages = rows
+      .filter((r: any) => r.token && r.token.startsWith("ExponentPushToken"))
+      .map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default", badge: 1 }));
+    if (!messages.length) return;
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", "accept-encoding": "gzip, deflate" },
+      body: JSON.stringify(messages),
+    });
+  } catch (e) { console.error("Push send error:", e); }
+}
+
+async function sendExpoPushBroadcast(title: string, body: string, data?: any) {
+  try {
+    const { rows } = await query(`SELECT token FROM push_tokens WHERE token LIKE 'ExponentPushToken%'`);
+    if (!rows.length) return;
+    const chunks: any[][] = [];
+    for (let i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
+    for (const chunk of chunks) {
+      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default" }));
+      await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(messages),
       });
-      if (r.ok) { const d = await r.json() as { data?: { status: string }[] }; const data2 = d.data ?? []; sent += data2.filter((x) => x.status === "ok").length; failed += data2.filter((x) => x.status !== "ok").length; }
-      else failed += chunk.length;
-    } catch { failed += chunk.length; }
-  }
-  return { sent, failed };
+    }
+  } catch (e) { console.error("Broadcast error:", e); }
 }
 
+// POST /api/admin/push/broadcast — إشعار جماعي لجميع المستخدمين
 router.post("/admin/push/broadcast", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { title, body, data } = req.body as { title?: string; body?: string; data?: Record<string, unknown> };
-    if (!title?.trim() || !body?.trim()) return res.status(400).json({ error: "العنوان والرسالة مطلوبان" });
-    const result = await sendPushBroadcast(title.trim(), body.trim(), data ?? {});
-    await query(`INSERT INTO notifications (title, body, type) VALUES ($1, $2, 'broadcast')`, [title.trim(), body.trim()]);
-    return res.json({ ok: true, ...result });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
-});
-
-// ── إحصاء وتنظيف الحسابات الوهمية (Admin) ───────────────────────────────────
-router.get("/admin/ghost-accounts", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { rows } = await query(`
-      SELECT id, name, role, created_at,
-        (SELECT COUNT(*)::int FROM social_posts WHERE author_id=u.id) AS posts,
-        (SELECT COUNT(*)::int FROM push_tokens WHERE user_id=u.id) AS has_token
-      FROM users u WHERE phone IS NULL AND email IS NULL ORDER BY created_at DESC
-    `);
-    return res.json({ count: rows.length, accounts: rows });
-  } catch (e) { return res.status(500).json({ error: "Server error" }); }
-});
-
-router.delete("/admin/ghost-accounts", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { onlyInactive } = req.body as { onlyInactive?: boolean };
-    let sql = `DELETE FROM users WHERE phone IS NULL AND email IS NULL`;
-    if (onlyInactive) {
-      sql += ` AND id NOT IN (SELECT DISTINCT author_id FROM social_posts WHERE author_id IS NOT NULL)
-               AND id NOT IN (SELECT DISTINCT user_id FROM push_tokens WHERE user_id IS NOT NULL)`;
-    }
-    sql += ` RETURNING id`;
-    const { rows } = await query(sql);
-    return res.json({ deleted: rows.length });
-  } catch (e) { return res.status(500).json({ error: "Server error" }); }
-});
-
-// ── نسخة احتياطية من البيانات الأساسية (Admin) ───────────────────────────────
-router.get("/admin/backup", async (req: Request, res: Response) => {
-  try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const [usersR, orgsR, landmarksR, commR, adsR, notifR, settingsR] = await Promise.all([
-      query(`SELECT id, name, phone, email, role, neighborhood, created_at FROM users ORDER BY id`),
-      query(`SELECT * FROM organizations ORDER BY id`),
-      query(`SELECT * FROM city_landmarks ORDER BY id`),
-      query(`SELECT * FROM communities ORDER BY id`),
-      query(`SELECT id, title, description, category, price, status, created_at FROM ads ORDER BY id`),
-      query(`SELECT * FROM notifications ORDER BY id`),
-      query(`SELECT key, value FROM admin_settings WHERE key NOT LIKE 'nbr_%' ORDER BY key`),
-    ]);
-    const backup = {
-      exported_at: new Date().toISOString(),
-      version: "1.0",
-      tables: {
-        users:       { count: usersR.rows.length,     rows: usersR.rows },
-        organizations: { count: orgsR.rows.length,   rows: orgsR.rows },
-        city_landmarks: { count: landmarksR.rows.length, rows: landmarksR.rows },
-        communities: { count: commR.rows.length,      rows: commR.rows },
-        ads:         { count: adsR.rows.length,       rows: adsR.rows },
-        notifications: { count: notifR.rows.length,  rows: notifR.rows },
-        admin_settings: { count: settingsR.rows.length, rows: settingsR.rows },
-      },
-    };
-    const filename = `hasahisawi-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", "application/json");
-    return res.json(backup);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// خدمات المستوصف — Clinic Services & Working Hours (Public + Institution Portal)
-// ══════════════════════════════════════════════════════════════════════════════
-
-// GET /api/clinics — قائمة المستوصفات والعيادات المعتمدة
-router.get("/clinics", async (_req: Request, res: Response) => {
-  try {
-    const { rows } = await query(
-      `SELECT id, inst_name, inst_type, inst_category, inst_description,
-              inst_address, inst_phone, inst_email, inst_website,
-              rep_name, rep_title, rep_photo_url,
-              selected_services, services_availability, created_at
-       FROM institution_applications
-       WHERE status = 'approved' AND inst_type = 'health'
-       ORDER BY inst_name`
-    );
-    return res.json({ clinics: rows });
-  } catch (err) {
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-// GET /api/clinics/:id — تفاصيل مستوصف
-router.get("/clinics/:id", async (req: Request, res: Response) => {
-  try {
-    const { rows } = await query(
-      `SELECT id, inst_name, inst_type, inst_category, inst_description,
-              inst_address, inst_phone, inst_email, inst_website,
-              rep_name, rep_title, rep_photo_url, rep_phone,
-              selected_services, services_availability, status, created_at
-       FROM institution_applications WHERE id = $1 AND status = 'approved'`,
-      [req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: "لم يوجد" });
-    return res.json({ clinic: rows[0] });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// GET /api/clinics/:id/services — الخدمات العامة للمستوصف
-router.get("/clinics/:id/services", async (req: Request, res: Response) => {
-  try {
-    const { rows } = await query(
-      `SELECT id, name, description, category, icon, price, price_note, show_price, sort_order
-       FROM clinic_services
-       WHERE clinic_id = $1 AND is_visible = TRUE
-       ORDER BY sort_order, category, id`,
-      [req.params.id]
-    );
-    return res.json({ services: rows });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// GET /api/clinics/:id/hours — أوقات عمل المستوصف
-router.get("/clinics/:id/hours", async (req: Request, res: Response) => {
-  try {
-    const { rows } = await query(
-      `SELECT id, day_of_week, day_name, is_open, open_time, close_time, break_start, break_end, notes
-       FROM clinic_working_hours WHERE clinic_id = $1 ORDER BY day_of_week`,
-      [req.params.id]
-    );
-    return res.json({ hours: rows });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// ── لوحة تحكم المؤسسة / الخدمات ──
-
-// GET /api/inst/clinic-services
-router.get("/inst/clinic-services", async (req: Request, res: Response) => {
-  try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
-    const { rows } = await query(
-      `SELECT id, name, description, category, icon, price, price_note,
-              is_visible, show_price, sort_order, created_at
-       FROM clinic_services WHERE clinic_id = $1 ORDER BY sort_order, category, id`,
-      [sess.institutionId]
-    );
-    return res.json({ services: rows });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// POST /api/inst/clinic-services — إضافة خدمة
-router.post("/inst/clinic-services", async (req: Request, res: Response) => {
-  try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
-    const { name, description, category, icon, price, price_note, is_visible, show_price, sort_order } = req.body as any;
-    if (!name?.trim()) return res.status(400).json({ error: "اسم الخدمة مطلوب" });
-    const { rows } = await query(
-      `INSERT INTO clinic_services
-         (clinic_id, name, description, category, icon, price, price_note, is_visible, show_price, sort_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [
-        sess.institutionId,
-        name.trim(),
-        description?.trim() || null,
-        category?.trim() || "عام",
-        icon?.trim() || "medical-bag",
-        price != null ? Number(price) : null,
-        price_note?.trim() || null,
-        is_visible !== false,
-        show_price !== false,
-        sort_order ?? 0,
-      ]
-    );
-    return res.status(201).json({ service: rows[0] });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// PUT /api/inst/clinic-services/:id — تعديل خدمة
-router.put("/inst/clinic-services/:id", async (req: Request, res: Response) => {
-  try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
-    const { name, description, category, icon, price, price_note, is_visible, show_price, sort_order } = req.body as any;
-    const { rows } = await query(
-      `UPDATE clinic_services
-       SET name = COALESCE($1, name),
-           description = COALESCE($2, description),
-           category = COALESCE($3, category),
-           icon = COALESCE($4, icon),
-           price = $5,
-           price_note = $6,
-           is_visible = COALESCE($7, is_visible),
-           show_price = COALESCE($8, show_price),
-           sort_order = COALESCE($9, sort_order)
-       WHERE id = $10 AND clinic_id = $11 RETURNING *`,
-      [
-        name?.trim() || null,
-        description?.trim() || null,
-        category?.trim() || null,
-        icon?.trim() || null,
-        price != null ? Number(price) : null,
-        price_note?.trim() || null,
-        is_visible != null ? Boolean(is_visible) : null,
-        show_price != null ? Boolean(show_price) : null,
-        sort_order != null ? Number(sort_order) : null,
-        Number(req.params.id),
-        sess.institutionId,
-      ]
-    );
-    if (!rows[0]) return res.status(404).json({ error: "الخدمة غير موجودة" });
-    return res.json({ service: rows[0] });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// DELETE /api/inst/clinic-services/:id — حذف خدمة
-router.delete("/inst/clinic-services/:id", async (req: Request, res: Response) => {
-  try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    const { title, body, data } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    // حفظ في DB
     await query(
-      `DELETE FROM clinic_services WHERE id = $1 AND clinic_id = $2`,
-      [Number(req.params.id), sess.institutionId]
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       SELECT id, 'broadcast', $1, $2, $3 FROM users`,
+      [title, body, JSON.stringify(data ?? {})]
     );
+    // إرسال Push
+    await sendExpoPushBroadcast(title, body, data);
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/inst/clinic-hours
-router.get("/inst/clinic-hours", async (req: Request, res: Response) => {
+// POST /api/admin/push/user/:id — إشعار لمستخدم محدد
+router.post("/admin/push/user/:id", async (req: Request, res: Response) => {
   try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
-    const { rows } = await query(
-      `SELECT id, day_of_week, day_name, is_open, open_time, close_time, break_start, break_end, notes
-       FROM clinic_working_hours WHERE clinic_id = $1 ORDER BY day_of_week`,
-      [sess.institutionId]
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { title, body, data } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    const targetId = Number(req.params.id);
+    await query(
+      `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'direct',$2,$3,$4)`,
+      [targetId, title, body, JSON.stringify(data ?? {})]
     );
-    return res.json({ hours: rows });
+    await sendExpoPushToUser(targetId, title, body, data);
+    return res.json({ ok: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// PUT /api/inst/clinic-hours — حفظ أوقات العمل (upsert)
-router.put("/inst/clinic-hours", async (req: Request, res: Response) => {
+// GET /api/admin/push/tokens — عدد أجهزة الإشعارات المسجّلة
+router.get("/admin/push/tokens", async (req: Request, res: Response) => {
   try {
-    const sess = await getInstitutionSession(req);
-    if (!sess) return res.status(401).json({ error: "يرجى تسجيل الدخول" });
-    const { hours } = req.body as { hours: Array<{
-      day_of_week: number; day_name: string; is_open: boolean;
-      open_time: string; close_time: string; break_start?: string; break_end?: string; notes?: string;
-    }> };
-    if (!Array.isArray(hours)) return res.status(400).json({ error: "بيانات غير صالحة" });
-    for (const h of hours) {
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT COUNT(*) AS total,
+       COUNT(CASE WHEN token LIKE 'ExponentPushToken%' THEN 1 END) AS expo_tokens,
+       COUNT(DISTINCT user_id) AS unique_users FROM push_tokens`
+    );
+    return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// المحامون والخدمات القانونية
+// ═══════════════════════════════════════════════════════════════════════════
+
+// قائمة المحامين (مع متوسط التقييم وعدد المراجعات)
+router.get("/lawyers", async (req: Request, res: Response) => {
+  try {
+    const specialty = String(req.query.specialty || "").trim();
+    const search    = String(req.query.search || "").trim();
+    const params: any[] = [];
+    let where = "l.is_active = TRUE";
+    if (specialty) { params.push(`%${specialty}%`); where += ` AND l.specialties ILIKE $${params.length}`; }
+    if (search)    { params.push(`%${search}%`);    where += ` AND (l.full_name ILIKE $${params.length} OR l.specialties ILIKE $${params.length} OR l.district ILIKE $${params.length})`; }
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE r.entity_id = l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+              p.has_priority, p.has_unlimited_contacts, p.monthly_contacts AS plan_monthly_contacts
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        WHERE ${where}
+       ORDER BY p.sort_order NULLS LAST, l.is_featured DESC, l.experience_y DESC, l.id`, params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تفاصيل محامي + خدماته
+router.get("/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE r.entity_id = l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id = l.entity_id),0)::int AS review_count
+       FROM lawyers l WHERE l.id = $1`, [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id = $1 AND is_active = TRUE ORDER BY sort_order, id`, [id]);
+    const reviews  = await query(
+      `SELECT r.id, r.rating, r.comment, r.created_at,
+              COALESCE(u.name, 'مستخدم') AS user_name
+       FROM ratings r LEFT JOIN users u ON u.id = r.user_id
+       WHERE r.entity_id = $1 ORDER BY r.created_at DESC LIMIT 30`,
+      [rows[0].entity_id]
+    );
+    return res.json({ ...rows[0], services: services.rows, reviews: reviews.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إعلانات المحامين النشطة
+router.get("/lawyer-ads", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT a.*, l.full_name AS lawyer_name FROM lawyer_ads a
+       LEFT JOIN lawyers l ON l.id = a.lawyer_id
+       WHERE a.is_active = TRUE AND (a.ends_at IS NULL OR a.ends_at > NOW())
+       ORDER BY a.sort_order, a.id`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// إنشاء عقد / طلب خدمة
+router.post("/lawyers/:id/contracts", async (req: Request, res: Response) => {
+  try {
+    const lawyerId = Number(req.params.id);
+    const { service_id, client_name, client_phone, service_title, details, preferred_date, device_id } = req.body || {};
+    if (!client_name || !client_phone) return res.status(400).json({ error: "الاسم ورقم الهاتف مطلوبان" });
+    // user من token إن وجد
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    const contractNo = `CT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+    const ins = await query(
+      `INSERT INTO lawyer_contracts (lawyer_id, service_id, user_id, device_id, client_name, client_phone, service_title, details, preferred_date, contract_no)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [lawyerId, service_id || null, userId, device_id || null, String(client_name).slice(0,150), String(client_phone).slice(0,25),
+       String(service_title || "").slice(0,200), String(details || "").slice(0,2000), preferred_date || null, contractNo]
+    );
+    return res.json(ins.rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// عقود المستخدم (بحسب user_id أو device_id)
+router.get("/my-lawyer-contracts", async (req: Request, res: Response) => {
+  try {
+    const deviceId = String(req.query.device_id || "").trim();
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    if (!userId && !deviceId) return res.json([]);
+    const { rows } = await query(
+      `SELECT c.*, l.full_name AS lawyer_name, l.phone AS lawyer_phone, l.title AS lawyer_title
+       FROM lawyer_contracts c JOIN lawyers l ON l.id = c.lawyer_id
+       WHERE ${userId ? `c.user_id = $1` : `c.device_id = $1`}
+       ORDER BY c.created_at DESC LIMIT 50`,
+      [userId || deviceId]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقييم محامي (يستخدم نظام التقييم القائم لكن بـ entity_id)
+router.post("/lawyers/:id/ratings", async (req: Request, res: Response) => {
+  try {
+    const lawyerId = Number(req.params.id);
+    const { rating, comment, device_id } = req.body || {};
+    const r = Math.max(1, Math.min(5, Number(rating) || 0));
+    if (!r) return res.status(400).json({ error: "التقييم بين 1 و 5" });
+    const lw = await query(`SELECT entity_id FROM lawyers WHERE id = $1`, [lawyerId]);
+    if (!lw.rows[0]?.entity_id) return res.status(404).json({ error: "Not found" });
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const token = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    await query(
+      `INSERT INTO ratings (entity_id, rating, comment, target_type, target_id, user_id, device_id)
+       VALUES ($1,$2,$3,'lawyer',$4,$5,$6)`,
+      [lw.rows[0].entity_id, r, String(comment || "").slice(0,500), String(lawyerId), userId, device_id || null]
+    );
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة الاستمارات القانونية (للقراءة العامة)
+router.get("/legal-forms", async (req: Request, res: Response) => {
+  try {
+    const cat = String(req.query.category || "").trim();
+    const params: any[] = [];
+    let where = "1=1";
+    if (cat) { params.push(cat); where += ` AND category = $${params.length}`; }
+    const { rows } = await query(
+      `SELECT id, title, category, description, is_official, sort_order FROM legal_forms WHERE ${where} ORDER BY sort_order, id`,
+      params
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// تقديم طلب انضمام محامٍ (عام)
+router.post("/lawyer-applications", async (req: Request, res: Response) => {
+  try {
+    const b = req.body || {};
+    if (!b.full_name || !b.phone || !b.bar_number || !b.specialties)
+      return res.status(400).json({ error: "الاسم والهاتف ورقم النقابة والتخصصات مطلوبة" });
+    if (!b.agree_terms)
+      return res.status(400).json({ error: "يجب الموافقة على شروط التعاقد" });
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const t = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [t]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    // منع التكرار من نفس الهاتف خلال 24 ساعة
+    const dup = await query(
+      `SELECT id, status FROM lawyer_applications WHERE phone = $1 AND created_at > NOW() - INTERVAL '24 hours' ORDER BY id DESC LIMIT 1`,
+      [String(b.phone).slice(0,25)]
+    );
+    if (dup.rows[0] && dup.rows[0].status === 'pending')
+      return res.status(409).json({ error: "لديك طلب قيد المراجعة بهذا الرقم" });
+    const ins = await query(
+      `INSERT INTO lawyer_applications
+       (full_name,title,phone,whatsapp,email,bar_number,experience_y,specialties,bio,office_addr,district,languages,consult_fee,bar_card_url,photo_url,agree_terms,device_id,user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id, created_at`,
+      [
+        String(b.full_name).slice(0,150),
+        String(b.title || "محامي").slice(0,120),
+        String(b.phone).slice(0,25),
+        String(b.whatsapp || "").slice(0,25),
+        String(b.email || "").slice(0,150),
+        String(b.bar_number).slice(0,50),
+        Number(b.experience_y) || 0,
+        String(b.specialties).slice(0,500),
+        String(b.bio || "").slice(0,2000),
+        String(b.office_addr || "").slice(0,250),
+        String(b.district || "").slice(0,100),
+        String(b.languages || "العربية").slice(0,150),
+        String(b.consult_fee || "").slice(0,80),
+        String(b.bar_card_url || "").slice(0,1000),
+        String(b.photo_url || "").slice(0,1000),
+        true,
+        b.device_id || null,
+        userId,
+      ]
+    );
+    return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// متابعة طلب الانضمام (للمتقدّم)
+router.get("/lawyer-applications/mine", async (req: Request, res: Response) => {
+  try {
+    const deviceId = String(req.query.device_id || "").trim();
+    let userId: number | null = null;
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      try {
+        const t = auth.slice(7);
+        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [t]);
+        if (sess.rows[0]) userId = sess.rows[0].user_id;
+      } catch {}
+    }
+    if (!userId && !deviceId) return res.json([]);
+    const { rows } = await query(
+      `SELECT id, full_name, status, admin_note, lawyer_id, created_at, reviewed_at
+       FROM lawyer_applications
+       WHERE ${userId ? `user_id = $1` : `device_id = $1`}
+       ORDER BY created_at DESC LIMIT 10`,
+      [userId || deviceId]
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة طلبات الانضمام (إدارة)
+router.get("/admin/lawyer-applications", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const status = String(req.query.status || "").trim();
+    const params: any[] = [];
+    let where = "1=1";
+    if (status) { params.push(status); where += ` AND status = $${params.length}`; }
+    const { rows } = await query(
+      `SELECT * FROM lawyer_applications WHERE ${where}
+       ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC`,
+      params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قبول طلب انضمام → ينشئ المحامي تلقائياً (تعاقد)
+router.post("/admin/lawyer-applications/:id/approve", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const { admin_note, is_featured } = req.body || {};
+    const { rows } = await query(`SELECT * FROM lawyer_applications WHERE id = $1`, [id]);
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    if (rows[0].status === "approved") return res.status(400).json({ error: "تم قبول الطلب مسبقاً" });
+    const a = rows[0];
+    // 1) أنشئ rated_entity
+    const ent = await query(
+      `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes, is_verified)
+       VALUES ('lawyer',$1,$2,'قانون',$3,$4,$5,TRUE) RETURNING id`,
+      [a.full_name, a.title, a.phone, a.district, a.bio]
+    );
+    // 2) أنشئ المحامي
+    const lw = await query(
+      `INSERT INTO lawyers
+       (full_name,title,specialties,bio,phone,whatsapp,email,office_addr,district,bar_number,experience_y,languages,consult_fee,photo_url,is_featured,is_verified,is_active,entity_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,TRUE,TRUE,$16) RETURNING id`,
+      [a.full_name, a.title, a.specialties, a.bio, a.phone, a.whatsapp, a.email, a.office_addr,
+       a.district, a.bar_number, a.experience_y, a.languages, a.consult_fee, a.photo_url, !!is_featured, ent.rows[0].id]
+    );
+    // 3) حدّث الطلب
+    await query(
+      `UPDATE lawyer_applications SET status='approved', admin_note=$2, reviewed_at=NOW(), lawyer_id=$3 WHERE id=$1`,
+      [id, String(admin_note || "").slice(0, 500), lw.rows[0].id]
+    );
+    return res.json({ ok: true, lawyer_id: lw.rows[0].id });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// تحقّق عام من صحة عقد محامي عبر رقم العقد (للقراءة فقط — للاستخدام من رمز QR)
+// يقبل LAW-00012-2026 ويستخرج id = 12
+router.get("/lawyer-applications/verify/:contractNo", async (req: Request, res: Response) => {
+  try {
+    const cn = String(req.params.contractNo || "");
+    const m = cn.match(/^LAW-(\d{1,9})-(\d{4})$/i);
+    if (!m) return res.status(400).json({ valid: false, error: "صيغة رقم العقد غير صحيحة" });
+    const id = Number(m[1]);
+    const { rows } = await query(
+      `SELECT id, full_name, title, bar_number, district, status, reviewed_at, created_at, lawyer_id
+         FROM lawyer_applications WHERE id = $1`, [id]
+    );
+    const a = rows[0];
+    if (!a) return res.status(404).json({ valid: false, error: "العقد غير موجود في السجلات" });
+    const isApproved = a.status === "approved";
+    return res.json({
+      valid: isApproved,
+      contract_no: cn.toUpperCase(),
+      status: a.status,
+      status_ar: isApproved ? "موثّق ومعتمد" : (a.status === "pending" ? "قيد المراجعة (غير موثّق)" : "مرفوض"),
+      lawyer: {
+        full_name: a.full_name, title: a.title, bar_number: a.bar_number, district: a.district,
+      },
+      issued_at: a.created_at,
+      approved_at: a.reviewed_at,
+      lawyer_id: a.lawyer_id,
+      issuer: "تطبيق حصاحيصاوي — القسم القانوني",
+      note: isApproved
+        ? "الوثيقة موثّقة رسمياً ومعتمدة من إدارة المنصة"
+        : "هذه النسخة مسودّة/قيد المراجعة ولا تعتبر عقداً موثّقاً",
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ valid: false, error: "خطأ في الخادم" }); }
+});
+
+// رفض طلب انضمام
+router.post("/admin/lawyer-applications/:id/reject", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const { admin_note } = req.body || {};
+    const r = await query(
+      `UPDATE lawyer_applications SET status='rejected', admin_note=$2, reviewed_at=NOW()
+       WHERE id=$1 AND status='pending' RETURNING id`,
+      [id, String(admin_note || "").slice(0, 500)]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "Not found or already reviewed" });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── خطط الاشتراك (عام) ──────────────────────────────────────
+router.get("/subscription-plans", async (_req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM lawyer_subscription_plans WHERE is_active=TRUE ORDER BY sort_order`);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── اشتراك محامي بعينه (عام — يُرجع بيانات الخطة) ──────────
+router.get("/lawyers/:id/subscription", async (req: Request, res: Response) => {
+  try {
+    const { rows } = await query(
+      `SELECT s.*, p.name, p.name_ar, p.color, p.icon, p.price_label,
+              p.has_unlimited_contacts, p.has_ads, p.has_featured, p.has_verified_badge,
+              p.has_priority, p.monthly_contacts
+         FROM lawyer_subscriptions s
+         JOIN lawyer_subscription_plans p ON p.id = s.plan_id
+        WHERE s.lawyer_id = $1 AND s.is_active = TRUE`,
+      [Number(req.params.id)]
+    );
+    return res.json(rows[0] || null);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── نظرة عامة على الاشتراكات (إدارة) ───────────────────────
+router.get("/admin/subscriptions", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.id AS lawyer_id, l.full_name, l.phone, l.district,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color, p.icon, p.price_label,
+              s.commission_pct, s.started_at, s.expires_at, s.payment_ref, s.admin_note,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS contracts_count
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY p.sort_order NULLS LAST, l.id DESC`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── تعيين/تحديث اشتراك محامي (إدارة) ──────────────────────
+router.put("/admin/lawyers/:id/subscription", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const lawyerId = Number(req.params.id);
+    const { plan_name, commission_pct, expires_at, payment_ref, admin_note } = req.body || {};
+    if (!plan_name) return res.status(400).json({ error: "plan_name مطلوب" });
+    const planR = await query(`SELECT id, commission_pct AS default_com FROM lawyer_subscription_plans WHERE name=$1`, [plan_name]);
+    if (!planR.rows[0]) return res.status(400).json({ error: "خطة غير موجودة" });
+    const planId = planR.rows[0].id;
+    const com = commission_pct !== undefined ? Number(commission_pct) : Number(planR.rows[0].default_com);
+    await query(
+      `INSERT INTO lawyer_subscriptions (lawyer_id, plan_id, commission_pct, expires_at, payment_ref, admin_note, started_at)
+          VALUES ($1,$2,$3,$4,$5,$6,NOW())
+       ON CONFLICT (lawyer_id) DO UPDATE
+          SET plan_id=$2, commission_pct=$3, expires_at=$4, payment_ref=$5, admin_note=$6,
+              started_at=NOW(), is_active=TRUE`,
+      [lawyerId, planId, com, expires_at || null, String(payment_ref||"").slice(0,120), String(admin_note||"").slice(0,500)]
+    );
+    // تسجيل التاريخ
+    const planNameR = await query(`SELECT name, name_ar FROM lawyer_subscription_plans WHERE id=$1`, [planId]);
+    if (planNameR.rows[0]) {
       await query(
-        `INSERT INTO clinic_working_hours
-           (clinic_id, day_of_week, day_name, is_open, open_time, close_time, break_start, break_end, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-         ON CONFLICT (clinic_id, day_of_week) DO UPDATE SET
-           day_name = EXCLUDED.day_name,
-           is_open = EXCLUDED.is_open,
-           open_time = EXCLUDED.open_time,
-           close_time = EXCLUDED.close_time,
-           break_start = EXCLUDED.break_start,
-           break_end = EXCLUDED.break_end,
-           notes = EXCLUDED.notes`,
-        [
-          sess.institutionId, h.day_of_week, h.day_name, h.is_open,
-          h.open_time || "08:00", h.close_time || "16:00",
-          h.break_start || null, h.break_end || null, h.notes || null,
-        ]
+        `INSERT INTO lawyer_subscription_history (lawyer_id, plan_name, plan_name_ar, commission_pct, expires_at, payment_ref, admin_note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [lawyerId, planNameR.rows[0].name, planNameR.rows[0].name_ar, com, expires_at || null,
+         String(payment_ref||"").slice(0,120), String(admin_note||"").slice(0,500)]
       );
     }
+    // مزامنة is_featured و is_verified مع الخطة
+    const planInfo = await query(`SELECT has_featured, has_verified_badge FROM lawyer_subscription_plans WHERE id=$1`, [planId]);
+    if (planInfo.rows[0]) {
+      const { has_featured, has_verified_badge } = planInfo.rows[0];
+      await query(`UPDATE lawyers SET is_featured=$1, is_verified=$2 WHERE id=$3`, [has_featured, has_verified_badge, lawyerId]);
+    }
     return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── إحصائيات الاشتراكات (إدارة) ────────────────────────────
+router.get("/admin/subscription-stats", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT p.name, p.name_ar, p.icon, p.price_sdg, p.color,
+              COUNT(s.id)::int AS subscribers,
+              COALESCE(SUM(p.price_sdg), 0)::int AS monthly_revenue,
+              AVG(s.commission_pct)::numeric(5,2) AS avg_commission
+         FROM lawyer_subscription_plans p
+         LEFT JOIN lawyer_subscriptions s ON s.plan_id=p.id AND s.is_active=TRUE
+        GROUP BY p.id ORDER BY p.sort_order`
+    );
+    const total = await query(`SELECT COUNT(*)::int AS c FROM lawyer_subscriptions WHERE is_active=TRUE`);
+    const free_count = await query(
+      `SELECT COUNT(*)::int AS c FROM lawyers l WHERE NOT EXISTS
+        (SELECT 1 FROM lawyer_subscriptions s JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+          WHERE s.lawyer_id=l.id AND s.is_active=TRUE AND p.name != 'free')`
+    );
+    return res.json({ plans: rows, total_paid: total.rows[0].c, free_lawyers: free_count.rows[0].c });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// قائمة المحامين للإدارة (يشمل غير الفعّال + بيانات الاشتراك)
+router.get("/admin/lawyers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id = l.id),0)::int AS contracts_count,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+              s.commission_pct AS sub_commission, s.expires_at AS sub_expires, s.started_at AS sub_started
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY p.sort_order NULLS LAST, l.is_featured DESC, l.id DESC`
+    );
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of ["full_name","title","specialties","phone","whatsapp","email","office_addr","district","consult_fee","is_featured","is_verified","is_active"]) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(id);
+    await query(`UPDATE lawyers SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/lawyers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lawyers WHERE id = $1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── سجل تاريخ اشتراكات محامي بعينه ─────────────────────────
+router.get("/admin/subscription-history/:lawyerId", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT h.*, l.full_name
+         FROM lawyer_subscription_history h
+         JOIN lawyers l ON l.id = h.lawyer_id
+        WHERE h.lawyer_id = $1
+        ORDER BY h.changed_at DESC
+        LIMIT 50`,
+      [Number(req.params.lawyerId)]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── اشتراكات تنتهي قريباً ─────────────────────────────────
+router.get("/admin/subscriptions/expiring", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const { rows } = await query(
+      `SELECT l.id AS lawyer_id, l.full_name, l.phone, l.district,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color, p.icon,
+              s.expires_at, s.commission_pct, s.payment_ref,
+              EXTRACT(DAY FROM (s.expires_at - NOW()))::int AS days_left
+         FROM lawyer_subscriptions s
+         JOIN lawyers l ON l.id = s.lawyer_id
+         JOIN lawyer_subscription_plans p ON p.id = s.plan_id
+        WHERE s.is_active = TRUE
+          AND s.expires_at IS NOT NULL
+          AND s.expires_at <= NOW() + ($1 || ' days')::INTERVAL
+        ORDER BY s.expires_at ASC`,
+      [String(days)]
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── تصدير CSV للمحامين والاشتراكات ──────────────────────────
+router.get("/admin/lawyers/export.csv", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(
+      `SELECT l.id, l.full_name, l.title, l.phone, l.whatsapp, l.email, l.district,
+              l.specialties, l.experience_y, l.bar_number, l.consult_fee,
+              l.is_active, l.is_featured, l.is_verified,
+              COALESCE(p.name_ar, 'مجاني') AS plan_name_ar,
+              p.price_sdg,
+              s.commission_pct, s.started_at, s.expires_at, s.payment_ref,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS contracts_count,
+              l.created_at
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        ORDER BY l.id DESC`
+    );
+    const cols = [
+      "id","الاسم الكامل","اللقب","الهاتف","واتساب","البريد","المنطقة",
+      "التخصصات","سنوات الخبرة","رقم النقابة","أتعاب الاستشارة",
+      "فعّال","مميّز","موثّق","الخطة","سعر الخطة (ج.س)",
+      "العمولة %","بداية الاشتراك","انتهاء الاشتراك","مرجع الدفع",
+      "عدد العقود","تاريخ التسجيل"
+    ];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const fmtDate = (d: unknown) => d ? new Date(String(d)).toLocaleDateString("ar-SD") : "";
+    const fmtBool = (b: unknown) => b ? "نعم" : "لا";
+    const csvRows = [cols.map(esc).join(",")];
+    for (const r of rows) {
+      csvRows.push([
+        r.id, r.full_name, r.title, r.phone, r.whatsapp||"", r.email||"",
+        r.district, r.specialties||"", r.experience_y||"", r.bar_number||"",
+        r.consult_fee||"", fmtBool(r.is_active), fmtBool(r.is_featured), fmtBool(r.is_verified),
+        r.plan_name_ar, r.price_sdg||0, r.commission_pct||0,
+        fmtDate(r.started_at), fmtDate(r.expires_at), r.payment_ref||"",
+        r.contracts_count, fmtDate(r.created_at),
+      ].map(esc).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="lawyers_${Date.now()}.csv"`);
+    return res.send("\uFEFF" + csvRows.join("\r\n"));
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── إدارة خطط الاشتراك (إدارة) ─────────────────────────────
+router.get("/admin/subscription-plans", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_subscription_plans ORDER BY sort_order`);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.put("/admin/subscription-plans/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    const allowed = ["name_ar","price_sdg","price_label","monthly_contacts","has_unlimited_contacts",
+                     "has_ads","has_featured","has_verified_badge","has_priority","commission_pct",
+                     "color","icon","is_active"];
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of allowed) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(id);
+    await query(`UPDATE lawyer_subscription_plans SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//                       بوابة المحامي — Lawyer Portal
+// ══════════════════════════════════════════════════════════════════════════════
+
+// مساعد: استخراج المحامي من التوكن
+async function getLawyerFromToken(req: Request): Promise<{ lawyer_id: number; user_id: number } | null> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  const token = auth.slice(7);
+  const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+  if (!sess.rows[0]) return null;
+  const userId = sess.rows[0].user_id;
+  const app = await query(
+    `SELECT lawyer_id FROM lawyer_applications WHERE user_id = $1 AND status = 'approved' AND lawyer_id IS NOT NULL LIMIT 1`,
+    [userId]
+  );
+  if (!app.rows[0]) return null;
+  return { lawyer_id: app.rows[0].lawyer_id, user_id: userId };
+}
+
+// ── 1. ملف المحامي الكامل + اشتراكه ──────────────────────────
+router.get("/my-lawyer-profile", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح — محامي فعط" });
+    const { rows } = await query(
+      `SELECT l.*,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color,
+              p.icon AS plan_icon, p.price_label, p.has_unlimited_contacts,
+              p.has_ads, p.has_featured, p.has_verified_badge, p.has_priority,
+              p.monthly_contacts AS plan_monthly_contacts,
+              s.commission_pct, s.started_at AS sub_started, s.expires_at AS sub_expires,
+              s.payment_ref, s.admin_note AS sub_note,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric,1) FROM ratings r WHERE r.entity_id=l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id=l.entity_id),0)::int AS review_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS total_contracts,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id AND status='pending'),0)::int AS pending_contracts,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id AND status='completed'),0)::int AS completed_contracts
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        WHERE l.id = $1`, [me.lawyer_id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر على ملف المحامي" });
+    const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order,id`, [me.lawyer_id]);
+    return res.json({ ...rows[0], services: services.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 2. تحديث ملف المحامي ────────────────────────────────────
+router.put("/my-lawyer-profile", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const b = req.body || {};
+    const allowed = ["full_name","title","bio","phone","whatsapp","email","office_addr","district","consult_fee","languages","photo_url"];
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of allowed) {
+      if (b[k] !== undefined) { vals.push(String(b[k]).slice(0, k === "bio" ? 2000 : 300)); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (fields.length) {
+      vals.push(me.lawyer_id);
+      await query(`UPDATE lawyers SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    }
+    // تحديث الخدمات (استبدال كامل)
+    if (Array.isArray(b.services)) {
+      await query(`UPDATE lawyer_services SET is_active=FALSE WHERE lawyer_id=$1`, [me.lawyer_id]);
+      for (const [idx, svc] of (b.services as any[]).entries()) {
+        if (!svc.title?.trim()) continue;
+        if (svc.id) {
+          await query(
+            `UPDATE lawyer_services SET title=$2, description=$3, price_text=$4, duration=$5, sort_order=$6, is_active=TRUE WHERE id=$1 AND lawyer_id=$7`,
+            [svc.id, String(svc.title).slice(0,150), String(svc.description||"").slice(0,500),
+             String(svc.price_text||"").slice(0,100), String(svc.duration||"").slice(0,80), idx, me.lawyer_id]
+          );
+        } else {
+          await query(
+            `INSERT INTO lawyer_services (lawyer_id,title,description,price_text,duration,sort_order) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [me.lawyer_id, String(svc.title).slice(0,150), String(svc.description||"").slice(0,500),
+             String(svc.price_text||"").slice(0,100), String(svc.duration||"").slice(0,80), idx]
+          );
+        }
+      }
+    }
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 3. إحصائيات لوحة المحامي ────────────────────────────────
+router.get("/my-lawyer-stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const id = me.lawyer_id;
+    const [stats, monthly, recent, msgs] = await Promise.all([
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(CASE WHEN status='pending' THEN 1 END)::int AS pending,
+           COUNT(CASE WHEN status='accepted' THEN 1 END)::int AS accepted,
+           COUNT(CASE WHEN status='in_progress' THEN 1 END)::int AS in_progress,
+           COUNT(CASE WHEN status='completed' THEN 1 END)::int AS completed,
+           COUNT(CASE WHEN status='rejected' OR status='cancelled' THEN 1 END)::int AS cancelled
+         FROM lawyer_contracts WHERE lawyer_id=$1`, [id]),
+      query(
+        `SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*)::int AS count
+         FROM lawyer_contracts WHERE lawyer_id=$1 AND created_at >= NOW() - INTERVAL '6 months'
+         GROUP BY month ORDER BY month`, [id]),
+      query(
+        `SELECT id, client_name, client_phone, service_title, status, created_at, contract_no
+         FROM lawyer_contracts WHERE lawyer_id=$1 ORDER BY created_at DESC LIMIT 5`, [id]),
+      query(
+        `SELECT COUNT(*)::int AS unread FROM lawyer_case_messages m
+         JOIN lawyer_contracts c ON c.id = m.contract_id
+         WHERE c.lawyer_id=$1 AND m.sender_role='client' AND m.is_read=FALSE`, [id]),
+    ]);
+    return res.json({
+      contracts: stats.rows[0],
+      monthly: monthly.rows,
+      recent_cases: recent.rows,
+      unread_messages: msgs.rows[0]?.unread || 0,
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 4. قائمة القضايا (من جانب المحامي) ─────────────────────
+router.get("/my-lawyer-cases", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const status = String(req.query.status || "").trim();
+    const search = String(req.query.search || "").trim();
+    const params: any[] = [me.lawyer_id];
+    let where = "c.lawyer_id = $1";
+    if (status) { params.push(status); where += ` AND c.status = $${params.length}`; }
+    if (search) { params.push(`%${search}%`); where += ` AND (c.client_name ILIKE $${params.length} OR c.service_title ILIKE $${params.length} OR c.contract_no ILIKE $${params.length})`; }
+    const { rows } = await query(
+      `SELECT c.*,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_messages WHERE contract_id=c.id),0)::int AS msg_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_messages WHERE contract_id=c.id AND sender_role='client' AND is_read=FALSE),0)::int AS unread_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_documents WHERE contract_id=c.id),0)::int AS doc_count
+         FROM lawyer_contracts c WHERE ${where} ORDER BY c.updated_at DESC LIMIT 100`, params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 5. تفاصيل قضية واحدة ─────────────────────────────────────
+router.get("/my-lawyer-cases/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const { rows } = await query(`SELECT * FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const [msgs, docs] = await Promise.all([
+      query(`SELECT * FROM lawyer_case_messages WHERE contract_id=$1 ORDER BY created_at ASC`, [cid]),
+      query(`SELECT * FROM lawyer_case_documents WHERE contract_id=$1 ORDER BY created_at DESC`, [cid]),
+    ]);
+    // اجعل الرسائل كلها مقروءة من العميل
+    await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='client'`, [cid]);
+    return res.json({ ...rows[0], messages: msgs.rows, documents: docs.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 6. تغيير حالة القضية ─────────────────────────────────────
+router.patch("/my-lawyer-cases/:id/status", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const { status, lawyer_note } = req.body || {};
+    const allowed = ["accepted","in_progress","completed","rejected","cancelled"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const r = await query(
+      `UPDATE lawyer_contracts SET status=$3, lawyer_note=$4, updated_at=NOW()
+       WHERE id=$1 AND lawyer_id=$2 RETURNING id`,
+      [cid, me.lawyer_id, status, String(lawyer_note || "").slice(0, 1000)]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 7. إرسال رسالة (المحامي في قضية) ───────────────────────
+router.post("/my-lawyer-cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const own = await query(`SELECT client_name FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!own.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const lw = await query(`SELECT full_name, title FROM lawyers WHERE id=$1`, [me.lawyer_id]);
+    const { body, file_url, file_name, file_type } = req.body || {};
+    if (!String(body || "").trim() && !String(file_url || "").trim()) return res.status(400).json({ error: "الرسالة فارغة" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_messages (contract_id, sender_role, sender_name, body, file_url, file_name, file_type)
+       VALUES ($1,'lawyer',$2,$3,$4,$5,$6) RETURNING *`,
+      [cid, `${lw.rows[0]?.title || "محامي"} ${lw.rows[0]?.full_name || ""}`.trim(),
+       String(body || "").slice(0, 3000), String(file_url || ""), String(file_name || "").slice(0, 255), String(file_type || "").slice(0, 80)]
+    );
+    await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [cid]);
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 8. رفع / إضافة مستند للقضية (المحامي) ──────────────────
+router.post("/my-lawyer-cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const own = await query(`SELECT id FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!own.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const { title, file_url, file_name, file_type, file_size, notes } = req.body || {};
+    if (!String(file_url || "").trim()) return res.status(400).json({ error: "رابط الملف مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_documents (contract_id, lawyer_id, title, file_url, file_name, file_type, file_size, notes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'lawyer') RETURNING *`,
+      [cid, me.lawyer_id, String(title || "مستند").slice(0, 255), String(file_url),
+       String(file_name || "").slice(0, 255), String(file_type || "").slice(0, 80),
+       Number(file_size) || 0, String(notes || "").slice(0, 1000)]
+    );
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 9. حذف مستند ────────────────────────────────────────────
+router.delete("/my-lawyer-cases/:cid/documents/:did", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lawyer_case_documents WHERE id=$1 AND lawyer_id=$2`, [Number(req.params.did), me.lawyer_id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 10. بيانات PDF الشامل للمحامي ───────────────────────────
+router.get("/my-lawyer-pdf-data", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const id = me.lawyer_id;
+    const [profile, services, cases, ratings, history] = await Promise.all([
+      query(`SELECT l.*, p.name_ar AS plan_name_ar, p.price_label, s.expires_at AS sub_expires, s.commission_pct
+               FROM lawyers l
+               LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+               LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+              WHERE l.id=$1`, [id]),
+      query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order`, [id]),
+      query(`SELECT * FROM lawyer_contracts WHERE lawyer_id=$1 ORDER BY created_at DESC LIMIT 200`, [id]),
+      query(`SELECT r.rating, r.comment, r.created_at, COALESCE(u.name,'مستخدم') AS user_name
+               FROM ratings r JOIN lawyers l2 ON l2.entity_id=r.entity_id
+               LEFT JOIN users u ON u.id=r.user_id
+              WHERE l2.id=$1 ORDER BY r.created_at DESC LIMIT 50`, [id]),
+      query(`SELECT * FROM lawyer_subscription_history WHERE lawyer_id=$1 ORDER BY changed_at DESC`, [id]),
+    ]);
+    return res.json({
+      profile: profile.rows[0],
+      services: services.rows,
+      cases: cases.rows,
+      ratings: ratings.rows,
+      subscription_history: history.rows,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//          دردشة العميل — رسائل العميل في قضيته مع المحامي
+// ══════════════════════════════════════════════════════════════════════════════
+
+// مساعد: التحقق من ملكية العميل للقضية
+async function getClientContract(req: Request, contractId: number): Promise<any | null> {
+  const auth = req.headers.authorization;
+  const deviceId = String(req.query.device_id || req.body?.device_id || "").trim();
+  let userId: number | null = null;
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7);
+    const sess = await query(`SELECT user_id FROM user_sessions WHERE token=$1 AND expires_at>NOW()`, [token]);
+    if (sess.rows[0]) userId = sess.rows[0].user_id;
+  }
+  if (!userId && !deviceId) return null;
+  const where = userId ? `c.user_id = ${userId}` : `c.device_id = '${deviceId.replace(/'/g,"''")}'`;
+  const { rows } = await query(`SELECT c.*, l.full_name AS lawyer_name, l.title AS lawyer_title FROM lawyer_contracts c JOIN lawyers l ON l.id=c.lawyer_id WHERE c.id=$1 AND ${where}`, [contractId]);
+  return rows[0] || null;
+}
+
+// ── 11. رسائل القضية للعميل ─────────────────────────────────
+router.get("/client/cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "القضية غير موجودة أو غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_case_messages WHERE contract_id=$1 ORDER BY created_at ASC`, [contract.id]);
+    // اجعل رسائل المحامي مقروءة
+    await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='lawyer'`, [contract.id]);
+    return res.json({ contract, messages: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 12. العميل يرسل رسالة ────────────────────────────────────
+router.post("/client/cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "القضية غير موجودة أو غير مصرح" });
+    const { body, file_url, file_name, file_type, sender_name } = req.body || {};
+    if (!String(body || "").trim() && !String(file_url || "").trim()) return res.status(400).json({ error: "الرسالة فارغة" });
+    const clientName = sender_name || contract.client_name || "عميل";
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_messages (contract_id, sender_role, sender_name, body, file_url, file_name, file_type)
+       VALUES ($1,'client',$2,$3,$4,$5,$6) RETURNING *`,
+      [contract.id, String(clientName).slice(0,150), String(body||"").slice(0,3000),
+       String(file_url||""), String(file_name||"").slice(0,255), String(file_type||"").slice(0,80)]
+    );
+    await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [contract.id]);
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 13. مستندات القضية للعميل ────────────────────────────────
+router.get("/client/cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_case_documents WHERE contract_id=$1 ORDER BY created_at DESC`, [contract.id]);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 14. العميل يرفع مستنداً ──────────────────────────────────
+router.post("/client/cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "غير مصرح" });
+    const { title, file_url, file_name, file_type, file_size, notes } = req.body || {};
+    if (!String(file_url||"").trim()) return res.status(400).json({ error: "رابط الملف مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_documents (contract_id, lawyer_id, title, file_url, file_name, file_type, file_size, notes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'client') RETURNING *`,
+      [contract.id, contract.lawyer_id, String(title||"مستند").slice(0,255), String(file_url),
+       String(file_name||"").slice(0,255), String(file_type||"").slice(0,80), Number(file_size)||0, String(notes||"").slice(0,1000)]
+    );
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// محتوى استمارة محددة (HTML للطباعة)
+router.get("/legal-forms/:id", async (req: Request, res: Response) => {
+  try {
+    const { rows } = await query(`SELECT * FROM legal_forms WHERE id = $1`, [Number(req.params.id)]);
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    return res.json(rows[0]);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
