@@ -1010,10 +1010,17 @@ export default function LawyersScreen() {
                         </View>
                       )}
                       {a.status === "approved" && (
-                        <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                          <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
-                        </View>
+                        <>
+                          <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                            <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
+                          </View>
+                          <TouchableOpacity onPress={() => router.push("/lawyer-portal")}
+                            style={{ marginTop: 10, backgroundColor: "#8B5CF6", borderRadius: 10, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                            <Ionicons name="grid-outline" size={16} color="#fff" />
+                            <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 }}>⚖️ بوابتي — لوحة تحكم المحامي</Text>
+                          </TouchableOpacity>
+                        </>
                       )}
                       {a.status !== "rejected" && (
                         <TouchableOpacity onPress={() => printJoinContract(a)} activeOpacity={0.85}
@@ -1055,8 +1062,11 @@ export default function LawyersScreen() {
                     <TouchableOpacity onPress={() => Linking.openURL(`tel:${item.lawyer_phone}`)} style={[s.miniBtn, { backgroundColor: "#10B981" + "22", borderColor: "#10B981" + "55" }]}>
                       <Ionicons name="call" size={13} color="#10B981" /><Text style={[s.miniBtnText, { color: "#10B981" }]}>اتصال</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => printContract(item)} style={[s.miniBtn, { backgroundColor: "#8B5CF6" + "22", borderColor: "#8B5CF6" + "55" }]}>
-                      <Ionicons name="print-outline" size={13} color="#8B5CF6" /><Text style={[s.miniBtnText, { color: "#8B5CF6" }]}>طباعة</Text>
+                    <TouchableOpacity onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={[s.miniBtn, { backgroundColor: "#8B5CF6" + "22", borderColor: "#8B5CF6" + "55" }]}>
+                      <Ionicons name="chatbubbles-outline" size={13} color="#8B5CF6" /><Text style={[s.miniBtnText, { color: "#8B5CF6" }]}>دردشة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => printContract(item)} style={[s.miniBtn, { backgroundColor: "#3B82F6" + "22", borderColor: "#3B82F6" + "55" }]}>
+                      <Ionicons name="print-outline" size={13} color="#3B82F6" /><Text style={[s.miniBtnText, { color: "#3B82F6" }]}>طباعة</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

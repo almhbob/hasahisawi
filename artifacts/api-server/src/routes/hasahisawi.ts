@@ -873,6 +873,42 @@ export async function initHasahisawiDb() {
   await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_user   ON lawyer_contracts(user_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_lawyer_contracts_device ON lawyer_contracts(device_id)`);
 
+  // ── دردشة القضية (رسائل بين المحامي والعميل) ──────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_case_messages (
+      id           SERIAL PRIMARY KEY,
+      contract_id  INTEGER NOT NULL REFERENCES lawyer_contracts(id) ON DELETE CASCADE,
+      sender_role  VARCHAR(10) NOT NULL DEFAULT 'client' CHECK (sender_role IN ('lawyer','client')),
+      sender_name  VARCHAR(150) NOT NULL DEFAULT '',
+      body         TEXT NOT NULL DEFAULT '',
+      file_url     TEXT NOT NULL DEFAULT '',
+      file_name    VARCHAR(255) NOT NULL DEFAULT '',
+      file_type    VARCHAR(80)  NOT NULL DEFAULT '',
+      is_read      BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_msgs_contract ON lawyer_case_messages(contract_id)`);
+
+  // ── مستندات القضية ────────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS lawyer_case_documents (
+      id           SERIAL PRIMARY KEY,
+      contract_id  INTEGER NOT NULL REFERENCES lawyer_contracts(id) ON DELETE CASCADE,
+      lawyer_id    INTEGER NOT NULL REFERENCES lawyers(id) ON DELETE CASCADE,
+      title        VARCHAR(255) NOT NULL DEFAULT 'مستند',
+      file_url     TEXT NOT NULL DEFAULT '',
+      file_name    VARCHAR(255) NOT NULL DEFAULT '',
+      file_type    VARCHAR(80)  NOT NULL DEFAULT '',
+      file_size    INTEGER NOT NULL DEFAULT 0,
+      uploaded_by  VARCHAR(10) NOT NULL DEFAULT 'lawyer' CHECK (uploaded_by IN ('lawyer','client')),
+      notes        TEXT NOT NULL DEFAULT '',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_docs_contract ON lawyer_case_documents(contract_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_case_docs_lawyer   ON lawyer_case_documents(lawyer_id)`);
+
   await query(`
     CREATE TABLE IF NOT EXISTS lawyer_ads (
       id          SERIAL PRIMARY KEY,
@@ -8462,6 +8498,352 @@ router.put("/admin/subscription-plans/:id", async (req: Request, res: Response) 
     vals.push(id);
     await query(`UPDATE lawyer_subscription_plans SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
     return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//                       بوابة المحامي — Lawyer Portal
+// ══════════════════════════════════════════════════════════════════════════════
+
+// مساعد: استخراج المحامي من التوكن
+async function getLawyerFromToken(req: Request): Promise<{ lawyer_id: number; user_id: number } | null> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  const token = auth.slice(7);
+  const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [token]);
+  if (!sess.rows[0]) return null;
+  const userId = sess.rows[0].user_id;
+  const app = await query(
+    `SELECT lawyer_id FROM lawyer_applications WHERE user_id = $1 AND status = 'approved' AND lawyer_id IS NOT NULL LIMIT 1`,
+    [userId]
+  );
+  if (!app.rows[0]) return null;
+  return { lawyer_id: app.rows[0].lawyer_id, user_id: userId };
+}
+
+// ── 1. ملف المحامي الكامل + اشتراكه ──────────────────────────
+router.get("/my-lawyer-profile", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح — محامي فعط" });
+    const { rows } = await query(
+      `SELECT l.*,
+              p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color,
+              p.icon AS plan_icon, p.price_label, p.has_unlimited_contacts,
+              p.has_ads, p.has_featured, p.has_verified_badge, p.has_priority,
+              p.monthly_contacts AS plan_monthly_contacts,
+              s.commission_pct, s.started_at AS sub_started, s.expires_at AS sub_expires,
+              s.payment_ref, s.admin_note AS sub_note,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric,1) FROM ratings r WHERE r.entity_id=l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE r.entity_id=l.entity_id),0)::int AS review_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id),0)::int AS total_contracts,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id AND status='pending'),0)::int AS pending_contracts,
+              COALESCE((SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=l.id AND status='completed'),0)::int AS completed_contracts
+         FROM lawyers l
+         LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+         LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+        WHERE l.id = $1`, [me.lawyer_id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر على ملف المحامي" });
+    const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order,id`, [me.lawyer_id]);
+    return res.json({ ...rows[0], services: services.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 2. تحديث ملف المحامي ────────────────────────────────────
+router.put("/my-lawyer-profile", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const b = req.body || {};
+    const allowed = ["full_name","title","bio","phone","whatsapp","email","office_addr","district","consult_fee","languages","photo_url"];
+    const fields: string[] = []; const vals: any[] = [];
+    for (const k of allowed) {
+      if (b[k] !== undefined) { vals.push(String(b[k]).slice(0, k === "bio" ? 2000 : 300)); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (fields.length) {
+      vals.push(me.lawyer_id);
+      await query(`UPDATE lawyers SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
+    }
+    // تحديث الخدمات (استبدال كامل)
+    if (Array.isArray(b.services)) {
+      await query(`UPDATE lawyer_services SET is_active=FALSE WHERE lawyer_id=$1`, [me.lawyer_id]);
+      for (const [idx, svc] of (b.services as any[]).entries()) {
+        if (!svc.title?.trim()) continue;
+        if (svc.id) {
+          await query(
+            `UPDATE lawyer_services SET title=$2, description=$3, price_text=$4, duration=$5, sort_order=$6, is_active=TRUE WHERE id=$1 AND lawyer_id=$7`,
+            [svc.id, String(svc.title).slice(0,150), String(svc.description||"").slice(0,500),
+             String(svc.price_text||"").slice(0,100), String(svc.duration||"").slice(0,80), idx, me.lawyer_id]
+          );
+        } else {
+          await query(
+            `INSERT INTO lawyer_services (lawyer_id,title,description,price_text,duration,sort_order) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [me.lawyer_id, String(svc.title).slice(0,150), String(svc.description||"").slice(0,500),
+             String(svc.price_text||"").slice(0,100), String(svc.duration||"").slice(0,80), idx]
+          );
+        }
+      }
+    }
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 3. إحصائيات لوحة المحامي ────────────────────────────────
+router.get("/my-lawyer-stats", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const id = me.lawyer_id;
+    const [stats, monthly, recent, msgs] = await Promise.all([
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(CASE WHEN status='pending' THEN 1 END)::int AS pending,
+           COUNT(CASE WHEN status='accepted' THEN 1 END)::int AS accepted,
+           COUNT(CASE WHEN status='in_progress' THEN 1 END)::int AS in_progress,
+           COUNT(CASE WHEN status='completed' THEN 1 END)::int AS completed,
+           COUNT(CASE WHEN status='rejected' OR status='cancelled' THEN 1 END)::int AS cancelled
+         FROM lawyer_contracts WHERE lawyer_id=$1`, [id]),
+      query(
+        `SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*)::int AS count
+         FROM lawyer_contracts WHERE lawyer_id=$1 AND created_at >= NOW() - INTERVAL '6 months'
+         GROUP BY month ORDER BY month`, [id]),
+      query(
+        `SELECT id, client_name, client_phone, service_title, status, created_at, contract_no
+         FROM lawyer_contracts WHERE lawyer_id=$1 ORDER BY created_at DESC LIMIT 5`, [id]),
+      query(
+        `SELECT COUNT(*)::int AS unread FROM lawyer_case_messages m
+         JOIN lawyer_contracts c ON c.id = m.contract_id
+         WHERE c.lawyer_id=$1 AND m.sender_role='client' AND m.is_read=FALSE`, [id]),
+    ]);
+    return res.json({
+      contracts: stats.rows[0],
+      monthly: monthly.rows,
+      recent_cases: recent.rows,
+      unread_messages: msgs.rows[0]?.unread || 0,
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 4. قائمة القضايا (من جانب المحامي) ─────────────────────
+router.get("/my-lawyer-cases", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const status = String(req.query.status || "").trim();
+    const search = String(req.query.search || "").trim();
+    const params: any[] = [me.lawyer_id];
+    let where = "c.lawyer_id = $1";
+    if (status) { params.push(status); where += ` AND c.status = $${params.length}`; }
+    if (search) { params.push(`%${search}%`); where += ` AND (c.client_name ILIKE $${params.length} OR c.service_title ILIKE $${params.length} OR c.contract_no ILIKE $${params.length})`; }
+    const { rows } = await query(
+      `SELECT c.*,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_messages WHERE contract_id=c.id),0)::int AS msg_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_messages WHERE contract_id=c.id AND sender_role='client' AND is_read=FALSE),0)::int AS unread_count,
+              COALESCE((SELECT COUNT(*) FROM lawyer_case_documents WHERE contract_id=c.id),0)::int AS doc_count
+         FROM lawyer_contracts c WHERE ${where} ORDER BY c.updated_at DESC LIMIT 100`, params
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 5. تفاصيل قضية واحدة ─────────────────────────────────────
+router.get("/my-lawyer-cases/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const { rows } = await query(`SELECT * FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const [msgs, docs] = await Promise.all([
+      query(`SELECT * FROM lawyer_case_messages WHERE contract_id=$1 ORDER BY created_at ASC`, [cid]),
+      query(`SELECT * FROM lawyer_case_documents WHERE contract_id=$1 ORDER BY created_at DESC`, [cid]),
+    ]);
+    // اجعل الرسائل كلها مقروءة من العميل
+    await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='client'`, [cid]);
+    return res.json({ ...rows[0], messages: msgs.rows, documents: docs.rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 6. تغيير حالة القضية ─────────────────────────────────────
+router.patch("/my-lawyer-cases/:id/status", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const { status, lawyer_note } = req.body || {};
+    const allowed = ["accepted","in_progress","completed","rejected","cancelled"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const r = await query(
+      `UPDATE lawyer_contracts SET status=$3, lawyer_note=$4, updated_at=NOW()
+       WHERE id=$1 AND lawyer_id=$2 RETURNING id`,
+      [cid, me.lawyer_id, status, String(lawyer_note || "").slice(0, 1000)]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    return res.json({ ok: true });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 7. إرسال رسالة (المحامي في قضية) ───────────────────────
+router.post("/my-lawyer-cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const own = await query(`SELECT client_name FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!own.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const lw = await query(`SELECT full_name, title FROM lawyers WHERE id=$1`, [me.lawyer_id]);
+    const { body, file_url, file_name, file_type } = req.body || {};
+    if (!String(body || "").trim() && !String(file_url || "").trim()) return res.status(400).json({ error: "الرسالة فارغة" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_messages (contract_id, sender_role, sender_name, body, file_url, file_name, file_type)
+       VALUES ($1,'lawyer',$2,$3,$4,$5,$6) RETURNING *`,
+      [cid, `${lw.rows[0]?.title || "محامي"} ${lw.rows[0]?.full_name || ""}`.trim(),
+       String(body || "").slice(0, 3000), String(file_url || ""), String(file_name || "").slice(0, 255), String(file_type || "").slice(0, 80)]
+    );
+    await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [cid]);
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 8. رفع / إضافة مستند للقضية (المحامي) ──────────────────
+router.post("/my-lawyer-cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const cid = Number(req.params.id);
+    const own = await query(`SELECT id FROM lawyer_contracts WHERE id=$1 AND lawyer_id=$2`, [cid, me.lawyer_id]);
+    if (!own.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
+    const { title, file_url, file_name, file_type, file_size, notes } = req.body || {};
+    if (!String(file_url || "").trim()) return res.status(400).json({ error: "رابط الملف مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_documents (contract_id, lawyer_id, title, file_url, file_name, file_type, file_size, notes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'lawyer') RETURNING *`,
+      [cid, me.lawyer_id, String(title || "مستند").slice(0, 255), String(file_url),
+       String(file_name || "").slice(0, 255), String(file_type || "").slice(0, 80),
+       Number(file_size) || 0, String(notes || "").slice(0, 1000)]
+    );
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 9. حذف مستند ────────────────────────────────────────────
+router.delete("/my-lawyer-cases/:cid/documents/:did", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM lawyer_case_documents WHERE id=$1 AND lawyer_id=$2`, [Number(req.params.did), me.lawyer_id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 10. بيانات PDF الشامل للمحامي ───────────────────────────
+router.get("/my-lawyer-pdf-data", async (req: Request, res: Response) => {
+  try {
+    const me = await getLawyerFromToken(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const id = me.lawyer_id;
+    const [profile, services, cases, ratings, history] = await Promise.all([
+      query(`SELECT l.*, p.name_ar AS plan_name_ar, p.price_label, s.expires_at AS sub_expires, s.commission_pct
+               FROM lawyers l
+               LEFT JOIN lawyer_subscriptions s ON s.lawyer_id=l.id AND s.is_active=TRUE
+               LEFT JOIN lawyer_subscription_plans p ON p.id=s.plan_id
+              WHERE l.id=$1`, [id]),
+      query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order`, [id]),
+      query(`SELECT * FROM lawyer_contracts WHERE lawyer_id=$1 ORDER BY created_at DESC LIMIT 200`, [id]),
+      query(`SELECT r.rating, r.comment, r.created_at, COALESCE(u.name,'مستخدم') AS user_name
+               FROM ratings r JOIN lawyers l2 ON l2.entity_id=r.entity_id
+               LEFT JOIN users u ON u.id=r.user_id
+              WHERE l2.id=$1 ORDER BY r.created_at DESC LIMIT 50`, [id]),
+      query(`SELECT * FROM lawyer_subscription_history WHERE lawyer_id=$1 ORDER BY changed_at DESC`, [id]),
+    ]);
+    return res.json({
+      profile: profile.rows[0],
+      services: services.rows,
+      cases: cases.rows,
+      ratings: ratings.rows,
+      subscription_history: history.rows,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//          دردشة العميل — رسائل العميل في قضيته مع المحامي
+// ══════════════════════════════════════════════════════════════════════════════
+
+// مساعد: التحقق من ملكية العميل للقضية
+async function getClientContract(req: Request, contractId: number): Promise<any | null> {
+  const auth = req.headers.authorization;
+  const deviceId = String(req.query.device_id || req.body?.device_id || "").trim();
+  let userId: number | null = null;
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7);
+    const sess = await query(`SELECT user_id FROM user_sessions WHERE token=$1 AND expires_at>NOW()`, [token]);
+    if (sess.rows[0]) userId = sess.rows[0].user_id;
+  }
+  if (!userId && !deviceId) return null;
+  const where = userId ? `c.user_id = ${userId}` : `c.device_id = '${deviceId.replace(/'/g,"''")}'`;
+  const { rows } = await query(`SELECT c.*, l.full_name AS lawyer_name, l.title AS lawyer_title FROM lawyer_contracts c JOIN lawyers l ON l.id=c.lawyer_id WHERE c.id=$1 AND ${where}`, [contractId]);
+  return rows[0] || null;
+}
+
+// ── 11. رسائل القضية للعميل ─────────────────────────────────
+router.get("/client/cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "القضية غير موجودة أو غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_case_messages WHERE contract_id=$1 ORDER BY created_at ASC`, [contract.id]);
+    // اجعل رسائل المحامي مقروءة
+    await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='lawyer'`, [contract.id]);
+    return res.json({ contract, messages: rows });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 12. العميل يرسل رسالة ────────────────────────────────────
+router.post("/client/cases/:id/messages", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "القضية غير موجودة أو غير مصرح" });
+    const { body, file_url, file_name, file_type, sender_name } = req.body || {};
+    if (!String(body || "").trim() && !String(file_url || "").trim()) return res.status(400).json({ error: "الرسالة فارغة" });
+    const clientName = sender_name || contract.client_name || "عميل";
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_messages (contract_id, sender_role, sender_name, body, file_url, file_name, file_type)
+       VALUES ($1,'client',$2,$3,$4,$5,$6) RETURNING *`,
+      [contract.id, String(clientName).slice(0,150), String(body||"").slice(0,3000),
+       String(file_url||""), String(file_name||"").slice(0,255), String(file_type||"").slice(0,80)]
+    );
+    await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [contract.id]);
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 13. مستندات القضية للعميل ────────────────────────────────
+router.get("/client/cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT * FROM lawyer_case_documents WHERE contract_id=$1 ORDER BY created_at DESC`, [contract.id]);
+    return res.json(rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── 14. العميل يرفع مستنداً ──────────────────────────────────
+router.post("/client/cases/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const contract = await getClientContract(req, Number(req.params.id));
+    if (!contract) return res.status(404).json({ error: "غير مصرح" });
+    const { title, file_url, file_name, file_type, file_size, notes } = req.body || {};
+    if (!String(file_url||"").trim()) return res.status(400).json({ error: "رابط الملف مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO lawyer_case_documents (contract_id, lawyer_id, title, file_url, file_name, file_type, file_size, notes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'client') RETURNING *`,
+      [contract.id, contract.lawyer_id, String(title||"مستند").slice(0,255), String(file_url),
+       String(file_name||"").slice(0,255), String(file_type||"").slice(0,80), Number(file_size)||0, String(notes||"").slice(0,1000)]
+    );
+    return res.json(rows[0]);
   } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
 });
 

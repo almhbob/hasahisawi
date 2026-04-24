@@ -148,6 +148,8 @@ function RootLayoutNav() {
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="external-partnership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="lawyer-portal"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="client-case-chat" options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
