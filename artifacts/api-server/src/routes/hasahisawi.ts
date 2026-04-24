@@ -2144,6 +2144,64 @@ router.put("/admin/prayer-settings", async (req: Request, res: Response) => {
   }
 });
 
+// ── Proxy مواقيت الآذان — يُجلب من aladhan.com ويُخزَّن cache يومياً ──────────
+const _prayerCache = new Map<string, { data: unknown; fetchedAt: number }>();
+
+router.get("/prayer-times", async (req: Request, res: Response) => {
+  const { date, latitude, longitude, method, school, tune, city, country } = req.query as Record<string, string>;
+
+  const dateStr = date || (() => {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}-${mm}-${d.getFullYear()}`;
+  })();
+
+  const cacheKey = `${dateStr}-${latitude||""}-${longitude||""}-${method||"5"}-${school||"1"}-${tune||""}-${city||""}-${country||""}`;
+  const cached = _prayerCache.get(cacheKey);
+  // استخدام الـ cache إذا كان عمره أقل من 12 ساعة
+  if (cached && Date.now() - cached.fetchedAt < 12 * 60 * 60 * 1000) {
+    res.setHeader("X-Cache", "HIT");
+    return res.json({ code: 200, data: cached.data });
+  }
+
+  const urls: string[] = [];
+  if (latitude && longitude) {
+    const tuneParam = tune ? `&tune=${tune}` : "";
+    urls.push(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${latitude}&longitude=${longitude}&method=${method||5}&school=${school||1}${tuneParam}`);
+  }
+  const cityParam = city || "Hasahisa";
+  const countryParam = country || "SD";
+  urls.push(`https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${cityParam}&country=${countryParam}&method=${method||5}&school=${school||1}`);
+
+  let lastErr = "";
+  for (const url of urls) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 12000);
+      const upstream = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (!upstream.ok) { lastErr = `upstream ${upstream.status}`; continue; }
+      const json: any = await upstream.json();
+      if (json.code === 200 && json.data?.timings?.Fajr) {
+        _prayerCache.set(cacheKey, { data: json.data, fetchedAt: Date.now() });
+        res.setHeader("X-Cache", "MISS");
+        return res.json({ code: 200, data: json.data });
+      }
+      lastErr = "invalid data from aladhan";
+    } catch (e: any) {
+      lastErr = e?.message || "fetch error";
+    }
+  }
+
+  // إذا فشل كل شيء وعندنا cache قديم — نُعيده كـ fallback
+  if (cached) {
+    res.setHeader("X-Cache", "STALE");
+    return res.json({ code: 200, data: cached.data });
+  }
+  return res.status(502).json({ error: `prayer-times proxy failed: ${lastErr}` });
+});
+
 router.get("/posts", async (req: Request, res: Response) => {
   try {
     const { category, device_id, user_id } = req.query as { category?: string; device_id?: string; user_id?: string };
