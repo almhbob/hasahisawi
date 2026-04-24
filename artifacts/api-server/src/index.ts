@@ -39,6 +39,12 @@ const server = app.listen(listenPort, () => {
   logger.info({ port: listenPort }, "Server listening");
 });
 
+// مهلات طويلة لدعم رفع الصور والفيديوهات الكبيرة
+server.requestTimeout = 15 * 60 * 1000; // 15 دقيقة
+server.headersTimeout = 16 * 60 * 1000;
+server.keepAliveTimeout = 75 * 1000;
+server.timeout = 0;
+
 server.on("error", (err) => {
   console.error("❌  Server error:", err);
 });

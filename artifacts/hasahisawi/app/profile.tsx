@@ -116,7 +116,7 @@ export default function ProfileScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.9,
+      quality: 1.0,
     });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;

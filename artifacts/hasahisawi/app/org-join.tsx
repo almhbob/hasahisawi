@@ -270,7 +270,7 @@ export default function OrgJoinScreen() {
       mediaTypes: "images",
       allowsEditing: true,
       aspect: [3, 2],
-      quality: 0.85,
+      quality: 1.0,
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
@@ -347,7 +347,7 @@ export default function OrgJoinScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: false,
-      quality: 0.9,
+      quality: 1.0,
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;

@@ -1191,7 +1191,7 @@ export default function SettingsScreen() {
     if (!perm.granted) { Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      allowsEditing: true, aspect: [1, 1], quality: 1.0,
     });
     if (result.canceled || !result.assets[0]) return;
     if (!isFirebaseAvailable()) {
@@ -1322,7 +1322,7 @@ export default function SettingsScreen() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+      mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [16, 9],
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;

@@ -266,7 +266,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
     if (status !== "granted") { Alert.alert("صلاحية مطلوبة", "يرجى السماح بالوصول إلى الصور"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8, allowsEditing: true,
+      quality: 1.0, allowsEditing: true,
     });
     if (!result.canceled && result.assets[0]) {
       setProofUri(result.assets[0].uri);

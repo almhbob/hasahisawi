@@ -355,12 +355,12 @@ export default function ReportsScreen() {
     if (fromCamera) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") { Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول إلى الكاميرا من الإعدادات"); return; }
-      const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.85 });
+      const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 1.0 });
       if (!r.canceled && r.assets[0]) setReportImageUri(r.assets[0].uri);
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") { Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول إلى الصور من الإعدادات"); return; }
-      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.85 });
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 1.0 });
       if (!r.canceled && r.assets[0]) setReportImageUri(r.assets[0].uri);
     }
   };

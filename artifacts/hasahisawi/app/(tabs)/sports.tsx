@@ -561,7 +561,7 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
   const [cat,setCat]       = useState<PostCategory>("خبر");
   const [imgUri,setImgUri] = useState("");
   const pickImg = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:0.65});
+    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:1.0});
     if (!r.canceled && r.assets[0]) setImgUri(r.assets[0].uri);
   };
   const submit = () => {
@@ -633,7 +633,7 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
     }
   }, [visible, initial]);
   const pickImg = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:0.75});
+    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:1.0});
     if (!r.canceled && r.assets[0]) setImgUri(r.assets[0].uri);
   };
   const submit = () => {

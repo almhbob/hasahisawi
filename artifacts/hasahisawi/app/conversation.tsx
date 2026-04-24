@@ -143,7 +143,7 @@ export default function ConversationScreen() {
     if (!perm.granted) { Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false, quality: 0.85,
+      allowsEditing: false, quality: 1.0,
     });
     if (result.canceled || !result.assets[0]) return;
     setImgUploading(true);

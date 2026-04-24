@@ -1130,7 +1130,7 @@ export default function AdminDashboard() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+      mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [16, 9],
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
@@ -1146,7 +1146,7 @@ export default function AdminDashboard() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [16, 9],
+      mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [16, 9],
     });
     if (result.canceled || !result.assets?.[0]) return;
     const uri = result.assets[0].uri;
@@ -1233,7 +1233,7 @@ export default function AdminDashboard() {
   const pickHonorImageForAdd = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [3, 4] });
     if (result.canceled || !result.assets?.[0]) return;
     setHonorImgUploading(true);
     try {
@@ -1247,7 +1247,7 @@ export default function AdminDashboard() {
   const pickHonorImageForEdit = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("تنبيه", "يجب منح صلاحية الوصول للمعرض"); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9, allowsEditing: true, aspect: [3, 4] });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1.0, allowsEditing: true, aspect: [3, 4] });
     if (result.canceled || !result.assets?.[0]) return;
     setEditHonorImgUploading(true);
     try {

@@ -469,7 +469,7 @@ function AdRequestModal({
     if (status !== "granted") { Alert.alert("الإذن مطلوب", "اسمح للتطبيق بالوصول إلى الصور من إعدادات الجهاز"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [16, 9], quality: 0.88,
+      allowsEditing: true, aspect: [16, 9], quality: 1.0,
     });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   };
@@ -478,7 +478,7 @@ function AdRequestModal({
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") { Alert.alert("الإذن مطلوب", "اسمح للتطبيق بالوصول إلى الكاميرا من إعدادات الجهاز"); return; }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true, aspect: [16, 9], quality: 0.88,
+      allowsEditing: true, aspect: [16, 9], quality: 1.0,
     });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   };

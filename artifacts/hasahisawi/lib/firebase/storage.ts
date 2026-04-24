@@ -55,8 +55,42 @@ async function uploadToFirebase(
   });
 }
 
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
+  bmp: "image/bmp",
+  tiff: "image/tiff",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+  mkv: "video/x-matroska",
+  webm: "video/webm",
+  "3gp": "video/3gpp",
+  "3g2": "video/3gpp2",
+  avi: "video/x-msvideo",
+};
+
+function inferFileMeta(uri: string, fallbackPath?: string): { name: string; type: string; ext: string } {
+  const cleaned = uri.split("?")[0].split("#")[0];
+  const last = cleaned.substring(cleaned.lastIndexOf("/") + 1);
+  let ext = (last.includes(".") ? last.substring(last.lastIndexOf(".") + 1) : "").toLowerCase();
+  if (!ext && fallbackPath) {
+    const m = fallbackPath.toLowerCase().match(/\.([a-z0-9]+)$/);
+    if (m) ext = m[1];
+  }
+  if (!ext) ext = "jpg";
+  const type = MIME_BY_EXT[ext] || (ext.match(/^(mp4|mov|mkv|webm|3gp|avi|m4v)$/) ? "video/mp4" : "image/jpeg");
+  const name = `upload_${Date.now()}.${ext}`;
+  return { name, type, ext };
+}
+
 async function uploadToBackend(
-  _path: string,
+  filePath: string,
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
@@ -82,21 +116,28 @@ async function uploadToBackend(
           reject(new Error("استجابة غير صالحة من الخادم"));
         }
       } else {
-        reject(new Error(`فشل الرفع: ${xhr.status}`));
+        let msg = `فشل الرفع (${xhr.status})`;
+        try {
+          const j = JSON.parse(xhr.responseText);
+          if (j?.error) msg = j.error;
+        } catch {}
+        reject(new Error(msg));
       }
     };
 
     xhr.onerror = () => reject(new Error("تعذّر الاتصال بالخادم أثناء الرفع"));
     xhr.ontimeout = () => reject(new Error("انتهت مهلة الرفع"));
-    xhr.timeout = 120_000;
+    // 15 دقيقة لدعم الفيديوهات الكبيرة على الشبكات البطيئة
+    xhr.timeout = 15 * 60 * 1000;
 
     xhr.open("POST", `${getApiUrl()}/api/upload`);
 
+    const meta = inferFileMeta(uri, filePath);
     const formData = new FormData();
     formData.append("file", {
       uri,
-      name: `upload_${Date.now()}.jpg`,
-      type: "image/jpeg",
+      name: meta.name,
+      type: meta.type,
     } as any);
 
     xhr.send(formData);
@@ -146,7 +187,9 @@ export async function uploadPostVideo(
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
-  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`;
+  const meta = inferFileMeta(uri);
+  const ext = meta.ext === "jpg" ? "mp4" : meta.ext;
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   return uploadFile(`posts_videos/${userId}/${name}`, uri, onProgress);
 }
 
