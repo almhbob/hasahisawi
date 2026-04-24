@@ -173,6 +173,17 @@ function apiFetch(path: string, token: string | null, opts: Parameters<typeof fe
   });
 }
 
+async function safeJson<T = any>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (text.trim().startsWith("<")) throw new Error("الخادم غير متاح مؤقتاً");
+  if (!text.trim()) throw new Error("الخادم أعاد استجابة فارغة");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("استجابة غير صالحة من الخادم");
+  }
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 function RoleBadge({ role }: { role: string }) {
   const meta = ROLE_LABELS[role] ?? ROLE_LABELS.user;
@@ -428,7 +439,7 @@ export default function AdminDashboard() {
     try {
       const res = await apiFetch("/api/admin/dashboard-stats", token);
       if (res.ok) {
-        setStats(await res.json());
+        setStats(await safeJson(res));
       } else if (res.status === 401) {
         setStatsError("الجلسة منتهية — يرجى تسجيل الدخول من جديد");
       } else if (res.status === 403) {
@@ -446,7 +457,7 @@ export default function AdminDashboard() {
     setLoadingUsers(true);
     try {
       const res = await apiFetch("/api/admin/users", token);
-      if (res.ok) setUsers(await res.json());
+      if (res.ok) setUsers(await safeJson(res));
     } catch {}
     finally { setLoadingUsers(false); }
   }, [token]);
@@ -455,7 +466,7 @@ export default function AdminDashboard() {
     setLoadingLM(true);
     try {
       const res = await apiFetch("/api/landmarks", token);
-      if (res.ok) setLandmarks(await res.json());
+      if (res.ok) setLandmarks(await safeJson(res));
     } catch {}
     finally { setLoadingLM(false); }
   }, [token]);
@@ -464,7 +475,7 @@ export default function AdminDashboard() {
     setLoadingAds(true);
     try {
       const res = await apiFetch("/api/admin/ads", token);
-      if (res.ok) setAdsList(await res.json());
+      if (res.ok) setAdsList(await safeJson(res));
     } catch {}
     finally { setLoadingAds(false); }
   }, [token]);
@@ -474,7 +485,7 @@ export default function AdminDashboard() {
     try {
       const res = await apiFetch("/api/admin/neighborhoods", token);
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         if (Array.isArray(data) && data.length > 0) {
           setNeighborhoods(data);
           setLoadingNbr(false);
@@ -489,7 +500,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ items: DEFAULT_HASAHISA_LOCATIONS, replace: false }),
       });
       if (seedRes.ok) {
-        const { items } = await seedRes.json();
+        const { items } = await safeJson(seedRes);
         setNeighborhoods(items);
       } else {
         setNeighborhoods(DEFAULT_HASAHISA_LOCATIONS);
@@ -521,7 +532,7 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ items: DEFAULT_HASAHISA_LOCATIONS, replace: true }),
               });
               if (res.ok) {
-                const { items } = await res.json();
+                const { items } = await safeJson(res);
                 setNeighborhoods(items);
                 Alert.alert("تم", `تم استعادة ${items.length} حياً وقرية بنجاح`);
               } else {
@@ -543,7 +554,7 @@ export default function AdminDashboard() {
     try {
       const res = await apiFetch("/api/admin/ai-settings", token);
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setAiForm({ ai_api_key: data.ai_api_key || "", ai_enabled: data.ai_enabled || "false", ai_system_prompt: data.ai_system_prompt || "" });
       }
     } catch {}
@@ -561,17 +572,17 @@ export default function AdminDashboard() {
         fetch(`${getApiUrl()}/api/transport/fares`),
       ]);
       if (settingsRes.ok) {
-        const d = await settingsRes.json();
+        const d = await safeJson(settingsRes);
         const st = d.transport_status as "coming_soon" | "maintenance" | "available";
         setTransportStatus(["coming_soon","maintenance","available"].includes(st) ? st : "coming_soon");
         setTransportNote(d.transport_note || "");
         setTransportPhone(d.transport_phone || "");
       }
-      if (driversRes.ok) setTransportDrivers(await driversRes.json());
-      if (tripsRes.ok) setTransportTrips(await tripsRes.json());
-      if (statsRes.ok) setTransportStats(await statsRes.json());
+      if (driversRes.ok) setTransportDrivers(await safeJson(driversRes));
+      if (tripsRes.ok) setTransportTrips(await safeJson(tripsRes));
+      if (statsRes.ok) setTransportStats(await safeJson(statsRes));
       if (faresRes.ok) {
-        const fm = await faresRes.json();
+        const fm = await safeJson(faresRes);
         setFareMatrix(fm);
         // تهيئة قيم التعديل
         const init: Record<string, { car: string; rickshaw: string; delivery: string }> = {};
@@ -612,7 +623,7 @@ export default function AdminDashboard() {
         Alert.alert("✅ تم الحفظ", "تم تحديث جدول التعرفة بنجاح");
         loadTransportData();
       } else {
-        const j = await res.json();
+        const j = await safeJson(res);
         Alert.alert("خطأ", j.error || "تعذّر حفظ التعرفة");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
@@ -639,7 +650,7 @@ export default function AdminDashboard() {
         }),
       });
       if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات خدمة مشوارك علينا");
-      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+      else { const j = await safeJson(res); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setSavingTransportSettings(false); }
   };
@@ -678,7 +689,7 @@ export default function AdminDashboard() {
   const loadApprovedDrivers = useCallback(async () => {
     try {
       const res = await apiFetch("/api/admin/transport/drivers?status=approved", token);
-      if (res.ok) setApprovedDriversList(await res.json());
+      if (res.ok) setApprovedDriversList(await safeJson(res));
     } catch {}
   }, [token]);
 
@@ -706,7 +717,7 @@ export default function AdminDashboard() {
         setAssigningTripId(null);
         Alert.alert("✅ تم التعيين", `تم تعيين السائق ${driver.name} للرحلة بنجاح`);
       } else {
-        const j = await res.json();
+        const j = await safeJson(res);
         Alert.alert("خطأ", j.error || "تعذّرت العملية");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
@@ -735,7 +746,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${getApiUrl()}/api/ads/settings`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setAdsSettings({
           ad_price_per_day:    data.ad_price_per_day    || "500",
           ad_contact_phone:    data.ad_contact_phone    || "",
@@ -755,7 +766,7 @@ export default function AdminDashboard() {
         method: "PUT", body: JSON.stringify(adsSettings),
       });
       if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث إعدادات الإعلانات");
-      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+      else { const j = await safeJson(res); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setSavingAdsSettings(false); }
   };
@@ -763,7 +774,7 @@ export default function AdminDashboard() {
   const loadContractSettings = useCallback(async () => {
     try {
       const res = await apiFetch("/api/admin/contract-settings", token);
-      if (res.ok) { const d = await res.json(); setContractWhatsapp(d.contract_whatsapp || "+966597083352"); }
+      if (res.ok) { const d = await safeJson(res); setContractWhatsapp(d.contract_whatsapp || "+966597083352"); }
     } catch {}
   }, [token]);
 
@@ -774,7 +785,7 @@ export default function AdminDashboard() {
         method: "PUT", body: JSON.stringify({ contract_whatsapp: contractWhatsapp }),
       });
       if (res.ok) Alert.alert("✅ تم الحفظ", "تم تحديث رقم واتساب عقود المؤسسات");
-      else { const j = await res.json(); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
+      else { const j = await safeJson(res); Alert.alert("خطأ", j.error || "تعذّر الحفظ"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setSavingContractSettings(false); }
   };
@@ -784,7 +795,7 @@ export default function AdminDashboard() {
     try {
       const res = await apiFetch("/api/admin/name", token);
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setAdminNameForm({ name: data.name || "" });
       }
     } catch {}
@@ -796,7 +807,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${getApiUrl()}/api/app/version`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         setAppVersion(String(data.version ?? 1));
         setUpdateNotes(data.notes ?? "");
         setUpdateForce(data.force ?? false);
@@ -809,7 +820,7 @@ export default function AdminDashboard() {
     setLoadingPhoneShops(true);
     try {
       const res = await apiFetch("/api/admin/phone-shops", token);
-      if (res.ok) { const d = await res.json(); setAdminPhoneShops(d.shops ?? []); }
+      if (res.ok) { const d = await safeJson(res); setAdminPhoneShops(d.shops ?? []); }
     } catch {}
     finally { setLoadingPhoneShops(false); }
   }, [token]);
@@ -848,7 +859,7 @@ export default function AdminDashboard() {
     setLoadingAdminLibs(true);
     try {
       const res = await apiFetch("/api/admin/student-libraries", token);
-      if (res.ok) { const d = await res.json(); setAdminLibraries(Array.isArray(d) ? d : d.libraries ?? []); }
+      if (res.ok) { const d = await safeJson(res); setAdminLibraries(Array.isArray(d) ? d : d.libraries ?? []); }
     } catch {}
     finally { setLoadingAdminLibs(false); }
   }, [token]);
@@ -873,7 +884,7 @@ export default function AdminDashboard() {
     setLoadingAdminMerchants(true);
     try {
       const res = await apiFetch("/api/admin/merchants", token);
-      if (res.ok) { const d = await res.json(); setAdminMerchants(Array.isArray(d) ? d : d.merchants ?? []); }
+      if (res.ok) { const d = await safeJson(res); setAdminMerchants(Array.isArray(d) ? d : d.merchants ?? []); }
     } catch {}
     finally { setLoadingAdminMerchants(false); }
   }, [token]);
@@ -905,7 +916,7 @@ export default function AdminDashboard() {
     setLoadingCommunities(true);
     try {
       const res = await apiFetch("/api/admin/communities", token);
-      if (res.ok) setCommunitiesList(await res.json());
+      if (res.ok) setCommunitiesList(await safeJson(res));
     } catch {}
     finally { setLoadingCommunities(false); }
   }, [token]);
@@ -914,7 +925,7 @@ export default function AdminDashboard() {
     setLoadingSvcReqs(true);
     try {
       const res = await apiFetch(`/api/moderator/service-requests?status=${statusFilter}`, token);
-      if (res.ok) setSvcRequests(await res.json());
+      if (res.ok) setSvcRequests(await safeJson(res));
     } catch {}
     finally { setLoadingSvcReqs(false); }
   }, [token]);
@@ -929,7 +940,7 @@ export default function AdminDashboard() {
         setSvcRequests(prev => prev.filter(r => r.id !== id));
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        const j = await res.json();
+        const j = await safeJson(res);
         Alert.alert("خطأ", j.error || "تعذّر تنفيذ القرار");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال"); }
@@ -947,13 +958,13 @@ export default function AdminDashboard() {
         method: "PUT", body: JSON.stringify({ status, suspension_reason }),
       });
       if (res.ok) {
-        const updated = await res.json();
+        const updated = await safeJson(res);
         setCommunitiesList(prev => prev.map(x => x.id === c.id ? { ...x, ...updated } : x));
         setCommunityDetailModal(null);
         setSuspendModal(null);
         setSuspendReason("");
       } else {
-        const err = await res.json();
+        const err = await safeJson(res);
         Alert.alert("خطأ", err.error || "فشل التحديث");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
@@ -979,13 +990,13 @@ export default function AdminDashboard() {
         method: "POST", body: JSON.stringify(communityForm),
       });
       if (res.ok) {
-        const created = await res.json();
+        const created = await safeJson(res);
         setCommunitiesList(prev => [{ ...created, ...communityForm } as CommunityRecord, ...prev]);
         setShowCommunityForm(false);
         setCommunityForm({ name: "", category: "institution", origin: "", description: "", representative_name: "", representative_title: "", representative_phone: "", representative_national_id: "", representative_email: "", contact_phone: "", neighborhood: "", services: "" });
         Alert.alert("تم الإرسال", "تم رفع الطلب بنجاح — سيراجعه المدير");
       } else {
-        const err = await res.json();
+        const err = await safeJson(res);
         Alert.alert("خطأ", err.error || "فشل الإرسال");
       }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
@@ -1016,7 +1027,7 @@ export default function AdminDashboard() {
       const res = await apiFetch(`/api/admin/users/${roleModal.id}/role`, token, {
         method: "PATCH", body: JSON.stringify({ role: newRole }),
       });
-      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
+      if (!res.ok) { const j = await safeJson(res); Alert.alert("خطأ", j.error); return; }
       setUsers(prev => prev.map(u => u.id === roleModal.id ? { ...u, role: newRole as any } : u));
       loadStats();
       setRoleModal(null);
@@ -1035,7 +1046,7 @@ export default function AdminDashboard() {
       const res = await apiFetch(`/api/admin/users/${promoTarget.id}/role`, token, {
         method: "PATCH", body: JSON.stringify({ role: "moderator" }),
       });
-      if (!res.ok) { const j = await res.json(); Alert.alert("خطأ", j.error); return; }
+      if (!res.ok) { const j = await safeJson(res); Alert.alert("خطأ", j.error); return; }
       setUsers(prev => prev.map(x => x.id === promoTarget.id ? { ...x, role: "moderator" } : x));
       loadStats();
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1051,7 +1062,7 @@ export default function AdminDashboard() {
         setUsers(prev => prev.filter(x => x.id !== u.id));
         loadStats();
       } else {
-        const j = await res.json();
+        const j = await safeJson(res);
         Alert.alert("خطأ", j.error);
       }
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
@@ -1061,7 +1072,7 @@ export default function AdminDashboard() {
     setPermModal(u);
     try {
       const res = await apiFetch(`/api/admin/users/${u.id}/permissions`, token);
-      if (res.ok) setPermSections(await res.json());
+      if (res.ok) setPermSections(await safeJson(res));
       else setPermSections([]);
     } catch { setPermSections([]); }
   };
@@ -1072,7 +1083,7 @@ export default function AdminDashboard() {
     setLoadingUserStats(true);
     try {
       const res = await apiFetch(`/api/admin/users/${u.id}/stats`, token);
-      if (res.ok) setUserStats(await res.json());
+      if (res.ok) setUserStats(await safeJson(res));
     } catch {}
     finally { setLoadingUserStats(false); }
   };
@@ -1096,7 +1107,7 @@ export default function AdminDashboard() {
     setAddingLM(true);
     try {
       const res = await apiFetch("/api/admin/landmarks", token, { method: "POST", body: JSON.stringify(lmForm) });
-      const json = await res.json();
+      const json = await safeJson(res);
       if (!res.ok) { Alert.alert("خطأ", json.error); return; }
       setLandmarks(prev => [...prev, json]);
       setLmForm({ name: "", sub: "", image_url: "" });
@@ -1111,7 +1122,7 @@ export default function AdminDashboard() {
     setUpdatingLM(true);
     try {
       const res = await apiFetch(`/api/admin/landmarks/${editingLM.id}`, token, { method: "PATCH", body: JSON.stringify(editLmForm) });
-      const json = await res.json();
+      const json = await safeJson(res);
       if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر التعديل"); return; }
       setLandmarks(prev => prev.map(x => x.id === editingLM.id ? json : x));
       setShowEditLM(false); setEditingLM(null);
@@ -1163,7 +1174,7 @@ export default function AdminDashboard() {
     setLoadingHonored(true);
     try {
       const res = await apiFetch("/api/admin/honored-figures", token);
-      const json = await res.json();
+      const json = await safeJson(res);
       if (res.ok) setHonoredList(json);
     } catch { }
     finally { setLoadingHonored(false); }
@@ -1179,7 +1190,7 @@ export default function AdminDashboard() {
       const res = await apiFetch("/api/admin/honored-figures", token, {
         method: "POST", body: JSON.stringify(honorForm),
       });
-      const json = await res.json();
+      const json = await safeJson(res);
       if (!res.ok) { Alert.alert("خطأ", json.error); return; }
       setHonoredList(prev => [json, ...prev]);
       setHonorForm(HONOR_FORM_INIT);
@@ -1199,7 +1210,7 @@ export default function AdminDashboard() {
       const res = await apiFetch(`/api/admin/honored-figures/${editingHonor.id}`, token, {
         method: "PATCH", body: JSON.stringify(editHonorForm),
       });
-      const json = await res.json();
+      const json = await safeJson(res);
       if (!res.ok) { Alert.alert("خطأ", json.error || "تعذّر التعديل"); return; }
       setHonoredList(prev => prev.map(x => x.id === editingHonor.id ? json : x));
       setShowEditHonor(false); setEditingHonor(null);
@@ -1210,7 +1221,7 @@ export default function AdminDashboard() {
   const toggleHonoredVisibility = async (figure: HonoredFigure) => {
     try {
       const res = await apiFetch(`/api/admin/honored-figures/${figure.id}/visibility`, token, { method: "PATCH" });
-      const json = await res.json();
+      const json = await safeJson(res);
       if (res.ok) setHonoredList(prev => prev.map(x => x.id === figure.id ? json : x));
     } catch { Alert.alert("خطأ", "تعذّر تغيير الحالة"); }
   };
@@ -1267,11 +1278,11 @@ export default function AdminDashboard() {
         body: JSON.stringify({ status, duration_days: parseInt(days || "7"), admin_note: note?.trim() || null }),
       });
       if (res.ok) {
-        const updated = await res.json();
+        const updated = await safeJson(res);
         setAdsList(prev => prev.map(a => a.id === ad.id ? updated : a));
         setAdDetailModal(null); setApprovalDays("7"); setAdminNote("");
       } else {
-        const err = await res.json();
+        const err = await safeJson(res);
         Alert.alert("خطأ", err.error);
       }
     } catch { Alert.alert("خطأ", "تعذّر تحديث الإعلان"); }
@@ -1293,10 +1304,10 @@ export default function AdminDashboard() {
     try {
       if (editingNbr?.key) {
         const res = await apiFetch(`/api/admin/neighborhoods/${editingNbr.key}`, token, { method: "PUT", body: JSON.stringify(nbrForm) });
-        if (res.ok) { const updated = await res.json(); setNeighborhoods(prev => prev.map(n => n.key === editingNbr.key ? updated : n)); }
+        if (res.ok) { const updated = await safeJson(res); setNeighborhoods(prev => prev.map(n => n.key === editingNbr.key ? updated : n)); }
       } else {
         const res = await apiFetch("/api/admin/neighborhoods", token, { method: "POST", body: JSON.stringify(nbrForm) });
-        if (res.ok) { const added = await res.json(); setNeighborhoods(prev => [...prev, added]); }
+        if (res.ok) { const added = await safeJson(res); setNeighborhoods(prev => [...prev, added]); }
       }
       setNbrForm({ label: "", type: "neighborhood" }); setEditingNbr(null); setShowAddNbr(false);
     } catch { Alert.alert("خطأ", "تعذّرت العملية"); }
@@ -1330,7 +1341,7 @@ export default function AdminDashboard() {
     setSavingPin(true);
     try {
       const validateRes = await apiFetch("/api/admin/validate-pin", token, { method: "POST", body: JSON.stringify({ pin: pinForm.current }) });
-      const validateData = await validateRes.json();
+      const validateData = await safeJson(validateRes);
       if (!validateData.valid) { Alert.alert("خطأ", "الرمز الحالي غير صحيح"); return; }
       const changeRes = await apiFetch("/api/admin/change-pin", token, { method: "POST", body: JSON.stringify({ new_pin: pinForm.newPin }) });
       if (changeRes.ok) {

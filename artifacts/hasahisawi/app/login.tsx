@@ -218,6 +218,8 @@ export default function LoginScreen() {
         setError("خدمات Google غير متاحة على هذا الجهاز");
       } else if (code === "auth/popup-blocked") {
         setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
+      } else if (String(code) === "10" || e?.message?.includes("DEVELOPER_ERROR")) {
+        setError("تعذّر تسجيل الدخول عبر Google. يرجى استخدام البريد الإلكتروني أو رقم الهاتف بدلاً من ذلك.");
       } else {
         setError(e?.message || "فشل تسجيل الدخول عبر Google");
       }

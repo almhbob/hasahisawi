@@ -40,7 +40,6 @@ import Colors from "@/constants/colors";
 import { useFsPosts, FsPost } from "@/lib/firebase/hooks";
 import { isFirestoreEnabled } from "@/lib/firebase/index";
 import { fsUpdateDoc, fsAddDoc, fsGetCollection, fsGetDoc, fsDeleteDoc, COLLECTIONS, orderBy as fsOrderBy } from "@/lib/firebase/firestore";
-import { isFirebaseAvailable } from "@/lib/firebase/auth";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork } from "@/lib/network";
 import UserAvatar from "@/components/UserAvatar";
@@ -322,7 +321,6 @@ async function uploadMedia(
   userId: string,
   onProgress?: (p: number) => void
 ): Promise<{ image_url?: string; video_url?: string } | null> {
-  if (!isFirebaseAvailable()) return null;
   try {
     if (media.type === "image") {
       const url = await uploadPostImage(userId, media.uri, (p) => onProgress?.(p.percent));
@@ -521,7 +519,7 @@ function AddPostModal({
         } else if (!content.trim()) {
           Alert.alert(
             "تنبيه",
-            "تعذّر رفع الوسائط (Firebase غير مُعدٍّ). سيُنشر المنشور بدون صورة/فيديو.",
+            "تعذّر رفع الصورة/الفيديو. سيُنشر المنشور بدون وسائط.",
             [{ text: "حسناً" }]
           );
         }
