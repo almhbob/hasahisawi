@@ -120,14 +120,14 @@ function maskNationalId(id?: string): string | null {
 async function safeFetchJson(
   url: string,
   options: RequestInit,
-  retries = 3,
-  timeoutMs = 45000,
+  retries = 2,
+  timeoutMs = 12000,
 ): Promise<{ res: Response; json: Record<string, unknown> }> {
   let lastError: Error = new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 3000 * attempt));
+      await new Promise(r => setTimeout(r, 4000));
     }
 
     const ctrl = new AbortController();
@@ -754,7 +754,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setUserGender = async (gender: "male" | "female") => {
     const base = getApiUrl();
-    if (!base || !token) throw new Error("غير مصرح");
+    if (!base) throw new Error("تعذّر الاتصال بالخادم");
+    if (!token) throw new Error("يجب تسجيل الدخول أولاً");
     const { res, json } = await safeFetchJson(
       `${base}/api/auth/me/gender`,
       {
@@ -762,6 +763,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ gender }),
       },
+      3,   // 3 محاولات للـ PATCH لأنه مهم
+      15000, // 15 ثانية
     );
     if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث الجنس");
     setUser(prev => prev ? { ...prev, gender } : prev);
