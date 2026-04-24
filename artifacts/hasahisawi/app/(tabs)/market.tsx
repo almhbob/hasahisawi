@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
+import { fetchWithTimeout } from "@/lib/query-client";
 import {
   View,
   Text,
@@ -1215,7 +1216,7 @@ export default function MarketScreen() {
       const params = new URLSearchParams();
       if (merchantCat !== "all") params.set("category", merchantCat);
       if (merchantSearch.trim()) params.set("q", merchantSearch.trim());
-      const res = await fetch(`${BASE_URL}/api/merchants?${params}`);
+      const res = await fetchWithTimeout(`${BASE_URL}/api/merchants?${params}`);
       if (res.ok) { const data = await res.json(); setMerchants(data.merchants ?? []); }
     } catch {} finally { setMerchantLoading(false); }
   };
@@ -1226,7 +1227,7 @@ export default function MarketScreen() {
     if (!merchantForm.phone.trim() && !merchantForm.whatsapp.trim()) { Alert.alert("خطأ", "رقم التواصل مطلوب"); return; }
     setMerchantSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/merchants`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/merchants`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ ...merchantForm }),
       });
@@ -1291,7 +1292,7 @@ export default function MarketScreen() {
       const params = new URLSearchParams();
       if (phoneBrand !== "all") params.set("specialty", phoneBrand);
       if (phoneSearch.trim()) params.set("q", phoneSearch.trim());
-      const res = await fetch(`${BASE_URL}/api/phone-shops?${params}`);
+      const res = await fetchWithTimeout(`${BASE_URL}/api/phone-shops?${params}`);
       if (res.ok) { const data = await res.json(); setPhoneShops(data.shops ?? []); }
     } catch {} finally { setPhoneLoading(false); }
   };
@@ -1300,7 +1301,7 @@ export default function MarketScreen() {
     if (!auth.token) return;
     setMyShopLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/my-phone-shop`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/my-phone-shop`, {
         headers: { Authorization: `Bearer ${auth.token}` }
       });
       if (res.ok) {
@@ -1316,7 +1317,7 @@ export default function MarketScreen() {
     try {
       const params = new URLSearchParams();
       if (cond !== "all") params.set("condition", cond);
-      const res = await fetch(`${BASE_URL}/api/phone-shops/${shopId}/products?${params}`);
+      const res = await fetchWithTimeout(`${BASE_URL}/api/phone-shops/${shopId}/products?${params}`);
       if (res.ok) { const data = await res.json(); setShopProducts(data.products ?? []); }
     } catch {} finally { setProductsLoading(false); }
   };
@@ -1335,7 +1336,7 @@ export default function MarketScreen() {
     if (!phoneRegForm.phone.trim() && !phoneRegForm.whatsapp.trim()) { Alert.alert("خطأ", "رقم التواصل مطلوب"); return; }
     setPhoneRegSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/phone-shops`, {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/phone-shops`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", ...(auth.token ? { Authorization:`Bearer ${auth.token}` } : {}) },
         body: JSON.stringify({ ...phoneRegForm }),
@@ -1364,7 +1365,7 @@ export default function MarketScreen() {
       const url = editingProduct
         ? `${BASE_URL}/api/phone-shops/${myShop.id}/products/${editingProduct.id}`
         : `${BASE_URL}/api/phone-shops/${myShop.id}/products`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: editingProduct ? "PUT" : "POST",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${auth.token}` },
         body: JSON.stringify(body),
@@ -1385,7 +1386,7 @@ export default function MarketScreen() {
   const deleteProduct = async (productId: number) => {
     if (!myShop) return;
     try {
-      await fetch(`${BASE_URL}/api/phone-shops/${myShop.id}/products/${productId}`, {
+      await fetchWithTimeout(`${BASE_URL}/api/phone-shops/${myShop.id}/products/${productId}`, {
         method:"DELETE", headers:{ Authorization:`Bearer ${auth.token}` }
       });
       setMyProducts(prev => prev.filter(p => p.id !== productId));

@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import {
   TRANSPORT_ZONES, DEFAULT_FARE_MATRIX,
@@ -520,7 +520,7 @@ export default function TransportScreen() {
   const loadCommunityStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/transport/neighborhoods/community-stats`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/neighborhoods/community-stats`);
       if (res.ok) setCommunityStats(await res.json());
     } catch {} finally { setStatsLoading(false); }
   }, [apiUrl]);
@@ -529,7 +529,7 @@ export default function TransportScreen() {
     if (!addName.trim()) return;
     setAddSending(true); setAddError("");
     try {
-      const res = await fetch(`${apiUrl}/api/transport/neighborhoods/suggest`, {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/neighborhoods/suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: addName.trim(), zone_id: addZone, notes: addNote, submitted_by: user?.name || "عضو" }),
@@ -549,7 +549,7 @@ export default function TransportScreen() {
   // ── التحميل ──
   const loadStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/transport/status`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/status`);
       if (res.ok) {
         const d = await res.json();
         const st = d.status ?? (d.enabled ? "available" : "coming_soon");
@@ -563,7 +563,7 @@ export default function TransportScreen() {
 
   const loadNeighborhoods = useCallback(async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/transport/neighborhoods`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/neighborhoods`);
       if (res.ok) {
         const list: CommunityNh[] = await res.json();
         setAllNeighborhoods(list);
@@ -579,7 +579,7 @@ export default function TransportScreen() {
 
   const loadFares = useCallback(async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/transport/fares`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/fares`);
       if (res.ok) {
         const data = await res.json();
         if (Object.keys(data).length > 0) setFareMatrix(data);
@@ -589,7 +589,7 @@ export default function TransportScreen() {
 
   const loadDrivers = useCallback(async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/transport/drivers`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/drivers`);
       if (res.ok) setDrivers(await res.json());
     } catch {}
   }, [apiUrl]);
@@ -597,7 +597,7 @@ export default function TransportScreen() {
   const loadMyTrips = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/transport/my-trips`, {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/my-trips`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setMyTrips(await res.json());
@@ -625,7 +625,7 @@ export default function TransportScreen() {
   // تقييم رحلة مكتملة
   const rateTrip = useCallback(async (tripId: number, rating: number, note: string) => {
     try {
-      await fetch(`${apiUrl}/api/transport/trips/${tripId}`, {
+      await fetchWithTimeout(`${apiUrl}/api/transport/trips/${tripId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ rating, rating_note: note }),
@@ -638,7 +638,7 @@ export default function TransportScreen() {
   // إلغاء طلب معلق
   const cancelTrip = useCallback(async (tripId: number) => {
     try {
-      const res = await fetch(`${apiUrl}/api/transport/trips/${tripId}/cancel`, {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/trips/${tripId}/cancel`, {
         method: "POST",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
@@ -683,7 +683,7 @@ export default function TransportScreen() {
         notes,
         delivery_desc: vehicleType === "delivery" ? deliveryDesc : null,
       };
-      const res = await fetch(`${apiUrl}/api/transport/trips`, {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/trips`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
@@ -714,7 +714,7 @@ export default function TransportScreen() {
     }
     setSubmittingReg(true);
     try {
-      const res = await fetch(`${apiUrl}/api/transport/drivers/register`, {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/drivers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ name: regName, phone: regPhone, vehicle_type: regVehicle, vehicle_desc: regDesc, plate: regPlate, area: regArea }),

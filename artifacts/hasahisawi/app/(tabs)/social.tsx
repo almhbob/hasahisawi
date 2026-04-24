@@ -33,7 +33,7 @@ import Animated, {
 } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useFocusEffect } from "expo-router";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
@@ -170,7 +170,7 @@ function apiUrl(path: string) {
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 async function apiFetchPosts(deviceId: string): Promise<Post[]> {
-  const res = await fetch(apiUrl(`/api/posts?device_id=${encodeURIComponent(deviceId)}`));
+  const res = await fetchWithTimeout(apiUrl(`/api/posts?device_id=${encodeURIComponent(deviceId)}`));
   if (!res.ok) throw new Error("Failed to fetch posts");
   return res.json();
 }
@@ -182,7 +182,7 @@ async function apiCreatePost(data: {
   image_url?: string | null;
   video_url?: string | null;
 }): Promise<Post> {
-  const res = await fetch(apiUrl("/api/posts"), {
+  const res = await fetchWithTimeout(apiUrl("/api/posts"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -197,7 +197,7 @@ async function apiCreatePost(data: {
 
 async function apiDeletePost(id: string | number, token?: string | null): Promise<void> {
   if (!token) throw new Error("غير مصرح");
-  const res = await fetch(apiUrl(`/api/posts/${id}`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${id}`), {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -244,7 +244,7 @@ async function fsDeleteFsComment(fsId: string): Promise<void> {
 }
 
 async function apiFetchComments(postId: number): Promise<Comment[]> {
-  const res = await fetch(apiUrl(`/api/posts/${postId}/comments`));
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`));
   if (!res.ok) throw new Error("Failed to fetch comments");
   return res.json();
 }
@@ -253,7 +253,7 @@ async function apiCreateComment(
   postId: number,
   data: { author_name: string; content: string }
 ): Promise<Comment> {
-  const res = await fetch(apiUrl(`/api/posts/${postId}/comments`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -274,7 +274,7 @@ async function apiCreateComment(
 
 async function apiDeleteComment(id: number, token?: string | null): Promise<void> {
   if (!token) throw new Error("غير مصرح");
-  const res = await fetch(apiUrl(`/api/comments/${id}`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/comments/${id}`), {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -285,7 +285,7 @@ async function apiToggleLike(
   postId: number,
   deviceId: string
 ): Promise<{ liked: boolean }> {
-  const res = await fetch(apiUrl(`/api/posts/${postId}/like`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/like`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ device_id: deviceId }),

@@ -23,7 +23,7 @@ import type { SportClub, SportEvent } from "./sports";
 import { SPORT_CLUBS_KEY, SPORT_EVENTS_KEY, loadSportClubs, loadSportEvents, getSportLabel, getSportColor } from "./sports";
 import type { CulturalCenter, CulturalEvent } from "./culture";
 import { CULTURAL_CENTERS_KEY, CULTURAL_EVENTS_KEY, loadCulturalCenters, loadCulturalEvents, getCenterTypeLabel, getCenterTypeColor, getEventTypeLabel, getEventTypeColor } from "./culture";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import UserAvatar from "@/components/UserAvatar";
@@ -856,7 +856,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications`);
+      const res = await fetchWithTimeout(`${base}/api/notifications`);
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -869,7 +869,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications`, {
+      const res = await fetchWithTimeout(`${base}/api/notifications`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), body: newBody.trim(), type: newType }),
@@ -884,7 +884,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications/${id}`, {
+      const res = await fetchWithTimeout(`${base}/api/notifications/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -979,7 +979,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news`);
+      const res = await fetchWithTimeout(`${base}/api/news`);
       if (res.ok) setNews(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -992,7 +992,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
     setSaving(true);
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news`, {
+      const res = await fetchWithTimeout(`${base}/api/news`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim(), category: newCategory, author_name: newAuthor.trim() || undefined, is_pinned: newPinned }),
@@ -1007,7 +1007,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
   const handleDelete = async (id: number) => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/news/${id}`, {
+      const res = await fetchWithTimeout(`${base}/api/news/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -1163,7 +1163,7 @@ export default function SettingsScreen() {
     if (!base || !auth.token) return;
     setRideStatusLoading(true);
     try {
-      await fetch(new URL("/api/admin/feature-flags", base).toString(), {
+      await fetchWithTimeout(new URL("/api/admin/feature-flags", base).toString(), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ ride_status: status }),
@@ -1276,7 +1276,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       if (!base) return [];
-      const res = await fetch(`${base}/api/lost-items`);
+      const res = await fetchWithTimeout(`${base}/api/lost-items`);
       if (res.ok) { const d = await res.json(); return d.items || []; }
     } catch {}
     return [];
@@ -1313,7 +1313,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL("/api/landmarks", base).toString();
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url);
       if (res.ok) setLandmarks(await res.json());
     } catch {}
   };
@@ -1343,7 +1343,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL("/api/admin/landmarks", base).toString();
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1365,7 +1365,7 @@ export default function SettingsScreen() {
     try {
       const base = getApiUrl();
       const url = new URL(`/api/admin/landmarks/${lm.id}`, base).toString();
-      await fetch(url, {
+      await fetchWithTimeout(url, {
         method: "DELETE",
         headers: { ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
       });
@@ -1435,7 +1435,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       if (!base) { setPinChangeError("الخادم غير متاح — تحقق من الإنترنت"); return; }
       const url = `${base}/api/admin/change-pin`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1572,7 +1572,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       const tkn = auth.token;
       if (base && tkn) {
-        await fetch(`${base}/api/lost-items/${id}/status`, {
+        await fetchWithTimeout(`${base}/api/lost-items/${id}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${tkn}` },
           body: JSON.stringify({ status: "found" }),
@@ -1587,7 +1587,7 @@ export default function SettingsScreen() {
       const base = getApiUrl();
       const tkn = auth.token;
       if (base && tkn) {
-        await fetch(`${base}/api/lost-items/${id}`, {
+        await fetchWithTimeout(`${base}/api/lost-items/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${tkn}` },
         });
@@ -1645,7 +1645,7 @@ export default function SettingsScreen() {
   const loadUsers = async () => {
     if (!isAdmin || !auth.token) return;
     try {
-      const res = await fetch(new URL("/api/admin/users", getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL("/api/admin/users", getApiUrl()).toString(), {
         headers: { Authorization: `Bearer ${auth.token}` },
       });
       if (res.ok) {
@@ -1658,7 +1658,7 @@ export default function SettingsScreen() {
   const changeUserRole = async (userId: number, newRole: "user" | "moderator") => {
     if (!auth.token) return;
     try {
-      const res = await fetch(new URL(`/api/admin/users/${userId}/role`, getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL(`/api/admin/users/${userId}/role`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ role: newRole }),
@@ -1676,7 +1676,7 @@ export default function SettingsScreen() {
   const updateUserPermissions = async (userId: number, sections: string[]) => {
     if (!auth.token) return;
     try {
-      const res = await fetch(new URL(`/api/admin/users/${userId}/permissions`, getApiUrl()).toString(), {
+      const res = await fetchWithTimeout(new URL(`/api/admin/users/${userId}/permissions`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ sections }),
@@ -1696,7 +1696,7 @@ export default function SettingsScreen() {
         { text: lang === "ar" ? "حذف" : "Delete", style: "destructive", onPress: async () => {
           if (!auth.token) return;
           try {
-            await fetch(new URL(`/api/admin/users/${userId}`, getApiUrl()).toString(), {
+            await fetchWithTimeout(new URL(`/api/admin/users/${userId}`, getApiUrl()).toString(), {
               method: "DELETE",
               headers: { Authorization: `Bearer ${auth.token}` },
             });
