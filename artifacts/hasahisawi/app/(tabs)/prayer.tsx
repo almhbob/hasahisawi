@@ -364,16 +364,30 @@ export default function PrayerScreen() {
       const yyyy = now.getFullYear();
       const dateStr = `${dd}-${mm}-${yyyy}`;
 
-      // المسارات البديلة للـ API — يُجرَّب الأول وإن فشل يُجرَّب الثاني
-      const urls = [
-        `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`,
-        `https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=Hasahisa&country=SD&method=${s.method}&school=${s.school}`,
+      // مساعد fetch مع AbortController صريح (AbortSignal.timeout غير موثوق في RN)
+      const fetchWithTimeout = async (url: string, ms: number): Promise<Response> => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), ms);
+        try { return await fetch(url, { signal: ctrl.signal }); }
+        finally { clearTimeout(tid); }
+      };
+
+      // المسارات: البروكسي الخلفي أولاً (أسرع وأكثر موثوقية)، ثم aladhan مباشرة
+      const apiBase = getApiUrl();
+      const backendParams = new URLSearchParams({
+        date: dateStr, latitude: String(s.latitude), longitude: String(s.longitude),
+        method: String(s.method), school: String(s.school), tune,
+      });
+      const urls: [string, number][] = [
+        [`${apiBase}/api/prayer-times?${backendParams}`, 15000],
+        [`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`, 20000],
+        [`https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=Hasahisa&country=SD&method=${s.method}&school=${s.school}`, 20000],
       ];
 
       let data: any = null;
-      for (const url of urls) {
+      for (const [url, ms] of urls) {
         try {
-          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          const res = await fetchWithTimeout(url, ms);
           if (!res.ok) continue;
           const json = await res.json();
           if (json.code === 200 && json.data?.timings?.Fajr) { data = json.data; break; }
