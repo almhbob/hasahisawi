@@ -4827,8 +4827,8 @@ router.get("/search", async (req: Request, res: Response) => {
         [like]
       ),
       query(
-        `SELECT id, name, description, category, phone FROM organizations
-         WHERE name ILIKE $1 OR description ILIKE $1 OR category ILIKE $1 LIMIT 10`,
+        `SELECT id, name, type, description, contact_info FROM organizations
+         WHERE name ILIKE $1 OR description ILIKE $1 OR type ILIKE $1 LIMIT 10`,
         [like]
       ),
       query(
