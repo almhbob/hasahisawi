@@ -564,7 +564,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const finalizeGoogleLogin = async (
     fbUser: import("firebase/auth").User
   ) => {
-    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
+    // Firestore مع مهلة 6 ثوانٍ — إن تأخر نُكمل من بيانات Firebase مباشرة
+    const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid, 6000).catch(() => null);
     let authUser: AuthUser;
     if (profile) {
       const backendIdToken = await fbUser.getIdToken();
@@ -577,7 +578,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "user",
         permissions: [],
       };
-      await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, newProfile, false);
+      // حفظ الملف الشخصي بشكل غير متزامن — لا نُوقف تدفق الدخول
+      fsSetDoc(COLLECTIONS.USERS, fbUser.uid, newProfile, false).catch(() => {});
       authUser = profileToAuthUser(newProfile, "");
       authUser.email = fbUser.email ?? null;
       authUser.avatar_url = fbUser.photoURL ?? null;
