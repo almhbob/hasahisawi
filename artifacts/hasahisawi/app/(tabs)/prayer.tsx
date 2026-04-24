@@ -16,6 +16,7 @@ import { getApiUrl } from "@/lib/query-client";
 import * as Notifications from "expo-notifications";
 
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
+const PRAYER_CACHE_KEY  = "prayer_cache_v1";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
 const HASAHISA_LAT  = 14.0566;
@@ -357,11 +358,32 @@ export default function PrayerScreen() {
     setError(null);
     try {
       const tune = `0,${s.offsets.Fajr},0,${s.offsets.Dhuhr},${s.offsets.Asr},${s.offsets.Maghrib},0,${s.offsets.Isha},0`;
-      const url  = `https://api.aladhan.com/v1/timings?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`;
-      const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) throw new Error("فشل الاتصال");
-      const json = await res.json();
-      const data = json.data;
+      const now  = new Date();
+      const dd   = String(now.getDate()).padStart(2, "0");
+      const mm   = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = now.getFullYear();
+      const dateStr = `${dd}-${mm}-${yyyy}`;
+
+      // المسارات البديلة للـ API — يُجرَّب الأول وإن فشل يُجرَّب الثاني
+      const urls = [
+        `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`,
+        `https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=Hasahisa&country=SD&method=${s.method}&school=${s.school}`,
+      ];
+
+      let data: any = null;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (json.code === 200 && json.data?.timings?.Fajr) { data = json.data; break; }
+        } catch {}
+      }
+
+      if (!data) throw new Error("no data");
+
+      // حفظ نسخة احتياطية في التخزين المحلي
+      await AsyncStorage.setItem(PRAYER_CACHE_KEY, JSON.stringify({ data, cachedAt: Date.now() })).catch(() => {});
 
       setTimes(data.timings);
       setGregorian(data.date.gregorian);
@@ -380,6 +402,23 @@ export default function PrayerScreen() {
         if (granted) scheduleAdhanNotifications(data.timings);
       }
     } catch {
+      // محاولة استخدام البيانات المخزّنة مسبقاً عند فقدان الاتصال
+      try {
+        const cached = await AsyncStorage.getItem(PRAYER_CACHE_KEY);
+        if (cached) {
+          const { data } = JSON.parse(cached);
+          setTimes(data.timings);
+          setGregorian(data.date.gregorian);
+          const h = data.date.hijri;
+          setHijri({
+            day: h.day, month: parseInt(h.month.number, 10),
+            monthName: h.month.ar, year: h.year, weekday: h.weekday.ar,
+          });
+          computeNextPrayer(data.timings);
+          setError("⚠️ يعرض مواقيت آخر يوم متاح — تحقق من الاتصال لتحديثها");
+          return;
+        }
+      } catch {}
       setError("تعذّر جلب مواقيت الآذان. تحقق من اتصالك بالإنترنت.");
     } finally {
       setLoading(false);
@@ -461,7 +500,7 @@ export default function PrayerScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={s.loadingText}>جارٍ جلب مواقيت الآذان...</Text>
         </View>
-      ) : error ? (
+      ) : error && !times ? (
         <View style={s.errorWrap}>
           <Ionicons name="wifi-outline" size={48} color={Colors.textMuted} />
           <Text style={s.errorText}>{error}</Text>
@@ -471,6 +510,17 @@ export default function PrayerScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 120 }}>
+
+          {/* تحذير عند استخدام بيانات مخزّنة */}
+          {error && times && (
+            <Pressable
+              style={s.cacheWarning}
+              onPress={() => fetchTimes(settings)}
+            >
+              <Ionicons name="cloud-offline-outline" size={14} color="#F59E0B" />
+              <Text style={s.cacheWarningText}>{error}</Text>
+            </Pressable>
+          )}
 
           {/* شريط التاريخ */}
           {hijri && (
@@ -774,6 +824,18 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary + "40",
   },
   retryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
+
+  cacheWarning: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#F59E0B18", borderRadius: 10,
+    marginHorizontal: 16, marginTop: 8, marginBottom: 2,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: "#F59E0B40",
+  },
+  cacheWarningText: {
+    fontFamily: "Cairo_500Medium", fontSize: 12,
+    color: "#F59E0B", flex: 1, textAlign: "right",
+  },
 
   dateBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
