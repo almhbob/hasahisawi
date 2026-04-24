@@ -59,10 +59,16 @@ export const COLLECTIONS = {
 export async function fsGetDoc<T = DocumentData>(
   col: string,
   id: string,
+  timeoutMs = 8000,
 ): Promise<(T & { id: string }) | null> {
-  const snap = await getDoc(doc(getDB(), col, id));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...(snap.data() as T) };
+  const fetchPromise = getDoc(doc(getDB(), col, id)).then((snap) => {
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...(snap.data() as T) };
+  });
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), timeoutMs)
+  );
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
 export async function fsGetCollection<T = DocumentData>(

@@ -189,6 +189,11 @@ export default function LoginScreen() {
     if (loading) return;
     setError("");
     setLoading(true);
+    // مؤقت احتياطي: إن لم يكتمل الدخول خلال 30 ثانية نُوقف المحاول وننبّه
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      setError("استغرق تسجيل الدخول وقتاً طويلاً. تحقق من اتصالك وأعد المحاولة.");
+    }, 30000);
     try {
       // على الويب نستخدم نافذة Firebase المنبثقة (لا حاجة لـ Play Services)
       if (Platform.OS === "web") {
@@ -226,6 +231,7 @@ export default function LoginScreen() {
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
+      clearTimeout(safetyTimer);
       setLoading(false);
     }
   };
