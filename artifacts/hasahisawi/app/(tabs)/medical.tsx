@@ -17,7 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
 
 // ══════════════════════════════════════════════════════
@@ -254,7 +254,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
   const loadAppointments = async () => {
     if (!auth.token || !base) { setLoading(false); return; }
     try {
-      const res = await fetch(`${base}/api/appointments/mine`, { headers: { Authorization: `Bearer ${auth.token}` } });
+      const res = await fetchWithTimeout(`${base}/api/appointments/mine`, { headers: { Authorization: `Bearer ${auth.token}` } });
       if (res.ok) { const d = await res.json() as any; setAppointments(d.appointments || []); }
     } catch {} finally { setLoading(false); }
   };
@@ -266,7 +266,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
     if (status !== "granted") { Alert.alert("صلاحية مطلوبة", "يرجى السماح بالوصول إلى الصور"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8, allowsEditing: true,
+      quality: 1.0, allowsEditing: true,
     });
     if (!result.canceled && result.assets[0]) {
       setProofUri(result.assets[0].uri);
@@ -302,7 +302,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
         finalProofUrl = await uploadProof();
         if (!finalProofUrl) { setBooking(false); return; }
       }
-      const res = await fetch(`${base}/api/appointments/book`, {
+      const res = await fetchWithTimeout(`${base}/api/appointments/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({
@@ -331,7 +331,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
     Alert.alert("إلغاء الموعد", "هل تريد إلغاء هذا الموعد؟", [
       { text: "لا", style: "cancel" },
       { text: "إلغاء الموعد", style: "destructive", onPress: async () => {
-        await fetch(`${base}/api/appointments/${id}/cancel`, {
+        await fetchWithTimeout(`${base}/api/appointments/${id}/cancel`, {
           method: "PATCH", headers: { Authorization: `Bearer ${auth.token}` },
         });
         loadAppointments();
@@ -588,7 +588,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
     if (!base) { setLoading(false); return; }
     try {
       const url = filterSpec !== "الكل" ? `${base}/api/medical-consultations?specialty=${encodeURIComponent(filterSpec)}` : `${base}/api/medical-consultations`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url);
       if (res.ok) { const d = await res.json() as any; setConsultations(d.consultations || []); }
     } catch {} finally { setLoading(false); }
   };
@@ -598,7 +598,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
   const loadReplies = async (consultId: number) => {
     if (!base) return;
     try {
-      const res = await fetch(`${base}/api/medical-consultations/${consultId}/replies`);
+      const res = await fetchWithTimeout(`${base}/api/medical-consultations/${consultId}/replies`);
       if (res.ok) { const d = await res.json() as any; setReplies(d.replies || []); }
     } catch {}
   };
@@ -608,7 +608,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
     if (!base) return;
     setSending(true);
     try {
-      const res = await fetch(`${base}/api/medical-consultations`, {
+      const res = await fetchWithTimeout(`${base}/api/medical-consultations`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ question: question.trim(), specialty: specialty || null, is_anonymous: isAnon }),
@@ -626,7 +626,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
     if (!replyText.trim() || !selectedConsult || !base) return;
     setReplying(true);
     try {
-      const res = await fetch(`${base}/api/medical-consultations/${selectedConsult.id}/reply`, {
+      const res = await fetchWithTimeout(`${base}/api/medical-consultations/${selectedConsult.id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ body: replyText.trim() }),
@@ -813,7 +813,7 @@ function SpecialistsTab() {
     (async () => {
       if (!base) { setLoading(false); return; }
       try {
-        const res = await fetch(`${base}/api/specialists`);
+        const res = await fetchWithTimeout(`${base}/api/specialists`);
         if (res.ok) { const d = await res.json() as any; setSpecialists(d.specialists || []); }
       } catch {} finally { setLoading(false); }
     })();
