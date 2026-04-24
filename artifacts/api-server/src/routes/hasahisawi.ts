@@ -4827,13 +4827,13 @@ router.get("/search", async (req: Request, res: Response) => {
         [like]
       ),
       query(
-        `SELECT id, name, type, description, contact_info FROM organizations
-         WHERE name ILIKE $1 OR description ILIKE $1 OR type ILIKE $1 LIMIT 10`,
+        `SELECT id, name, type, full_description, contact_phone, email, is_verified FROM organizations
+         WHERE name ILIKE $1 OR full_description ILIKE $1 OR type ILIKE $1 LIMIT 10`,
         [like]
       ),
       query(
-        `SELECT id, name, description, city FROM communities
-         WHERE name ILIKE $1 OR description ILIKE $1 LIMIT 10`,
+        `SELECT id, name, category, description, neighborhood, contact_phone FROM communities
+         WHERE name ILIKE $1 OR description ILIKE $1 OR neighborhood ILIKE $1 LIMIT 10`,
         [like]
       ),
     ]);
