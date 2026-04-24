@@ -2,24 +2,24 @@ name: Keep API Server Alive
 
 on:
   schedule:
-    # كل 5 دقائق — يمنع Replit من النوم
+    # كل 5 دقائق — يمنع Render من النوم
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
-    name: Ping API Health
+    name: Ping Render API
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Replit API
+      - name: Ping Render Production API
         run: |
-          echo "🏥 Pinging Hasahisawi API..."
-          REPLIT_STATUS=$(curl -sf https://4b24ae9d-7d73-4744-bf4e-af36fce0744f-00-3tym1kjh3g6wy.pike.replit.dev/api/healthz | head -c 100)
-          echo "✅ Replit API: $REPLIT_STATUS"
+          echo "🏥 Pinging Hasahisawi Render API..."
+          STATUS=$(curl -sf --max-time 20 https://hasahisawi.onrender.com/api/healthz | head -c 100)
+          echo "✅ Render API: $STATUS"
         continue-on-error: true
 
-      - name: Ping Firebase API (if deployed)
+      - name: Ping secondary endpoints
         run: |
-          FIREBASE_STATUS=$(curl -sf https://hasahisawi.web.app/api/health | head -c 100)
-          echo "🔥 Firebase: $FIREBASE_STATUS"
+          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/transport/neighborhoods > /dev/null && echo "✅ transport OK" || echo "⚠️ transport failed"
+          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/prayer-settings > /dev/null && echo "✅ prayer OK" || echo "⚠️ prayer failed"
         continue-on-error: true
