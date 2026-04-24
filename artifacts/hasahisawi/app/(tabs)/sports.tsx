@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
@@ -561,7 +561,7 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
   const [cat,setCat]       = useState<PostCategory>("خبر");
   const [imgUri,setImgUri] = useState("");
   const pickImg = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:0.65});
+    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:1.0});
     if (!r.canceled && r.assets[0]) setImgUri(r.assets[0].uri);
   };
   const submit = () => {
@@ -633,7 +633,7 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
     }
   }, [visible, initial]);
   const pickImg = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:0.75});
+    const r = await ImagePicker.launchImageLibraryAsync({mediaTypes:ImagePicker.MediaTypeOptions.Images,quality:1.0});
     if (!r.canceled && r.assets[0]) setImgUri(r.assets[0].uri);
   };
   const submit = () => {
@@ -918,7 +918,7 @@ export default function SportsScreen() {
     const base = getApiUrl();
     if (!base) return null;
     try {
-      const res = await fetch(`${base}${path}`);
+      const res = await fetchWithTimeout(`${base}${path}`);
       if (res.ok) return res.json();
     } catch {}
     return null;
@@ -932,7 +932,7 @@ export default function SportsScreen() {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     if (validatedPin) headers["x-admin-pin"] = validatedPin;
     try {
-      const res = await fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+      const res = await fetchWithTimeout(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
       if (res.ok) return res.json();
     } catch {}
     return null;
@@ -947,7 +947,7 @@ export default function SportsScreen() {
     if (validatedPin) headers["x-admin-pin"] = validatedPin;
     if (!token && !validatedPin) return false;
     try {
-      const res = await fetch(`${base}${path}`, { method: "DELETE", headers });
+      const res = await fetchWithTimeout(`${base}${path}`, { method: "DELETE", headers });
       return res.ok;
     } catch { return false; }
   }, [auth.token, validatedPin]);
@@ -997,7 +997,7 @@ export default function SportsScreen() {
     const base = getApiUrl();
     if (!base) { setPinError("لا يوجد اتصال بالخادم"); return; }
     try {
-      const res = await fetch(`${base}/api/admin/validate-pin`, {
+      const res = await fetchWithTimeout(`${base}/api/admin/validate-pin`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinInput }),
       });
@@ -1060,7 +1060,7 @@ export default function SportsScreen() {
       const base = getApiUrl(); const token = auth.token;
       if (base && token) {
         try {
-          const res = await fetch(`${base}/api/sports/players/${p.id}`, {
+          const res = await fetchWithTimeout(`${base}/api/sports/players/${p.id}`, {
             method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify(body),
           });
