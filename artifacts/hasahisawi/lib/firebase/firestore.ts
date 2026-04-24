@@ -59,10 +59,16 @@ export const COLLECTIONS = {
 export async function fsGetDoc<T = DocumentData>(
   col: string,
   id: string,
+  timeoutMs = 8000,
 ): Promise<(T & { id: string }) | null> {
-  const snap = await getDoc(doc(getDB(), col, id));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...(snap.data() as T) };
+  const fetchPromise = getDoc(doc(getDB(), col, id)).then((snap) => {
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...(snap.data() as T) };
+  });
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), timeoutMs)
+  );
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
 export async function fsGetCollection<T = DocumentData>(
@@ -122,10 +128,14 @@ export function fsListen<T = DocumentData>(
     return onSnapshot(
       q,
       (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))),
-      (err) => { console.warn("[Firestore] snapshot error:", err.message); },
+      (err) => {
+        console.warn("[Firestore] snapshot error:", err.message);
+        cb([]); // أعطِ قائمة فارغة عند الخطأ حتى تتوقف حالة التحميل
+      },
     );
   } catch (e) {
     console.warn("[Firestore] fsListen failed:", e);
+    cb([]); // أعطِ قائمة فارغة لإيقاف spinner
     return () => {};
   }
 }
