@@ -4347,22 +4347,79 @@ router.put("/admin/ai-settings", async (req: Request, res: Response) => {
   }
 });
 
-// حالة الذكاء الاصطناعي
+// ── تتبع حالة الـ quota في الذاكرة ─────────────────────────────
+// كل مفتاح له timestamp انتهاء الحظر (نفترض ساعة كاملة عند 429)
+const _quotaBlockUntil: Map<string, number> = new Map();
+const QUOTA_BLOCK_MS = 60 * 60 * 1000; // ساعة واحدة
+
+function isKeyBlocked(key: string): boolean {
+  const until = _quotaBlockUntil.get(key);
+  if (!until) return false;
+  if (Date.now() < until) return true;
+  _quotaBlockUntil.delete(key);
+  return false;
+}
+function blockKey(key: string) {
+  _quotaBlockUntil.set(key, Date.now() + QUOTA_BLOCK_MS);
+}
+function nextQuotaReset(): string {
+  // تُحسب انطلاقاً من التوقيت UTC — Gemini يُعيد الحصة منتصف الليل UTC
+  const now = new Date();
+  const nextMidnight = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
+  ));
+  const diffH = Math.ceil((nextMidnight.getTime() - now.getTime()) / 3_600_000);
+  return diffH <= 1 ? "بعد أقل من ساعة" : `بعد نحو ${diffH} ساعة`;
+}
+
+// ردود محلية للأسئلة الشائعة عند انتهاء الحصة
+function localFallback(msg: string): string | null {
+  const m = msg.toLowerCase().trim();
+  if (/مرحب|هلا|صباح|مساء|السلام/.test(m))
+    return "وعليكم السلام! أنا مساعد حصاحيصاوي. خدمة الذكاء الاصطناعي الكاملة ستعود قريباً. هل يمكنني مساعدتك بسؤال آخر؟";
+  if (/أوقات.*صلاة|صلاة|آذان/.test(m))
+    return "يمكنك الاطلاع على أوقات الصلاة من قسم (الآذان) في التطبيق — يُحدَّث يومياً بدقة.";
+  if (/وظيف|عمل|توظيف/.test(m))
+    return "للاطلاع على فرص العمل المتاحة، توجّه إلى قسم (الوظائف) من القائمة الجانبية في التطبيق.";
+  if (/طبيب|مستشفى|صحة|علاج/.test(m))
+    return "للعثور على أطباء ومختصين في الحصاحيصا، استخدم قسم (الطب) من شريط التبويب السفلي.";
+  if (/مفقود|مجهول|ضائع/.test(m))
+    return "للإبلاغ عن شخص مفقود أو البحث في قائمة المفقودين، توجّه لقسم (المفقودون) من القائمة الجانبية.";
+  if (/نقل|موصلة|حافلة|ميكروباص/.test(m))
+    return "لمعرفة خطوط النقل والأسعار في الحصاحيصا، استخدم قسم (النقل) من القائمة الجانبية.";
+  if (/خبر|أخبار|جديد/.test(m))
+    return "آخر أخبار الحصاحيصا متاحة في قسم (الأخبار) بالصفحة الرئيسية للتطبيق.";
+  if (/شكو|مشكل|بلاغ|report/.test(m))
+    return "لتقديم بلاغ يمكنك استخدام قسم (البلاغات) من القائمة الجانبية، أو التواصل عبر واتساب الدعم.";
+  return null;
+}
+
+// حالة الذكاء الاصطناعي (مع معلومات الحصة)
 router.get("/ai/status", async (_req: Request, res: Response) => {
   try {
     const { rows } = await query(
       `SELECT value FROM admin_settings WHERE key='ai_enabled'`
     );
     const dbEnabled = rows[0]?.value === "true";
-    // مفعّل تلقائيًا إذا كان GOOGLE_API_KEY موجودًا في البيئة
-    const enabled = dbEnabled || !!process.env["GOOGLE_API_KEY"];
-    return res.json({ enabled });
+    const hasKey = !!process.env["GOOGLE_API_KEY"];
+    const enabled = dbEnabled || hasKey;
+
+    // فحص ما إذا كانت كل المفاتيح محجوبة
+    const envKey1 = process.env["GOOGLE_API_KEY"] || "";
+    const envKey2 = process.env["GOOGLE_API_KEY_2"] || "";
+    const allBlocked = enabled && [envKey1, envKey2].filter(Boolean).every(k => isKeyBlocked(k));
+
+    return res.json({
+      enabled,
+      quotaExceeded: allBlocked,
+      resetIn: allBlocked ? nextQuotaReset() : null,
+    });
   } catch {
-    return res.json({ enabled: !!process.env["GOOGLE_API_KEY"] });
+    return res.json({ enabled: !!process.env["GOOGLE_API_KEY"], quotaExceeded: false, resetIn: null });
   }
 });
 
-// دعم الذكاء الاصطناعي (Gemini free tier proxy)
+// دعم الذكاء الاصطناعي (Gemini free tier proxy + local fallback)
 router.post("/ai/chat", async (req: Request, res: Response) => {
   try {
     const { message, history } = req.body as {
@@ -4377,21 +4434,29 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
-    // مفاتيح API بالأولوية: DB أولاً ثم متغيرات البيئة كاحتياطي
     const envApiKey  = process.env["GOOGLE_API_KEY"];
     const envApiKey2 = process.env["GOOGLE_API_KEY_2"];
     const dbApiKey   = settings["ai_api_key"] || null;
 
-    // قائمة المفاتيح المتاحة (نحذف المكررات والفارغة)
-    const apiKeys: string[] = [...new Set([dbApiKey, envApiKey, envApiKey2].filter(Boolean) as string[])];
-
-    // إذا كان المفتاح البيئي متاحًا تُعامَل الخدمة كمفعّلة تلقائيًا
     const aiEnabled = settings["ai_enabled"] === "true" || !!envApiKey;
     if (!aiEnabled) {
       return res.status(503).json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حالياً" });
     }
 
-    if (!apiKeys.length) return res.status(503).json({ error: "لم يتم تكوين مفتاح API" });
+    // قائمة المفاتيح المتاحة — نتجاهل المحجوبة (quota exceeded)
+    const allKeys: string[] = [...new Set([dbApiKey, envApiKey, envApiKey2].filter(Boolean) as string[])];
+    const apiKeys = allKeys.filter(k => !isKeyBlocked(k));
+
+    // إذا كانت كل المفاتيح محجوبة — جرّب الرد المحلي
+    if (!apiKeys.length) {
+      const fallback = localFallback(message);
+      if (fallback) return res.json({ reply: fallback, local: true });
+      return res.status(503).json({
+        error: `خدمة الذكاء الاصطناعي مؤقتاً خارج الخدمة بسبب تجاوز الحصة اليومية.\nستعود ${nextQuotaReset()} إن شاء الله.`,
+        quotaExceeded: true,
+        resetIn: nextQuotaReset(),
+      });
+    }
 
     const systemPrompt = settings["ai_system_prompt"] ||
       "أنت مساعد ذكي لتطبيق حصاحيصاوي، مخصص لخدمة أهالي مدينة الحصاحيصا في السودان. أجب باللغة العربية بأسلوب ودود ومفيد. تخصصك في: المعلومات المحلية، الخدمات المتاحة في التطبيق، والإرشاد العام.";
@@ -4401,11 +4466,7 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
       { role: "user", parts: [{ text: message }] },
     ];
 
-    const MODELS = [
-      "gemini-2.0-flash-lite",
-      "gemini-1.5-flash-8b",
-      "gemini-2.0-flash",
-    ];
+    const MODELS = ["gemini-2.0-flash-lite", "gemini-1.5-flash-8b", "gemini-2.0-flash"];
 
     const requestBody = JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
@@ -4414,9 +4475,7 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     });
 
     let lastStatus = 500;
-    let lastErrBody = "";
 
-    // جرّب كل مفتاح مع كل موديل (المفاتيح بالخارج، الموديلات بالداخل)
     outer:
     for (const apiKey of apiKeys) {
       for (const model of MODELS) {
@@ -4433,26 +4492,24 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
         }
 
         lastStatus = geminiRes.status;
-        lastErrBody = await geminiRes.text();
-        console.error(`Gemini error (${model}):`, lastErrBody.slice(0, 200));
+        const errBody = await geminiRes.text();
+        console.error(`Gemini error (${model}/${apiKey.slice(-4)}):`, errBody.slice(0, 150));
 
-        // خطأ في المفتاح نفسه → انتقل للمفتاح التالي فوراً
         if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) break;
-        // تجاوز الحصة على هذا المفتاح → انتقل للمفتاح التالي
-        if (lastStatus === 429) break;
+        if (lastStatus === 429) { blockKey(apiKey); break; }
       }
-
-      // إذا لم يكن خطأ 429 لا فائدة من المفتاح الثاني
       if (lastStatus !== 429) break outer;
     }
 
-    // رسالة خطأ واضحة حسب نوع الخطأ
-    if (lastStatus === 429) {
-      return res.status(503).json({
-        error: "الخدمة مشغولة حالياً بسبب كثرة الطلبات، حاول مرة أخرى بعد دقيقة."
-      });
-    }
-    return res.status(502).json({ error: "خطأ في الاتصال بخدمة الذكاء الاصطناعي" });
+    // كل المفاتيح استُنفدت — جرّب الرد المحلي
+    const fallback = localFallback(message);
+    if (fallback) return res.json({ reply: fallback, local: true });
+
+    return res.status(503).json({
+      error: `خدمة الذكاء الاصطناعي مؤقتاً خارج الخدمة بسبب تجاوز الحصة اليومية.\nستعود ${nextQuotaReset()} إن شاء الله.`,
+      quotaExceeded: true,
+      resetIn: nextQuotaReset(),
+    });
   } catch (err) {
     console.error("AI chat error:", err);
     return res.status(500).json({ error: "Server error" });
