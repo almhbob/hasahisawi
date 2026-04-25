@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter } from "../lib/rate-limiters";
 import { verifyIdToken } from "../lib/firebase-admin";
@@ -8911,6 +8913,25 @@ router.get("/legal-forms/:id", async (req: Request, res: Response) => {
     const { rows } = await query(`SELECT * FROM legal_forms WHERE id = $1`, [Number(req.params.id)]);
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     return res.json(rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── البوسترات الإعلانية ──────────────────────────────────────────────────────
+router.get("/posters", (_req: Request, res: Response) => {
+  try {
+    // process.cwd() = artifacts/api-server في بيئة التطوير والإنتاج
+    const candidates = [
+      join(process.cwd(), "public/posters.html"),
+      join(process.cwd(), "../public/posters.html"),
+    ];
+    for (const file of candidates) {
+      try {
+        const html = readFileSync(file, "utf8");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.send(html);
+      } catch { continue; }
+    }
+    return res.status(404).json({ error: "Posters file not found" });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
