@@ -30,6 +30,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
 
+// ── إعداد RTL متزامن قبل أي render ─────────────────────────────
+// التطبيق عربي بالأساس — يُطبَّق RTL مباشرةً عند تحميل الموديول
+if (Platform.OS !== "web") {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+}
+
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
 LogBox.ignoreLogs([
   "Firebase: Error",
@@ -175,10 +182,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     getStoredLang().then((lang) => {
-      const isArabic = lang === "ar";
-      if (Platform.OS !== "web") {
-        I18nManager.forceRTL(isArabic);
-      }
       setInitialLang(lang);
     });
   }, []);
