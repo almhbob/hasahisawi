@@ -4377,12 +4377,13 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
-    // مفاتيح API بالأولوية: DB أولاً ثم متغير البيئة كاحتياطي
-    const envApiKey = process.env["GOOGLE_API_KEY"];
-    const dbApiKey  = settings["ai_api_key"] || null;
+    // مفاتيح API بالأولوية: DB أولاً ثم متغيرات البيئة كاحتياطي
+    const envApiKey  = process.env["GOOGLE_API_KEY"];
+    const envApiKey2 = process.env["GOOGLE_API_KEY_2"];
+    const dbApiKey   = settings["ai_api_key"] || null;
 
     // قائمة المفاتيح المتاحة (نحذف المكررات والفارغة)
-    const apiKeys: string[] = [...new Set([dbApiKey, envApiKey].filter(Boolean) as string[])];
+    const apiKeys: string[] = [...new Set([dbApiKey, envApiKey, envApiKey2].filter(Boolean) as string[])];
 
     // إذا كان المفتاح البيئي متاحًا تُعامَل الخدمة كمفعّلة تلقائيًا
     const aiEnabled = settings["ai_enabled"] === "true" || !!envApiKey;
