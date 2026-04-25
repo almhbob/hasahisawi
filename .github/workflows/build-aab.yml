@@ -60,7 +60,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
-          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:web:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-8NDWWB1735
           EXPO_PUBLIC_DOMAIN=${{ secrets.API_DOMAIN }}
           EOF
@@ -75,6 +75,21 @@ jobs:
         working-directory: artifacts/hasahisawi/android
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: Extract SHA-1 fingerprint (needed for Google Sign-In & Firebase)
+        working-directory: artifacts/hasahisawi/android
+        run: |
+          echo "🔑 SHA-1 fingerprint of the release keystore:"
+          keytool -list -v \
+            -keystore release.keystore \
+            -alias "${{ secrets.KEY_ALIAS }}" \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" 2>/dev/null \
+            | grep -E "SHA1|SHA256" | head -4
+          echo ""
+          echo "➡️  Add the SHA-1 above to:"
+          echo "   1. Firebase Console → Project Settings → Android App → Add fingerprint"
+          echo "   2. Google Cloud Console → OAuth 2.0 → Android client → SHA-1"
 
       - name: Build AAB + APK with Gradle
         working-directory: artifacts/hasahisawi/android
