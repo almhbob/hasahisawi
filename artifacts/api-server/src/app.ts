@@ -62,6 +62,12 @@ app.use(globalLimiter);
 // ── Static files ───────────────────────────────────────────────────────────
 const publicDir = path.join(__dirname, "..", "public");
 const uploadsDir = path.join(publicDir, "uploads");
+
+// في الإنتاج على Render، الملفات المرفوعة تذهب إلى /tmp/uploads
+// لذا يجب خدمتها من هناك أيضاً
+if (process.env.NODE_ENV === "production") {
+  app.use("/uploads", express.static("/tmp/uploads"));
+}
 app.use("/uploads", express.static(uploadsDir));
 app.use(express.static(publicDir));
 

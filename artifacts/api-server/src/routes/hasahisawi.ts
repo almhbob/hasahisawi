@@ -23,9 +23,10 @@ const _dbEnabled =
 const pool: Pool | null = _dbEnabled
   ? new Pool({
       connectionString: _dbUrl,
-      connectionTimeoutMillis: 5_000,
-      idleTimeoutMillis: 10_000,
-      max: 5,
+      connectionTimeoutMillis: 8_000,
+      idleTimeoutMillis: 30_000,
+      max: 15,
+      allowExitOnIdle: false,
     })
   : null;
 
@@ -56,17 +57,25 @@ async function sendPushToUser(
 ): Promise<void> {
   try {
     const { rows } = await query(
-      `SELECT token FROM push_tokens WHERE user_id=$1`,
+      `SELECT DISTINCT token FROM push_tokens WHERE user_id=$1 ORDER BY token`,
       [userId]
     );
-    if (!rows[0]?.token) return;
-    const token = rows[0].token as string;
-    if (!token.startsWith("ExponentPushToken[")) return;
+    if (!rows.length) return;
+
+    // إرسال لجميع أجهزة المستخدم دفعةً واحدة
+    const tokens = rows
+      .map(r => r.token as string)
+      .filter(t => t?.startsWith("ExponentPushToken["));
+    if (!tokens.length) return;
+
+    const messages = tokens.map(to => ({
+      to, title, body, data, sound: "default", badge: 1,
+    }));
 
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ to: token, title, body, data, sound: "default", badge: 1 }),
+      body: JSON.stringify(messages),
     }).catch(() => {});
   } catch {}
 }
