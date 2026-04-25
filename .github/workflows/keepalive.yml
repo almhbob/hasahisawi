@@ -2,7 +2,6 @@ name: Keep API Server Alive
 
 on:
   schedule:
-    # كل 5 دقائق — يمنع Render من النوم
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
@@ -20,6 +19,6 @@ jobs:
 
       - name: Ping secondary endpoints
         run: |
-          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/transport/neighborhoods > /dev/null && echo "✅ transport OK" || echo "⚠️ transport failed"
-          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/prayer-settings > /dev/null && echo "✅ prayer OK" || echo "⚠️ prayer failed"
+          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/prayer-times > /dev/null && echo "✅ prayer-times OK"
+          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/posts > /dev/null && echo "✅ posts OK"
         continue-on-error: true
