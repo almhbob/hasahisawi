@@ -12,8 +12,9 @@ import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-si
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
+import { firebaseSendPasswordReset } from "@/lib/firebase/auth";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 export default function AuthModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
@@ -31,11 +32,13 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   const reset = () => {
     setName(""); setNationalId(""); setIdentifier(""); setPassword(""); setConfirmPassword("");
     setError(""); setLoading(false); setShowPassword(false); setUseEmail(false);
+    setForgotEmail(""); setForgotSuccess(false);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -128,6 +131,32 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
     }
   };
 
+  const handleForgotPassword = async () => {
+    setError("");
+    if (!forgotEmail.trim() || !forgotEmail.includes("@")) {
+      setError("يرجى إدخال بريد إلكتروني صحيح");
+      return;
+    }
+    setLoading(true);
+    try {
+      await firebaseSendPasswordReset(forgotEmail.trim());
+      setForgotSuccess(true);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const code = e?.code ?? "";
+      if (code === "auth/user-not-found") {
+        setError("لا يوجد حساب مرتبط بهذا البريد الإلكتروني");
+      } else if (code === "auth/invalid-email") {
+        setError("البريد الإلكتروني غير صحيح");
+      } else {
+        setError(e.message || "فشل إرسال رابط الاستعادة");
+      }
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const dir = { textAlign: isRTL ? "right" : "left" } as const;
 
   return (
@@ -174,35 +203,129 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
             {/* شريط الوضع */}
             <View style={[s.modeChip, { backgroundColor: Colors.primary + "20", borderColor: Colors.primary + "40" }]}>
               <Ionicons
-                name={mode === "login" ? "log-in-outline" : "person-add-outline"}
+                name={mode === "login" ? "log-in-outline" : mode === "forgot" ? "key-outline" : "person-add-outline"}
                 size={14} color={Colors.primary}
               />
               <Text style={s.modeChipText}>
-                {mode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+                {mode === "login" ? "تسجيل الدخول" : mode === "forgot" ? "استعادة كلمة السر" : "إنشاء حساب جديد"}
               </Text>
             </View>
           </LinearGradient>
 
           {/* Mode toggle */}
-          <View style={[s.toggleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <TouchableOpacity
-              style={[s.toggleBtn, mode === "register" && s.toggleBtnActive]}
-              onPress={() => { setMode("register"); setError(""); }}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.toggleText, mode === "register" && s.toggleTextActive]}>إنشاء حساب</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.toggleBtn, mode === "login" && s.toggleBtnActive]}
-              onPress={() => { setMode("login"); setError(""); }}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.toggleText, mode === "login" && s.toggleTextActive]}>تسجيل الدخول</Text>
-            </TouchableOpacity>
-          </View>
+          {mode !== "forgot" && (
+            <View style={[s.toggleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <TouchableOpacity
+                style={[s.toggleBtn, mode === "register" && s.toggleBtnActive]}
+                onPress={() => { setMode("register"); setError(""); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.toggleText, mode === "register" && s.toggleTextActive]}>إنشاء حساب</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.toggleBtn, mode === "login" && s.toggleBtnActive]}
+                onPress={() => { setMode("login"); setError(""); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.toggleText, mode === "login" && s.toggleTextActive]}>تسجيل الدخول</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={s.form}>
+
+              {/* ===== وضع استعادة كلمة السر ===== */}
+              {mode === "forgot" && (
+                <>
+                  {forgotSuccess ? (
+                    <View style={s.successBox}>
+                      <Ionicons name="checkmark-circle" size={44} color={Colors.primary} />
+                      <Text style={s.successTitle}>تم الإرسال!</Text>
+                      <Text style={s.successMsg}>
+                        تم إرسال رابط استعادة كلمة السر إلى{"\n"}
+                        <Text style={{ color: Colors.primary, fontFamily: "Cairo_600SemiBold" }}>{forgotEmail}</Text>
+                        {"\n"}يرجى التحقق من بريدك الإلكتروني.
+                      </Text>
+                      <TouchableOpacity
+                        style={s.backToLoginBtn}
+                        onPress={() => { setMode("login"); setForgotEmail(""); setForgotSuccess(false); setError(""); }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="arrow-back-outline" size={16} color={Colors.primary} />
+                        <Text style={s.backToLoginText}>العودة لتسجيل الدخول</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={s.forgotInfoBox}>
+                        <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+                        <Text style={s.forgotInfoText}>
+                          أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة السر.
+                        </Text>
+                      </View>
+
+                      <View style={s.fieldBlock}>
+                        <Text style={[s.fieldLabel, dir]}>البريد الإلكتروني <Text style={s.req}>*</Text></Text>
+                        <View style={[s.fieldWrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                          <Ionicons name="mail-outline" size={18} color={Colors.textMuted} style={s.fieldIcon} />
+                          <TextInput
+                            style={[s.field, dir]}
+                            placeholder="example@email.com"
+                            placeholderTextColor={Colors.textMuted}
+                            value={forgotEmail}
+                            onChangeText={setForgotEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            autoFocus
+                          />
+                        </View>
+                      </View>
+
+                      {error ? (
+                        <View style={s.errorBox}>
+                          <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+                          <Text style={s.errorText}>{error}</Text>
+                        </View>
+                      ) : null}
+
+                      <TouchableOpacity
+                        onPress={handleForgotPassword}
+                        disabled={loading}
+                        activeOpacity={0.85}
+                        style={loading ? { opacity: 0.7 } : undefined}
+                      >
+                        <LinearGradient
+                          colors={[Colors.primary, Colors.primaryDim]}
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={s.submitBtn}
+                        >
+                          {loading
+                            ? <ActivityIndicator color="#000" size="small" />
+                            : <>
+                                <Ionicons name="send-outline" size={18} color="#000" />
+                                <Text style={s.submitBtnText}>إرسال رابط الاستعادة</Text>
+                              </>
+                          }
+                        </LinearGradient>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={s.backToLoginBtn}
+                        onPress={() => { setMode("login"); setForgotEmail(""); setError(""); }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="arrow-back-outline" size={16} color={Colors.primary} />
+                        <Text style={s.backToLoginText}>العودة لتسجيل الدخول</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* ===== وضع تسجيل الدخول / التسجيل ===== */}
+              {mode !== "forgot" && (<>
 
               {/* الاسم الكامل */}
               {mode === "register" && (
@@ -315,6 +438,17 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                 </View>
               </View>
 
+              {/* نسيت كلمة المرور؟ */}
+              {mode === "login" && (
+                <TouchableOpacity
+                  style={[s.forgotLink, { alignSelf: isRTL ? "flex-start" : "flex-end" }]}
+                  onPress={() => { setMode("forgot"); setForgotEmail(identifier.includes("@") ? identifier : ""); setError(""); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.forgotLinkText}>نسيت كلمة المرور؟</Text>
+                </TouchableOpacity>
+              )}
+
               {/* تأكيد كلمة المرور */}
               {mode === "register" && (
                 <View style={s.fieldBlock}>
@@ -408,6 +542,8 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
               </TouchableOpacity>
+
+              </>)}
 
             </View>
           </ScrollView>
@@ -597,5 +733,40 @@ const s = StyleSheet.create({
   },
   guestBtnSub: {
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
+  },
+
+  /* Forgot Password */
+  forgotLink: {
+    paddingVertical: 2, paddingHorizontal: 4,
+  },
+  forgotLinkText: {
+    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.primary,
+    textDecorationLine: "underline",
+  },
+  forgotInfoBox: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    backgroundColor: Colors.primary + "12", borderRadius: 12,
+    padding: 14, borderWidth: 1, borderColor: Colors.primary + "25",
+  },
+  forgotInfoText: {
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
+    flex: 1, textAlign: "right", lineHeight: 22,
+  },
+  backToLoginBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10,
+  },
+  backToLoginText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary,
+  },
+  successBox: {
+    alignItems: "center", gap: 12, paddingVertical: 24, paddingHorizontal: 8,
+  },
+  successTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary,
+  },
+  successMsg: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 24,
   },
 });
