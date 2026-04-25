@@ -13,11 +13,12 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:web:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
       }
     },
     "preview": {
       "distribution": "internal",
+      "credentialsSource": "remote",
       "android": {
         "buildType": "apk"
       },
@@ -29,10 +30,11 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:web:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
       }
     },
     "production": {
+      "credentialsSource": "remote",
       "android": {
         "buildType": "app-bundle"
       },
@@ -44,7 +46,7 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:web:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
       }
     }
   },
