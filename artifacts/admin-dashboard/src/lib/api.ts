@@ -2,6 +2,10 @@
 const FIREBASE_API = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const BASE = FIREBASE_API ? FIREBASE_API.replace(/\/$/, "") : "/api";
 
+export function getApiBase(): string {
+  return FIREBASE_API ? FIREBASE_API.replace(/\/$/, "") : "";
+}
+
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("admin_token");
   const url = FIREBASE_API ? `${BASE}${path}` : `/api${path}`;

@@ -73,10 +73,18 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  // Migration: add national_id if it doesn't exist yet
-  await query(`
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30) UNIQUE
-  `);
+  // Migrations: add columns if they don't exist
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(30) UNIQUE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128) UNIQUE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT FALSE`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`);
   // Sessions table
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -282,13 +290,14 @@ async function getSessionUser(req: Request): Promise<{ id: number; role: string;
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return null;
   const result = await query(
-    `SELECT u.id, u.role, u.name FROM users u
+    `SELECT u.id, u.role, u.name, u.is_banned FROM users u
      JOIN user_sessions s ON s.user_id = u.id
      WHERE s.token = $1 AND s.expires_at > NOW()`,
     [token]
   );
   const user = result.rows[0];
   if (!user) return null;
+  if (user.is_banned) return null;
   if (user.role === "moderator") {
     const perms = await query("SELECT section FROM moderator_permissions WHERE user_id = $1", [user.id]);
     user.permissions = perms.rows.map((r: any) => r.section);
@@ -1024,6 +1033,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
         posts: postsResult.rows[0]?.count || 0,
         news: newsResult.rows[0]?.count || 0,
       });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── Health check ─────────────────────────────────────────────────────────
+  app.get("/api/healthz", (_req: Request, res: Response) => {
+    res.json({ status: "ok", ts: Date.now() });
+  });
+
+  // ── Ban / Unban user (admin only) ─────────────────────────────────────────
+  app.post("/api/admin/users/:id/ban", async (req: Request, res: Response) => {
+    try {
+      if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+      const { banned, reason } = req.body;
+      await query(
+        `UPDATE users SET is_banned=$1 WHERE id=$2`,
+        [banned === true, req.params.id]
+      );
+      res.json({ success: true, banned: banned === true, reason });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── Update user profile ───────────────────────────────────────────────────
+  app.put("/api/users/me", async (req: Request, res: Response) => {
+    try {
+      const me = await getSessionUser(req);
+      if (!me) return res.status(401).json({ error: "غير مصرح" });
+      const { name, bio, neighborhood, gender, birth_date, avatar_url } = req.body;
+      await query(
+        `UPDATE users SET
+          name = COALESCE($1, name),
+          bio = COALESCE($2, bio),
+          neighborhood = COALESCE($3, neighborhood),
+          gender = COALESCE($4, gender),
+          birth_date = COALESCE($5, birth_date),
+          avatar_url = COALESCE($6, avatar_url)
+         WHERE id = $7`,
+        [name || null, bio || null, neighborhood || null, gender || null, birth_date || null, avatar_url || null, me.id]
+      );
+      const updated = await query(
+        `SELECT id, name, email, phone, role, bio, neighborhood, gender, avatar_url, created_at FROM users WHERE id=$1`,
+        [me.id]
+      );
+      res.json({ user: updated.rows[0] });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── Get user profile ───────────────────────────────────────────────────────
+  app.get("/api/users/:id/profile", async (req: Request, res: Response) => {
+    try {
+      const result = await query(
+        `SELECT id, name, role, bio, neighborhood, avatar_url, created_at FROM users WHERE id=$1`,
+        [req.params.id]
+      );
+      if (!result.rows[0]) return res.status(404).json({ error: "المستخدم غير موجود" });
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── Firebase token exchange ────────────────────────────────────────────────
+  app.post("/api/auth/firebase-exchange", async (req: Request, res: Response) => {
+    try {
+      const { idToken, name: displayName } = req.body;
+      if (!idToken) return res.status(400).json({ error: "idToken مطلوب" });
+
+      // Verify Firebase token via REST API
+      const apiKey = process.env.FIREBASE_API_KEY || process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+      if (!apiKey) return res.status(500).json({ error: "Firebase غير مُعدّ على الخادم" });
+
+      const verifyRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) }
+      );
+      if (!verifyRes.ok) return res.status(401).json({ error: "التوكن غير صالح" });
+      const verifyData: any = await verifyRes.json();
+      const firebaseUser = verifyData.users?.[0];
+      if (!firebaseUser) return res.status(401).json({ error: "التوكن غير صالح" });
+
+      const uid = firebaseUser.localId as string;
+      const email = (firebaseUser.email as string || "").toLowerCase();
+      const fbName = displayName || firebaseUser.displayName || "مستخدم";
+
+      // Find or create user
+      let userRow = (await query(`SELECT * FROM users WHERE firebase_uid=$1`, [uid])).rows[0];
+      if (!userRow && email) {
+        userRow = (await query(`SELECT * FROM users WHERE LOWER(email)=$1`, [email])).rows[0];
+        if (userRow) {
+          await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2`, [uid, userRow.id]);
+        }
+      }
+      if (!userRow) {
+        const inserted = await query(
+          `INSERT INTO users (name, email, firebase_uid, password_hash, role)
+           VALUES ($1, $2, $3, '', 'user') RETURNING *`,
+          [fbName.substring(0, 100), email || null, uid]
+        );
+        userRow = inserted.rows[0];
+      }
+      if (userRow.is_banned) return res.status(403).json({ error: "تم حظر هذا الحساب" });
+
+      // Auto-promote admin email
+      if (email === "almhbob.iii@gmail.com" && userRow.role !== "admin") {
+        await query(`UPDATE users SET role='admin' WHERE id=$1`, [userRow.id]);
+        userRow.role = "admin";
+      }
+
+      const token = generateToken();
+      await query(
+        `INSERT INTO user_sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days')`,
+        [userRow.id, token]
+      );
+      res.json({ user: safeUser(userRow), token });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
