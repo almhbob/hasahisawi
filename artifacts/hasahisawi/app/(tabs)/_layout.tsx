@@ -1,6 +1,4 @@
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { Platform, StyleSheet, View, Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -12,13 +10,28 @@ import DrawerMenu from "@/components/DrawerMenu";
 import { useAuth } from "@/lib/auth-context";
 import { useApiUnread } from "@/lib/api-chat";
 
+// ── فحص Liquid Glass بأمان تام (iOS 26 فقط) ───────────────────
+function tryIsLiquidGlassAvailable(): boolean {
+  if (Platform.OS !== "ios") return false;
+  try {
+    const mod = require("expo-glass-effect");
+    return typeof mod?.isLiquidGlassAvailable === "function"
+      ? mod.isLiquidGlassAvailable()
+      : false;
+  } catch {
+    return false;
+  }
+}
+
+const USE_LIQUID_GLASS = tryIsLiquidGlassAvailable();
+
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 type TabItem = {
   name: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
-  color: string; // لون القسم المخصص
+  color: string;
 };
 
 const TAB_ITEMS: TabItem[] = [
@@ -54,7 +67,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             }}
             accessibilityRole="button"
           >
-            {/* مؤشر الأعلى */}
             <View style={[styles.topIndicator, focused && { backgroundColor: item.color }]} />
             <View style={[
               styles.iconWrap,
@@ -65,7 +77,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 size={22}
                 color={focused ? item.color : "#6E9E84"}
               />
-              {/* شارة عدد الرسائل غير المقروءة */}
               {isChatTab && unread > 0 && (
                 <View style={styles.tabBadge}>
                   <Text style={styles.tabBadgeText}>
@@ -81,7 +92,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
         );
       })}
 
-      {/* زر القائمة الجانبية */}
       <Pressable style={styles.tabItem} onPress={open}>
         <View style={styles.topIndicator} />
         <View style={styles.menuBtn}>
@@ -93,36 +103,41 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   );
 }
 
-// ── Native iOS tabs (Liquid Glass) ───────────────────────────────
+// ── Native iOS Liquid Glass tabs ─────────────────────────────────
 function NativeTabLayout() {
   const { t } = useLang();
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>{t("tabs", "home")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="prayer">
-        <Icon sf={{ default: "moon", selected: "moon.fill" }} />
-        <Label>الآذان</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="medical">
-        <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
-        <Label>{t("tabs", "medical")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="chat">
-        <Icon sf={{ default: "bubble.left.and.bubble.right", selected: "bubble.left.and.bubble.right.fill" }} />
-        <Label>الدردشة</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="appointments">
-        <Icon sf={{ default: "calendar.badge.plus", selected: "calendar.badge.plus" }} />
-        <Label>مواعيد</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
+  try {
+    const { NativeTabs, Icon, Label } = require("expo-router/unstable-native-tabs");
+    return (
+      <NativeTabs>
+        <NativeTabs.Trigger name="index">
+          <Icon sf={{ default: "house", selected: "house.fill" }} />
+          <Label>{t("tabs", "home")}</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="prayer">
+          <Icon sf={{ default: "moon", selected: "moon.fill" }} />
+          <Label>الآذان</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="medical">
+          <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
+          <Label>{t("tabs", "medical")}</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="chat">
+          <Icon sf={{ default: "bubble.left.and.bubble.right", selected: "bubble.left.and.bubble.right.fill" }} />
+          <Label>الدردشة</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="appointments">
+          <Icon sf={{ default: "calendar.badge.plus", selected: "calendar.badge.plus" }} />
+          <Label>مواعيد</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    );
+  } catch {
+    return <ClassicTabLayout />;
+  }
 }
 
-// ── Classic (Android / Web) ──────────────────────────────────────
+// ── Classic (Android / Web / iOS fallback) ───────────────────────
 function ClassicTabLayout() {
   return (
     <Tabs
@@ -167,7 +182,7 @@ function ClassicTabLayout() {
 function LayoutWithDrawer() {
   return (
     <>
-      {isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />}
+      {USE_LIQUID_GLASS ? <NativeTabLayout /> : <ClassicTabLayout />}
       <DrawerMenu />
     </>
   );
@@ -196,9 +211,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     marginBottom: 4,
   },
-  topIndicatorActive: {
-    backgroundColor: Colors.primary,
-  },
   tabItem: {
     flex: 1,
     alignItems: "center",
@@ -209,9 +221,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-  },
-  iconWrapActive: {
-    backgroundColor: Colors.primary + "1C",
   },
   tabBadge: {
     position: "absolute",
