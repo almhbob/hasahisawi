@@ -4377,9 +4377,12 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
-    // يُستخدم GOOGLE_API_KEY من البيئة كاحتياطي إذا لم يكن المفتاح محفوظًا في الإعدادات
+    // مفاتيح API بالأولوية: DB أولاً ثم متغير البيئة كاحتياطي
     const envApiKey = process.env["GOOGLE_API_KEY"];
-    const apiKey = settings["ai_api_key"] || envApiKey;
+    const dbApiKey  = settings["ai_api_key"] || null;
+
+    // قائمة المفاتيح المتاحة (نحذف المكررات والفارغة)
+    const apiKeys: string[] = [...new Set([dbApiKey, envApiKey].filter(Boolean) as string[])];
 
     // إذا كان المفتاح البيئي متاحًا تُعامَل الخدمة كمفعّلة تلقائيًا
     const aiEnabled = settings["ai_enabled"] === "true" || !!envApiKey;
@@ -4387,7 +4390,7 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
       return res.status(503).json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حالياً" });
     }
 
-    if (!apiKey) return res.status(503).json({ error: "لم يتم تكوين مفتاح API" });
+    if (!apiKeys.length) return res.status(503).json({ error: "لم يتم تكوين مفتاح API" });
 
     const systemPrompt = settings["ai_system_prompt"] ||
       "أنت مساعد ذكي لتطبيق حصاحيصاوي، مخصص لخدمة أهالي مدينة الحصاحيصا في السودان. أجب باللغة العربية بأسلوب ودود ومفيد. تخصصك في: المعلومات المحلية، الخدمات المتاحة في التطبيق، والإرشاد العام.";
@@ -4397,14 +4400,13 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
       { role: "user", parts: [{ text: message }] },
     ];
 
-    // جرّب الموديلات بالترتيب حتى ينجح أحدها
     const MODELS = [
       "gemini-2.0-flash-lite",
       "gemini-1.5-flash-8b",
       "gemini-2.0-flash",
     ];
 
-    const body = JSON.stringify({
+    const requestBody = JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents,
       generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
@@ -4413,25 +4415,34 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     let lastStatus = 500;
     let lastErrBody = "";
 
-    for (const model of MODELS) {
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body }
-      );
+    // جرّب كل مفتاح مع كل موديل (المفاتيح بالخارج، الموديلات بالداخل)
+    outer:
+    for (const apiKey of apiKeys) {
+      for (const model of MODELS) {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
+        );
 
-      if (geminiRes.ok) {
-        const data = await geminiRes.json() as any;
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text
-          || "لم أتمكن من الإجابة، يرجى المحاولة مجدداً.";
-        return res.json({ reply });
+        if (geminiRes.ok) {
+          const data = await geminiRes.json() as any;
+          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text
+            || "لم أتمكن من الإجابة، يرجى المحاولة مجدداً.";
+          return res.json({ reply });
+        }
+
+        lastStatus = geminiRes.status;
+        lastErrBody = await geminiRes.text();
+        console.error(`Gemini error (${model}):`, lastErrBody.slice(0, 200));
+
+        // خطأ في المفتاح نفسه → انتقل للمفتاح التالي فوراً
+        if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) break;
+        // تجاوز الحصة على هذا المفتاح → انتقل للمفتاح التالي
+        if (lastStatus === 429) break;
       }
 
-      lastStatus = geminiRes.status;
-      lastErrBody = await geminiRes.text();
-      console.error(`Gemini error (${model}):`, lastErrBody);
-
-      // لا فائدة من المحاولة التالية إذا كان خطأ في المفتاح
-      if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) break;
+      // إذا لم يكن خطأ 429 لا فائدة من المفتاح الثاني
+      if (lastStatus !== 429) break outer;
     }
 
     // رسالة خطأ واضحة حسب نوع الخطأ
