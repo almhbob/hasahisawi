@@ -1632,6 +1632,11 @@ export async function initHasahisawiDb() {
   // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
   await initPhoneShopsTables();
 
+  // ── ترقية حساب المطور الرئيسي لصلاحية admin ──────────────────────
+  await query(
+    `UPDATE users SET role='admin' WHERE LOWER(email)=LOWER('almhbob.iii@gmail.com') AND role != 'admin'`
+  );
+
   console.log("✅ Hasahisawi DB initialized");
 }
 
