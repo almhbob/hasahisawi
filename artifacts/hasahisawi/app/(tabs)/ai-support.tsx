@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TextInput,
+  View, Text, StyleSheet, TextInput,
   TouchableOpacity, ActivityIndicator, KeyboardAvoidingView,
-  Platform, FlatList,
+  Platform, FlatList, I18nManager,
 } from "react-native";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,15 +13,24 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import BrandPattern from "@/components/BrandPattern";
 
+const isRTL = I18nManager.isRTL;
+
 type Message = {
   id: string;
   role: "user" | "assistant";
   text: string;
   timestamp: Date;
+  isLocal?: boolean;
 };
 
 type GeminiPart = { text: string };
 type GeminiContent = { role: string; parts: GeminiPart[] };
+
+type AiStatus = {
+  enabled: boolean;
+  quotaExceeded: boolean;
+  resetIn: string | null;
+};
 
 const WELCOME_MSG: Message = {
   id: "welcome",
@@ -32,33 +41,30 @@ const WELCOME_MSG: Message = {
 
 export default function AiSupportScreen() {
   const insets = useSafeAreaInsets();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [checkingEnabled, setCheckingEnabled] = useState(true);
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
   const scrollRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    checkAiEnabled();
-  }, []);
+  useEffect(() => { fetchStatus(); }, []);
 
-  const checkAiEnabled = async () => {
+  const fetchStatus = async () => {
+    setCheckingStatus(true);
     try {
       const base = getApiUrl();
-      if (!base) { setEnabled(false); setCheckingEnabled(false); return; }
       const res = await fetch(`${base}/api/ai/status`);
       if (res.ok) {
-        const data = await res.json() as { enabled: boolean };
-        setEnabled(data.enabled);
+        setStatus(await res.json() as AiStatus);
       } else {
-        setEnabled(false);
+        setStatus({ enabled: false, quotaExceeded: false, resetIn: null });
       }
     } catch {
-      setEnabled(false);
+      setStatus({ enabled: false, quotaExceeded: false, resetIn: null });
     } finally {
-      setCheckingEnabled(false);
+      setCheckingStatus(false);
     }
   };
 
@@ -67,25 +73,15 @@ export default function AiSupportScreen() {
     if (!text || loading) return;
     setInput("");
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      text,
-      timestamp: new Date(),
-    };
+    const userMsg: Message = { id: Date.now().toString(), role: "user", text, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
     try {
       const base = getApiUrl();
-      if (!base) throw new Error("API غير متاح");
-
       const history: GeminiContent[] = messages
         .filter(m => m.id !== "welcome")
-        .map(m => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.text }],
-        }));
+        .map(m => ({ role: m.role === "user" ? "user" : "model", parts: [{ text: m.text }] }));
 
       const res = await fetch(`${base}/api/ai/chat`, {
         method: "POST",
@@ -96,24 +92,38 @@ export default function AiSupportScreen() {
         body: JSON.stringify({ message: text, history }),
       });
 
-      const data = await res.json() as { reply?: string; error?: string };
-      const reply = data.reply || data.error || "حدث خطأ غير متوقع";
+      const data = await res.json() as {
+        reply?: string; error?: string;
+        quotaExceeded?: boolean; resetIn?: string; local?: boolean;
+      };
 
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        text: reply,
+      if (data.quotaExceeded && !data.reply) {
+        // حصة منتهية — رسالة خاصة
+        setStatus(prev => prev ? { ...prev, quotaExceeded: true, resetIn: data.resetIn || prev.resetIn } : null);
+        const msg: Message = {
+          id: (Date.now() + 1).toString(), role: "assistant",
+          text: data.error || "الخدمة مؤقتاً خارج الخدمة. حاول مجدداً لاحقاً.",
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, msg]);
+      } else {
+        const reply = data.reply || data.error || "حدث خطأ غير متوقع";
+        const msg: Message = {
+          id: (Date.now() + 1).toString(), role: "assistant",
+          text: reply, timestamp: new Date(), isLocal: !!data.local,
+        };
+        setMessages(prev => [...prev, msg]);
+        // تحديث حالة الـ quota إذا نجح الرد
+        if (data.reply && !data.local && status?.quotaExceeded) {
+          setStatus(prev => prev ? { ...prev, quotaExceeded: false, resetIn: null } : null);
+        }
+      }
+    } catch {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(), role: "assistant",
+        text: "عذراً، تعذّر الاتصال. تحقق من الإنترنت وأعد المحاولة.",
         timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-    } catch (e: any) {
-      const errMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        text: "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مجدداً.",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errMsg]);
+      }]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd?.({ animated: true }), 100);
@@ -123,7 +133,7 @@ export default function AiSupportScreen() {
   const formatTime = (d: Date) =>
     d.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
 
-  if (checkingEnabled) {
+  if (checkingStatus) {
     return (
       <View style={[s.root, { justifyContent: "center", alignItems: "center" }]}>
         <ActivityIndicator color={Colors.primary} size="large" />
@@ -131,7 +141,7 @@ export default function AiSupportScreen() {
     );
   }
 
-  if (enabled === false) {
+  if (!status?.enabled) {
     return (
       <View style={[s.root, { paddingTop: insets.top }]}>
         <BrandPattern variant="diagonal" opacity={0.025} />
@@ -141,18 +151,19 @@ export default function AiSupportScreen() {
             <Text style={s.headerTitle}>المساعد الذكي</Text>
           </View>
         </LinearGradient>
-        <View style={s.disabledWrap}>
-          <View style={s.disabledIcon}>
+        <View style={s.offlineWrap}>
+          <View style={s.offlineIcon}>
             <Ionicons name="construct-outline" size={48} color={Colors.textMuted} />
           </View>
-          <Text style={s.disabledTitle}>الخدمة غير مفعّلة</Text>
-          <Text style={s.disabledSub}>
-            يمكن للإدارة تفعيل خدمة الذكاء الاصطناعي من لوحة الإدارة → إعدادات الذكاء الاصطناعي
-          </Text>
+          <Text style={s.offlineTitle}>الخدمة غير مفعّلة</Text>
+          <Text style={s.offlineSub}>يمكن للإدارة تفعيل خدمة الذكاء الاصطناعي من لوحة الإدارة</Text>
         </View>
       </View>
     );
   }
+
+  const quotaExceeded = !!status?.quotaExceeded;
+  const isOnline = !quotaExceeded;
 
   return (
     <KeyboardAvoidingView
@@ -165,18 +176,33 @@ export default function AiSupportScreen() {
       {/* Header */}
       <LinearGradient colors={["#0D1A12", "#0D1A12CC", "transparent"]} style={s.headerGrad}>
         <View style={s.header}>
-          <View style={s.aiAvatar}>
-            <Ionicons name="sparkles" size={20} color="#000" />
+          <View style={[s.aiAvatar, quotaExceeded && s.aiAvatarOffline]}>
+            <Ionicons name={quotaExceeded ? "moon-outline" : "sparkles"} size={20} color="#000" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>المساعد الذكي</Text>
-            <View style={s.onlineRow}>
-              <View style={s.onlineDot} />
-              <Text style={s.onlineTxt}>متصل</Text>
+            <View style={s.statusRow}>
+              <View style={[s.statusDot, isOnline ? s.statusDotOnline : s.statusDotOffline]} />
+              <Text style={[s.statusTxt, isOnline ? s.statusTxtOnline : s.statusTxtOffline]}>
+                {isOnline ? "متصل" : `مؤقتاً غير متاح${status?.resetIn ? ` — يعود ${status.resetIn}` : ""}`}
+              </Text>
             </View>
           </View>
+          <TouchableOpacity onPress={fetchStatus} style={s.refreshBtn}>
+            <Ionicons name="refresh-outline" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
+
+      {/* Quota banner */}
+      {quotaExceeded && (
+        <View style={s.quotaBanner}>
+          <Ionicons name="information-circle-outline" size={16} color="#F5A623" />
+          <Text style={s.quotaTxt}>
+            الحصة اليومية نفدت. أرد على الأسئلة الشائعة فقط{status?.resetIn ? ` حتى ${status.resetIn}` : ""}.
+          </Text>
+        </View>
+      )}
 
       {/* Messages */}
       <FlatList
@@ -185,24 +211,29 @@ export default function AiSupportScreen() {
         keyExtractor={m => m.id}
         contentContainerStyle={s.messagesList}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-        renderItem={({ item: msg }) => (
-          <Animated.View
-            entering={FadeInDown.duration(200)}
-            style={[s.msgRow, msg.role === "user" ? s.msgRowUser : s.msgRowAi]}
-          >
-            {msg.role === "assistant" && (
-              <View style={s.aiAvatarSmall}>
-                <Ionicons name="sparkles" size={12} color="#000" />
+        renderItem={({ item: msg }) => {
+          const isUser = msg.role === "user";
+          return (
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAi]}
+            >
+              {!isUser && (
+                <View style={[s.aiAvatarSmall, msg.isLocal && s.aiAvatarSmallLocal]}>
+                  <Ionicons name={msg.isLocal ? "information" : "sparkles"} size={12} color="#000" />
+                </View>
+              )}
+              <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
+                <Text style={[s.bubbleText, isUser ? s.bubbleTextUser : s.bubbleTextAi]}>
+                  {msg.text}
+                </Text>
+                <Text style={[s.timeText, isUser ? s.timeUser : s.timeAi]}>
+                  {formatTime(msg.timestamp)}{msg.isLocal ? " · إجابة محلية" : ""}
+                </Text>
               </View>
-            )}
-            <View style={[s.bubble, msg.role === "user" ? s.bubbleUser : s.bubbleAi]}>
-              <Text style={[s.bubbleText, msg.role === "user" ? s.bubbleTextUser : s.bubbleTextAi]}>
-                {msg.text}
-              </Text>
-              <Text style={s.timeText}>{formatTime(msg.timestamp)}</Text>
-            </View>
-          </Animated.View>
-        )}
+            </Animated.View>
+          );
+        }}
         ListFooterComponent={
           loading ? (
             <View style={s.typingRow}>
@@ -241,7 +272,11 @@ export default function AiSupportScreen() {
             colors={input.trim() && !loading ? [Colors.primary, Colors.primaryDim] : ["#2A3A2A", "#1A2A1A"]}
             style={s.sendGrad}
           >
-            <Ionicons name="arrow-back" size={20} color={input.trim() && !loading ? "#000" : Colors.textMuted} />
+            <Ionicons
+              name={isRTL ? "arrow-back" : "arrow-forward"}
+              size={20}
+              color={input.trim() && !loading ? "#000" : Colors.textMuted}
+            />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -253,33 +288,57 @@ const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: Colors.bg },
   headerGrad:  { paddingBottom: 16 },
   header:      { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 12 },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: Colors.textPrimary },
+  headerTitle: { fontSize: 18, fontFamily: "Cairo_700Bold", color: Colors.textPrimary },
+
   aiAvatar:    { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center" },
+  aiAvatarOffline: { backgroundColor: "#555" },
   aiAvatarSmall: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center", marginLeft: 6 },
-  onlineRow:   { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  onlineDot:   { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.primary },
-  onlineTxt:   { fontSize: 11, color: Colors.primary },
+  aiAvatarSmallLocal: { backgroundColor: "#F5A623" },
+
+  statusRow:   { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  statusDot:   { width: 7, height: 7, borderRadius: 4 },
+  statusDotOnline:  { backgroundColor: Colors.primary },
+  statusDotOffline: { backgroundColor: "#F5A623" },
+  statusTxt:   { fontSize: 11, fontFamily: "Cairo_400Regular" },
+  statusTxtOnline:  { color: Colors.primary },
+  statusTxtOffline: { color: "#F5A623" },
+  refreshBtn:  { padding: 6 },
+
+  quotaBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#F5A62318", borderLeftWidth: 3, borderLeftColor: "#F5A623",
+    paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 12, marginBottom: 8,
+    borderRadius: 8,
+  },
+  quotaTxt:    { flex: 1, fontSize: 12, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
+
   messagesList: { padding: 16, gap: 12, paddingBottom: 8 },
   msgRow:      { flexDirection: "row", alignItems: "flex-end", gap: 4 },
-  msgRowUser:  { justifyContent: "flex-start" },
-  msgRowAi:    { justifyContent: "flex-end" },
+  msgRowUser:  { justifyContent: "flex-start", flexDirection: isRTL ? "row" : "row-reverse" },
+  msgRowAi:    { justifyContent: "flex-end",   flexDirection: isRTL ? "row-reverse" : "row" },
+
   bubble:      { maxWidth: "78%", borderRadius: 16, padding: 12 },
-  bubbleUser:  { backgroundColor: Colors.cardBg, borderBottomRightRadius: 4 },
-  bubbleAi:    { backgroundColor: Colors.primary + "22", borderBottomLeftRadius: 4 },
-  bubbleText:  { fontSize: 15, lineHeight: 22, textAlign: "right" },
-  bubbleTextUser: { color: Colors.textPrimary },
-  bubbleTextAi:   { color: Colors.primary },
-  timeText:    { fontSize: 10, color: Colors.textMuted, marginTop: 4, textAlign: "left" },
+  bubbleUser:  { backgroundColor: Colors.primary, borderBottomStartRadius: 4 },
+  bubbleAi:    { backgroundColor: Colors.cardBg, borderBottomEndRadius: 4 },
+  bubbleText:  { fontSize: 15, lineHeight: 22, fontFamily: "Cairo_400Regular", textAlign: "right" },
+  bubbleTextUser: { color: "#000" },
+  bubbleTextAi:   { color: Colors.textPrimary },
+  timeText:    { fontSize: 10, fontFamily: "Cairo_400Regular", marginTop: 4 },
+  timeUser:    { color: "#000000AA", textAlign: "left" },
+  timeAi:      { color: Colors.textMuted, textAlign: "right" },
+
   typingRow:   { flexDirection: "row", alignItems: "center", marginTop: 8 },
   typingBubble: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12 },
-  typingText:  { color: Colors.textMuted, fontSize: 13 },
+  typingText:  { color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_400Regular" },
+
   inputBar:    { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.divider },
-  input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: Colors.textPrimary, maxHeight: 120 },
+  input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Cairo_400Regular", color: Colors.textPrimary, maxHeight: 120 },
   sendBtn:     { width: 44, height: 44 },
   sendBtnDisabled: { opacity: 0.5 },
   sendGrad:    { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
-  disabledWrap:  { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
-  disabledIcon:  { marginBottom: 16 },
-  disabledTitle: { fontSize: 20, fontWeight: "700", color: Colors.textPrimary, marginBottom: 8 },
-  disabledSub:   { fontSize: 14, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
+
+  offlineWrap:  { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+  offlineIcon:  { marginBottom: 16 },
+  offlineTitle: { fontSize: 20, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, marginBottom: 8 },
+  offlineSub:   { fontSize: 14, fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
 });
