@@ -8957,11 +8957,12 @@ router.get("/posters", (_req: Request, res: Response) => {
 });
 
 // ══════════════════════════════════════════════════════
-// بذر قاعدة البيانات (مؤقت — يُستدعى مرة واحدة فقط)
+// بذر قاعدة البيانات (مُعطَّل بعد التنفيذ)
 // ══════════════════════════════════════════════════════
-router.post("/admin/seed-db", async (req: Request, res: Response) => {
+router.post("/admin/seed-db", async (_req: Request, res: Response) => {
+  return res.status(410).json({ error: "تم تنفيذ البذر مسبقاً وهذا الـ endpoint مغلق." });
   try {
-    const isAdmin = await isAdminRequest(req);
+    const isAdmin = await isAdminRequest(_req);
     if (!isAdmin) return res.status(403).json({ error: "غير مصرح" });
 
     const seeded: string[] = [];
