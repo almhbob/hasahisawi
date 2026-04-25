@@ -8956,6 +8956,19 @@ router.get("/posters", (_req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// إصلاح حالة الإعلانات من approved إلى active
+router.post("/admin/fix-ads-status", async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await isAdminRequest(req);
+    if (!isAdmin) return res.status(403).json({ error: "غير مصرح" });
+    const result = await query(
+      `UPDATE ads SET status='active', start_date=COALESCE(start_date,NOW()), end_date=COALESCE(end_date,NOW()+INTERVAL '30 days')
+       WHERE status='approved' RETURNING id, title`
+    );
+    return res.json({ ok: true, updated: result.rows.length, ads: result.rows.map((r:any)=>r.title) });
+  } catch (err:any) { return res.status(500).json({ error: err.message }); }
+});
+
 // ══════════════════════════════════════════════════════
 // بذر قاعدة البيانات (مُعطَّل بعد التنفيذ)
 // ══════════════════════════════════════════════════════
