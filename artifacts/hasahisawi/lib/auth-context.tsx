@@ -644,21 +644,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (code === "auth/wrong-password" || code === "auth/user-not-found" ||
             code === "auth/invalid-credential" || code === "auth/invalid-email" ||
             msg.includes("wrong-password") || msg.includes("user-not-found") || msg.includes("invalid-credential")) {
-          // قد يكون الحساب في Backend فقط (مستخدمون قدامى) — جرّب backend كـ fallback
-          try {
-            const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
-            await saveSession(authUser, backendTok, backendTok);
-            // أنشئ حساب Firebase موازي للمستخدم القديم
+          // قد يكون الحساب مرتبطاً بـ Google أو backend فقط — جرّب backend كـ fallback
+          let backendErr: Error | null = null;
+          for (let attempt = 0; attempt < 2; attempt++) {
             try {
-              const email = identifierToEmail(phoneOrEmail);
-              await firebaseRegisterEmail(email, password, authUser.name).catch(async () => {
-                await firebaseLoginEmail(email, password);
-              });
-            } catch {}
-            return;
-          } catch {
-            throw new Error("بيانات الدخول غير صحيحة");
+              const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
+              await saveSession(authUser, backendTok, backendTok);
+              // حاول إنشاء/ربط حساب Firebase بكلمة المرور — اختياري، يُتجاهل إذا فشل
+              try {
+                const emailAddr = identifierToEmail(phoneOrEmail);
+                await firebaseRegisterEmail(emailAddr, password, authUser.name).catch(async () => {
+                  await firebaseLoginEmail(emailAddr, password);
+                });
+              } catch {}
+              return;
+            } catch (bErr: any) {
+              backendErr = bErr;
+              // إذا كان الخطأ 429 (rate limit) أو خطأ شبكة → انتظر ثانية وأعد المحاولة
+              if (attempt === 0) {
+                const isRetryable = bErr?.message?.includes("محاولات") ||
+                  bErr?.message?.includes("network") || bErr?.message?.includes("fetch");
+                if (isRetryable) {
+                  await new Promise(r => setTimeout(r, 1200));
+                  continue;
+                }
+              }
+              break;
+            }
           }
+          throw backendErr ?? new Error("بيانات الدخول غير صحيحة");
         }
         // مشاكل شبكة أو خدمة Firebase → جرّب backend كـ fallback
       }

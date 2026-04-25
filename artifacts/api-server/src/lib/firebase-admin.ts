@@ -49,3 +49,22 @@ export async function verifyIdToken(idToken: string): Promise<{
     return null;
   }
 }
+
+/**
+ * يُضيف/يُحدّث كلمة مرور لحساب Firebase حتى لو كان مرتبطاً بـ Google.
+ * يُستدعى بعد نجاح Backend Login — يُتيح تسجيل الدخول بالبريد+كلمة مرور لاحقاً.
+ */
+export async function ensureEmailPasswordProvider(
+  uid: string,
+  email: string,
+  password: string,
+): Promise<void> {
+  const a = getFirebaseAdmin();
+  if (!a) return;
+  try {
+    await a.auth().updateUser(uid, { password });
+    console.log("[firebase-admin] password updated for uid:", uid);
+  } catch (err: any) {
+    console.warn("[firebase-admin] ensureEmailPasswordProvider failed:", err?.message);
+  }
+}
