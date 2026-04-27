@@ -72,12 +72,21 @@ app.use("/uploads", express.static(uploadsDir));
 app.use(express.static(publicDir));
 
 // ── API routes ─────────────────────────────────────────────────────────────
+// [FIX-E] إجبار Content-Type: application/json على كل ردود /api
+app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  next();
+});
 app.use("/api", router);
 
 // ── Global error handler ───────────────────────────────────────────────────
+// [FIX-E] معالج الأخطاء العامة — يمنع إرسال HTML عند أي خطأ غير معالج
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (err.message?.startsWith("CORS:")) {
     return res.status(403).json({ error: "غير مسموح بالوصول من هذا النطاق" });
+  }
+  if ((err as any).type === "entity.parse.failed") {
+    return res.status(400).json({ error: "صيغة البيانات غير صحيحة" });
   }
   logger.error(err, "Unhandled error");
   return res.status(500).json({ error: "خطأ في الخادم" });
