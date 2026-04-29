@@ -39,11 +39,26 @@ const SPECIALTIES = ["الكل","تجارية","عقارات","شركات","أح
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function apiBase() { return getApiUrl(); }
-async function apiFetch(path: string, opts?: any) {
+async function apiFetch(path: string, opts?: any, attempts=3): Promise<Response> {
   const base = apiBase();
   if (!base) throw new Error("API not configured");
   const url = new URL(path, base).toString();
-  return fetch(url, opts);
+  let lastErr:any;
+  for(let i=0;i<attempts;i++){
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),20000);
+    try{
+      const res=await fetch(url,{...opts,signal:ctrl.signal});
+      clearTimeout(tid);
+      if(res.status===0&&i<attempts-1){await new Promise(x=>setTimeout(x,2000*(i+1)));continue;}
+      return res;
+    }catch(e:any){
+      clearTimeout(tid);
+      lastErr=e?.name==="AbortError"?new Error("انتهت مهلة الطلب"):e;
+      if(i<attempts-1)await new Promise(x=>setTimeout(x,2000*(i+1)));
+    }
+  }
+  throw lastErr||new Error("فشل الاتصال");
 }
 async function getDeviceId(): Promise<string> {
   let did = await AsyncStorage.getItem("device_id_v1");
