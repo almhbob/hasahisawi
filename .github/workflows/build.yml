@@ -1,0 +1,19 @@
+name: EAS Build
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g eas-cli pnpm
+      - run: pnpm install
+        working-directory: artifacts/hasahisawi
+      - run: EAS_SKIP_AUTO_FINGERPRINT=1 eas build -p android --profile preview --non-interactive
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
