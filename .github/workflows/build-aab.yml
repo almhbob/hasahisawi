@@ -2,10 +2,15 @@ name: Build Android AAB
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'artifacts/hasahisawi/**'
+      - '.github/workflows/build-aab.yml'
 
 jobs:
   build:
-    name: Build AAB (Android App Bundle)
+    name: Build AAB + APK
     runs-on: ubuntu-latest
 
     steps:
@@ -35,7 +40,7 @@ jobs:
           VERSION_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
-          echo "📦 Building v$VERSION (versionCode: $VERSION_CODE)"
+          echo "Building v$VERSION (versionCode: $VERSION_CODE)"
 
       - name: Get pnpm store
         id: pnpm-cache
@@ -49,7 +54,12 @@ jobs:
           restore-keys: pnpm-
 
       - name: Install dependencies
+        working-directory: artifacts/hasahisawi
         run: pnpm install --no-frozen-lockfile
+
+      - name: TypeScript check
+        working-directory: artifacts/hasahisawi
+        run: pnpm run typecheck
 
       - name: Write .env for Firebase and API
         working-directory: artifacts/hasahisawi
@@ -65,7 +75,7 @@ jobs:
           EXPO_PUBLIC_DOMAIN=${{ secrets.API_DOMAIN }}
           EOF
 
-      - name: Expo Prebuild (generate Android native code)
+      - name: Expo Prebuild
         working-directory: artifacts/hasahisawi
         run: pnpm exec expo prebuild --platform android --clean --no-install
         env:
@@ -73,23 +83,7 @@ jobs:
 
       - name: Decode Keystore
         working-directory: artifacts/hasahisawi/android
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-
-      - name: Extract SHA-1 fingerprint (needed for Google Sign-In & Firebase)
-        working-directory: artifacts/hasahisawi/android
-        run: |
-          echo "🔑 SHA-1 fingerprint of the release keystore:"
-          keytool -list -v \
-            -keystore release.keystore \
-            -alias "${{ secrets.KEY_ALIAS }}" \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -keypass "${{ secrets.KEY_PASSWORD }}" 2>/dev/null \
-            | grep -E "SHA1|SHA256" | head -4
-          echo ""
-          echo "➡️  Add the SHA-1 above to:"
-          echo "   1. Firebase Console → Project Settings → Android App → Add fingerprint"
-          echo "   2. Google Cloud Console → OAuth 2.0 → Android client → SHA-1"
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
 
       - name: Build AAB + APK with Gradle
         working-directory: artifacts/hasahisawi/android
@@ -101,20 +95,15 @@ jobs:
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
       - name: Package AAB + APK
-        id: package
         run: |
           mkdir -p release
           VERSION="${{ steps.app_version.outputs.version }}"
           VERSION_CODE="${{ steps.app_version.outputs.version_code }}"
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
-             release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
-          # APK قد يكون موزَّعاً حسب ABI أو universal
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
           APK_SRC=$(find artifacts/hasahisawi/android/app/build/outputs/apk/release -name "*.apk" | head -1)
           if [ -n "$APK_SRC" ]; then
             cp "$APK_SRC" release/hasahisawi-v${VERSION}-code${VERSION_CODE}.apk
-            echo "✅ APK ready: hasahisawi-v${VERSION}-code${VERSION_CODE}.apk"
           fi
-          echo "✅ AAB ready: hasahisawi-v${VERSION}-code${VERSION_CODE}.aab"
           ls -lh release/
 
       - name: Upload AAB as artifact
