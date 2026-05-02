@@ -9,9 +9,33 @@ export type UploadProgress = {
   percent: number;
 };
 
+const CLOUDINARY_CLOUD_NAME = "dfyzdxupp";
+const CLOUDINARY_UPLOAD_PRESET = "hasahisawi_upload";
+const CLOUDINARY_FOLDER = "hasahisawi";
+
 function getFirebaseStorage() {
   if (!isFirebaseAvailable()) throw new Error("Firebase Storage غير متاح");
   return getStorage(app);
+}
+
+function getFileInfo(uri: string, fallback: "image" | "video") {
+  const clean = uri.split("?")[0].toLowerCase();
+  const isVideo = fallback === "video" || clean.endsWith(".mp4") || clean.endsWith(".mov") || clean.endsWith(".m4v");
+  const extension = isVideo ? "mp4" : clean.endsWith(".png") ? "png" : clean.endsWith(".webp") ? "webp" : "jpg";
+  const mimeType = isVideo ? "video/mp4" : extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
+  return { extension, mimeType, resourceType: isVideo ? "video" : "image" };
+}
+
+function normalizeUploadError(error: any) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || error || "").toLowerCase();
+  if (code.includes("unauthorized") || message.includes("permission") || message.includes("unauthorized")) {
+    return new Error("تعذر الرفع بسبب صلاحيات التخزين. سيتم استخدام Cloudinary المجاني إذا كان Upload Preset مفعلًا.");
+  }
+  if (message.includes("upload preset") || message.includes("unsigned")) {
+    return new Error("Cloudinary غير مكتمل: أنشئ Upload Preset باسم hasahisawi_upload واجعله Unsigned.");
+  }
+  return error instanceof Error ? error : new Error("تعذر رفع الملف. حاول مرة أخرى.");
 }
 
 async function uriToBlob(uri: string): Promise<Blob> {
@@ -29,7 +53,11 @@ async function uploadToFirebase(
   const blob = await uriToBlob(uri);
 
   return new Promise((resolve, reject) => {
-    const task = uploadBytesResumable(storageRef, blob);
+    const task = uploadBytesResumable(storageRef, blob, {
+      contentType: blob.type || getFileInfo(uri, path.includes("video") ? "video" : "image").mimeType,
+      cacheControl: "public,max-age=31536000,immutable",
+      customMetadata: { quality: "high", source: "hasahisawi" },
+    });
 
     task.on(
       "state_changed",
@@ -42,16 +70,69 @@ async function uploadToFirebase(
           });
         }
       },
-      (err) => reject(err),
+      (err) => reject(normalizeUploadError(err)),
       async () => {
         try {
           const url = await getDownloadURL(task.snapshot.ref);
           resolve(url);
         } catch (e) {
-          reject(e);
+          reject(normalizeUploadError(e));
         }
       },
     );
+  });
+}
+
+async function uploadToCloudinary(
+  path: string,
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const info = getFileInfo(uri, path.includes("video") ? "video" : "image");
+  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${info.resourceType}/upload`;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (onProgress && e.lengthComputable) {
+        onProgress({
+          bytesTransferred: e.loaded,
+          totalBytes: e.total,
+          percent: Math.round((e.loaded / e.total) * 100),
+        });
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const json = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status >= 200 && xhr.status < 300 && json.secure_url) {
+          resolve(json.secure_url as string);
+        } else {
+          reject(normalizeUploadError(new Error(json.error?.message || `Cloudinary upload failed: ${xhr.status}`)));
+        }
+      } catch (error) {
+        reject(normalizeUploadError(error));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("تعذّر الاتصال بـ Cloudinary أثناء رفع الملف"));
+    xhr.ontimeout = () => reject(new Error("انتهت مهلة رفع الملف"));
+    xhr.timeout = 180_000;
+    xhr.open("POST", endpoint);
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      name: `hasahisawi_${Date.now()}.${info.extension}`,
+      type: info.mimeType,
+    } as any);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", `${CLOUDINARY_FOLDER}/${path.split("/")[0] || "uploads"}`);
+    formData.append("tags", "hasahisawi,mobile-app");
+
+    xhr.send(formData);
   });
 }
 
@@ -62,6 +143,7 @@ async function uploadToBackend(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const info = getFileInfo(uri, _path.includes("video") ? "video" : "image");
 
     xhr.upload.onprogress = (e) => {
       if (onProgress && e.lengthComputable) {
@@ -89,14 +171,13 @@ async function uploadToBackend(
     xhr.onerror = () => reject(new Error("تعذّر الاتصال بالخادم أثناء الرفع"));
     xhr.ontimeout = () => reject(new Error("انتهت مهلة الرفع"));
     xhr.timeout = 120_000;
-
     xhr.open("POST", `${getApiUrl()}/api/upload`);
 
     const formData = new FormData();
     formData.append("file", {
       uri,
-      name: `upload_${Date.now()}.jpg`,
-      type: "image/jpeg",
+      name: `upload_${Date.now()}.${info.extension}`,
+      type: info.mimeType,
     } as any);
 
     xhr.send(formData);
@@ -108,6 +189,12 @@ export async function uploadFile(
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
+  try {
+    return await uploadToCloudinary(path, uri, onProgress);
+  } catch (cloudinaryError) {
+    console.warn("[Cloudinary] الرفع فشل، تجربة Firebase ثم Backend:", cloudinaryError);
+  }
+
   if (isFirebaseConfigured && isFirebaseAvailable()) {
     try {
       return await uploadToFirebase(path, uri, onProgress);
@@ -115,6 +202,7 @@ export async function uploadFile(
       console.warn("[Firebase Storage] رفع Firebase فشل، التحويل للـ Backend:", err);
     }
   }
+
   return uploadToBackend(path, uri, onProgress);
 }
 
@@ -123,7 +211,6 @@ export async function deleteFile(path: string): Promise<void> {
     try {
       const storage = getFirebaseStorage();
       await deleteObject(ref(storage, path));
-      return;
     } catch {}
   }
 }
