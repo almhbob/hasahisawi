@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "5.7.8",
+    "version": "5.7.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 213,
+      "versionCode": 214,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
