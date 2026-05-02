@@ -109,6 +109,7 @@ function TabsNavigator() {
       <Tabs.Screen name="events" options={{ href: null }} />
       <Tabs.Screen name="map" options={{ href: null }} />
       <Tabs.Screen name="lawyers" options={{ href: null }} />
+      <Tabs.Screen name="telecom" options={{ href: null }} />
       <Tabs.Screen name="contests" options={{ href: null }} />
       <Tabs.Screen name="religious" options={{ href: null }} />
     </Tabs>
