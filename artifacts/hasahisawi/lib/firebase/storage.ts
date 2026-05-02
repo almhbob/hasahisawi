@@ -11,7 +11,6 @@ export type UploadProgress = {
 
 const CLOUDINARY_CLOUD_NAME = "dfyzdxupp";
 const CLOUDINARY_UPLOAD_PRESET = "hasahisawi_upload";
-const CLOUDINARY_FOLDER = "hasahisawi";
 
 function getFirebaseStorage() {
   if (!isFirebaseAvailable()) throw new Error("Firebase Storage غير متاح");
@@ -30,10 +29,13 @@ function normalizeUploadError(error: any) {
   const code = String(error?.code || "").toLowerCase();
   const message = String(error?.message || error || "").toLowerCase();
   if (code.includes("unauthorized") || message.includes("permission") || message.includes("unauthorized")) {
-    return new Error("تعذر الرفع بسبب صلاحيات التخزين. سيتم استخدام Cloudinary المجاني إذا كان Upload Preset مفعلًا.");
+    return new Error("تعذر الرفع بسبب الصلاحيات. تأكد من أن Cloudinary Upload Preset باسم hasahisawi_upload مضبوط على Unsigned.");
   }
-  if (message.includes("upload preset") || message.includes("unsigned")) {
-    return new Error("Cloudinary غير مكتمل: أنشئ Upload Preset باسم hasahisawi_upload واجعله Unsigned.");
+  if (message.includes("upload preset") || message.includes("unsigned") || message.includes("preset")) {
+    return new Error("Cloudinary غير مكتمل: استخدم preset باسم hasahisawi_upload واجعله Unsigned.");
+  }
+  if (message.includes("folder") || message.includes("tags")) {
+    return new Error("Cloudinary رفض إعدادات إضافية للرفع. تم ضبط التطبيق لرفع آمن عبر preset فقط.");
   }
   return error instanceof Error ? error : new Error("تعذر رفع الملف. حاول مرة أخرى.");
 }
@@ -62,19 +64,16 @@ async function uploadToFirebase(
     task.on(
       "state_changed",
       (snap) => {
-        if (onProgress) {
-          onProgress({
-            bytesTransferred: snap.bytesTransferred,
-            totalBytes: snap.totalBytes,
-            percent: Math.round((snap.bytesTransferred / snap.totalBytes) * 100),
-          });
-        }
+        onProgress?.({
+          bytesTransferred: snap.bytesTransferred,
+          totalBytes: snap.totalBytes,
+          percent: Math.round((snap.bytesTransferred / snap.totalBytes) * 100),
+        });
       },
       (err) => reject(normalizeUploadError(err)),
       async () => {
         try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          resolve(url);
+          resolve(await getDownloadURL(task.snapshot.ref));
         } catch (e) {
           reject(normalizeUploadError(e));
         }
@@ -129,8 +128,6 @@ async function uploadToCloudinary(
       type: info.mimeType,
     } as any);
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("folder", `${CLOUDINARY_FOLDER}/${path.split("/")[0] || "uploads"}`);
-    formData.append("tags", "hasahisawi,mobile-app");
 
     xhr.send(formData);
   });
