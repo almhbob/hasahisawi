@@ -5,17 +5,41 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 permissions:
   contents: write
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: android-release-master
+  cancel-in-progress: true
+
 jobs:
   build-android-release:
+    name: Build latest APK and AAB from master
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest master commit
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Show exact build source
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Short SHA: $(git rev-parse --short HEAD)"
+          echo "Message: $(git log -1 --pretty=%s)"
 
       - uses: actions/setup-node@v4
         with:
@@ -33,7 +57,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Generate Android project
+      - name: Generate Android project from latest Expo source
         working-directory: artifacts/hasahisawi
         env:
           CI: true
@@ -48,42 +72,47 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleRelease bundleRelease --no-daemon
 
-      - name: Prepare Android artifacts
+      - name: Prepare Android artifacts with commit identity
         run: |
           mkdir -p release
           VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
           VERSION_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          SHORT_SHA=$(git rev-parse --short HEAD)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk release/hasahisawi-v${VERSION}-code${VERSION_CODE}.apk
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk release/hasahisawi-latest-v${VERSION}-code${VERSION_CODE}-${SHORT_SHA}.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-latest-v${VERSION}-code${VERSION_CODE}-${SHORT_SHA}.aab
           ls -lh release
 
-      - name: Upload release APK artifact
+      - name: Upload latest APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-release-apk
+          name: hasahisawi-latest-apk
           path: release/*.apk
           retention-days: 30
 
-      - name: Upload release AAB artifact
+      - name: Upload latest AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-release-aab
+          name: hasahisawi-latest-aab
           path: release/*.aab
           retention-days: 30
 
-      - name: Publish GitHub Release with permanent links
+      - name: Publish GitHub Release with permanent latest links
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-v${{ env.VERSION }}-${{ env.VERSION_CODE }}-${{ github.run_number }}
-          name: حصاحيصاوي Android v${{ env.VERSION }} build ${{ env.VERSION_CODE }}
+          tag_name: latest-android-v${{ env.VERSION }}-${{ env.VERSION_CODE }}-${{ env.SHORT_SHA }}-${{ github.run_number }}
+          name: حصاحيصاوي أحدث إصدار v${{ env.VERSION }} build ${{ env.VERSION_CODE }}
           body: |
-            إصدار Android تلقائي لتطبيق حصاحيصاوي.
+            هذا الإصدار مبني من أحدث كود موجود على فرع master.
 
-            الملفات:
+            معلومات البناء:
+            - الإصدار: v${{ env.VERSION }}
+            - versionCode: ${{ env.VERSION_CODE }}
+            - commit: ${{ env.SHORT_SHA }}
             - APK للتثبيت المباشر.
-            - AAB للنشر في Google Play.
+            - AAB للرفع إلى Google Play.
           files: |
             release/*.apk
             release/*.aab
