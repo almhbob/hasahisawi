@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalLimiter } from "./lib/rate-limiters";
+import { injectAnalytics } from "./middlewares/analytics";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,10 @@ app.use(
 // ── Body size limits (DoS protection) ─────────────────────────────────────
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+// ── Vercel Web Analytics ──────────────────────────────────────────────────
+// Injects analytics script into HTML responses only; API JSON responses stay untouched.
+app.use(injectAnalytics);
 
 // ── Global rate limiter: 300 req/15 min per IP ────────────────────────────
 app.use(globalLimiter);
