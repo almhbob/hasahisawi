@@ -12,11 +12,18 @@ export type FeatureFlags = {
 };
 
 const DEFAULT_FLAGS: FeatureFlags = {
-  gov_services_enabled: true,
-  gov_appointments_enabled: true,
-  gov_reports_enabled: true,
+  gov_services_enabled: false,
+  gov_appointments_enabled: false,
+  gov_reports_enabled: false,
   ride_status: "available",
 };
+
+function asBool(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+}
 
 function normalizeRideStatus(value: unknown): RideStatus {
   const raw = String(value ?? "").trim();
@@ -47,11 +54,12 @@ export function FeatureFlagsProvider({ children }: { children: React.ReactNode }
         if (featureRes.status === "fulfilled" && featureRes.value.ok) {
           const data = await featureRes.value.json().catch(() => null);
           if (data && typeof data === "object") {
+            const record = data as Record<string, unknown>;
             next = {
-              gov_services_enabled: data.gov_services_enabled ?? true,
-              gov_appointments_enabled: data.gov_appointments_enabled ?? true,
-              gov_reports_enabled: data.gov_reports_enabled ?? true,
-              ride_status: normalizeRideStatus(data.ride_status),
+              gov_services_enabled: asBool(record.gov_services_enabled, DEFAULT_FLAGS.gov_services_enabled),
+              gov_appointments_enabled: asBool(record.gov_appointments_enabled, DEFAULT_FLAGS.gov_appointments_enabled),
+              gov_reports_enabled: asBool(record.gov_reports_enabled, DEFAULT_FLAGS.gov_reports_enabled),
+              ride_status: normalizeRideStatus(record.ride_status),
             };
           }
         }
@@ -59,7 +67,8 @@ export function FeatureFlagsProvider({ children }: { children: React.ReactNode }
         if (transportRes.status === "fulfilled" && transportRes.value.ok) {
           const data = await transportRes.value.json().catch(() => null);
           if (data && typeof data === "object") {
-            next.ride_status = normalizeRideStatus(data.transport_status ?? data.ride_status);
+            const record = data as Record<string, unknown>;
+            next.ride_status = normalizeRideStatus(record.transport_status ?? record.ride_status);
           }
         }
 
