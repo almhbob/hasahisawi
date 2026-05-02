@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { Audio } from "expo-av";
+import { Audio, AVPlaybackStatus } from "expo-av";
 import { logAppError } from "@/lib/app-logger";
 
 let activeSound: Audio.Sound | null = null;
@@ -29,15 +29,15 @@ export async function playAdhanFromUri(uri: string) {
     await stopAdhanPreview();
     await prepareAdhanAudio();
 
-    const { sound } = await Audio.Sound.createAsync(
+    const result = await Audio.Sound.createAsync(
       { uri },
       { shouldPlay: true, volume: 1 }
     );
 
-    activeSound = sound;
-    sound.setOnPlaybackStatusUpdate((status) => {
+    activeSound = result.sound;
+    result.sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
       if (status.isLoaded && status.didJustFinish) {
-        stopAdhanPreview().catch(() => {});
+        stopAdhanPreview().catch(() => undefined);
       }
     });
 
@@ -51,8 +51,8 @@ export async function playAdhanFromUri(uri: string) {
 export async function stopAdhanPreview() {
   try {
     if (activeSound) {
-      await activeSound.stopAsync().catch(() => {});
-      await activeSound.unloadAsync().catch(() => {});
+      await activeSound.stopAsync().catch(() => undefined);
+      await activeSound.unloadAsync().catch(() => undefined);
       activeSound = null;
     }
   } catch (error) {
