@@ -60,7 +60,7 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms =
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), ms);
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
+    return await fetch(url, { ...init, signal: ctrl.signal } as any);
   } finally {
     clearTimeout(tid);
   }
@@ -82,7 +82,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-async function fetchWithRetry(url: string, init: any, attempts = 2): Promise<Response> {
+async function fetchWithRetry(url: string, init: RequestInit, attempts = 2): Promise<Response> {
   let lastErr: Error | null = null;
   for (let i = 0; i < attempts; i++) {
     if (i > 0) await new Promise(r => setTimeout(r, 3000 * i));
