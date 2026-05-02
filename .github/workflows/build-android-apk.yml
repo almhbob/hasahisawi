@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android Release APK and AAB
 
 on:
   workflow_dispatch:
@@ -7,9 +7,9 @@ on:
       - master
 
 jobs:
-  build-apk:
+  build-android-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -35,18 +35,33 @@ jobs:
         env:
           CI: true
           EXPO_NO_TELEMETRY: 1
+          EXPO_PUBLIC_API_URL: https://hasahisawi.onrender.com
+          EXPO_PUBLIC_DOMAIN: hasahisawi.onrender.com
         run: pnpm exec expo prebuild --platform android --clean --non-interactive --no-install
 
-      - name: Build debug APK
+      - name: Build standalone release APK and AAB
         working-directory: artifacts/hasahisawi/android
-        run: chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease bundleRelease --no-daemon
 
-      - name: Prepare APK
-        run: mkdir -p release && cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk release/hasahisawi-preview.apk
+      - name: Prepare Android artifacts
+        run: |
+          mkdir -p release
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk release/hasahisawi-release.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-release.aab
+          ls -lh release
 
-      - name: Upload APK
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-preview-apk
-          path: release/hasahisawi-preview.apk
+          name: hasahisawi-release-apk
+          path: release/hasahisawi-release.apk
+          retention-days: 14
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-release-aab
+          path: release/hasahisawi-release.aab
           retention-days: 14
