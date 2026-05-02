@@ -29,15 +29,13 @@ import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
+import Colors from "@/constants/colors";
 
-// ── إعداد RTL متزامن قبل أي render ─────────────────────────────
-// التطبيق عربي بالأساس — يُطبَّق RTL مباشرةً عند تحميل الموديول
 if (Platform.OS !== "web") {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
 }
 
-// ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
 LogBox.ignoreLogs([
   "Firebase: Error",
   "@firebase/auth:",
@@ -46,8 +44,6 @@ LogBox.ignoreLogs([
   "auth/network-request-failed",
 ]);
 
-// ── معالج أخطاء React Native (Hermes) العالمي ───────────────────
-// يمنع Firebase من كسر التطبيق عند وجود مفتاح API غير صالح
 try {
   const EU = (global as any).ErrorUtils;
   if (EU?.getGlobalHandler && EU?.setGlobalHandler) {
@@ -61,14 +57,13 @@ try {
       ) {
         console.warn("[Firebase global error suppressed]", msg);
         try { markFirebaseRuntimeFailed(); } catch {}
-        return; // لا نُعيد رميه → لا كراش
+        return;
       }
       prev?.(error, isFatal);
     });
   }
 } catch {}
 
-// ── معالجة رفض الـ Promises غير المُعالَجة (web) ────────────────
 if (typeof globalThis !== "undefined") {
   const origHandler = (globalThis as any).onunhandledrejection;
   (globalThis as any).onunhandledrejection = (event: any) => {
@@ -87,14 +82,12 @@ if (typeof globalThis !== "undefined") {
 
 SplashScreen.preventAutoHideAsync();
 
-// ── بوابة المصادقة — تحجب التطبيق حتى يسجّل المستخدم دخوله ─────
 function AuthGate() {
   const { user, token, isLoading, isGuest } = useAuth();
   const router   = useRouter();
   const segments = useSegments();
   const unread = useApiUnread(isGuest ? null : (token ?? null));
 
-  // تسجيل الإشعارات عند تسجيل الدخول
   useEffect(() => {
     if (!user || isGuest) return;
     registerForPushNotifications(user.uid ?? String(user.id), token ?? undefined).catch(() => {});
@@ -109,7 +102,6 @@ function AuthGate() {
     return unsub;
   }, [user?.id]);
 
-  // تحديث شارة التطبيق
   useEffect(() => {
     setBadgeCount(unread).catch(() => {});
   }, [unread]);
@@ -120,7 +112,6 @@ function AuthGate() {
     const inOnboarding = segments[0] === "onboarding";
     if (!user) {
       if (!inLogin && !inOnboarding) {
-        // فحص إذا كان المستخدم شاهد شاشة الترحيب من قبل
         AsyncStorage.getItem(ONBOARDING_KEY).then((done) => {
           if (!done) {
             router.replace("/onboarding" as any);
@@ -140,9 +131,9 @@ function AuthGate() {
 function RootLayoutNav() {
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="light" backgroundColor={Colors.bg} translucent={false} />
       <AuthGate />
-      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false }}>
+      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
         <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
@@ -174,9 +165,7 @@ export default function RootLayout() {
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
 
   useEffect(() => {
-    // إيقاظ السيرفر مبكراً عند فتح التطبيق لتقليل وقت الانتظار
     wakeUpServer();
-    // تهيئة Firebase App Check (الويب فقط — تخطّي صامت على الموبايل)
     initAppCheck().catch(() => {});
   }, []);
 
@@ -201,15 +190,15 @@ export default function RootLayout() {
           <FirebaseProvider>
             <AuthProvider>
               <FeatureFlagsProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <View style={{ flex: 1, backgroundColor: "#0A1410", direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
-                    <RootLayoutNav />
-                    <NetworkBanner />
-                    <UpdateBanner />
-                  </View>
-                </KeyboardProvider>
-              </GestureHandlerRootView>
+                <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
+                  <KeyboardProvider statusBarTranslucent={false} navigationBarTranslucent={false}>
+                    <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                      <RootLayoutNav />
+                      <NetworkBanner />
+                      <UpdateBanner />
+                    </View>
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
               </FeatureFlagsProvider>
             </AuthProvider>
           </FirebaseProvider>
