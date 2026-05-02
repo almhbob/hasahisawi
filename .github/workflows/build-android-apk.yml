@@ -6,6 +6,9 @@ on:
     branches:
       - master
 
+permissions:
+  contents: write
+
 jobs:
   build-android-release:
     runs-on: ubuntu-latest
@@ -25,7 +28,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -48,20 +51,40 @@ jobs:
       - name: Prepare Android artifacts
         run: |
           mkdir -p release
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk release/hasahisawi-release.apk
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-release.aab
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          VERSION_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk release/hasahisawi-v${VERSION}-code${VERSION_CODE}.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab release/hasahisawi-v${VERSION}-code${VERSION_CODE}.aab
           ls -lh release
 
-      - name: Upload release APK
+      - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: hasahisawi-release-apk
-          path: release/hasahisawi-release.apk
-          retention-days: 14
+          path: release/*.apk
+          retention-days: 30
 
-      - name: Upload release AAB
+      - name: Upload release AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: hasahisawi-release-aab
-          path: release/hasahisawi-release.aab
-          retention-days: 14
+          path: release/*.aab
+          retention-days: 30
+
+      - name: Publish GitHub Release with permanent links
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ env.VERSION }}-${{ env.VERSION_CODE }}-${{ github.run_number }}
+          name: حصاحيصاوي Android v${{ env.VERSION }} build ${{ env.VERSION_CODE }}
+          body: |
+            إصدار Android تلقائي لتطبيق حصاحيصاوي.
+
+            الملفات:
+            - APK للتثبيت المباشر.
+            - AAB للنشر في Google Play.
+          files: |
+            release/*.apk
+            release/*.aab
+          make_latest: true
