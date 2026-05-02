@@ -63,14 +63,15 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.REPLIT_DEV_DOMAIN);
   }
 
+  if (process.env.VERCEL_URL) {
+    return stripProtocol(process.env.VERCEL_URL);
+  }
+
   if (process.env.EXPO_PUBLIC_DOMAIN) {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
 
-  console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
-  );
-  process.exit(1);
+  return "localhost:3000";
 }
 
 function prepareDirectories(timestamp) {
@@ -287,8 +288,6 @@ async function downloadBundlesAndManifests(timestamp) {
   console.log("This may take several minutes for production builds...");
 
   try {
-    // Bundles are sequential — Metro can't handle both platforms simultaneously
-    // without stalling. Manifests are cheap and run in parallel after.
     await downloadBundle("ios", timestamp);
     await downloadBundle("android", timestamp);
 
