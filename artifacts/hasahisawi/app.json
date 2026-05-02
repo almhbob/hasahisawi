@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "5.8.0",
+    "version": "5.9.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -16,11 +16,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 215,
+      "versionCode": 216,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
@@ -29,7 +29,6 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.USE_BIOMETRIC",
@@ -51,8 +50,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ",
-          "locationWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ"
+          "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لتحسين تجربة الخدمات عند الحاجة",
+          "locationWhenInUsePermission": "يستخدم التطبيق موقعك لتحسين تجربة الخدمات عند الحاجة"
         }
       ],
       "./plugins/withResizeableActivity",
@@ -65,8 +64,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
-          "cameraPermission": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية"
+          "photosPermission": "التطبيق يحتاج إذناً للوصول إلى الصور عند اختيار صورة من جهازك",
+          "cameraPermission": "التطبيق يحتاج إذناً للكاميرا عند التقاط صورة من داخل التطبيق"
         }
       ],
       [
