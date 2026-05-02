@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "5.7.9",
+    "version": "5.8.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -16,11 +16,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "5"
+      "buildNumber": "6"
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 214,
+      "versionCode": 215,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
@@ -79,26 +79,13 @@
             {
               "name": "حصاحيصاوي — تنبيهات",
               "importance": 5,
-              "vibrationPattern": [
-                0,
-                250,
-                250,
-                250
-              ],
+              "vibrationPattern": [0, 250, 250, 250],
               "lightColor": "#27AE68",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
               "bypassDnd": false,
-              "lockscreenVisibility": 1,
-              "audioAttributes": {
-                "usage": "USAGE_NOTIFICATION",
-                "contentType": "CONTENT_TYPE_SONIFICATION",
-                "flags": {
-                  "enforceAudibility": true,
-                  "requestHardwareAudioVideoSynchronization": false
-                }
-              }
+              "lockscreenVisibility": 1
             }
           ]
         }
