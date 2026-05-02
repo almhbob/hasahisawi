@@ -1,10 +1,11 @@
 {
+  "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @workspace/hasahisawi run build"
+    "buildCommand": "npm install -g pnpm && cd /app && pnpm install --no-frozen-lockfile && EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-https://hasahisawi.onrender.com} EXPO_PUBLIC_DOMAIN=${EXPO_PUBLIC_DOMAIN:-hasahisawi.onrender.com} pnpm --filter @workspace/hasahisawi run build"
   },
   "deploy": {
-    "startCommand": "pnpm --filter @workspace/hasahisawi run serve",
+    "startCommand": "cd /app && pnpm --filter @workspace/hasahisawi run serve",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
