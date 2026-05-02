@@ -1,0 +1,46 @@
+name: CI Quality Check
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: TypeScript and Expo checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        working-directory: artifacts/hasahisawi
+        run: pnpm install --no-frozen-lockfile
+
+      - name: TypeScript check
+        working-directory: artifacts/hasahisawi
+        run: pnpm run typecheck
+
+      - name: Expo doctor
+        working-directory: artifacts/hasahisawi
+        run: pnpm exec expo-doctor || true
+
+      - name: Verify Cloudinary media config
+        working-directory: artifacts/hasahisawi
+        run: |
+          grep -q "dfyzdxupp" lib/firebase/storage.ts
+          grep -q "hasahisawi_upload" lib/firebase/storage.ts
+          echo "Cloudinary configuration found."
