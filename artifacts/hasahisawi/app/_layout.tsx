@@ -45,7 +45,7 @@ LogBox.ignoreLogs([
 ]);
 
 try {
-  const EU = (global as any).ErrorUtils;
+  const EU = (globalThis as any).ErrorUtils;
   if (EU?.getGlobalHandler && EU?.setGlobalHandler) {
     const prev = EU.getGlobalHandler();
     EU.setGlobalHandler((error: Error, isFatal: boolean) => {
