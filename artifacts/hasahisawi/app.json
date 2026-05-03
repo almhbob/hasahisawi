@@ -16,11 +16,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "7"
+      "buildNumber": "8"
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 216,
+      "versionCode": 217,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
