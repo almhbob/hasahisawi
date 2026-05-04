@@ -1,0 +1,112 @@
+{
+  "expo": {
+    "name": "حصاحيصاوي",
+    "slug": "al-hasahisa-service",
+    "version": "5.5.6",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "hasahisawi",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/city-crest.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#F2EBD8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.almhbob.hasahisawi",
+      "buildNumber": "4"
+    },
+    "android": {
+      "package": "com.almhbob.hasahisawi",
+      "versionCode": 156,
+      "googleServicesFile": "./google-services.json",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin",
+      "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ",
+          "locationWhenInUsePermission": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "التطبيق يستخدم معرف الوجه لتسجيل الدخول بأمان"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
+          "cameraPermission": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#27AE68",
+          "defaultChannel": "hasahisawi-default",
+          "androidChannels": [
+            {
+              "name": "حصاحيصاوي — تنبيهات",
+              "importance": 5,
+              "vibrationPattern": [0, 250, 250, 250],
+              "lightColor": "#27AE68",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": true,
+              "bypassDnd": false,
+              "lockscreenVisibility": 1,
+              "audioAttributes": {
+                "usage": "USAGE_NOTIFICATION",
+                "contentType": "CONTENT_TYPE_SONIFICATION",
+                "flags": {
+                  "enforceAudibility": true,
+                  "requestHardwareAudioVideoSynchronization": false
+                }
+              }
+            }
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"
+      }
+    },
+    "owner": "almhbob2026"
+  }
+}
