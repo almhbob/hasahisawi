@@ -22,6 +22,7 @@ type Package = {
   price_monthly: number; max_products: number;
   is_unlimited: boolean; is_featured: boolean;
   color: string; icon: string; features: string[];
+  sort_order: number;
 };
 type Member = {
   id: number; shop_name: string; bio: string; avatar_url: string;

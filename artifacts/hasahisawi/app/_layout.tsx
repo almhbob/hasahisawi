@@ -181,9 +181,16 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // على الويب: إذا لم يُحدَّد اللغة خلال ثانيتين نستخدم العربية افتراضياً
+    const fallback = Platform.OS === "web"
+      ? setTimeout(() => setInitialLang(prev => prev ?? "ar"), 2000)
+      : null;
     getStoredLang().then((lang) => {
       setInitialLang(lang);
+    }).finally(() => {
+      if (fallback) clearTimeout(fallback);
     });
+    return () => { if (fallback) clearTimeout(fallback); };
   }, []);
 
   useEffect(() => {
@@ -192,7 +199,9 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError, initialLang]);
 
-  if ((!fontsLoaded && !fontError) || initialLang === null) return null;
+  // على الويب: الخطوط تُحمَّل عبر CSS — لا نحتاج لانتظارها
+  const fontReady = Platform.OS === "web" ? true : (fontsLoaded || !!fontError);
+  if (!fontReady || initialLang === null) return null;
 
   return (
     <ErrorBoundary>

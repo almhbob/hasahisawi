@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal,
   ActivityIndicator, Platform, Switch,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -210,12 +211,73 @@ const HIJRI_SPECIAL: Record<number, number[]> = {
   12: [8, 9, 10, 11, 12, 13],
 };
 
+// ─── آية اليوم (تتغير كل يوم بناءً على رقمه) ─────────────────────────────────
+const DAILY_VERSES = [
+  { text: "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ ۖ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ", surah: "البقرة: ١٨٦" },
+  { text: "إِنَّ مَعَ الْعُسْرِ يُسْرًا", surah: "الشرح: ٦" },
+  { text: "وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا ۚ وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ", surah: "الطلاق: ٢-٣" },
+  { text: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", surah: "آل عمران: ١٧٣" },
+  { text: "وَلَسَوْفَ يُعْطِيكَ رَبُّكَ فَتَرْضَىٰ", surah: "الضحى: ٥" },
+  { text: "إِنَّ اللَّهَ مَعَ الصَّابِرِينَ", surah: "البقرة: ١٥٣" },
+  { text: "وَقُل رَّبِّ زِدْنِي عِلْمًا", surah: "طه: ١١٤" },
+  { text: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا ۝ إِنَّ مَعَ الْعُسْرِ يُسْرًا", surah: "الشرح: ٥-٦" },
+  { text: "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ", surah: "البقرة: ٢٠١" },
+  { text: "وَاللَّهُ يَعْلَمُ وَأَنتُمْ لَا تَعْلَمُونَ", surah: "البقرة: ٢١٦" },
+  { text: "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ", surah: "البقرة: ١٥٣" },
+  { text: "وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ", surah: "الحديد: ٤" },
+  { text: "إِنَّ اللَّهَ لَا يُضِيعُ أَجْرَ الْمُحْسِنِينَ", surah: "التوبة: ١٢٠" },
+  { text: "وَاعْلَمُوا أَنَّ اللَّهَ مَعَ الْمُتَّقِينَ", surah: "البقرة: ١٩٤" },
+];
+
+// ─── بيانات الأذكار ───────────────────────────────────────────────────────────
+type DhikrItem = { id: number; title: string; text: string; count: number; ref: string };
+
+const ADHKAR_MORNING: DhikrItem[] = [
+  { id: 1, title: "أذكار الصباح — البدء", text: "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ", count: 1, ref: "مسلم" },
+  { id: 2, title: "آية الكرسي", text: "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ", count: 1, ref: "البقرة: ٢٥٥" },
+  { id: 3, title: "سورة الإخلاص", text: "قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ", count: 3, ref: "قرآن كريم" },
+  { id: 4, title: "سورة الفلق", text: "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ", count: 3, ref: "قرآن كريم" },
+  { id: 5, title: "سورة الناس", text: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ", count: 3, ref: "قرآن كريم" },
+  { id: 6, title: "التسبيح", text: "سُبْحَانَ اللهِ وَبِحَمْدِهِ", count: 100, ref: "البخاري ومسلم" },
+  { id: 7, title: "طلب العافية", text: "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي الدُّنْيَا وَالْآخِرَةِ", count: 3, ref: "أبو داود وابن ماجه" },
+  { id: 8, title: "حسبي الله", text: "حَسْبِيَ اللهُ لَا إِلَٰهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ", count: 7, ref: "أبو داود" },
+];
+
+const ADHKAR_EVENING: DhikrItem[] = [
+  { id: 1, title: "أذكار المساء — البدء", text: "أَمْسَيْنَا وَأَمْسَىٰ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ", count: 1, ref: "مسلم" },
+  { id: 2, title: "دعاء المساء", text: "اللَّهُمَّ بِكَ أَمْسَيْنَا وَبِكَ أَصْبَحْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ", count: 1, ref: "الترمذي" },
+  { id: 3, title: "آية الكرسي مساءً", text: "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ", count: 1, ref: "البقرة: ٢٥٥" },
+  { id: 4, title: "التسبيح المسائي", text: "سُبْحَانَ اللهِ وَبِحَمْدِهِ", count: 100, ref: "البخاري" },
+  { id: 5, title: "طلب المغفرة", text: "أَسْتَغْفِرُ اللهَ وَأَتُوبُ إِلَيْهِ", count: 100, ref: "البخاري" },
+  { id: 6, title: "الحفاظ من الشر", text: "أَعُوذُ بِكَلِمَاتِ اللهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", count: 3, ref: "مسلم" },
+  { id: 7, title: "الصلاة على النبي ﷺ", text: "اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ نَبِيِّنَا مُحَمَّدٍ", count: 10, ref: "السنة النبوية" },
+];
+
+const ADHKAR_POST_PRAYER: DhikrItem[] = [
+  { id: 1, title: "الاستغفار", text: "أَسْتَغْفِرُ اللهَ", count: 3, ref: "مسلم" },
+  { id: 2, title: "دعاء السلام", text: "اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ", count: 1, ref: "مسلم" },
+  { id: 3, title: "لا إله إلا الله", text: "لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ", count: 1, ref: "مسلم" },
+  { id: 4, title: "التسبيح", text: "سُبْحَانَ اللهِ", count: 33, ref: "مسلم" },
+  { id: 5, title: "التحميد", text: "الْحَمْدُ لِلَّهِ", count: 33, ref: "مسلم" },
+  { id: 6, title: "التكبير", text: "اللهُ أَكْبَرُ", count: 33, ref: "مسلم" },
+  { id: 7, title: "إتمام المئة", text: "لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ", count: 1, ref: "مسلم" },
+];
+
+// ─── أنواع المسبحة ────────────────────────────────────────────────────────────
+const TASBIH_PRESETS = [
+  { text: "سُبْحَانَ اللهِ",           target: 33,  color: "#22C55E", label: "تسبيح" },
+  { text: "الْحَمْدُ لِلَّهِ",         target: 33,  color: "#F59E0B", label: "تحميد" },
+  { text: "اللهُ أَكْبَرُ",            target: 33,  color: "#E05567", label: "تكبير" },
+  { text: "لَا إِلَٰهَ إِلَّا اللهُ", target: 100, color: "#818CF8", label: "تهليل" },
+  { text: "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ", target: 100, color: "#F97316", label: "صلاة" },
+];
+
 // ─── المكوّن الرئيسي ───────────────────────────────────────────────────────────
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [tab, setTab] = useState<"prayer" | "hijri">("prayer");
+  const [tab, setTab] = useState<"prayer" | "adhkar" | "tasbih" | "hijri">("prayer");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -235,6 +297,27 @@ export default function PrayerScreen() {
   } | null>(null);
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── المسبحة الرقمية ───────────────────────────────────────────────────────
+  const [tasbihIdx,   setTasbihIdx]   = useState(0);
+  const [tasbihCount, setTasbihCount] = useState(0);
+  const tasbihPreset = TASBIH_PRESETS[tasbihIdx];
+
+  // ── الأذكار ───────────────────────────────────────────────────────────────
+  const [adhkarCat, setAdhkarCat] = useState<"morning" | "evening" | "post">("morning");
+  const [dhikrDone, setDhikrDone] = useState<Record<number, number>>({});
+
+  const adhkarList = adhkarCat === "morning"
+    ? ADHKAR_MORNING
+    : adhkarCat === "evening"
+    ? ADHKAR_EVENING
+    : ADHKAR_POST_PRAYER;
+
+  // آية اليوم بناءً على يوم الشهر
+  const dailyVerse = React.useMemo(() => {
+    const dayOfMonth = new Date().getDate();
+    return DAILY_VERSES[dayOfMonth % DAILY_VERSES.length];
+  }, []);
 
   // ── الأذان (إشعارات نظام محلية فقط — لا تشغيل صوت داخل التطبيق) ─────────
   const [adhanEnabled, setAdhanEnabled] = useState(true);
@@ -491,23 +574,42 @@ export default function PrayerScreen() {
         <Pressable style={s.settingsBtn} onPress={() => { setEditSettings(settings); setSettingsVisible(true); }}>
           <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
         </Pressable>
-        <Text style={s.headerTitle}>الآذان والتقويم</Text>
+        <Text style={s.headerTitle}>المساحة الدينية</Text>
         <Pressable style={s.fmtBtn} onPress={() => setFmt24(v => !v)}>
           <Text style={s.fmtBtnText}>{fmt24 ? "24" : "12"}</Text>
         </Pressable>
       </View>
 
+      {/* آية اليوم */}
+      <Animated.View entering={FadeIn.duration(600)} style={s.verseCard}>
+        <LinearGradient
+          colors={["rgba(129,140,248,0.12)", "rgba(10,15,12,0.6)"]}
+          style={StyleSheet.absoluteFill as any}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        />
+        <Text style={s.verseLabel}>✦ آية اليوم</Text>
+        <Text style={s.verseText}>{dailyVerse.text}</Text>
+        <Text style={s.verseSurah}>— {dailyVerse.surah}</Text>
+      </Animated.View>
+
       {/* Tabs */}
-      <View style={s.tabRow}>
-        <Pressable style={[s.tabBtn, tab === "prayer" && s.tabBtnActive]} onPress={() => setTab("prayer")}>
-          <Ionicons name="time-outline" size={16} color={tab === "prayer" ? Colors.primary : Colors.textMuted} />
-          <Text style={[s.tabBtnText, tab === "prayer" && { color: Colors.primary }]}>مواقيت الآذان</Text>
-        </Pressable>
-        <Pressable style={[s.tabBtn, tab === "hijri" && s.tabBtnActive]} onPress={() => setTab("hijri")}>
-          <Ionicons name="moon-outline" size={16} color={tab === "hijri" ? Colors.primary : Colors.textMuted} />
-          <Text style={[s.tabBtnText, tab === "hijri" && { color: Colors.primary }]}>التقويم الهجري</Text>
-        </Pressable>
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabRowContent}>
+        {([
+          { key: "prayer",  label: "مواقيت الآذان", icon: "time-outline",            color: "#818CF8" },
+          { key: "adhkar",  label: "الأذكار",        icon: "leaf-outline",            color: "#22C55E" },
+          { key: "tasbih",  label: "المسبحة",        icon: "radio-button-on-outline", color: "#F59E0B" },
+          { key: "hijri",   label: "التقويم الهجري", icon: "moon-outline",            color: Colors.accent },
+        ] as const).map(t => (
+          <Pressable
+            key={t.key}
+            style={[s.tabBtn, tab === t.key && { ...s.tabBtnActive, borderColor: t.color + "55", backgroundColor: t.color + "14" }]}
+            onPress={() => setTab(t.key as any)}
+          >
+            <Ionicons name={t.icon as any} size={15} color={tab === t.key ? t.color : Colors.textMuted} />
+            <Text style={[s.tabBtnText, tab === t.key && { color: t.color }]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       {loading ? (
         <View style={s.loadingWrap}>
@@ -715,6 +817,157 @@ export default function PrayerScreen() {
               </Text>
             </>
           )}
+
+          {/* ── تبويب الأذكار ── */}
+          {tab === "adhkar" && (
+            <>
+              {/* فئات الأذكار */}
+              <View style={s.adhkarCatRow}>
+                {([
+                  { key: "morning", label: "🌅 صباحية", color: "#F59E0B" },
+                  { key: "evening", label: "🌙 مسائية",  color: "#818CF8" },
+                  { key: "post",    label: "🕌 بعد الصلاة", color: "#22C55E" },
+                ] as const).map(cat => (
+                  <Pressable
+                    key={cat.key}
+                    style={[s.adhkarCatBtn, adhkarCat === cat.key && { backgroundColor: cat.color + "18", borderColor: cat.color + "50" }]}
+                    onPress={() => { setAdhkarCat(cat.key); setDhikrDone({}); }}
+                  >
+                    <Text style={[s.adhkarCatText, adhkarCat === cat.key && { color: cat.color }]}>{cat.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* قائمة الأذكار */}
+              <View style={s.dhikrList}>
+                {adhkarList.map((dhikr, i) => {
+                  const done = dhikrDone[dhikr.id] ?? 0;
+                  const isComplete = done >= dhikr.count;
+                  return (
+                    <Animated.View key={dhikr.id} entering={FadeInDown.delay(i * 50).springify().damping(18)}>
+                      <Pressable
+                        style={[s.dhikrCard, isComplete && s.dhikrCardDone]}
+                        onPress={() => {
+                          if (!isComplete) {
+                            setDhikrDone(prev => ({ ...prev, [dhikr.id]: (prev[dhikr.id] ?? 0) + 1 }));
+                          }
+                        }}
+                      >
+                        {/* Header */}
+                        <View style={s.dhikrHeader}>
+                          <View style={[s.dhikrCountBadge, isComplete && { backgroundColor: "#22C55E30", borderColor: "#22C55E60" }]}>
+                            {isComplete
+                              ? <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                              : <Text style={s.dhikrCountText}>{done}/{dhikr.count}</Text>
+                            }
+                          </View>
+                          <Text style={[s.dhikrTitle, isComplete && { color: Colors.textMuted }]}>{dhikr.title}</Text>
+                        </View>
+
+                        {/* النص */}
+                        <Text style={[s.dhikrText, isComplete && { opacity: 0.55 }]}>{dhikr.text}</Text>
+
+                        {/* المرجع */}
+                        <View style={s.dhikrRefRow}>
+                          <Text style={s.dhikrRef}>{dhikr.ref}</Text>
+                          <Text style={s.dhikrHint}>
+                            {isComplete ? "✓ تمّ" : `اضغط ${dhikr.count > 1 ? `(${dhikr.count} مرات)` : "مرة"}`}
+                          </Text>
+                        </View>
+
+                        {/* شريط التقدم */}
+                        {dhikr.count > 1 && (
+                          <View style={s.dhikrProgress}>
+                            <View style={[s.dhikrProgressFill, { width: `${Math.min(100, (done / dhikr.count) * 100)}%` as any, backgroundColor: isComplete ? "#22C55E" : Colors.primary }]} />
+                          </View>
+                        )}
+                      </Pressable>
+                    </Animated.View>
+                  );
+                })}
+              </View>
+
+              {/* إعادة ضبط */}
+              <Pressable style={s.resetAllBtn} onPress={() => setDhikrDone({})}>
+                <Ionicons name="refresh-outline" size={15} color={Colors.textMuted} />
+                <Text style={s.resetAllText}>إعادة ضبط الأذكار</Text>
+              </Pressable>
+            </>
+          )}
+
+          {/* ── تبويب المسبحة ── */}
+          {tab === "tasbih" && (
+            <View style={s.tasbihContainer}>
+
+              {/* اختيار نوع التسبيح */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tasbihPresetRow}>
+                {TASBIH_PRESETS.map((preset, idx) => (
+                  <Pressable
+                    key={idx}
+                    style={[s.tasbihPresetBtn, tasbihIdx === idx && { backgroundColor: preset.color + "20", borderColor: preset.color + "60" }]}
+                    onPress={() => { setTasbihIdx(idx); setTasbihCount(0); }}
+                  >
+                    <Text style={[s.tasbihPresetLabel, tasbihIdx === idx && { color: preset.color }]}>{preset.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {/* نص التسبيح */}
+              <Animated.View key={tasbihIdx} entering={FadeIn.duration(300)} style={[s.tasbihTextCard, { borderColor: tasbihPreset.color + "30" }]}>
+                <Text style={[s.tasbihMainText, { color: tasbihPreset.color }]}>
+                  {tasbihPreset.text}
+                </Text>
+              </Animated.View>
+
+              {/* العداد الدائري */}
+              <View style={s.tasbihCounterWrap}>
+                <View style={[s.tasbihRing, { borderColor: tasbihPreset.color + "30" }]}>
+                  <View style={[s.tasbihRingInner, { borderColor: tasbihPreset.color + "60" }]}>
+                    <Text style={[s.tasbihNumber, { color: tasbihPreset.color }]}>
+                      {tasbihCount}
+                    </Text>
+                    <Text style={s.tasbihTarget}>من {tasbihPreset.target}</Text>
+                  </View>
+                </View>
+
+                {/* شريط التقدم الدائري بديل (مستطيل) */}
+                <View style={s.tasbihBar}>
+                  <View style={[
+                    s.tasbihBarFill,
+                    { width: `${Math.min(100, (tasbihCount / tasbihPreset.target) * 100)}%` as any, backgroundColor: tasbihPreset.color }
+                  ]} />
+                </View>
+
+                {tasbihCount >= tasbihPreset.target && (
+                  <Animated.View entering={FadeInDown.springify()} style={[s.tasbihDoneBadge, { backgroundColor: tasbihPreset.color + "20", borderColor: tasbihPreset.color + "50" }]}>
+                    <Ionicons name="checkmark-circle" size={20} color={tasbihPreset.color} />
+                    <Text style={[s.tasbihDoneText, { color: tasbihPreset.color }]}>أحسنت! اكتملت {tasbihPreset.target} مرة</Text>
+                  </Animated.View>
+                )}
+              </View>
+
+              {/* زر الضغط الكبير */}
+              <Pressable
+                style={({ pressed }) => [
+                  s.tasbihBtn,
+                  { backgroundColor: tasbihPreset.color, opacity: pressed ? 0.8 : 1 },
+                  tasbihCount >= tasbihPreset.target && { opacity: 0.5 }
+                ]}
+                onPress={() => {
+                  if (tasbihCount < tasbihPreset.target * 3) setTasbihCount(c => c + 1);
+                }}
+              >
+                <Text style={s.tasbihBtnText}>اضغط للتسبيح</Text>
+                <Text style={s.tasbihBtnSub}>{tasbihPreset.text}</Text>
+              </Pressable>
+
+              {/* إعادة ضبط */}
+              <Pressable style={s.resetAllBtn} onPress={() => setTasbihCount(0)}>
+                <Ionicons name="refresh-outline" size={15} color={Colors.textMuted} />
+                <Text style={s.resetAllText}>إعادة الضبط</Text>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -819,14 +1072,136 @@ const s = StyleSheet.create({
   },
   fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
 
+  // ── آية اليوم ──
+  verseCard: {
+    marginHorizontal: 16, marginTop: 10, marginBottom: 2,
+    borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: "rgba(129,140,248,0.22)",
+    overflow: "hidden", gap: 6,
+  },
+  verseLabel: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 11,
+    color: "#818CF8", textAlign: "right",
+  },
+  verseText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 17,
+    color: Colors.textPrimary, textAlign: "right",
+    lineHeight: 32,
+  },
+  verseSurah: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: "#818CF880", textAlign: "right",
+  },
+
+  // ── شريط التبويبات القابل للتمرير ──
+  tabScrollRow: { flexGrow: 0 },
+  tabRowContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   tabRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   tabBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 8, borderRadius: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
   },
   tabBtnActive: { backgroundColor: Colors.primary + "18", borderColor: Colors.primary + "40" },
   tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+
+  // ── الأذكار ──
+  adhkarCatRow: {
+    flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 4, marginTop: 4,
+  },
+  adhkarCatBtn: {
+    flex: 1, paddingVertical: 8, paddingHorizontal: 6,
+    borderRadius: 12, backgroundColor: Colors.cardBg,
+    borderWidth: 1, borderColor: Colors.divider, alignItems: "center",
+  },
+  adhkarCatText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  dhikrList: { marginHorizontal: 16, marginTop: 4, gap: 8 },
+  dhikrCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: Colors.divider, gap: 10,
+  },
+  dhikrCardDone: { backgroundColor: "#22C55E0A", borderColor: "#22C55E22" },
+  dhikrHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dhikrCountBadge: {
+    minWidth: 42, height: 26, borderRadius: 8,
+    backgroundColor: Colors.primary + "15",
+    borderWidth: 1, borderColor: Colors.primary + "35",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
+  },
+  dhikrCountText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.primary },
+  dhikrTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14,
+    color: Colors.textPrimary, flex: 1, textAlign: "right",
+  },
+  dhikrText: {
+    fontFamily: "Cairo_500Medium", fontSize: 15,
+    color: Colors.textSecondary, textAlign: "right",
+    lineHeight: 28,
+  },
+  dhikrRefRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  },
+  dhikrRef: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  dhikrHint: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  dhikrProgress: {
+    height: 4, backgroundColor: Colors.divider, borderRadius: 2, overflow: "hidden",
+  },
+  dhikrProgressFill: { height: 4, borderRadius: 2 },
+  resetAllBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, marginHorizontal: 16, marginTop: 12, marginBottom: 4,
+    paddingVertical: 10, borderRadius: 12,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
+  },
+  resetAllText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
+
+  // ── المسبحة ──
+  tasbihContainer: { paddingHorizontal: 16, gap: 12 },
+  tasbihPresetRow: { gap: 8, paddingVertical: 4 },
+  tasbihPresetBtn: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
+  },
+  tasbihPresetLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textMuted },
+  tasbihTextCard: {
+    backgroundColor: Colors.cardBgElevated, borderRadius: 18,
+    padding: 20, alignItems: "center",
+    borderWidth: 1.5,
+  },
+  tasbihMainText: {
+    fontFamily: "Cairo_700Bold", fontSize: 22,
+    textAlign: "center", lineHeight: 38,
+  },
+  tasbihCounterWrap: { alignItems: "center", gap: 12 },
+  tasbihRing: {
+    width: 180, height: 180, borderRadius: 90,
+    borderWidth: 8, alignItems: "center", justifyContent: "center",
+  },
+  tasbihRingInner: {
+    width: 148, height: 148, borderRadius: 74,
+    borderWidth: 3, alignItems: "center", justifyContent: "center", gap: 4,
+  },
+  tasbihNumber: { fontFamily: "Cairo_700Bold", fontSize: 52, lineHeight: 56 },
+  tasbihTarget: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  tasbihBar: {
+    width: "90%", height: 6, backgroundColor: Colors.divider,
+    borderRadius: 3, overflow: "hidden",
+  },
+  tasbihBarFill: { height: 6, borderRadius: 3 },
+  tasbihDoneBadge: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14,
+    borderWidth: 1,
+  },
+  tasbihDoneText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  tasbihBtn: {
+    marginHorizontal: 0, paddingVertical: 18, borderRadius: 20,
+    alignItems: "center", gap: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
+  },
+  tasbihBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
+  tasbihBtnSub: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.7)" },
 
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
   loadingText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },
