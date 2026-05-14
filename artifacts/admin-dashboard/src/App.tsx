@@ -33,6 +33,7 @@ import ActivityLog   from "@/pages/ActivityLog";
 import Telecom        from "@/pages/Telecom";
 import TelecomPortal  from "@/pages/TelecomPortal";
 import Unions         from "@/pages/Unions";
+import Zawajil        from "@/pages/Zawajil";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -106,6 +107,7 @@ function AppRoutes() {
         <Route path="/activity-log"   component={ActivityLog} />
         <Route path="/telecom"        component={Telecom} />
         <Route path="/unions"         component={Unions} />
+        <Route path="/zawajil"        component={Zawajil} />
         <Route path="/settings"       component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>

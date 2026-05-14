@@ -89,6 +89,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "هدايا وتواصل",
+    items: [
+      { title: "زواجل — أرسل هديتك", icon: "gift-outline", route: "/(tabs)/zawajil", color: "#EC4899" },
+    ],
+  },
+  {
     label: "نقل وتوصيل",
     items: [
       { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", isTransport: true },

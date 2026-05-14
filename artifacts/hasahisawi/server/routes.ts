@@ -2086,6 +2086,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
     catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
+  // ══════════════════════════════════════════════════════════════════
+  // زواجل — خدمة توصيل الهدايا والرسائل
+  // ══════════════════════════════════════════════════════════════════
+  async function ensureZawajilTables() {
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_products (
+      id           SERIAL PRIMARY KEY,
+      name         VARCHAR(200) NOT NULL,
+      description  TEXT,
+      price        NUMERIC(12,2) DEFAULT 0,
+      category     VARCHAR(60) DEFAULT 'general',
+      image_url    TEXT,
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order   INTEGER DEFAULT 0,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_orders (
+      id                     SERIAL PRIMARY KEY,
+      order_number           VARCHAR(30) UNIQUE,
+      sender_id              INTEGER,
+      sender_name            VARCHAR(100),
+      sender_phone           VARCHAR(30),
+      recipient_name         VARCHAR(100) NOT NULL,
+      recipient_phone        VARCHAR(30),
+      recipient_address      TEXT,
+      delivery_location      VARCHAR(20) DEFAULT 'inside_city',
+      service_type           VARCHAR(30) NOT NULL,
+      occasion_type          VARCHAR(30),
+      message_text           TEXT,
+      message_by_us          BOOLEAN DEFAULT FALSE,
+      voice_presentation     BOOLEAN DEFAULT FALSE,
+      gift_type              VARCHAR(20) DEFAULT 'none',
+      gift_product_id        INTEGER,
+      gift_product_name      VARCHAR(200),
+      gift_external_desc     TEXT,
+      gift_money_amount      NUMERIC(12,2) DEFAULT 0,
+      status                 VARCHAR(30) NOT NULL DEFAULT 'pending_review',
+      estimated_cost         NUMERIC(12,2) DEFAULT 0,
+      admin_notes            TEXT,
+      rejection_reason       TEXT,
+      modification_request   TEXT,
+      pledge_accepted        BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_shoubash_guests (
+      id          SERIAL PRIMARY KEY,
+      order_id    INTEGER REFERENCES zawajil_orders(id) ON DELETE CASCADE,
+      guest_name  VARCHAR(100),
+      guest_phone VARCHAR(30),
+      gift_desc   VARCHAR(300),
+      gift_amount NUMERIC(12,2) DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  }
+
+  app.get("/api/zawajil/products", async (_req: Request, res: Response) => {
+    try { await ensureZawajilTables(); const r = await query(`SELECT * FROM zawajil_products WHERE is_available=TRUE ORDER BY sort_order,name`); res.json(r.rows); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/zawajil/orders", async (req: Request, res: Response) => {
+    try {
+      await ensureZawajilTables();
+      const { sender_name, sender_phone, recipient_name, recipient_phone, recipient_address, delivery_location, service_type, occasion_type, message_text, message_by_us, voice_presentation, gift_type, gift_product_id, gift_product_name, gift_external_desc, gift_money_amount, pledge_accepted } = req.body;
+      if (!recipient_name || !service_type) return res.status(400).json({ error: "الاسم ونوع الخدمة مطلوبان" });
+      if (!pledge_accepted) return res.status(400).json({ error: "يجب قبول التعهد للمتابعة" });
+      const countR = await query(`SELECT COUNT(*) FROM zawajil_orders`);
+      const n = parseInt(countR.rows[0].count) + 1;
+      const orderNumber = `ZWJ-${new Date().getFullYear()}-${String(n).padStart(4,"0")}`;
+      let senderId: number | null = null;
+      const auth = req.headers.authorization;
+      if (auth?.startsWith("Bearer ") && !auth.startsWith("Bearer tc_")) {
+        try { const p = JSON.parse(Buffer.from(auth.slice(7).split(".")[1],"base64").toString()); senderId = p.userId || null; } catch { /* ignore */ }
+      }
+      const r = await query(`INSERT INTO zawajil_orders (order_number,sender_id,sender_name,sender_phone,recipient_name,recipient_phone,recipient_address,delivery_location,service_type,occasion_type,message_text,message_by_us,voice_presentation,gift_type,gift_product_id,gift_product_name,gift_external_desc,gift_money_amount,pledge_accepted) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+        [orderNumber,senderId,sender_name||null,sender_phone||null,recipient_name,recipient_phone||null,recipient_address||null,delivery_location||"inside_city",service_type,occasion_type||null,message_text||null,Boolean(message_by_us),Boolean(voice_presentation),gift_type||"none",gift_product_id||null,gift_product_name||null,gift_external_desc||null,gift_money_amount||0,true]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/zawajil/orders/mine", async (req: Request, res: Response) => {
+    try {
+      await ensureZawajilTables();
+      const { phone, name } = req.query as Record<string,string>;
+      if (!phone && !name) return res.json([]);
+      const params: unknown[] = []; let where = "WHERE 1=1";
+      if (phone) { params.push(phone); where += ` AND sender_phone=$${params.length}`; }
+      else { params.push(`%${name}%`); where += ` AND sender_name ILIKE $${params.length}`; }
+      const r = await query(`SELECT * FROM zawajil_orders ${where} ORDER BY created_at DESC LIMIT 50`, params);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/zawajil/shoubash-guests", async (req: Request, res: Response) => {
+    try {
+      await ensureZawajilTables();
+      const { order_id, guest_name, guest_phone, gift_desc, gift_amount } = req.body;
+      if (!order_id || !guest_name) return res.status(400).json({ error: "رقم الطلب والاسم مطلوبان" });
+      const r = await query(`INSERT INTO zawajil_shoubash_guests(order_id,guest_name,guest_phone,gift_desc,gift_amount) VALUES($1,$2,$3,$4,$5) RETURNING *`, [order_id,guest_name,guest_phone||null,gift_desc||null,gift_amount||0]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/zawajil/orders", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { status } = req.query as Record<string,string>;
+      const params: unknown[] = []; let where = "WHERE 1=1";
+      if (status && status !== "all") { params.push(status); where += ` AND status=$${params.length}`; }
+      const r = await query(`SELECT o.*, (SELECT json_agg(g) FROM zawajil_shoubash_guests g WHERE g.order_id=o.id) AS shoubash_guests FROM zawajil_orders o ${where} ORDER BY o.created_at DESC`, params);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/zawajil/orders/:id/review", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { action, admin_notes, rejection_reason, modification_request, estimated_cost } = req.body;
+      const MAP: Record<string,string> = { approve:"approved", reject:"rejected", request_modification:"modification_requested" };
+      const newStatus = MAP[action]; if (!newStatus) return res.status(400).json({ error: "action غير صالح" });
+      const r = await query(`UPDATE zawajil_orders SET status=$1,admin_notes=COALESCE($2,admin_notes),rejection_reason=COALESCE($3,rejection_reason),modification_request=COALESCE($4,modification_request),estimated_cost=COALESCE($5::numeric,estimated_cost),updated_at=NOW() WHERE id=$6 RETURNING *`,
+        [newStatus,admin_notes||null,rejection_reason||null,modification_request||null,estimated_cost!=null?Number(estimated_cost):null,req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" }); res.json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/zawajil/orders/:id/status", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { status, admin_notes } = req.body;
+      const VALID = ["pending_review","modification_requested","approved","preparing","sending","completed","rejected","returned"];
+      if (!VALID.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      const r = await query(`UPDATE zawajil_orders SET status=$1,admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *`, [status,admin_notes||null,req.params.id]);
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/zawajil/products", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureZawajilTables(); const r = await query(`SELECT * FROM zawajil_products ORDER BY sort_order,name`); res.json(r.rows); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/zawajil/products", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+      const r = await query(`INSERT INTO zawajil_products(name,description,price,category,image_url,is_available,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [name,description||null,price||0,category||"general",image_url||null,is_available!==false,sort_order||0]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/zawajil/products/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      const r = await query(`UPDATE zawajil_products SET name=COALESCE($1,name),description=COALESCE($2,description),price=COALESCE($3::numeric,price),category=COALESCE($4,category),image_url=COALESCE($5,image_url),is_available=COALESCE($6,is_available),sort_order=COALESCE($7::int,sort_order) WHERE id=$8 RETURNING *`,
+        [name||null,description||null,price!=null?Number(price):null,category||null,image_url||null,is_available!=null?Boolean(is_available):null,sort_order!=null?Number(sort_order):null,req.params.id]);
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/zawajil/products/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]); res.json({ success: true }); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
