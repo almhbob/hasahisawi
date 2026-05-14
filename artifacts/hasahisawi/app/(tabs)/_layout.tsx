@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import {
-  Platform, StyleSheet, View, Pressable, Text, ScrollView,
+  Platform, StyleSheet, View, Pressable, Text,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -13,7 +13,6 @@ import { DrawerProvider, useDrawer } from "@/lib/drawer-context";
 import DrawerMenu from "@/components/DrawerMenu";
 import { useAuth } from "@/lib/auth-context";
 import { useApiUnread } from "@/lib/api-chat";
-import { router } from "expo-router";
 
 // ── فحص Liquid Glass بأمان تام (iOS 26 فقط) ───────────────────
 function tryIsLiquidGlassAvailable(): boolean {
@@ -39,29 +38,6 @@ type TabItem = {
   color: string;
 };
 
-type ShortcutItem = {
-  name: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-};
-
-// ── اختصارات سريعة — الأقسام المخفية ──────────────────────────
-const QUICK_SHORTCUTS: ShortcutItem[] = [
-  { name: "social",         label: "المجتمع",    icon: "chatbubbles-outline",  color: Colors.primary },
-  { name: "medical",        label: "الطب",       icon: "medkit-outline",        color: "#E05567"      },
-  { name: "market",         label: "السوق",      icon: "storefront-outline",    color: "#F59E0B"      },
-  { name: "jobs",           label: "الوظائف",    icon: "briefcase-outline",     color: "#3E9CBF"      },
-  { name: "sports",         label: "الرياضة",    icon: "football-outline",      color: "#22C55E"      },
-  { name: "missing",        label: "المفقودون",  icon: "eye-outline",           color: "#A78BFA"      },
-  { name: "transport",      label: "المواصلات",  icon: "car-sport-outline",     color: "#F97316"      },
-  { name: "ads",            label: "الإعلانات",  icon: "megaphone-outline",     color: "#F0A500"      },
-  { name: "design-gallery", label: "التصاميم",   icon: "color-palette-outline", color: "#A855F7"      },
-  { name: "student",        label: "الطلاب",     icon: "school-outline",        color: "#60A5FA"      },
-  { name: "women",          label: "ركن المرأة", icon: "flower-outline",        color: "#C084FC"      },
-  { name: "culture",        label: "الثقافة",    icon: "musical-notes-outline", color: "#EC4899"      },
-];
-
 // ── تبويبات رئيسية (4 + زر مركزي) ────────────────────────────
 const TAB_ITEMS: TabItem[] = [
   { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primary },
@@ -69,38 +45,6 @@ const TAB_ITEMS: TabItem[] = [
   { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#3E9CBF"       },
   { name: "appointments", label: "مواعيد",   icon: "calendar-outline",    activeIcon: "calendar",    color: "#F97316"       },
 ];
-
-// ── شريط الاختصارات السريعة ────────────────────────────────────
-function QuickShortcutsBar() {
-  const currentRoute = "";
-  return (
-    <View style={styles.shortcutsWrap}>
-      <LinearGradient
-        colors={["rgba(34,197,94,0.04)", "rgba(10,15,12,0.85)"]}
-        style={StyleSheet.absoluteFill}
-      />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.shortcutsContent}
-        style={styles.shortcutsScroll}
-      >
-        {QUICK_SHORTCUTS.map((item) => (
-          <Pressable
-            key={item.name}
-            style={({ pressed }) => [styles.shortcutChip, pressed && { opacity: 0.7 }]}
-            onPress={() => router.push(`/(tabs)/${item.name}` as any)}
-          >
-            <View style={[styles.shortcutIconWrap, { backgroundColor: item.color + "1A" }]}>
-              <Ionicons name={item.icon} size={14} color={item.color} />
-            </View>
-            <Text style={[styles.shortcutLabel, { color: item.color }]}>{item.label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
 
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
@@ -113,13 +57,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const currentRouteName: string = state.routes[state.index]?.name ?? "";
 
   return (
-    <View style={{ backgroundColor: "transparent" }}>
-
-      {/* شريط الاختصارات السريعة */}
-      <QuickShortcutsBar />
-
-      {/* الشريط السفلي الرئيسي */}
-      <View style={[styles.tabBar, { paddingBottom: isWeb ? 10 : Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.tabBar, { paddingBottom: isWeb ? 10 : Math.max(insets.bottom, 10) }]}>
 
         {/* طبقة الضبابية */}
         {Platform.OS !== "web" && (
@@ -248,7 +186,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             </Pressable>
           );
         })}
-      </View>
     </View>
   );
 }
@@ -346,44 +283,6 @@ export default function TabLayout() {
 
 // ── الأنماط ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-
-  // شريط الاختصارات
-  shortcutsWrap: {
-    borderTopWidth: 0.5,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    overflow: "hidden",
-  },
-  shortcutsScroll: {
-    flexGrow: 0,
-  },
-  shortcutsContent: {
-    flexDirection: "row",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: 7,
-  },
-  shortcutChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 0.8,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  shortcutIconWrap: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shortcutLabel: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
-  },
 
   // الشريط السفلي
   tabBar: {
