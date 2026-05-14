@@ -1,6 +1,8 @@
 import { Tabs } from "expo-router";
 import { Platform, StyleSheet, View, Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
@@ -50,10 +52,18 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const unread = useApiUnread(isGuest ? null : (token ?? null));
 
   return (
-    <View style={[
-      styles.tabBar,
-      { paddingBottom: isWeb ? 8 : Math.max(insets.bottom, 8) }
-    ]}>
+    <View style={[styles.tabBar, { paddingBottom: isWeb ? 8 : Math.max(insets.bottom, 8) }]}>
+      {Platform.OS !== "web" && (
+        <BlurView
+          intensity={Platform.OS === "ios" ? 55 : 22}
+          tint="dark"
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <LinearGradient
+        colors={["rgba(34,197,94,0.05)", "rgba(5,10,8,0.95)"]}
+        style={StyleSheet.absoluteFill}
+      />
       {TAB_ITEMS.map((item, idx) => {
         const focused = state.index === idx;
         const isChatTab = item.name === "chat";
@@ -70,7 +80,11 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
             <View style={[styles.topIndicator, focused && { backgroundColor: item.color }]} />
             <View style={[
               styles.iconWrap,
-              focused && { backgroundColor: item.color + "1F", borderWidth: 1, borderColor: item.color + "40" }
+              focused && {
+                backgroundColor: item.color + "22",
+                borderWidth: 1,
+                borderColor: item.color + "50",
+              }
             ]}>
               <Ionicons
                 name={focused ? item.activeIcon : item.icon}
@@ -142,7 +156,8 @@ function ClassicTabLayout() {
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0A0F0C" } }}
+      sceneContainerStyle={{ backgroundColor: "#0A0F0C" }}
     >
       <Tabs.Screen name="index"        />
       <Tabs.Screen name="prayer"       />
@@ -201,17 +216,17 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
-    backgroundColor: "#0C1A10",
-    borderTopWidth: 1,
-    borderTopColor: Colors.primary + "25",
-    paddingTop: 6,
+    backgroundColor: "rgba(5,10,7,0.94)",
+    borderTopWidth: 0.5,
+    borderTopColor: "rgba(255,255,255,0.09)",
+    paddingTop: 7,
   },
   topIndicator: {
     height: 3,
-    width: 22,
+    width: 26,
     borderRadius: 2,
     backgroundColor: "transparent",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   tabItem: {
     flex: 1,
@@ -219,24 +234,24 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   iconWrap: {
-    width: 38, height: 32,
-    borderRadius: 12,
+    width: 44, height: 34,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   tabBadge: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     backgroundColor: Colors.danger ?? "#E05567",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: "#0F1E16",
+    borderWidth: 2,
+    borderColor: "rgba(5,10,8,0.95)",
   },
   tabBadgeText: {
     fontFamily: "Cairo_700Bold",
@@ -245,19 +260,19 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   menuBtn: {
-    width: 38, height: 38,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + "18",
-    borderWidth: 1.5,
-    borderColor: Colors.primary + "50",
+    width: 40, height: 36,
+    borderRadius: 13,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.30)",
     alignItems: "center",
     justifyContent: "center",
   },
   tabLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 10,
-    color: "#79A890",
-    letterSpacing: 0.1,
+    color: "rgba(110,158,132,0.85)",
+    letterSpacing: 0.15,
   },
   tabLabelActive: {
     color: Colors.primary,

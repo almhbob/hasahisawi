@@ -4,6 +4,7 @@ import {
   ScrollView, Image, Platform, Dimensions, I18nManager,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withSpring, runOnJS, interpolate, Extrapolation,
@@ -181,6 +182,12 @@ export default function DrawerMenu() {
 
       {/* الدرج */}
       <Animated.View style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 8 }]}>
+        {/* زجاج خلفي */}
+        <BlurView intensity={Platform.OS === "ios" ? 80 : 25} tint="dark" style={StyleSheet.absoluteFill} />
+        <LinearGradient
+          colors={["rgba(8,22,13,0.96)", "rgba(4,9,6,0.98)"]}
+          style={StyleSheet.absoluteFill}
+        />
         {/* ── رأس الدرج ── */}
         <View style={[styles.header, { overflow: "hidden" }]}>
           <BrandPattern variant="header" opacity={0.06} />
@@ -311,21 +318,21 @@ export default function DrawerMenu() {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.60)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   drawer: {
     position: "absolute",
     top: 0, bottom: 0,
     ...(DRAWER_IS_RTL ? { left: 0 } : { right: 0 }),
     width: DRAWER_W,
-    backgroundColor: "#0D1910",
-    borderLeftWidth: 1,
-    borderLeftColor: Colors.primary + "28",
+    overflow: "hidden",
+    borderLeftWidth: 0.5,
+    borderLeftColor: "rgba(255,255,255,0.09)",
     shadowColor: "#000",
-    shadowOffset: { width: -6, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 28,
+    shadowOffset: { width: -10, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 30,
+    elevation: 32,
   },
   header: {
     paddingHorizontal: 18,
@@ -333,8 +340,10 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: Colors.cardBg,
+    width: 34, height: 34, borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
@@ -363,14 +372,16 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 11,
-    borderRadius: 16, overflow: "hidden",
-    borderWidth: 1, borderColor: Colors.primary + "25",
-    paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 18, overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: "rgba(34,197,94,0.20)",
+    paddingHorizontal: 14, paddingVertical: 13,
+    backgroundColor: "rgba(34,197,94,0.06)",
   },
   avatar: {
-    width: 42, height: 42, borderRadius: 13,
-    backgroundColor: Colors.primary + "28",
-    borderWidth: 1.5, borderColor: Colors.primary + "60",
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderWidth: 1.5, borderColor: "rgba(34,197,94,0.45)",
     alignItems: "center", justifyContent: "center",
   },
   avatarText: {
@@ -406,55 +417,62 @@ const styles = StyleSheet.create({
     fontSize: 10, color: "#000",
   },
   divider: {
-    height: 1,
-    backgroundColor: Colors.divider,
-    marginHorizontal: 6,
+    height: 0.5,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    marginHorizontal: 10,
     marginBottom: 6,
   },
   scroll: { flex: 1 },
   group: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 14,
+    paddingTop: 14,
   },
   groupLabel: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 11,
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    fontSize: 10,
+    color: "rgba(110,231,183,0.45)",
+    letterSpacing: 1.0,
+    textTransform: "uppercase",
+    marginBottom: 4,
     paddingHorizontal: 6,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
+    gap: 11,
+    paddingVertical: 9,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 13,
+    marginBottom: 1,
   },
   adminItem: {
-    borderColor: "#E74C3C30",
-    borderWidth: 1,
-    borderRadius: 12,
+    borderColor: "rgba(231,76,60,0.20)",
+    borderWidth: 0.5,
+    borderRadius: 13,
     marginBottom: 2,
+    backgroundColor: "rgba(231,76,60,0.04)",
   },
   itemPressed: {
-    backgroundColor: Colors.cardBg,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   iconBox: {
     width: 36, height: 36,
-    borderRadius: 10,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   itemLabel: {
     flex: 1,
     fontFamily: "Cairo_500Medium",
-    fontSize: 14,
-    color: Colors.textPrimary,
+    fontSize: 13.5,
+    color: "rgba(240,253,244,0.88)",
   },
   chevron: {
-    opacity: 0.5,
+    opacity: 0.3,
   },
   drawerBadge: {
     minWidth: 20,

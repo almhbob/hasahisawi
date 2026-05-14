@@ -852,35 +852,38 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 1,
   },
   topBarIcon: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.primary + "18", borderWidth: 1, borderColor: Colors.primary + "40",
+    width: 42, height: 42, borderRadius: 14,
+    backgroundColor: "rgba(34,197,94,0.10)",
+    borderWidth: 0.5,
+    borderColor: "rgba(34,197,94,0.30)",
     justifyContent: "center", alignItems: "center",
   },
   notifDot: {
-    position: "absolute", top: 8, right: 8,
+    position: "absolute", top: 9, right: 9,
     width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.accent,
   },
 
   /* Hero Divider */
   heroDivider: {
-    height: 1,
+    height: 0.5,
     marginBottom: 16,
-    backgroundColor: Colors.primary + "30",
+    backgroundColor: "rgba(255,255,255,0.10)",
   },
 
   /* Stats */
   statsRow: { gap: 10 },
   statCard: {
-    flex: 1, borderRadius: 16, padding: 12, alignItems: "center",
-    borderWidth: 1, borderColor: Colors.divider,
-    backgroundColor: Colors.cardBg,
+    flex: 1, borderRadius: 18, padding: 12, alignItems: "center",
+    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.05)",
     overflow: "hidden",
   },
   statIcon: {
-    width: 32, height: 32, borderRadius: 10,
-    borderWidth: 1, justifyContent: "center", alignItems: "center",
+    width: 34, height: 34, borderRadius: 11,
+    borderWidth: 0.5, justifyContent: "center", alignItems: "center",
     marginBottom: 6,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.10)",
   },
   statNum: {
     fontFamily: "Cairo_700Bold", fontSize: 22,
@@ -901,10 +904,11 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 20, overflow: "hidden",
-    borderWidth: 1, borderColor: Colors.primary + "28",
+    borderRadius: 22, overflow: "hidden",
+    borderWidth: 0.5, borderColor: "rgba(34,197,94,0.20)",
     marginBottom: 22,
     paddingHorizontal: 18, paddingVertical: 16,
+    backgroundColor: "rgba(34,197,94,0.06)",
   },
   greetingLeft: {
     flex: 1,
@@ -926,9 +930,9 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   greetingIconWrap: {
-    width: 48, height: 48, borderRadius: 16,
-    backgroundColor: Colors.primary + "20",
-    borderWidth: 1.5, borderColor: Colors.primary + "50",
+    width: 50, height: 50, borderRadius: 17,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderWidth: 1, borderColor: "rgba(34,197,94,0.35)",
     alignItems: "center", justifyContent: "center",
   },
   greetingInitial: {
@@ -947,8 +951,8 @@ const styles = StyleSheet.create({
   /* Featured Ad Banner */
   featuredAdBanner: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: Colors.cardBg, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: Colors.accent + "35",
+    backgroundColor: "rgba(245,158,11,0.06)", borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 0.5, borderColor: "rgba(245,158,11,0.22)",
     marginBottom: 14,
   },
   featuredAdLeft: { flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 },
@@ -988,44 +992,45 @@ const styles = StyleSheet.create({
   /* Grid — 3 columns */
   gridContainer: {
     flexDirection: "row", flexWrap: "wrap",
-    gap: 10,
+    gap: 9,
   },
   gridItemContainer: {
-    width: (width - 32 - 20) / 3, marginBottom: 2,
+    width: (width - 32 - 18) / 3, marginBottom: 2,
   },
   gridItem: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 18, padding: 14,
-    alignItems: "center", height: 124,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 20, padding: 14,
+    alignItems: "center", height: 128,
     justifyContent: "center",
-    borderWidth: 1, borderColor: Colors.divider,
+    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)",
     overflow: "hidden",
   },
   gridGlow: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 50, borderRadius: 18,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 55, borderRadius: 20,
   },
   gridIconWrap: {
-    width: 46, height: 46, borderRadius: 14,
+    width: 48, height: 48, borderRadius: 15,
     justifyContent: "center", alignItems: "center",
-    marginBottom: 8, borderWidth: 1,
+    marginBottom: 9, borderWidth: 0.5,
   },
   gridLabel: {
     fontFamily: "Cairo_700Bold", fontSize: 12,
-    color: Colors.textPrimary, textAlign: "center",
+    color: "rgba(240,253,244,0.92)", textAlign: "center",
+    letterSpacing: 0.1,
   },
   gridSub: {
     fontFamily: "Cairo_400Regular", fontSize: 9,
-    color: Colors.textSecondary, textAlign: "center", marginTop: 2,
+    color: "rgba(167,243,208,0.60)", textAlign: "center", marginTop: 2,
     lineHeight: 13,
   },
   gridBottomLine: {
-    position: "absolute", bottom: 0, left: 14, right: 14, height: 2, borderRadius: 1, opacity: 0.55,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 1.5, borderRadius: 0, opacity: 0.50,
   },
   soonBadge: {
     position: "absolute", top: 7, left: 7,
     flexDirection: "row", alignItems: "center", gap: 3,
-    backgroundColor: "#FBBF2420", borderWidth: 1, borderColor: "#FBBF2450",
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
+    backgroundColor: "rgba(251,191,36,0.10)", borderWidth: 0.5, borderColor: "rgba(251,191,36,0.35)",
+    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 7,
   },
   soonBadgeText: {
     fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FBBF24",
@@ -1034,30 +1039,31 @@ const styles = StyleSheet.create({
   /* Quick Banners Row */
   quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 6 },
   quickBanner: {
-    borderRadius: 18, padding: 16, borderWidth: 1,
+    borderRadius: 22, padding: 16, borderWidth: 0.5,
     overflow: "hidden", alignItems: "center", gap: 8,
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   quickBannerIcon: {
-    width: 50, height: 50, borderRadius: 14,
-    justifyContent: "center", alignItems: "center", borderWidth: 1,
+    width: 52, height: 52, borderRadius: 16,
+    justifyContent: "center", alignItems: "center", borderWidth: 0.5,
   },
   quickBannerTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "center",
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "rgba(240,253,244,0.94)", textAlign: "center",
   },
   quickBannerSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center",
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(167,243,208,0.65)", textAlign: "center",
   },
 
   /* Footer */
   footerActions: { marginTop: 28, marginBottom: 20, gap: 10 },
   actionStrip: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.cardBg, borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: Colors.divider, gap: 12,
+    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18,
+    padding: 16, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)", gap: 12,
   },
   actionText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: Colors.textPrimary, flex: 1,
+    color: "rgba(240,253,244,0.90)", flex: 1,
   },
 
   /* ── Developer Card ── */
@@ -1353,32 +1359,32 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   landmarkCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     overflow: "hidden",
-    elevation: 6,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   landmarkImage: {
-    height: 190,
+    height: 200,
     justifyContent: "flex-end",
   },
   landmarkInfo: {
-    padding: 14,
+    padding: 16,
     gap: 4,
+    backgroundColor: "rgba(5,14,8,0.65)",
   },
   landmarkBadge: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 4,
     alignSelf: "flex-end",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 0.5,
     marginBottom: 4,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   landmarkBadgeText: {
     fontFamily: "Cairo_600SemiBold",

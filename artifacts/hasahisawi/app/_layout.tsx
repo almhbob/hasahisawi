@@ -142,7 +142,7 @@ function RootLayoutNav() {
     <>
       <StatusBar style="light" />
       <AuthGate />
-      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false }}>
+      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: "#0A0F0C" } }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
         <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
