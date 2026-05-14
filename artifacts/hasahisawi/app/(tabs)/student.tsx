@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, Linking, TextInput, Modal, Alert, KeyboardAvoidingView, Pressable,
+  Platform, Linking, TextInput, Modal, Alert, KeyboardAvoidingView, Pressable, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -909,58 +909,58 @@ function InstFormModal({ visible, initial, onClose, onSave }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS==="ios"?"padding":"height"}>
-        <View style={fm.backdrop}>
-          <View style={fm.sheet}>
-            <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]} style={fm.inner}>
-              <View style={fm.titleRow}>
+        <View style={imf.backdrop}>
+          <View style={imf.sheet}>
+            <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]} style={imf.inner}>
+              <View style={imf.titleRow}>
                 <AnimatedPress onPress={onClose}><Ionicons name="close-circle" size={26} color={Colors.textMuted} /></AnimatedPress>
-                <Text style={fm.title}>{initial?.id ? "تعديل المؤسسة" : "إضافة مؤسسة جديدة"}</Text>
+                <Text style={imf.title}>{initial?.id ? "تعديل المؤسسة" : "إضافة مؤسسة جديدة"}</Text>
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={fm.label}>اسم المؤسسة *</Text>
-                <TextInput style={fm.input} value={name} onChangeText={setName} placeholder="اسم المؤسسة التعليمية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                <Text style={imf.label}>اسم المؤسسة *</Text>
+                <TextInput style={imf.input} value={name} onChangeText={setName} placeholder="اسم المؤسسة التعليمية" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                <Text style={fm.label}>نوع المؤسسة *</Text>
+                <Text style={imf.label}>نوع المؤسسة *</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:4 }}>
                   {(Object.keys(INST_LABELS) as InstType[]).map(k => (
-                    <AnimatedPress key={k} style={[fm.typeChip, type===k && { backgroundColor: INST_COLORS[k]+"30", borderColor: INST_COLORS[k]+"80" }]} onPress={()=>setType(k)}>
-                      <Text style={[fm.typeChipText, type===k && { color: INST_COLORS[k] }]}>{INST_LABELS[k]}</Text>
+                    <AnimatedPress key={k} style={[imf.typeChip, type===k && { backgroundColor: INST_COLORS[k]+"30", borderColor: INST_COLORS[k]+"80" }]} onPress={()=>setType(k)}>
+                      <Text style={[imf.typeChipText, type===k && { color: INST_COLORS[k] }]}>{INST_LABELS[k]}</Text>
                     </AnimatedPress>
                   ))}
                 </ScrollView>
 
-                <Text style={fm.label}>العنوان *</Text>
-                <TextInput style={fm.input} value={address} onChangeText={setAddress} placeholder="الحي والشارع" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                <Text style={imf.label}>العنوان *</Text>
+                <TextInput style={imf.input} value={address} onChangeText={setAddress} placeholder="الحي والشارع" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                <Text style={fm.label}>رقم الهاتف *</Text>
-                <TextInput style={fm.input} value={phone} onChangeText={setPhone} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" textAlign="right" />
+                <Text style={imf.label}>رقم الهاتف *</Text>
+                <TextInput style={imf.input} value={phone} onChangeText={setPhone} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" textAlign="right" />
 
-                <Text style={fm.label}>اسم المدير / الناظر</Text>
-                <TextInput style={fm.input} value={principal} onChangeText={setPrincipal} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                <Text style={imf.label}>اسم المدير / الناظر</Text>
+                <TextInput style={imf.input} value={principal} onChangeText={setPrincipal} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                <Text style={fm.label}>الصفوف الدراسية</Text>
-                <TextInput style={fm.input} value={grades} onChangeText={setGrades} placeholder="مثال: الصف الأول – الثامن" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                <Text style={imf.label}>الصفوف الدراسية</Text>
+                <TextInput style={imf.input} value={grades} onChangeText={setGrades} placeholder="مثال: الصف الأول – الثامن" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                <Text style={fm.label}>الفترة الزمنية</Text>
-                <TextInput style={fm.input} value={shifts} onChangeText={setShifts} placeholder="صباحية / مسائية / صباحية ومسائية" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                <Text style={imf.label}>الفترة الزمنية</Text>
+                <TextInput style={imf.input} value={shifts} onChangeText={setShifts} placeholder="صباحية / مسائية / صباحية ومسائية" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                <Text style={fm.label}>وصف إضافي</Text>
-                <TextInput style={[fm.input, { height:80, textAlignVertical:"top", paddingTop:10 }]} value={desc} onChangeText={setDesc} placeholder="نبذة عن المؤسسة..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+                <Text style={imf.label}>وصف إضافي</Text>
+                <TextInput style={[imf.input, { height:80, textAlignVertical:"top", paddingTop:10 }]} value={desc} onChangeText={setDesc} placeholder="نبذة عن المؤسسة..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
 
-                <Text style={fm.label}>الخدمات المتاحة</Text>
-                <View style={fm.svcsGrid}>
+                <Text style={imf.label}>الخدمات المتاحة</Text>
+                <View style={imf.svcsGrid}>
                   {ALL_SVC_TYPES.map(s => (
-                    <AnimatedPress key={s} style={[fm.svcCheck, svcs.includes(s) && fm.svcCheckActive]} onPress={()=>toggleSvc(s)}>
+                    <AnimatedPress key={s} style={[imf.svcCheck, svcs.includes(s) && imf.svcCheckActive]} onPress={()=>toggleSvc(s)}>
                       <Ionicons name={svcs.includes(s)?"checkmark-circle":"ellipse-outline"} size={14} color={svcs.includes(s)?Colors.primary:Colors.textMuted} />
-                      <Text style={[fm.svcCheckText, svcs.includes(s) && { color: Colors.primary }]}>{SVC_LABELS[s]}</Text>
+                      <Text style={[imf.svcCheckText, svcs.includes(s) && { color: Colors.primary }]}>{SVC_LABELS[s]}</Text>
                     </AnimatedPress>
                   ))}
                 </View>
 
-                <AnimatedPress style={fm.saveBtn} onPress={handleSave}>
-                  <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={fm.saveBtnInner}>
+                <AnimatedPress style={imf.saveBtn} onPress={handleSave}>
+                  <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={imf.saveBtnInner}>
                     <Ionicons name="save-outline" size={18} color="#000" />
-                    <Text style={fm.saveBtnText}>حفظ</Text>
+                    <Text style={imf.saveBtnText}>حفظ</Text>
                   </LinearGradient>
                 </AnimatedPress>
                 <View style={{ height: 40 }} />
@@ -972,7 +972,7 @@ function InstFormModal({ visible, initial, onClose, onSave }: {
     </Modal>
   );
 }
-const fm = StyleSheet.create({
+const imf = StyleSheet.create({
   backdrop:   { flex:1, backgroundColor:"rgba(0,0,0,0.8)", justifyContent:"flex-end" },
   sheet:      { maxHeight:"90%", borderTopLeftRadius:24, borderTopRightRadius:24, overflow:"hidden" },
   inner:      { padding:20, maxHeight:"100%" },
@@ -1103,8 +1103,769 @@ const jf = StyleSheet.create({
   btnText:     { fontFamily:"Cairo_700Bold", fontSize:14 },
 });
 
+// ════════════════════════════════════════════════════════════════
+// 📋 استمارات التسجيل والنقل
+// ════════════════════════════════════════════════════════════════
+
+type FormStep = 1 | 2 | 3;
+
+type RegistrationData = {
+  institution_id: string;
+  institution_name: string;
+  grade: string;
+  academic_year: string;
+  student_name: string;
+  student_dob: string;
+  student_gender: string;
+  student_nationality: string;
+  previous_school: string;
+  previous_grade: string;
+  has_special_needs: boolean;
+  special_needs_details: string;
+  parent_name: string;
+  parent_relation: string;
+  parent_phone: string;
+  parent_whatsapp: string;
+  parent_id_number: string;
+  parent_address: string;
+  parent_occupation: string;
+  parent_email: string;
+  notes: string;
+};
+
+type TransferData = {
+  from_institution_name: string;
+  from_grade: string;
+  from_reg_number: string;
+  to_institution_id: string;
+  to_institution_name: string;
+  to_grade: string;
+  student_name: string;
+  student_dob: string;
+  student_gender: string;
+  transfer_reason: string;
+  transfer_reason_detail: string;
+  parent_name: string;
+  parent_phone: string;
+  parent_whatsapp: string;
+  parent_id_number: string;
+  parent_address: string;
+  notes: string;
+};
+
+const GRADES_PRIMARY   = ["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس","الصف السابع","الصف الثامن"];
+const GRADES_SECONDARY = ["الصف التاسع","الصف العاشر","الصف الحادي عشر","الصف الثاني عشر"];
+const GRADES_ALL       = [...GRADES_PRIMARY, ...GRADES_SECONDARY, "التمهيدي", "السنة الأولى جامعة", "السنة الثانية جامعة", "السنة الثالثة جامعة", "السنة الرابعة جامعة", "دبلوم", "KG1", "KG2", "KG3"];
+const RELATIONS        = ["أب","أم","جد","جدة","أخ","أخت","وصي قانوني","أخرى"];
+const TRANSFER_REASONS = ["انتقال إقامة","تغيير بيئة دراسية","مشاكل مع الإدارة","بُعد المسافة","مستوى التعليم","الرسوم الدراسية","أسباب صحية","أخرى"];
+const STATUS_COLORS: Record<string, string> = {
+  pending:"#F59E0B", accepted:"#10B981", approved:"#10B981",
+  rejected:"#EF4444", processing:"#3B82F6", waitlisted:"#8B5CF6",
+};
+const STATUS_LABELS: Record<string, string> = {
+  pending:"قيد المراجعة", accepted:"مقبول", approved:"موافق عليه",
+  rejected:"مرفوض", processing:"جاري المعالجة", waitlisted:"قائمة الانتظار",
+};
+
+// ── مكوّن حقل الإدخال المُوحَّد ──
+function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={ff.label}>{label}{required && <Text style={{ color: Colors.danger }}> *</Text>}</Text>
+      {children}
+    </View>
+  );
+}
+function FInput({ value, onChangeText, placeholder, keyboardType, multiline, editable }: {
+  value: string; onChangeText?: (v: string) => void; placeholder?: string;
+  keyboardType?: "default"|"phone-pad"|"email-address"|"numeric";
+  multiline?: boolean; editable?: boolean;
+}) {
+  return (
+    <TextInput
+      style={[ff.input, multiline && { height: 70, textAlignVertical: "top", paddingTop: 10 }]}
+      value={value} onChangeText={onChangeText}
+      placeholder={placeholder} placeholderTextColor={Colors.textMuted}
+      keyboardType={keyboardType || "default"} textAlign="right"
+      multiline={multiline} editable={editable !== false}
+    />
+  );
+}
+function ChipSelect({ options, value, onSelect, color }: {
+  options: string[]; value: string; onSelect: (v: string) => void; color?: string;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+      {options.map(o => (
+        <TouchableOpacity key={o}
+          style={[ff.chip, value === o && { backgroundColor: (color||Colors.primary)+"20", borderColor: (color||Colors.primary)+"70" }]}
+          onPress={() => onSelect(o)}>
+          <Text style={[ff.chipText, value === o && { color: color||Colors.primary, fontFamily: "Cairo_600SemiBold" }]}>{o}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ── خطوات التسجيل ──
+function RegStep1({ inst, data, setData }: { inst: Institution[]; data: RegistrationData; setData: (d: Partial<RegistrationData>) => void }) {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <FormField label="المؤسسة التعليمية" required>
+        <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator nestedScrollEnabled>
+          {inst.filter(i => i.status === "active").map(i => (
+            <TouchableOpacity key={i.id}
+              style={[ff.instRow, data.institution_id === i.id && ff.instRowActive]}
+              onPress={() => setData({ institution_id: i.id, institution_name: i.name })}>
+              <View style={[ff.instDot, { backgroundColor: INST_COLORS[i.type] }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[ff.instName, data.institution_id === i.id && { color: Colors.primary }]}>{i.name}</Text>
+                <Text style={ff.instSub}>{INST_LABELS[i.type]}{i.grades ? ` — ${i.grades}` : ""}</Text>
+              </View>
+              {data.institution_id === i.id && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
+            </TouchableOpacity>
+          ))}
+          <View style={{ marginTop: 8 }}>
+            <Text style={ff.label}>أو أدخل اسم المؤسسة يدوياً</Text>
+            <FInput value={data.institution_name} onChangeText={v => setData({ institution_name: v, institution_id: "" })} placeholder="اسم المؤسسة التعليمية" />
+          </View>
+        </ScrollView>
+      </FormField>
+      <FormField label="الصف الدراسي المطلوب" required>
+        <ChipSelect options={GRADES_ALL} value={data.grade} onSelect={v => setData({ grade: v })} />
+      </FormField>
+      <FormField label="العام الدراسي">
+        <ChipSelect options={["2025/2026","2024/2025","2026/2027"]} value={data.academic_year} onSelect={v => setData({ academic_year: v })} />
+      </FormField>
+    </ScrollView>
+  );
+}
+function RegStep2({ data, setData }: { data: RegistrationData; setData: (d: Partial<RegistrationData>) => void }) {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <FormField label="اسم الطالب الرباعي" required>
+        <FInput value={data.student_name} onChangeText={v => setData({ student_name: v })} placeholder="الاسم الكامل للطالب" />
+      </FormField>
+      <FormField label="الجنس">
+        <ChipSelect options={["ذكر","أنثى"]} value={data.student_gender} onSelect={v => setData({ student_gender: v })} />
+      </FormField>
+      <FormField label="الجنسية">
+        <ChipSelect options={["سودانية","أخرى"]} value={data.student_nationality} onSelect={v => setData({ student_nationality: v })} />
+      </FormField>
+      <FormField label="تاريخ الميلاد (اختياري)">
+        <FInput value={data.student_dob} onChangeText={v => setData({ student_dob: v })} placeholder="مثال: 2015-03-15" />
+      </FormField>
+      <FormField label="المدرسة السابقة (إن وجدت)">
+        <FInput value={data.previous_school} onChangeText={v => setData({ previous_school: v })} placeholder="اسم المدرسة السابقة" />
+      </FormField>
+      <FormField label="الصف السابق">
+        <FInput value={data.previous_grade} onChangeText={v => setData({ previous_grade: v })} placeholder="مثال: الصف الخامس" />
+      </FormField>
+      <TouchableOpacity style={ff.switchRow} onPress={() => setData({ has_special_needs: !data.has_special_needs })}>
+        <View style={[ff.toggle, data.has_special_needs && { backgroundColor: Colors.primary }]}>
+          {data.has_special_needs && <Ionicons name="checkmark" size={12} color="#000" />}
+        </View>
+        <Text style={ff.switchLabel}>الطالب لديه احتياجات خاصة</Text>
+      </TouchableOpacity>
+      {data.has_special_needs && (
+        <FormField label="تفاصيل الاحتياجات الخاصة">
+          <FInput value={data.special_needs_details} onChangeText={v => setData({ special_needs_details: v })} placeholder="اذكر نوع الاحتياج..." multiline />
+        </FormField>
+      )}
+    </ScrollView>
+  );
+}
+function RegStep3({ data, setData }: { data: RegistrationData; setData: (d: Partial<RegistrationData>) => void }) {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <FormField label="اسم ولي الأمر الرباعي" required>
+        <FInput value={data.parent_name} onChangeText={v => setData({ parent_name: v })} placeholder="الاسم الكامل لولي الأمر" />
+      </FormField>
+      <FormField label="صلة القرابة">
+        <ChipSelect options={RELATIONS} value={data.parent_relation} onSelect={v => setData({ parent_relation: v })} />
+      </FormField>
+      <FormField label="رقم الهاتف" required>
+        <FInput value={data.parent_phone} onChangeText={v => setData({ parent_phone: v })} placeholder="+249..." keyboardType="phone-pad" />
+      </FormField>
+      <FormField label="واتساب (اختياري)">
+        <FInput value={data.parent_whatsapp} onChangeText={v => setData({ parent_whatsapp: v })} placeholder="+249..." keyboardType="phone-pad" />
+      </FormField>
+      <FormField label="رقم الهوية الوطنية (اختياري)">
+        <FInput value={data.parent_id_number} onChangeText={v => setData({ parent_id_number: v })} placeholder="رقم البطاقة الوطنية" />
+      </FormField>
+      <FormField label="العنوان">
+        <FInput value={data.parent_address} onChangeText={v => setData({ parent_address: v })} placeholder="الحي والشارع" />
+      </FormField>
+      <FormField label="المهنة (اختياري)">
+        <FInput value={data.parent_occupation} onChangeText={v => setData({ parent_occupation: v })} placeholder="مثال: موظف، معلم، تاجر..." />
+      </FormField>
+      <FormField label="ملاحظات إضافية">
+        <FInput value={data.notes} onChangeText={v => setData({ notes: v })} placeholder="أي ملاحظات تودّ إضافتها..." multiline />
+      </FormField>
+    </ScrollView>
+  );
+}
+
+// ── مودال استمارة تسجيل طالب ──
+const REG_EMPTY: RegistrationData = {
+  institution_id:"", institution_name:"", grade:"", academic_year:"2025/2026",
+  student_name:"", student_dob:"", student_gender:"ذكر", student_nationality:"سودانية",
+  previous_school:"", previous_grade:"", has_special_needs:false, special_needs_details:"",
+  parent_name:"", parent_relation:"أب", parent_phone:"", parent_whatsapp:"",
+  parent_id_number:"", parent_address:"", parent_occupation:"", parent_email:"", notes:"",
+};
+
+function RegistrationModal({ visible, onClose, institutions }: {
+  visible: boolean; onClose: () => void; institutions: Institution[];
+}) {
+  const [step, setStep] = useState<FormStep>(1);
+  const [data, setDataState] = useState<RegistrationData>(REG_EMPTY);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ reg_number: string } | null>(null);
+  const setData = (patch: Partial<RegistrationData>) => setDataState(prev => ({ ...prev, ...patch }));
+
+  const reset = () => { setStep(1); setDataState(REG_EMPTY); setResult(null); };
+  const close = () => { reset(); onClose(); };
+
+  const validateStep = (): string | null => {
+    if (step === 1) {
+      if (!data.institution_name.trim()) return "يرجى اختيار المؤسسة التعليمية أو كتابة اسمها";
+      if (!data.grade) return "يرجى اختيار الصف الدراسي";
+    }
+    if (step === 2) {
+      if (!data.student_name.trim()) return "يرجى إدخال اسم الطالب";
+    }
+    if (step === 3) {
+      if (!data.parent_name.trim()) return "يرجى إدخال اسم ولي الأمر";
+      if (!data.parent_phone.trim()) return "يرجى إدخال رقم هاتف ولي الأمر";
+    }
+    return null;
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/education/register-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, institution_id: data.institution_id ? parseInt(data.institution_id) : undefined }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setResult({ reg_number: json.reg_number });
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("خطأ", json.error || "تعذّر إرسال الطلب");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذّر الاتصال بالخادم. تأكد من اتصالك بالإنترنت");
+    } finally { setSubmitting(false); }
+  };
+
+  const STEP_TITLES = ["اختيار المؤسسة والصف","بيانات الطالب","بيانات ولي الأمر"];
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={close}>
+      <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS==="ios"?"padding":undefined}>
+        <LinearGradient colors={[Colors.cardBgElevated, Colors.bg]} style={{ flex:1 }}>
+          {/* Header */}
+          <View style={[fm.header, { paddingTop: Platform.OS==="ios"?52:24 }]}>
+            <TouchableOpacity onPress={close} style={fm.closeBtn}>
+              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+            <View style={{ flex:1 }}>
+              <Text style={fm.headerTitle}>استمارة تسجيل طالب</Text>
+              <Text style={fm.headerSub}>{result ? "تم التقديم بنجاح" : STEP_TITLES[step-1]}</Text>
+            </View>
+            <View style={[fm.stepBadge, { backgroundColor: Colors.primary+"20" }]}>
+              <Text style={[fm.stepText, { color: Colors.primary }]}>{result ? "✓" : `${step}/3`}</Text>
+            </View>
+          </View>
+
+          {!result ? (
+            <>
+              {/* Progress */}
+              <View style={fm.progressRow}>
+                {[1,2,3].map(s => (
+                  <View key={s} style={[fm.progressDot, s<=step && { backgroundColor: Colors.primary }]} />
+                ))}
+              </View>
+
+              <View style={{ flex:1, paddingHorizontal: 20 }}>
+                {step === 1 && <RegStep1 inst={institutions} data={data} setData={setData} />}
+                {step === 2 && <RegStep2 data={data} setData={setData} />}
+                {step === 3 && <RegStep3 data={data} setData={setData} />}
+              </View>
+
+              {/* Navigation */}
+              <View style={fm.navRow}>
+                {step > 1 && (
+                  <TouchableOpacity style={[fm.navBtn, fm.navBtnOutline]} onPress={() => setStep((step-1) as FormStep)}>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                    <Text style={[fm.navBtnText, { color: Colors.textSecondary }]}>السابق</Text>
+                  </TouchableOpacity>
+                )}
+                {step < 3 ? (
+                  <TouchableOpacity style={[fm.navBtn, { backgroundColor: Colors.primary, flex:1 }]}
+                    onPress={() => {
+                      const err = validateStep();
+                      if (err) { Alert.alert("تنبيه", err); return; }
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setStep((step+1) as FormStep);
+                    }}>
+                    <Text style={[fm.navBtnText, { color: "#000" }]}>التالي</Text>
+                    <Ionicons name="chevron-back" size={16} color="#000" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[fm.navBtn, { backgroundColor: Colors.primary, flex:1, opacity: submitting?0.7:1 }]}
+                    onPress={() => {
+                      const err = validateStep();
+                      if (err) { Alert.alert("تنبيه", err); return; }
+                      submit();
+                    }} disabled={submitting}>
+                    {submitting ? <Text style={[fm.navBtnText, { color:"#000" }]}>جارٍ الإرسال...</Text> : (
+                      <>
+                        <Ionicons name="send" size={16} color="#000" />
+                        <Text style={[fm.navBtnText, { color:"#000" }]}>إرسال الطلب</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          ) : (
+            <Animated.View entering={ZoomIn.springify()} style={fm.successBox}>
+              <LinearGradient colors={[Colors.primary+"20", Colors.cardBg]} style={fm.successInner}>
+                <View style={[fm.successIcon, { backgroundColor: Colors.primary+"25" }]}>
+                  <Ionicons name="checkmark-circle" size={60} color={Colors.primary} />
+                </View>
+                <Text style={fm.successTitle}>تم التقديم بنجاح!</Text>
+                <Text style={fm.successSub}>تم استلام طلب تسجيل الطالب {data.student_name} في {data.institution_name}</Text>
+                <View style={fm.refBox}>
+                  <Text style={fm.refLabel}>رقم الطلب المرجعي</Text>
+                  <Text style={fm.refNum}>{result.reg_number}</Text>
+                  <Text style={fm.refHint}>احتفظ بهذا الرقم للاستعلام عن حالة طلبك</Text>
+                </View>
+                <View style={{ gap:10, width:"100%", marginTop:8 }}>
+                  <TouchableOpacity style={[fm.navBtn, { backgroundColor: Colors.primary }]} onPress={reset}>
+                    <Ionicons name="add-circle-outline" size={16} color="#000" />
+                    <Text style={[fm.navBtnText, { color:"#000" }]}>تسجيل طالب آخر</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[fm.navBtn, fm.navBtnOutline]} onPress={close}>
+                    <Text style={[fm.navBtnText, { color: Colors.textSecondary }]}>إغلاق</Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          )}
+        </LinearGradient>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── مودال طلب نقل طالب ──
+const TRF_EMPTY: TransferData = {
+  from_institution_name:"", from_grade:"", from_reg_number:"",
+  to_institution_id:"", to_institution_name:"", to_grade:"",
+  student_name:"", student_dob:"", student_gender:"ذكر",
+  transfer_reason:"انتقال إقامة", transfer_reason_detail:"",
+  parent_name:"", parent_phone:"", parent_whatsapp:"",
+  parent_id_number:"", parent_address:"", notes:"",
+};
+
+function TransferModal({ visible, onClose, institutions }: {
+  visible: boolean; onClose: () => void; institutions: Institution[];
+}) {
+  const [step, setStep] = useState<FormStep>(1);
+  const [data, setDataState] = useState<TransferData>(TRF_EMPTY);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ transfer_number: string } | null>(null);
+  const setData = (patch: Partial<TransferData>) => setDataState(prev => ({ ...prev, ...patch }));
+  const reset = () => { setStep(1); setDataState(TRF_EMPTY); setResult(null); };
+  const close = () => { reset(); onClose(); };
+
+  const validateStep = (): string | null => {
+    if (step === 1) {
+      if (!data.from_institution_name.trim()) return "يرجى إدخال اسم المدرسة الحالية";
+      if (!data.to_institution_name.trim()) return "يرجى اختيار المدرسة المطلوب النقل إليها";
+    }
+    if (step === 2) {
+      if (!data.student_name.trim()) return "يرجى إدخال اسم الطالب";
+    }
+    if (step === 3) {
+      if (!data.parent_name.trim()) return "يرجى إدخال اسم ولي الأمر";
+      if (!data.parent_phone.trim()) return "يرجى إدخال رقم هاتف ولي الأمر";
+    }
+    return null;
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/education/transfer-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, to_institution_id: data.to_institution_id ? parseInt(data.to_institution_id) : undefined }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setResult({ transfer_number: json.transfer_number });
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("خطأ", json.error || "تعذّر إرسال الطلب");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setSubmitting(false); }
+  };
+
+  const STEP_TITLES = ["المدارس (من/إلى)","بيانات الطالب","ولي الأمر وسبب النقل"];
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={close}>
+      <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS==="ios"?"padding":undefined}>
+        <LinearGradient colors={[Colors.cardBgElevated, Colors.bg]} style={{ flex:1 }}>
+          <View style={[fm.header, { paddingTop: Platform.OS==="ios"?52:24 }]}>
+            <TouchableOpacity onPress={close} style={fm.closeBtn}>
+              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+            <View style={{ flex:1 }}>
+              <Text style={fm.headerTitle}>طلب نقل طالب</Text>
+              <Text style={fm.headerSub}>{result ? "تم التقديم بنجاح" : STEP_TITLES[step-1]}</Text>
+            </View>
+            <View style={[fm.stepBadge, { backgroundColor: Colors.accent+"20" }]}>
+              <Text style={[fm.stepText, { color: Colors.accent }]}>{result ? "✓" : `${step}/3`}</Text>
+            </View>
+          </View>
+
+          {!result ? (
+            <>
+              <View style={fm.progressRow}>
+                {[1,2,3].map(s => (
+                  <View key={s} style={[fm.progressDot, s<=step && { backgroundColor: Colors.accent }]} />
+                ))}
+              </View>
+
+              <View style={{ flex:1, paddingHorizontal:20 }}>
+                {step === 1 && (
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:20 }}>
+                    <FormField label="المدرسة الحالية" required>
+                      <FInput value={data.from_institution_name} onChangeText={v=>setData({from_institution_name:v})} placeholder="اسم المدرسة الحالية" />
+                    </FormField>
+                    <FormField label="الصف الحالي">
+                      <ChipSelect options={GRADES_ALL} value={data.from_grade} onSelect={v=>setData({from_grade:v})} color={Colors.accent} />
+                    </FormField>
+                    <FormField label="رقم قيد الطالب في المدرسة الحالية">
+                      <FInput value={data.from_reg_number} onChangeText={v=>setData({from_reg_number:v})} placeholder="رقم القيد (إن وُجد)" />
+                    </FormField>
+                    <View style={fm.arrowSep}>
+                      <View style={fm.arrowLine} />
+                      <View style={fm.arrowIcon}><Ionicons name="arrow-down" size={18} color={Colors.accent} /></View>
+                      <View style={fm.arrowLine} />
+                    </View>
+                    <FormField label="المدرسة المطلوب النقل إليها" required>
+                      <ScrollView style={{ maxHeight:180 }} showsVerticalScrollIndicator nestedScrollEnabled>
+                        {institutions.filter(i=>i.status==="active").map(i => (
+                          <TouchableOpacity key={i.id}
+                            style={[ff.instRow, data.to_institution_id===i.id && ff.instRowActive]}
+                            onPress={()=>setData({to_institution_id:i.id, to_institution_name:i.name})}>
+                            <View style={[ff.instDot, { backgroundColor: INST_COLORS[i.type] }]} />
+                            <Text style={[ff.instName, data.to_institution_id===i.id && { color:Colors.accent }]}>{i.name}</Text>
+                            {data.to_institution_id===i.id && <Ionicons name="checkmark-circle" size={18} color={Colors.accent} />}
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                      <View style={{ marginTop:8 }}>
+                        <Text style={ff.label}>أو اكتب الاسم</Text>
+                        <FInput value={data.to_institution_name} onChangeText={v=>setData({to_institution_name:v, to_institution_id:""})} placeholder="اسم المدرسة الجديدة" />
+                      </View>
+                    </FormField>
+                    <FormField label="الصف المطلوب في المدرسة الجديدة">
+                      <ChipSelect options={GRADES_ALL} value={data.to_grade} onSelect={v=>setData({to_grade:v})} color={Colors.accent} />
+                    </FormField>
+                  </ScrollView>
+                )}
+                {step === 2 && (
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:20 }}>
+                    <FormField label="اسم الطالب الرباعي" required>
+                      <FInput value={data.student_name} onChangeText={v=>setData({student_name:v})} placeholder="الاسم الكامل للطالب" />
+                    </FormField>
+                    <FormField label="الجنس">
+                      <ChipSelect options={["ذكر","أنثى"]} value={data.student_gender} onSelect={v=>setData({student_gender:v})} color={Colors.accent} />
+                    </FormField>
+                    <FormField label="تاريخ الميلاد (اختياري)">
+                      <FInput value={data.student_dob} onChangeText={v=>setData({student_dob:v})} placeholder="2015-03-15" />
+                    </FormField>
+                  </ScrollView>
+                )}
+                {step === 3 && (
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:20 }}>
+                    <FormField label="سبب النقل" required>
+                      <ChipSelect options={TRANSFER_REASONS} value={data.transfer_reason} onSelect={v=>setData({transfer_reason:v})} color={Colors.accent} />
+                    </FormField>
+                    <FormField label="تفاصيل السبب (اختياري)">
+                      <FInput value={data.transfer_reason_detail} onChangeText={v=>setData({transfer_reason_detail:v})} placeholder="وضح سبب النقل بالتفصيل..." multiline />
+                    </FormField>
+                    <FormField label="اسم ولي الأمر" required>
+                      <FInput value={data.parent_name} onChangeText={v=>setData({parent_name:v})} placeholder="الاسم الكامل لولي الأمر" />
+                    </FormField>
+                    <FormField label="رقم الهاتف" required>
+                      <FInput value={data.parent_phone} onChangeText={v=>setData({parent_phone:v})} placeholder="+249..." keyboardType="phone-pad" />
+                    </FormField>
+                    <FormField label="العنوان">
+                      <FInput value={data.parent_address} onChangeText={v=>setData({parent_address:v})} placeholder="الحي والشارع" />
+                    </FormField>
+                    <FormField label="ملاحظات">
+                      <FInput value={data.notes} onChangeText={v=>setData({notes:v})} placeholder="أي معلومات إضافية..." multiline />
+                    </FormField>
+                  </ScrollView>
+                )}
+              </View>
+
+              <View style={fm.navRow}>
+                {step > 1 && (
+                  <TouchableOpacity style={[fm.navBtn, fm.navBtnOutline]} onPress={()=>setStep((step-1) as FormStep)}>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                    <Text style={[fm.navBtnText, { color:Colors.textSecondary }]}>السابق</Text>
+                  </TouchableOpacity>
+                )}
+                {step < 3 ? (
+                  <TouchableOpacity style={[fm.navBtn, { backgroundColor:Colors.accent, flex:1 }]}
+                    onPress={()=>{ const e=validateStep(); if(e){Alert.alert("تنبيه",e);return;} setStep((step+1) as FormStep); }}>
+                    <Text style={[fm.navBtnText,{color:"#000"}]}>التالي</Text>
+                    <Ionicons name="chevron-back" size={16} color="#000" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[fm.navBtn,{backgroundColor:Colors.accent,flex:1,opacity:submitting?0.7:1}]}
+                    onPress={()=>{ const e=validateStep(); if(e){Alert.alert("تنبيه",e);return;} submit(); }} disabled={submitting}>
+                    <Ionicons name="send" size={16} color="#000" />
+                    <Text style={[fm.navBtnText,{color:"#000"}]}>{submitting?"جارٍ الإرسال...":"إرسال طلب النقل"}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          ) : (
+            <Animated.View entering={ZoomIn.springify()} style={fm.successBox}>
+              <LinearGradient colors={[Colors.accent+"20", Colors.cardBg]} style={fm.successInner}>
+                <View style={[fm.successIcon, { backgroundColor:Colors.accent+"25" }]}>
+                  <Ionicons name="checkmark-circle" size={60} color={Colors.accent} />
+                </View>
+                <Text style={fm.successTitle}>تم تقديم طلب النقل!</Text>
+                <Text style={fm.successSub}>سيتم مراجعة طلب نقل الطالب {data.student_name} من {data.from_institution_name} إلى {data.to_institution_name}</Text>
+                <View style={fm.refBox}>
+                  <Text style={fm.refLabel}>رقم طلب النقل</Text>
+                  <Text style={fm.refNum}>{result.transfer_number}</Text>
+                  <Text style={fm.refHint}>احتفظ بهذا الرقم للاستعلام عن حالة طلبك</Text>
+                </View>
+                <TouchableOpacity style={[fm.navBtn, fm.navBtnOutline, { marginTop:12 }]} onPress={close}>
+                  <Text style={[fm.navBtnText,{color:Colors.textSecondary}]}>إغلاق</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            </Animated.View>
+          )}
+        </LinearGradient>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── مودال الاستعلام عن الطلبات ──
+type InquiryResult = {
+  type: "registration" | "transfer";
+  id: number;
+  ref: string;
+  student_name: string;
+  institution: string;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+};
+
+function InquiryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [mode, setMode]     = useState<"phone"|"ref">("phone");
+  const [query2, setQuery2] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<InquiryResult[]>([]);
+  const [searched, setSearched] = useState(false);
+
+  const search = async () => {
+    if (!query2.trim()) return;
+    setLoading(true); setSearched(false);
+    try {
+      const param = mode === "phone" ? `phone=${encodeURIComponent(query2.trim())}` : `reg_number=${encodeURIComponent(query2.trim())}`;
+      const param2 = mode === "phone" ? `phone=${encodeURIComponent(query2.trim())}` : `transfer_number=${encodeURIComponent(query2.trim())}`;
+      const [r1, r2] = await Promise.all([
+        fetchWithTimeout(`${getApiUrl()}/api/education/my-registrations?${param}`),
+        fetchWithTimeout(`${getApiUrl()}/api/education/my-transfers?${param2}`),
+      ]);
+      const all: InquiryResult[] = [];
+      if (r1.ok) {
+        const d = await r1.json();
+        (d.registrations || []).forEach((r: any) => all.push({
+          type:"registration", id:r.id, ref:r.reg_number,
+          student_name:r.student_name, institution:r.institution_name,
+          status:r.status, admin_notes:r.admin_notes, created_at:r.created_at,
+        }));
+      }
+      if (r2.ok) {
+        const d = await r2.json();
+        (d.transfers || []).forEach((r: any) => all.push({
+          type:"transfer", id:r.id, ref:r.transfer_number,
+          student_name:r.student_name, institution:`${r.from_institution_name} → ${r.to_institution_name}`,
+          status:r.status, admin_notes:r.admin_notes, created_at:r.created_at,
+        }));
+      }
+      all.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setResults(all);
+    } catch {} finally { setLoading(false); setSearched(true); }
+  };
+
+  const close = () => { setQuery2(""); setResults([]); setSearched(false); onClose(); };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={close}>
+      <LinearGradient colors={[Colors.cardBgElevated, Colors.bg]} style={{ flex:1 }}>
+        <View style={[fm.header, { paddingTop: Platform.OS==="ios"?52:24 }]}>
+          <TouchableOpacity onPress={close} style={fm.closeBtn}>
+            <Ionicons name="close" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <Text style={fm.headerTitle}>الاستعلام عن طلب</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding:20, gap:16 }}>
+          <View style={iq.modeRow}>
+            {([["phone","البحث برقم الهاتف"],["ref","البحث برقم الطلب"]] as const).map(([k,l]) => (
+              <TouchableOpacity key={k} style={[iq.modeBtn, mode===k && iq.modeBtnActive]} onPress={()=>setMode(k)}>
+                <Text style={[iq.modeBtnText, mode===k && { color: Colors.primary, fontFamily:"Cairo_600SemiBold" }]}>{l}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={iq.searchRow}>
+            <TouchableOpacity style={iq.searchBtn} onPress={search} disabled={loading}>
+              <Ionicons name="search" size={18} color="#000" />
+            </TouchableOpacity>
+            <TextInput
+              style={iq.searchInput}
+              value={query2} onChangeText={setQuery2}
+              placeholder={mode==="phone" ? "أدخل رقم هاتف ولي الأمر" : "أدخل رقم الطلب (REG-... أو TRF-...)"}
+              placeholderTextColor={Colors.textMuted}
+              keyboardType={mode==="phone"?"phone-pad":"default"}
+              textAlign="right"
+              onSubmitEditing={search}
+              returnKeyType="search"
+            />
+          </View>
+
+          {loading && <Text style={iq.hint}>جارٍ البحث...</Text>}
+          {searched && results.length === 0 && !loading && (
+            <View style={iq.emptyBox}>
+              <Ionicons name="search-outline" size={36} color={Colors.textMuted} />
+              <Text style={iq.emptyText}>لا توجد طلبات مرتبطة بهذا {mode==="phone"?"الرقم":"الكود"}</Text>
+            </View>
+          )}
+
+          {results.map(r => (
+            <Animated.View key={`${r.type}-${r.id}`} entering={FadeInDown.springify()} style={iq.resultCard}>
+              <View style={iq.resultHeader}>
+                <View style={[iq.typeBadge, { backgroundColor: r.type==="registration" ? Colors.primary+"20" : Colors.accent+"20" }]}>
+                  <Ionicons name={r.type==="registration"?"person-add-outline":"swap-horizontal-outline"} size={13}
+                    color={r.type==="registration" ? Colors.primary : Colors.accent} />
+                  <Text style={[iq.typeBadgeText, { color: r.type==="registration"?Colors.primary:Colors.accent }]}>
+                    {r.type==="registration" ? "تسجيل طالب" : "نقل طالب"}
+                  </Text>
+                </View>
+                <View style={[iq.statusBadge, { backgroundColor: (STATUS_COLORS[r.status]||"#888")+"20" }]}>
+                  <Text style={[iq.statusText, { color: STATUS_COLORS[r.status]||"#888" }]}>{STATUS_LABELS[r.status]||r.status}</Text>
+                </View>
+              </View>
+              <Text style={iq.studentName}>{r.student_name}</Text>
+              <Text style={iq.instText}>{r.institution}</Text>
+              <View style={iq.refRow}>
+                <Text style={iq.refText}>{r.ref}</Text>
+                <Text style={iq.dateText}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+              </View>
+              {r.admin_notes ? (
+                <View style={iq.noteBox}>
+                  <Ionicons name="information-circle-outline" size={14} color={Colors.textSecondary} />
+                  <Text style={iq.noteText}>{r.admin_notes}</Text>
+                </View>
+              ) : null}
+            </Animated.View>
+          ))}
+        </ScrollView>
+      </LinearGradient>
+    </Modal>
+  );
+}
+
+const ff = StyleSheet.create({
+  label:       { fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 },
+  input:       { backgroundColor:Colors.cardBg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
+  chip:        { paddingHorizontal:12, paddingVertical:7, borderRadius:20, backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.divider },
+  chipText:    { fontFamily:"Cairo_500Medium", fontSize:12, color:Colors.textSecondary },
+  instRow:     { flexDirection:"row-reverse", alignItems:"center", gap:10, padding:10, borderRadius:12, borderWidth:1, borderColor:Colors.divider, marginBottom:6, backgroundColor:Colors.bg },
+  instRowActive:{ borderColor:Colors.primary+"70", backgroundColor:Colors.primary+"10" },
+  instDot:     { width:10, height:10, borderRadius:5 },
+  instName:    { fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textPrimary, flex:1, textAlign:"right" },
+  instSub:     { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right" },
+  switchRow:   { flexDirection:"row-reverse", alignItems:"center", gap:10, marginBottom:14 },
+  toggle:      { width:26, height:26, borderRadius:8, borderWidth:1.5, borderColor:Colors.divider, backgroundColor:Colors.bg, alignItems:"center", justifyContent:"center" },
+  switchLabel: { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textPrimary },
+});
+const fm = StyleSheet.create({
+  header:      { flexDirection:"row-reverse", alignItems:"center", paddingHorizontal:16, paddingBottom:14, borderBottomWidth:1, borderBottomColor:Colors.divider, gap:10 },
+  closeBtn:    { width:36, height:36, borderRadius:12, backgroundColor:Colors.cardBg, alignItems:"center", justifyContent:"center", borderWidth:1, borderColor:Colors.divider },
+  headerTitle: { fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary, textAlign:"right" },
+  headerSub:   { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right" },
+  stepBadge:   { borderRadius:20, paddingHorizontal:10, paddingVertical:4 },
+  stepText:    { fontFamily:"Cairo_700Bold", fontSize:13 },
+  progressRow: { flexDirection:"row-reverse", gap:6, paddingHorizontal:20, paddingVertical:12 },
+  progressDot: { height:4, flex:1, borderRadius:2, backgroundColor:Colors.divider },
+  navRow:      { flexDirection:"row-reverse", gap:10, padding:16, borderTopWidth:1, borderTopColor:Colors.divider },
+  navBtn:      { flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:8, borderRadius:16, paddingVertical:14, paddingHorizontal:18 },
+  navBtnOutline:{ borderWidth:1, borderColor:Colors.divider, backgroundColor:Colors.cardBg },
+  navBtnText:  { fontFamily:"Cairo_700Bold", fontSize:14 },
+  successBox:  { flex:1, justifyContent:"center", padding:24 },
+  successInner:{ borderRadius:24, padding:24, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.divider },
+  successIcon: { width:100, height:100, borderRadius:30, alignItems:"center", justifyContent:"center" },
+  successTitle:{ fontFamily:"Cairo_700Bold", fontSize:22, color:Colors.textPrimary, textAlign:"center" },
+  successSub:  { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"center", lineHeight:20 },
+  refBox:      { width:"100%", backgroundColor:Colors.bg, borderRadius:14, padding:16, alignItems:"center", gap:4, borderWidth:1, borderColor:Colors.divider },
+  refLabel:    { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted },
+  refNum:      { fontFamily:"Cairo_700Bold", fontSize:20, color:Colors.primary, letterSpacing:1 },
+  refHint:     { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"center" },
+  arrowSep:    { flexDirection:"row", alignItems:"center", gap:8, marginVertical:10 },
+  arrowLine:   { flex:1, height:1, backgroundColor:Colors.divider },
+  arrowIcon:   { width:32, height:32, borderRadius:16, backgroundColor:Colors.accent+"15", alignItems:"center", justifyContent:"center", borderWidth:1, borderColor:Colors.accent+"40" },
+});
+const iq = StyleSheet.create({
+  modeRow:     { flexDirection:"row-reverse", gap:8 },
+  modeBtn:     { flex:1, paddingVertical:10, borderRadius:12, backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.divider, alignItems:"center" },
+  modeBtnActive:{ borderColor:Colors.primary+"60", backgroundColor:Colors.primary+"12" },
+  modeBtnText: { fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textSecondary },
+  searchRow:   { flexDirection:"row-reverse", gap:8 },
+  searchInput: { flex:1, backgroundColor:Colors.cardBg, borderRadius:12, paddingHorizontal:14, paddingVertical:11, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
+  searchBtn:   { width:44, height:44, borderRadius:12, backgroundColor:Colors.primary, alignItems:"center", justifyContent:"center" },
+  hint:        { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center" },
+  emptyBox:    { alignItems:"center", gap:10, paddingVertical:30 },
+  emptyText:   { fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted, textAlign:"center" },
+  resultCard:  { backgroundColor:Colors.cardBg, borderRadius:16, padding:14, borderWidth:1, borderColor:Colors.divider, gap:6 },
+  resultHeader:{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" },
+  typeBadge:   { flexDirection:"row-reverse", alignItems:"center", gap:5, borderRadius:10, paddingHorizontal:8, paddingVertical:4 },
+  typeBadgeText:{ fontFamily:"Cairo_500Medium", fontSize:11 },
+  statusBadge: { borderRadius:10, paddingHorizontal:8, paddingVertical:4 },
+  statusText:  { fontFamily:"Cairo_700Bold", fontSize:11 },
+  studentName: { fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"right" },
+  instText:    { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right" },
+  refRow:      { flexDirection:"row-reverse", justifyContent:"space-between", alignItems:"center" },
+  refText:     { fontFamily:"Cairo_600SemiBold", fontSize:11, color:Colors.textMuted, letterSpacing:0.5 },
+  dateText:    { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted },
+  noteBox:     { flexDirection:"row-reverse", alignItems:"flex-start", gap:6, backgroundColor:Colors.bg, borderRadius:10, padding:10, borderWidth:1, borderColor:Colors.divider },
+  noteText:    { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, flex:1, textAlign:"right" },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-type Tab = "services" | "institutions" | "libraries" | "join" | "admin";
+type Tab = "services" | "institutions" | "libraries" | "forms" | "join" | "admin";
 
 // ─── Library Types ────────────────────────────────────────────────────────────
 type LibraryCat = "books" | "stationery" | "printing" | "uniforms" | "tutoring" | "other";
@@ -1160,12 +1921,60 @@ export default function StudentScreen() {
   const [pinModal, setPinModal]           = useState(false);
   const [pinInput, setPinInput]           = useState("");
   const [pinError, setPinError]           = useState("");
-  const [adminSubTab, setAdminSubTab]     = useState<"requests" | "manage" | "add">("requests");
+  const [adminSubTab, setAdminSubTab]     = useState<"requests" | "manage" | "add" | "registrations" | "transfers">("requests");
+
+  // Admin forms
+  type AdminReg = { id:number; reg_number:string; institution_name:string; grade:string; student_name:string; parent_name:string; parent_phone:string; status:string; admin_notes:string|null; created_at:string };
+  type AdminTrf = { id:number; transfer_number:string; from_institution_name:string; to_institution_name:string; student_name:string; parent_phone:string; transfer_reason:string; status:string; admin_notes:string|null; created_at:string };
+  const [adminRegs, setAdminRegs] = useState<AdminReg[]>([]);
+  const [adminTrfs, setAdminTrfs] = useState<AdminTrf[]>([]);
+  const [formsLoading, setFormsLoading] = useState(false);
+  const [formsRegStatus, setFormsRegStatus] = useState("all");
+  const [formsTrfStatus, setFormsTrfStatus] = useState("all");
+
+  const loadAdminForms = async () => {
+    setFormsLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        fetchWithTimeout(`${getApiUrl()}/api/admin/education/registrations?status=${formsRegStatus}`, { headers:{ "x-admin-pin": DEFAULT_PIN } }),
+        fetchWithTimeout(`${getApiUrl()}/api/admin/education/transfers?status=${formsTrfStatus}`, { headers:{ "x-admin-pin": DEFAULT_PIN } }),
+      ]);
+      if (r1.ok) { const d = await r1.json(); setAdminRegs(d.registrations || []); }
+      if (r2.ok) { const d = await r2.json(); setAdminTrfs(d.transfers || []); }
+    } catch {} finally { setFormsLoading(false); }
+  };
+
+  const updateRegStatus = async (id: number, status: string, admin_notes?: string) => {
+    try {
+      await fetchWithTimeout(`${getApiUrl()}/api/admin/education/registrations/${id}`, {
+        method:"PATCH", headers:{"Content-Type":"application/json","x-admin-pin":DEFAULT_PIN},
+        body:JSON.stringify({ status, admin_notes }),
+      });
+      setAdminRegs(prev => prev.map(r => r.id===id ? { ...r, status, admin_notes: admin_notes||r.admin_notes } : r));
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch { Alert.alert("خطأ","تعذّر تحديث الحالة"); }
+  };
+
+  const updateTrfStatus = async (id: number, status: string, admin_notes?: string) => {
+    try {
+      await fetchWithTimeout(`${getApiUrl()}/api/admin/education/transfers/${id}`, {
+        method:"PATCH", headers:{"Content-Type":"application/json","x-admin-pin":DEFAULT_PIN},
+        body:JSON.stringify({ status, admin_notes }),
+      });
+      setAdminTrfs(prev => prev.map(t => t.id===id ? { ...t, status, admin_notes: admin_notes||t.admin_notes } : t));
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch { Alert.alert("خطأ","تعذّر تحديث الحالة"); }
+  };
   const [editInst, setEditInst]           = useState<Institution | undefined>(undefined);
   const [formVisible, setFormVisible]     = useState(false);
 
   // Join success
   const [joinSuccess, setJoinSuccess]     = useState(false);
+
+  // Forms state
+  const [regModalVisible, setRegModal]    = useState(false);
+  const [trfModalVisible, setTrfModal]    = useState(false);
+  const [iqModalVisible, setIqModal]      = useState(false);
 
   // Libraries state
   const [libraries, setLibraries]         = useState<StudentLibrary[]>([]);
@@ -1223,6 +2032,7 @@ export default function StudentScreen() {
   useEffect(() => { load(); }, []);
   useFocusEffect(useCallback(() => { load(); }, []));
   useEffect(() => { if (activeTab === "libraries") loadLibraries(); }, [activeTab, libCat, libSearch]);
+  useEffect(() => { if (activeTab === "admin" && isAdmin && (adminSubTab === "registrations" || adminSubTab === "transfers")) loadAdminForms(); }, [adminSubTab, activeTab, isAdmin, formsRegStatus, formsTrfStatus]);
 
   // ── Stats ──
   const activeInsts = institutions.filter(i => i.status === "active");
@@ -1318,6 +2128,7 @@ export default function StudentScreen() {
   const TAB_OPTIONS: { key: Tab; label: string; icon: string }[] = [
     { key:"services",     label:"الخدمات",   icon:"grid-outline" },
     { key:"institutions", label:"المؤسسات",  icon:"school-outline" },
+    { key:"forms",        label:"الاستمارات",icon:"document-text-outline" },
     { key:"libraries",    label:"المكتبات",  icon:"book-outline" },
     { key:"join",         label:"انضمام",    icon:"add-circle-outline" },
     { key:"admin",        label:"الإدارة",   icon:"shield-checkmark-outline" },
@@ -1363,6 +2174,13 @@ export default function StudentScreen() {
 
       {/* Tool Modal */}
       <ToolModal tool={selectedTool} visible={toolModalVisible} onClose={()=>setToolModalVisible(false)} />
+
+      {/* استمارة تسجيل */}
+      <RegistrationModal visible={regModalVisible} onClose={()=>setRegModal(false)} institutions={institutions} />
+      {/* طلب نقل */}
+      <TransferModal visible={trfModalVisible} onClose={()=>setTrfModal(false)} institutions={institutions} />
+      {/* الاستعلام */}
+      <InquiryModal visible={iqModalVisible} onClose={()=>setIqModal(false)} />
 
       {/* Header */}
       <LinearGradient colors={[Colors.cardBgElevated, Colors.cardBg]} style={[s.header, { paddingTop: topPad + 12 }]}>
@@ -1498,6 +2316,132 @@ export default function StudentScreen() {
             ))}
           </ScrollView>
         </View>
+      )}
+
+      {/* ── TAB: FORMS ── */}
+      {activeTab === "forms" && (
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* بانر الخدمات */}
+          <Animated.View entering={FadeInDown.springify()}>
+            <LinearGradient colors={[Colors.primary+"18", Colors.cardBg]} style={fo.banner}>
+              <View style={fo.bannerIcon}>
+                <Ionicons name="document-text" size={28} color={Colors.primary} />
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={fo.bannerTitle}>الخدمات التعليمية الإلكترونية</Text>
+                <Text style={fo.bannerSub}>قدّم طلباتك التعليمية إلكترونياً دون الحاجة للانتظار في الطوابير</Text>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* البطاقات الرئيسية */}
+          {[
+            {
+              icon:"person-add-outline", color:Colors.primary, bg:Colors.primary+"18",
+              title:"استمارة تسجيل طالب جديد",
+              desc:"سجّل طفلك في أي مؤسسة تعليمية بالحصاحيصا — روضة، مدرسة أساسية أو ثانوية أو معهد أو جامعة",
+              tag:"للطلاب وأولياء الأمور",
+              onPress:()=>setRegModal(true),
+              steps:["اختيار المؤسسة والصف","بيانات الطالب","بيانات ولي الأمر"],
+            },
+            {
+              icon:"swap-horizontal-outline", color:Colors.accent, bg:Colors.accent+"18",
+              title:"طلب نقل طالب",
+              desc:"انقل طفلك من مدرسة إلى أخرى بسهولة — حدّد المدرسة الحالية والجديدة وسبب النقل",
+              tag:"نقل بين المدارس",
+              onPress:()=>setTrfModal(true),
+              steps:["المدارس (من/إلى)","بيانات الطالب","ولي الأمر وسبب النقل"],
+            },
+            {
+              icon:"search-outline", color:"#6366F1", bg:"#6366F120",
+              title:"الاستعلام عن طلب",
+              desc:"تتبّع حالة طلب التسجيل أو النقل الخاص بك عبر رقم هاتفك أو الرقم المرجعي للطلب",
+              tag:"تتبّع الطلبات",
+              onPress:()=>setIqModal(true),
+              steps:[],
+            },
+          ].map((c, i) => (
+            <Animated.View key={c.title} entering={FadeInDown.delay(i*80).springify().damping(18)}>
+              <TouchableOpacity style={[fo.card, { borderColor: c.color+"30" }]} onPress={c.onPress}
+                activeOpacity={0.85}>
+                <LinearGradient colors={[c.bg, Colors.cardBg]} style={fo.cardInner}>
+                  <View style={fo.cardTop}>
+                    <View style={[fo.cardIcon, { backgroundColor: c.bg }]}>
+                      <Ionicons name={c.icon as any} size={28} color={c.color} />
+                    </View>
+                    <View style={{ flex:1 }}>
+                      <View style={[fo.tagBadge, { backgroundColor: c.bg }]}>
+                        <Text style={[fo.tagText, { color: c.color }]}>{c.tag}</Text>
+                      </View>
+                      <Text style={fo.cardTitle}>{c.title}</Text>
+                    </View>
+                  </View>
+                  <Text style={fo.cardDesc}>{c.desc}</Text>
+                  {c.steps.length > 0 && (
+                    <View style={fo.stepsRow}>
+                      {c.steps.map((step, si) => (
+                        <View key={si} style={fo.stepItem}>
+                          <View style={[fo.stepNum, { backgroundColor: c.color+"20", borderColor: c.color+"40" }]}>
+                            <Text style={[fo.stepNumText, { color: c.color }]}>{si+1}</Text>
+                          </View>
+                          <Text style={fo.stepText}>{step}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <View style={[fo.cta, { backgroundColor: c.color, borderColor: c.color }]}>
+                    <Ionicons name="arrow-back" size={16} color="#000" />
+                    <Text style={fo.ctaText}>{c.icon==="search-outline" ? "استعلام الآن" : "ابدأ الآن"}</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+
+          {/* ارشادات مهمة */}
+          <Animated.View entering={FadeInDown.delay(320).springify()}>
+            <View style={fo.guideBox}>
+              <Text style={fo.guideTitle}>إرشادات مهمة</Text>
+              {[
+                { icon:"time-outline",           text:"يتم مراجعة الطلبات خلال 2-3 أيام عمل" },
+                { icon:"call-outline",           text:"ستتلقى مكالمة من إدارة المؤسسة لتأكيد الطلب" },
+                { icon:"document-outline",       text:"احتفظ بالرقم المرجعي للطلب للاستعلام عن حالته" },
+                { icon:"shield-checkmark-outline",text:"بياناتك محمية ولا تُشارَك مع أطراف خارجية" },
+                { icon:"information-circle-outline",text:"القبول النهائي يتم حسب الطاقة الاستيعابية للمؤسسة" },
+              ].map((g, gi) => (
+                <View key={gi} style={fo.guideRow}>
+                  <Ionicons name={g.icon as any} size={16} color={Colors.primary} />
+                  <Text style={fo.guideText}>{g.text}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* المستندات المطلوبة */}
+          <Animated.View entering={FadeInDown.delay(380).springify()}>
+            <View style={fo.docsBox}>
+              <View style={fo.docsHeader}>
+                <Ionicons name="folder-open-outline" size={18} color={Colors.accent} />
+                <Text style={fo.docsTitle}>المستندات المطلوبة عند المراجعة</Text>
+              </View>
+              {[
+                { title:"للتسجيل الجديد", docs:["شهادة الميلاد للطالب","صورة شخصية للطالب","بطاقة هوية ولي الأمر","شهادة انتقال من المدرسة السابقة (إن وجدت)"] },
+                { title:"لطلب النقل", docs:["شهادة انتقال من المدرسة الحالية","آخر شهادة دراسية","بطاقة هوية ولي الأمر","رقم قيد الطالب الحالي"] },
+              ].map(section => (
+                <View key={section.title} style={{ marginBottom:12 }}>
+                  <Text style={fo.docsSectionTitle}>{section.title}</Text>
+                  {section.docs.map((d, di) => (
+                    <View key={di} style={fo.docRow}>
+                      <View style={fo.docDot} />
+                      <Text style={fo.docText}>{d}</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+
+        </ScrollView>
       )}
 
       {/* ══ TAB: LIBRARIES ══ */}
@@ -1769,20 +2713,24 @@ export default function StudentScreen() {
       {activeTab === "admin" && isAdmin && (
         <View style={s.flex1}>
           {/* Admin Sub Tabs */}
-          <View style={s.adminSubTabs}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={{ borderBottomWidth:1, borderBottomColor:Colors.divider, backgroundColor:Colors.cardBg }}
+            contentContainerStyle={{ flexDirection:"row-reverse", gap:4, paddingHorizontal:12, paddingVertical:8 }}>
             {([
-              { key:"requests" as const, label:"الطلبات",   icon:"time-outline",           badge: pendingReqs.length },
-              { key:"manage"   as const, label:"المؤسسات",  icon:"list-outline",           badge: 0 },
-              { key:"add"      as const, label:"إضافة",     icon:"add-circle-outline",     badge: 0 },
-            ] as const).map(t => (
+              { key:"requests"      as const, label:"طلبات الانضمام",  icon:"time-outline",            badge: pendingReqs.length },
+              { key:"registrations" as const, label:"طلبات التسجيل",   icon:"person-add-outline",       badge: adminRegs.filter(r=>r.status==="pending").length },
+              { key:"transfers"     as const, label:"طلبات النقل",      icon:"swap-horizontal-outline",  badge: adminTrfs.filter(t=>t.status==="pending").length },
+              { key:"manage"        as const, label:"المؤسسات",         icon:"list-outline",             badge: 0 },
+              { key:"add"           as const, label:"إضافة",            icon:"add-circle-outline",       badge: 0 },
+            ]).map(t => (
               <AnimatedPress key={t.key} style={[s.adminSubTab, adminSubTab===t.key && s.adminSubTabActive]}
-                onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAdminSubTab(t.key); }}>
-                <Ionicons name={t.icon as any} size={16} color={adminSubTab===t.key?Colors.primary:Colors.textMuted} />
+                onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAdminSubTab(t.key as any); }}>
+                <Ionicons name={t.icon as any} size={14} color={adminSubTab===t.key?Colors.primary:Colors.textMuted} />
                 <Text style={[s.adminSubTabText, adminSubTab===t.key && { color: Colors.primary }]}>{t.label}</Text>
                 {t.badge>0 && <View style={s.tabBadge}><Text style={s.tabBadgeText}>{t.badge}</Text></View>}
               </AnimatedPress>
             ))}
-          </View>
+          </ScrollView>
 
           {/* Requests */}
           {adminSubTab === "requests" && (
@@ -1800,6 +2748,170 @@ export default function StudentScreen() {
                 </Animated.View>
               ))}
             </ScrollView>
+          )}
+
+          {/* Registrations */}
+          {adminSubTab === "registrations" && (
+            <View style={s.flex1}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                style={{ borderBottomWidth:1, borderBottomColor:Colors.divider }}
+                contentContainerStyle={{ flexDirection:"row-reverse", gap:6, padding:10 }}>
+                {(["all","pending","approved","rejected"] as const).map(st => (
+                  <AnimatedPress key={st} onPress={()=>setFormsRegStatus(st)}
+                    style={[s.filterChip, formsRegStatus===st && s.filterChipActive]}>
+                    <Text style={[s.filterChipText, formsRegStatus===st && s.filterChipTextActive]}>
+                      {st==="all"?"الكل":st==="pending"?"قيد المراجعة":st==="approved"?"مقبول":"مرفوض"}
+                    </Text>
+                  </AnimatedPress>
+                ))}
+              </ScrollView>
+              <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+                {formsLoading ? (
+                  <View style={s.emptyState}>
+                    <ActivityIndicator color={Colors.primary} size="large" />
+                  </View>
+                ) : adminRegs.length === 0 ? (
+                  <View style={s.emptyState}>
+                    <Ionicons name="person-add-outline" size={52} color={Colors.textMuted} />
+                    <Text style={s.emptyTitle}>لا توجد طلبات تسجيل</Text>
+                  </View>
+                ) : adminRegs.map((reg, i) => (
+                  <Animated.View key={reg.id} entering={FadeInDown.delay(i*40).springify()}>
+                    <View style={s.manageCard}>
+                      <View style={s.manageCardTop}>
+                        <View style={s.manageCardActions}>
+                          {reg.status === "pending" && (
+                            <>
+                              <AnimatedPress style={[s.manageActionBtn, { backgroundColor: Colors.danger+"20" }]}
+                                onPress={()=>Alert.alert("رفض الطلب","هل تريد رفض هذا الطلب؟",[{text:"إلغاء",style:"cancel"},{text:"رفض",style:"destructive",onPress:()=>updateRegStatus(reg.id,"rejected")}])}>
+                                <Ionicons name="close-outline" size={18} color={Colors.danger} />
+                              </AnimatedPress>
+                              <AnimatedPress style={[s.manageActionBtn, { backgroundColor: Colors.primary+"20" }]}
+                                onPress={()=>updateRegStatus(reg.id,"approved")}>
+                                <Ionicons name="checkmark-outline" size={18} color={Colors.primary} />
+                              </AnimatedPress>
+                            </>
+                          )}
+                        </View>
+                        <View style={s.manageCardInfo}>
+                          <Text style={s.manageCardName}>{reg.student_name}</Text>
+                          <Text style={s.manageCardType}>{reg.institution_name} · {reg.grade}</Text>
+                          <Text style={[s.manageCardType, { fontSize:11, marginTop:2, color:Colors.textMuted }]}>
+                            {reg.parent_name} · {reg.parent_phone}
+                          </Text>
+                          <Text style={[s.manageCardType, { fontSize:10, marginTop:2, color:Colors.textMuted }]}>
+                            {reg.reg_number}
+                          </Text>
+                        </View>
+                        <View style={[s.manageIconBox, { backgroundColor: Colors.primary+"20" }]}>
+                          <Ionicons name="person-add-outline" size={22} color={Colors.primary} />
+                        </View>
+                      </View>
+                      <View style={[s.statusRow, { justifyContent:"space-between" }]}>
+                        <Text style={[s.statusLabel, { fontSize:10 }]}>
+                          {new Date(reg.created_at).toLocaleDateString("ar-EG")}
+                        </Text>
+                        <View style={s.statusRow}>
+                          <View style={[s.statusDot, { backgroundColor:
+                            reg.status==="approved"?Colors.primary:
+                            reg.status==="pending"?Colors.accent:Colors.danger }]} />
+                          <Text style={s.statusLabel}>
+                            {reg.status==="approved"?"مقبول":reg.status==="pending"?"قيد المراجعة":"مرفوض"}
+                          </Text>
+                        </View>
+                      </View>
+                      {reg.admin_notes ? (
+                        <Text style={[s.manageCardType, { fontSize:11, marginTop:6, color:Colors.textMuted, textAlign:"right" }]}>
+                          ملاحظة: {reg.admin_notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </Animated.View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Transfers */}
+          {adminSubTab === "transfers" && (
+            <View style={s.flex1}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                style={{ borderBottomWidth:1, borderBottomColor:Colors.divider }}
+                contentContainerStyle={{ flexDirection:"row-reverse", gap:6, padding:10 }}>
+                {(["all","pending","approved","rejected"] as const).map(st => (
+                  <AnimatedPress key={st} onPress={()=>setFormsTrfStatus(st)}
+                    style={[s.filterChip, formsTrfStatus===st && s.filterChipActive]}>
+                    <Text style={[s.filterChipText, formsTrfStatus===st && s.filterChipTextActive]}>
+                      {st==="all"?"الكل":st==="pending"?"قيد المراجعة":st==="approved"?"مقبول":"مرفوض"}
+                    </Text>
+                  </AnimatedPress>
+                ))}
+              </ScrollView>
+              <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+                {formsLoading ? (
+                  <View style={s.emptyState}>
+                    <ActivityIndicator color={Colors.primary} size="large" />
+                  </View>
+                ) : adminTrfs.length === 0 ? (
+                  <View style={s.emptyState}>
+                    <Ionicons name="swap-horizontal-outline" size={52} color={Colors.textMuted} />
+                    <Text style={s.emptyTitle}>لا توجد طلبات نقل</Text>
+                  </View>
+                ) : adminTrfs.map((trf, i) => (
+                  <Animated.View key={trf.id} entering={FadeInDown.delay(i*40).springify()}>
+                    <View style={s.manageCard}>
+                      <View style={s.manageCardTop}>
+                        <View style={s.manageCardActions}>
+                          {trf.status === "pending" && (
+                            <>
+                              <AnimatedPress style={[s.manageActionBtn, { backgroundColor: Colors.danger+"20" }]}
+                                onPress={()=>Alert.alert("رفض طلب النقل","هل تريد رفض هذا الطلب؟",[{text:"إلغاء",style:"cancel"},{text:"رفض",style:"destructive",onPress:()=>updateTrfStatus(trf.id,"rejected")}])}>
+                                <Ionicons name="close-outline" size={18} color={Colors.danger} />
+                              </AnimatedPress>
+                              <AnimatedPress style={[s.manageActionBtn, { backgroundColor: Colors.primary+"20" }]}
+                                onPress={()=>updateTrfStatus(trf.id,"approved")}>
+                                <Ionicons name="checkmark-outline" size={18} color={Colors.primary} />
+                              </AnimatedPress>
+                            </>
+                          )}
+                        </View>
+                        <View style={s.manageCardInfo}>
+                          <Text style={s.manageCardName}>{trf.student_name}</Text>
+                          <Text style={s.manageCardType}>{trf.from_institution_name} → {trf.to_institution_name}</Text>
+                          <Text style={[s.manageCardType, { fontSize:11, marginTop:2, color:Colors.textMuted }]}>
+                            {trf.parent_phone} · {trf.transfer_reason}
+                          </Text>
+                          <Text style={[s.manageCardType, { fontSize:10, marginTop:2, color:Colors.textMuted }]}>
+                            {trf.transfer_number}
+                          </Text>
+                        </View>
+                        <View style={[s.manageIconBox, { backgroundColor: Colors.accent+"20" }]}>
+                          <Ionicons name="swap-horizontal-outline" size={22} color={Colors.accent} />
+                        </View>
+                      </View>
+                      <View style={[s.statusRow, { justifyContent:"space-between" }]}>
+                        <Text style={[s.statusLabel, { fontSize:10 }]}>
+                          {new Date(trf.created_at).toLocaleDateString("ar-EG")}
+                        </Text>
+                        <View style={s.statusRow}>
+                          <View style={[s.statusDot, { backgroundColor:
+                            trf.status==="approved"?Colors.primary:
+                            trf.status==="pending"?Colors.accent:Colors.danger }]} />
+                          <Text style={s.statusLabel}>
+                            {trf.status==="approved"?"مقبول":trf.status==="pending"?"قيد المراجعة":"مرفوض"}
+                          </Text>
+                        </View>
+                      </View>
+                      {trf.admin_notes ? (
+                        <Text style={[s.manageCardType, { fontSize:11, marginTop:6, color:Colors.textMuted, textAlign:"right" }]}>
+                          ملاحظة: {trf.admin_notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </Animated.View>
+                ))}
+              </ScrollView>
+            </View>
           )}
 
           {/* Manage */}
@@ -1874,6 +2986,45 @@ export default function StudentScreen() {
     </View>
   );
 }
+
+// ─── Forms Tab Styles ─────────────────────────────────────────────────────────
+const fo = StyleSheet.create({
+  banner:      { flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:18, marginBottom:16, borderWidth:1, borderColor:Colors.primary+"30" },
+  bannerIcon:  { width:52, height:52, borderRadius:16, backgroundColor:Colors.primary+"20", alignItems:"center", justifyContent:"center" },
+  bannerTitle: { fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"right", marginBottom:2 },
+  bannerSub:   { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", lineHeight:18 },
+
+  card:        { borderRadius:20, overflow:"hidden", marginBottom:16, borderWidth:1.5 },
+  cardInner:   { padding:18 },
+  cardTop:     { flexDirection:"row-reverse", alignItems:"flex-start", gap:12, marginBottom:12 },
+  cardIcon:    { width:58, height:58, borderRadius:18, alignItems:"center", justifyContent:"center" },
+  tagBadge:    { borderRadius:8, paddingHorizontal:8, paddingVertical:3, alignSelf:"flex-end", marginBottom:4 },
+  tagText:     { fontFamily:"Cairo_600SemiBold", fontSize:10 },
+  cardTitle:   { fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" },
+  cardDesc:    { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"right", lineHeight:20, marginBottom:14 },
+
+  stepsRow:    { flexDirection:"row-reverse", gap:8, marginBottom:14, flexWrap:"wrap" },
+  stepItem:    { flexDirection:"row-reverse", alignItems:"center", gap:6 },
+  stepNum:     { width:22, height:22, borderRadius:11, alignItems:"center", justifyContent:"center", borderWidth:1 },
+  stepNumText: { fontFamily:"Cairo_700Bold", fontSize:11 },
+  stepText:    { fontFamily:"Cairo_500Medium", fontSize:11, color:Colors.textSecondary },
+
+  cta:         { flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:8, borderRadius:14, paddingVertical:12 },
+  ctaText:     { fontFamily:"Cairo_700Bold", fontSize:14, color:"#000" },
+
+  guideBox:    { backgroundColor:Colors.cardBg, borderRadius:16, padding:16, marginBottom:16, borderWidth:1, borderColor:Colors.divider },
+  guideTitle:  { fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right", marginBottom:10 },
+  guideRow:    { flexDirection:"row-reverse", alignItems:"flex-start", gap:8, marginBottom:8 },
+  guideText:   { fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, flex:1, textAlign:"right", lineHeight:19 },
+
+  docsBox:     { backgroundColor:Colors.cardBg, borderRadius:16, padding:16, marginBottom:20, borderWidth:1, borderColor:Colors.accent+"30" },
+  docsHeader:  { flexDirection:"row-reverse", alignItems:"center", gap:8, marginBottom:12 },
+  docsTitle:   { fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.accent },
+  docsSectionTitle:{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textPrimary, textAlign:"right", marginBottom:6 },
+  docRow:      { flexDirection:"row-reverse", alignItems:"center", gap:8, marginBottom:5 },
+  docDot:      { width:6, height:6, borderRadius:3, backgroundColor:Colors.accent },
+  docText:     { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, flex:1, textAlign:"right" },
+});
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({

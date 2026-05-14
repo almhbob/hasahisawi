@@ -1582,6 +1582,95 @@ export async function initHasahisawiDb() {
     }
   }
 
+  // ══ جداول الخدمات التعليمية — استمارات التسجيل والنقل ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS student_registrations (
+      id SERIAL PRIMARY KEY,
+      institution_id INTEGER REFERENCES educational_institutions(id) ON DELETE SET NULL,
+      institution_name VARCHAR(200) NOT NULL,
+      grade VARCHAR(80) NOT NULL,
+      academic_year VARCHAR(20) NOT NULL DEFAULT '2025/2026',
+      -- بيانات الطالب
+      student_name VARCHAR(200) NOT NULL,
+      student_dob DATE,
+      student_gender VARCHAR(10),
+      student_nationality VARCHAR(80) DEFAULT 'سودانية',
+      previous_school VARCHAR(200),
+      previous_grade VARCHAR(80),
+      has_special_needs BOOLEAN DEFAULT FALSE,
+      special_needs_details TEXT,
+      -- بيانات ولي الأمر
+      parent_name VARCHAR(200) NOT NULL,
+      parent_relation VARCHAR(50) NOT NULL DEFAULT 'أب',
+      parent_phone VARCHAR(50) NOT NULL,
+      parent_whatsapp VARCHAR(50),
+      parent_id_number VARCHAR(100),
+      parent_address TEXT,
+      parent_occupation VARCHAR(100),
+      parent_email VARCHAR(200),
+      -- ملاحظات وحالة
+      notes TEXT,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      admin_notes TEXT,
+      reg_number VARCHAR(50),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_studreg_inst ON student_registrations(institution_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_studreg_status ON student_registrations(status)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_studreg_phone ON student_registrations(parent_phone)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS student_transfers (
+      id SERIAL PRIMARY KEY,
+      -- من
+      from_institution_name VARCHAR(200) NOT NULL,
+      from_grade VARCHAR(80),
+      from_reg_number VARCHAR(100),
+      -- إلى
+      to_institution_id INTEGER REFERENCES educational_institutions(id) ON DELETE SET NULL,
+      to_institution_name VARCHAR(200) NOT NULL,
+      to_grade VARCHAR(80),
+      -- بيانات الطالب
+      student_name VARCHAR(200) NOT NULL,
+      student_dob DATE,
+      student_gender VARCHAR(10),
+      student_nationality VARCHAR(80) DEFAULT 'سودانية',
+      -- سبب النقل
+      transfer_reason VARCHAR(80) NOT NULL DEFAULT 'أخرى',
+      transfer_reason_detail TEXT,
+      -- بيانات ولي الأمر
+      parent_name VARCHAR(200) NOT NULL,
+      parent_phone VARCHAR(50) NOT NULL,
+      parent_whatsapp VARCHAR(50),
+      parent_id_number VARCHAR(100),
+      parent_address TEXT,
+      parent_email VARCHAR(200),
+      -- حالة
+      notes TEXT,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      admin_notes TEXT,
+      transfer_number VARCHAR(50),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_studtrans_status ON student_transfers(status)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_studtrans_phone ON student_transfers(parent_phone)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS edu_documents (
+      id SERIAL PRIMARY KEY,
+      ref_type VARCHAR(30) NOT NULL,
+      ref_id INTEGER NOT NULL,
+      doc_type VARCHAR(80) NOT NULL,
+      doc_name VARCHAR(200),
+      url TEXT NOT NULL,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // ══ جدول خدمات المرأة ══
   // ترحيل: إذا الجدول القديم يفتقر لعمود rating — أعد الإنشاء
   {
@@ -7918,6 +8007,231 @@ router.delete("/admin/educational-institutions/:id", async (req: Request, res: R
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM educational_institutions WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 📋 استمارات التسجيل والنقل — Educational Forms
+// ════════════════════════════════════════════════════════════════
+
+// ── توليد رقم مرجعي فريد ──
+function genRefNumber(prefix: string): string {
+  const y = new Date().getFullYear();
+  const rnd = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}-${y}-${rnd}`;
+}
+
+// ── POST /api/education/register-student ── تقديم استمارة تسجيل ──
+router.post("/education/register-student", async (req: Request, res: Response) => {
+  try {
+    const {
+      institution_id, institution_name, grade, academic_year,
+      student_name, student_dob, student_gender, student_nationality,
+      previous_school, previous_grade, has_special_needs, special_needs_details,
+      parent_name, parent_relation, parent_phone, parent_whatsapp,
+      parent_id_number, parent_address, parent_occupation, parent_email,
+      notes,
+    } = req.body;
+
+    if (!institution_name?.trim()) return res.status(400).json({ error: "اسم المدرسة مطلوب" });
+    if (!grade?.trim()) return res.status(400).json({ error: "الصف الدراسي مطلوب" });
+    if (!student_name?.trim()) return res.status(400).json({ error: "اسم الطالب مطلوب" });
+    if (!parent_name?.trim()) return res.status(400).json({ error: "اسم ولي الأمر مطلوب" });
+    if (!parent_phone?.trim()) return res.status(400).json({ error: "هاتف ولي الأمر مطلوب" });
+
+    const reg_number = genRefNumber("REG");
+    const { rows } = await query(
+      `INSERT INTO student_registrations
+        (institution_id, institution_name, grade, academic_year,
+         student_name, student_dob, student_gender, student_nationality,
+         previous_school, previous_grade, has_special_needs, special_needs_details,
+         parent_name, parent_relation, parent_phone, parent_whatsapp,
+         parent_id_number, parent_address, parent_occupation, parent_email,
+         notes, reg_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       RETURNING *`,
+      [
+        institution_id || null, institution_name.trim(), grade.trim(), academic_year || "2025/2026",
+        student_name.trim(), student_dob || null, student_gender || null, student_nationality || "سودانية",
+        previous_school || null, previous_grade || null, has_special_needs || false, special_needs_details || null,
+        parent_name.trim(), parent_relation || "أب", parent_phone.trim(), parent_whatsapp || null,
+        parent_id_number || null, parent_address || null, parent_occupation || null, parent_email || null,
+        notes || null, reg_number,
+      ]
+    );
+    return res.status(201).json({ registration: rows[0], reg_number, message: "تم تقديم طلب التسجيل بنجاح" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/education/my-registrations?phone=xxx ── استعلام بالهاتف ──
+router.get("/education/my-registrations", async (req: Request, res: Response) => {
+  try {
+    const { phone, reg_number } = req.query;
+    if (!phone && !reg_number) return res.status(400).json({ error: "رقم الهاتف أو رقم الطلب مطلوب" });
+    let sql = `SELECT id, reg_number, institution_name, grade, academic_year,
+                      student_name, student_gender, parent_name, parent_phone,
+                      status, admin_notes, created_at
+               FROM student_registrations WHERE 1=1`;
+    const params: unknown[] = [];
+    if (phone) { params.push(String(phone).trim()); sql += ` AND parent_phone=$${params.length}`; }
+    if (reg_number) { params.push(String(reg_number).trim()); sql += ` AND reg_number=$${params.length}`; }
+    sql += ` ORDER BY created_at DESC LIMIT 20`;
+    const { rows } = await query(sql, params);
+    return res.json({ registrations: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/education/transfer-request ── طلب نقل طالب ──
+router.post("/education/transfer-request", async (req: Request, res: Response) => {
+  try {
+    const {
+      from_institution_name, from_grade, from_reg_number,
+      to_institution_id, to_institution_name, to_grade,
+      student_name, student_dob, student_gender, student_nationality,
+      transfer_reason, transfer_reason_detail,
+      parent_name, parent_phone, parent_whatsapp,
+      parent_id_number, parent_address, parent_email,
+      notes,
+    } = req.body;
+
+    if (!from_institution_name?.trim()) return res.status(400).json({ error: "اسم المدرسة الحالية مطلوب" });
+    if (!to_institution_name?.trim()) return res.status(400).json({ error: "اسم المدرسة المطلوب النقل إليها مطلوب" });
+    if (!student_name?.trim()) return res.status(400).json({ error: "اسم الطالب مطلوب" });
+    if (!parent_name?.trim()) return res.status(400).json({ error: "اسم ولي الأمر مطلوب" });
+    if (!parent_phone?.trim()) return res.status(400).json({ error: "هاتف ولي الأمر مطلوب" });
+
+    const transfer_number = genRefNumber("TRF");
+    const { rows } = await query(
+      `INSERT INTO student_transfers
+        (from_institution_name, from_grade, from_reg_number,
+         to_institution_id, to_institution_name, to_grade,
+         student_name, student_dob, student_gender, student_nationality,
+         transfer_reason, transfer_reason_detail,
+         parent_name, parent_phone, parent_whatsapp,
+         parent_id_number, parent_address, parent_email,
+         notes, transfer_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+       RETURNING *`,
+      [
+        from_institution_name.trim(), from_grade || null, from_reg_number || null,
+        to_institution_id || null, to_institution_name.trim(), to_grade || null,
+        student_name.trim(), student_dob || null, student_gender || null, student_nationality || "سودانية",
+        transfer_reason || "أخرى", transfer_reason_detail || null,
+        parent_name.trim(), parent_phone.trim(), parent_whatsapp || null,
+        parent_id_number || null, parent_address || null, parent_email || null,
+        notes || null, transfer_number,
+      ]
+    );
+    return res.status(201).json({ transfer: rows[0], transfer_number, message: "تم تقديم طلب النقل بنجاح" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/education/my-transfers?phone=xxx ── استعلام النقل ──
+router.get("/education/my-transfers", async (req: Request, res: Response) => {
+  try {
+    const { phone, transfer_number } = req.query;
+    if (!phone && !transfer_number) return res.status(400).json({ error: "رقم الهاتف أو رقم الطلب مطلوب" });
+    let sql = `SELECT id, transfer_number, from_institution_name, from_grade,
+                      to_institution_name, to_grade, student_name,
+                      transfer_reason, parent_name, parent_phone,
+                      status, admin_notes, created_at
+               FROM student_transfers WHERE 1=1`;
+    const params: unknown[] = [];
+    if (phone) { params.push(String(phone).trim()); sql += ` AND parent_phone=$${params.length}`; }
+    if (transfer_number) { params.push(String(transfer_number).trim()); sql += ` AND transfer_number=$${params.length}`; }
+    sql += ` ORDER BY created_at DESC LIMIT 20`;
+    const { rows } = await query(sql, params);
+    return res.json({ transfers: rows });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/education/registrations ── كل طلبات التسجيل ──
+router.get("/admin/education/registrations", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, institution_id, q, page } = req.query;
+    const pg = Math.max(1, parseInt(String(page || "1")));
+    const limit = 30; const offset = (pg - 1) * limit;
+    let sql = `SELECT * FROM student_registrations WHERE 1=1`;
+    const params: unknown[] = [];
+    if (status && status !== "all") { params.push(status); sql += ` AND status=$${params.length}`; }
+    if (institution_id) { params.push(institution_id); sql += ` AND institution_id=$${params.length}`; }
+    if (q) { params.push(`%${q}%`); sql += ` AND (student_name ILIKE $${params.length} OR parent_name ILIKE $${params.length} OR reg_number ILIKE $${params.length})`; }
+    const { rows: total } = await query(`SELECT COUNT(*) as cnt FROM (${sql}) t`, params);
+    params.push(limit, offset);
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    const { rows } = await query(sql, params);
+    return res.json({ registrations: rows, total: parseInt(total[0]?.cnt || "0"), page: pg });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/education/registrations/:id ── تحديث حالة التسجيل ──
+router.patch("/admin/education/registrations/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_notes } = req.body;
+    const { rows } = await query(
+      `UPDATE student_registrations SET
+        status=COALESCE($1,status), admin_notes=COALESCE($2,admin_notes),
+        updated_at=NOW()
+       WHERE id=$3 RETURNING *`,
+      [status, admin_notes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ registration: rows[0] });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/education/transfers ── كل طلبات النقل ──
+router.get("/admin/education/transfers", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, q, page } = req.query;
+    const pg = Math.max(1, parseInt(String(page || "1")));
+    const limit = 30; const offset = (pg - 1) * limit;
+    let sql = `SELECT * FROM student_transfers WHERE 1=1`;
+    const params: unknown[] = [];
+    if (status && status !== "all") { params.push(status); sql += ` AND status=$${params.length}`; }
+    if (q) { params.push(`%${q}%`); sql += ` AND (student_name ILIKE $${params.length} OR parent_name ILIKE $${params.length} OR transfer_number ILIKE $${params.length})`; }
+    const { rows: total } = await query(`SELECT COUNT(*) as cnt FROM (${sql}) t`, params);
+    params.push(limit, offset);
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    const { rows } = await query(sql, params);
+    return res.json({ transfers: rows, total: parseInt(total[0]?.cnt || "0"), page: pg });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/education/transfers/:id ── تحديث حالة النقل ──
+router.patch("/admin/education/transfers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_notes } = req.body;
+    const { rows } = await query(
+      `UPDATE student_transfers SET
+        status=COALESCE($1,status), admin_notes=COALESCE($2,admin_notes),
+        updated_at=NOW()
+       WHERE id=$3 RETURNING *`,
+      [status, admin_notes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ transfer: rows[0] });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/education/stats ── إحصائيات ──
+router.get("/admin/education/stats", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const [regStats, transStats, instCount] = await Promise.all([
+      query(`SELECT status, COUNT(*) as cnt FROM student_registrations GROUP BY status`),
+      query(`SELECT status, COUNT(*) as cnt FROM student_transfers GROUP BY status`),
+      query(`SELECT COUNT(*) as cnt FROM educational_institutions WHERE is_active=TRUE`),
+    ]);
+    return res.json({
+      registrations: regStats.rows,
+      transfers: transStats.rows,
+      total_institutions: parseInt(instCount.rows[0]?.cnt || "0"),
+    });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
