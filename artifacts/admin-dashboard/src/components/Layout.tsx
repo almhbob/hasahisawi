@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { path: "/numbers",        label: "الأرقام المهمة",   icon: "📞" },
   { path: "/events",         label: "الفعاليات",         icon: "🎉" },
   { path: "/organizations",  label: "المنظمات المجتمعية",icon: "🤝" },
+  { path: "/gov-entities",   label: "الجهات الحكومية",   icon: "🏛️" },
   { path: "/education",      label: "التعليم",            icon: "🎓" },
   { path: "/women",          label: "خدمات المرأة",      icon: "👩" },
   { path: "/medical",        label: "الدليل الطبي",       icon: "🏥" },

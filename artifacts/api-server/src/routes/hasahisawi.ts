@@ -11025,7 +11025,124 @@ router.get("/admin/merchant-items/:shopId", async (req: Request, res: Response) 
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GOVERNMENT ENTITIES — الجهات الحكومية
+// ══════════════════════════════════════════════════════════════════════════════
+async function ensureGovEntitiesTables() {
+  await query(`CREATE TABLE IF NOT EXISTS gov_entities (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(200) NOT NULL,
+    icon        VARCHAR(20)  NOT NULL DEFAULT '🏛️',
+    category    VARCHAR(50)  NOT NULL DEFAULT 'government',
+    description TEXT,
+    phone       VARCHAR(30),
+    email       VARCHAR(100),
+    address     TEXT,
+    is_visible  BOOLEAN      NOT NULL DEFAULT TRUE,
+    join_status VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                CHECK (join_status IN ('pending','invited','joined')),
+    invited_at  TIMESTAMPTZ,
+    joined_at   TIMESTAMPTZ,
+    notes       TEXT,
+    sort_order  INTEGER      NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  )`);
+  const { rows } = await query(`SELECT COUNT(*) AS c FROM gov_entities`);
+  if (Number(rows[0].c) === 0) {
+    const seed = [
+      { name: "المحلية",                icon: "🏛️", category: "municipality", description: "مجلس محلية الحصاحيصا — الإدارة المحلية والخدمات البلدية",         sort_order: 1 },
+      { name: "السجل المدني",           icon: "📋", category: "civil",        description: "إدارة الأحوال الشخصية — شهادات الميلاد والوفاة والزواج",            sort_order: 2 },
+      { name: "مكتب الأراضي",          icon: "🏡", category: "land",         description: "تسجيل وتوثيق الأراضي والعقارات في الحصاحيصا",                     sort_order: 3 },
+      { name: "المحكمة",               icon: "⚖️", category: "justice",      description: "محكمة الحصاحيصا — إجراءات قضائية ورفع دعاوى",                     sort_order: 4 },
+      { name: "الشرطة",                icon: "🚔", category: "security",     description: "مركز شرطة الحصاحيصا — الأمن والبلاغات",                          sort_order: 5 },
+      { name: "مستشفى الحصاحيصا",     icon: "🏥", category: "health",       description: "المستشفى التعليمي — طوارئ، عيادات، دخول",                        sort_order: 6 },
+      { name: "إدارة التعليم",         icon: "🎓", category: "education",    description: "إدارة التعليم بمحلية الحصاحيصا — مدارس وشهادات",                  sort_order: 7 },
+      { name: "شركة الكهرباء",         icon: "⚡", category: "utility",      description: "توزيع الكهرباء — انقطاعات وفواتير واشتراكات جديدة",               sort_order: 8 },
+      { name: "وحدة المياه",           icon: "💧", category: "utility",      description: "خدمات المياه والصرف الصحي",                                      sort_order: 9 },
+      { name: "مكتب البريد السوداني",  icon: "📮", category: "postal",       description: "بريد السودان — فرع الحصاحيصا",                                   sort_order: 10 },
+      { name: "مكتب العمل",            icon: "💼", category: "labor",        description: "مكتب عمل الحصاحيصا — تصاريح وتوظيف",                            sort_order: 11 },
+      { name: "ديوان الزكاة",          icon: "🤲", category: "social",       description: "ديوان الزكاة — تقديم الدعم للمستحقين",                           sort_order: 12 },
+    ];
+    for (const e of seed) {
+      await query(
+        `INSERT INTO gov_entities (name,icon,category,description,sort_order) VALUES ($1,$2,$3,$4,$5)`,
+        [e.name, e.icon, e.category, e.description, e.sort_order]
+      );
+    }
+  }
+}
+
+// Public: visible entities only
+router.get("/gov-entities", async (_req: Request, res: Response) => {
+  try {
+    await ensureGovEntitiesTables();
+    const { rows } = await query(
+      `SELECT id,name,icon,category,description,phone,email,address,join_status,sort_order
+         FROM gov_entities WHERE is_visible = TRUE ORDER BY sort_order, id`
+    );
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: all entities
+router.get("/admin/gov-entities", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureGovEntitiesTables();
+    const { rows } = await query(`SELECT * FROM gov_entities ORDER BY sort_order, id`);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: add entity
+router.post("/admin/gov-entities", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureGovEntitiesTables();
+    const { name, icon, category, description, phone, email, address, is_visible, join_status, notes, sort_order } = req.body;
+    if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO gov_entities (name,icon,category,description,phone,email,address,is_visible,join_status,notes,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [name, icon||"🏛️", category||"government", description||null, phone||null, email||null,
+       address||null, is_visible!==false, join_status||"pending", notes||null, sort_order||0]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: update entity
+router.patch("/admin/gov-entities/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const id = Number(req.params.id);
+    const b  = req.body;
+    const fields: string[] = []; const vals: unknown[] = [];
+    for (const k of ["name","icon","category","description","phone","email","address","is_visible","join_status","notes","sort_order"]) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k} = $${vals.length}`); }
+    }
+    if (b.join_status === "invited") { vals.push(new Date()); fields.push(`invited_at = $${vals.length}`); }
+    if (b.join_status === "joined")  { vals.push(new Date()); fields.push(`joined_at  = $${vals.length}`); }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(id);
+    const { rows } = await query(
+      `UPDATE gov_entities SET ${fields.join(", ")} WHERE id = $${vals.length} RETURNING *`, vals
+    );
+    return res.json(rows[0] || { error: "لم يُعثر" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: delete entity
+router.delete("/admin/gov-entities/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM gov_entities WHERE id = $1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
+
 
 
 // ══════════════════════════════════════════════════════════════════
