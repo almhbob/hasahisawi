@@ -140,6 +140,22 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS otp_codes (
+      id SERIAL PRIMARY KEY,
+      phone_or_email VARCHAR(200) NOT NULL,
+      code VARCHAR(6) NOT NULL,
+      type VARCHAR(20) NOT NULL DEFAULT 'register',
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      attempts INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(phone_or_email, type, created_at)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_otp_expires ON otp_codes(expires_at) WHERE used = FALSE`);
   // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
@@ -5067,6 +5083,137 @@ router.post("/auth/check-phone", async (req: Request, res: Response) => {
     return res.json({ exists: true, name: userR.rows[0].name });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OTP — إرسال وتحقق رمز التحقق
+// ══════════════════════════════════════════════════════════════════════════════
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<void> {
+  const isEmail = identifier.includes("@");
+  const channel = isEmail ? "📧 email" : "📱 SMS";
+  console.log(`\n╔══════════════════════════════════════╗`);
+  console.log(`║  OTP [${type}] → ${channel}`);
+  console.log(`║  المستلم : ${identifier}`);
+  console.log(`║  الرمز   : ${code}`);
+  console.log(`║  ينتهي خلال: 5 دقائق`);
+  console.log(`╚══════════════════════════════════════╝\n`);
+
+  // خطاف SMS (Africa's Talking / Twilio) — أضف بيانات الاعتماد للإنتاج
+  const smsKey = process.env.AFRICASTALKING_API_KEY;
+  const smsUser = process.env.AFRICASTALKING_USERNAME;
+  if (!isEmail && smsKey && smsUser) {
+    try {
+      const { default: AfricasTalking } = await import("africastalking").catch(() => ({ default: null })) as any;
+      if (AfricasTalking) {
+        const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
+        await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
+        console.log("[OTP] SMS sent via Africa's Talking");
+      }
+    } catch (e: any) { console.warn("[OTP] SMS send failed:", e?.message); }
+  }
+
+  // خطاف Email (nodemailer) — أضف SMTP_HOST / SMTP_USER / SMTP_PASS
+  if (isEmail && process.env.SMTP_HOST) {
+    try {
+      const nodemailer = await import("nodemailer").catch(() => null) as any;
+      if (nodemailer) {
+        const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+        await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 5 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 5 دقائق فقط.</p></div>` });
+        console.log("[OTP] Email sent via SMTP");
+      }
+    } catch (e: any) { console.warn("[OTP] Email send failed:", e?.message); }
+  }
+}
+
+// POST /api/auth/send-otp
+router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone_or_email, type = "register" } = req.body as { phone_or_email?: string; type?: string };
+    if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
+
+    const identifier = phone_or_email.trim().toLowerCase();
+
+    // التحقق من معدل الإرسال (حد 3 رسائل كل 10 دقائق)
+    const rateLimitR = await query(
+      `SELECT COUNT(*) AS cnt FROM otp_codes WHERE phone_or_email=$1 AND created_at > NOW() - INTERVAL '10 minutes'`,
+      [identifier]
+    );
+    if (parseInt(rateLimitR.rows[0].cnt) >= 3) {
+      return res.status(429).json({ error: "تجاوزت الحد المسموح. أعد المحاولة بعد 10 دقائق." });
+    }
+
+    // إلغاء أي رموز سابقة غير مستخدمة
+    await query(`UPDATE otp_codes SET used=TRUE WHERE phone_or_email=$1 AND type=$2 AND used=FALSE`, [identifier, type]);
+
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await query(
+      `INSERT INTO otp_codes (phone_or_email, code, type, expires_at) VALUES ($1,$2,$3,$4)`,
+      [identifier, code, type, expiresAt]
+    );
+
+    await sendOTPDelivery(identifier, code, type);
+
+    return res.json({ sent: true, expires_in: 300, channel: identifier.includes("@") ? "email" : "sms" });
+  } catch (e: any) {
+    console.error("[send-otp]", e?.message);
+    return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
+  }
+});
+
+// POST /api/auth/verify-otp
+router.post("/auth/verify-otp", async (req: Request, res: Response) => {
+  try {
+    const { phone_or_email, code, type = "register" } = req.body as { phone_or_email?: string; code?: string; type?: string };
+    if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
+
+    const identifier = phone_or_email.trim().toLowerCase();
+    const cleanCode = code.trim();
+
+    const otpR = await query(
+      `SELECT id, code, attempts FROM otp_codes
+       WHERE phone_or_email=$1 AND type=$2 AND used=FALSE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [identifier, type]
+    );
+
+    if (!otpR.rows.length) {
+      return res.status(400).json({ error: "رمز التحقق منتهي الصلاحية أو غير موجود. أعد الإرسال." });
+    }
+
+    const otp = otpR.rows[0];
+
+    if (otp.attempts >= 5) {
+      await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+      return res.status(400).json({ error: "تجاوزت عدد المحاولات. أعد إرسال رمز جديد." });
+    }
+
+    if (otp.code !== cleanCode) {
+      await query(`UPDATE otp_codes SET attempts=attempts+1 WHERE id=$1`, [otp.id]);
+      const remaining = 4 - otp.attempts;
+      return res.status(400).json({ error: `رمز التحقق غير صحيح. المحاولات المتبقية: ${remaining}` });
+    }
+
+    // رمز صحيح — إلغاؤه وتحديد الهاتف كمُتحقَّق منه
+    await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+    const isEmail = identifier.includes("@");
+    if (!isEmail) {
+      await query(`UPDATE users SET phone_verified=TRUE WHERE phone=$1`, [identifier]);
+    } else {
+      await query(`UPDATE users SET phone_verified=TRUE WHERE email=$1`, [identifier]);
+    }
+
+    return res.json({ verified: true, message: "تم التحقق بنجاح" });
+  } catch (e: any) {
+    console.error("[verify-otp]", e?.message);
+    return res.status(500).json({ error: "حدث خطأ في التحقق" });
   }
 });
 

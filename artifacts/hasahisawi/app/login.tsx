@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
   KeyboardAvoidingView, Pressable, Dimensions, Alert,
+  Modal,
 } from "react-native";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import Animated, {
@@ -55,6 +56,16 @@ export default function LoginScreen() {
   const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
 
+  // ── OTP ──────────────────────────────────────────────────
+  const [otpStep,      setOtpStep]      = useState(false);
+  const [otpCode,      setOtpCode]      = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpSending,   setOtpSending]   = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError,     setOtpError]     = useState("");
+  const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const otpInputRef = useRef<TextInput>(null);
+
   useEffect(() => {
     (async () => {
       const label = await getBiometricLabel();
@@ -70,7 +81,7 @@ export default function LoginScreen() {
     }
   }, [biometricsEnabled, biometricsAvailable]);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef  = useRef<ScrollView>(null);
 
   const reset = () => {
     setName(""); setNationalId(""); setIdentifier("");
@@ -123,35 +134,18 @@ export default function LoginScreen() {
     setError("");
     const err = validate();
     if (err) { setError(err); return; }
+
+    // وضع التسجيل: أرسل OTP أولاً بدلاً من إنشاء الحساب مباشرة
+    if (mode === "register") {
+      await handleSendOtp();
+      return;
+    }
+
     setLoading(true);
     try {
       const id = identifier.trim();
-      if (mode === "login") {
-        await login(id, password);
-        promptEnableBiometrics(id);
-      } else {
-        const isEmail = useEmail || identifier.includes("@");
-        const nid = nationalId.trim().replace(/\s+/g, "");
-        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
-        promptEnableBiometrics(id);
-        // إرسال الاقتراح/المشكلة إذا وُجدت
-        if (feedback.trim()) {
-          try {
-            await fetch(`${getApiUrl()}/feedback`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "suggestion",
-                title: "اقتراح/مشكلة عند التسجيل",
-                body: feedback.trim(),
-                sender_name: name.trim(),
-                phone: !isEmail ? id : undefined,
-                category: "تسجيل",
-              }),
-            });
-          } catch (_) {}
-        }
-      }
+      await login(id, password);
+      promptEnableBiometrics(id);
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
@@ -234,6 +228,100 @@ export default function LoginScreen() {
       clearTimeout(safetyTimer);
       setLoading(false);
     }
+  };
+
+  // ── OTP Handlers ─────────────────────────────────────────
+  const startOtpCountdown = () => {
+    setOtpCountdown(300);
+    if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+    otpTimerRef.current = setInterval(() => {
+      setOtpCountdown(c => {
+        if (c <= 1) { clearInterval(otpTimerRef.current!); otpTimerRef.current = null; return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendOtp = async () => {
+    const err = validate();
+    if (err) { setError(err); return; }
+    setOtpSending(true);
+    setError("");
+    try {
+      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+      setOtpCode("");
+      setOtpError("");
+      setOtpStep(true);
+      startOtpCountdown();
+      setTimeout(() => otpInputRef.current?.focus(), 300);
+    } catch (e: any) {
+      setError(e.message || "فشل إرسال رمز التحقق");
+    }
+    setOtpSending(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCountdown > 240) return; // لا تُعيد قبل 60 ثانية من الإرسال
+    setOtpSending(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل الإعادة");
+      setOtpCode("");
+      startOtpCountdown();
+    } catch (e: any) {
+      setOtpError(e.message || "فشل إعادة الإرسال");
+    }
+    setOtpSending(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) { setOtpError("يرجى إدخال الرمز المكوّن من 6 أرقام"); return; }
+    setOtpVerifying(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${getApiUrl()}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode, type: "register" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
+
+      // رمز صحيح — أغلق modal وأنشئ الحساب
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+      setOtpStep(false);
+      setLoading(true);
+      const id = identifier.trim();
+      const isEmail = useEmail || id.includes("@");
+      const nid = nationalId.trim().replace(/\s+/g, "");
+      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+      promptEnableBiometrics(id);
+      if (feedback.trim()) {
+        fetch(`${getApiUrl()}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "suggestion", title: "اقتراح عند التسجيل", body: feedback.trim(), sender_name: name.trim(), phone: !isEmail ? id : undefined, category: "تسجيل" }),
+        }).catch(() => {});
+      }
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      setOtpError(e.message || "رمز التحقق غير صحيح أو منتهي الصلاحية");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+    setOtpVerifying(false);
+    setLoading(false);
   };
 
   const promptEnableBiometrics = (id: string) => {
@@ -620,14 +708,14 @@ export default function LoginScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.submitBtn}
             >
-              {loading
+              {loading || otpSending
                 ? <ActivityIndicator color="#000" size="small" />
                 : <>
                     <Text style={styles.submitText}>
-                      {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
+                      {mode === "login" ? "تسجيل الدخول" : "إرسال رمز التحقق"}
                     </Text>
                     <Ionicons
-                      name={mode === "login" ? "arrow-back" : "person-add-outline"}
+                      name={mode === "login" ? "arrow-back" : "shield-checkmark-outline"}
                       size={19} color="#000"
                     />
                   </>
@@ -712,6 +800,121 @@ export default function LoginScreen() {
           <View style={{ height: insets.bottom + 12 }} />
         </ScrollView>
       </Animated.View>
+
+      {/* ─── OTP Verification Modal ──────────────────────── */}
+      <Modal
+        visible={otpStep}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setOtpStep(false); if (otpTimerRef.current) clearInterval(otpTimerRef.current); }}
+      >
+        <View style={otpS.backdrop}>
+          <View style={otpS.sheet}>
+            {/* أيقونة الدرع */}
+            <View style={otpS.iconWrap}>
+              <LinearGradient colors={[Colors.primary + "30", Colors.primary + "10"]} style={StyleSheet.absoluteFill} />
+              <Ionicons name="shield-checkmark" size={38} color={Colors.primary} />
+            </View>
+
+            <Text style={otpS.title}>التحقق من الهوية</Text>
+            <Text style={otpS.subtitle}>
+              أُرسل رمز مكوّن من 6 أرقام إلى{"\n"}
+              <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold" }}>
+                {identifier}
+              </Text>
+            </Text>
+
+            {/* عداد تنازلي */}
+            <View style={otpS.timerRow}>
+              <Ionicons name="time-outline" size={14} color={otpCountdown > 0 ? Colors.primary : Colors.danger} />
+              <Text style={[otpS.timerText, { color: otpCountdown > 0 ? Colors.primary : Colors.danger }]}>
+                {otpCountdown > 0
+                  ? `ينتهي خلال ${Math.floor(otpCountdown / 60)}:${String(otpCountdown % 60).padStart(2, "0")}`
+                  : "انتهت صلاحية الرمز"
+                }
+              </Text>
+            </View>
+
+            {/* 6 خانات OTP */}
+            <View style={otpS.dotsRow}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <View key={i} style={[otpS.dot, otpCode[i] && otpS.dotFilled, i === otpCode.length && otpS.dotActive]}>
+                  <Text style={otpS.dotText}>{otpCode[i] || ""}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* حقل الإدخال المخفي */}
+            <TextInput
+              ref={otpInputRef}
+              style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
+              value={otpCode}
+              onChangeText={v => { const n = v.replace(/\D/g, "").slice(0, 6); setOtpCode(n); setOtpError(""); }}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+            />
+
+            {/* زر لتفعيل الكيبورد عند الضغط على الخانات */}
+            <TouchableOpacity style={{ position: "absolute", top: 160, left: 24, right: 24, height: 80 }} onPress={() => otpInputRef.current?.focus()} activeOpacity={1} />
+
+            {/* خطأ OTP */}
+            {!!otpError && (
+              <View style={otpS.errorRow}>
+                <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+                <Text style={otpS.errorText}>{otpError}</Text>
+              </View>
+            )}
+
+            {/* زر التحقق */}
+            <TouchableOpacity
+              onPress={handleVerifyOtp}
+              disabled={otpVerifying || otpCode.length < 6 || otpCountdown === 0}
+              activeOpacity={0.88}
+              style={{ opacity: (otpVerifying || otpCode.length < 6 || otpCountdown === 0) ? 0.55 : 1, marginTop: 8 }}
+            >
+              <LinearGradient
+                colors={[Colors.primary, Colors.primaryDim]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={otpS.verifyBtn}
+              >
+                {otpVerifying
+                  ? <ActivityIndicator color="#000" size="small" />
+                  : <>
+                      <Text style={otpS.verifyText}>تأكيد الرمز وإنشاء الحساب</Text>
+                      <Ionicons name="checkmark-circle" size={20} color="#000" />
+                    </>
+                }
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* إعادة الإرسال */}
+            <TouchableOpacity
+              onPress={handleResendOtp}
+              disabled={otpSending || otpCountdown > 240}
+              style={[otpS.resendBtn, (otpSending || otpCountdown > 240) && { opacity: 0.4 }]}
+            >
+              {otpSending
+                ? <ActivityIndicator color={Colors.textMuted} size="small" />
+                : <>
+                    <Ionicons name="refresh" size={15} color={Colors.textMuted} />
+                    <Text style={otpS.resendText}>
+                      {otpCountdown > 240 ? `إعادة الإرسال بعد ${otpCountdown - 240} ث` : "إعادة إرسال الرمز"}
+                    </Text>
+                  </>
+              }
+            </TouchableOpacity>
+
+            {/* إلغاء */}
+            <TouchableOpacity
+              onPress={() => { setOtpStep(false); if (otpTimerRef.current) clearInterval(otpTimerRef.current); }}
+              style={otpS.cancelBtn}
+            >
+              <Text style={otpS.cancelText}>← العودة للتسجيل</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </KeyboardAvoidingView>
   );
@@ -1008,6 +1211,102 @@ const styles = StyleSheet.create({
   googleBtnText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 15,
     color: Colors.textPrimary,
+  },
+});
+
+/* ─── أنماط OTP Modal ─────────────────────────────── */
+const otpS = StyleSheet.create({
+  backdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    borderTopWidth: 1.5, borderLeftWidth: 1, borderRightWidth: 1,
+    borderColor: Colors.primary + "30",
+    padding: 28, paddingTop: 20,
+    alignItems: "center", gap: 12,
+  },
+  iconWrap: {
+    width: 76, height: 76, borderRadius: 24,
+    alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 1.5, borderColor: Colors.primary + "40",
+    marginBottom: 4,
+  },
+  title: {
+    fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 22,
+  },
+  timerRow: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.bg, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  timerText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13,
+  },
+  dotsRow: {
+    flexDirection: "row-reverse", gap: 10,
+    marginVertical: 4,
+  },
+  dot: {
+    width: 48, height: 58, borderRadius: 16,
+    borderWidth: 1.5, borderColor: Colors.divider,
+    backgroundColor: Colors.bg,
+    alignItems: "center", justifyContent: "center",
+  },
+  dotFilled: {
+    borderColor: Colors.primary + "80",
+    backgroundColor: Colors.primary + "12",
+  },
+  dotActive: {
+    borderColor: Colors.primary,
+    borderWidth: 2,
+  },
+  dotText: {
+    fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary,
+  },
+  errorRow: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: Colors.danger + "14",
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.danger + "30",
+    width: "100%",
+  },
+  errorText: {
+    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger,
+    flex: 1, textAlign: "right",
+  },
+  verifyBtn: {
+    borderRadius: 18, paddingVertical: 15, width: SCREEN_W - 56,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
+  },
+  verifyText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000",
+  },
+  resendBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingVertical: 10, paddingHorizontal: 16,
+  },
+  resendText: {
+    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted,
+  },
+  cancelBtn: {
+    paddingVertical: 8, paddingHorizontal: 20,
+    marginTop: 2,
+  },
+  cancelText: {
+    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted,
+    textDecorationLine: "underline",
   },
 });
 
