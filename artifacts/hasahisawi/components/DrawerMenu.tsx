@@ -74,10 +74,11 @@ const GROUPS: Group[] = [
   {
     label: "اقتصاد وترفيه",
     items: [
-      { title: "السوق",        icon: "storefront-outline", route: "/(tabs)/market",      color: Colors.accent  },
-      { title: "الإعلانات",    icon: "megaphone-outline",  route: "/(tabs)/ads",         color: "#F0A500"      },
-      { title: "الرياضة",     icon: "football-outline",   route: "/(tabs)/sports",      color: Colors.primary },
-      { title: "الثقافة",     icon: "color-palette-outline",route: "/(tabs)/culture",   color: "#C084FC"      },
+      { title: "السوق",          icon: "storefront-outline",    route: "/(tabs)/market",      color: Colors.accent  },
+      { title: "السوق الزراعي", icon: "leaf-outline",           route: "/(tabs)/farmers",     color: "#4ADE80"      },
+      { title: "الإعلانات",     icon: "megaphone-outline",      route: "/(tabs)/ads",         color: "#F0A500"      },
+      { title: "الرياضة",       icon: "football-outline",       route: "/(tabs)/sports",      color: Colors.primary },
+      { title: "الثقافة",       icon: "color-palette-outline",  route: "/(tabs)/culture",     color: "#C084FC"      },
     ],
   },
   {

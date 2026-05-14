@@ -11727,3 +11727,349 @@ router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response)
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// ═══ السوق الزراعي — Farmers Market ═════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+async function ensureFarmersTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS farmer_crops (
+      id                 SERIAL PRIMARY KEY,
+      user_id            INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title              TEXT NOT NULL,
+      description        TEXT,
+      category           TEXT DEFAULT 'خضروات',
+      price_per_unit     DECIMAL(10,2),
+      unit               TEXT DEFAULT 'كجم',
+      quantity_available DECIMAL(10,2),
+      with_transport     BOOLEAN DEFAULT FALSE,
+      transport_cost     DECIMAL(10,2),
+      transport_notes    TEXT,
+      location           TEXT,
+      neighborhood       TEXT,
+      contact_phone      TEXT,
+      contact_whatsapp   TEXT,
+      is_available       BOOLEAN DEFAULT TRUE,
+      created_at         TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS farmer_lands (
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title        TEXT NOT NULL,
+      description  TEXT,
+      area_feddan  DECIMAL(10,2),
+      rent_price   DECIMAL(10,2),
+      rent_period  TEXT DEFAULT 'season',
+      water_source TEXT,
+      soil_type    TEXT,
+      location     TEXT,
+      neighborhood TEXT,
+      contact_phone    TEXT,
+      contact_whatsapp TEXT,
+      is_available BOOLEAN DEFAULT TRUE,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS farmer_tools (
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title        TEXT NOT NULL,
+      description  TEXT,
+      category     TEXT DEFAULT 'معدات ثقيلة',
+      rent_price   DECIMAL(10,2),
+      rent_period  TEXT DEFAULT 'day',
+      location     TEXT,
+      neighborhood TEXT,
+      contact_phone    TEXT,
+      contact_whatsapp TEXT,
+      is_available BOOLEAN DEFAULT TRUE,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS farmer_workers (
+      id               SERIAL PRIMARY KEY,
+      user_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title            TEXT NOT NULL,
+      description      TEXT,
+      specialty        TEXT DEFAULT 'حصاد',
+      workers_count    INTEGER DEFAULT 1,
+      daily_rate       DECIMAL(10,2),
+      experience_years INTEGER DEFAULT 0,
+      has_equipment    BOOLEAN DEFAULT FALSE,
+      location         TEXT,
+      neighborhood     TEXT,
+      contact_phone    TEXT,
+      contact_whatsapp TEXT,
+      is_available     BOOLEAN DEFAULT TRUE,
+      created_at       TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+}
+
+// ── المحاصيل ──────────────────────────────────────────────────────
+router.get("/farmers/crops", async (req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const { category, q } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM farmer_crops WHERE is_available=TRUE`;
+    const params: unknown[] = [];
+    if (category && category !== "كل الفئات") { params.push(category); sql += ` AND category=$${params.length}`; }
+    if (q)        { params.push(`%${q}%`); sql += ` AND (title ILIKE $${params.length} OR description ILIKE $${params.length})`; }
+    sql += ` ORDER BY created_at DESC LIMIT 200`;
+    const { rows } = await query(sql, params);
+    return res.json(rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/farmers/crops", async (req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const { title, description, category, price_per_unit, unit, quantity_available,
+            with_transport, transport_cost, transport_notes, location, neighborhood,
+            contact_phone, contact_whatsapp } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO farmer_crops (user_id,title,description,category,price_per_unit,unit,quantity_available,
+        with_transport,transport_cost,transport_notes,location,neighborhood,contact_phone,contact_whatsapp)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [uid,title,description||null,category||"خضروات",price_per_unit||null,unit||"كجم",
+       quantity_available||null,with_transport===true||with_transport==="true",
+       transport_cost||null,transport_notes||null,location||null,neighborhood||null,
+       contact_phone||null,contact_whatsapp||null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/farmers/crops/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const { title, description, category, price_per_unit, unit, quantity_available,
+            with_transport, transport_cost, transport_notes, location, contact_phone,
+            contact_whatsapp, is_available } = req.body;
+    const isAdmin = await isAdminRequest(req);
+    const { rows } = await query(
+      `UPDATE farmer_crops SET
+        title=COALESCE($1,title), description=COALESCE($2,description),
+        category=COALESCE($3,category), price_per_unit=COALESCE($4::numeric,price_per_unit),
+        unit=COALESCE($5,unit), quantity_available=COALESCE($6::numeric,quantity_available),
+        with_transport=COALESCE($7,with_transport), transport_cost=COALESCE($8::numeric,transport_cost),
+        transport_notes=COALESCE($9,transport_notes), location=COALESCE($10,location),
+        contact_phone=COALESCE($11,contact_phone), contact_whatsapp=COALESCE($12,contact_whatsapp),
+        is_available=COALESCE($13,is_available)
+       WHERE id=$14 AND ($15 OR user_id=$16) RETURNING *`,
+      [title||null,description||null,category||null,
+       price_per_unit!=null?Number(price_per_unit):null,unit||null,
+       quantity_available!=null?Number(quantity_available):null,
+       with_transport!=null?Boolean(with_transport):null,
+       transport_cost!=null?Number(transport_cost):null,transport_notes||null,location||null,
+       contact_phone||null,contact_whatsapp||null,
+       is_available!=null?Boolean(is_available):null,
+       req.params.id,isAdmin,uid]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
+    return res.json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/farmers/crops/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    await query(`DELETE FROM farmer_crops WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── الأراضي ───────────────────────────────────────────────────────
+router.get("/farmers/lands", async (_req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const { rows } = await query(`SELECT * FROM farmer_lands WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
+    return res.json(rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/farmers/lands", async (req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const { title, description, area_feddan, rent_price, rent_period, water_source,
+            soil_type, location, neighborhood, contact_phone, contact_whatsapp } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO farmer_lands (user_id,title,description,area_feddan,rent_price,rent_period,
+        water_source,soil_type,location,neighborhood,contact_phone,contact_whatsapp)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [uid,title,description||null,area_feddan||null,rent_price||null,
+       rent_period||"season",water_source||null,soil_type||null,location||null,
+       neighborhood||null,contact_phone||null,contact_whatsapp||null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/farmers/lands/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    const { title, description, area_feddan, rent_price, rent_period, water_source,
+            soil_type, location, contact_phone, contact_whatsapp, is_available } = req.body;
+    const { rows } = await query(
+      `UPDATE farmer_lands SET title=COALESCE($1,title),description=COALESCE($2,description),
+        area_feddan=COALESCE($3::numeric,area_feddan),rent_price=COALESCE($4::numeric,rent_price),
+        rent_period=COALESCE($5,rent_period),water_source=COALESCE($6,water_source),
+        soil_type=COALESCE($7,soil_type),location=COALESCE($8,location),
+        contact_phone=COALESCE($9,contact_phone),contact_whatsapp=COALESCE($10,contact_whatsapp),
+        is_available=COALESCE($11,is_available)
+       WHERE id=$12 AND ($13 OR user_id=$14) RETURNING *`,
+      [title||null,description||null,area_feddan!=null?Number(area_feddan):null,
+       rent_price!=null?Number(rent_price):null,rent_period||null,water_source||null,
+       soil_type||null,location||null,contact_phone||null,contact_whatsapp||null,
+       is_available!=null?Boolean(is_available):null,req.params.id,isAdmin,uid]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
+    return res.json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/farmers/lands/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    await query(`DELETE FROM farmer_lands WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── الأدوات الزراعية ─────────────────────────────────────────────
+router.get("/farmers/tools", async (_req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const { rows } = await query(`SELECT * FROM farmer_tools WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
+    return res.json(rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/farmers/tools", async (req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const { title, description, category, rent_price, rent_period, location,
+            neighborhood, contact_phone, contact_whatsapp } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO farmer_tools (user_id,title,description,category,rent_price,rent_period,
+        location,neighborhood,contact_phone,contact_whatsapp)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [uid,title,description||null,category||"معدات ثقيلة",rent_price||null,
+       rent_period||"day",location||null,neighborhood||null,contact_phone||null,contact_whatsapp||null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/farmers/tools/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    const { title, description, category, rent_price, rent_period, location,
+            contact_phone, contact_whatsapp, is_available } = req.body;
+    const { rows } = await query(
+      `UPDATE farmer_tools SET title=COALESCE($1,title),description=COALESCE($2,description),
+        category=COALESCE($3,category),rent_price=COALESCE($4::numeric,rent_price),
+        rent_period=COALESCE($5,rent_period),location=COALESCE($6,location),
+        contact_phone=COALESCE($7,contact_phone),contact_whatsapp=COALESCE($8,contact_whatsapp),
+        is_available=COALESCE($9,is_available)
+       WHERE id=$10 AND ($11 OR user_id=$12) RETURNING *`,
+      [title||null,description||null,category||null,rent_price!=null?Number(rent_price):null,
+       rent_period||null,location||null,contact_phone||null,contact_whatsapp||null,
+       is_available!=null?Boolean(is_available):null,req.params.id,isAdmin,uid]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
+    return res.json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/farmers/tools/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    await query(`DELETE FROM farmer_tools WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── العمال الموسميون ──────────────────────────────────────────────
+router.get("/farmers/workers", async (_req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const { rows } = await query(`SELECT * FROM farmer_workers WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
+    return res.json(rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/farmers/workers", async (req: Request, res: Response) => {
+  try {
+    await ensureFarmersTables();
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const { title, description, specialty, workers_count, daily_rate, experience_years,
+            has_equipment, location, neighborhood, contact_phone, contact_whatsapp } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO farmer_workers (user_id,title,description,specialty,workers_count,daily_rate,
+        experience_years,has_equipment,location,neighborhood,contact_phone,contact_whatsapp)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [uid,title,description||null,specialty||"حصاد",workers_count||1,daily_rate||null,
+       experience_years||0,has_equipment===true||has_equipment==="true",
+       location||null,neighborhood||null,contact_phone||null,contact_whatsapp||null]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/farmers/workers/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    const { title, description, specialty, workers_count, daily_rate, experience_years,
+            has_equipment, location, contact_phone, contact_whatsapp, is_available } = req.body;
+    const { rows } = await query(
+      `UPDATE farmer_workers SET title=COALESCE($1,title),description=COALESCE($2,description),
+        specialty=COALESCE($3,specialty),workers_count=COALESCE($4::int,workers_count),
+        daily_rate=COALESCE($5::numeric,daily_rate),experience_years=COALESCE($6::int,experience_years),
+        has_equipment=COALESCE($7,has_equipment),location=COALESCE($8,location),
+        contact_phone=COALESCE($9,contact_phone),contact_whatsapp=COALESCE($10,contact_whatsapp),
+        is_available=COALESCE($11,is_available)
+       WHERE id=$12 AND ($13 OR user_id=$14) RETURNING *`,
+      [title||null,description||null,specialty||null,
+       workers_count!=null?Number(workers_count):null,daily_rate!=null?Number(daily_rate):null,
+       experience_years!=null?Number(experience_years):null,has_equipment!=null?Boolean(has_equipment):null,
+       location||null,contact_phone||null,contact_whatsapp||null,
+       is_available!=null?Boolean(is_available):null,req.params.id,isAdmin,uid]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
+    return res.json(rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/farmers/workers/:id", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    const uid = me?.id ?? null;
+    const isAdmin = await isAdminRequest(req);
+    await query(`DELETE FROM farmer_workers WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+

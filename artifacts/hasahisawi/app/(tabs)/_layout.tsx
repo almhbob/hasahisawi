@@ -259,6 +259,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="design-gallery" options={{ href: null }} />
       <Tabs.Screen name="zawajil"     options={{ href: null }} />
       <Tabs.Screen name="telecom"     options={{ href: null }} />
+      <Tabs.Screen name="farmers"     options={{ href: null }} />
     </Tabs>
   );
 }
