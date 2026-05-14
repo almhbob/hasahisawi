@@ -37,6 +37,21 @@ type Announcement = {
   link?: string; is_pinned: boolean; created_at: string;
 };
 
+type Program = {
+  id: number; union_id?: number; union_name?: string; union_short_name?: string;
+  title: string; description?: string; type: string;
+  start_date?: string; end_date?: string; location?: string;
+  max_participants?: number; fee?: string; contact?: string; link?: string;
+  is_active: boolean; created_at: string;
+};
+
+type UnionLaw = {
+  id: number; union_id?: number; union_name?: string; union_short_name?: string;
+  title: string; body?: string; category: string;
+  document_url?: string; effective_date?: string; version?: string;
+  is_active: boolean; created_at: string;
+};
+
 type PrevUnion = { name: string; role: string; from: string; to: string };
 type Reference = { name: string; phone: string; relation: string };
 
@@ -89,7 +104,7 @@ const MEMBERSHIP_TYPES = [
 export default function UnionsScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const [tab, setTab] = useState<"unions" | "apply" | "my">("unions");
+  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my">("unions");
 
   // Unions list
   const [unions, setUnions] = useState<Union[]>([]);
@@ -97,6 +112,19 @@ export default function UnionsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUnion, setSelectedUnion] = useState<Union | null>(null);
+
+  // Programs
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [programTypeFilter, setProgramTypeFilter] = useState<string>("all");
+  const [programUnionFilter, setProgramUnionFilter] = useState<number | null>(null);
+
+  // Laws
+  const [laws, setLaws] = useState<UnionLaw[]>([]);
+  const [lawsLoading, setLawsLoading] = useState(false);
+  const [lawCatFilter, setLawCatFilter] = useState<string>("all");
+  const [lawUnionFilter, setLawUnionFilter] = useState<number | null>(null);
+  const [expandedLaw, setExpandedLaw] = useState<number | null>(null);
 
   // Application form
   const [form, setForm] = useState<MemberForm>({ ...EMPTY_FORM });
@@ -118,8 +146,8 @@ export default function UnionsScreen() {
     setLoading(true);
     try {
       const [uRes, aRes] = await Promise.all([
-        fetchWithTimeout(getApiUrl("/api/unions"), { headers: apiHeaders() }),
-        fetchWithTimeout(getApiUrl("/api/unions/announcements/all"), { headers: apiHeaders() }),
+        fetchWithTimeout(`${getApiUrl()}/api/unions`, { headers: apiHeaders() }),
+        fetchWithTimeout(`${getApiUrl()}/api/unions/announcements/all`, { headers: apiHeaders() }),
       ]);
       if (uRes.ok) setUnions(await uRes.json());
       if (aRes.ok) setAnnouncements(await aRes.json());
@@ -131,14 +159,38 @@ export default function UnionsScreen() {
     if (!token) return;
     setMyLoading(true);
     try {
-      const r = await fetchWithTimeout(getApiUrl("/api/unions/my-membership"), { headers: apiHeaders() });
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/unions/my-membership`, { headers: apiHeaders() });
       if (r.ok) setMyMemberships(await r.json());
     } catch {}
     finally { setMyLoading(false); }
   }, [token, apiHeaders]);
 
+  const loadPrograms = useCallback(async () => {
+    setProgramsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (programTypeFilter !== "all") params.set("type", programTypeFilter);
+      if (programUnionFilter) params.set("union_id", String(programUnionFilter));
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/unions/programs?${params}`);
+      if (r.ok) setPrograms(await r.json());
+    } catch {} finally { setProgramsLoading(false); }
+  }, [programTypeFilter, programUnionFilter]);
+
+  const loadLaws = useCallback(async () => {
+    setLawsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (lawCatFilter !== "all") params.set("category", lawCatFilter);
+      if (lawUnionFilter) params.set("union_id", String(lawUnionFilter));
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/unions/laws?${params}`);
+      if (r.ok) setLaws(await r.json());
+    } catch {} finally { setLawsLoading(false); }
+  }, [lawCatFilter, lawUnionFilter]);
+
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (tab === "my") loadMyMemberships(); }, [tab, loadMyMemberships]);
+  useEffect(() => { if (tab === "programs") loadPrograms(); }, [tab, loadPrograms]);
+  useEffect(() => { if (tab === "laws") loadLaws(); }, [tab, loadLaws]);
 
   // ── Submit application ──
   async function submitApplication() {
@@ -152,7 +204,7 @@ export default function UnionsScreen() {
         graduation_year: form.graduation_year ? Number(form.graduation_year) : null,
         user_id: user?.id || null,
       };
-      const r = await fetchWithTimeout(getApiUrl("/api/unions/apply"), {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/unions/apply`, {
         method: "POST",
         headers: apiHeaders(),
         body: JSON.stringify(body),
@@ -663,20 +715,23 @@ export default function UnionsScreen() {
         </View>
       </LinearGradient>
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
+      {/* Tabs — scrollable row */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, paddingVertical: 6 }}>
         {[
-          { key: "unions", label: "النقابات", icon: "business-outline" },
-          { key: "apply",  label: "انضم",     icon: "person-add-outline" },
-          { key: "my",     label: "طلباتي",   icon: "document-text-outline" },
+          { key: "unions",   label: "النقابات", icon: "business-outline" },
+          { key: "programs", label: "البرامج",  icon: "school-outline" },
+          { key: "laws",     label: "القوانين", icon: "document-lock-outline" },
+          { key: "apply",    label: "انضم",     icon: "person-add-outline" },
+          { key: "my",       label: "طلباتي",   icon: "document-text-outline" },
         ].map(t => (
-          <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+          <Pressable key={t.key}
+            style={[styles.tabBtn, { flex: 0, paddingHorizontal: 14 }, tab === t.key && styles.tabBtnActive]}
             onPress={() => { setTab(t.key as any); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <Ionicons name={t.icon as any} size={16} color={tab === t.key ? "#fff" : UC + "99"} />
+            <Ionicons name={t.icon as any} size={15} color={tab === t.key ? "#fff" : UC + "99"} />
             <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Content */}
       {tab === "unions" && (
@@ -687,20 +742,192 @@ export default function UnionsScreen() {
             contentContainerStyle={{ padding: 14, gap: 14 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={UC} />}
           >
-            {/* Announcements */}
             {announcements.length > 0 && (
               <View style={{ marginBottom: 8 }}>
                 <Text style={styles.sectionTitle}>📢 أحدث الإعلانات</Text>
                 {announcements.slice(0, 3).map((a, i) => <AnnCard key={a.id} a={a} idx={i} />)}
               </View>
             )}
-            {/* Union cards */}
             <Text style={styles.sectionTitle}>🏛️ النقابات والجمعيات</Text>
             {unions.map((u, i) => <UnionCard key={u.id} u={u} idx={i} />)}
             {unions.length === 0 && (
               <View style={styles.emptyBox}>
                 <Ionicons name="business-outline" size={48} color={UC + "60"} />
                 <Text style={styles.emptyText}>لا توجد نقابات مضافة بعد</Text>
+              </View>
+            )}
+          </ScrollView>
+        )
+      )}
+
+      {/* ══ تبويب البرامج ══ */}
+      {tab === "programs" && (
+        programsLoading ? <ActivityIndicator color={UC} style={{ marginTop: 60 }} /> : (
+          <ScrollView contentContainerStyle={{ padding: 14, gap: 12 }}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={loadPrograms} tintColor={UC} />}>
+            {/* فلتر النوع */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {[
+                  { k: "all", l: "الكل" }, { k: "training", l: "تدريب" },
+                  { k: "event", l: "فعالية" }, { k: "workshop", l: "ورشة" }, { k: "course", l: "دورة" },
+                ].map(f => (
+                  <Pressable key={f.k}
+                    style={[styles.degreeChip, programTypeFilter === f.k && styles.degreeChipActive]}
+                    onPress={() => setProgramTypeFilter(f.k)}>
+                    <Text style={[styles.degreeText, programTypeFilter === f.k && styles.degreeTextActive]}>{f.l}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+            {/* فلتر النقابة */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable style={[styles.degreeChip, !programUnionFilter && styles.degreeChipActive]}
+                  onPress={() => setProgramUnionFilter(null)}>
+                  <Text style={[styles.degreeText, !programUnionFilter && styles.degreeTextActive]}>كل النقابات</Text>
+                </Pressable>
+                {unions.map(u => (
+                  <Pressable key={u.id} style={[styles.degreeChip, programUnionFilter === u.id && styles.degreeChipActive]}
+                    onPress={() => setProgramUnionFilter(u.id)}>
+                    <Text style={[styles.degreeText, programUnionFilter === u.id && styles.degreeTextActive]}>{u.short_name || u.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+            {programs.map((p, i) => {
+              const TYPE_ICONS: Record<string, string> = { training: "🎓", event: "🎉", workshop: "🔧", course: "📚" };
+              const icon = TYPE_ICONS[p.type] || "📌";
+              const TYPE_LABELS: Record<string, string> = { training: "تدريب", event: "فعالية", workshop: "ورشة عمل", course: "دورة" };
+              return (
+                <Animated.View key={p.id} entering={FadeInDown.delay(i * 60).springify()}>
+                  <View style={[styles.annCard, { borderLeftWidth: 3, borderLeftColor: UC }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={{ fontSize: 16 }}>{icon}</Text>
+                        <View style={[styles.statusBadge, { borderColor: UC + "44", backgroundColor: UC + "18" }]}>
+                          <Text style={[styles.statusText, { color: UC, fontSize: 11 }]}>{TYPE_LABELS[p.type] || p.type}</Text>
+                        </View>
+                      </View>
+                      {p.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: UC + "bb" }}>{p.union_short_name}</Text>}
+                    </View>
+                    <Text style={styles.annTitle}>{p.title}</Text>
+                    {p.description && <Text style={styles.annBody}>{p.description}</Text>}
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {p.start_date && <View style={styles.statChip}><Ionicons name="calendar-outline" size={11} color={UC3} /><Text style={styles.statChipText}>{p.start_date}</Text></View>}
+                      {p.end_date && p.end_date !== p.start_date && <View style={styles.statChip}><Ionicons name="calendar-outline" size={11} color="#F59E0B" /><Text style={[styles.statChipText, { color: "#F59E0B" }]}>حتى {p.end_date}</Text></View>}
+                      {p.location && <View style={styles.statChip}><Ionicons name="location-outline" size={11} color={UC3} /><Text style={styles.statChipText}>{p.location}</Text></View>}
+                      {p.fee && <View style={styles.statChip}><Ionicons name="cash-outline" size={11} color={Colors.primary} /><Text style={[styles.statChipText, { color: Colors.primary }]}>{p.fee}</Text></View>}
+                      {p.max_participants && <View style={styles.statChip}><Ionicons name="people-outline" size={11} color={UC3} /><Text style={styles.statChipText}>حتى {p.max_participants}</Text></View>}
+                    </View>
+                    {p.contact && (
+                      <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}
+                        onPress={() => Linking.openURL(`tel:${p.contact}`)}>
+                        <Ionicons name="call-outline" size={13} color={Colors.primary} />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>{p.contact}</Text>
+                      </Pressable>
+                    )}
+                    {p.link && (
+                      <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
+                        onPress={() => Linking.openURL(p.link!)}>
+                        <Ionicons name="link-outline" size={13} color="#0EA5E9" />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>رابط التسجيل</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </Animated.View>
+              );
+            })}
+            {programs.length === 0 && (
+              <View style={styles.emptyBox}>
+                <Ionicons name="school-outline" size={48} color={UC + "60"} />
+                <Text style={styles.emptyText}>لا توجد برامج متاحة حالياً</Text>
+              </View>
+            )}
+          </ScrollView>
+        )
+      )}
+
+      {/* ══ تبويب القوانين واللوائح ══ */}
+      {tab === "laws" && (
+        lawsLoading ? <ActivityIndicator color={UC} style={{ marginTop: 60 }} /> : (
+          <ScrollView contentContainerStyle={{ padding: 14, gap: 10 }}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={loadLaws} tintColor={UC} />}>
+            {/* فلتر التصنيف */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {[
+                  { k: "all", l: "الكل" }, { k: "bylaw", l: "لائحة" },
+                  { k: "regulation", l: "نظام" }, { k: "policy", l: "سياسة" }, { k: "decision", l: "قرار" },
+                ].map(f => (
+                  <Pressable key={f.k}
+                    style={[styles.degreeChip, lawCatFilter === f.k && styles.degreeChipActive]}
+                    onPress={() => setLawCatFilter(f.k)}>
+                    <Text style={[styles.degreeText, lawCatFilter === f.k && styles.degreeTextActive]}>{f.l}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+            {/* فلتر النقابة */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable style={[styles.degreeChip, !lawUnionFilter && styles.degreeChipActive]}
+                  onPress={() => setLawUnionFilter(null)}>
+                  <Text style={[styles.degreeText, !lawUnionFilter && styles.degreeTextActive]}>كل النقابات</Text>
+                </Pressable>
+                {unions.map(u => (
+                  <Pressable key={u.id} style={[styles.degreeChip, lawUnionFilter === u.id && styles.degreeChipActive]}
+                    onPress={() => setLawUnionFilter(u.id)}>
+                    <Text style={[styles.degreeText, lawUnionFilter === u.id && styles.degreeTextActive]}>{u.short_name || u.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+            {laws.map((l, i) => {
+              const CAT_LABELS: Record<string, string> = { bylaw: "لائحة", regulation: "نظام داخلي", policy: "سياسة", decision: "قرار" };
+              const CAT_COLORS: Record<string, string> = { bylaw: "#8B5CF6", regulation: "#0EA5E9", policy: "#22C55E", decision: "#F59E0B" };
+              const cc = CAT_COLORS[l.category] || UC;
+              const expanded = expandedLaw === l.id;
+              return (
+                <Animated.View key={l.id} entering={FadeInDown.delay(i * 50).springify()}>
+                  <Pressable onPress={() => setExpandedLaw(expanded ? null : l.id)}
+                    style={[styles.annCard, { borderLeftWidth: 3, borderLeftColor: cc }]}>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <View style={[styles.statusBadge, { borderColor: cc + "44", backgroundColor: cc + "18" }]}>
+                            <Text style={[styles.statusText, { color: cc, fontSize: 11 }]}>{CAT_LABELS[l.category] || l.category}</Text>
+                          </View>
+                          {l.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: UC + "bb" }}>{l.union_short_name}</Text>}
+                          {l.version && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#4B6E58" }}>v{l.version}</Text>}
+                        </View>
+                        <Text style={styles.annTitle}>{l.title}</Text>
+                        {l.effective_date && (
+                          <Text style={styles.annDate}>نافذة منذ: {l.effective_date}</Text>
+                        )}
+                      </View>
+                      <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={UC + "80"} />
+                    </View>
+                    {expanded && l.body && (
+                      <Animated.View entering={FadeInDown.springify()} style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#1B3626" }}>
+                        <Text style={[styles.annBody, { lineHeight: 24 }]}>{l.body}</Text>
+                        {l.document_url && (
+                          <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}
+                            onPress={() => Linking.openURL(l.document_url!)}>
+                            <Ionicons name="document-outline" size={16} color="#F59E0B" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B" }}>تحميل الوثيقة الكاملة</Text>
+                          </Pressable>
+                        )}
+                      </Animated.View>
+                    )}
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+            {laws.length === 0 && (
+              <View style={styles.emptyBox}>
+                <Ionicons name="document-lock-outline" size={48} color={UC + "60"} />
+                <Text style={styles.emptyText}>لا توجد قوانين ولوائح مضافة بعد</Text>
               </View>
             )}
           </ScrollView>

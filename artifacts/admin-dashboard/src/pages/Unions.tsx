@@ -37,6 +37,21 @@ type Announcement = {
   link?: string; is_pinned: boolean; is_active: boolean; created_at: string;
 };
 
+type Program = {
+  id: number; union_id?: number; union_name?: string;
+  title: string; description?: string; type: string;
+  start_date?: string; end_date?: string; location?: string;
+  max_participants?: number; fee?: string; contact?: string; link?: string;
+  is_active: boolean; sort_order: number; created_at: string;
+};
+
+type UnionLaw = {
+  id: number; union_id?: number; union_name?: string;
+  title: string; body?: string; category: string;
+  document_url?: string; effective_date?: string; version?: string;
+  is_active: boolean; sort_order: number; created_at: string;
+};
+
 const UC = "#8B5CF6";
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending:  { label: "قيد المراجعة", color: "#F59E0B" },
@@ -52,7 +67,7 @@ const DEGREE_LABELS: Record<string, string> = {
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function Unions() {
-  const [tab, setTab] = useState<"unions" | "members" | "announcements">("unions");
+  const [tab, setTab] = useState<"unions" | "members" | "announcements" | "programs" | "laws">("unions");
 
   // Unions
   const [unions, setUnions] = useState<Union[]>([]);
@@ -75,6 +90,23 @@ export default function Unions() {
   const [annLoading, setAnnLoading] = useState(false);
   const [showAnnModal, setShowAnnModal] = useState(false);
   const [editingAnn, setEditingAnn] = useState<Partial<Announcement> | null>(null);
+
+  // Programs
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [showProgramModal, setShowProgramModal] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<Partial<Program> | null>(null);
+  const [programUnionFilter, setProgramUnionFilter] = useState("");
+  const [programTypeFilter, setProgramTypeFilter] = useState("");
+
+  // Laws
+  const [laws, setLaws] = useState<UnionLaw[]>([]);
+  const [lawsLoading, setLawsLoading] = useState(false);
+  const [showLawModal, setShowLawModal] = useState(false);
+  const [editingLaw, setEditingLaw] = useState<Partial<UnionLaw> | null>(null);
+  const [lawUnionFilter, setLawUnionFilter] = useState("");
+  const [lawCatFilter, setLawCatFilter] = useState("");
+  const [expandedLaw, setExpandedLaw] = useState<number | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -105,8 +137,32 @@ export default function Unions() {
     finally { setAnnLoading(false); }
   }, []);
 
+  const loadPrograms = useCallback(async () => {
+    setProgramsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (programUnionFilter) params.set("union_id", programUnionFilter);
+      if (programTypeFilter) params.set("type", programTypeFilter);
+      setPrograms(await apiJson(`/admin/union-programs?${params}`));
+    } catch { setError("فشل تحميل البرامج"); }
+    finally { setProgramsLoading(false); }
+  }, [programUnionFilter, programTypeFilter]);
+
+  const loadLaws = useCallback(async () => {
+    setLawsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (lawUnionFilter) params.set("union_id", lawUnionFilter);
+      if (lawCatFilter) params.set("category", lawCatFilter);
+      setLaws(await apiJson(`/admin/union-laws?${params}`));
+    } catch { setError("فشل تحميل القوانين"); }
+    finally { setLawsLoading(false); }
+  }, [lawUnionFilter, lawCatFilter]);
+
   useEffect(() => { loadUnions(); loadMembers(); loadAnnouncements(); }, []);
   useEffect(() => { loadMembers(); }, [loadMembers]);
+  useEffect(() => { if (tab === "programs") loadPrograms(); }, [tab, loadPrograms]);
+  useEffect(() => { if (tab === "laws") loadLaws(); }, [tab, loadLaws]);
 
   // ── Save Union ──
   async function saveUnion() {
@@ -165,6 +221,46 @@ export default function Unions() {
   async function deleteAnn(id: number) {
     if (!confirm("هل تريد حذف هذا الإعلان؟")) return;
     try { await apiFetch(`/admin/union-announcements/${id}`, { method: "DELETE" }); loadAnnouncements(); }
+    catch { setError("فشل الحذف"); }
+  }
+
+  // ── Programs ──
+  async function saveProgram() {
+    if (!editingProgram?.title) { setError("العنوان مطلوب"); return; }
+    setSaving(true); setError("");
+    try {
+      const isEdit = !!editingProgram.id;
+      await apiFetch(isEdit ? `/admin/union-programs/${editingProgram.id}` : "/admin/union-programs",
+        { method: isEdit ? "PATCH" : "POST", body: JSON.stringify(editingProgram) });
+      setShowProgramModal(false);
+      loadPrograms();
+    } catch { setError("فشل الحفظ"); }
+    finally { setSaving(false); }
+  }
+
+  async function deleteProgram(id: number) {
+    if (!confirm("هل تريد حذف هذا البرنامج؟")) return;
+    try { await apiFetch(`/admin/union-programs/${id}`, { method: "DELETE" }); loadPrograms(); }
+    catch { setError("فشل الحذف"); }
+  }
+
+  // ── Laws ──
+  async function saveLaw() {
+    if (!editingLaw?.title) { setError("العنوان مطلوب"); return; }
+    setSaving(true); setError("");
+    try {
+      const isEdit = !!editingLaw.id;
+      await apiFetch(isEdit ? `/admin/union-laws/${editingLaw.id}` : "/admin/union-laws",
+        { method: isEdit ? "PATCH" : "POST", body: JSON.stringify(editingLaw) });
+      setShowLawModal(false);
+      loadLaws();
+    } catch { setError("فشل الحفظ"); }
+    finally { setSaving(false); }
+  }
+
+  async function deleteLaw(id: number) {
+    if (!confirm("هل تريد حذف هذه الوثيقة؟")) return;
+    try { await apiFetch(`/admin/union-laws/${id}`, { method: "DELETE" }); loadLaws(); }
     catch { setError("فشل الحذف"); }
   }
 
@@ -435,6 +531,12 @@ small{color:#6b7280;font-size:10px}
           {tab === "announcements" && (
             <button onClick={() => { setEditingAnn({ is_active: true, is_pinned: false }); setShowAnnModal(true); }} style={btnS(UC)}>+ إضافة إعلان</button>
           )}
+          {tab === "programs" && (
+            <button onClick={() => { setEditingProgram({ is_active: true, type: "event", sort_order: 0 }); setShowProgramModal(true); }} style={btnS(UC)}>+ إضافة برنامج</button>
+          )}
+          {tab === "laws" && (
+            <button onClick={() => { setEditingLaw({ is_active: true, category: "bylaw", sort_order: 0 }); setShowLawModal(true); }} style={btnS(UC)}>+ إضافة وثيقة</button>
+          )}
           {tab === "members" && (
             <button onClick={printAll} style={btnS("#F59E0B")}>🖨️ طباعة القائمة PDF</button>
           )}
@@ -446,9 +548,11 @@ small{color:#6b7280;font-size:10px}
       {/* Tabs */}
       <TabRow
         tabs={[
-          { key: "unions",        label: "النقابات",  count: unions.length },
-          { key: "members",       label: "الأعضاء",  count: members.length },
-          { key: "announcements", label: "الإعلانات", count: announcements.length },
+          { key: "unions",        label: "النقابات",   count: unions.length },
+          { key: "members",       label: "الأعضاء",   count: members.length },
+          { key: "announcements", label: "الإعلانات",  count: announcements.length },
+          { key: "programs",      label: "البرامج",    count: programs.length },
+          { key: "laws",          label: "القوانين",   count: laws.length },
         ]}
         active={tab}
         color={UC}
@@ -590,6 +694,127 @@ small{color:#6b7280;font-size:10px}
         </div>
       )}
 
+      {/* ══ تبويب البرامج ══ */}
+      {tab === "programs" && (
+        <div>
+          {/* Filters */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+            <select style={inputS} value={programUnionFilter} onChange={e => setProgramUnionFilter(e.target.value)}>
+              <option value="">كل النقابات</option>
+              {unions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <select style={inputS} value={programTypeFilter} onChange={e => setProgramTypeFilter(e.target.value)}>
+              <option value="">كل الأنواع</option>
+              <option value="event">فعالية</option>
+              <option value="training">تدريب</option>
+              <option value="workshop">ورشة عمل</option>
+              <option value="course">دورة</option>
+            </select>
+          </div>
+          {programsLoading ? <Spinner /> : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14 }}>
+              {programs.map(p => {
+                const TYPE_ICONS: Record<string,string> = { training: "🎓", event: "🎉", workshop: "🔧", course: "📚" };
+                const TYPE_LABELS: Record<string,string> = { training: "تدريب", event: "فعالية", workshop: "ورشة عمل", course: "دورة" };
+                return (
+                  <div key={p.id} style={{ background: "hsl(222 47% 11%)", border: `1px solid ${UC}33`, borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ height: 3, background: `linear-gradient(90deg, ${UC}, #6D28D9)` }} />
+                    <div style={{ padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 18 }}>{TYPE_ICONS[p.type] || "📌"}</span>
+                        <span style={{ ...bdgS(UC), fontSize: 11 }}>{TYPE_LABELS[p.type] || p.type}</span>
+                        {p.union_name && <span style={{ fontSize: 11, color: UC + "bb" }}>{p.union_name}</span>}
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#f0fdf4", marginBottom: 6 }}>{p.title}</div>
+                      {p.description && <p style={{ margin: "0 0 8px", fontSize: 12, color: "hsl(215 20% 55%)", lineHeight: 1.5 }}>{p.description}</p>}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                        {p.start_date && <Pill icon="📅" val={p.start_date} />}
+                        {p.end_date && p.end_date !== p.start_date && <Pill icon="🏁" val={p.end_date} />}
+                        {p.location && <Pill icon="📍" val={p.location} />}
+                        {p.fee && <Pill icon="💰" val={p.fee} />}
+                        {p.max_participants && <Pill icon="👥" val={`${p.max_participants} مشارك`} />}
+                        {p.contact && <Pill icon="📞" val={p.contact} />}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: "hsl(215 20% 40%)" }}>{new Date(p.created_at).toLocaleDateString("ar-SA")}</span>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => { setEditingProgram({ ...p }); setShowProgramModal(true); }} style={smBtn(UC)}>تعديل</button>
+                          <button onClick={() => deleteProgram(p.id)} style={smBtn("#EF4444")}>حذف</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {programs.length === 0 && <Empty msg="لا توجد برامج بعد" />}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ تبويب القوانين ══ */}
+      {tab === "laws" && (
+        <div>
+          {/* Filters */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+            <select style={inputS} value={lawUnionFilter} onChange={e => setLawUnionFilter(e.target.value)}>
+              <option value="">كل النقابات</option>
+              {unions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <select style={inputS} value={lawCatFilter} onChange={e => setLawCatFilter(e.target.value)}>
+              <option value="">كل التصنيفات</option>
+              <option value="bylaw">لائحة</option>
+              <option value="regulation">نظام داخلي</option>
+              <option value="policy">سياسة</option>
+              <option value="decision">قرار</option>
+            </select>
+          </div>
+          {lawsLoading ? <Spinner /> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {laws.map(l => {
+                const CAT_LABELS: Record<string,string> = { bylaw: "لائحة", regulation: "نظام داخلي", policy: "سياسة", decision: "قرار" };
+                const CAT_COLORS: Record<string,string> = { bylaw: "#8B5CF6", regulation: "#0EA5E9", policy: "#22C55E", decision: "#F59E0B" };
+                const cc = CAT_COLORS[l.category] || UC;
+                const expanded = expandedLaw === l.id;
+                return (
+                  <div key={l.id} style={{ background: "hsl(222 47% 11%)", border: `1px solid hsl(222 47% 18%)`, borderRadius: 12, overflow: "hidden", borderRight: `4px solid ${cc}` }}>
+                    <div style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                      onClick={() => setExpandedLaw(expanded ? null : l.id)}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ ...bdgS(cc), fontSize: 11 }}>{CAT_LABELS[l.category] || l.category}</span>
+                          {l.union_name && <span style={{ fontSize: 11, color: UC + "bb" }}>{l.union_name}</span>}
+                          {l.version && <span style={{ fontSize: 10, color: "hsl(215 20% 45%)" }}>v{l.version}</span>}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#f0fdf4" }}>{l.title}</div>
+                        {l.effective_date && <div style={{ fontSize: 11, color: "hsl(215 20% 45%)", marginTop: 4 }}>نافذة منذ: {l.effective_date}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <button onClick={e => { e.stopPropagation(); setEditingLaw({ ...l }); setShowLawModal(true); }} style={smBtn(UC)}>تعديل</button>
+                        <button onClick={e => { e.stopPropagation(); deleteLaw(l.id); }} style={smBtn("#EF4444")}>حذف</button>
+                        <span style={{ color: "hsl(215 20% 45%)", fontSize: 16 }}>{expanded ? "▲" : "▼"}</span>
+                      </div>
+                    </div>
+                    {expanded && l.body && (
+                      <div style={{ padding: "0 16px 14px", borderTop: "1px solid hsl(222 47% 16%)" }}>
+                        <p style={{ margin: "12px 0 0", fontSize: 13, color: "hsl(215 20% 60%)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{l.body}</p>
+                        {l.document_url && (
+                          <a href={l.document_url} target="_blank" rel="noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12, color: "#F59E0B", fontSize: 13, fontWeight: 600 }}>
+                            📄 تحميل الوثيقة الكاملة
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {laws.length === 0 && <Empty msg="لا توجد قوانين ولوائح بعد" />}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ══ Modal: نقابة ══ */}
       {showUnionModal && editingUnion && (
         <Modal2 title={editingUnion.id ? "تعديل النقابة" : "إضافة نقابة"} onClose={() => setShowUnionModal(false)}>
@@ -676,6 +901,68 @@ small{color:#6b7280;font-size:10px}
           </div>
           {error && <div style={{ color: "#FCA5A5", fontSize: 12, marginBottom: 8 }}>{error}</div>}
           <ModalActions onClose={() => setShowAnnModal(false)} onSave={saveAnn} saving={saving} color={UC} />
+        </Modal2>
+      )}
+
+      {/* ══ Modal: برنامج ══ */}
+      {showProgramModal && editingProgram && (
+        <Modal2 title={editingProgram.id ? "تعديل البرنامج" : "إضافة برنامج"} onClose={() => setShowProgramModal(false)}>
+          <div style={fGrid}>
+            <FField label="النقابة">
+              <select style={fInput} value={editingProgram.union_id || ""} onChange={e => setEditingProgram(p => ({ ...p!, union_id: e.target.value ? Number(e.target.value) : undefined }))}>
+                <option value="">غير مرتبط بنقابة</option>
+                {unions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </FField>
+            <FField label="نوع البرنامج">
+              <select style={fInput} value={editingProgram.type || "event"} onChange={e => setEditingProgram(p => ({ ...p!, type: e.target.value }))}>
+                <option value="event">فعالية 🎉</option>
+                <option value="training">تدريب 🎓</option>
+                <option value="workshop">ورشة عمل 🔧</option>
+                <option value="course">دورة 📚</option>
+              </select>
+            </FField>
+            <FField label="عنوان البرنامج *" full><input style={fInput} value={editingProgram.title || ""} onChange={e => setEditingProgram(p => ({ ...p!, title: e.target.value }))} /></FField>
+            <FField label="الوصف" full><textarea style={{ ...fInput, minHeight: 80 }} value={editingProgram.description || ""} onChange={e => setEditingProgram(p => ({ ...p!, description: e.target.value }))} /></FField>
+            <FField label="تاريخ البداية"><input type="date" style={fInput} value={editingProgram.start_date || ""} onChange={e => setEditingProgram(p => ({ ...p!, start_date: e.target.value }))} /></FField>
+            <FField label="تاريخ النهاية"><input type="date" style={fInput} value={editingProgram.end_date || ""} onChange={e => setEditingProgram(p => ({ ...p!, end_date: e.target.value }))} /></FField>
+            <FField label="المكان"><input style={fInput} value={editingProgram.location || ""} onChange={e => setEditingProgram(p => ({ ...p!, location: e.target.value }))} placeholder="قاعة المؤتمرات، الحصاحيصا" /></FField>
+            <FField label="الرسوم"><input style={fInput} value={editingProgram.fee || ""} onChange={e => setEditingProgram(p => ({ ...p!, fee: e.target.value }))} placeholder="مجاناً / ٥٠٠ جنيه" /></FField>
+            <FField label="أقصى عدد مشاركين"><input type="number" style={fInput} value={editingProgram.max_participants || ""} onChange={e => setEditingProgram(p => ({ ...p!, max_participants: Number(e.target.value) }))} /></FField>
+            <FField label="جهة الاتصال"><input style={fInput} value={editingProgram.contact || ""} onChange={e => setEditingProgram(p => ({ ...p!, contact: e.target.value }))} /></FField>
+            <FField label="رابط التسجيل" full><input style={fInput} value={editingProgram.link || ""} onChange={e => setEditingProgram(p => ({ ...p!, link: e.target.value }))} placeholder="https://..." /></FField>
+          </div>
+          {error && <div style={{ color: "#FCA5A5", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+          <ModalActions onClose={() => setShowProgramModal(false)} onSave={saveProgram} saving={saving} color={UC} />
+        </Modal2>
+      )}
+
+      {/* ══ Modal: قانون / لائحة ══ */}
+      {showLawModal && editingLaw && (
+        <Modal2 title={editingLaw.id ? "تعديل الوثيقة" : "إضافة وثيقة قانونية"} onClose={() => setShowLawModal(false)} wide>
+          <div style={fGrid}>
+            <FField label="النقابة">
+              <select style={fInput} value={editingLaw.union_id || ""} onChange={e => setEditingLaw(p => ({ ...p!, union_id: e.target.value ? Number(e.target.value) : undefined }))}>
+                <option value="">غير مرتبط بنقابة</option>
+                {unions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </FField>
+            <FField label="تصنيف الوثيقة">
+              <select style={fInput} value={editingLaw.category || "bylaw"} onChange={e => setEditingLaw(p => ({ ...p!, category: e.target.value }))}>
+                <option value="bylaw">لائحة</option>
+                <option value="regulation">نظام داخلي</option>
+                <option value="policy">سياسة</option>
+                <option value="decision">قرار</option>
+              </select>
+            </FField>
+            <FField label="عنوان الوثيقة *" full><input style={fInput} value={editingLaw.title || ""} onChange={e => setEditingLaw(p => ({ ...p!, title: e.target.value }))} /></FField>
+            <FField label="نص الوثيقة" full><textarea style={{ ...fInput, minHeight: 140 }} value={editingLaw.body || ""} onChange={e => setEditingLaw(p => ({ ...p!, body: e.target.value }))} /></FField>
+            <FField label="تاريخ السريان"><input type="date" style={fInput} value={editingLaw.effective_date || ""} onChange={e => setEditingLaw(p => ({ ...p!, effective_date: e.target.value }))} /></FField>
+            <FField label="رقم الإصدار"><input style={fInput} value={editingLaw.version || ""} onChange={e => setEditingLaw(p => ({ ...p!, version: e.target.value }))} placeholder="1.0" /></FField>
+            <FField label="رابط الوثيقة (PDF)" full><input style={fInput} value={editingLaw.document_url || ""} onChange={e => setEditingLaw(p => ({ ...p!, document_url: e.target.value }))} placeholder="https://..." /></FField>
+          </div>
+          {error && <div style={{ color: "#FCA5A5", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+          <ModalActions onClose={() => setShowLawModal(false)} onSave={saveLaw} saving={saving} color={UC} />
         </Modal2>
       )}
     </div>

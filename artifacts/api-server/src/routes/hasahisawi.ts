@@ -9998,6 +9998,41 @@ async function ensureUnionsTables() {
     approved_at        TIMESTAMPTZ,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+
+  await query(`CREATE TABLE IF NOT EXISTS union_programs (
+    id           SERIAL PRIMARY KEY,
+    union_id     INTEGER REFERENCES unions(id) ON DELETE CASCADE,
+    title        VARCHAR(300) NOT NULL,
+    description  TEXT,
+    type         VARCHAR(40) DEFAULT 'event',
+    start_date   DATE,
+    end_date     DATE,
+    location     VARCHAR(200),
+    max_participants INTEGER,
+    fee          VARCHAR(60),
+    contact      VARCHAR(100),
+    link         TEXT,
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order   INTEGER DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+
+  await query(`CREATE TABLE IF NOT EXISTS union_laws (
+    id              SERIAL PRIMARY KEY,
+    union_id        INTEGER REFERENCES unions(id) ON DELETE CASCADE,
+    title           VARCHAR(300) NOT NULL,
+    body            TEXT,
+    category        VARCHAR(40) DEFAULT 'bylaw',
+    document_url    TEXT,
+    effective_date  DATE,
+    version         VARCHAR(20),
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_union_programs_union ON union_programs(union_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_union_laws_union ON union_laws(union_id)`);
 }
 
 // GET /api/unions
@@ -10230,6 +10265,173 @@ router.delete("/admin/union-announcements/:id", async (req: Request, res: Respon
   if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await query(`DELETE FROM union_announcements WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Programs public routes ─────────────────────────────────────────────────
+// GET /api/unions/programs — كل البرامج
+router.get("/unions/programs", async (req: Request, res: Response) => {
+  try {
+    await ensureUnionsTables();
+    const { union_id, type } = req.query as Record<string, string>;
+    let where = "WHERE p.is_active=TRUE";
+    const params: unknown[] = [];
+    if (union_id) { params.push(Number(union_id)); where += ` AND p.union_id=$${params.length}`; }
+    if (type) { params.push(type); where += ` AND p.type=$${params.length}`; }
+    const r = await query(
+      `SELECT p.*, u.name AS union_name, u.short_name AS union_short_name
+       FROM union_programs p LEFT JOIN unions u ON u.id=p.union_id
+       ${where} ORDER BY p.sort_order, p.start_date DESC, p.created_at DESC`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/unions/laws — كل القوانين
+router.get("/unions/laws", async (req: Request, res: Response) => {
+  try {
+    await ensureUnionsTables();
+    const { union_id, category } = req.query as Record<string, string>;
+    let where = "WHERE l.is_active=TRUE";
+    const params: unknown[] = [];
+    if (union_id) { params.push(Number(union_id)); where += ` AND l.union_id=$${params.length}`; }
+    if (category) { params.push(category); where += ` AND l.category=$${params.length}`; }
+    const r = await query(
+      `SELECT l.*, u.name AS union_name, u.short_name AS union_short_name
+       FROM union_laws l LEFT JOIN unions u ON u.id=l.union_id
+       ${where} ORDER BY l.sort_order, l.created_at DESC`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Programs admin routes ──────────────────────────────────────────────────
+router.get("/admin/union-programs", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id } = req.query as Record<string, string>;
+    let where = "WHERE 1=1";
+    const params: unknown[] = [];
+    if (union_id) { params.push(Number(union_id)); where += ` AND p.union_id=$${params.length}`; }
+    const r = await query(
+      `SELECT p.*, u.name AS union_name FROM union_programs p
+       LEFT JOIN unions u ON u.id=p.union_id ${where}
+       ORDER BY p.sort_order, p.start_date DESC, p.created_at DESC`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/union-programs", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id, title, description, type, start_date, end_date, location, max_participants, fee, contact, link, is_active, sort_order } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(
+      `INSERT INTO union_programs (union_id,title,description,type,start_date,end_date,location,max_participants,fee,contact,link,is_active,sort_order)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [union_id||null, title, description||null, type||"event", start_date||null, end_date||null, location||null, max_participants||null, fee||null, contact||null, link||null, is_active!==false, sort_order||0]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/union-programs/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id, title, description, type, start_date, end_date, location, max_participants, fee, contact, link, is_active, sort_order } = req.body;
+    const r = await query(
+      `UPDATE union_programs SET
+        union_id=COALESCE($1,union_id), title=COALESCE($2,title), description=COALESCE($3,description),
+        type=COALESCE($4,type), start_date=COALESCE($5,start_date), end_date=COALESCE($6,end_date),
+        location=COALESCE($7,location), max_participants=COALESCE($8,max_participants),
+        fee=COALESCE($9,fee), contact=COALESCE($10,contact), link=COALESCE($11,link),
+        is_active=COALESCE($12,is_active), sort_order=COALESCE($13,sort_order)
+       WHERE id=$14 RETURNING *`,
+      [union_id||null, title||null, description||null, type||null, start_date||null, end_date||null,
+       location||null, max_participants||null, fee||null, contact||null, link||null,
+       is_active!=null?Boolean(is_active):null, sort_order!=null?Number(sort_order):null, req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/union-programs/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM union_programs WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Laws admin routes ──────────────────────────────────────────────────────
+router.get("/admin/union-laws", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id, category } = req.query as Record<string, string>;
+    let where = "WHERE 1=1";
+    const params: unknown[] = [];
+    if (union_id) { params.push(Number(union_id)); where += ` AND l.union_id=$${params.length}`; }
+    if (category) { params.push(category); where += ` AND l.category=$${params.length}`; }
+    const r = await query(
+      `SELECT l.*, u.name AS union_name FROM union_laws l
+       LEFT JOIN unions u ON u.id=l.union_id ${where}
+       ORDER BY l.sort_order, l.created_at DESC`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/union-laws", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id, title, body, category, document_url, effective_date, version, is_active, sort_order } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(
+      `INSERT INTO union_laws (union_id,title,body,category,document_url,effective_date,version,is_active,sort_order)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [union_id||null, title, body||null, category||"bylaw", document_url||null, effective_date||null, version||null, is_active!==false, sort_order||0]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/union-laws/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionsTables();
+    const { union_id, title, body, category, document_url, effective_date, version, is_active, sort_order } = req.body;
+    const r = await query(
+      `UPDATE union_laws SET
+        union_id=COALESCE($1,union_id), title=COALESCE($2,title), body=COALESCE($3,body),
+        category=COALESCE($4,category), document_url=COALESCE($5,document_url),
+        effective_date=COALESCE($6,effective_date), version=COALESCE($7,version),
+        is_active=COALESCE($8,is_active), sort_order=COALESCE($9,sort_order)
+       WHERE id=$10 RETURNING *`,
+      [union_id||null, title||null, body||null, category||null, document_url||null,
+       effective_date||null, version||null, is_active!=null?Boolean(is_active):null,
+       sort_order!=null?Number(sort_order):null, req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/union-laws/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM union_laws WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
