@@ -49,7 +49,7 @@ export default function Numbers() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiJson<{ numbers: EmergencyNumber[] } | EmergencyNumber[]>("/emergency-numbers");
+      const data = await apiJson<{ numbers: EmergencyNumber[] } | EmergencyNumber[]>("/admin/emergency-numbers");
       const arr = Array.isArray(data) ? data : (data as any).numbers ?? [];
       setList(arr.sort((a: EmergencyNumber, b: EmergencyNumber) => a.sort_order - b.sort_order));
     } catch {}

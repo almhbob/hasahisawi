@@ -164,6 +164,11 @@ export default function Lawyers() {
   const [planForm, setPlanForm] = useState<Partial<Plan>>({});
   const [planBusy, setPlanBusy] = useState(false);
 
+  // Lawyer edit modal
+  const [lawyerEdit, setLawyerEdit] = useState<Lawyer | null>(null);
+  const [lawyerForm, setLawyerForm] = useState({ full_name: "", title: "", specialties: "", phone: "", whatsapp: "", email: "", office_addr: "", district: "", consult_fee: "", experience_y: 0 });
+  const [lawyerBusy, setLawyerBusy] = useState(false);
+
   // ── Loaders ──────────────────────────────────────────────────────────────────
   const loadApps = useCallback(async () => {
     setLoading(true);
@@ -294,6 +299,29 @@ export default function Lawyers() {
     if (!confirm(`حذف المحامي "${l.full_name}" نهائياً؟`)) return;
     await apiFetch(`/admin/lawyers/${l.id}`, { method: "DELETE" });
     setLawyers(prev => prev.filter(x => x.id !== l.id));
+  };
+
+  const openLawyerEdit = (l: Lawyer) => {
+    setLawyerEdit(l);
+    setLawyerForm({
+      full_name: l.full_name || "", title: l.title || "", specialties: l.specialties || "",
+      phone: l.phone || "", whatsapp: "", email: "", office_addr: "", district: l.district || "",
+      consult_fee: l.consult_fee || "", experience_y: l.experience_y || 0,
+    });
+  };
+
+  const saveLawyerEdit = async () => {
+    if (!lawyerEdit) return;
+    if (!lawyerForm.full_name.trim()) { alert("الاسم مطلوب"); return; }
+    setLawyerBusy(true);
+    try {
+      const r = await apiFetch(`/admin/lawyers/${lawyerEdit.id}`, { method: "PATCH", body: JSON.stringify(lawyerForm) });
+      if (!r.ok) { const d = await r.json(); alert(d.error || "فشل الحفظ"); }
+      else {
+        setLawyers(prev => prev.map(x => x.id === lawyerEdit.id ? { ...x, ...lawyerForm } : x));
+        setLawyerEdit(null);
+      }
+    } finally { setLawyerBusy(false); }
   };
 
   const openSubModal = (row: SubRow) => {
@@ -512,8 +540,9 @@ export default function Lawyers() {
                       </td>
                       <td style={{ padding: "10px 12px" }}>
                         <div style={{ display: "flex", gap: 6, flexDirection: "column" }}>
+                          <button onClick={() => openLawyerEdit(l)} style={{ padding: "5px 10px", border: "1px solid #F59E0B", background: "#fff", color: "#F59E0B", borderRadius: 6, cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" }}>✏️ تعديل</button>
                           <button onClick={() => openHistory({ lawyer_id: l.id, full_name: l.full_name })} style={{ padding: "5px 10px", border: "1px solid #8B5CF6", background: "#fff", color: "#8B5CF6", borderRadius: 6, cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" }}>📋 التاريخ</button>
-                          <button onClick={() => removeLawyer(l)} style={{ padding: "5px 10px", border: "1px solid #EF4444", background: "#fff", color: "#EF4444", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>حذف</button>
+                          <button onClick={() => removeLawyer(l)} style={{ padding: "5px 10px", border: "1px solid #EF4444", background: "#fff", color: "#EF4444", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>🗑 حذف</button>
                         </div>
                       </td>
                     </tr>
@@ -866,6 +895,83 @@ export default function Lawyers() {
         </Modal>
       )}
 
+      {/* ── نافذة تعديل بيانات المحامي ── */}
+      {lawyerEdit && (
+        <Modal onClose={() => setLawyerEdit(null)} title={`✏️ تعديل بيانات: ${lawyerEdit.full_name}`} width={580}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>الاسم الكامل *</label>
+                <input value={lawyerForm.full_name} onChange={e => setLawyerForm(f => ({ ...f, full_name: e.target.value }))}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>اللقب / الدرجة</label>
+                <input value={lawyerForm.title} onChange={e => setLawyerForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="مثال: محامٍ أمام المحاكم العليا"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>التخصصات</label>
+              <input value={lawyerForm.specialties} onChange={e => setLawyerForm(f => ({ ...f, specialties: e.target.value }))}
+                placeholder="مثال: أحوال شخصية، عقارات، تجاري"
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>رقم الهاتف</label>
+                <input value={lawyerForm.phone} onChange={e => setLawyerForm(f => ({ ...f, phone: e.target.value }))} dir="ltr"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>واتساب</label>
+                <input value={lawyerForm.whatsapp} onChange={e => setLawyerForm(f => ({ ...f, whatsapp: e.target.value }))} dir="ltr"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>البريد الإلكتروني</label>
+                <input type="email" value={lawyerForm.email} onChange={e => setLawyerForm(f => ({ ...f, email: e.target.value }))} dir="ltr"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>المنطقة / الدائرة</label>
+                <input value={lawyerForm.district} onChange={e => setLawyerForm(f => ({ ...f, district: e.target.value }))}
+                  placeholder="مثال: الحصاحيصا، ود مدني"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>رسوم الاستشارة (ج.س)</label>
+                <input value={lawyerForm.consult_fee} onChange={e => setLawyerForm(f => ({ ...f, consult_fee: e.target.value }))}
+                  placeholder="مثال: 500"
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>سنوات الخبرة</label>
+                <input type="number" min="0" value={lawyerForm.experience_y} onChange={e => setLawyerForm(f => ({ ...f, experience_y: Number(e.target.value) }))}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>عنوان المكتب</label>
+              <input value={lawyerForm.office_addr} onChange={e => setLawyerForm(f => ({ ...f, office_addr: e.target.value }))}
+                placeholder="مثال: شارع الجمهورية، الحصاحيصا"
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <button onClick={() => setLawyerEdit(null)} style={{ flex: 1, padding: 12, border: "1px solid #e5e7eb", background: "#fff", color: "#374151", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>إلغاء</button>
+            <button onClick={saveLawyerEdit} disabled={lawyerBusy} style={{ flex: 2, padding: 12, border: "none", background: "#F59E0B", color: "#fff", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>
+              {lawyerBusy ? "جارِ الحفظ…" : "✓ حفظ التعديلات"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* نافذة تعديل الخطة */}
       {planEdit && (
         <Modal onClose={() => setPlanEdit(null)} title={`✏️ تعديل خطة: ${planEdit.name_ar}`} width={560}>
@@ -890,7 +996,7 @@ export default function Lawyers() {
               {(["has_unlimited_contacts","has_ads","has_featured","has_verified_badge","has_priority","is_active"] as (keyof Plan)[]).map(k => (
                 <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
                   <input type="checkbox" checked={Boolean((planForm as any)[k])} onChange={e => setPlanForm(f => ({ ...f, [k]: e.target.checked }))} />
-                  {({ has_unlimited_contacts: "اتصالات غير محدودة", has_ads: "إعلانات", has_featured: "مميّز", has_verified_badge: "موثّق", has_priority: "أولوية الظهور", is_active: "الخطة مفعّلة" }[k])}
+                  {(({ has_unlimited_contacts: "اتصالات غير محدودة", has_ads: "إعلانات", has_featured: "مميّز", has_verified_badge: "موثّق", has_priority: "أولوية الظهور", is_active: "الخطة مفعّلة" } as Record<string, string>)[k as string])}
                 </label>
               ))}
             </div>
