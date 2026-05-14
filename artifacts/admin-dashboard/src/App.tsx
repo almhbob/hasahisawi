@@ -33,7 +33,8 @@ import ActivityLog   from "@/pages/ActivityLog";
 import Telecom        from "@/pages/Telecom";
 import TelecomPortal  from "@/pages/TelecomPortal";
 import Unions         from "@/pages/Unions";
-import Zawajil        from "@/pages/Zawajil";
+import Zawajil          from "@/pages/Zawajil";
+import MerchantPortal  from "@/pages/MerchantPortal";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -41,8 +42,10 @@ const queryClient = new QueryClient({
 
 function AppRoutes() {
   const { user, loading, pinRequired } = useAuth();
-  const [isPortal] = useRoute("/telecom-portal");
-  if (isPortal) return <TelecomPortal />;
+  const [isPortal]    = useRoute("/telecom-portal");
+  const [isMPortal]   = useRoute("/merchant-portal");
+  if (isPortal)  return <TelecomPortal />;
+  if (isMPortal) return <MerchantPortal />;
 
   if (loading) {
     return (

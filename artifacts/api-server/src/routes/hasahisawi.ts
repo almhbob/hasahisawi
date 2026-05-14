@@ -7942,6 +7942,7 @@ router.get("/admin/full-stats", async (req: Request, res: Response) => {
       query(`SELECT COUNT(*) AS posts FROM sports_posts`),
       query(`SELECT COUNT(*) AS cnt, COUNT(CASE WHEN is_read=false THEN 1 END) AS unread FROM notifications`),
     ]);
+    const zawajil = await query(`SELECT COUNT(*) AS total, COUNT(CASE WHEN status='pending_review' THEN 1 END) AS pending, COUNT(CASE WHEN status='approved' THEN 1 END) AS approved, COUNT(CASE WHEN status='completed' THEN 1 END) AS completed FROM zawajil_orders`).catch(() => ({ rows: [{ total:"0", pending:"0", approved:"0", completed:"0" }] }));
     return res.json({
       users: users.rows[0],
       posts: posts.rows[0],
@@ -7954,6 +7955,7 @@ router.get("/admin/full-stats", async (req: Request, res: Response) => {
       ads: ads.rows[0],
       sports: sports.rows[0],
       notifications: notifications.rows[0],
+      zawajil: zawajil.rows[0],
     });
   } catch (e: any) { console.error("full-stats error:", e?.message); return res.status(500).json({ error: "Server error" }); }
 });
@@ -10008,7 +10010,309 @@ router.get("/admin/telecom/services", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// مخططات البيانات — Chart Data للـ Dashboard
+// ══════════════════════════════════════════════════════════════════════════════
+router.get("/admin/chart-data", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+
+    // آخر 7 أيام — مستخدمون جدد + منشورات
+    const dailyActivity = await query(`
+      WITH days AS (
+        SELECT generate_series(NOW()::date - 6, NOW()::date, '1 day'::interval)::date AS d
+      )
+      SELECT
+        to_char(d, 'DD/MM') AS date,
+        COALESCE((SELECT COUNT(*) FROM users WHERE created_at::date = d), 0)::int AS users,
+        COALESCE((SELECT COUNT(*) FROM posts WHERE created_at::date = d), 0)::int AS posts
+      FROM days ORDER BY d
+    `).catch(() => ({ rows: [] }));
+
+    // توزيع رحلات المواصلات
+    const transportPie = await query(`
+      SELECT status, COUNT(*)::int AS value FROM transport_trips GROUP BY status
+    `).catch(() => ({ rows: [] }));
+    const TRANSPORT_COLORS: Record<string, string> = {
+      pending: "#fbbf24", accepted: "#60a5fa", in_progress: "#f97316",
+      completed: "#34d399", cancelled: "#f87171", rejected: "#9ca3af",
+    };
+    const TRANSPORT_LABELS: Record<string, string> = {
+      pending: "انتظار", accepted: "مقبول", in_progress: "جارٍ",
+      completed: "مكتمل", cancelled: "ملغى", rejected: "مرفوض",
+    };
+
+    // حالات طلبات زواجل
+    const zawajilBar = await query(`
+      SELECT status, COUNT(*)::int AS count FROM zawajil_orders GROUP BY status ORDER BY count DESC
+    `).catch(() => ({ rows: [] }));
+    const ZAWAJIL_COLORS: Record<string, string> = {
+      pending_review: "#fbbf24", modification_requested: "#c084fc",
+      approved: "#60a5fa", preparing: "#2dd4bf", sending: "#f97316",
+      completed: "#34d399", rejected: "#f87171", returned: "#9ca3af",
+    };
+    const ZAWAJIL_LABELS: Record<string, string> = {
+      pending_review: "مراجعة", modification_requested: "تعديل",
+      approved: "مقبول", preparing: "تجهيز", sending: "إرسال",
+      completed: "مكتمل", rejected: "مرفوض", returned: "مُعاد",
+    };
+
+    // أكثر الأقسام استخداماً (تقديري من عدد السجلات)
+    const sectionUsage = await query(`
+      SELECT section, label, count FROM (VALUES
+        ('posts',     'المنشورات',  (SELECT COUNT(*) FROM posts)::int),
+        ('transport', 'المواصلات',  (SELECT COUNT(*) FROM transport_trips)::int),
+        ('jobs',      'الوظائف',    (SELECT COUNT(*) FROM jobs)::int),
+        ('ads',       'الإعلانات',  (SELECT COUNT(*) FROM ads)::int),
+        ('missing',   'المفقودات',  (SELECT COUNT(*) FROM lost_items)::int),
+        ('zawajil',   'زواجل',      (SELECT COUNT(*) FROM zawajil_orders)::int),
+        ('sports',    'الرياضة',    (SELECT COUNT(*) FROM sports_posts)::int)
+      ) AS t(section, label, count)
+      WHERE count > 0
+      ORDER BY count DESC LIMIT 7
+    `).catch(() => ({ rows: [] }));
+
+    return res.json({
+      daily_activity: dailyActivity.rows,
+      transport_pie: transportPie.rows.map((r: any) => ({
+        name: TRANSPORT_LABELS[r.status] || r.status,
+        value: r.value,
+        color: TRANSPORT_COLORS[r.status] || "#6b7280",
+      })),
+      zawajil_bar: zawajilBar.rows.map((r: any) => ({
+        status: r.status,
+        label: ZAWAJIL_LABELS[r.status] || r.status,
+        count: r.count,
+        color: ZAWAJIL_COLORS[r.status] || "#6b7280",
+      })),
+      section_usage: sectionUsage.rows,
+    });
+  } catch (e: any) { console.error("chart-data error:", e?.message); return res.status(500).json({ error: "Server error" }); }
+});
+
+// إضافة إحصائيات زواجل لـ full-stats (patch في الـ router)
+router.get("/admin/zawajil-stats", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`
+      SELECT
+        COUNT(*)::text AS total,
+        COUNT(CASE WHEN status='pending_review' THEN 1 END)::text AS pending,
+        COUNT(CASE WHEN status='approved' THEN 1 END)::text AS approved,
+        COUNT(CASE WHEN status='completed' THEN 1 END)::text AS completed
+      FROM zawajil_orders
+    `).catch(() => ({ rows: [{ total: "0", pending: "0", approved: "0", completed: "0" }] }));
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// إشعارات حسب الفئة — Segment Push Notifications
+// ══════════════════════════════════════════════════════════════════════════════
+router.post("/admin/push/segment", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { segment, title, body, data: extraData } = req.body;
+    if (!title || !body || !segment) return res.status(400).json({ error: "الفئة والعنوان والمحتوى مطلوبة" });
+
+    let tokenQuery = `SELECT pt.token FROM push_tokens pt JOIN users u ON u.id=pt.user_id WHERE pt.token LIKE 'ExponentPushToken%'`;
+
+    if (segment === "admins") {
+      tokenQuery = `SELECT pt.token FROM push_tokens pt JOIN users u ON u.id=pt.user_id WHERE pt.token LIKE 'ExponentPushToken%' AND u.role IN ('admin','moderator')`;
+    } else if (segment === "transport") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT sender_id FROM transport_trips WHERE sender_id IS NOT NULL)`;
+    } else if (segment === "zawajil") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT sender_id FROM zawajil_orders WHERE sender_id IS NOT NULL)`;
+    } else if (segment === "social") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT author_id FROM posts WHERE author_id IS NOT NULL)`;
+    } else if (segment === "sports") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT author_id FROM sports_posts WHERE author_id IS NOT NULL)`;
+    } else if (segment === "jobs") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT posted_by FROM jobs WHERE posted_by IS NOT NULL)`;
+    } else if (segment === "merchants") {
+      tokenQuery = `SELECT DISTINCT pt.token FROM push_tokens pt WHERE pt.token LIKE 'ExponentPushToken%' AND pt.user_id IN (SELECT DISTINCT user_id FROM merchant_spaces WHERE user_id IS NOT NULL)`;
+    }
+    // "all" — uses default query above
+
+    const { rows } = await query(tokenQuery).catch(() => ({ rows: [] }));
+    if (!rows.length) return res.json({ ok: true, sent: 0 });
+
+    const chunks: any[][] = [];
+    for (let i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
+    let sent = 0;
+    for (const chunk of chunks) {
+      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: extraData ?? {}, sound: "default" }));
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(messages),
+      }).catch(() => {});
+      sent += chunk.length;
+    }
+    // حفظ في DB للأدمن
+    await query(`INSERT INTO notifications (user_id, type, title, body, data) SELECT id, 'segment', $1, $2, $3 FROM users WHERE role IN ('admin','moderator')`,
+      [title, body, JSON.stringify({ segment, ...(extraData ?? {}) })]).catch(() => {});
+    return res.json({ ok: true, sent });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// بوابة التجار — Merchant Self-Service Portal
+// ══════════════════════════════════════════════════════════════════════════════
+function hashMerchantPin(pin: string): string {
+  let h = 0;
+  for (let i = 0; i < pin.length; i++) { h = (Math.imul(31, h) + pin.charCodeAt(i)) | 0; }
+  return `mp_${Math.abs(h).toString(16).padStart(8, "0")}`;
+}
+
+async function ensureMerchantPortalCols() {
+  await query(`ALTER TABLE merchant_spaces ADD COLUMN IF NOT EXISTS portal_pin_hash VARCHAR(100)`);
+  await query(`ALTER TABLE merchant_spaces ADD COLUMN IF NOT EXISTS portal_token VARCHAR(200)`);
+  await query(`ALTER TABLE merchant_spaces ADD COLUMN IF NOT EXISTS user_id INTEGER`);
+  await query(`CREATE TABLE IF NOT EXISTS merchant_items (
+    id             SERIAL PRIMARY KEY,
+    shop_id        INTEGER NOT NULL REFERENCES merchant_spaces(id) ON DELETE CASCADE,
+    name           VARCHAR(200) NOT NULL,
+    description    TEXT,
+    price          NUMERIC(12,2) DEFAULT 0,
+    unit           VARCHAR(30) DEFAULT 'حبة',
+    category       VARCHAR(60) DEFAULT 'general',
+    image_emoji    VARCHAR(10) DEFAULT '📦',
+    quantity_hint  VARCHAR(100),
+    is_available   BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order     INTEGER DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+}
+
+async function getMerchantByToken(token: string) {
+  if (!token?.startsWith("mp_")) return null;
+  const r = await query(`SELECT * FROM merchant_spaces WHERE portal_token=$1 AND status='approved'`, [token]);
+  return r.rows[0] || null;
+}
+
+// POST /api/merchant-portal/login — تسجيل دخول التاجر بالـ PIN
+router.post("/merchant-portal/login", async (req: Request, res: Response) => {
+  try {
+    await ensureMerchantPortalCols();
+    const { shop_id, pin } = req.body;
+    if (!shop_id || !pin) return res.status(400).json({ error: "رقم المتجر والرمز مطلوبان" });
+    const r = await query(`SELECT * FROM merchant_spaces WHERE id=$1`, [Number(shop_id)]);
+    const shop = r.rows[0];
+    if (!shop) return res.status(404).json({ error: "المتجر غير موجود" });
+    if (!shop.portal_pin_hash) return res.status(403).json({ error: "لم يُفعَّل الدخول لهذا المتجر. تواصل مع الإدارة." });
+    if (shop.portal_pin_hash !== hashMerchantPin(String(pin))) return res.status(401).json({ error: "الرمز السري غير صحيح" });
+
+    // توليد/تجديد التوكن
+    const token = `mp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    await query(`UPDATE merchant_spaces SET portal_token=$1 WHERE id=$2`, [token, shop.id]);
+
+    const items = await query(`SELECT * FROM merchant_items WHERE shop_id=$1 ORDER BY sort_order, name`, [shop.id]);
+    const { portal_pin_hash: _, portal_token: __, ...safe } = shop;
+    return res.json({ shop: { ...safe, portal_token: token }, items: items.rows, token });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/merchant-portal/shop/:id/items
+router.get("/merchant-portal/shop/:id/items", async (req: Request, res: Response) => {
+  try {
+    const token = (req.headers.authorization || "").replace("Bearer ", "");
+    const shop = await getMerchantByToken(token);
+    if (!shop || shop.id !== Number(req.params.id)) return res.status(403).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM merchant_items WHERE shop_id=$1 ORDER BY sort_order, name`, [shop.id]);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/merchant-portal/shop/:id/items — إضافة منتج
+router.post("/merchant-portal/shop/:id/items", async (req: Request, res: Response) => {
+  try {
+    await ensureMerchantPortalCols();
+    const token = (req.headers.authorization || "").replace("Bearer ", "");
+    const shop = await getMerchantByToken(token);
+    if (!shop || shop.id !== Number(req.params.id)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, description, price, unit, category, image_emoji, quantity_hint, is_available, sort_order } = req.body;
+    if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+    const r = await query(`INSERT INTO merchant_items(shop_id,name,description,price,unit,category,image_emoji,quantity_hint,is_available,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [shop.id, name, description||null, price||0, unit||"حبة", category||"general", image_emoji||"📦", quantity_hint||null, is_available!==false, sort_order||0]);
+    return res.status(201).json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/merchant-portal/shop/:id/items/:itemId — تعديل منتج
+router.patch("/merchant-portal/shop/:id/items/:itemId", async (req: Request, res: Response) => {
+  try {
+    await ensureMerchantPortalCols();
+    const token = (req.headers.authorization || "").replace("Bearer ", "");
+    const shop = await getMerchantByToken(token);
+    if (!shop || shop.id !== Number(req.params.id)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, description, price, unit, category, image_emoji, quantity_hint, is_available, sort_order } = req.body;
+    const r = await query(`UPDATE merchant_items SET
+      name=COALESCE($1,name), description=COALESCE($2,description), price=COALESCE($3::numeric,price),
+      unit=COALESCE($4,unit), category=COALESCE($5,category), image_emoji=COALESCE($6,image_emoji),
+      quantity_hint=COALESCE($7,quantity_hint), is_available=COALESCE($8,is_available),
+      sort_order=COALESCE($9::int,sort_order)
+      WHERE id=$10 AND shop_id=$11 RETURNING *`,
+      [name||null, description||null, price!=null?Number(price):null, unit||null, category||null,
+       image_emoji||null, quantity_hint||null, is_available!=null?Boolean(is_available):null,
+       sort_order!=null?Number(sort_order):null, req.params.itemId, shop.id]);
+    return res.json(r.rows[0] || { error: "لم يُعثر" });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/merchant-portal/shop/:id/items/:itemId
+router.delete("/merchant-portal/shop/:id/items/:itemId", async (req: Request, res: Response) => {
+  try {
+    const token = (req.headers.authorization || "").replace("Bearer ", "");
+    const shop = await getMerchantByToken(token);
+    if (!shop || shop.id !== Number(req.params.id)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM merchant_items WHERE id=$1 AND shop_id=$2`, [req.params.itemId, shop.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/merchant-portal/shop/:id — تعديل معلومات المتجر
+router.patch("/merchant-portal/shop/:id", async (req: Request, res: Response) => {
+  try {
+    const token = (req.headers.authorization || "").replace("Bearer ", "");
+    const shop = await getMerchantByToken(token);
+    if (!shop || shop.id !== Number(req.params.id)) return res.status(403).json({ error: "غير مصرح" });
+    const { description, address, phone, whatsapp, working_hours, logo_emoji } = req.body;
+    const r = await query(`UPDATE merchant_spaces SET
+      description=COALESCE($1,description), address=COALESCE($2,address), phone=COALESCE($3,phone),
+      whatsapp=COALESCE($4,whatsapp), working_hours=COALESCE($5,working_hours), logo_emoji=COALESCE($6,logo_emoji)
+      WHERE id=$7 RETURNING *`,
+      [description||null, address||null, phone||null, whatsapp||null, working_hours||null, logo_emoji||null, shop.id]);
+    const { portal_pin_hash: _, portal_token: __, ...safe } = r.rows[0] || {};
+    return res.json(safe);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/merchants/:id/set-portal-pin — تعيين PIN للتاجر
+router.patch("/admin/merchants/:id/set-portal-pin", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureMerchantPortalCols();
+    const { pin } = req.body;
+    if (!pin || String(pin).length < 4) return res.status(400).json({ error: "الرمز يجب أن يكون 4 أرقام على الأقل" });
+    await query(`UPDATE merchant_spaces SET portal_pin_hash=$1, portal_token=NULL WHERE id=$2`, [hashMerchantPin(String(pin)), req.params.id]);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/merchant-items/:shopId — قائمة منتجات المتجر للأدمن
+router.get("/admin/merchant-items/:shopId", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureMerchantPortalCols();
+    const r = await query(`SELECT * FROM merchant_items WHERE shop_id=$1 ORDER BY sort_order, name`, [req.params.shopId]);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
+
 
 // ══════════════════════════════════════════════════════════════════
 // زواجل — خدمة توصيل الهدايا والرسائل
@@ -10153,6 +10457,21 @@ router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Respo
     const r = await query(`UPDATE zawajil_orders SET status=$1,admin_notes=COALESCE($2,admin_notes),rejection_reason=COALESCE($3,rejection_reason),modification_request=COALESCE($4,modification_request),estimated_cost=COALESCE($5::numeric,estimated_cost),updated_at=NOW() WHERE id=$6 RETURNING *`,
       [newStatus,admin_notes||null,rejection_reason||null,modification_request||null,estimated_cost!=null?Number(estimated_cost):null,req.params.id]);
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    // إشعار تلقائي للمُرسِل
+    const order = r.rows[0];
+    if (order.sender_id) {
+      const NOTIF: Record<string, { title: string; body: (o: any) => string }> = {
+        approved:               { title: "✅ تم قبول طلبك!", body: o => `طلب زواجل رقم ${o.order_number} مقبول. التكلفة: ${o.estimated_cost} SDG` },
+        rejected:               { title: "❌ طلبك مرفوض", body: o => `طلب رقم ${o.order_number}. السبب: ${o.rejection_reason || "تواصل مع الإدارة"}` },
+        modification_requested: { title: "✏️ يحتاج طلبك تعديل", body: o => `طلب رقم ${o.order_number}: ${o.modification_request || "راجع التفاصيل في التطبيق"}` },
+      };
+      const n = NOTIF[newStatus];
+      if (n) {
+        await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'zawajil',$2,$3,$4)`,
+          [order.sender_id, n.title, n.body(order), JSON.stringify({ order_id: order.id, order_number: order.order_number })]).catch(() => {});
+        sendExpoPushToUser(order.sender_id, n.title, n.body(order), { screen: "zawajil", order_id: order.id }).catch(() => {});
+      }
+    }
     return res.json(r.rows[0]);
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
@@ -10166,6 +10485,22 @@ router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Respo
     if (!VALID.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
     const r = await query(`UPDATE zawajil_orders SET status=$1,admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *`,
       [status,admin_notes||null,req.params.id]);
+    // إشعار تلقائي للمُرسِل
+    if (r.rows[0]?.sender_id) {
+      const order = r.rows[0];
+      const MSGS: Record<string,{ title: string; body: string }> = {
+        preparing: { title: "📦 جاري تجهيز طلبك!",     body: `طلب رقم ${order.order_number} قيد التجهيز.` },
+        sending:   { title: "🚀 طلبك في الطريق إليك!",  body: `طلب رقم ${order.order_number} خرج للتوصيل.` },
+        completed: { title: "🎉 تم إيصال طلبك بنجاح!", body: `طلب رقم ${order.order_number} اكتمل. شكراً لثقتك!` },
+        returned:  { title: "↩️ طلبك مُعاد",             body: `طلب رقم ${order.order_number} تمت إعادته.` },
+      };
+      const m = MSGS[status];
+      if (m) {
+        await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'zawajil',$2,$3,$4)`,
+          [order.sender_id, m.title, m.body, JSON.stringify({ order_id: order.id, order_number: order.order_number })]).catch(() => {});
+        sendExpoPushToUser(order.sender_id, m.title, m.body, { screen: "zawajil", order_id: order.id }).catch(() => {});
+      }
+    }
     return res.json(r.rows[0] || { error: "لم يُعثر" });
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
