@@ -7,61 +7,36 @@ import { v2 as cloudinary } from "cloudinary";
 const router = Router();
 
 // ── Cloudinary config ────────────────────────────────────────────────────────
-// يدعم 3 طرق إعداد:
-// 1. CLOUDINARY_URL=cloudinary://key:secret@cloud_name  (رابط كامل)
-// 2. CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET (منفصلة)
-// 3. CLOUDINARY_CLOUD_NAME يحتوي على رابط CLOUDINARY_URL= كامل (خطأ شائع)
-
-function parseCloudinaryConfig(): { cloudName: string; apiKey: string; apiSecret: string } | null {
-  const apiKey    = process.env["CLOUDINARY_API_KEY"]    ?? "";
-  const apiSecret = process.env["CLOUDINARY_API_SECRET"] ?? "";
-  const rawName   = process.env["CLOUDINARY_CLOUD_NAME"] ?? "";
-
-  // استخراج اسم الـ cloud من أي شكل ممكن
-  function extractCloudName(s: string): string {
-    // إذا يحتوي على cloudinary://...@cloud_name
-    const m = s.match(/cloudinary:\/\/[^@]*@([^/\s]+)/);
-    if (m) return m[1].trim();
-    // إذا يحتوي على CLOUDINARY_URL= في البداية، احذفه
-    return s.replace(/^CLOUDINARY_URL\s*=\s*/i, "").trim();
-  }
-
-  // الأولوية 1: إذا توفرت API Key + Secret منفصلة (الأكثر موثوقية)
-  if (apiKey && apiSecret && rawName) {
-    const cloudName = extractCloudName(rawName);
-    if (cloudName && !cloudName.startsWith("cloudinary://")) {
-      return { cloudName, apiKey, apiSecret };
+// الـ SDK يقرأ CLOUDINARY_URL تلقائياً عند التهيئة.
+// نتحقق فقط من أن القيمة صالحة بعد أن يُهيِّئ SDK نفسه.
+{
+  // تأكد من أن CLOUDINARY_URL محمّل (SDK يقرأه من process.env مباشرة)
+  const urlEnv = process.env["CLOUDINARY_URL"] ?? "";
+  if (urlEnv && !urlEnv.includes("<your_") && urlEnv.startsWith("cloudinary://")) {
+    // SDK auto-configures from CLOUDINARY_URL — لا نحتاج cloudinary.config()
+  } else {
+    // محاولة بديلة: متغيرات منفصلة
+    const apiKey    = process.env["CLOUDINARY_API_KEY"]    ?? "";
+    const apiSecret = process.env["CLOUDINARY_API_SECRET"] ?? "";
+    const cloudName = (process.env["CLOUDINARY_CLOUD_NAME"] ?? "").replace(/^CLOUDINARY_URL\s*=\s*/i, "").replace(/cloudinary:\/\/[^@]*@/i, "").trim();
+    if (apiKey && !apiKey.includes("<") && apiSecret && !apiSecret.includes("<") && cloudName) {
+      cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
     }
   }
-
-  // الأولوية 2: CLOUDINARY_URL بيانات حقيقية (ليس placeholders)
-  const url = process.env["CLOUDINARY_URL"] ?? "";
-  if (url.startsWith("cloudinary://")) {
-    try {
-      const u = new URL(url);
-      const key = decodeURIComponent(u.username);
-      const sec = decodeURIComponent(u.password);
-      if (key && sec && !key.includes("<") && !sec.includes("<")) {
-        return { cloudName: u.hostname, apiKey: key, apiSecret: sec };
-      }
-    } catch {}
-  }
-
-  // الأولوية 3: استخراج cloud name فقط من الـ URL، مع API key/secret من متغيرات منفصلة
-  if (apiKey && apiSecret && rawName) {
-    const cloudName = extractCloudName(rawName);
-    if (cloudName) return { cloudName, apiKey, apiSecret };
-  }
-
-  return null;
 }
 
-const _cfg = parseCloudinaryConfig();
-const CLOUDINARY_OK = !!_cfg;
+// تحقق من نجاح الإعداد
+const _cldCfg = cloudinary.config();
+const CLOUDINARY_OK = !!(
+  _cldCfg.cloud_name &&
+  _cldCfg.api_key &&
+  _cldCfg.api_secret &&
+  !String(_cldCfg.api_key).includes("<") &&
+  !String(_cldCfg.api_secret).includes("<")
+);
 
-if (_cfg) {
-  cloudinary.config({ cloud_name: _cfg.cloudName, api_key: _cfg.apiKey, api_secret: _cfg.apiSecret });
-  console.log(`✅ Cloudinary configured — cloud: ${_cfg.cloudName}`);
+if (CLOUDINARY_OK) {
+  console.log(`✅ Cloudinary configured — cloud: ${_cldCfg.cloud_name}`);
 } else {
   console.warn("⚠️  Cloudinary not configured — uploads will use local fallback");
 }
