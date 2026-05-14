@@ -90,6 +90,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "إبداع وتصميم",
+    items: [
+      { title: "معرض التصاميم", icon: "color-palette-outline", route: "/(tabs)/design-gallery", color: "#A855F7" },
+    ],
+  },
+  {
     label: "هدايا وتواصل",
     items: [
       { title: "زواجل — أرسل هديتك", icon: "gift-outline", route: "/(tabs)/zawajil", color: "#EC4899" },

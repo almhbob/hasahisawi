@@ -11141,6 +11141,358 @@ router.delete("/admin/gov-entities/:id", async (req: Request, res: Response) => 
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// معرض التصاميم — Design Gallery
+// ══════════════════════════════════════════════════════════════════
+
+async function ensureDesignGalleryTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS design_gallery_packages (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT    NOT NULL,
+      description   TEXT,
+      price_monthly INTEGER NOT NULL DEFAULT 0,
+      max_products  INTEGER NOT NULL DEFAULT 10,
+      is_unlimited  BOOLEAN NOT NULL DEFAULT FALSE,
+      is_featured   BOOLEAN NOT NULL DEFAULT FALSE,
+      color         TEXT    NOT NULL DEFAULT '#22C55E',
+      icon          TEXT    NOT NULL DEFAULT '🎨',
+      features      TEXT[]  NOT NULL DEFAULT '{}',
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS design_gallery_members (
+      id            SERIAL PRIMARY KEY,
+      user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      package_id    INTEGER REFERENCES design_gallery_packages(id) ON DELETE SET NULL,
+      shop_name     TEXT    NOT NULL,
+      bio           TEXT,
+      avatar_url    TEXT,
+      whatsapp      TEXT,
+      instagram     TEXT,
+      facebook      TEXT,
+      categories    TEXT[]  NOT NULL DEFAULT '{}',
+      status        TEXT    NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','active','suspended','expired')),
+      expires_at    TIMESTAMPTZ,
+      views         INTEGER NOT NULL DEFAULT 0,
+      rating        NUMERIC(3,2) NOT NULL DEFAULT 0,
+      rating_count  INTEGER NOT NULL DEFAULT 0,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS design_gallery_products (
+      id            SERIAL PRIMARY KEY,
+      member_id     INTEGER NOT NULL REFERENCES design_gallery_members(id) ON DELETE CASCADE,
+      title         TEXT    NOT NULL,
+      description   TEXT,
+      category      TEXT    NOT NULL DEFAULT 'invitations',
+      price         INTEGER NOT NULL DEFAULT 0,
+      images        TEXT[]  NOT NULL DEFAULT '{}',
+      is_custom     BOOLEAN NOT NULL DEFAULT TRUE,
+      delivery_days INTEGER NOT NULL DEFAULT 3,
+      is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+      views         INTEGER NOT NULL DEFAULT 0,
+      orders_count  INTEGER NOT NULL DEFAULT 0,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS design_gallery_orders (
+      id             SERIAL PRIMARY KEY,
+      product_id     INTEGER REFERENCES design_gallery_products(id) ON DELETE SET NULL,
+      member_id      INTEGER NOT NULL REFERENCES design_gallery_members(id) ON DELETE CASCADE,
+      customer_name  TEXT    NOT NULL,
+      customer_phone TEXT    NOT NULL,
+      customer_notes TEXT,
+      custom_data    JSONB   NOT NULL DEFAULT '{}',
+      status         TEXT    NOT NULL DEFAULT 'new'
+                     CHECK (status IN ('new','processing','done','cancelled')),
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows: pkg } = await query(`SELECT id FROM design_gallery_packages LIMIT 1`);
+  if (pkg.length === 0) {
+    const packages = [
+      {
+        name: 'أساسي', description: 'ابدأ رحلتك الإبداعية بتكلفة منخفضة', price_monthly: 1500,
+        max_products: 10, is_featured: false, color: '#22C55E', icon: '🌱',
+        features: ['10 منتجات', 'صفحة شخصية احترافية', 'استقبال طلبات مباشرة', 'دعم فني'], sort_order: 1,
+      },
+      {
+        name: 'احترافي', description: 'للمصممين المحترفين الباحثين عن انتشار واسع', price_monthly: 3500,
+        max_products: 30, is_featured: true, color: '#F59E0B', icon: '⭐',
+        features: ['30 منتج', 'ظهور مميز في الرئيسية', 'تحليلات الزيارات', 'شارة "موثّق"', 'أولوية في الدعم'], sort_order: 2,
+      },
+      {
+        name: 'مميز', description: 'الباقة الشاملة لعلامة تجارية متميزة', price_monthly: 6000,
+        max_products: 999, is_unlimited: true, is_featured: true, color: '#A855F7', icon: '👑',
+        features: ['منتجات غير محدودة', 'أعلى نتائج البحث', 'شارة "ذهبية"', 'نشر على التواصل الاجتماعي', 'تقارير شهرية', 'مدير حساب خاص'], sort_order: 3,
+      },
+    ];
+    for (const p of packages) {
+      await query(
+        `INSERT INTO design_gallery_packages
+           (name,description,price_monthly,max_products,is_unlimited,is_featured,color,icon,features,sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [p.name, p.description, p.price_monthly, p.max_products, (p as any).is_unlimited||false, p.is_featured, p.color, p.icon, p.features, p.sort_order]
+      );
+    }
+  }
+}
+
+router.get("/design-gallery/packages", async (_req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const { rows } = await query(`SELECT * FROM design_gallery_packages WHERE is_active=TRUE ORDER BY sort_order`);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/design-gallery/products", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const { category, member_id, limit: lim = "30", offset: off = "0" } = req.query as Record<string,string>;
+    let sql = `SELECT p.*, m.shop_name, m.avatar_url, m.rating
+               FROM design_gallery_products p
+               JOIN design_gallery_members m ON m.id = p.member_id
+               WHERE p.is_active=TRUE AND m.status='active'`;
+    const vals: unknown[] = [];
+    if (category && category !== 'all') { vals.push(category); sql += ` AND p.category=$${vals.length}`; }
+    if (member_id)                       { vals.push(Number(member_id)); sql += ` AND p.member_id=$${vals.length}`; }
+    sql += ` ORDER BY p.sort_order DESC, p.created_at DESC LIMIT $${vals.length+1} OFFSET $${vals.length+2}`;
+    vals.push(Number(lim), Number(off));
+    const { rows } = await query(sql, vals);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/design-gallery/members", async (_req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const { rows } = await query(`
+      SELECT m.*, pkg.name as package_name, pkg.color as pkg_color, pkg.icon as pkg_icon, pkg.is_featured,
+             COUNT(p.id)::int as product_count
+      FROM design_gallery_members m
+      LEFT JOIN design_gallery_packages pkg ON pkg.id = m.package_id
+      LEFT JOIN design_gallery_products  p   ON p.member_id = m.id AND p.is_active = TRUE
+      WHERE m.status = 'active'
+      GROUP BY m.id, pkg.name, pkg.color, pkg.icon, pkg.is_featured
+      ORDER BY pkg.is_featured DESC NULLS LAST, m.rating DESC, m.created_at DESC
+    `);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/design-gallery/orders", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const { product_id, member_id, customer_name, customer_phone, customer_notes, custom_data } = req.body;
+    if (!member_id || !customer_name || !customer_phone)
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    const { rows } = await query(
+      `INSERT INTO design_gallery_orders (product_id,member_id,customer_name,customer_phone,customer_notes,custom_data)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [product_id||null, Number(member_id), customer_name, customer_phone, customer_notes||null, JSON.stringify(custom_data||{})]
+    );
+    if (product_id) await query(`UPDATE design_gallery_products SET orders_count = orders_count+1 WHERE id=$1`, [product_id]);
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/design-gallery/subscribe", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { package_id, shop_name, bio, whatsapp, instagram, facebook, categories } = req.body;
+    if (!shop_name || !package_id) return res.status(400).json({ error: "اسم المتجر والباقة مطلوبان" });
+    const { rows: ex } = await query(`SELECT id FROM design_gallery_members WHERE user_id=$1`, [userId]);
+    if (ex.length > 0) {
+      const { rows } = await query(
+        `UPDATE design_gallery_members SET package_id=$1,shop_name=$2,bio=$3,whatsapp=$4,instagram=$5,facebook=$6,categories=$7,status='pending'
+         WHERE user_id=$8 RETURNING *`,
+        [package_id, shop_name, bio||null, whatsapp||null, instagram||null, facebook||null, categories||[], userId]
+      );
+      return res.json(rows[0]);
+    }
+    const { rows } = await query(
+      `INSERT INTO design_gallery_members (user_id,package_id,shop_name,bio,whatsapp,instagram,facebook,categories)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [userId, package_id, shop_name, bio||null, whatsapp||null, instagram||null, facebook||null, categories||[]]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/design-gallery/my-shop", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows } = await query(
+      `SELECT m.*, pkg.name as package_name, pkg.max_products, pkg.is_unlimited, pkg.color as pkg_color
+       FROM design_gallery_members m
+       LEFT JOIN design_gallery_packages pkg ON pkg.id = m.package_id
+       WHERE m.user_id=$1`, [userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
+    const { rows: prods } = await query(`SELECT * FROM design_gallery_products WHERE member_id=$1 ORDER BY created_at DESC`, [rows[0].id]);
+    return res.json({ ...rows[0], products: prods });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/design-gallery/my-products", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows: mem } = await query(`SELECT * FROM design_gallery_members WHERE user_id=$1`, [userId]);
+    if (!mem.length || mem[0].status !== 'active') return res.status(403).json({ error: "المتجر غير مفعّل" });
+    const { title, description, category, price, images, is_custom, delivery_days } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const { rows } = await query(
+      `INSERT INTO design_gallery_products (member_id,title,description,category,price,images,is_custom,delivery_days)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [mem[0].id, title, description||null, category||'invitations', price||0, images||[], is_custom!==false, delivery_days||3]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
+  try {
+    await ensureDesignGalleryTables();
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows: mem } = await query(`SELECT id FROM design_gallery_members WHERE user_id=$1`, [userId]);
+    if (!mem.length) return res.status(403).json({ error: "غير مصرح" });
+    const b = req.body; const fields: string[] = []; const vals: unknown[] = [];
+    for (const k of ['title','description','category','price','images','is_custom','delivery_days','is_active','sort_order']) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k}=$${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(Number(req.params.id), mem[0].id);
+    const { rows } = await query(
+      `UPDATE design_gallery_products SET ${fields.join(',')} WHERE id=$${vals.length-1} AND member_id=$${vals.length} RETURNING *`, vals
+    );
+    return res.json(rows[0] || { error: "لم يُعثر" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const { rows: mem } = await query(`SELECT id FROM design_gallery_members WHERE user_id=$1`, [userId]);
+    if (!mem.length) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM design_gallery_products WHERE id=$1 AND member_id=$2`, [Number(req.params.id), mem[0].id]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/design-gallery/members", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureDesignGalleryTables();
+    const { rows } = await query(`
+      SELECT m.*, pkg.name as package_name, pkg.color as pkg_color,
+             COUNT(DISTINCT p.id)::int   as product_count,
+             COUNT(DISTINCT o.id)::int   as order_count
+      FROM design_gallery_members m
+      LEFT JOIN design_gallery_packages  pkg ON pkg.id = m.package_id
+      LEFT JOIN design_gallery_products  p   ON p.member_id = m.id
+      LEFT JOIN design_gallery_orders    o   ON o.member_id = m.id
+      GROUP BY m.id, pkg.name, pkg.color ORDER BY m.created_at DESC
+    `);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/design-gallery/members/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status, expires_at } = req.body;
+    const { rows } = await query(
+      `UPDATE design_gallery_members SET status=COALESCE($1,status), expires_at=COALESCE($2,expires_at) WHERE id=$3 RETURNING *`,
+      [status||null, expires_at||null, Number(req.params.id)]
+    );
+    return res.json(rows[0] || { error: "لم يُعثر" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/design-gallery/members/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM design_gallery_members WHERE id=$1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/design-gallery/orders", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureDesignGalleryTables();
+    const { rows } = await query(`
+      SELECT o.*, m.shop_name, p.title as product_title
+      FROM design_gallery_orders o
+      JOIN design_gallery_members m ON m.id = o.member_id
+      LEFT JOIN design_gallery_products p ON p.id = o.product_id
+      ORDER BY o.created_at DESC LIMIT 300
+    `);
+    return res.json(rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/design-gallery/orders/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const { rows } = await query(`UPDATE design_gallery_orders SET status=$1 WHERE id=$2 RETURNING *`, [status, Number(req.params.id)]);
+    return res.json(rows[0] || { error: "لم يُعثر" });
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/design-gallery/packages", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { name, description, price_monthly, max_products, is_unlimited, is_featured, color, icon, features, sort_order } = req.body;
+    const { rows } = await query(
+      `INSERT INTO design_gallery_packages (name,description,price_monthly,max_products,is_unlimited,is_featured,color,icon,features,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [name, description||null, price_monthly||0, max_products||10, is_unlimited||false, is_featured||false, color||'#22C55E', icon||'🎨', features||[], sort_order||0]
+    );
+    return res.status(201).json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/design-gallery/packages/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const b = req.body; const fields: string[] = []; const vals: unknown[] = [];
+    for (const k of ['name','description','price_monthly','max_products','is_unlimited','is_featured','color','icon','features','sort_order','is_active']) {
+      if (b[k] !== undefined) { vals.push(b[k]); fields.push(`${k}=$${vals.length}`); }
+    }
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(Number(req.params.id));
+    const { rows } = await query(`UPDATE design_gallery_packages SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
+    return res.json(rows[0]);
+  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/design-gallery/packages/:id", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM design_gallery_packages WHERE id=$1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
 
 

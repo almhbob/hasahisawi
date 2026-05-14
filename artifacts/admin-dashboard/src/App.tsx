@@ -36,6 +36,7 @@ import Unions         from "@/pages/Unions";
 import Zawajil          from "@/pages/Zawajil";
 import MerchantPortal  from "@/pages/MerchantPortal";
 import GovEntities     from "@/pages/GovEntities";
+import DesignGallery   from "@/pages/DesignGallery";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -113,6 +114,7 @@ function AppRoutes() {
         <Route path="/unions"         component={Unions} />
         <Route path="/gov-entities"  component={GovEntities} />
         <Route path="/zawajil"        component={Zawajil} />
+        <Route path="/design-gallery" component={DesignGallery} />
         <Route path="/settings"       component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>
