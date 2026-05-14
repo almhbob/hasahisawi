@@ -21,6 +21,11 @@ type TelecomEvent = {
   title: string; description?: string; event_date?: string;
   location?: string; image_url?: string; is_active: boolean; created_at: string;
 };
+type ContractComp = Company & {
+  package_type?: string; contract_start?: string; contract_end?: string;
+  monthly_fee?: number; contact_person?: string; contact_email?: string;
+  promo_tagline?: string; promo_badge?: string; promo_banner_url?: string;
+};
 
 const CAT_LABELS: Record<string, string> = {
   data: "إنترنت", calls: "مكالمات", combo: "باقات مدمجة",
@@ -57,9 +62,12 @@ function CompanyDot({ color, initial }: { color: string; initial?: string }) {
 }
 
 // ─── الشاشة الرئيسية ────────────────────────────────────────────────────────
+const PKG_COLORS: Record<string, string> = { premium: "#F59E0B", standard: "#0EA5E9", basic: "#6B7280" };
+const PKG_LABELS: Record<string, string> = { premium: "★ بريميوم", standard: "⬡ ستاندرد", basic: "● أساسي" };
+
 export default function Telecom() {
   const { token } = useAuth();
-  const [tab, setTab] = useState<"companies" | "offers" | "events">("companies");
+  const [tab, setTab] = useState<"companies" | "offers" | "events" | "contracts">("companies");
 
   // Companies
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -78,6 +86,13 @@ export default function Telecom() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Partial<TelecomEvent> | null>(null);
+
+  // Contracts
+  const [contracts, setContracts] = useState<ContractComp[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(false);
+  const [showCredModal, setShowCredModal] = useState(false);
+  const [credTarget, setCredTarget] = useState<ContractComp | null>(null);
+  const [credForm, setCredForm] = useState({ pin: "", package_type: "basic", contract_start: "", contract_end: "", monthly_fee: "", contact_person: "", contact_email: "" });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -110,11 +125,46 @@ export default function Telecom() {
     finally { setEventsLoading(false); }
   }, []);
 
+  const loadContracts = useCallback(async () => {
+    setContractsLoading(true);
+    try {
+      const data = await apiJson("/telecom/companies");
+      setContracts(Array.isArray(data) ? data : []);
+    } catch { setError("فشل تحميل بيانات العقود"); }
+    finally { setContractsLoading(false); }
+  }, []);
+
   useEffect(() => {
     loadCompanies();
     loadOffers();
     loadEvents();
   }, [loadCompanies, loadOffers, loadEvents]);
+
+  useEffect(() => {
+    if (tab === "contracts") loadContracts();
+  }, [tab, loadContracts]);
+
+  async function saveCredentials() {
+    if (!credTarget) return;
+    setSaving(true); setError("");
+    try {
+      await apiFetch(`/admin/telecom/companies/${credTarget.id}/credentials`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...(credForm.pin ? { pin: credForm.pin } : {}),
+          package_type: credForm.package_type || undefined,
+          contract_start: credForm.contract_start || undefined,
+          contract_end: credForm.contract_end || undefined,
+          monthly_fee: credForm.monthly_fee ? Number(credForm.monthly_fee) : undefined,
+          contact_person: credForm.contact_person || undefined,
+          contact_email: credForm.contact_email || undefined,
+        }),
+      });
+      setShowCredModal(false);
+      loadContracts();
+    } catch { setError("فشل حفظ بيانات العقد"); }
+    finally { setSaving(false); }
+  }
 
   // ── Save Company ──
   async function saveCompany() {
@@ -221,6 +271,11 @@ export default function Telecom() {
               + إضافة فعالية
             </button>
           )}
+          {tab === "contracts" && (
+            <a href="telecom-portal" target="_blank" rel="noopener" style={{ ...btnStyle("#F59E0B"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              🔑 فتح بوابة الشركات
+            </a>
+          )}
         </div>
       </div>
 
@@ -234,9 +289,10 @@ export default function Telecom() {
       {/* ── Tabs ── */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "hsl(222 47% 10%)", padding: 4, borderRadius: 12, width: "fit-content" }}>
         {[
-          { key: "companies", label: "الشركات", count: companies.length },
-          { key: "offers",    label: "العروض",  count: offers.length },
+          { key: "companies", label: "الشركات",   count: companies.length },
+          { key: "offers",    label: "العروض",    count: offers.length },
           { key: "events",    label: "الفعاليات", count: events.length },
+          { key: "contracts", label: "العقود",    count: companies.length },
         ].map(t => (
           <button
             key={t.key}
@@ -398,6 +454,118 @@ export default function Telecom() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ══ تبويب العقود ══ */}
+      {tab === "contracts" && (
+        <div>
+          {contractsLoading ? <Spinner /> : (
+            <>
+              {/* ملاحظة إرشادية */}
+              <div style={{ background: "#F59E0B18", border: "1px solid #F59E0B40", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#F59E0B", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span>💡</span>
+                <div>
+                  <strong>كيف تعمل المساحات الإعلانية:</strong> كل شركة تحصل على عقد إعلاني ببيانات دخول خاصة (رمز PIN) تتيح لها إدارة مساحتها في التطبيق مباشرة.
+                  الباقة تحدد ما يمكنها تعديله: <strong>أساسي</strong> = عروض فقط | <strong>ستاندرد</strong> = عروض + خدمات + بيانات ترويجية | <strong>بريميوم</strong> = كل شيء + أولوية العرض.
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 16 }}>
+                {contracts.map((c: ContractComp) => {
+                  const pkg = c.package_type || "basic";
+                  const pkgColor = PKG_COLORS[pkg] || "#6B7280";
+                  const isExpired = c.contract_end ? new Date(c.contract_end) < new Date() : false;
+                  return (
+                    <div key={c.id} style={{ background: "hsl(222 47% 11%)", border: `1px solid ${pkgColor}33`, borderRadius: 14, overflow: "hidden" }}>
+                      <div style={{ height: 3, background: `linear-gradient(90deg, ${pkgColor}, ${pkgColor}80)` }} />
+                      <div style={{ padding: "16px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                          <CompanyDot color={c.brand_color} initial={c.logo_initial} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: "#f0fdf4" }}>{c.name}</div>
+                            <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                              <span style={{ padding: "1px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: pkgColor + "22", color: pkgColor, border: `1px solid ${pkgColor}44` }}>
+                                {PKG_LABELS[pkg] || pkg}
+                              </span>
+                              {isExpired && <span style={{ padding: "1px 8px", borderRadius: 8, fontSize: 11, background: "#EF444422", color: "#EF4444", border: "1px solid #EF444444" }}>⚠ منتهي</span>}
+                              {!c.package_type && <span style={{ padding: "1px 8px", borderRadius: 8, fontSize: 11, background: "#6B728022", color: "#6B7280" }}>بدون عقد</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginBottom: 14, fontSize: 12 }}>
+                          {c.contract_start && <div><span style={{ color: "hsl(215 20% 45%)" }}>بداية:</span> <span style={{ color: "#f0fdf4" }}>{new Date(c.contract_start).toLocaleDateString("ar-SA")}</span></div>}
+                          {c.contract_end && <div><span style={{ color: "hsl(215 20% 45%)" }}>نهاية:</span> <span style={{ color: isExpired ? "#EF4444" : "#f0fdf4" }}>{new Date(c.contract_end).toLocaleDateString("ar-SA")}</span></div>}
+                          {c.monthly_fee != null && c.monthly_fee > 0 && <div><span style={{ color: "hsl(215 20% 45%)" }}>الرسوم:</span> <span style={{ color: pkgColor }}>{c.monthly_fee} SDG/شهر</span></div>}
+                          {c.contact_person && <div><span style={{ color: "hsl(215 20% 45%)" }}>المسؤول:</span> <span style={{ color: "#f0fdf4" }}>{c.contact_person}</span></div>}
+                        </div>
+
+                        {(c.promo_tagline || c.promo_badge) && (
+                          <div style={{ background: "hsl(222 47% 14%)", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 12 }}>
+                            {c.promo_tagline && <div style={{ color: pkgColor, marginBottom: 3 }}>💬 {c.promo_tagline}</div>}
+                            {c.promo_badge && <div style={{ color: "hsl(215 20% 55%)" }}>🏷 {c.promo_badge}</div>}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            setCredTarget(c);
+                            setCredForm({ pin: "", package_type: c.package_type || "basic", contract_start: c.contract_start?.slice(0,10)||"", contract_end: c.contract_end?.slice(0,10)||"", monthly_fee: c.monthly_fee?.toString()||"", contact_person: c.contact_person||"", contact_email: c.contact_email||"" });
+                            setShowCredModal(true);
+                          }}
+                          style={{ ...smallBtn(pkgColor), width: "100%" }}
+                        >
+                          🔐 إعداد بيانات الدخول والعقد
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ══ Modal: بيانات العقد والدخول ══ */}
+      {showCredModal && credTarget && (
+        <Modal title={`🔐 عقد وبيانات الدخول — ${credTarget.name}`} onClose={() => setShowCredModal(false)}>
+          <div style={{ background: "#0EA5E922", border: "1px solid #0EA5E940", borderRadius: 10, padding: "10px 14px", marginBottom: 18, fontSize: 12, color: "#7DD3FC" }}>
+            سيُمكَّن ممثل الشركة من الدخول إلى بوابة إدارة المساحة الإعلانية باستخدام رقم الشركة + الرمز السري الذي تحدده هنا.
+          </div>
+          <div style={formGrid}>
+            <Field label="رمز PIN جديد (اتركه فارغاً للإبقاء على الحالي)">
+              <input type="password" style={inputStyle} value={credForm.pin} onChange={e => setCredForm(p => ({ ...p, pin: e.target.value }))} placeholder="••••••" maxLength={10} />
+            </Field>
+            <Field label="نوع الباقة">
+              <select style={inputStyle} value={credForm.package_type} onChange={e => setCredForm(p => ({ ...p, package_type: e.target.value }))}>
+                <option value="basic">● أساسي — عروض فقط</option>
+                <option value="standard">⬡ ستاندرد — عروض + خدمات + ترويجي</option>
+                <option value="premium">★ بريميوم — كل شيء + أولوية</option>
+              </select>
+            </Field>
+            <Field label="تاريخ بداية العقد">
+              <input type="date" style={inputStyle} value={credForm.contract_start} onChange={e => setCredForm(p => ({ ...p, contract_start: e.target.value }))} />
+            </Field>
+            <Field label="تاريخ نهاية العقد">
+              <input type="date" style={inputStyle} value={credForm.contract_end} onChange={e => setCredForm(p => ({ ...p, contract_end: e.target.value }))} />
+            </Field>
+            <Field label="الرسوم الشهرية (SDG)">
+              <input type="number" style={inputStyle} value={credForm.monthly_fee} onChange={e => setCredForm(p => ({ ...p, monthly_fee: e.target.value }))} placeholder="0" />
+            </Field>
+            <Field label="اسم المسؤول في الشركة">
+              <input style={inputStyle} value={credForm.contact_person} onChange={e => setCredForm(p => ({ ...p, contact_person: e.target.value }))} />
+            </Field>
+            <Field label="البريد الإلكتروني للتواصل" full>
+              <input type="email" style={inputStyle} value={credForm.contact_email} onChange={e => setCredForm(p => ({ ...p, contact_email: e.target.value }))} />
+            </Field>
+          </div>
+          {error && <div style={{ color: "#FCA5A5", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+            <button onClick={() => setShowCredModal(false)} style={cancelBtn}>إلغاء</button>
+            <button onClick={saveCredentials} disabled={saving} style={btnStyle("#F59E0B")}>{saving ? "جارٍ الحفظ…" : "💾 حفظ العقد والبيانات"}</button>
+          </div>
+        </Modal>
       )}
 
       {/* ══ Modal: شركة ══ */}

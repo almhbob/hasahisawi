@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useRoute } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Layout } from "@/components/Layout";
@@ -30,8 +30,9 @@ import Services       from "@/pages/Services";
 import LawyersAdmin   from "@/pages/Lawyers";
 import AppVersion    from "@/pages/AppVersion";
 import ActivityLog   from "@/pages/ActivityLog";
-import Telecom       from "@/pages/Telecom";
-import Unions        from "@/pages/Unions";
+import Telecom        from "@/pages/Telecom";
+import TelecomPortal  from "@/pages/TelecomPortal";
+import Unions         from "@/pages/Unions";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -39,6 +40,8 @@ const queryClient = new QueryClient({
 
 function AppRoutes() {
   const { user, loading, pinRequired } = useAuth();
+  const [isPortal] = useRoute("/telecom-portal");
+  if (isPortal) return <TelecomPortal />;
 
   if (loading) {
     return (

@@ -34,6 +34,7 @@ const NAV: NavItem[] = [
   { path: "/notifications",  label: "مركز الإشعارات",     icon: "🔔" },
   { path: "/prayer",         label: "مواقيت الآذان",      icon: "🕌" },
   { path: "/telecom",         label: "شركات الاتصالات",     icon: "📡" },
+  { path: "/telecom-portal",  label: "بوابة الشركات",        icon: "🔑" },
   { path: "/unions",          label: "النقابات المهنية",    icon: "🏛️" },
   { path: "/services",       label: "الإشتراكات والخدمات", icon: "🛰️" },
   { path: "/activity-log",   label: "سجل النشاط",          icon: "🕐" },

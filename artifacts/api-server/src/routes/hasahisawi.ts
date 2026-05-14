@@ -9720,4 +9720,292 @@ router.delete("/admin/union-announcements/:id", async (req: Request, res: Respon
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// قسم الاتصالات — المساحات الإعلانية وبوابة الشركات (V2)
+// ══════════════════════════════════════════════════════════════════
+
+// ── helpers ──
+const PORTAL_SALT = "hasahisawi_telecom_portal_2024";
+function hashPortalPin(pin: string): string {
+  let h = 5381;
+  const str = PORTAL_SALT + pin;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36).padStart(12, "0");
+}
+function generatePortalToken(): string {
+  return `tc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+}
+async function getPortalCompany(req: Request) {
+  const auth = (req.headers.authorization || "") as string;
+  if (!auth.startsWith("Bearer tc_")) return null;
+  const token = auth.slice(7);
+  const r = await query(`SELECT * FROM telecom_companies WHERE portal_token=$1 AND is_active=TRUE`, [token]);
+  return r.rows[0] || null;
+}
+
+async function ensureTelecomV2() {
+  await ensureTelecomTables();
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS portal_pin_hash VARCHAR(100)`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS portal_token VARCHAR(200)`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS contract_start DATE`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS contract_end DATE`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS package_type VARCHAR(20) DEFAULT 'basic'`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC(12,2) DEFAULT 0`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS contact_person VARCHAR(100)`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS contact_email VARCHAR(100)`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS promo_tagline VARCHAR(300)`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS promo_banner_url TEXT`);
+  await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS promo_badge VARCHAR(60)`);
+  await query(`CREATE TABLE IF NOT EXISTS telecom_services (
+    id          SERIAL PRIMARY KEY,
+    company_id  INTEGER REFERENCES telecom_companies(id) ON DELETE CASCADE,
+    title       VARCHAR(200) NOT NULL,
+    description TEXT,
+    icon        VARCHAR(50) DEFAULT 'star-outline',
+    price       VARCHAR(60),
+    category    VARCHAR(50) DEFAULT 'other',
+    ussd_code   VARCHAR(60),
+    link        TEXT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order  INTEGER DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+}
+
+// ── Public: services ─────────────────────────────────────────────
+router.get("/telecom/services", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const { company_id } = req.query as Record<string, string>;
+    let where = "WHERE s.is_active=TRUE";
+    const params: unknown[] = [];
+    if (company_id) { params.push(Number(company_id)); where += ` AND s.company_id=$${params.length}`; }
+    const r = await query(`SELECT s.*, c.name AS company_name, c.brand_color AS company_color FROM telecom_services s LEFT JOIN telecom_companies c ON c.id=s.company_id ${where} ORDER BY s.sort_order,s.created_at`, params);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Public: company promo data
+router.get("/telecom/companies/promo", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const r = await query(`SELECT id,name,short,logo_initial,brand_color,brand_color2,promo_tagline,promo_banner_url,promo_badge,package_type,contract_end FROM telecom_companies WHERE is_active=TRUE AND package_type IN ('standard','premium') AND (contract_end IS NULL OR contract_end >= NOW()) ORDER BY CASE package_type WHEN 'premium' THEN 1 WHEN 'standard' THEN 2 ELSE 3 END, sort_order`);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Portal auth ───────────────────────────────────────────────────
+router.post("/telecom/portal/login", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const { company_id, pin } = req.body;
+    if (!company_id || !pin) return res.status(400).json({ error: "بيانات ناقصة" });
+    const r = await query(`SELECT * FROM telecom_companies WHERE id=$1 AND is_active=TRUE`, [Number(company_id)]);
+    const company = r.rows[0];
+    if (!company) return res.status(404).json({ error: "الشركة غير موجودة" });
+    if (!company.portal_pin_hash) return res.status(403).json({ error: "لم يُفعَّل الدخول لهذه الشركة بعد" });
+    if (company.portal_pin_hash !== hashPortalPin(String(pin))) return res.status(401).json({ error: "الرمز السري غير صحيح" });
+    const token = generatePortalToken();
+    await query(`UPDATE telecom_companies SET portal_token=$1 WHERE id=$2`, [token, company.id]);
+    const { portal_pin_hash: _, portal_token: __, ...safe } = company;
+    return res.json({ token, company: { ...safe, portal_token: token } });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/telecom/portal/me", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { portal_pin_hash: _, ...safe } = company;
+    return res.json(safe);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/telecom/portal/me", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { description, website, hotline, ussd, recharge, contact_person, contact_email, promo_tagline, promo_banner_url, promo_badge } = req.body;
+    // premium only: banner; standard+: tagline, badge
+    const canBanner = ["premium"].includes(company.package_type);
+    const canPromo  = ["standard","premium"].includes(company.package_type);
+    const r = await query(`UPDATE telecom_companies SET
+      description=COALESCE($1,description), website=COALESCE($2,website),
+      hotline=COALESCE($3,hotline), ussd=COALESCE($4,ussd), recharge=COALESCE($5,recharge),
+      contact_person=COALESCE($6,contact_person), contact_email=COALESCE($7,contact_email),
+      promo_tagline=CASE WHEN $8 THEN COALESCE($9,promo_tagline) ELSE promo_tagline END,
+      promo_banner_url=CASE WHEN $10 THEN COALESCE($11,promo_banner_url) ELSE promo_banner_url END,
+      promo_badge=CASE WHEN $8 THEN COALESCE($12,promo_badge) ELSE promo_badge END
+      WHERE id=$13 RETURNING *`,
+      [description||null,website||null,hotline||null,ussd||null,recharge||null,contact_person||null,contact_email||null,canPromo,promo_tagline||null,canBanner,promo_banner_url||null,promo_badge||null,company.id]
+    );
+    const { portal_pin_hash: _, ...safe } = r.rows[0];
+    return res.json(safe);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Portal: Offers
+router.get("/telecom/portal/offers", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM telecom_offers WHERE company_id=$1 ORDER BY sort_order,created_at DESC`, [company.id]);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/telecom/portal/offers", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { title, description, category, price, currency, validity, details, sort_order } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(`INSERT INTO telecom_offers (company_id,title,description,category,price,currency,validity,details,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [company.id,title,description||null,category||'data',Number(price)||0,currency||'SDG',validity||null,details||null,Number(sort_order)||0]);
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/telecom/portal/offers/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { title, description, category, price, currency, validity, details, is_active, sort_order } = req.body;
+    const r = await query(`UPDATE telecom_offers SET title=COALESCE($1,title),description=COALESCE($2,description),category=COALESCE($3,category),price=COALESCE($4,price),currency=COALESCE($5,currency),validity=COALESCE($6,validity),details=COALESCE($7,details),is_active=COALESCE($8,is_active),sort_order=COALESCE($9,sort_order) WHERE id=$10 AND company_id=$11 RETURNING *`,
+      [title||null,description||null,category||null,price!=null?Number(price):null,currency||null,validity||null,details||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id,company.id]);
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/telecom/portal/offers/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM telecom_offers WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Portal: Events (premium only)
+router.get("/telecom/portal/events", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM telecom_events WHERE company_id=$1 ORDER BY event_date ASC NULLS LAST`, [company.id]);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/telecom/portal/events", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    if (!["standard","premium"].includes(company.package_type)) return res.status(403).json({ error: "الباقة الحالية لا تدعم الفعاليات" });
+    const { title, description, event_date, location } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(`INSERT INTO telecom_events (company_id,title,description,event_date,location) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [company.id,title,description||null,event_date||null,location||null]);
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/telecom/portal/events/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { title, description, event_date, location, is_active } = req.body;
+    const r = await query(`UPDATE telecom_events SET title=COALESCE($1,title),description=COALESCE($2,description),event_date=COALESCE($3,event_date),location=COALESCE($4,location),is_active=COALESCE($5,is_active) WHERE id=$6 AND company_id=$7 RETURNING *`,
+      [title||null,description||null,event_date||null,location||null,is_active!=null?Boolean(is_active):null,req.params.id,company.id]);
+    return res.json(r.rows[0] || { error: "لم يُعثر" });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/telecom/portal/events/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM telecom_events WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Portal: Services (standard + premium)
+router.get("/telecom/portal/services", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM telecom_services WHERE company_id=$1 ORDER BY sort_order,created_at`, [company.id]);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/telecom/portal/services", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomV2();
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    if (!["standard","premium"].includes(company.package_type)) return res.status(403).json({ error: "الباقة الحالية لا تدعم الخدمات" });
+    const { title, description, icon, price, category, ussd_code, link, sort_order } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(`INSERT INTO telecom_services (company_id,title,description,icon,price,category,ussd_code,link,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [company.id,title,description||null,icon||'star-outline',price||null,category||'other',ussd_code||null,link||null,Number(sort_order)||0]);
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/telecom/portal/services/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    const { title, description, icon, price, category, ussd_code, link, is_active, sort_order } = req.body;
+    const r = await query(`UPDATE telecom_services SET title=COALESCE($1,title),description=COALESCE($2,description),icon=COALESCE($3,icon),price=COALESCE($4,price),category=COALESCE($5,category),ussd_code=COALESCE($6,ussd_code),link=COALESCE($7,link),is_active=COALESCE($8,is_active),sort_order=COALESCE($9,sort_order) WHERE id=$10 AND company_id=$11 RETURNING *`,
+      [title||null,description||null,icon||null,price||null,category||null,ussd_code||null,link||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id,company.id]);
+    return res.json(r.rows[0] || { error: "لم يُعثر" });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/telecom/portal/services/:id", async (req: Request, res: Response) => {
+  try {
+    const company = await getPortalCompany(req);
+    if (!company) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM telecom_services WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: credentials + contracts ───────────────────────────────
+router.patch("/admin/telecom/companies/:id/credentials", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomV2();
+    const { pin, package_type, contract_start, contract_end, monthly_fee, contact_person, contact_email } = req.body;
+    const pinHash = pin ? hashPortalPin(String(pin)) : null;
+    const r = await query(`UPDATE telecom_companies SET
+      portal_pin_hash=CASE WHEN $1::text IS NOT NULL THEN $1 ELSE portal_pin_hash END,
+      package_type=COALESCE($2,package_type),
+      contract_start=COALESCE($3,contract_start),
+      contract_end=COALESCE($4,contract_end),
+      monthly_fee=COALESCE($5,monthly_fee),
+      contact_person=COALESCE($6,contact_person),
+      contact_email=COALESCE($7,contact_email)
+      WHERE id=$8 RETURNING id,name,short,package_type,contract_start,contract_end,monthly_fee,contact_person,contact_email,is_active`,
+      [pinHash,package_type||null,contract_start||null,contract_end||null,monthly_fee!=null?Number(monthly_fee):null,contact_person||null,contact_email||null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json({ ...r.rows[0], pin_set: !!pinHash || undefined });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/telecom/services", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomV2();
+    const r = await query(`SELECT s.*, c.name AS company_name FROM telecom_services s LEFT JOIN telecom_companies c ON c.id=s.company_id ORDER BY s.created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
