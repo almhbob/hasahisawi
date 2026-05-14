@@ -50,6 +50,48 @@ export async function verifyIdToken(idToken: string): Promise<{
   }
 }
 
+export type FirebaseUserRecord = {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  phoneNumber?: string;
+  photoURL?: string;
+  emailVerified: boolean;
+  disabled: boolean;
+  createdAt?: string;
+  lastSignIn?: string;
+  providers: string[];
+};
+
+/**
+ * يُعيد قائمة بجميع مستخدمي Firebase Authentication (صفحة صفحة).
+ */
+export async function listAllFirebaseUsers(): Promise<FirebaseUserRecord[]> {
+  const a = getFirebaseAdmin();
+  if (!a) return [];
+  const all: FirebaseUserRecord[] = [];
+  let pageToken: string | undefined;
+  do {
+    const result = await a.auth().listUsers(1000, pageToken);
+    for (const u of result.users) {
+      all.push({
+        uid:           u.uid,
+        email:         u.email,
+        displayName:   u.displayName,
+        phoneNumber:   u.phoneNumber,
+        photoURL:      u.photoURL,
+        emailVerified: u.emailVerified,
+        disabled:      u.disabled,
+        createdAt:     u.metadata?.creationTime,
+        lastSignIn:    u.metadata?.lastSignInTime,
+        providers:     (u.providerData ?? []).map(p => p.providerId),
+      });
+    }
+    pageToken = result.pageToken;
+  } while (pageToken);
+  return all;
+}
+
 /**
  * يُضيف/يُحدّث كلمة مرور لحساب Firebase حتى لو كان مرتبطاً بـ Google.
  * يُستدعى بعد نجاح Backend Login — يُتيح تسجيل الدخول بالبريد+كلمة مرور لاحقاً.

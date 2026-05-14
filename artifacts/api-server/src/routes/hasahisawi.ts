@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter } from "../lib/rate-limiters";
-import { verifyIdToken } from "../lib/firebase-admin";
+import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
 
 const router = Router();
 
@@ -138,6 +138,8 @@ export async function initHasahisawiDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
+  await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
   // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
@@ -2752,32 +2754,81 @@ router.get("/stats", async (_req: Request, res: Response) => {
 
 router.get("/admin/users", async (req: Request, res: Response) => {
   try {
-    const user = await getSessionUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "moderator")) {
-      return res.status(403).json({ error: "غير مصرح" });
-    }
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const result = await query(`
       SELECT id, name, phone, email, role, neighborhood, birth_date,
-             national_id, is_banned, created_at
+             national_id, is_banned, created_at, firebase_uid, avatar_url, gender
       FROM users
       ORDER BY created_at DESC
     `);
     const users = result.rows.map((u: any) => ({
-      id: u.id,
-      name: u.name,
-      phone: u.phone,
-      email: u.email,
-      role: u.role,
-      neighborhood: u.neighborhood,
-      birth_date: u.birth_date,
+      id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role,
+      neighborhood: u.neighborhood, birth_date: u.birth_date, gender: u.gender,
       national_id_masked: u.national_id ? String(u.national_id).slice(-4).padStart(String(u.national_id).length, "*") : null,
-      is_banned: u.is_banned,
-      created_at: u.created_at,
+      is_banned: u.is_banned, created_at: u.created_at,
+      firebase_uid: u.firebase_uid ? u.firebase_uid.slice(0, 8) + "…" : null,
+      has_firebase: !!u.firebase_uid,
+      avatar_url: u.avatar_url,
     }));
-    return res.json(users);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
+    return res.json({ users, total: users.length });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
+router.post("/admin/sync-firebase-users", async (req: Request, res: Response) => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const firebaseUsers = await listAllFirebaseUsers();
+    if (!firebaseUsers.length) return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, skipped: 0, errors: 0, details: [] });
+
+    let created = 0, updated = 0, skipped = 0, errors = 0;
+    const details: Array<{ uid: string; email?: string; action: string; error?: string }> = [];
+
+    for (const fu of firebaseUsers) {
+      try {
+        // تحقق من وجود المستخدم بـ firebase_uid أو email
+        const existing = await query(
+          `SELECT id, firebase_uid, name, avatar_url FROM users WHERE firebase_uid=$1 OR (email=$2 AND $2 IS NOT NULL) LIMIT 1`,
+          [fu.uid, fu.email || null]
+        );
+
+        if (existing.rows.length > 0) {
+          const row = existing.rows[0];
+          const needsUpdate = !row.firebase_uid || (!row.name && fu.displayName) || (!row.avatar_url && fu.photoURL);
+          if (needsUpdate) {
+            await query(
+              `UPDATE users SET firebase_uid=COALESCE($1,firebase_uid), name=COALESCE(NULLIF($2,''),name), avatar_url=COALESCE($3,avatar_url) WHERE id=$4`,
+              [fu.uid, fu.displayName || null, fu.photoURL || null, row.id]
+            );
+            updated++;
+            details.push({ uid: fu.uid, email: fu.email, action: "updated" });
+          } else {
+            skipped++;
+          }
+        } else {
+          // إنشاء مستخدم جديد من Firebase
+          const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
+          const hash = "$firebase$"; // placeholder — لا يمكن تسجيل الدخول بكلمة مرور
+          await query(
+            `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
+             VALUES ($1,$2,$3,$4,$5,'user',$6)
+             ON CONFLICT (email) DO UPDATE SET firebase_uid=EXCLUDED.firebase_uid, avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url)`,
+            [fu.uid, name, fu.email || null, fu.phoneNumber || null, hash, fu.photoURL || null]
+          );
+          created++;
+          details.push({ uid: fu.uid, email: fu.email, action: "created" });
+        }
+      } catch (e: any) {
+        errors++;
+        details.push({ uid: fu.uid, email: fu.email, action: "error", error: e?.message });
+      }
+    }
+
+    const synced = created + updated;
+    return res.json({ firebase_total: firebaseUsers.length, synced, created, updated, skipped, errors, details });
+  } catch (e: any) {
+    console.error("sync-firebase-users error:", e?.message);
+    return res.status(500).json({ error: e?.message ?? "Server error" });
   }
 });
 

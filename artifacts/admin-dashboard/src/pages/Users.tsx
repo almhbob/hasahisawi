@@ -2,10 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
 
+type SyncResult = {
+  firebase_total: number; synced: number; created: number;
+  updated: number; skipped: number; errors: number;
+  details: Array<{ uid: string; email?: string; action: string; error?: string }>;
+};
+
 type User = {
   id: number; name: string; email: string; phone?: string;
   neighborhood?: string; role: string; is_banned?: boolean;
   created_at: string; avatar_url?: string;
+  has_firebase?: boolean; firebase_uid?: string; gender?: string;
 };
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -25,19 +32,33 @@ export default function Users() {
   const [search,  setSearch]  = useState("");
   const [loading, setLoading] = useState(true);
   const [page,    setPage]    = useState(1);
-  const [filter,  setFilter]  = useState<"all" | "user" | "moderator" | "admin">("all");
+  const [filter,  setFilter]  = useState<"all" | "user" | "moderator" | "admin" | "firebase">("all");
   const [confirm, setConfirm] = useState<ConfirmAction>(null);
   const [acting,  setActing]  = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncRes, setSyncRes] = useState<SyncResult | null>(null);
   const PER = 30;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiJson<{ users: User[] }>("/admin/users?limit=2000");
-      setUsers(Array.isArray(data?.users) ? data.users : Array.isArray(data) ? data as unknown as User[] : []);
+      const data = await apiJson<{ users: User[] } | User[]>("/admin/users");
+      const list = Array.isArray(data) ? data : (data as any)?.users ?? [];
+      setUsers(list);
     } catch {}
     setLoading(false);
   }, []);
+
+  const syncFirebase = async () => {
+    if (!confirm("سيتم مزامنة جميع مستخدمي Firebase مع قاعدة البيانات.\nقد تستغرق هذه العملية 10-30 ثانية. هل تريد المتابعة؟")) return;
+    setSyncing(true); setSyncRes(null);
+    try {
+      const res = await apiJson<SyncResult>("/admin/sync-firebase-users", { method: "POST" });
+      setSyncRes(res);
+      load();
+    } catch (e: any) { alert("فشلت المزامنة: " + e.message); }
+    setSyncing(false);
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -68,44 +89,93 @@ export default function Users() {
 
   const filtered = users.filter(u => {
     const matchSearch = !search || u.name?.includes(search) || u.email?.includes(search) || u.phone?.includes(search) || u.neighborhood?.includes(search);
-    const matchFilter = filter === "all" || u.role === filter;
+    const matchFilter =
+      filter === "all"      ? true :
+      filter === "firebase" ? !!u.has_firebase :
+      u.role === filter;
     return matchSearch && matchFilter;
   });
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * PER, page * PER);
+  const firebaseCount = users.filter(u => u.has_firebase).length;
 
   const counts = {
     all:       users.length,
     user:      users.filter(u => u.role === "user").length,
     moderator: users.filter(u => u.role === "moderator").length,
     admin:     users.filter(u => u.role === "admin").length,
+    firebase:  firebaseCount,
   };
 
   return (
     <div>
       <PageHeader
         title="إدارة المستخدمين"
-        subtitle={`${counts.all} مستخدم مسجّل — ${counts.moderator} مشرف · ${counts.admin} مسؤول`}
+        subtitle={`${counts.all} مستخدم · ${firebaseCount} مرتبط بـ Firebase`}
         action={
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input
               className="input-field"
-              style={{ width: 220, padding: "9px 14px" }}
-              placeholder="بحث بالاسم أو البريد أو الهاتف..."
+              style={{ width: 200, padding: "9px 14px" }}
+              placeholder="بحث بالاسم أو البريد..."
               value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
+            <button
+              onClick={syncFirebase} disabled={syncing}
+              style={{
+                padding: "9px 16px", borderRadius: 12, border: "none",
+                background: syncing ? "hsl(217 32% 17%)" : "linear-gradient(135deg,#f97316,#ea580c)",
+                color: syncing ? "hsl(215 20% 45%)" : "#fff",
+                cursor: syncing ? "not-allowed" : "pointer",
+                fontFamily: "inherit", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              {syncing ? "⏳ جارٍ المزامنة..." : "🔄 مزامنة Firebase"}
+            </button>
           </div>
         }
       />
 
+      {/* نتيجة المزامنة */}
+      {syncRes && (
+        <div style={{ margin: "0 28px 16px", padding: "18px 20px", borderRadius: 14, border: "1px solid rgba(52,211,153,.3)", background: "rgba(52,211,153,.05)", display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#34d399" }}>✅ اكتملت المزامنة</span>
+          {[
+            { label: "Firebase إجمالي", v: syncRes.firebase_total, c: "#60a5fa" },
+            { label: "مُنشأ جديد",      v: syncRes.created,        c: "#f97316" },
+            { label: "مُحدَّث",          v: syncRes.updated,        c: "#fbbf24" },
+            { label: "موجود مسبقاً",    v: syncRes.skipped,        c: "hsl(215 20% 50%)" },
+            { label: "أخطاء",           v: syncRes.errors,         c: "#f87171" },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: s.c }}>{s.v}</div>
+              <div style={{ fontSize: 10, color: "hsl(215 20% 50%)" }}>{s.label}</div>
+            </div>
+          ))}
+          {syncRes.details.filter(d => d.action === "created").length > 0 && (
+            <div style={{ fontSize: 11, color: "hsl(215 20% 55%)", borderTop: "1px solid rgba(52,211,153,.15)", paddingTop: 10, width: "100%" }}>
+              <strong style={{ color: "hsl(210 40% 80%)" }}>مستخدمون جدد: </strong>
+              {syncRes.details.filter(d => d.action === "created").map(d => d.email || d.uid.slice(0, 8)).join(" · ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Firebase warning banner */}
+      <div style={{ margin: "0 28px 16px", padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(96,165,250,.2)", background: "rgba(96,165,250,.04)", fontSize: 12, color: "hsl(215 20% 55%)", lineHeight: 1.8 }}>
+        🔒 <strong style={{ color: "hsl(210 40% 80%)" }}>ضمان قاعدة المستخدمين:</strong> كل مستخدم يسجّل دخوله يُحفظ تلقائياً في PostgreSQL. اضغط <em style={{ color: "#f97316" }}>مزامنة Firebase</em> لاستيراد المستخدمين الذين لم يسجّلوا بعد.
+      </div>
+
       <div style={{ padding: "0 28px 20px" }}>
         {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
           {([
             { key: "all",       label: "الكل" },
             { key: "user",      label: "أعضاء" },
             { key: "moderator", label: "مشرفون" },
             { key: "admin",     label: "مسؤولون" },
+            { key: "firebase",  label: "🔥 Firebase" },
           ] as const).map(f => (
             <button
               key={f.key}
@@ -137,15 +207,16 @@ export default function Users() {
               {/* Table header */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "1.6fr 1.4fr 0.9fr 0.7fr 0.7fr 1.5fr",
+                gridTemplateColumns: "1.6fr 1.4fr 0.8fr 0.7fr 0.7fr 0.7fr 1.3fr",
                 padding: "12px 20px", borderBottom: "1px solid hsl(217 32% 14%)",
                 fontSize: 12, fontWeight: 700, color: "hsl(215 20% 45%)",
                 background: "hsl(222 47% 9%)",
               }}>
                 <span>الاسم</span>
                 <span>البريد / الهاتف</span>
-                <span>الحي</span>
+                <span>التسجيل</span>
                 <span>الصفة</span>
+                <span>Firebase</span>
                 <span>الحالة</span>
                 <span>الإجراءات</span>
               </div>
@@ -159,7 +230,7 @@ export default function Users() {
                 return (
                   <div key={u.id} className="table-row" style={{
                     display: "grid",
-                    gridTemplateColumns: "1.6fr 1.4fr 0.9fr 0.7fr 0.7fr 1.5fr",
+                    gridTemplateColumns: "1.6fr 1.4fr 0.8fr 0.7fr 0.7fr 0.7fr 1.3fr",
                     padding: "13px 20px", alignItems: "center",
                   }}>
                     {/* Name */}
@@ -196,6 +267,15 @@ export default function Users() {
                       background: meta.bg, color: meta.color,
                       border: `1px solid ${meta.color}30`,
                     }}>{meta.label}</span>
+
+                    {/* Firebase link status */}
+                    <span title={u.firebase_uid ?? "غير مرتبط"} style={{
+                      display: "inline-flex", alignItems: "center",
+                      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      background: u.has_firebase ? "rgba(249,115,22,.1)" : "hsl(217 32% 14%)",
+                      color: u.has_firebase ? "#fb923c" : "hsl(215 20% 40%)",
+                      border: `1px solid ${u.has_firebase ? "rgba(249,115,22,.3)" : "transparent"}`,
+                    }}>{u.has_firebase ? "🔥 مرتبط" : "— محلي"}</span>
 
                     {/* Status */}
                     <span style={{
