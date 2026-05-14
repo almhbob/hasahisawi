@@ -33,6 +33,7 @@ const NAV: NavItem[] = [
   { path: "/sports",         label: "الرياضة",            icon: "⚽" },
   { path: "/notifications",  label: "مركز الإشعارات",     icon: "🔔" },
   { path: "/prayer",         label: "مواقيت الآذان",      icon: "🕌" },
+  { path: "/telecom",         label: "شركات الاتصالات",     icon: "📡" },
   { path: "/services",       label: "الإشتراكات والخدمات", icon: "🛰️" },
   { path: "/activity-log",   label: "سجل النشاط",          icon: "🕐" },
   { path: "/app-version",    label: "إصدار التطبيق",        icon: "🔄" },

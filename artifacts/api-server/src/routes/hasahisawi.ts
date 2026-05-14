@@ -9140,4 +9140,260 @@ router.post("/admin/seed-db", async (_req: Request, res: Response) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// قسم شركات الاتصالات
+// ══════════════════════════════════════════════════════════════════
+
+async function ensureTelecomTables() {
+  await query(`CREATE TABLE IF NOT EXISTS telecom_companies (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(100) NOT NULL,
+    short        VARCHAR(20),
+    logo_initial VARCHAR(5),
+    brand_color  VARCHAR(20) DEFAULT '#0EA5E9',
+    brand_color2 VARCHAR(20) DEFAULT '#2563EB',
+    description  TEXT,
+    founded      VARCHAR(10),
+    subscribers  VARCHAR(30),
+    coverage     VARCHAR(10),
+    website      TEXT,
+    hotline      VARCHAR(30),
+    ussd         VARCHAR(50),
+    recharge     VARCHAR(100),
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order   INTEGER DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS telecom_offers (
+    id          SERIAL PRIMARY KEY,
+    company_id  INTEGER REFERENCES telecom_companies(id) ON DELETE CASCADE,
+    title       VARCHAR(200) NOT NULL,
+    description TEXT,
+    category    VARCHAR(50) DEFAULT 'data',
+    price       NUMERIC(12,2) DEFAULT 0,
+    currency    VARCHAR(10) DEFAULT 'SDG',
+    validity    VARCHAR(60),
+    details     TEXT,
+    image_url   TEXT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order  INTEGER DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS telecom_events (
+    id          SERIAL PRIMARY KEY,
+    company_id  INTEGER REFERENCES telecom_companies(id) ON DELETE SET NULL,
+    title       VARCHAR(200) NOT NULL,
+    description TEXT,
+    event_date  TIMESTAMPTZ,
+    location    VARCHAR(200),
+    image_url   TEXT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+}
+
+async function seedTelecomCompanies() {
+  const cnt = await query(`SELECT COUNT(*) FROM telecom_companies`);
+  if (parseInt(cnt.rows[0].count, 10) > 0) return;
+  await query(`
+    INSERT INTO telecom_companies (name,short,logo_initial,brand_color,brand_color2,description,founded,subscribers,coverage,website,hotline,ussd,recharge,sort_order)
+    VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14),
+      ($15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28),
+      ($29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42)
+  `, [
+    'MTN السودان','MTN','M','#FFC107','#FF8F00','أكبر شبكة اتصالات في السودان — تغطية واسعة وخدمات متنوعة','1997','+٢٠ مليون','٩٨٪','https://www.mtn.sd','1800','*100#','*555*[رمز]#',1,
+    'زين السودان','Zain','Z','#E53935','#B71C1C','شبكة اتصالات عالمية بخدمات مميزة وتقنيات حديثة','1997','+١٥ مليون','٩٥٪','https://www.sd.zain.com','111','*1#','*123*[رمز]#',2,
+    'سوداني','Sudani','S','#22C55E','#15803D','الشركة السودانية للاتصالات — حكومية وطنية بخدمات شاملة','1993','+١٠ مليون','٩٠٪','https://www.sudani.sd','1717','*900#','*300*[رمز]#',3,
+  ]);
+}
+
+// GET /api/telecom/companies
+router.get("/telecom/companies", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomTables();
+    await seedTelecomCompanies();
+    const result = await query(`SELECT * FROM telecom_companies WHERE is_active=TRUE ORDER BY sort_order,id`);
+    return res.json(result.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/telecom/offers
+router.get("/telecom/offers", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomTables();
+    const { company_id, category } = req.query as Record<string, string>;
+    const params: unknown[] = [];
+    let where = "WHERE o.is_active=TRUE";
+    if (company_id) { params.push(Number(company_id)); where += ` AND o.company_id=$${params.length}`; }
+    if (category)   { params.push(category);           where += ` AND o.category=$${params.length}`; }
+    const result = await query(
+      `SELECT o.*, c.name AS company_name, c.brand_color AS company_color
+       FROM telecom_offers o LEFT JOIN telecom_companies c ON c.id=o.company_id
+       ${where} ORDER BY o.sort_order, o.created_at DESC`,
+      params
+    );
+    return res.json(result.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/telecom/events
+router.get("/telecom/events", async (req: Request, res: Response) => {
+  try {
+    await ensureTelecomTables();
+    const result = await query(
+      `SELECT e.*, c.name AS company_name, c.brand_color AS company_color
+       FROM telecom_events e LEFT JOIN telecom_companies c ON c.id=e.company_id
+       WHERE e.is_active=TRUE AND (e.event_date IS NULL OR e.event_date >= NOW() - INTERVAL '1 day')
+       ORDER BY e.event_date ASC NULLS LAST, e.created_at DESC LIMIT 50`
+    );
+    return res.json(result.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: CRUD الشركات ─────────────────────────────────────────────────────
+router.post("/admin/telecom/companies", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomTables();
+    const { name, short, logo_initial, brand_color, brand_color2, description, founded, subscribers, coverage, website, hotline, ussd, recharge, sort_order } = req.body;
+    if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+    const r = await query(
+      `INSERT INTO telecom_companies (name,short,logo_initial,brand_color,brand_color2,description,founded,subscribers,coverage,website,hotline,ussd,recharge,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [name,short||null,logo_initial||null,brand_color||'#0EA5E9',brand_color2||'#2563EB',description||null,founded||null,subscribers||null,coverage||null,website||null,hotline||null,ussd||null,recharge||null,Number(sort_order)||0]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/telecom/companies/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, short, logo_initial, brand_color, brand_color2, description, founded, subscribers, coverage, website, hotline, ussd, recharge, sort_order, is_active } = req.body;
+    const r = await query(
+      `UPDATE telecom_companies SET
+        name=COALESCE($1,name), short=COALESCE($2,short), logo_initial=COALESCE($3,logo_initial),
+        brand_color=COALESCE($4,brand_color), brand_color2=COALESCE($5,brand_color2),
+        description=COALESCE($6,description), founded=COALESCE($7,founded),
+        subscribers=COALESCE($8,subscribers), coverage=COALESCE($9,coverage),
+        website=COALESCE($10,website), hotline=COALESCE($11,hotline),
+        ussd=COALESCE($12,ussd), recharge=COALESCE($13,recharge),
+        sort_order=COALESCE($14,sort_order), is_active=COALESCE($15,is_active)
+       WHERE id=$16 RETURNING *`,
+      [name||null,short||null,logo_initial||null,brand_color||null,brand_color2||null,description||null,founded||null,subscribers||null,coverage||null,website||null,hotline||null,ussd||null,recharge||null,sort_order!=null?Number(sort_order):null,is_active!=null?Boolean(is_active):null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/telecom/companies/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM telecom_companies WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: CRUD العروض ──────────────────────────────────────────────────────
+router.get("/admin/telecom/offers", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomTables();
+    const r = await query(`SELECT o.*, c.name AS company_name FROM telecom_offers o LEFT JOIN telecom_companies c ON c.id=o.company_id ORDER BY o.created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/telecom/offers", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomTables();
+    const { company_id, title, description, category, price, currency, validity, details, image_url, sort_order } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(
+      `INSERT INTO telecom_offers (company_id,title,description,category,price,currency,validity,details,image_url,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [company_id?Number(company_id):null,title,description||null,category||'data',Number(price)||0,currency||'SDG',validity||null,details||null,image_url||null,Number(sort_order)||0]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/telecom/offers/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { title, description, category, price, currency, validity, details, is_active, sort_order } = req.body;
+    const r = await query(
+      `UPDATE telecom_offers SET
+        title=COALESCE($1,title), description=COALESCE($2,description), category=COALESCE($3,category),
+        price=COALESCE($4,price), currency=COALESCE($5,currency), validity=COALESCE($6,validity),
+        details=COALESCE($7,details), is_active=COALESCE($8,is_active), sort_order=COALESCE($9,sort_order)
+       WHERE id=$10 RETURNING *`,
+      [title||null,description||null,category||null,price!=null?Number(price):null,currency||null,validity||null,details||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/telecom/offers/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM telecom_offers WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: CRUD الفعاليات ───────────────────────────────────────────────────
+router.get("/admin/telecom/events", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomTables();
+    const r = await query(`SELECT e.*, c.name AS company_name FROM telecom_events e LEFT JOIN telecom_companies c ON c.id=e.company_id ORDER BY e.event_date ASC NULLS LAST, e.created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/telecom/events", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureTelecomTables();
+    const { company_id, title, description, event_date, location, image_url } = req.body;
+    if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+    const r = await query(
+      `INSERT INTO telecom_events (company_id,title,description,event_date,location,image_url)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [company_id?Number(company_id):null,title,description||null,event_date||null,location||null,image_url||null]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/telecom/events/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { title, description, event_date, location, image_url, is_active } = req.body;
+    const r = await query(
+      `UPDATE telecom_events SET
+        title=COALESCE($1,title), description=COALESCE($2,description),
+        event_date=COALESCE($3,event_date), location=COALESCE($4,location),
+        image_url=COALESCE($5,image_url), is_active=COALESCE($6,is_active)
+       WHERE id=$7 RETURNING *`,
+      [title||null,description||null,event_date||null,location||null,image_url||null,is_active!=null?Boolean(is_active):null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/telecom/events/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM telecom_events WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;

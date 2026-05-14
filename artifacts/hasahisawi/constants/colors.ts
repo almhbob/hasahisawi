@@ -71,6 +71,9 @@ const SECTIONS = {
 
   // ── شراكات ──
   partnership:  { primary: "#FFD700", deep: "#B45309", light: "#FDE047", soft: "#FEF9C3", grad: ["#FFD700", "#F0C040"] }, // ذهبي شراكة
+
+  // ── الاتصالات ──
+  telecom:      { primary: "#0EA5E9", deep: "#0369A1", light: "#7DD3FC", soft: "#E0F2FE", grad: ["#0EA5E9", "#2563EB"] }, // أزرق تقني اتصالات
 } as const;
 
 export type SectionKey = keyof typeof SECTIONS;

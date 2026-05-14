@@ -95,6 +95,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "الاتصالات",
+    items: [
+      { title: "شركات الاتصالات", icon: "cellular-outline", route: "/(tabs)/telecom", color: "#0EA5E9" },
+    ],
+  },
+  {
     label: "أدوات",
     items: [
       { title: "خريطة المدينة",         icon: "map-outline",              route: "/(tabs)/map",        color: "#0EA5E9"       },
