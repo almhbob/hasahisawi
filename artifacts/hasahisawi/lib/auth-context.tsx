@@ -640,27 +640,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (fbErr: any) {
         const code = fbErr?.code ?? "";
         const msg = fbErr?.message ?? "";
-        // أخطاء بيانات اعتماد واضحة → أعرضها للمستخدم
-        if (code === "auth/wrong-password" || code === "auth/user-not-found" ||
+
+        // نطاق غير مصرّح في Firebase → انتقل للـ backend مباشرةً بصمت
+        const isUnauthorizedDomain = code === "auth/unauthorized-domain" || msg.includes("unauthorized-domain");
+
+        // أخطاء بيانات اعتماد واضحة (أو نطاق غير مصرّح) → جرّب backend كـ fallback
+        if (isUnauthorizedDomain ||
+            code === "auth/wrong-password" || code === "auth/user-not-found" ||
             code === "auth/invalid-credential" || code === "auth/invalid-email" ||
             msg.includes("wrong-password") || msg.includes("user-not-found") || msg.includes("invalid-credential")) {
-          // قد يكون الحساب مرتبطاً بـ Google أو backend فقط — جرّب backend كـ fallback
           let backendErr: Error | null = null;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
               await saveSession(authUser, backendTok, backendTok);
-              // حاول إنشاء/ربط حساب Firebase بكلمة المرور — اختياري، يُتجاهل إذا فشل
-              try {
-                const emailAddr = identifierToEmail(phoneOrEmail);
-                await firebaseRegisterEmail(emailAddr, password, authUser.name).catch(async () => {
-                  await firebaseLoginEmail(emailAddr, password);
-                });
-              } catch {}
+              // ربط حساب Firebase — اختياري، يُتجاهل إذا فشل أو كان النطاق غير مصرّح
+              if (!isUnauthorizedDomain) {
+                try {
+                  const emailAddr = identifierToEmail(phoneOrEmail);
+                  await firebaseRegisterEmail(emailAddr, password, authUser.name).catch(async () => {
+                    await firebaseLoginEmail(emailAddr, password);
+                  });
+                } catch {}
+              }
               return;
             } catch (bErr: any) {
               backendErr = bErr;
-              // إذا كان الخطأ 429 (rate limit) أو خطأ شبكة → انتظر ثانية وأعد المحاولة
               if (attempt === 0) {
                 const isRetryable = bErr?.message?.includes("محاولات") ||
                   bErr?.message?.includes("network") || bErr?.message?.includes("fetch");
@@ -672,13 +677,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               break;
             }
           }
+          // إذا فشل الـ backend أيضاً بسبب CORS أو الشبكة → رسالة واضحة
+          if (isUnauthorizedDomain) {
+            const bMsg = backendErr?.message ?? "";
+            if (bMsg.includes("fetch") || bMsg.includes("network") || bMsg.includes("CORS") || bMsg.includes("Failed")) {
+              throw new Error("لا يمكن تسجيل الدخول عبر المتصفح مباشرةً. يرجى استخدام التطبيق على هاتفك.");
+            }
+          }
           throw backendErr ?? new Error("بيانات الدخول غير صحيحة");
         }
-        // مشاكل شبكة أو خدمة Firebase → جرّب backend كـ fallback
+        // أخطاء Firebase الأخرى (شبكة، خدمة متوقفة) → جرّب backend كـ fallback صامت
       }
     }
 
-    // Fallback: backend (للمستخدمين القدامى فقط)
+    // Fallback: backend
     const { user: authUser, token: backendTok } = await backendLogin(phoneOrEmail, password);
     await saveSession(authUser, backendTok, backendTok);
   };

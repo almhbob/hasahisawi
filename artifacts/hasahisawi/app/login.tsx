@@ -209,7 +209,10 @@ export default function LoginScreen() {
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
         return;
       }
-      if (code === statusCodes.SIGN_IN_CANCELLED) {
+      if (code === "auth/unauthorized-domain" || e?.message?.includes("unauthorized-domain")) {
+        // النطاق غير مُدرج في Firebase — أخبر المستخدم باستخدام البريد/الهاتف
+        setError("تسجيل الدخول بـ Google غير متاح حالياً. يرجى استخدام البريد الإلكتروني أو رقم الهاتف.");
+      } else if (code === statusCodes.SIGN_IN_CANCELLED) {
         // المستخدم ألغى — لا خطأ
       } else if (code === statusCodes.IN_PROGRESS) {
         // تسجيل جارٍ بالفعل — تجاهل
