@@ -101,6 +101,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "النقابات والجمعيات",
+    items: [
+      { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#8B5CF6" },
+    ],
+  },
+  {
     label: "أدوات",
     items: [
       { title: "خريطة المدينة",         icon: "map-outline",              route: "/(tabs)/map",        color: "#0EA5E9"       },

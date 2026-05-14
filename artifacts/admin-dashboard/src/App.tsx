@@ -31,6 +31,7 @@ import LawyersAdmin   from "@/pages/Lawyers";
 import AppVersion    from "@/pages/AppVersion";
 import ActivityLog   from "@/pages/ActivityLog";
 import Telecom       from "@/pages/Telecom";
+import Unions        from "@/pages/Unions";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -101,6 +102,7 @@ function AppRoutes() {
         <Route path="/app-version"    component={AppVersion} />
         <Route path="/activity-log"   component={ActivityLog} />
         <Route path="/telecom"        component={Telecom} />
+        <Route path="/unions"         component={Unions} />
         <Route path="/settings"       component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>

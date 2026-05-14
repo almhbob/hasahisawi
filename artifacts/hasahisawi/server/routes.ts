@@ -1582,6 +1582,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
+  // ══════════════════════════════════════════════════════════════════
+  // قسم النقابات والجمعيات المهنية
+  // ══════════════════════════════════════════════════════════════════
+  async function ensureUnionsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS unions (
+      id           SERIAL PRIMARY KEY,
+      name         VARCHAR(200) NOT NULL,
+      short_name   VARCHAR(60),
+      field        VARCHAR(100),
+      description  TEXT,
+      logo_url     TEXT,
+      banner_url   TEXT,
+      website      TEXT,
+      email        VARCHAR(200),
+      phone        VARCHAR(40),
+      address      TEXT,
+      founded      VARCHAR(10),
+      members_count VARCHAR(30),
+      is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order   INTEGER DEFAULT 0,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS union_announcements (
+      id           SERIAL PRIMARY KEY,
+      union_id     INTEGER REFERENCES unions(id) ON DELETE CASCADE,
+      title        VARCHAR(300) NOT NULL,
+      body         TEXT,
+      image_url    TEXT,
+      link         TEXT,
+      is_pinned    BOOLEAN DEFAULT FALSE,
+      is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS union_members (
+      id                   SERIAL PRIMARY KEY,
+      union_id             INTEGER REFERENCES unions(id) ON DELETE SET NULL,
+      user_id              INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      full_name            VARCHAR(200) NOT NULL,
+      national_id          VARCHAR(30),
+      birth_date           DATE,
+      birth_place          VARCHAR(100),
+      gender               VARCHAR(10),
+      nationality          VARCHAR(60) DEFAULT 'سودانية',
+      phone                VARCHAR(30),
+      alt_phone            VARCHAR(30),
+      email                VARCHAR(200),
+      address              TEXT,
+      neighborhood         VARCHAR(100),
+      city                 VARCHAR(100) DEFAULT 'الحصاحيصا',
+      job_title            VARCHAR(200),
+      employer             VARCHAR(200),
+      work_address         TEXT,
+      work_phone           VARCHAR(30),
+      specialty            VARCHAR(200),
+      work_start_date      DATE,
+      work_years           INTEGER,
+      degree               VARCHAR(60),
+      institution          VARCHAR(200),
+      graduation_year      INTEGER,
+      field_of_study       VARCHAR(200),
+      previous_unions      JSONB DEFAULT '[]',
+      union_roles          VARCHAR(300),
+      existing_membership_no VARCHAR(60),
+      workshops            JSONB DEFAULT '[]',
+      conferences          JSONB DEFAULT '[]',
+      trainings            JSONB DEFAULT '[]',
+      achievements         TEXT,
+      skills               TEXT,
+      references_list      JSONB DEFAULT '[]',
+      membership_type      VARCHAR(30) DEFAULT 'regular',
+      membership_no        VARCHAR(60),
+      status               VARCHAR(20) DEFAULT 'pending',
+      rejection_reason     TEXT,
+      notes                TEXT,
+      applied_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      approved_at          TIMESTAMPTZ,
+      created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  }
+
+  app.get("/api/unions", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      const r = await query(`SELECT * FROM unions WHERE is_active=TRUE ORDER BY sort_order,id`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/unions/announcements/all", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      const r = await query(`SELECT a.*, u.name AS union_name FROM union_announcements a LEFT JOIN unions u ON u.id=a.union_id WHERE a.is_active=TRUE ORDER BY a.is_pinned DESC, a.created_at DESC LIMIT 50`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/unions/my-membership", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      const r = await query(`SELECT m.*, u.name AS union_name, u.field AS union_field FROM union_members m LEFT JOIN unions u ON u.id=m.union_id WHERE m.user_id=$1 ORDER BY m.applied_at DESC`, [user.id]);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/unions/:id", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      const r = await query(`SELECT * FROM unions WHERE id=$1`, [req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "النقابة غير موجودة" });
+      const ann = await query(`SELECT * FROM union_announcements WHERE union_id=$1 AND is_active=TRUE ORDER BY is_pinned DESC, created_at DESC LIMIT 20`, [req.params.id]);
+      res.json({ ...r.rows[0], announcements: ann.rows });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/unions/apply", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      const { union_id, user_id, full_name, national_id, birth_date, birth_place, gender, nationality, phone, alt_phone, email, address, neighborhood, city, job_title, employer, work_address, work_phone, specialty, work_start_date, work_years, degree, institution, graduation_year, field_of_study, previous_unions, union_roles, existing_membership_no, workshops, conferences, trainings, achievements, skills, references_list, membership_type, notes } = req.body;
+      if (!full_name) return res.status(400).json({ error: "الاسم الكامل مطلوب" });
+      if (!union_id) return res.status(400).json({ error: "يجب اختيار النقابة" });
+      const r = await query(
+        `INSERT INTO union_members (union_id,user_id,full_name,national_id,birth_date,birth_place,gender,nationality,phone,alt_phone,email,address,neighborhood,city,job_title,employer,work_address,work_phone,specialty,work_start_date,work_years,degree,institution,graduation_year,field_of_study,previous_unions,union_roles,existing_membership_no,workshops,conferences,trainings,achievements,skills,references_list,membership_type,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36) RETURNING *`,
+        [union_id,user_id||null,full_name,national_id||null,birth_date||null,birth_place||null,gender||null,nationality||'سودانية',phone||null,alt_phone||null,email||null,address||null,neighborhood||null,city||'الحصاحيصا',job_title||null,employer||null,work_address||null,work_phone||null,specialty||null,work_start_date||null,work_years?Number(work_years):null,degree||null,institution||null,graduation_year?Number(graduation_year):null,field_of_study||null,JSON.stringify(previous_unions||[]),union_roles||null,existing_membership_no||null,JSON.stringify(workshops||[]),JSON.stringify(conferences||[]),JSON.stringify(trainings||[]),achievements||null,skills||null,JSON.stringify(references_list||[]),membership_type||'regular',notes||null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // Admin
+  app.get("/api/admin/unions", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureUnionsTables();
+      const r = await query(`SELECT u.*, (SELECT COUNT(*) FROM union_members m WHERE m.union_id=u.id)::int AS members_total FROM unions u ORDER BY u.sort_order,u.id`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/unions", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureUnionsTables();
+      const { name, short_name, field, description, logo_url, banner_url, website, email, phone, address, founded, members_count, sort_order } = req.body;
+      if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+      const r = await query(`INSERT INTO unions (name,short_name,field,description,logo_url,banner_url,website,email,phone,address,founded,members_count,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [name,short_name||null,field||null,description||null,logo_url||null,banner_url||null,website||null,email||null,phone||null,address||null,founded||null,members_count||null,Number(sort_order)||0]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/unions/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { name, short_name, field, description, website, email, phone, address, founded, members_count, sort_order, is_active } = req.body;
+      const r = await query(`UPDATE unions SET name=COALESCE($1,name), short_name=COALESCE($2,short_name), field=COALESCE($3,field), description=COALESCE($4,description), website=COALESCE($5,website), email=COALESCE($6,email), phone=COALESCE($7,phone), address=COALESCE($8,address), founded=COALESCE($9,founded), members_count=COALESCE($10,members_count), sort_order=COALESCE($11,sort_order), is_active=COALESCE($12,is_active) WHERE id=$13 RETURNING *`, [name||null,short_name||null,field||null,description||null,website||null,email||null,phone||null,address||null,founded||null,members_count||null,sort_order!=null?Number(sort_order):null,is_active!=null?Boolean(is_active):null,req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+      res.json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/unions/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM unions WHERE id=$1`, [req.params.id]); res.json({ success: true }); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/union-members", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureUnionsTables();
+      const { union_id, status } = req.query as Record<string, string>;
+      const params: unknown[] = []; let where = "WHERE 1=1";
+      if (union_id) { params.push(Number(union_id)); where += ` AND m.union_id=$${params.length}`; }
+      if (status)   { params.push(status);            where += ` AND m.status=$${params.length}`; }
+      const r = await query(`SELECT m.*, u.name AS union_name FROM union_members m LEFT JOIN unions u ON u.id=m.union_id ${where} ORDER BY m.applied_at DESC`, params);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/union-members/:id/status", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, rejection_reason, membership_no, notes } = req.body;
+      const approved_at = status === "approved" ? new Date().toISOString() : null;
+      const r = await query(`UPDATE union_members SET status=$1, rejection_reason=COALESCE($2,rejection_reason), membership_no=COALESCE($3,membership_no), notes=COALESCE($4,notes), approved_at=COALESCE($5,approved_at) WHERE id=$6 RETURNING *`, [status,rejection_reason||null,membership_no||null,notes||null,approved_at,req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+      res.json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/union-members/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM union_members WHERE id=$1`, [req.params.id]); res.json({ success: true }); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/union-announcements", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureUnionsTables();
+      const r = await query(`SELECT a.*, u.name AS union_name FROM union_announcements a LEFT JOIN unions u ON u.id=a.union_id ORDER BY a.created_at DESC`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/union-announcements", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureUnionsTables();
+      const { union_id, title, body, image_url, link, is_pinned } = req.body;
+      if (!title) return res.status(400).json({ error: "العنوان مطلوب" });
+      const r = await query(`INSERT INTO union_announcements (union_id,title,body,image_url,link,is_pinned) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [union_id?Number(union_id):null,title,body||null,image_url||null,link||null,Boolean(is_pinned)]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/union-announcements/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { title, body, image_url, link, is_pinned, is_active } = req.body;
+      const r = await query(`UPDATE union_announcements SET title=COALESCE($1,title), body=COALESCE($2,body), image_url=COALESCE($3,image_url), link=COALESCE($4,link), is_pinned=COALESCE($5,is_pinned), is_active=COALESCE($6,is_active) WHERE id=$7 RETURNING *`, [title||null,body||null,image_url||null,link||null,is_pinned!=null?Boolean(is_pinned):null,is_active!=null?Boolean(is_active):null,req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+      res.json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/union-announcements/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM union_announcements WHERE id=$1`, [req.params.id]); res.json({ success: true }); }
+    catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
