@@ -449,7 +449,7 @@ export default function HomeScreen() {
               style={[styles.quickBanner, { borderColor: Colors.accent + "40" }]}
             >
               <View style={[styles.quickBannerIcon, { backgroundColor: Colors.accent + "20", borderColor: Colors.accent + "40" }]}>
-                <Ionicons name="calendar" size={22} color={Colors.accent} />
+                <Ionicons name="calendar" size={20} color={Colors.accent} />
               </View>
               <Text style={styles.quickBannerTitle}>حجز موعد</Text>
               <Text style={styles.quickBannerSub}>{gov_appointments_enabled ? "صحي · حكومي" : "خدمات صحية"}</Text>
@@ -464,10 +464,25 @@ export default function HomeScreen() {
               style={[styles.quickBanner, { borderColor: Colors.danger + "40" }]}
             >
               <View style={[styles.quickBannerIcon, { backgroundColor: Colors.danger + "20", borderColor: Colors.danger + "40" }]}>
-                <Ionicons name="megaphone" size={22} color={Colors.danger} />
+                <Ionicons name="megaphone" size={20} color={Colors.danger} />
               </View>
               <Text style={styles.quickBannerTitle}>بلّغ عن مشكلة</Text>
               <Text style={styles.quickBannerSub}>مياه · كهرباء · طرق</Text>
+            </LinearGradient>
+          </AnimatedPress>
+
+          {/* الدليل الطبي */}
+          <AnimatedPress style={{ flex: 1 }} onPress={() => handlePress("/(tabs)/medical")}>
+            <LinearGradient
+              colors={["#E0556722", "#E0556708"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={[styles.quickBanner, { borderColor: "#E0556740" }]}
+            >
+              <View style={[styles.quickBannerIcon, { backgroundColor: "#E0556720", borderColor: "#E05567" }]}>
+                <Ionicons name="medkit" size={20} color="#E05567" />
+              </View>
+              <Text style={styles.quickBannerTitle}>الدليل الطبي</Text>
+              <Text style={styles.quickBannerSub}>أطباء · مستشفيات</Text>
             </LinearGradient>
           </AnimatedPress>
         </Animated.View>
@@ -1037,21 +1052,21 @@ const styles = StyleSheet.create({
   },
 
   /* Quick Banners Row */
-  quickBannersRow: { flexDirection: "row", gap: 12, marginBottom: 6 },
+  quickBannersRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
   quickBanner: {
-    borderRadius: 22, padding: 16, borderWidth: 0.5,
-    overflow: "hidden", alignItems: "center", gap: 8,
+    borderRadius: 18, padding: 12, borderWidth: 0.5,
+    overflow: "hidden", alignItems: "center", gap: 6,
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   quickBannerIcon: {
-    width: 52, height: 52, borderRadius: 16,
+    width: 44, height: 44, borderRadius: 13,
     justifyContent: "center", alignItems: "center", borderWidth: 0.5,
   },
   quickBannerTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: "rgba(240,253,244,0.94)", textAlign: "center",
+    fontFamily: "Cairo_700Bold", fontSize: 13, color: "rgba(240,253,244,0.94)", textAlign: "center",
   },
   quickBannerSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(167,243,208,0.65)", textAlign: "center",
+    fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(167,243,208,0.65)", textAlign: "center",
   },
 
   /* Footer */
