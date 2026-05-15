@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, Pressable,
-  ScrollView, Image, Platform, Dimensions, I18nManager,
+  ScrollView, Image, Platform, Dimensions, I18nManager, PanResponder,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -140,7 +140,7 @@ const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string
 };
 
 export default function DrawerMenu() {
-  const { isOpen, close } = useDrawer();
+  const { isOpen, close, open } = useDrawer();
   const { user, token, isGuest } = useAuth();
   const { ride_status } = useFeatureFlags();
   const insets = useSafeAreaInsets();
@@ -169,7 +169,42 @@ export default function DrawerMenu() {
     }],
   }));
 
-  if (!visible) return null;
+  // ── السحب من الحافة لفتح الدرج ──
+  const swipeThreshold = 60; // الحد الأدنى للسحب بالبكسل
+  const velocityThreshold = 0.3;
+
+  const edgePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (DRAWER_IS_RTL) {
+          // السحب من اليسار إلى اليمين
+          return g.dx > 10 && Math.abs(g.dy) < 60;
+        }
+        // السحب من اليمين إلى اليسار
+        return g.dx < -10 && Math.abs(g.dy) < 60;
+      },
+      onPanResponderRelease: (_, g) => {
+        const openSwipe = DRAWER_IS_RTL ? (g.dx > swipeThreshold || g.vx > velocityThreshold)
+                                        : (g.dx < -swipeThreshold || g.vx < -velocityThreshold);
+        if (openSwipe) open();
+      },
+    })
+  ).current;
+
+  const closePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (!isOpen) return false;
+        if (DRAWER_IS_RTL) return g.dx < -10 && Math.abs(g.dy) < 60;
+        return g.dx > 10 && Math.abs(g.dy) < 60;
+      },
+      onPanResponderRelease: (_, g) => {
+        const closeSwipe = DRAWER_IS_RTL ? (g.dx < -swipeThreshold || g.vx < -velocityThreshold)
+                                         : (g.dx > swipeThreshold || g.vx > velocityThreshold);
+        if (closeSwipe) close();
+      },
+    })
+  ).current;
 
   function navigate(route: string) {
     close();
@@ -180,15 +215,35 @@ export default function DrawerMenu() {
   const initial     = isGuest ? "ز" : (user?.name?.charAt(0) || "؟");
   const roleLabel   = user?.role === "admin" ? "مشرف" : user?.role === "moderator" ? "مراقب" : null;
 
+  const EDGE_ZONE = 28;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* الستارة الخلفية */}
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-      </Animated.View>
 
-      {/* الدرج */}
-      <Animated.View style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 8 }]}>
+      {/* ── شريط الحافة الشفاف لاكتشاف السحب (دائم الظهور) ── */}
+      {!isOpen && (
+        <View
+          style={[
+            styles.edgeStrip,
+            DRAWER_IS_RTL ? { left: 0 } : { right: 0 },
+            { width: EDGE_ZONE },
+          ]}
+          {...edgePan.panHandlers}
+        />
+      )}
+
+      {visible && (
+        <>
+          {/* الستارة الخلفية */}
+          <Animated.View style={[styles.backdrop, backdropStyle]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+          </Animated.View>
+
+          {/* الدرج — مع دعم السحب للإغلاق */}
+          <Animated.View
+            style={[styles.drawer, drawerStyle, { paddingTop: insets.top + 8 }]}
+            {...closePan.panHandlers}
+          >
         {/* زجاج خلفي */}
         <BlurView intensity={Platform.OS === "ios" ? 80 : 25} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
@@ -317,12 +372,20 @@ export default function DrawerMenu() {
             </View>
           )}
         </ScrollView>
-      </Animated.View>
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  edgeStrip: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    zIndex: 50,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.55)",

@@ -5,8 +5,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue, useAnimatedStyle, withRepeat,
+  withSequence, withTiming, Easing,
+} from "react-native-reanimated";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { DrawerProvider, useDrawer } from "@/lib/drawer-context";
@@ -45,6 +50,85 @@ const TAB_ITEMS: TabItem[] = [
   { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#3E9CBF"       },
   { name: "appointments", label: "مواعيد",   icon: "calendar-outline",    activeIcon: "calendar",    color: "#F97316"       },
 ];
+
+// ── زر FAB مع نبض وتلميح أول مرة ────────────────────────────────
+const HINT_KEY = "drawer_hint_shown_v1";
+
+function FabMenuButton({ open }: { open: () => void }) {
+  const scale  = useSharedValue<number>(1);
+  const glow   = useSharedValue<number>(0.12);
+  const [showHint, setShowHint] = useState(false);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // نبض مستمر لافت
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.00, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1, true,
+    );
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(0.28, { duration: 900 }),
+        withTiming(0.10, { duration: 900 }),
+      ),
+      -1, true,
+    );
+  }, []);
+
+  // تلميح أول مرة
+  useEffect(() => {
+    AsyncStorage.getItem(HINT_KEY).then((val) => {
+      if (!val) {
+        setShowHint(true);
+        hintTimer.current = setTimeout(() => {
+          setShowHint(false);
+          AsyncStorage.setItem(HINT_KEY, "1");
+        }, 4000);
+      }
+    });
+    return () => { if (hintTimer.current) clearTimeout(hintTimer.current); };
+  }, []);
+
+  const fabAnimStyle  = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const glowAnimStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+
+  return (
+    <Pressable
+      style={styles.fabWrap}
+      onPress={() => {
+        setShowHint(false);
+        AsyncStorage.setItem(HINT_KEY, "1");
+        open();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="القائمة الرئيسية"
+    >
+      {/* تلميح أول مرة */}
+      {showHint && (
+        <View style={styles.hint} pointerEvents="none">
+          <Text style={styles.hintText}>كل الخدمات هنا ↓</Text>
+        </View>
+      )}
+
+      <Animated.View style={fabAnimStyle}>
+        <LinearGradient
+          colors={[Colors.primary + "EE", "#16A34A"]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="grid-outline" size={23} color="#fff" />
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.View style={[styles.fabGlow, glowAnimStyle]} />
+      <Text style={styles.fabLabel}>القائمة</Text>
+    </Pressable>
+  );
+}
 
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
@@ -126,23 +210,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
         })}
 
         {/* ── زر القائمة المركزي FAB ── */}
-        <Pressable
-          style={styles.fabWrap}
-          onPress={open}
-          accessibilityRole="button"
-          accessibilityLabel="القائمة الرئيسية"
-        >
-          <LinearGradient
-            colors={[Colors.primary + "EE", "#16A34A"]}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
-            style={styles.fabGradient}
-          >
-            <Ionicons name="grid-outline" size={23} color="#fff" />
-          </LinearGradient>
-          <View style={styles.fabGlow} />
-          <Text style={styles.fabLabel}>القائمة</Text>
-        </Pressable>
+        <FabMenuButton open={open} />
 
         {/* تبويبتا اليمين */}
         {TAB_ITEMS.slice(2).map((item) => {
@@ -354,12 +422,38 @@ const styles = StyleSheet.create({
     lineHeight: 11,
   },
 
+  // تلميح أول مرة
+  hint: {
+    position: "absolute",
+    bottom: 68,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    zIndex: 99,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 6,
+    minWidth: 110,
+    alignItems: "center",
+  },
+  hintText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+    color: "#fff",
+    textAlign: "center",
+  },
+
   // زر القائمة FAB
   fabWrap: {
     alignItems: "center",
     gap: 3,
     paddingTop: 2,
     width: 68,
+    zIndex: 10,
+    overflow: "visible",
   },
   fabGradient: {
     width: 52,
