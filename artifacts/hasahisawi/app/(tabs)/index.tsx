@@ -203,6 +203,7 @@ export default function HomeScreen() {
     { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, rideStatus: ride_status },
     { id: "telecom",   label: "شركات الاتصالات",                     sub: "MTN · Zain · Sudani · عروض",      icon: "cellular",          iconType: "ionicons"  as const, color: "#0EA5E9",  bg: "#0EA5E920",    route: "/(tabs)/telecom"      as const },
     { id: "unions",    label: "النقابات المهنية",                    sub: "انضمام · إعلانات · عضوية",         icon: "people-circle-outline", iconType: "ionicons" as const, color: "#8B5CF6",  bg: "#8B5CF620",    route: "/(tabs)/unions"       as const },
+    { id: "rental",   label: "التأجير",                            sub: "عقارات · مناسبات · بناء",            icon: "home-city-outline",     iconType: "material" as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/rental"       as const },
   ], [lang]);
 
   const handlePress = (route: string) => {

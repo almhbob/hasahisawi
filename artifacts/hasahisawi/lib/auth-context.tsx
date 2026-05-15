@@ -762,15 +762,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await saveSession(authUser, json.token as string, json.token as string);
           return;
         }
-        if (res.status === 401) throw new Error((json.error as string) || "بيانات غير صحيحة");
+        if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "بيانات غير صحيحة") throw err;
-        // Server unavailable — try Firebase
+        const isNetworkErr = !msg || msg.includes("timeout") || msg.includes("fetch") || msg.includes("network") || msg.includes("الاتصال") || msg.includes("ECONNREFUSED");
+        if (!isNetworkErr) throw err;
+        // فشل الشبكة فقط — جرّب Firebase
       }
     }
 
-    // Firebase fallback
+    // Firebase fallback (شبكة منقطعة فقط)
     if (isFirebaseAvailable()) {
       const fbUser = await firebaseLoginEmail(email.trim().toLowerCase(), password);
       const idToken = await fbUser.getIdToken();

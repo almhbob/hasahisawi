@@ -79,6 +79,7 @@ const GROUPS: Group[] = [
       { title: "الإعلانات",     icon: "megaphone-outline",      route: "/(tabs)/ads",         color: "#F0A500"      },
       { title: "الرياضة",       icon: "football-outline",       route: "/(tabs)/sports",      color: Colors.primary },
       { title: "الثقافة",       icon: "color-palette-outline",  route: "/(tabs)/culture",     color: "#C084FC"      },
+      { title: "التأجير — عقارات ومعدات", icon: "home-outline", route: "/(tabs)/rental",     color: "#3E9CBF"      },
     ],
   },
   {

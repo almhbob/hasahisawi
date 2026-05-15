@@ -13407,3 +13407,265 @@ router.get("/supervisor/reminders-due", async (req: Request, res: Response) => {
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
+
+// ═══════════════════════════════════════════════════════════════════
+// قسم التأجير — Rental Section
+// ═══════════════════════════════════════════════════════════════════
+
+void (async () => {
+  await query(`
+    CREATE TABLE IF NOT EXISTS rental_listings (
+      id               SERIAL PRIMARY KEY,
+      user_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      owner_name       TEXT NOT NULL,
+      owner_phone      TEXT NOT NULL,
+      owner_whatsapp   TEXT,
+      title            TEXT NOT NULL,
+      description      TEXT NOT NULL,
+      rental_type      TEXT NOT NULL DEFAULT 'real_estate',
+      sub_type         TEXT,
+      neighborhood     TEXT,
+      address          TEXT,
+      price_per_day    NUMERIC(12,2),
+      price_per_week   NUMERIC(12,2),
+      price_per_month  NUMERIC(12,2),
+      deposit_amount   NUMERIC(12,2) DEFAULT 0,
+      images           TEXT[] DEFAULT '{}',
+      status           TEXT NOT NULL DEFAULT 'active',
+      views            INTEGER NOT NULL DEFAULT 0,
+      is_verified      BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS rental_contracts (
+      id                  SERIAL PRIMARY KEY,
+      listing_id          INTEGER REFERENCES rental_listings(id) ON DELETE SET NULL,
+      owner_user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      renter_user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      owner_name          TEXT NOT NULL,
+      owner_phone         TEXT NOT NULL,
+      renter_name         TEXT NOT NULL,
+      renter_phone        TEXT NOT NULL,
+      listing_title       TEXT NOT NULL,
+      rental_type         TEXT NOT NULL DEFAULT 'real_estate',
+      neighborhood        TEXT,
+      address             TEXT,
+      start_date          DATE NOT NULL,
+      end_date            DATE NOT NULL,
+      total_amount        NUMERIC(12,2) NOT NULL,
+      commission_amount   NUMERIC(12,2) NOT NULL DEFAULT 0,
+      from_app            BOOLEAN NOT NULL DEFAULT TRUE,
+      commission_paid     BOOLEAN NOT NULL DEFAULT FALSE,
+      payment_proof_url   TEXT,
+      owner_signed        BOOLEAN NOT NULL DEFAULT FALSE,
+      renter_signed       BOOLEAN NOT NULL DEFAULT FALSE,
+      owner_signed_at     TIMESTAMPTZ,
+      renter_signed_at    TIMESTAMPTZ,
+      status              TEXT NOT NULL DEFAULT 'pending',
+      dispute_details     TEXT,
+      conditions          TEXT,
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`INSERT INTO admin_settings (key,value) VALUES ('rental_account_number','1471388') ON CONFLICT (key) DO NOTHING`);
+  await query(`INSERT INTO admin_settings (key,value) VALUES ('rental_whatsapp','249916897578') ON CONFLICT (key) DO NOTHING`);
+  await query(`INSERT INTO admin_settings (key,value) VALUES ('rental_commission_pct','5') ON CONFLICT (key) DO NOTHING`);
+})().catch(e => logger.error({ err: e }, "rental init error"));
+
+// ── GET /api/rentals ──────────────────────────────────────────────
+router.get("/rentals", async (req: Request, res: Response) => {
+  try {
+    const { type, neighborhood, min_price, max_price, search } = req.query;
+    const params: any[] = ["active"];
+    let where = "WHERE r.status=$1";
+    if (type && type !== "all") { where += ` AND r.rental_type=$${params.length+1}`; params.push(type); }
+    if (neighborhood) { where += ` AND r.neighborhood ILIKE $${params.length+1}`; params.push(`%${neighborhood}%`); }
+    if (min_price) { where += ` AND COALESCE(r.price_per_month, r.price_per_day*30) >= $${params.length+1}`; params.push(Number(min_price)); }
+    if (max_price) { where += ` AND COALESCE(r.price_per_month, r.price_per_day*30) <= $${params.length+1}`; params.push(Number(max_price)); }
+    if (search) { where += ` AND (r.title ILIKE $${params.length+1} OR r.description ILIKE $${params.length+1} OR r.neighborhood ILIKE $${params.length+1})`; params.push(`%${search}%`); }
+    const r = await query(`SELECT r.*, u.name AS user_display_name FROM rental_listings r LEFT JOIN users u ON u.id=r.user_id ${where} ORDER BY r.is_verified DESC, r.created_at DESC LIMIT 100`, params);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "rentals list error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/rentals ─────────────────────────────────────────────
+router.post("/rentals", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { owner_name, owner_phone, owner_whatsapp, title, description, rental_type, sub_type, neighborhood, address, price_per_day, price_per_week, price_per_month, deposit_amount, images } = req.body;
+    if (!owner_name || !owner_phone || !title || !description || !rental_type)
+      return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
+    const r = await query(
+      `INSERT INTO rental_listings (user_id,owner_name,owner_phone,owner_whatsapp,title,description,rental_type,sub_type,neighborhood,address,price_per_day,price_per_week,price_per_month,deposit_amount,images)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [user?.id||null, owner_name, owner_phone, owner_whatsapp||null, title, description, rental_type, sub_type||null, neighborhood||null, address||null, price_per_day||null, price_per_week||null, price_per_month||null, deposit_amount||0, images||[]]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "rental create error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/rentals/settings ─────────────────────────────────────
+router.get("/rentals/settings", async (_req: Request, res: Response) => {
+  try {
+    const r = await query(`SELECT key, value FROM admin_settings WHERE key IN ('rental_account_number','rental_whatsapp','rental_commission_pct')`);
+    const s: Record<string,string> = {};
+    r.rows.forEach((row: any) => { s[row.key] = row.value; });
+    return res.json(s);
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/rentals/contracts/my ────────────────────────────────
+router.get("/rentals/contracts/my", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(
+      `SELECT * FROM rental_contracts WHERE owner_user_id=$1 OR renter_user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+      [user.id]
+    );
+    return res.json(r.rows);
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/rentals/:id ──────────────────────────────────────────
+router.get("/rentals/:id", async (req: Request, res: Response) => {
+  try {
+    await query(`UPDATE rental_listings SET views=views+1 WHERE id=$1`, [req.params.id]);
+    const r = await query(`SELECT r.*, u.name AS user_display_name FROM rental_listings r LEFT JOIN users u ON u.id=r.user_id WHERE r.id=$1`, [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/rentals/:id ───────────────────────────────────────
+router.delete("/rentals/:id", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const isAdmin = await isAdminRequest(req);
+    if (!user && !isAdmin) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(`SELECT user_id FROM rental_listings WHERE id=$1`, [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    if (!isAdmin && r.rows[0].user_id !== user?.id) return res.status(403).json({ error: "ليس لديك صلاحية" });
+    await query(`UPDATE rental_listings SET status='deleted' WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/rentals/:id/contract ──────────────────────────────
+router.post("/rentals/:id/contract", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول لإبرام عقد" });
+    const listing = (await query(`SELECT * FROM rental_listings WHERE id=$1 AND status='active'`, [req.params.id])).rows[0];
+    if (!listing) return res.status(404).json({ error: "الإعلان غير متاح" });
+    const { renter_name, renter_phone, start_date, end_date, total_amount, from_app, conditions } = req.body;
+    if (!renter_name || !renter_phone || !start_date || !end_date || !total_amount)
+      return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
+    const settingsR = await query(`SELECT key,value FROM admin_settings WHERE key IN ('rental_commission_pct')`);
+    const pct = parseFloat(settingsR.rows.find((r:any)=>r.key==='rental_commission_pct')?.value || "5");
+    const commission = from_app !== false ? Math.round(Number(total_amount) * pct / 100 * 100) / 100 : 0;
+    const r = await query(
+      `INSERT INTO rental_contracts (listing_id,owner_user_id,renter_user_id,owner_name,owner_phone,renter_name,renter_phone,listing_title,rental_type,neighborhood,address,start_date,end_date,total_amount,commission_amount,from_app,conditions)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+      [listing.id, listing.user_id, user.id, listing.owner_name, listing.owner_phone, renter_name, renter_phone, listing.title, listing.rental_type, listing.neighborhood||null, listing.address||null, start_date, end_date, total_amount, commission, from_app!==false, conditions||null]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "contract create error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/rentals/contracts/:cid/sign ───────────────────────
+router.patch("/rentals/contracts/:cid/sign", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const c = (await query(`SELECT * FROM rental_contracts WHERE id=$1`, [req.params.cid])).rows[0];
+    if (!c) return res.status(404).json({ error: "العقد غير موجود" });
+    const { role } = req.body; // 'owner' | 'renter'
+    if (role === "owner" && c.owner_user_id === user.id) {
+      await query(`UPDATE rental_contracts SET owner_signed=TRUE, owner_signed_at=NOW() WHERE id=$1`, [c.id]);
+    } else if (role === "renter" && c.renter_user_id === user.id) {
+      await query(`UPDATE rental_contracts SET renter_signed=TRUE, renter_signed_at=NOW() WHERE id=$1`, [c.id]);
+    } else {
+      return res.status(403).json({ error: "ليس لديك صلاحية التوقيع على هذا العقد" });
+    }
+    const updated = (await query(`SELECT * FROM rental_contracts WHERE id=$1`, [c.id])).rows[0];
+    if (updated.owner_signed && updated.renter_signed) {
+      await query(`UPDATE rental_contracts SET status='active' WHERE id=$1`, [c.id]);
+      await query(`UPDATE rental_listings SET status='rented' WHERE id=$1`, [c.listing_id]);
+    }
+    return res.json({ ok: true, contract: updated });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/rentals/contracts/:cid/payment-proof ─────────────
+router.patch("/rentals/contracts/:cid/payment-proof", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { payment_proof_url } = req.body;
+    if (!payment_proof_url) return res.status(400).json({ error: "رابط الإشعار مطلوب" });
+    await query(`UPDATE rental_contracts SET payment_proof_url=$1, commission_paid=TRUE WHERE id=$2`, [payment_proof_url, req.params.cid]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/rentals/contracts/:cid/dispute ────────────────────
+router.patch("/rentals/contracts/:cid/dispute", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { dispute_details } = req.body;
+    await query(`UPDATE rental_contracts SET status='disputed', dispute_details=$1 WHERE id=$2 AND (owner_user_id=$3 OR renter_user_id=$3)`, [dispute_details, req.params.cid, user.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/rentals ───────────────────────────────────────
+router.get("/admin/rentals", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { type, status } = req.query;
+    const params: any[] = [];
+    let where = "WHERE 1=1";
+    if (type && type !== "all") { where += ` AND rental_type=$${params.length+1}`; params.push(type); }
+    if (status && status !== "all") { where += ` AND rl.status=$${params.length+1}`; params.push(status); }
+    const r = await query(`SELECT rl.*, u.name AS user_display_name FROM rental_listings rl LEFT JOIN users u ON u.id=rl.user_id ${where} ORDER BY created_at DESC LIMIT 200`, params);
+    return res.json(r.rows);
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/rentals/:id/status ─────────────────────────
+router.patch("/admin/rentals/:id/status", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status, is_verified } = req.body;
+    if (status) await query(`UPDATE rental_listings SET status=$1 WHERE id=$2`, [status, req.params.id]);
+    if (is_verified !== undefined) await query(`UPDATE rental_listings SET is_verified=$1 WHERE id=$2`, [is_verified, req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/rentals/contracts ────────────────────────────
+router.get("/admin/rentals/contracts", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM rental_contracts ORDER BY created_at DESC LIMIT 200`);
+    return res.json(r.rows);
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/rentals/settings ───────────────────────────
+router.patch("/admin/rentals/settings", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { rental_account_number, rental_whatsapp, rental_commission_pct } = req.body;
+    if (rental_account_number !== undefined)
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_account_number'`, [rental_account_number]);
+    if (rental_whatsapp !== undefined)
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_whatsapp'`, [rental_whatsapp]);
+    if (rental_commission_pct !== undefined)
+      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_commission_pct'`, [String(rental_commission_pct)]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
