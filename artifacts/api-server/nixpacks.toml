@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = [
+  "npm install -g pnpm@10",
+  "pnpm install --no-frozen-lockfile"
+]
+
+[phases.build]
+cmds = ["node build.mjs"]
+
+[start]
+cmd = "node --enable-source-maps ./dist/index.mjs"
