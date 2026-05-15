@@ -34,6 +34,7 @@ import AppVersion    from "@/pages/AppVersion";
 import ActivityLog   from "@/pages/ActivityLog";
 import Telecom        from "@/pages/Telecom";
 import TelecomPortal  from "@/pages/TelecomPortal";
+import Factories      from "@/pages/Factories";
 import Unions         from "@/pages/Unions";
 import Zawajil          from "@/pages/Zawajil";
 import MerchantPortal  from "@/pages/MerchantPortal";
@@ -48,8 +49,10 @@ function AppRoutes() {
   const { user, loading, pinRequired } = useAuth();
   const [isPortal]    = useRoute("/telecom-portal");
   const [isMPortal]   = useRoute("/merchant-portal");
+  const [isFPortal]   = useRoute("/factory-portal");
   if (isPortal)  return <TelecomPortal />;
   if (isMPortal) return <MerchantPortal />;
+  if (isFPortal) return <Factories />;
 
   if (loading) {
     return (
@@ -113,6 +116,7 @@ function AppRoutes() {
         <Route path="/app-version"    component={AppVersion} />
         <Route path="/activity-log"   component={ActivityLog} />
         <Route path="/telecom"        component={Telecom} />
+        <Route path="/factories"      component={Factories} />
         <Route path="/unions"         component={Unions} />
         <Route path="/gov-entities"  component={GovEntities} />
         <Route path="/zawajil"        component={Zawajil} />

@@ -38,6 +38,8 @@ const NAV: NavItem[] = [
   { path: "/zawajil",          label: "زواجل — الهدايا والرسائل", icon: "🎁" },
   { path: "/telecom",         label: "شركات الاتصالات",     icon: "📡" },
   { path: "/telecom-portal",  label: "بوابة الشركات",        icon: "🔑" },
+  { path: "/factories",       label: "المصانع والإنتاج",      icon: "🏭" },
+  { path: "/factory-portal",  label: "بوابة المصانع",         icon: "🏗️" },
   { path: "/merchant-portal",label: "بوابة التجار",          icon: "🏪" },
   { path: "/unions",          label: "النقابات المهنية",    icon: "🏛️" },
   { path: "/services",       label: "الإشتراكات والخدمات", icon: "🛰️" },

@@ -115,6 +115,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "الصناعة والإنتاج",
+    items: [
+      { title: "المصانع والإنتاج المحلي", icon: "hardware-chip-outline", route: "/(tabs)/factories", color: "#F97316" },
+    ],
+  },
+  {
     label: "النقابات والجمعيات",
     items: [
       { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#8B5CF6" },

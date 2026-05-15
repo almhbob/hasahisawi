@@ -483,6 +483,40 @@ export default function TelecomScreen() {
                   ))}
                 </LinearGradient>
               </Animated.View>
+
+              {/* ── قسم التعاقد والرعاية ── */}
+              <Animated.View entering={FadeInDown.delay(480).springify().damping(14)}>
+                <View style={[styles.contractSection, { borderColor: TC + "40", backgroundColor: TC + "08" }]}>
+                  <LinearGradient colors={[TC + "20", TC2 + "10", "#050E08"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                  <View style={styles.contractHeader}>
+                    <View style={[styles.contractIconWrap, { backgroundColor: TC + "25", borderColor: TC + "50" }]}>
+                      <Ionicons name="ribbon" size={22} color={TC} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.contractTitle, { color: TC }]}>تعاقد مع حصاحيصاوي</Text>
+                      <Text style={styles.contractSub}>اعرض شركتك لآلاف المستخدمين يومياً</Text>
+                    </View>
+                  </View>
+                  <View style={styles.contractPackages}>
+                    {[
+                      { icon: "⬡", label: "ستاندرد",  color: TC,   features: "بانر ترويجي + ظهور مميز" },
+                      { icon: "★", label: "بريميوم",  color: "#F59E0B", features: "صفحة كاملة + راعي التطبيق" },
+                    ].map((pkg, i) => (
+                      <View key={i} style={[styles.contractPkg, { borderColor: pkg.color + "50", backgroundColor: pkg.color + "10" }]}>
+                        <Text style={[styles.contractPkgIcon, { color: pkg.color }]}>{pkg.icon}</Text>
+                        <Text style={[styles.contractPkgLabel, { color: pkg.color }]}>{pkg.label}</Text>
+                        <Text style={styles.contractPkgFeats}>{pkg.features}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.contractBtn, { backgroundColor: "#25D366" }]}
+                    onPress={() => Linking.openURL("https://wa.me/966597083352?text=أرغب%20في%20التعاقد%20مع%20حصاحيصاوي%20لشركة%20الاتصالات")}>
+                    <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                    <Text style={styles.contractBtnText}>تواصل للتعاقد الآن</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
             </>
           )}
 
@@ -696,4 +730,17 @@ const styles = StyleSheet.create({
   statBlockLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   websiteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, paddingVertical: 14, borderRadius: 14, borderWidth: 1, marginBottom: 4 },
   websiteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  // ── قسم التعاقد ──
+  contractSection: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 12, marginBottom: 8, overflow: "hidden" },
+  contractHeader:  { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  contractIconWrap:{ width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  contractTitle:   { fontSize: 16, fontFamily: "Cairo_700Bold" },
+  contractSub:     { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  contractPackages:{ flexDirection: "row", gap: 10, marginBottom: 14 },
+  contractPkg:     { flex: 1, borderRadius: 12, borderWidth: 1, padding: 12, alignItems: "center", gap: 4 },
+  contractPkgIcon: { fontSize: 20 },
+  contractPkgLabel:{ fontSize: 13, fontFamily: "Cairo_700Bold" },
+  contractPkgFeats:{ fontSize: 10, color: Colors.textMuted, textAlign: "center" as const },
+  contractBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 12 },
+  contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

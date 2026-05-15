@@ -12180,3 +12180,534 @@ router.delete("/farmers/workers/:id", async (req: Request, res: Response) => {
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
+
+// ══════════════════════════════════════════════════════════════════
+// الراعي الرسمي للتطبيق + قسم المصانع والإنتاج المحلي
+// ══════════════════════════════════════════════════════════════════
+
+// ── helpers ─────────────────────────────────────────────────────
+const FACTORY_PORTAL_SALT = "hasahisawi_factory_portal_2024";
+function hashFactoryPin(pin: string): string {
+  let h = 5381;
+  const str = FACTORY_PORTAL_SALT + pin;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36).padStart(12, "0");
+}
+function generateFactoryToken(): string {
+  return `fac_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+}
+async function getPortalFactory(req: Request) {
+  const auth = (req.headers.authorization || "") as string;
+  if (!auth.startsWith("Bearer fac_")) return null;
+  const token = auth.slice(7);
+  const r = await query(`SELECT * FROM factories WHERE portal_token=$1 AND is_active=TRUE`, [token]);
+  return r.rows[0] || null;
+}
+
+async function ensureFactoriesTables() {
+  await query(`CREATE TABLE IF NOT EXISTS factories (
+    id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, short_name VARCHAR(60),
+    logo_initial VARCHAR(5) DEFAULT '🏭', logo_url TEXT, banner_url TEXT,
+    brand_color VARCHAR(20) DEFAULT '#F97316', brand_color2 VARCHAR(20) DEFAULT '#EA580C',
+    category VARCHAR(60) DEFAULT 'general', description TEXT, location VARCHAR(200),
+    address TEXT, founded VARCHAR(10), employees VARCHAR(30),
+    phone VARCHAR(40), whatsapp VARCHAR(40), email VARCHAR(200), website TEXT,
+    contact_person VARCHAR(100), contact_email VARCHAR(200),
+    promo_tagline VARCHAR(300), promo_banner_url TEXT, promo_badge VARCHAR(60),
+    package_type VARCHAR(20) DEFAULT 'free', contract_start DATE, contract_end DATE,
+    monthly_fee NUMERIC(12,2) DEFAULT 0, portal_pin_hash VARCHAR(100), portal_token VARCHAR(200),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE, is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0, views_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS factory_products (
+    id SERIAL PRIMARY KEY, factory_id INTEGER REFERENCES factories(id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL, description TEXT, category VARCHAR(60) DEFAULT 'general',
+    price NUMERIC(12,2), price_unit VARCHAR(40) DEFAULT 'SDG', price_note VARCHAR(200),
+    min_order VARCHAR(60), image_url TEXT, images JSONB DEFAULT '[]',
+    stock_status VARCHAR(20) DEFAULT 'available',
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE, is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER DEFAULT 0, views_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS factory_subscription_plans (
+    id SERIAL PRIMARY KEY, name VARCHAR(80) NOT NULL, name_ar VARCHAR(80) NOT NULL,
+    description TEXT, price_monthly NUMERIC(10,2) NOT NULL DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'SDG', max_products INTEGER DEFAULT 3,
+    has_priority BOOLEAN NOT NULL DEFAULT FALSE, has_banner BOOLEAN NOT NULL DEFAULT FALSE,
+    has_promo BOOLEAN NOT NULL DEFAULT FALSE, has_sponsor_badge BOOLEAN NOT NULL DEFAULT FALSE,
+    color VARCHAR(20) DEFAULT '#6B7280', icon VARCHAR(40) DEFAULT '●',
+    sort_order INTEGER DEFAULT 0, is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS factory_subscriptions (
+    id SERIAL PRIMARY KEY, factory_id INTEGER REFERENCES factories(id) ON DELETE CASCADE,
+    plan_id INTEGER REFERENCES factory_subscription_plans(id),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE, started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ, amount_paid NUMERIC(12,2), notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS app_sponsors (
+    id SERIAL PRIMARY KEY, entity_type VARCHAR(20) NOT NULL DEFAULT 'telecom',
+    entity_id INTEGER NOT NULL, display_name VARCHAR(200) NOT NULL,
+    logo_url TEXT, brand_color VARCHAR(20) DEFAULT '#0EA5E9',
+    tagline VARCHAR(300), website TEXT, is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sponsor_from DATE, sponsor_to DATE, package_name VARCHAR(60),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  // seed plans
+  const existing = await query(`SELECT COUNT(*) FROM factory_subscription_plans`);
+  if (parseInt(existing.rows[0].count) === 0) {
+    await query(`INSERT INTO factory_subscription_plans (name,name_ar,price_monthly,max_products,has_priority,has_banner,has_promo,has_sponsor_badge,color,icon,sort_order) VALUES
+      ('free','مجاني',0,3,FALSE,FALSE,FALSE,FALSE,'#6B7280','●',0),
+      ('basic','أساسي',50000,10,FALSE,FALSE,FALSE,FALSE,'#22C55E','◉',1),
+      ('standard','ستاندرد',150000,30,TRUE,FALSE,TRUE,FALSE,'#0EA5E9','⬡',2),
+      ('premium','بريميوم',300000,999,TRUE,TRUE,TRUE,TRUE,'#F59E0B','★',3)`);
+  }
+  // add sponsor columns to telecom if table exists
+  try {
+    await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS is_sponsor BOOLEAN NOT NULL DEFAULT FALSE`);
+    await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS sponsor_display_text VARCHAR(200)`);
+    await query(`ALTER TABLE telecom_companies ADD COLUMN IF NOT EXISTS sponsor_since DATE`);
+  } catch {}
+  await query(`CREATE INDEX IF NOT EXISTS idx_factory_products_factory ON factory_products(factory_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_factory_subs_factory ON factory_subscriptions(factory_id)`);
+}
+
+// ── راعي التطبيق ─────────────────────────────────────────────────
+
+// GET /api/app/sponsor — الراعي الحالي
+router.get("/app/sponsor", async (_req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const now = new Date().toISOString().slice(0, 10);
+    const r = await query(
+      `SELECT * FROM app_sponsors WHERE is_active=TRUE AND (sponsor_to IS NULL OR sponsor_to >= $1) ORDER BY created_at DESC LIMIT 1`,
+      [now]
+    );
+    return res.json(r.rows[0] || null);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/app/sponsors
+router.get("/admin/app/sponsors", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const r = await query(`SELECT * FROM app_sponsors ORDER BY created_at DESC`);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/app/sponsors
+router.post("/admin/app/sponsors", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const { entity_type, entity_id, display_name, logo_url, brand_color, tagline, website, sponsor_from, sponsor_to, package_name } = req.body;
+    if (!display_name) return res.status(400).json({ error: "الاسم مطلوب" });
+    // deactivate previous sponsors
+    await query(`UPDATE app_sponsors SET is_active=FALSE WHERE is_active=TRUE`);
+    const r = await query(
+      `INSERT INTO app_sponsors (entity_type,entity_id,display_name,logo_url,brand_color,tagline,website,sponsor_from,sponsor_to,package_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [entity_type||'telecom', entity_id?Number(entity_id):null, display_name, logo_url||null, brand_color||'#0EA5E9', tagline||null, website||null, sponsor_from||null, sponsor_to||null, package_name||null]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/app/sponsors/:id
+router.patch("/admin/app/sponsors/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { display_name, logo_url, brand_color, tagline, website, sponsor_from, sponsor_to, package_name, is_active } = req.body;
+    const r = await query(
+      `UPDATE app_sponsors SET display_name=COALESCE($1,display_name), logo_url=COALESCE($2,logo_url),
+       brand_color=COALESCE($3,brand_color), tagline=COALESCE($4,tagline), website=COALESCE($5,website),
+       sponsor_from=COALESCE($6,sponsor_from), sponsor_to=COALESCE($7,sponsor_to),
+       package_name=COALESCE($8,package_name), is_active=COALESCE($9,is_active)
+       WHERE id=$10 RETURNING *`,
+      [display_name||null,logo_url||null,brand_color||null,tagline||null,website||null,sponsor_from||null,sponsor_to||null,package_name||null,is_active!=null?Boolean(is_active):null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── المصانع — Public ──────────────────────────────────────────────
+
+// GET /api/factories
+router.get("/factories", async (req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const { category } = req.query as Record<string, string>;
+    let where = "WHERE f.is_active=TRUE";
+    const params: unknown[] = [];
+    if (category && category !== "all") { params.push(category); where += ` AND f.category=$${params.length}`; }
+    const r = await query(
+      `SELECT f.*,
+        p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+        p.has_priority, p.has_banner, p.has_promo, p.has_sponsor_badge,
+        (SELECT COUNT(*) FROM factory_products fp WHERE fp.factory_id=f.id AND fp.is_active=TRUE)::int AS products_count
+       FROM factories f
+       LEFT JOIN factory_subscriptions s ON s.factory_id=f.id AND s.is_active=TRUE
+       LEFT JOIN factory_subscription_plans p ON p.id=s.plan_id
+       ${where}
+       ORDER BY p.sort_order DESC NULLS LAST, f.is_featured DESC, f.sort_order ASC, f.created_at DESC`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factories/:id
+router.get("/factories/:id", async (req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const r = await query(
+      `SELECT f.*, p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+        p.has_priority, p.has_banner, p.has_promo, p.has_sponsor_badge, p.max_products
+       FROM factories f
+       LEFT JOIN factory_subscriptions s ON s.factory_id=f.id AND s.is_active=TRUE
+       LEFT JOIN factory_subscription_plans p ON p.id=s.plan_id
+       WHERE f.id=$1 AND f.is_active=TRUE`,
+      [req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "المصنع غير موجود" });
+    await query(`UPDATE factories SET views_count=views_count+1 WHERE id=$1`, [req.params.id]);
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factories/:id/products
+router.get("/factories/:id/products", async (req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const r = await query(
+      `SELECT * FROM factory_products WHERE factory_id=$1 AND is_active=TRUE ORDER BY is_featured DESC, sort_order ASC, created_at DESC`,
+      [req.params.id]
+    );
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factory-products — كل المنتجات مع اسم المصنع
+router.get("/factory-products", async (req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const { category, factory_id } = req.query as Record<string, string>;
+    let where = "WHERE fp.is_active=TRUE AND f.is_active=TRUE";
+    const params: unknown[] = [];
+    if (category && category !== "all") { params.push(category); where += ` AND fp.category=$${params.length}`; }
+    if (factory_id) { params.push(Number(factory_id)); where += ` AND fp.factory_id=$${params.length}`; }
+    const r = await query(
+      `SELECT fp.*, f.name AS factory_name, f.brand_color AS factory_color, f.logo_initial AS factory_logo,
+        f.phone AS factory_phone, f.whatsapp AS factory_whatsapp, p.icon AS plan_icon, p.name_ar AS plan_name_ar
+       FROM factory_products fp
+       LEFT JOIN factories f ON f.id=fp.factory_id
+       LEFT JOIN factory_subscriptions fs ON fs.factory_id=f.id AND fs.is_active=TRUE
+       LEFT JOIN factory_subscription_plans p ON p.id=fs.plan_id
+       ${where}
+       ORDER BY fp.is_featured DESC, fp.sort_order ASC, fp.created_at DESC LIMIT 100`,
+      params
+    );
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factory-plans
+router.get("/factory-plans", async (_req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const r = await query(`SELECT * FROM factory_subscription_plans WHERE is_active=TRUE ORDER BY sort_order`);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Factory Portal Auth ───────────────────────────────────────────
+
+// POST /api/factories/portal/login
+router.post("/factories/portal/login", async (req: Request, res: Response) => {
+  try {
+    await ensureFactoriesTables();
+    const { factory_id, pin } = req.body;
+    if (!factory_id || !pin) return res.status(400).json({ error: "بيانات ناقصة" });
+    const r = await query(`SELECT * FROM factories WHERE id=$1 AND is_active=TRUE`, [Number(factory_id)]);
+    const factory = r.rows[0];
+    if (!factory) return res.status(404).json({ error: "المصنع غير موجود" });
+    if (!factory.portal_pin_hash) return res.status(403).json({ error: "لم يُفعَّل الدخول لهذا المصنع بعد" });
+    if (factory.portal_pin_hash !== hashFactoryPin(String(pin))) return res.status(401).json({ error: "الرمز السري غير صحيح" });
+    const token = generateFactoryToken();
+    await query(`UPDATE factories SET portal_token=$1 WHERE id=$2`, [token, factory.id]);
+    const { portal_pin_hash: _, portal_token: __, ...safe } = factory;
+    return res.json({ token, factory: { ...safe, portal_token: token } });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factories/portal/me
+router.get("/factories/portal/me", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    const sub = await query(
+      `SELECT s.*, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+        p.max_products, p.has_priority, p.has_banner, p.has_promo, p.has_sponsor_badge
+       FROM factory_subscriptions s LEFT JOIN factory_subscription_plans p ON p.id=s.plan_id
+       WHERE s.factory_id=$1 AND s.is_active=TRUE ORDER BY s.started_at DESC LIMIT 1`,
+      [factory.id]
+    );
+    const products_count = await query(`SELECT COUNT(*) FROM factory_products WHERE factory_id=$1 AND is_active=TRUE`, [factory.id]);
+    const { portal_pin_hash: _, ...safe } = factory;
+    return res.json({ ...safe, subscription: sub.rows[0] || null, products_count: parseInt(products_count.rows[0].count) });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/factories/portal/me
+router.patch("/factories/portal/me", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    const { description, location, address, phone, whatsapp, email, website, contact_person, contact_email, promo_tagline, promo_banner_url, promo_badge } = req.body;
+    const hasBanner = factory.package_type === "premium";
+    const hasPromo  = ["standard","premium"].includes(factory.package_type);
+    const r = await query(`UPDATE factories SET
+      description=COALESCE($1,description), location=COALESCE($2,location), address=COALESCE($3,address),
+      phone=COALESCE($4,phone), whatsapp=COALESCE($5,whatsapp), email=COALESCE($6,email), website=COALESCE($7,website),
+      contact_person=COALESCE($8,contact_person), contact_email=COALESCE($9,contact_email),
+      promo_tagline=CASE WHEN $10 THEN COALESCE($11,promo_tagline) ELSE promo_tagline END,
+      promo_banner_url=CASE WHEN $12 THEN COALESCE($13,promo_banner_url) ELSE promo_banner_url END,
+      promo_badge=CASE WHEN $10 THEN COALESCE($14,promo_badge) ELSE promo_badge END
+      WHERE id=$15 RETURNING *`,
+      [description||null,location||null,address||null,phone||null,whatsapp||null,email||null,website||null,contact_person||null,contact_email||null,
+       hasPromo,promo_tagline||null,hasBanner,promo_banner_url||null,promo_badge||null,factory.id]
+    );
+    const { portal_pin_hash: _, ...safe } = r.rows[0];
+    return res.json(safe);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/factories/portal/products
+router.get("/factories/portal/products", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(`SELECT * FROM factory_products WHERE factory_id=$1 ORDER BY sort_order ASC, created_at DESC`, [factory.id]);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/factories/portal/products
+router.post("/factories/portal/products", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    const { name, description, category, price, price_unit, price_note, min_order, image_url, images, stock_status, sort_order } = req.body;
+    if (!name) return res.status(400).json({ error: "اسم المنتج مطلوب" });
+    // check plan limit
+    const sub = await query(`SELECT p.max_products FROM factory_subscriptions s LEFT JOIN factory_subscription_plans p ON p.id=s.plan_id WHERE s.factory_id=$1 AND s.is_active=TRUE ORDER BY s.started_at DESC LIMIT 1`, [factory.id]);
+    const maxProducts = sub.rows[0]?.max_products ?? 3;
+    const current = await query(`SELECT COUNT(*) FROM factory_products WHERE factory_id=$1 AND is_active=TRUE`, [factory.id]);
+    if (parseInt(current.rows[0].count) >= maxProducts) return res.status(403).json({ error: `حدّ الباقة الحالية ${maxProducts} منتجات. قم بترقية باقتك لإضافة المزيد` });
+    const r = await query(
+      `INSERT INTO factory_products (factory_id,name,description,category,price,price_unit,price_note,min_order,image_url,images,stock_status,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [factory.id,name,description||null,category||'general',price?Number(price):null,price_unit||'SDG',price_note||null,min_order||null,image_url||null,JSON.stringify(images||[]),stock_status||'available',Number(sort_order)||0]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/factories/portal/products/:id
+router.patch("/factories/portal/products/:id", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    const { name, description, category, price, price_unit, price_note, min_order, image_url, images, stock_status, is_active, sort_order } = req.body;
+    const r = await query(
+      `UPDATE factory_products SET
+        name=COALESCE($1,name), description=COALESCE($2,description), category=COALESCE($3,category),
+        price=COALESCE($4,price), price_unit=COALESCE($5,price_unit), price_note=COALESCE($6,price_note),
+        min_order=COALESCE($7,min_order), image_url=COALESCE($8,image_url),
+        images=COALESCE($9,images), stock_status=COALESCE($10,stock_status),
+        is_active=COALESCE($11,is_active), sort_order=COALESCE($12,sort_order)
+       WHERE id=$13 AND factory_id=$14 RETURNING *`,
+      [name||null,description||null,category||null,price!=null?Number(price):null,price_unit||null,price_note||null,min_order||null,image_url||null,
+       images?JSON.stringify(images):null,stock_status||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id,factory.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/factories/portal/products/:id
+router.delete("/factories/portal/products/:id", async (req: Request, res: Response) => {
+  try {
+    const factory = await getPortalFactory(req);
+    if (!factory) return res.status(401).json({ error: "غير مصرح" });
+    await query(`DELETE FROM factory_products WHERE id=$1 AND factory_id=$2`, [req.params.id, factory.id]);
+    return res.json({ success: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: المصانع ────────────────────────────────────────────────
+
+router.get("/admin/factories", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const r = await query(
+      `SELECT f.*, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
+        (SELECT COUNT(*) FROM factory_products fp WHERE fp.factory_id=f.id AND fp.is_active=TRUE)::int AS products_count
+       FROM factories f
+       LEFT JOIN factory_subscriptions s ON s.factory_id=f.id AND s.is_active=TRUE
+       LEFT JOIN factory_subscription_plans p ON p.id=s.plan_id
+       ORDER BY f.sort_order ASC, f.created_at DESC`
+    );
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/admin/factories", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const { name, short_name, logo_initial, logo_url, banner_url, brand_color, brand_color2, category, description, location, address, founded, employees, phone, whatsapp, email, website, contact_person, contact_email, package_type, contract_start, contract_end, monthly_fee, portal_pin, sort_order, is_featured } = req.body;
+    if (!name) return res.status(400).json({ error: "اسم المصنع مطلوب" });
+    const pinHash = portal_pin ? hashFactoryPin(String(portal_pin)) : null;
+    const r = await query(
+      `INSERT INTO factories (name,short_name,logo_initial,logo_url,banner_url,brand_color,brand_color2,category,description,location,address,founded,employees,phone,whatsapp,email,website,contact_person,contact_email,package_type,contract_start,contract_end,monthly_fee,portal_pin_hash,sort_order,is_featured)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING *`,
+      [name,short_name||null,logo_initial||'🏭',logo_url||null,banner_url||null,brand_color||'#F97316',brand_color2||'#EA580C',category||'general',description||null,location||null,address||null,founded||null,employees||null,phone||null,whatsapp||null,email||null,website||null,contact_person||null,contact_email||null,package_type||'free',contract_start||null,contract_end||null,monthly_fee?Number(monthly_fee):0,pinHash,Number(sort_order)||0,Boolean(is_featured)||false]
+    );
+    // assign subscription plan if package_type specified
+    if (package_type && package_type !== 'free') {
+      const plan = await query(`SELECT id FROM factory_subscription_plans WHERE name=$1`, [package_type]);
+      if (plan.rows[0]) {
+        await query(`INSERT INTO factory_subscriptions (factory_id,plan_id,is_active) VALUES ($1,$2,TRUE)`, [r.rows[0].id, plan.rows[0].id]);
+      }
+    }
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/factories/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const { name, short_name, logo_initial, logo_url, banner_url, brand_color, brand_color2, category, description, location, address, founded, employees, phone, whatsapp, email, website, contact_person, contact_email, package_type, contract_start, contract_end, monthly_fee, portal_pin, sort_order, is_featured, is_active, promo_tagline, promo_badge, promo_banner_url } = req.body;
+    const pinHash = portal_pin ? hashFactoryPin(String(portal_pin)) : undefined;
+    const r = await query(
+      `UPDATE factories SET
+        name=COALESCE($1,name), short_name=COALESCE($2,short_name), logo_initial=COALESCE($3,logo_initial),
+        logo_url=COALESCE($4,logo_url), banner_url=COALESCE($5,banner_url),
+        brand_color=COALESCE($6,brand_color), brand_color2=COALESCE($7,brand_color2),
+        category=COALESCE($8,category), description=COALESCE($9,description),
+        location=COALESCE($10,location), address=COALESCE($11,address),
+        founded=COALESCE($12,founded), employees=COALESCE($13,employees),
+        phone=COALESCE($14,phone), whatsapp=COALESCE($15,whatsapp), email=COALESCE($16,email), website=COALESCE($17,website),
+        contact_person=COALESCE($18,contact_person), contact_email=COALESCE($19,contact_email),
+        package_type=COALESCE($20,package_type), contract_start=COALESCE($21,contract_start),
+        contract_end=COALESCE($22,contract_end), monthly_fee=COALESCE($23,monthly_fee),
+        portal_pin_hash=COALESCE($24,portal_pin_hash), sort_order=COALESCE($25,sort_order),
+        is_featured=COALESCE($26,is_featured), is_active=COALESCE($27,is_active),
+        promo_tagline=COALESCE($28,promo_tagline), promo_badge=COALESCE($29,promo_badge),
+        promo_banner_url=COALESCE($30,promo_banner_url)
+       WHERE id=$31 RETURNING *`,
+      [name||null,short_name||null,logo_initial||null,logo_url||null,banner_url||null,brand_color||null,brand_color2||null,category||null,description||null,location||null,address||null,founded||null,employees||null,phone||null,whatsapp||null,email||null,website||null,contact_person||null,contact_email||null,package_type||null,contract_start||null,contract_end||null,monthly_fee!=null?Number(monthly_fee):null,pinHash||null,sort_order!=null?Number(sort_order):null,is_featured!=null?Boolean(is_featured):null,is_active!=null?Boolean(is_active):null,promo_tagline||null,promo_badge||null,promo_banner_url||null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    // update subscription if package changed
+    if (package_type) {
+      await query(`UPDATE factory_subscriptions SET is_active=FALSE WHERE factory_id=$1`, [req.params.id]);
+      if (package_type !== 'free') {
+        const plan = await query(`SELECT id FROM factory_subscription_plans WHERE name=$1`, [package_type]);
+        if (plan.rows[0]) await query(`INSERT INTO factory_subscriptions (factory_id,plan_id,is_active) VALUES ($1,$2,TRUE) ON CONFLICT DO NOTHING`, [req.params.id, plan.rows[0].id]);
+      }
+    }
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/factories/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM factories WHERE id=$1`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: Factory products
+router.get("/admin/factories/:id/products", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const r = await query(`SELECT * FROM factory_products WHERE factory_id=$1 ORDER BY sort_order,created_at DESC`, [req.params.id]);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/factory-products/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, description, category, price, price_unit, price_note, min_order, image_url, stock_status, is_featured, is_active, sort_order } = req.body;
+    const r = await query(
+      `UPDATE factory_products SET name=COALESCE($1,name), description=COALESCE($2,description),
+        category=COALESCE($3,category), price=COALESCE($4,price), price_unit=COALESCE($5,price_unit),
+        price_note=COALESCE($6,price_note), min_order=COALESCE($7,min_order), image_url=COALESCE($8,image_url),
+        stock_status=COALESCE($9,stock_status), is_featured=COALESCE($10,is_featured),
+        is_active=COALESCE($11,is_active), sort_order=COALESCE($12,sort_order)
+       WHERE id=$13 RETURNING *`,
+      [name||null,description||null,category||null,price!=null?Number(price):null,price_unit||null,price_note||null,min_order||null,image_url||null,stock_status||null,is_featured!=null?Boolean(is_featured):null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: factory subscription plans
+router.get("/admin/factory-plans", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const r = await query(`SELECT * FROM factory_subscription_plans ORDER BY sort_order`);
+    return res.json(r.rows);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/factory-plans/:id", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name_ar, description, price_monthly, max_products, has_priority, has_banner, has_promo, has_sponsor_badge, color, icon } = req.body;
+    const r = await query(
+      `UPDATE factory_subscription_plans SET
+        name_ar=COALESCE($1,name_ar), description=COALESCE($2,description),
+        price_monthly=COALESCE($3,price_monthly), max_products=COALESCE($4,max_products),
+        has_priority=COALESCE($5,has_priority), has_banner=COALESCE($6,has_banner),
+        has_promo=COALESCE($7,has_promo), has_sponsor_badge=COALESCE($8,has_sponsor_badge),
+        color=COALESCE($9,color), icon=COALESCE($10,icon)
+       WHERE id=$11 RETURNING *`,
+      [name_ar||null,description||null,price_monthly!=null?Number(price_monthly):null,max_products!=null?Number(max_products):null,has_priority!=null?Boolean(has_priority):null,has_banner!=null?Boolean(has_banner):null,has_promo!=null?Boolean(has_promo):null,has_sponsor_badge!=null?Boolean(has_sponsor_badge):null,color||null,icon||null,req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin: assign subscription to factory
+router.post("/admin/factories/:id/subscribe", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureFactoriesTables();
+    const { plan_id, expires_at, amount_paid, notes } = req.body;
+    await query(`UPDATE factory_subscriptions SET is_active=FALSE WHERE factory_id=$1`, [req.params.id]);
+    const r = await query(
+      `INSERT INTO factory_subscriptions (factory_id,plan_id,is_active,expires_at,amount_paid,notes)
+       VALUES ($1,$2,TRUE,$3,$4,$5) RETURNING *`,
+      [req.params.id, Number(plan_id), expires_at||null, amount_paid?Number(amount_paid):null, notes||null]
+    );
+    const plan = await query(`SELECT name FROM factory_subscription_plans WHERE id=$1`, [plan_id]);
+    if (plan.rows[0]) await query(`UPDATE factories SET package_type=$1 WHERE id=$2`, [plan.rows[0].name, req.params.id]);
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
