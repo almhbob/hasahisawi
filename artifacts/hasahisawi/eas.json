@@ -8,12 +8,12 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:c91938f519fa219d418e48"
       }
     },
     "preview": {
@@ -25,12 +25,12 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
         "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:c91938f519fa219d418e48"
       }
     },
     "preview-ios": {
@@ -40,12 +40,12 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
         "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:c91938f519fa219d418e48"
       }
     },
     "production": {
@@ -56,12 +56,12 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
         "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:c91938f519fa219d418e48"
       }
     },
     "production-ios": {
@@ -72,7 +72,7 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
         "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
