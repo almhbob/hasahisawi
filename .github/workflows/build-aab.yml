@@ -2,6 +2,8 @@ name: Build Android AAB
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [build-android]
 
 jobs:
   build:
@@ -13,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: replit-latest
           lfs: true
 
       - name: Setup Java 17
@@ -75,7 +77,7 @@ EOF
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:c91938f519fa219d418e48
+          EXPO_PUBLIC_FIREBASE_APP_ID: '1:133656291161:android:c91938f519fa219d418e48'
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: G-8NDWWB1735
           EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
         run: pnpm exec expo prebuild --platform android --clean --no-install
