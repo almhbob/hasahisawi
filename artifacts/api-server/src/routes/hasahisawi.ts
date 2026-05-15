@@ -2138,6 +2138,27 @@ router.patch("/auth/me/gender", async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/auth/me/complete-profile — إكمال بيانات الملف الشخصي (الجنس + الحي) دفعةً واحدة
+router.patch("/auth/me/complete-profile", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { gender, neighborhood } = req.body;
+    if (!["male", "female"].includes(gender))
+      return res.status(400).json({ error: "يرجى تحديد الجنس" });
+    if (!neighborhood || typeof neighborhood !== "string" || neighborhood.trim().length < 2)
+      return res.status(400).json({ error: "يرجى تحديد الحي / المنطقة" });
+    await query(
+      `UPDATE users SET gender=$1, neighborhood=$2 WHERE id=$3`,
+      [gender, neighborhood.trim(), user.id]
+    );
+    return res.json({ success: true, gender, neighborhood: neighborhood.trim() });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { pin } = req.body;

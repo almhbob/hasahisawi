@@ -116,11 +116,12 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading) return;
-    const inLogin = segments[0] === "login";
-    const inOnboarding = segments[0] === "onboarding";
+    const inLogin           = segments[0] === "login";
+    const inOnboarding      = segments[0] === "onboarding";
+    const inCompleteProfile = segments[0] === "complete-profile";
+
     if (!user) {
       if (!inLogin && !inOnboarding) {
-        // فحص إذا كان المستخدم شاهد شاشة الترحيب من قبل
         AsyncStorage.getItem(ONBOARDING_KEY).then((done) => {
           if (!done) {
             router.replace("/onboarding" as any);
@@ -129,10 +130,24 @@ function AuthGate() {
           }
         });
       }
-    } else {
-      if (inLogin || inOnboarding) router.replace("/(tabs)/" as any);
+      return;
     }
-  }, [user, isLoading, segments]);
+
+    // المستخدم مسجّل لكن لم يكمل ملفه — أجبره على إكماله (ماعدا الأدمن والمشرف)
+    const needsCompletion =
+      !isGuest &&
+      user.role === "user" &&
+      (!user.gender || !user.neighborhood);
+
+    if (needsCompletion) {
+      if (!inCompleteProfile) router.replace("/complete-profile" as any);
+      return;
+    }
+
+    if (inLogin || inOnboarding || inCompleteProfile) {
+      router.replace("/(tabs)/" as any);
+    }
+  }, [user, isLoading, segments, isGuest]);
 
   return null;
 }
@@ -148,7 +163,8 @@ function RootLayoutNav() {
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="complete-profile"   options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="admin"            options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="admin-transport" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />

@@ -74,6 +74,7 @@ type AuthContextValue = {
     gender?: string,
   ) => Promise<void>;
   setUserGender: (gender: "male" | "female") => Promise<void>;
+  completeProfile: (gender: "male" | "female", neighborhood: string) => Promise<void>;
   registerAdmin: (name: string, email: string, password: string, adminCode: string) => Promise<void>;
   enterAsGuest: () => void;
   logout: () => Promise<void>;
@@ -796,6 +797,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(prev => prev ? { ...prev, gender } : prev);
   };
 
+  const completeProfile = async (gender: "male" | "female", neighborhood: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("تعذّر الاتصال بالخادم");
+    if (!token) throw new Error("يجب تسجيل الدخول أولاً");
+    const { res, json } = await safeFetchJson(
+      `${base}/api/auth/me/complete-profile`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ gender, neighborhood }),
+      },
+      3,
+      15000,
+    );
+    if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث البيانات");
+    setUser(prev => prev ? { ...prev, gender, neighborhood } : prev);
+    try {
+      const saved = await AsyncStorage.getItem(USER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, user: { ...(parsed.user ?? {}), gender, neighborhood } }));
+      }
+    } catch {}
+  };
+
   const register = async (
     name: string,
     nationalId: string,
@@ -1066,7 +1092,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user, token, isLoading, isGuest, canPost,
         biometricsAvailable, biometricsEnabled,
         login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics, loginAdmin, loginModerator,
-        register, setUserGender, registerAdmin,
+        register, setUserGender, completeProfile, registerAdmin,
         enterAsGuest, logout, refreshUser,
         enableBiometrics, disableBiometrics,
         updateProfile,
