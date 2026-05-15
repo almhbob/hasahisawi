@@ -1997,8 +1997,17 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     );
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة" });
+    // مستخدم سجّل عبر Google/Firebase فقط — لا كلمة مرور مستقلة
+    if (user.firebase_uid && !user.password_hash) {
+      return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
+    }
+    const valid = await bcrypt.compare(password, user.password_hash || "");
+    if (!valid) {
+      if (user.firebase_uid) {
+        return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
+      }
+      return res.status(401).json({ error: "بيانات غير صحيحة" });
+    }
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
