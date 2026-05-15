@@ -6809,6 +6809,17 @@ router.get("/transport/fares", async (_req: Request, res: Response) => {
   } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
+// GET /api/admin/transport/fares — عرض مصفوفة التعرفة (أدمن أو مشرف ترحيل)
+router.get("/admin/transport/fares", async (req: Request, res: Response) => {
+  try {
+    await ensureTransportTables();
+    const { ok: _ta } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`SELECT from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle FROM transport_fares ORDER BY from_zone, to_zone`);
+    return res.json({ fares: rows });
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
+});
+
 // PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير المنصة فقط)
 router.put("/admin/transport/fares", async (req: Request, res: Response) => {
   try {
