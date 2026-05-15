@@ -2734,34 +2734,34 @@ export default function SettingsScreen() {
               <Text style={sub_s.groupTitle}>الخدمات المدفوعة</Text>
             </View>
 
-            {/* Render — الخادم الفعلي */}
+            {/* Vercel + Railway — الخادم الفعلي */}
             <View style={[sub_s.card, sub_s.cardPaid]}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#46E3B720" }]}>
-                <Ionicons name="server-outline" size={22} color="#46E3B7" />
+              <View style={[sub_s.iconBox, { backgroundColor: "#FFFFFF12" }]}>
+                <Ionicons name="server-outline" size={22} color="#E0E0E0" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Render — Web Service + DB</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#EF444420" }]}>
-                    <Text style={[sub_s.planText, { color: "#EF4444" }]}>● مدفوع</Text>
+                  <Text style={sub_s.cardName}>Vercel + Railway</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#FBBF2420" }]}>
+                    <Text style={[sub_s.planText, { color: "#FBBF24" }]}>⚠ رصيد محدود</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  استضافة الخادم الخلفي (Express) على Vercel وقاعدة البيانات (PostgreSQL) على Railway — العمود الفقري للتطبيق
+                  الخادم (Express) على Vercel مجاناً — قاعدة البيانات (PostgreSQL) على Railway بـ $5 رصيد/شهر مجاني
                 </Text>
                 <View style={sub_s.tagRow}>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>API Server</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>PostgreSQL</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>24/7 Uptime</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>▲ Vercel Free</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>🚂 Railway $5</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>60 جدول</Text></View>
                 </View>
               </View>
               <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#46E3B7" }]}
-                onPress={() => Linking.openURL("https://dashboard.render.com/billing/info")}
+                style={[sub_s.payBtn, { backgroundColor: "#7C3AED" }]}
+                onPress={() => Linking.openURL("https://railway.app/project/4e3750d2")}
                 activeOpacity={0.8}
               >
-                <Ionicons name="card-outline" size={15} color="#fff" />
-                <Text style={sub_s.payBtnText}>ادفع</Text>
+                <Ionicons name="open-outline" size={15} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
               </TouchableOpacity>
             </View>
 

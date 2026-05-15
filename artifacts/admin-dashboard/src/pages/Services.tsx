@@ -327,12 +327,12 @@ export default function Services() {
                 },
                 {
                   service: "🗄️ Railway — PostgreSQL",
-                  plan: "مجاني (5$ رصيد/شهر)",
-                  cost: "$0",
+                  plan: "Hobby ($5 رصيد/شهر مجاني)",
+                  cost: "$0*",
                   priority: "متوسطة", priorityColor: C.yellow,
-                  status: "يعمل", statusColor: C.green,
+                  status: "يعمل — 60 جدول", statusColor: C.green,
                   btnLabel: "لوحة Railway", btnColor: C.purple,
-                  href: "https://railway.app",
+                  href: "https://railway.app/project/4e3750d2",
                 },
                 {
                   service: "🔥 Firebase",
@@ -396,7 +396,8 @@ export default function Services() {
         </div>
 
         <div style={{ padding: "10px 24px", background: "hsl(217 32% 10%)", fontSize: 11, color: C.muted }}>
-          * Firebase Blaze مجاني حتى تتجاوز الحد المجاني (50K قراءة/يوم) — لا رسوم ثابتة
+          * Firebase Blaze مجاني حتى تتجاوز الحد المجاني (50K قراءة/يوم) — لا رسوم ثابتة &nbsp;|&nbsp;
+          Railway يمنح $5 رصيد/شهر — عند انتهائه رقّ إلى Hobby Plan ($5) أو انقل إلى Neon PostgreSQL (مجاني)
         </div>
       </div>
 
@@ -464,7 +465,7 @@ export default function Services() {
           <InfoRow label="Auth Domain"        value="hasahisawi.firebaseapp.com" copyId="fb-auth"  copied={copied} onCopy={copy} mono />
           <InfoRow label="Storage Bucket"     value="hasahisawi.firebasestorage.app" copyId="fb-storage" copied={copied} onCopy={copy} mono />
           <InfoRow label="Messaging Sender"   value="133656291161"              copyId="fb-msg"    copied={copied} onCopy={copy} mono />
-          <InfoRow label="App ID (Android)"   value="1:133656291161:android:a4f8b2c3d1e09876" copyId="fb-apk" copied={copied} onCopy={copy} mono />
+          <InfoRow label="App ID (Android)"   value="1:133656291161:android:c91938f519fa219d418e48" copyId="fb-apk" copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn href="https://console.firebase.google.com/project/hasahisawi" icon="🔥" label="Firebase Console" color={C.orange} />
             <ActionBtn href="https://console.firebase.google.com/project/hasahisawi/authentication" icon="🔐" label="Authentication" color={C.orange} outline />
@@ -490,7 +491,7 @@ export default function Services() {
           <InfoRow label="معرف المشروع"  value="0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"      copyId="eas-id"   copied={copied} onCopy={copy} mono />
           <InfoRow label="المالك"        value="almhbob2026" />
           <InfoRow label="اسم الحزمة"   value="com.almhbob.hasahisawi"                      copyId="pkg"      copied={copied} onCopy={copy} mono />
-          <InfoRow label="الإصدار الحالي" value="5.5.6 (versionCode 156)" />
+          <InfoRow label="الإصدار الحالي" value="5.7.0 (versionCode 209)" />
           <InfoRow label="أمر البناء"   value="eas build --platform android --profile production" copyId="build-cmd" copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn href="https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service" icon="🚀" label="Expo Dashboard" color={C.blue} />
@@ -514,7 +515,7 @@ export default function Services() {
         >
           <InfoRow label="اسم التطبيق"  value="حصاحيصاوي" />
           <InfoRow label="اسم الحزمة"   value="com.almhbob.hasahisawi"   copyId="gplay-pkg"  copied={copied} onCopy={copy} mono />
-          <InfoRow label="الإصدار"      value="5.5.6 (versionCode 156)" />
+          <InfoRow label="الإصدار"      value="5.7.0 (versionCode 209)" />
           <InfoRow label="SHA-1 (Play)" value="7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08" copyId="sha1" copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn
@@ -547,7 +548,7 @@ export default function Services() {
         >
           <InfoRow label="المستودع"      value="almhbob/hasahisawi"                   copyId="gh-repo"   copied={copied} onCopy={copy} mono />
           <InfoRow label="الفرع الرئيسي" value="master" />
-          <InfoRow label="آخر SHA"       value="fcc07c4633b1821b62b5067694751546ad428dc9" copyId="gh-sha" copied={copied} onCopy={copy} mono />
+          <InfoRow label="آخر SHA"       value="bb5ad159a883c3d75b2a139e6ea4e1e363de2476" copyId="gh-sha" copied={copied} onCopy={copy} mono />
           <InfoRow label="رابط المستودع" value="https://github.com/almhbob/hasahisawi" copyId="gh-url"   copied={copied} onCopy={copy} mono />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
             <ActionBtn href="https://github.com/almhbob/hasahisawi"         icon="🐙" label="فتح المستودع"   color={C.purple} />

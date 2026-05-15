@@ -70,7 +70,7 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms =
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), ms);
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
+    return await fetch(url, { ...init, signal: ctrl.signal } as any);
   } finally {
     clearTimeout(tid);
   }

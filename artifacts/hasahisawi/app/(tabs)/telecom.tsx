@@ -205,7 +205,7 @@ function CompanyCard({ company, onPress, index }: { company: Company; onPress: (
             )}
             <View style={styles.companyStats}>
               <View style={styles.statChip}><Ionicons name="people" size={11} color={company.brand_color} /><Text style={[styles.statText, { color: company.brand_color }]}>{company.subscribers}</Text></View>
-              <View style={styles.statChip}><Ionicons name="signal" size={11} color={company.brand_color} /><Text style={[styles.statText, { color: company.brand_color }]}>{company.coverage} تغطية</Text></View>
+              <View style={styles.statChip}><Ionicons name="cellular" size={11} color={company.brand_color} /><Text style={[styles.statText, { color: company.brand_color }]}>{company.coverage} تغطية</Text></View>
             </View>
           </View>
           <Ionicons name="chevron-forward" size={18} color={company.brand_color + "80"} />
@@ -273,7 +273,7 @@ function CompanyModal({ company, visible, onClose, offers, services }: {
             <View style={styles.statsRow}>
               {[
                 { icon: "people", label: "المشتركون", val: company.subscribers },
-                { icon: "signal",  label: "التغطية",   val: company.coverage   },
+                { icon: "cellular",  label: "التغطية",   val: company.coverage   },
                 { icon: "calendar", label: "التأسيس",  val: company.founded    },
               ].map((s, i) => (
                 <View key={i} style={[styles.statBlock, { borderColor: co + "30" }]}>

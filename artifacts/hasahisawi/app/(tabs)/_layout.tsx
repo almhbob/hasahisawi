@@ -294,7 +294,6 @@ function ClassicTabLayout() {
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
-      sceneContainerStyle={{ backgroundColor: "#0A0F0C" }}
     >
       <Tabs.Screen name="index"        />
       <Tabs.Screen name="prayer"       />
