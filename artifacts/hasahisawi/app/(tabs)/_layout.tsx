@@ -48,7 +48,7 @@ const TAB_ITEMS: TabItem[] = [
   { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primary },
   { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: "#818CF8"       },
   { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#3E9CBF"       },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-outline",    activeIcon: "calendar",    color: "#F97316"       },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: "#F97316" },
 ];
 
 // ── زر FAB مع نبض وتلميح أول مرة ────────────────────────────────
@@ -319,6 +319,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="communities" options={{ href: null }} />
       <Tabs.Screen name="ai-support"  options={{ href: null }} />
       <Tabs.Screen name="transport"   options={{ href: null }} />
+      <Tabs.Screen name="travel"      options={{ href: null }} />
       <Tabs.Screen name="occasions"   options={{ href: null }} />
       <Tabs.Screen name="honored"     options={{ href: null }} />
       <Tabs.Screen name="greetings"   options={{ href: null }} />

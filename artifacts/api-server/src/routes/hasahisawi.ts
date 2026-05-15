@@ -1752,6 +1752,92 @@ export async function initHasahisawiDb() {
     `UPDATE users SET role='admin' WHERE LOWER(email)=LOWER('almhbob.iii@gmail.com') AND role != 'admin'`
   );
 
+  // ══ جداول تذاكر السفر بين المدن ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS travel_companies (
+      id               SERIAL PRIMARY KEY,
+      name             VARCHAR(150) NOT NULL,
+      owner_name       VARCHAR(100) NOT NULL DEFAULT '',
+      phone            VARCHAR(30)  NOT NULL DEFAULT '',
+      wa_number        VARCHAR(30)  NOT NULL DEFAULT '',
+      logo_url         TEXT         NOT NULL DEFAULT '',
+      license_no       VARCHAR(80)  NOT NULL DEFAULT '',
+      commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 10,
+      subscription_type VARCHAR(20) NOT NULL DEFAULT 'commission' CHECK (subscription_type IN ('commission','annual','monthly')),
+      subscription_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      active           BOOLEAN      NOT NULL DEFAULT TRUE,
+      contract_signed_at TIMESTAMPTZ,
+      notes            TEXT         NOT NULL DEFAULT '',
+      created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS travel_routes (
+      id             SERIAL PRIMARY KEY,
+      company_id     INTEGER REFERENCES travel_companies(id) ON DELETE CASCADE,
+      from_city      VARCHAR(100) NOT NULL,
+      to_city        VARCHAR(100) NOT NULL,
+      departure_time VARCHAR(20)  NOT NULL DEFAULT '08:00',
+      price          NUMERIC(10,2) NOT NULL DEFAULT 0,
+      seats_total    INTEGER      NOT NULL DEFAULT 30,
+      active         BOOLEAN      NOT NULL DEFAULT TRUE,
+      created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS travel_bookings (
+      id               SERIAL PRIMARY KEY,
+      user_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      company_id       INTEGER REFERENCES travel_companies(id) ON DELETE SET NULL,
+      route_id         INTEGER REFERENCES travel_routes(id) ON DELETE SET NULL,
+      company_name     VARCHAR(150) NOT NULL DEFAULT '',
+      from_city        VARCHAR(100) NOT NULL,
+      to_city          VARCHAR(100) NOT NULL,
+      travel_date      DATE         NOT NULL,
+      departure_time   VARCHAR(20)  NOT NULL DEFAULT '',
+      passenger_name   VARCHAR(150) NOT NULL,
+      passenger_phone  VARCHAR(30)  NOT NULL DEFAULT '',
+      seat_number      VARCHAR(10)  NOT NULL DEFAULT '',
+      price            NUMERIC(10,2) NOT NULL DEFAULT 0,
+      status           VARCHAR(20)  NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','cancelled','completed','rescheduled')),
+      ticket_number    VARCHAR(40)  UNIQUE,
+      booking_ref      VARCHAR(10)  UNIQUE,
+      wa_sent          BOOLEAN      NOT NULL DEFAULT FALSE,
+      notes            TEXT         NOT NULL DEFAULT '',
+      new_date         DATE,
+      created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tb_user ON travel_bookings(user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tb_date ON travel_bookings(travel_date)`);
+
+  // بيانات افتراضية للشركة
+  const { rows: tcCheck } = await query(`SELECT COUNT(*) as cnt FROM travel_companies`);
+  if (parseInt(tcCheck[0].cnt, 10) === 0) {
+    const { rows: compRows } = await query(
+      `INSERT INTO travel_companies (name, owner_name, phone, wa_number, commission_pct, subscription_type, active, contract_signed_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW()) RETURNING id`,
+      ["شركة الحصاحيصا للنقل", "أحمد محمد عبدالله", "0912000100", "249912000100", 10, "commission", true]
+    );
+    const cid = compRows[0].id;
+    const routes = [
+      ["الحصاحيصا", "الخرطوم",    "06:00", 3500],
+      ["الحصاحيصا", "أم درمان",   "06:30", 3500],
+      ["الحصاحيصا", "بحري",       "07:00", 3500],
+      ["الحصاحيصا", "ود مدني",    "08:00", 1500],
+      ["الحصاحيصا", "القضارف",    "07:00", 4000],
+      ["الحصاحيصا", "كسلا",       "08:00", 6000],
+      ["الحصاحيصا", "بورتسودان",  "07:00", 8000],
+      ["الخرطوم",   "الحصاحيصا",  "06:00", 3500],
+    ];
+    for (const [fc, tc, dt, price] of routes) {
+      await query(
+        `INSERT INTO travel_routes (company_id, from_city, to_city, departure_time, price) VALUES ($1,$2,$3,$4,$5)`,
+        [cid, fc, tc, dt, price]
+      );
+    }
+  }
+
   logger.info("Hasahisawi DB initialized");
 }
 
@@ -13744,4 +13830,206 @@ router.patch("/admin/rentals/settings", async (req: Request, res: Response) => {
       await query(`INSERT INTO admin_settings(key,value) VALUES('rental_enabled',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [String(rental_enabled)]);
     return res.json({ ok: true });
   } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// تذاكر السفر بين المدن
+// ═══════════════════════════════════════════════════════════════════
+
+// ── GET /api/travel/companies ────────────────────────────────────
+router.get("/travel/companies", async (_req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT id, name, owner_name, phone, wa_number, logo_url, commission_pct, subscription_type, active
+       FROM travel_companies WHERE active=TRUE ORDER BY name`
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/travel/routes ───────────────────────────────────────
+router.get("/travel/routes", async (req: Request, res: Response) => {
+  try {
+    const { company_id, from_city, to_city } = req.query;
+    const params: any[] = [];
+    let where = "WHERE tr.active=TRUE AND tc.active=TRUE";
+    if (company_id) { where += ` AND tr.company_id=$${params.length+1}`; params.push(company_id); }
+    if (from_city)  { where += ` AND tr.from_city ILIKE $${params.length+1}`; params.push(`%${from_city}%`); }
+    if (to_city)    { where += ` AND tr.to_city ILIKE $${params.length+1}`; params.push(`%${to_city}%`); }
+    const r = await query(
+      `SELECT tr.*, tc.name AS company_name, tc.phone AS company_phone, tc.wa_number AS company_wa
+       FROM travel_routes tr
+       JOIN travel_companies tc ON tc.id=tr.company_id
+       ${where} ORDER BY tr.departure_time`,
+      params
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/travel/bookings ────────────────────────────────────
+router.post("/travel/bookings", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const {
+      company_id, route_id, from_city, to_city, travel_date,
+      departure_time, passenger_name, passenger_phone, price, notes
+    } = req.body;
+    if (!from_city || !to_city || !travel_date || !passenger_name)
+      return res.status(400).json({ error: "بيانات ناقصة" });
+
+    // رقم تذكرة فريد
+    const dateStr = new Date(travel_date).toISOString().slice(0,10).replace(/-/g,"");
+    const rand    = Math.floor(Math.random()*9000+1000);
+    const ticketNumber = `TKT-${dateStr}-${rand}`;
+    const bookingRef   = `BK${rand}${Math.floor(Math.random()*100)}`;
+
+    // اسم الشركة
+    let companyName = "";
+    if (company_id) {
+      const cr = await query(`SELECT name FROM travel_companies WHERE id=$1`, [company_id]);
+      companyName = cr.rows[0]?.name || "";
+    }
+
+    // رقم المقعد
+    const seatLetter = String.fromCharCode(65 + Math.floor(Math.random()*4));
+    const seatNum    = Math.floor(Math.random()*15)+1;
+    const seatNumber = `${seatLetter}${seatNum}`;
+
+    const r = await query(
+      `INSERT INTO travel_bookings
+         (user_id, company_id, route_id, company_name, from_city, to_city, travel_date,
+          departure_time, passenger_name, passenger_phone, seat_number, price, ticket_number, booking_ref, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [user?.id||null, company_id||null, route_id||null, companyName,
+       from_city, to_city, travel_date, departure_time||"", passenger_name,
+       passenger_phone||"", seatNumber, price||0, ticketNumber, bookingRef, notes||""]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err: any) {
+    if (err?.code === "23505") return res.status(409).json({ error: "تذكرة مكررة" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── GET /api/travel/bookings ─────────────────────────────────────
+router.get("/travel/bookings", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(
+      `SELECT * FROM travel_bookings WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+      [user.id]
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/travel/bookings/:id/cancel ───────────────────────
+router.patch("/travel/bookings/:id/cancel", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const r = await query(
+      `UPDATE travel_bookings SET status='cancelled'
+       WHERE id=$1 AND user_id=$2 AND status='confirmed' RETURNING id`,
+      [req.params.id, user.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "لا يمكن إلغاء هذه التذكرة" });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/travel/bookings/:id/reschedule ───────────────────
+router.patch("/travel/bookings/:id/reschedule", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { new_date } = req.body;
+    if (!new_date) return res.status(400).json({ error: "التاريخ مطلوب" });
+    const r = await query(
+      `UPDATE travel_bookings SET travel_date=$1, new_date=$1, status='rescheduled'
+       WHERE id=$2 AND user_id=$3 AND status IN ('confirmed','rescheduled') RETURNING id`,
+      [new_date, req.params.id, user.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "لا يمكن تغيير موعد هذه التذكرة" });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: GET /api/admin/travel/companies ───────────────────────
+router.get("/admin/travel/companies", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM travel_companies ORDER BY created_at DESC`);
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: POST /api/admin/travel/companies ──────────────────────
+router.post("/admin/travel/companies", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, owner_name, phone, wa_number, commission_pct, subscription_type, subscription_price, license_no, notes } = req.body;
+    if (!name) return res.status(400).json({ error: "اسم الشركة مطلوب" });
+    const r = await query(
+      `INSERT INTO travel_companies (name, owner_name, phone, wa_number, commission_pct, subscription_type, subscription_price, license_no, notes, contract_signed_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW()) RETURNING *`,
+      [name, owner_name||"", phone||"", wa_number||"", commission_pct||10, subscription_type||"commission", subscription_price||0, license_no||"", notes||""]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: PATCH /api/admin/travel/companies/:id ─────────────────
+router.patch("/admin/travel/companies/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, owner_name, phone, wa_number, commission_pct, subscription_type, subscription_price, license_no, active, notes } = req.body;
+    await query(
+      `UPDATE travel_companies SET
+         name=COALESCE($1,name), owner_name=COALESCE($2,owner_name), phone=COALESCE($3,phone),
+         wa_number=COALESCE($4,wa_number), commission_pct=COALESCE($5,commission_pct),
+         subscription_type=COALESCE($6,subscription_type), subscription_price=COALESCE($7,subscription_price),
+         license_no=COALESCE($8,license_no), active=COALESCE($9,active), notes=COALESCE($10,notes)
+       WHERE id=$11`,
+      [name, owner_name, phone, wa_number, commission_pct, subscription_type, subscription_price, license_no, active, notes, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: GET /api/admin/travel/bookings ────────────────────────
+router.get("/admin/travel/bookings", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status, date } = req.query;
+    const params: any[] = [];
+    let where = "WHERE 1=1";
+    if (status && status !== "all") { where += ` AND tb.status=$${params.length+1}`; params.push(status); }
+    if (date) { where += ` AND tb.travel_date=$${params.length+1}`; params.push(date); }
+    const r = await query(
+      `SELECT tb.*, u.name AS user_display FROM travel_bookings tb
+       LEFT JOIN users u ON u.id=tb.user_id
+       ${where} ORDER BY tb.created_at DESC LIMIT 200`,
+      params
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: POST /api/admin/travel/routes ─────────────────────────
+router.post("/admin/travel/routes", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { company_id, from_city, to_city, departure_time, price, seats_total } = req.body;
+    if (!company_id || !from_city || !to_city || !price)
+      return res.status(400).json({ error: "بيانات ناقصة" });
+    const r = await query(
+      `INSERT INTO travel_routes (company_id, from_city, to_city, departure_time, price, seats_total)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [company_id, from_city, to_city, departure_time||"08:00", price, seats_total||30]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });

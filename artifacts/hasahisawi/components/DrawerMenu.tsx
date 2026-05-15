@@ -48,7 +48,7 @@ const GROUPS: Group[] = [
     label: "صحة ومواعيد",
     items: [
       { title: "الطب والصحة",  icon: "medkit-outline",     route: "/(tabs)/medical",     color: "#E05567"      },
-      { title: "حجز موعد",    icon: "calendar-outline",   route: "/(tabs)/appointments",color: Colors.accent  },
+      { title: "حجز موعد",    icon: "calendar-number-outline", route: "/(tabs)/appointments", color: Colors.accent },
     ],
   },
   {
@@ -107,6 +107,7 @@ const GROUPS: Group[] = [
     label: "نقل وتوصيل",
     items: [
       { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", isTransport: true },
+      { title: "تذاكر السفر بين المدن", icon: "airplane-outline", route: "/(tabs)/travel", color: "#0EA5E9" },
     ],
   },
   {
