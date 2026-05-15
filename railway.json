@@ -2,7 +2,8 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && node artifacts/api-server/build.mjs"
+    "buildCommand": "npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && node artifacts/api-server/build.mjs",
+    "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
     "startCommand": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
