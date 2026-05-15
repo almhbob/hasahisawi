@@ -1258,6 +1258,8 @@ export default function SettingsScreen() {
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
+  const [syncingFirebase, setSyncingFirebase] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ created: number; updated: number; firebase_total: number } | null>(null);
 
   // ── Landmarks state ──
   const [landmarks, setLandmarks] = useState<ApiLandmark[]>([]);
@@ -1647,12 +1649,56 @@ export default function SettingsScreen() {
     try {
       const res = await fetchWithTimeout(new URL("/api/admin/users", getApiUrl()).toString(), {
         headers: { Authorization: `Bearer ${auth.token}` },
-      });
+        timeout: 20000,
+      } as any);
       if (res.ok) {
         const data = await res.json();
         setManagedUsers(Array.isArray(data) ? data : (data.users ?? []));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert("خطأ", (err as any).error || `HTTP ${res.status}`);
       }
-    } catch { }
+    } catch (e: any) {
+      Alert.alert("خطأ في التحميل", e?.message || "تعذّر جلب المستخدمين");
+    }
+  };
+
+  const syncFirebaseUsers = async () => {
+    if (!isAdmin || !auth.token) return;
+    Alert.alert(
+      "مزامنة Firebase",
+      "سيتم استيراد جميع مستخدمي Firebase إلى قاعدة البيانات.\nقد تستغرق العملية 15–30 ثانية.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "ابدأ المزامنة",
+          onPress: async () => {
+            setSyncingFirebase(true);
+            setSyncResult(null);
+            try {
+              const res = await fetchWithTimeout(
+                new URL("/api/admin/sync-firebase-users", getApiUrl()).toString(),
+                { method: "POST", headers: { Authorization: `Bearer ${auth.token}` }, timeout: 60000 } as any
+              );
+              const data = await res.json();
+              if (res.ok) {
+                setSyncResult({ created: data.created, updated: data.updated, firebase_total: data.firebase_total });
+                Alert.alert(
+                  "✅ اكتملت المزامنة",
+                  `Firebase: ${data.firebase_total} مستخدم\nتم إنشاء: ${data.created} جديد\nتم تحديث: ${data.updated}`
+                );
+                loadUsers();
+              } else {
+                Alert.alert("خطأ", data.error || "فشلت المزامنة");
+              }
+            } catch (e: any) {
+              Alert.alert("خطأ", e?.message || "تعذّرت المزامنة");
+            }
+            setSyncingFirebase(false);
+          },
+        },
+      ]
+    );
   };
 
   const changeUserRole = async (userId: number, newRole: "user" | "moderator") => {
@@ -2487,12 +2533,43 @@ export default function SettingsScreen() {
         {/* ── USERS MANAGEMENT (admin only) ── */}
         {activeTab === "users" && isAdmin && (
           <View style={styles.section}>
-            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <Text style={styles.sectionTitle}>{t("admin", "userManagement")}</Text>
-              <TouchableOpacity onPress={loadUsers} style={{ padding: 8 }}>
-                <Ionicons name="refresh" size={22} color={Colors.primary} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity onPress={loadUsers} style={{ padding: 8 }}>
+                  <Ionicons name="refresh" size={22} color={Colors.primary} />
+                </TouchableOpacity>
+              </View>
             </View>
+
+            {/* Firebase sync banner */}
+            <TouchableOpacity
+              onPress={syncFirebaseUsers}
+              disabled={syncingFirebase}
+              style={{
+                flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center",
+                backgroundColor: syncingFirebase ? Colors.surface2 : "#F97316" + "18",
+                borderRadius: 10, padding: 10, marginBottom: 14,
+                borderWidth: 1, borderColor: syncingFirebase ? Colors.divider : "#F97316" + "44", gap: 8,
+              }}
+              activeOpacity={0.8}
+            >
+              {syncingFirebase
+                ? <ActivityIndicator size="small" color="#F97316" />
+                : <Ionicons name="sync-outline" size={18} color="#F97316" />}
+              <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: syncingFirebase ? Colors.textMuted : "#F97316", textAlign: isRTL ? "right" : "left" }}>
+                {syncingFirebase ? "جارٍ مزامنة Firebase…" : "مزامنة مستخدمي Firebase"}
+              </Text>
+              {syncResult && !syncingFirebase && (
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
+                  {syncResult.firebase_total} ✓
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>
+              {managedUsers.length} مستخدم في القاعدة
+            </Text>
             {managedUsers.length === 0 ? (
               <View style={{ alignItems: "center", paddingVertical: 40 }}>
                 <Ionicons name="people-outline" size={48} color={Colors.textMuted} />
