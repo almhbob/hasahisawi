@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type WomenService = {
   id: number;
@@ -26,6 +27,7 @@ const EMPTY = {
 };
 
 export default function WomenServices() {
+  const confirm = useConfirm();
   const [list,    setList]    = useState<WomenService[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -78,7 +80,7 @@ export default function WomenServices() {
   };
 
   const deleteSvc = async (id: number) => {
-    if (!confirm("حذف هذه الخدمة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه الخدمة؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/women-services/${id}`, { method: "DELETE" });
       setList(prev => prev.filter(s => s.id !== id));

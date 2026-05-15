@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ function Input({ label, value, onChange, type = "text", required }: { label: str
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Transport() {
+  const confirm = useConfirm();
   const { user } = useAuth();
   const isPlatformAdmin = user?.role === "admin" || user?.role === "moderator";
   const isOperatorSupervisor = user?.role === "transport_supervisor" && !!user?.operator_id;
@@ -237,12 +239,12 @@ export default function Transport() {
     setDrivers(prev => prev.map(d => d.id === id ? { ...d, status: status as any, ...(note !== undefined ? { admin_note: note } : {}) } : d));
   };
   const deleteDriver = async (id: number) => {
-    if (!confirm("حذف هذا السائق نهائياً؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا السائق نهائياً؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/transport/drivers/${id}`, { method: "DELETE" });
     setDrivers(prev => prev.filter(d => d.id !== id));
   };
   const deleteTrip = async (id: number) => {
-    if (!confirm("حذف هذه الرحلة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه الرحلة؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/transport/trips/${id}`, { method: "DELETE" });
     setTrips(prev => prev.filter(t => t.id !== id));
   };
@@ -285,7 +287,7 @@ export default function Transport() {
     load();
   };
   const deleteOperator = async (id: number) => {
-    if (!confirm("حذف هذه الشركة المشغّلة نهائياً؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه الشركة المشغّلة نهائياً؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/transport/operators/${id}`, { method: "DELETE" });
     setOperators(prev => prev.filter(o => o.id !== id));
   };
@@ -310,7 +312,7 @@ export default function Transport() {
     if (res.ok) setNeighborhoods(prev => prev.map(n => n.id === id ? { ...n, status } : n));
   };
   const deleteNeighborhood = async (id: number) => {
-    if (!confirm("حذف هذا الحي نهائياً؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا الحي نهائياً؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/transport/neighborhoods/${id}`, { method: "DELETE" });
     setNeighborhoods(prev => prev.filter(n => n.id !== id));
   };
@@ -345,7 +347,7 @@ export default function Transport() {
   };
   const unlinkSupervisor = async (uid: number) => {
     if (!supForOp) return;
-    if (!confirm("فك ارتباط هذا المشرف بالشركة؟")) return;
+    if (!(await confirm({ title: "تأكيد", description: "فك ارتباط هذا المشرف بالشركة؟", confirmText: "متابعة", destructive: false }))) return;
     const res = await apiFetch(`/admin/transport/operators/${supForOp.id}/supervisor/${uid}`, { method: "DELETE" });
     if (res.ok) setSupList(prev => prev.filter(u => u.id !== uid));
   };

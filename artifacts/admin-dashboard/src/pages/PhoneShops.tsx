@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type PhoneShop = {
   id: number; shop_name: string; owner_name: string;
@@ -11,6 +12,7 @@ type PhoneShop = {
 };
 
 export default function PhoneShops() {
+  const confirm = useConfirm();
   const [shops,   setShops]   = useState<PhoneShop[]>([]);
   const [search,  setSearch]  = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function PhoneShops() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا المتجر؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المتجر؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/phone-shops/${id}`, { method: "DELETE" });
     setShops(prev => prev.filter(s => s.id !== id));
   };

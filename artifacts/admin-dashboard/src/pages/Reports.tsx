@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Report = {
   id: number;
@@ -33,6 +34,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export default function Reports() {
+  const confirm = useConfirm();
   const [list,    setList]    = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState("all");
@@ -58,7 +60,7 @@ export default function Reports() {
   };
 
   const deleteReport = async (id: number) => {
-    if (!confirm("حذف هذا البلاغ؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا البلاغ؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/reports/${id}`, { method: "DELETE" });
       setList(prev => prev.filter(r => r.id !== id));

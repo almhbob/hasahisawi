@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Community = {
   id: number; name: string; description?: string; category?: string;
@@ -20,6 +21,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 export default function Communities() {
+  const confirm = useConfirm();
   const [list,    setList]    = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState<string>("all");
@@ -45,7 +47,7 @@ export default function Communities() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا المجتمع؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المجتمع؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/communities/${id}`, { method: "DELETE" });
     setList(prev => prev.filter(c => c.id !== id));
   };

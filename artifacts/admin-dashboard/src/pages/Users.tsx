@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type SyncResult = {
   firebase_total: number; synced: number; created: number;
@@ -28,6 +29,7 @@ type ConfirmAction =
   | null;
 
 export default function Users() {
+  const askConfirm = useConfirm();
   const [users,   setUsers]   = useState<User[]>([]);
   const [search,  setSearch]  = useState("");
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function Users() {
   }, []);
 
   const syncFirebase = async () => {
-    if (!confirm("سيتم مزامنة جميع مستخدمي Firebase مع قاعدة البيانات.\nقد تستغرق هذه العملية 10-30 ثانية. هل تريد المتابعة؟")) return;
+    if (!(await askConfirm({ title: "مزامنة Firebase", description: "سيتم مزامنة جميع مستخدمي Firebase مع قاعدة البيانات.\nقد تستغرق هذه العملية 10-30 ثانية.", confirmText: "متابعة", destructive: false }))) return;
     setSyncing(true); setSyncRes(null);
     try {
       const res = await apiJson<SyncResult>("/admin/sync-firebase-users", { method: "POST" });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type SportsPost = { id: number; title: string; content: string; type: string; author_name: string; team?: string; likes: number; created_at: string; };
 type Player     = { id: number; name: string; position: string; team: string; age?: number; goals: number; assists: number; matches_played: number; bio?: string; };
@@ -21,6 +22,7 @@ const MATCH_STATUS: Record<string, { label: string; color: string }> = {
 const orange = "#f97316";
 
 export default function Sports() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState<"posts" | "players" | "matches">("posts");
   const [posts,   setPosts]   = useState<SportsPost[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -55,9 +57,9 @@ export default function Sports() {
 
   useEffect(() => { load(); }, [load]);
 
-  const deletePost   = async (id: number) => { if (!confirm("حذف هذا المنشور؟")) return; await apiFetch(`/sports/posts/${id}`, { method: "DELETE" }); setPosts(p => p.filter(x => x.id !== id)); };
-  const deletePlayer = async (id: number) => { if (!confirm("حذف هذا اللاعب؟")) return; await apiFetch(`/sports/players/${id}`, { method: "DELETE" }); setPlayers(p => p.filter(x => x.id !== id)); };
-  const deleteMatch  = async (id: number) => { if (!confirm("حذف هذه المباراة؟")) return; await apiFetch(`/sports/matches/${id}`, { method: "DELETE" }); setMatches(p => p.filter(x => x.id !== id)); };
+  const deletePost   = async (id: number) => { if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المنشور؟", confirmText: "حذف", destructive: true }))) return; await apiFetch(`/sports/posts/${id}`, { method: "DELETE" }); setPosts(p => p.filter(x => x.id !== id)); };
+  const deletePlayer = async (id: number) => { if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا اللاعب؟", confirmText: "حذف", destructive: true }))) return; await apiFetch(`/sports/players/${id}`, { method: "DELETE" }); setPlayers(p => p.filter(x => x.id !== id)); };
+  const deleteMatch  = async (id: number) => { if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه المباراة؟", confirmText: "حذف", destructive: true }))) return; await apiFetch(`/sports/matches/${id}`, { method: "DELETE" }); setMatches(p => p.filter(x => x.id !== id)); };
 
   const addMatch = async () => {
     if (!matchForm.team_home || !matchForm.team_away || !matchForm.match_date) { alert("الفريقان والتاريخ مطلوبان"); return; }

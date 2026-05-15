@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch, apiJson, getApiBase } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ const DEGREE_LABELS: Record<string, string> = {
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function Unions() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState<"unions" | "members" | "announcements" | "programs" | "laws">("unions");
 
   // Unions
@@ -179,7 +181,7 @@ export default function Unions() {
   }
 
   async function deleteUnion(id: number) {
-    if (!confirm("هل تريد حذف هذه النقابة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه النقابة؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/unions/${id}`, { method: "DELETE" }); loadUnions(); }
     catch { setError("فشل الحذف"); }
   }
@@ -199,7 +201,7 @@ export default function Unions() {
   }
 
   async function deleteMember(id: number) {
-    if (!confirm("هل تريد حذف هذا الطلب؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذا الطلب؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/union-members/${id}`, { method: "DELETE" }); loadMembers(); }
     catch { setError("فشل الحذف"); }
   }
@@ -219,7 +221,7 @@ export default function Unions() {
   }
 
   async function deleteAnn(id: number) {
-    if (!confirm("هل تريد حذف هذا الإعلان؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذا الإعلان؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/union-announcements/${id}`, { method: "DELETE" }); loadAnnouncements(); }
     catch { setError("فشل الحذف"); }
   }
@@ -239,7 +241,7 @@ export default function Unions() {
   }
 
   async function deleteProgram(id: number) {
-    if (!confirm("هل تريد حذف هذا البرنامج؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذا البرنامج؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/union-programs/${id}`, { method: "DELETE" }); loadPrograms(); }
     catch { setError("فشل الحذف"); }
   }
@@ -259,7 +261,7 @@ export default function Unions() {
   }
 
   async function deleteLaw(id: number) {
-    if (!confirm("هل تريد حذف هذه الوثيقة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه الوثيقة؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/union-laws/${id}`, { method: "DELETE" }); loadLaws(); }
     catch { setError("فشل الحذف"); }
   }

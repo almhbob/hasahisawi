@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type TokenStats = { total: string; expo_tokens: string; unique_users: string };
 
@@ -43,6 +44,7 @@ const inp: React.CSSProperties = {
 };
 
 export default function Notifications() {
+  const confirm = useConfirm();
   const [tokenStats, setTokenStats] = useState<TokenStats | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [sending,    setSending]    = useState(false);
@@ -75,7 +77,7 @@ export default function Notifications() {
 
   const sendBroadcast = async () => {
     if (!bTitle || !bBody) { alert("العنوان والمحتوى مطلوبان"); return; }
-    if (!confirm(`إرسال إشعار لجميع المستخدمين؟\n"${bTitle}"`)) return;
+    if (!(await confirm({ title: "تأكيد", description: `إرسال إشعار لجميع المستخدمين؟\n"${bTitle}"`, confirmText: "متابعة", destructive: false }))) return;
     setSending(true);
     try {
       await apiFetch("/admin/push/broadcast", { method: "POST", body: JSON.stringify({ title: bTitle, body: bBody }) });
@@ -99,7 +101,7 @@ export default function Notifications() {
   const sendSegment = async () => {
     if (!sTitle || !sBody) { alert("العنوان والمحتوى مطلوبان"); return; }
     const seg = SEGMENTS.find(s => s.key === segment);
-    if (!confirm(`إرسال إشعار لفئة "${seg?.label}"؟\n"${sTitle}"`)) return;
+    if (!(await confirm({ title: "تأكيد", description: `إرسال إشعار لفئة "${seg?.label}"؟\n"${sTitle}"`, confirmText: "متابعة", destructive: false }))) return;
     setSending(true);
     try {
       await apiFetch("/admin/push/segment", { method: "POST", body: JSON.stringify({ segment, title: sTitle, body: sBody }) });

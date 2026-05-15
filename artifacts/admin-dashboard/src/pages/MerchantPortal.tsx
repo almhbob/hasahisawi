@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // ── ألوان ─────────────────────────────────────────────────────────────────────
 const C = {
@@ -154,6 +155,7 @@ function ItemCard({ item, onEdit, onToggle, onDelete }: {
 
 // ── الواجهة الرئيسية ──────────────────────────────────────────────────────────
 function PortalMain({ data, onLogout }: { data: PortalData; onLogout: () => void }) {
+  const confirm = useConfirm();
   const [items,       setItems]       = useState<MerchantItem[]>(data.items);
   const [activeTab,   setActiveTab]   = useState<"items" | "shop">("items");
   const [showForm,    setShowForm]    = useState(false);
@@ -208,7 +210,7 @@ function PortalMain({ data, onLogout }: { data: PortalData; onLogout: () => void
   };
 
   const deleteItem = async (item: MerchantItem) => {
-    if (!confirm(`حذف "${item.name}"؟`)) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: `حذف "${item.name}"؟`, confirmText: "حذف", destructive: true }))) return;
     try {
       await fetch(api(`/merchant-portal/shop/${data.shop.id}/items/${item.id}`), { method: "DELETE", headers });
       setItems(prev => prev.filter(i => i.id !== item.id));
@@ -406,6 +408,7 @@ function PortalMain({ data, onLogout }: { data: PortalData; onLogout: () => void
 
 // ── المكوّن الرئيسي ───────────────────────────────────────────────────────────
 export default function MerchantPortal() {
+  const confirm = useConfirm();
   const [portalData, setPortalData] = useState<PortalData | null>(null);
 
   const handleLogout = () => {

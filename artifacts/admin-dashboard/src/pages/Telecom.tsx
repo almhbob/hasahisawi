@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/auth";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const PKG_COLORS: Record<string, string> = { premium: "#F59E0B", standard: "#0EA
 const PKG_LABELS: Record<string, string> = { premium: "★ بريميوم", standard: "⬡ ستاندرد", basic: "● أساسي" };
 
 export default function Telecom() {
+  const confirm = useConfirm();
   const { token } = useAuth();
   const [tab, setTab] = useState<"companies" | "offers" | "events" | "contracts">("companies");
 
@@ -181,7 +183,7 @@ export default function Telecom() {
   }
 
   async function deleteCompany(id: number) {
-    if (!confirm("هل تريد حذف هذه الشركة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه الشركة؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/telecom/companies/${id}`, { method: "DELETE" });
       loadCompanies();
@@ -212,7 +214,7 @@ export default function Telecom() {
   }
 
   async function deleteOffer(id: number) {
-    if (!confirm("هل تريد حذف هذا العرض؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذا العرض؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/telecom/offers/${id}`, { method: "DELETE" });
       loadOffers();
@@ -234,7 +236,7 @@ export default function Telecom() {
   }
 
   async function deleteEvent(id: number) {
-    if (!confirm("هل تريد حذف هذه الفعالية؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه الفعالية؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/telecom/events/${id}`, { method: "DELETE" });
       loadEvents();

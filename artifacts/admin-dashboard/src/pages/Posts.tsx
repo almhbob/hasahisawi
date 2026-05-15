@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonCardGrid } from "@/components/SkeletonGrid";
 import { toast } from "sonner";
 
 type Post = {
@@ -83,7 +84,7 @@ export default function Posts() {
       </div>
       <div style={{ padding: "12px 28px 28px" }}>
         {loading ? (
-          <p style={{ textAlign: "center", color: "hsl(215 20% 50%)", padding: "60px 0", fontSize: 15 }}>جارٍ التحميل...</p>
+          <SkeletonCardGrid count={6} />
         ) : filtered.length === 0 ? (
           <p style={{ textAlign: "center", color: "hsl(215 20% 50%)", padding: "60px 0", fontSize: 14 }}>لا يوجد منشورات</p>
         ) : (

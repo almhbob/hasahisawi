@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const PINK  = "#EC4899";
 const GOLD  = "#D4AF37";
@@ -77,6 +78,7 @@ function DL({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function Zawajil() {
+  const confirm = useConfirm();
   const [tab, setTab]     = useState<"orders" | "products">("orders");
   const [statusFilter, setStatusFilter] = useState("all");
   const [orders, setOrders]   = useState<Order[]>([]);
@@ -163,7 +165,7 @@ export default function Zawajil() {
   }
 
   async function deleteProd(id: number) {
-    if (!confirm("حذف هذا المنتج؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المنتج؟", confirmText: "حذف", destructive: true }))) return;
     try { await apiFetch(`/admin/zawajil/products/${id}`, { method: "DELETE" }); loadProducts(); }
     catch { setError("فشل الحذف"); }
   }

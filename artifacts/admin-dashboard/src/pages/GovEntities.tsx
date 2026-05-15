@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type JoinStatus = "pending" | "invited" | "joined";
 
@@ -66,6 +67,7 @@ const labelStyle: React.CSSProperties = {
 type FilterTab = "all" | "visible" | "hidden" | "joined" | "invited" | "pending";
 
 export default function GovEntities() {
+  const confirm = useConfirm();
   const [list,     setList]     = useState<GovEntity[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<FilterTab>("all");
@@ -145,7 +147,7 @@ export default function GovEntities() {
   };
 
   const remove = async (id: number, name: string) => {
-    if (!confirm(`حذف "${name}" نهائياً؟`)) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: `حذف "${name}" نهائياً؟`, confirmText: "حذف", destructive: true }))) return;
     const res = await apiFetch(`/admin/gov-entities/${id}`, { method: "DELETE" });
     if (res.ok) setList(prev => prev.filter(e => e.id !== id));
     else alert("فشل الحذف");

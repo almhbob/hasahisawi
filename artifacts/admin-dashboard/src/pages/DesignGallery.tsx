@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 async function api(path: string, opts?: { method?: string; body?: unknown }) {
   const res = await apiFetch(path, {
@@ -63,6 +64,7 @@ const ghostBtn: React.CSSProperties = {
 };
 
 export default function DesignGallery() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState<"members"|"orders"|"packages">("members");
   const [members,  setMembers]  = useState<Member[]>([]);
   const [orders,   setOrders]   = useState<Order[]>([]);
@@ -112,7 +114,7 @@ export default function DesignGallery() {
   };
 
   const deleteMember = async (id: number) => {
-    if (!confirm("حذف هذا المصمم وجميع منتجاته؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المصمم وجميع منتجاته؟", confirmText: "حذف", destructive: true }))) return;
     await api(`/admin/design-gallery/members/${id}`, { method: "DELETE" });
     flash("تم الحذف"); load();
   };
@@ -146,7 +148,7 @@ export default function DesignGallery() {
   };
 
   const deletePkg = async (id: number) => {
-    if (!confirm("حذف هذه الباقة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه الباقة؟", confirmText: "حذف", destructive: true }))) return;
     await api(`/admin/design-gallery/packages/${id}`, { method: "DELETE" });
     flash("تم الحذف"); load();
   };

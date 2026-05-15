@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Place = {
   id: number; name: string; category: string; address?: string;
@@ -12,6 +13,7 @@ const CATS = ["طبي","مدارس","سوق","مساجد","معالم","صيدل
 const EMPTY: Partial<Place> = { name: "", category: "معالم", address: "", phone: "", lat: 15.55, lng: 32.53, icon: "📍", color: "#27AE68" };
 
 export default function MapPlaces() {
+  const confirm = useConfirm();
   const [places,  setPlaces]  = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [form,    setForm]    = useState<Partial<Place>>(EMPTY);
@@ -54,7 +56,7 @@ export default function MapPlaces() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا المكان؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا المكان؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/map/places/${id}`, { method: "DELETE" });
     setPlaces(prev => prev.filter(p => p.id !== id));
   };

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Ad = {
   id: number; institution_name: string; contact_name?: string;
@@ -21,6 +22,7 @@ const EMPTY: Partial<Ad> = {
 };
 
 export default function Ads() {
+  const confirm = useConfirm();
   const [ads,     setAds]     = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [form,    setForm]    = useState<Partial<Ad>>(EMPTY);
@@ -52,7 +54,7 @@ export default function Ads() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا الإعلان؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذا الإعلان؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/ads/${id}`, { method: "DELETE" });
     setAds(prev => prev.filter(a => a.id !== id));
   };

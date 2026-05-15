@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson, getApiBase } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Application = {
@@ -124,6 +125,7 @@ function Modal({ onClose, title, width, children }: { onClose: () => void; title
 type Tab = "applications" | "active" | "subscriptions" | "expiring" | "plans";
 
 export default function Lawyers() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>("applications");
 
   // Data
@@ -267,7 +269,7 @@ export default function Lawyers() {
   // ── Actions ────────────────────────────────────────────────────────────────
   const approve = async () => {
     if (!selected) return;
-    if (!confirm(`قبول طلب ${selected.full_name}؟ سيتم إنشاء ملف المحامي تلقائياً.`)) return;
+    if (!(await confirm({ title: "تأكيد", description: `قبول طلب ${selected.full_name}؟ سيتم إنشاء ملف المحامي تلقائياً.`, confirmText: "متابعة", destructive: false }))) return;
     setBusy(true);
     try {
       const r = await apiFetch(`/admin/lawyer-applications/${selected.id}/approve`,
@@ -280,7 +282,7 @@ export default function Lawyers() {
   const reject = async () => {
     if (!selected) return;
     if (!note.trim()) { alert("اكتب سبب الرفض"); return; }
-    if (!confirm("رفض هذا الطلب؟")) return;
+    if (!(await confirm({ title: "تأكيد الرفض", description: "رفض هذا الطلب؟", confirmText: "رفض", destructive: true }))) return;
     setBusy(true);
     try {
       const r = await apiFetch(`/admin/lawyer-applications/${selected.id}/reject`,
@@ -296,7 +298,7 @@ export default function Lawyers() {
   };
 
   const removeLawyer = async (l: Lawyer) => {
-    if (!confirm(`حذف المحامي "${l.full_name}" نهائياً؟`)) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: `حذف المحامي "${l.full_name}" نهائياً؟`, confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/lawyers/${l.id}`, { method: "DELETE" });
     setLawyers(prev => prev.filter(x => x.id !== l.id));
   };

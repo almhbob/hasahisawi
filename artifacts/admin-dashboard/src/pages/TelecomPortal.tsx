@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const TC   = "#0EA5E9";
 const TC2  = "#2563EB";
@@ -51,6 +52,7 @@ const SVC_ICONS  = ["star-outline", "card-outline", "wifi-outline", "call-outlin
 
 // ────────────────────────────────────────────────────────────────────────────
 export default function TelecomPortal() {
+  const confirm = useConfirm();
   const [loginStep, setLoginStep] = useState<"select" | "pin">("select");
   const [companies, setCompanies] = useState<{ id: number; name: string; logo_initial?: string; brand_color: string }[]>([]);
   const [selCompany, setSelCompany] = useState<number | null>(null);
@@ -145,7 +147,7 @@ export default function TelecomPortal() {
   }
 
   async function deleteOffer(id: number) {
-    if (!confirm("هل تريد حذف هذا العرض؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذا العرض؟", confirmText: "حذف", destructive: true }))) return;
     try { await portalFetch(`/telecom/portal/offers/${id}`, token, { method: "DELETE" }); setOffers(offers.filter(o => o.id !== id)); }
     catch (e: any) { setError(e.message); }
   }
@@ -164,7 +166,7 @@ export default function TelecomPortal() {
   }
 
   async function deleteSvc(id: number) {
-    if (!confirm("هل تريد حذف هذه الخدمة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه الخدمة؟", confirmText: "حذف", destructive: true }))) return;
     try { await portalFetch(`/telecom/portal/services/${id}`, token, { method: "DELETE" }); setServices(services.filter(s => s.id !== id)); }
     catch (e: any) { setError(e.message); }
   }
@@ -183,7 +185,7 @@ export default function TelecomPortal() {
   }
 
   async function deleteEvent(id: number) {
-    if (!confirm("هل تريد حذف هذه الفعالية؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "هل تريد حذف هذه الفعالية؟", confirmText: "حذف", destructive: true }))) return;
     try { await portalFetch(`/telecom/portal/events/${id}`, token, { method: "DELETE" }); setEvents(events.filter(e => e.id !== id)); }
     catch (e: any) { setError(e.message); }
   }

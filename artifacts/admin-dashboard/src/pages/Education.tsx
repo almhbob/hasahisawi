@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Institution = {
   id: number; name: string; type: string; address: string; phone: string;
@@ -51,6 +52,7 @@ const labelStyle = { display: "block", fontSize: 13, color: "hsl(215 20% 55%)", 
 const btnBase = { padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid transparent" };
 
 export default function Education() {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>("institutions");
 
   // Institutions
@@ -134,7 +136,7 @@ export default function Education() {
   };
 
   const deleteInst = async (id: number) => {
-    if (!confirm("حذف هذه المؤسسة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه المؤسسة؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/educational-institutions/${id}`, { method: "DELETE" });
       setList(prev => prev.filter(i => i.id !== id));

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiJson, apiFetch } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const orange = "#f97316";
 const green  = "#3EFF9C";
@@ -116,6 +117,7 @@ function AddDoctorModal({ clinicName, onClose, onAdded }: { clinicName: string; 
 
 // ─ صفحة الإدارة الرئيسية ──────────────────────────────
 export default function MedicalClinics() {
+  const confirm = useConfirm();
   const [groups, setGroups]             = useState<Groups>({});
   const [loading, setLoading]           = useState(true);
   const [toggling, setToggling]         = useState<number | string | null>(null);
@@ -157,7 +159,7 @@ export default function MedicalClinics() {
   };
 
   const deleteDoctor = async (id: number, name: string) => {
-    if (!confirm(`هل أنت متأكد من حذف "${name}"؟`)) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: `هل أنت متأكد من حذف "${name}"؟`, confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/specialists/${id}`, { method: "DELETE" });
       await load();

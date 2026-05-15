@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Org = {
   id: number;
@@ -31,6 +32,7 @@ const EMPTY = {
 };
 
 export default function Organizations() {
+  const confirm = useConfirm();
   const [list,     setList]     = useState<Org[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -90,7 +92,7 @@ export default function Organizations() {
   };
 
   const deleteOrg = async (id: number) => {
-    if (!confirm("حذف هذه المنظمة؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه المنظمة؟", confirmText: "حذف", destructive: true }))) return;
     try {
       await apiFetch(`/admin/organizations/${id}`, { method: "DELETE" });
       setList(prev => prev.filter(o => o.id !== id));

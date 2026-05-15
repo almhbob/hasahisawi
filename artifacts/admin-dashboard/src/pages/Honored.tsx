@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type HonoredPerson = {
   id: number; name: string; title?: string; city_role?: string;
@@ -12,6 +13,7 @@ type HonoredPerson = {
 const EMPTY = { name: "", title: "", city_role: "", photo_url: "", tribute: "", start_date: "", end_date: "", is_visible: true };
 
 export default function Honored() {
+  const confirm = useConfirm();
   const [list,     setList]     = useState<HonoredPerson[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [form,     setForm]     = useState<typeof EMPTY>({ ...EMPTY });
@@ -59,7 +61,7 @@ export default function Honored() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm("حذف هذه الشخصية؟")) return;
+    if (!(await confirm({ title: "تأكيد الحذف", description: "حذف هذه الشخصية؟", confirmText: "حذف", destructive: true }))) return;
     await apiFetch(`/admin/honored-figures/${id}`, { method: "DELETE" });
     setList(prev => prev.filter(p => p.id !== id));
   };
