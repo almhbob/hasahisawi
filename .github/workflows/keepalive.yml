@@ -7,18 +7,18 @@ on:
 
 jobs:
   ping:
-    name: Ping Render API
+    name: Ping Railway API
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render Production API
+      - name: Ping Railway Production API
         run: |
-          echo "🏥 Pinging Hasahisawi Render API..."
-          STATUS=$(curl -sf --max-time 20 https://hasahisawi.onrender.com/api/healthz | head -c 100)
-          echo "✅ Render API: $STATUS"
+          echo "🏥 Pinging Hasahisawi Railway API..."
+          STATUS=$(curl -sf --max-time 20 https://hasahisawi-production.up.railway.app/api/healthz | head -c 100)
+          echo "✅ Railway API: $STATUS"
         continue-on-error: true
 
       - name: Ping secondary endpoints
         run: |
-          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/prayer-times > /dev/null && echo "✅ prayer-times OK"
-          curl -sf --max-time 10 https://hasahisawi.onrender.com/api/posts > /dev/null && echo "✅ posts OK"
+          curl -sf --max-time 10 https://hasahisawi-production.up.railway.app/api/prayer-times > /dev/null && echo "✅ prayer-times OK"
+          curl -sf --max-time 10 https://hasahisawi-production.up.railway.app/api/posts > /dev/null && echo "✅ posts OK"
         continue-on-error: true

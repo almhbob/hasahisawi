@@ -63,6 +63,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-8NDWWB1735
           EXPO_PUBLIC_DOMAIN=${{ secrets.API_DOMAIN }}
+          EXPO_PUBLIC_API_URL=https://${{ secrets.API_DOMAIN }}
           EOF
 
       - name: Expo Prebuild (generate Android native code)
