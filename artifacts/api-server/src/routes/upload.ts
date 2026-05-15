@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "node:path";
 import crypto from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -36,9 +37,9 @@ const CLOUDINARY_OK = !!(
 );
 
 if (CLOUDINARY_OK) {
-  console.log(`✅ Cloudinary configured — cloud: ${_cldCfg.cloud_name}`);
+  logger.info({ cloud: _cldCfg.cloud_name }, "Cloudinary configured");
 } else {
-  console.warn("⚠️  Cloudinary not configured — uploads will use local fallback");
+  logger.warn("Cloudinary not configured — uploads will use local fallback");
 }
 
 // ── Multer — keep in memory when Cloudinary is on, disk otherwise ─────────────
@@ -139,7 +140,7 @@ router.post(
           res.status(413).json({ error: "حجم الملف كبير جداً (الحد الأقصى 500MB)" });
           return;
         }
-        console.error("upload middleware error:", e?.message ?? err);
+        logger.error({ err: e?.message ?? err }, "upload middleware error");
         res.status(400).json({ error: "فشل رفع الملف" });
         return;
       }
@@ -178,7 +179,7 @@ router.post(
         } else {
           msg = String(err);
         }
-        console.error("Cloudinary upload error:", msg);
+        logger.error({ msg }, "Cloudinary upload error");
         res.status(500).json({ error: `فشل رفع الملف إلى Cloudinary: ${msg}` });
       }
       return;

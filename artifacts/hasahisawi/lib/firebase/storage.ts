@@ -1,6 +1,3 @@
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { app, isFirebaseConfigured } from "./index";
-import { isFirebaseAvailable } from "./auth";
 import { getApiUrl } from "@/lib/query-client";
 
 export type UploadProgress = {
@@ -8,52 +5,6 @@ export type UploadProgress = {
   totalBytes: number;
   percent: number;
 };
-
-function getFirebaseStorage() {
-  if (!isFirebaseAvailable()) throw new Error("Firebase Storage غير متاح");
-  return getStorage(app);
-}
-
-async function uriToBlob(uri: string): Promise<Blob> {
-  const res = await fetch(uri);
-  return res.blob();
-}
-
-async function uploadToFirebase(
-  path: string,
-  uri: string,
-  onProgress?: (p: UploadProgress) => void,
-): Promise<string> {
-  const storage = getFirebaseStorage();
-  const storageRef = ref(storage, path);
-  const blob = await uriToBlob(uri);
-
-  return new Promise((resolve, reject) => {
-    const task = uploadBytesResumable(storageRef, blob);
-
-    task.on(
-      "state_changed",
-      (snap) => {
-        if (onProgress) {
-          onProgress({
-            bytesTransferred: snap.bytesTransferred,
-            totalBytes: snap.totalBytes,
-            percent: Math.round((snap.bytesTransferred / snap.totalBytes) * 100),
-          });
-        }
-      },
-      (err) => reject(err),
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          resolve(url);
-        } catch (e) {
-          reject(e);
-        }
-      },
-    );
-  });
-}
 
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
@@ -149,24 +100,11 @@ export async function uploadFile(
   uri: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<string> {
-  if (isFirebaseConfigured && isFirebaseAvailable()) {
-    try {
-      return await uploadToFirebase(path, uri, onProgress);
-    } catch (err) {
-      console.warn("[Firebase Storage] رفع Firebase فشل، التحويل للـ Backend:", err);
-    }
-  }
   return uploadToBackend(path, uri, onProgress);
 }
 
-export async function deleteFile(path: string): Promise<void> {
-  if (isFirebaseConfigured && isFirebaseAvailable()) {
-    try {
-      const storage = getFirebaseStorage();
-      await deleteObject(ref(storage, path));
-      return;
-    } catch {}
-  }
+export async function deleteFile(_path: string): Promise<void> {
+  // الحذف يتم عبر DELETE /api/upload مع public_id من Cloudinary
 }
 
 export async function uploadAvatar(userId: string, uri: string): Promise<string> {
