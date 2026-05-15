@@ -74,7 +74,7 @@ type AuthContextValue = {
     gender?: string,
   ) => Promise<void>;
   setUserGender: (gender: "male" | "female") => Promise<void>;
-  completeProfile: (gender: "male" | "female", neighborhood: string) => Promise<void>;
+  completeProfile: (gender: "male" | "female", neighborhood?: string) => Promise<void>;
   registerAdmin: (name: string, email: string, password: string, adminCode: string) => Promise<void>;
   enterAsGuest: () => void;
   logout: () => Promise<void>;
@@ -289,8 +289,9 @@ function profileToAuthUser(profile: UserProfile, _idToken: string): AuthUser {
     email: profile.email ?? null,
     role: profile.role,
     permissions: profile.permissions ?? [],
-    neighborhood: profile.neighborhood ?? null,
+    neighborhood: (profile as any).neighborhood ?? null,
     avatar_url: null,
+    gender: ((profile as any).gender as "male" | "female" | null) ?? null,
   };
 }
 
@@ -565,12 +566,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const finalizeGoogleLogin = async (
     fbUser: import("firebase/auth").User
   ) => {
-    // Firestore مع مهلة 6 ثوانٍ — إن تأخر نُكمل من بيانات Firebase مباشرة
+    const idTok = await fbUser.getIdToken();
+    const base = getApiUrl();
+
+    // الطريقة الأولى (الأفضل): تبادل مباشر مع الـ backend — يُعيد بيانات المستخدم الكاملة
+    // بما فيها gender و neighborhood و id المحفوظة في قاعدة البيانات
+    if (base) {
+      try {
+        const { res, json } = await safeFetchJson(
+          `${base}/api/auth/firebase-exchange`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              idToken: idTok,
+              firebase_uid: fbUser.uid,
+              name: fbUser.displayName || "مستخدم Google",
+              email: fbUser.email,
+            }),
+          },
+          2,
+        );
+        if (res.ok && (json as any).user && (json as any).token) {
+          const u = (json as any).user as Record<string, unknown>;
+          const authUser: AuthUser = {
+            id: (u.id as number) ?? 0,
+            uid: fbUser.uid,
+            name: (u.name as string) || fbUser.displayName || "مستخدم Google",
+            phone: (u.phone as string | null) ?? null,
+            email: (u.email as string | null) ?? fbUser.email ?? null,
+            role: (u.role as AuthUser["role"]) ?? "user",
+            permissions: (u.permissions as string[]) ?? [],
+            neighborhood: (u.neighborhood as string | null) ?? null,
+            avatar_url: (u.avatar_url as string | null) ?? fbUser.photoURL ?? null,
+            gender: (u.gender as "male" | "female" | null) ?? null,
+          };
+          await saveSession(authUser, idTok, (json as any).token as string);
+          return;
+        }
+      } catch {}
+    }
+
+    // الطريقة الاحتياطية: بناء المستخدم من Firestore إن فشل الـ backend
     const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid, 6000).catch(() => null);
     let authUser: AuthUser;
     if (profile) {
-      const backendIdToken = await fbUser.getIdToken();
-      authUser = profileToAuthUser(profile, backendIdToken);
+      authUser = profileToAuthUser(profile, idTok);
     } else {
       const newProfile: UserProfile = {
         uid: fbUser.uid,
@@ -579,13 +620,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "user",
         permissions: [],
       };
-      // حفظ الملف الشخصي بشكل غير متزامن — لا نُوقف تدفق الدخول
       fsSetDoc(COLLECTIONS.USERS, fbUser.uid, newProfile, false).catch(() => {});
       authUser = profileToAuthUser(newProfile, "");
       authUser.email = fbUser.email ?? null;
       authUser.avatar_url = fbUser.photoURL ?? null;
     }
-    const idTok = await fbUser.getIdToken();
     const backendTok = await exchangeForBackendToken(
       fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role, idTok
     );
@@ -797,7 +836,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(prev => prev ? { ...prev, gender } : prev);
   };
 
-  const completeProfile = async (gender: "male" | "female", neighborhood: string) => {
+  const completeProfile = async (gender: "male" | "female", neighborhood?: string) => {
     const base = getApiUrl();
     if (!base) throw new Error("تعذّر الاتصال بالخادم");
     if (!token) throw new Error("يجب تسجيل الدخول أولاً");
@@ -806,18 +845,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gender, neighborhood }),
+        body: JSON.stringify({ gender, ...(neighborhood ? { neighborhood } : {}) }),
       },
       3,
       15000,
     );
     if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث البيانات");
-    setUser(prev => prev ? { ...prev, gender, neighborhood } : prev);
+    setUser(prev => prev ? { ...prev, gender, ...(neighborhood ? { neighborhood } : {}) } : prev);
     try {
       const saved = await AsyncStorage.getItem(USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        await AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, user: { ...(parsed.user ?? {}), gender, neighborhood } }));
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, user: { ...(parsed.user ?? {}), gender, ...(neighborhood ? { neighborhood } : {}) } }));
       }
     } catch {}
   };

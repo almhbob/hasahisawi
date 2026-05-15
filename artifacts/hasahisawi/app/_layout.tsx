@@ -133,11 +133,11 @@ function AuthGate() {
       return;
     }
 
-    // المستخدم مسجّل لكن لم يكمل ملفه — أجبره على إكماله (ماعدا الأدمن والمشرف)
+    // المستخدم مسجّل لكن لم يحدد جنسه — اطلب منه مرة واحدة فقط (ماعدا الأدمن والمشرف)
     const needsCompletion =
       !isGuest &&
       user.role === "user" &&
-      (!user.gender || !user.neighborhood);
+      !user.gender;
 
     if (needsCompletion) {
       if (!inCompleteProfile) router.replace("/complete-profile" as any);

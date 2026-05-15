@@ -22,14 +22,14 @@ export default function CompleteProfileScreen() {
   const [saving, setSaving]             = useState(false);
   const [error, setError]               = useState("");
 
-  const canSave = !!gender && neighborhood.trim().length > 0;
+  const canSave = !!gender;
 
   const handleSave = async () => {
     if (!canSave) return;
     setError("");
     setSaving(true);
     try {
-      await completeProfile(gender!, neighborhood.trim());
+      await completeProfile(gender!, neighborhood.trim() || undefined);
       router.replace("/(tabs)/" as any);
     } catch (e: any) {
       setError(e?.message || "تعذّر الحفظ، حاول مرة أخرى");
@@ -100,7 +100,7 @@ export default function CompleteProfileScreen() {
         <Animated.View entering={FadeInDown.delay(160).springify()} style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>مكان السكن</Text>
-            <View style={s.requiredBadge}><Text style={s.requiredTxt}>مطلوب</Text></View>
+            <View style={[s.requiredBadge, { backgroundColor: Colors.surface2 }]}><Text style={[s.requiredTxt, { color: Colors.textMuted }]}>اختياري</Text></View>
           </View>
           <Text style={s.sectionHint}>
             اكتب اسم حيّك أو قريتك أو المنطقة التي تسكن فيها
@@ -175,13 +175,7 @@ export default function CompleteProfileScreen() {
           </TouchableOpacity>
 
           {!canSave && (
-            <Text style={s.helperTxt}>
-              {!gender && !neighborhood.trim()
-                ? "يرجى اختيار الجنس وكتابة مكان السكن للمتابعة"
-                : !gender
-                ? "يرجى اختيار الجنس للمتابعة"
-                : "يرجى كتابة مكان سكنك للمتابعة"}
-            </Text>
+            <Text style={s.helperTxt}>يرجى اختيار الجنس للمتابعة</Text>
           )}
         </Animated.View>
       </ScrollView>
