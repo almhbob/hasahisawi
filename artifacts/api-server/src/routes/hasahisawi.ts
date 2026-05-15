@@ -2001,9 +2001,10 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     if (user.firebase_uid && !user.password_hash) {
       return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
     }
-    const valid = await bcrypt.compare(password, user.password_hash || "");
+    const valid = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
     if (!valid) {
-      if (user.firebase_uid) {
+      // لا توجد كلمة مرور مطلقاً — الحساب Firebase/Google فقط
+      if (!user.password_hash) {
         return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
       }
       return res.status(401).json({ error: "بيانات غير صحيحة" });
