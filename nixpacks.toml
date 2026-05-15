@@ -2,13 +2,11 @@
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = [
-  "npm install -g pnpm@10 && pnpm install --no-frozen-lockfile"
-]
+cmds = ["true"]
 
 [phases.build]
 cmds = [
-  "node artifacts/api-server/build.mjs"
+  "npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && node artifacts/api-server/build.mjs"
 ]
 
 [start]
