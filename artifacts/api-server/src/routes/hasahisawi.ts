@@ -161,6 +161,21 @@ export async function initHasahisawiDb() {
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(phone_or_email, type, created_at)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_otp_expires ON otp_codes(expires_at) WHERE used = FALSE`);
+
+  // جدول رموز إعادة تعيين كلمة المرور الآمنة (مرتبطة بـ OTP)
+  await query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      identifier VARCHAR(200) NOT NULL,
+      token VARCHAR(128) NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_prt_token      ON password_reset_tokens(token) WHERE used = FALSE`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_prt_identifier ON password_reset_tokens(identifier, created_at)`);
+
   // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
@@ -5419,23 +5434,33 @@ router.patch("/users/me/bio", async (req: Request, res: Response) => {
 });
 
 // ── استعادة كلمة المرور ───────────────────────────────────────────────────────
+// تغيير كلمة المرور — يتطلب reset_token صادراً من verify-reset-otp
 router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
   try {
-    const { phone, email, identifier, new_password } = req.body;
-    const lookup = (identifier || phone || email || "").trim();
-    if (!lookup || !new_password) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني وكلمة المرور الجديدة" });
-    if (lookup.length > 200) return res.status(400).json({ error: "بيانات غير صالحة" });
-    if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+    const { reset_token, new_password } = req.body;
+    if (!reset_token || !new_password) return res.status(400).json({ error: "البيانات ناقصة" });
+    if (new_password.length < 6)   return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
     if (new_password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
 
-    const isEmail = lookup.includes("@");
+    // التحقق من صلاحية رمز الإعادة
+    const tokenR = await query(
+      `SELECT id, identifier FROM password_reset_tokens WHERE token=$1 AND used=FALSE AND expires_at > NOW()`,
+      [reset_token]
+    );
+    if (!tokenR.rows.length) {
+      return res.status(400).json({ error: "رمز الإعادة منتهي أو غير صالح. أعد العملية من البداية." });
+    }
+
+    const { id: tokenId, identifier } = tokenR.rows[0];
+    const isEmail = identifier.includes("@");
     const userR = isEmail
-      ? await query(`SELECT id FROM users WHERE email=$1`, [lookup])
-      : await query(`SELECT id FROM users WHERE phone=$1`, [lookup]);
-    if (!userR.rows.length) return res.status(404).json({ error: "لم يتم العثور على حساب بهذا الرقم أو البريد" });
+      ? await query(`SELECT id FROM users WHERE email=$1`, [identifier])
+      : await query(`SELECT id FROM users WHERE phone=$1`, [identifier]);
+    if (!userR.rows.length) return res.status(404).json({ error: "الحساب غير موجود" });
 
     const hashed = await bcrypt.hash(new_password, 10);
     await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, userR.rows[0].id]);
+    await query(`UPDATE password_reset_tokens SET used=TRUE WHERE id=$1`, [tokenId]);
 
     return res.json({ ok: true, message: "تم تغيير كلمة المرور بنجاح" });
   } catch (err) {
@@ -5534,6 +5559,56 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
   } catch (e: any) {
     logger.error({ err: e?.message }, "[send-otp]");
     return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
+  }
+});
+
+// POST /api/auth/verify-reset-otp — التحقق من OTP لاستعادة كلمة المرور + إصدار reset_token
+router.post("/auth/verify-reset-otp", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone_or_email, code } = req.body as { phone_or_email?: string; code?: string };
+    if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
+
+    const identifier = phone_or_email.trim().toLowerCase();
+    const cleanCode  = code.trim();
+
+    const otpR = await query(
+      `SELECT id, code, attempts FROM otp_codes
+       WHERE phone_or_email=$1 AND type='password_reset' AND used=FALSE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [identifier]
+    );
+
+    if (!otpR.rows.length) return res.status(400).json({ error: "رمز التحقق منتهي الصلاحية أو غير موجود. أعد الإرسال." });
+
+    const otp = otpR.rows[0];
+    if (otp.attempts >= 5) {
+      await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+      return res.status(400).json({ error: "تجاوزت عدد المحاولات. أعد إرسال رمز جديد." });
+    }
+    if (otp.code !== cleanCode) {
+      await query(`UPDATE otp_codes SET attempts=attempts+1 WHERE id=$1`, [otp.id]);
+      const remaining = 4 - otp.attempts;
+      return res.status(400).json({ error: `رمز التحقق غير صحيح. المحاولات المتبقية: ${remaining}` });
+    }
+
+    // رمز صحيح — إلغاؤه وإصدار reset_token صالح 15 دقيقة
+    await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+
+    const { randomBytes } = await import("crypto");
+    const resetToken = randomBytes(48).toString("hex");
+    const expiresAt  = new Date(Date.now() + 15 * 60 * 1000);
+
+    // حذف الرموز القديمة لنفس المستخدم
+    await query(`UPDATE password_reset_tokens SET used=TRUE WHERE identifier=$1 AND used=FALSE`, [identifier]);
+    await query(
+      `INSERT INTO password_reset_tokens (identifier, token, expires_at) VALUES ($1,$2,$3)`,
+      [identifier, resetToken, expiresAt]
+    );
+
+    return res.json({ verified: true, reset_token: resetToken, expires_in: 900 });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[verify-reset-otp]");
+    return res.status(500).json({ error: "حدث خطأ في التحقق" });
   }
 });
 

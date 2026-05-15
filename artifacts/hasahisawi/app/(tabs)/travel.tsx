@@ -861,7 +861,7 @@ function MyTickets({ user }: { user: any }) {
 // ═══════════════════════════════════════════════════════════════
 // تبويب الشركاء + عقد الشراكة
 // ═══════════════════════════════════════════════════════════════
-function PartnersTab() {
+function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
   const [companies,  setCompanies]  = useState<TravelCompany[]>([]);
   const [showContract, setShowContract] = useState(false);
 
@@ -879,10 +879,21 @@ function PartnersTab() {
         </View>
       </LinearGradient>
 
-      <AnimatedPress onPress={()=>setShowContract(true)} style={styles.contractBtn}>
-        <Ionicons name="document-text-outline" size={20} color="#fff" />
-        <Text style={styles.contractBtnTxt}>عرض عقد الشراكة</Text>
-      </AnimatedPress>
+      {/* عقد الشراكة — حصري للمشرفين فقط */}
+      {isAdmin ? (
+        <AnimatedPress onPress={()=>setShowContract(true)} style={styles.contractBtn}>
+          <Ionicons name="document-text-outline" size={20} color="#fff" />
+          <Text style={styles.contractBtnTxt}>عرض عقد الشراكة</Text>
+        </AnimatedPress>
+      ) : (
+        <View style={styles.contractLockedBox}>
+          <Ionicons name="lock-closed-outline" size={18} color={Colors.textMuted} />
+          <Text style={styles.contractLockedTxt}>
+            للتعاقد والشراكة تواصل مع إدارة التطبيق{"\n"}
+            <Text style={{ color: ACCENT, fontWeight:"700" }}>العقود حصرية بين المؤسسة والإدارة</Text>
+          </Text>
+        </View>
+      )}
 
       <Text style={styles.sectionTitle}>شركاؤنا الحاليون</Text>
       {companies.length === 0 ? (
@@ -1125,7 +1136,7 @@ export default function TravelScreen() {
             <MyTickets user={user} />
           </GuestGate>
         )}
-        {activeTab === "partners" && <PartnersTab />}
+        {activeTab === "partners" && <PartnersTab isAdmin={user?.role === "admin"} />}
       </View>
     </View>
   );
@@ -1266,8 +1277,10 @@ const styles = StyleSheet.create({
   partnerBanner:   { borderRadius:16, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
   partnerBannerTitle:{ color:"#fff", fontWeight:"700", fontSize:15, marginBottom:4 },
   partnerBannerSub:{ color:"#93C5FD", fontSize:12, lineHeight:18 },
-  contractBtn:     { flexDirection:"row", backgroundColor:"#1E40AF", borderRadius:12, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
-  contractBtnTxt:  { color:"#fff", fontWeight:"700", fontSize:14 },
+  contractBtn:       { flexDirection:"row", backgroundColor:"#1E40AF", borderRadius:12, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  contractBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:14 },
+  contractLockedBox: { flexDirection:"row-reverse", alignItems:"flex-start", gap:10, backgroundColor:Colors.cardBg, borderRadius:12, padding:14, marginBottom:20, borderWidth:1, borderColor:Colors.borderSubtle },
+  contractLockedTxt: { flex:1, fontSize:13, color:Colors.textSecondary, textAlign:"right" as const, lineHeight:20 },
 
   companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.borderSubtle },
   companyCardIcon: { width:44, height:44, borderRadius:22, backgroundColor:ACCENT+"20", justifyContent:"center", alignItems:"center" },
