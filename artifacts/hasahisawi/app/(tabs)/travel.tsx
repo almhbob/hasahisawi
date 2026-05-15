@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+// @ts-ignore
+import QRCode from "react-native-qrcode-svg";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Share, Linking,
@@ -63,6 +65,7 @@ type TravelBooking = {
   ticket_number: string; booking_ref: string; notes: string; created_at: string;
   payment_status: "pending_payment" | "proof_submitted" | "verified" | "rejected" | "free";
   payment_proof_url: string; payment_ref: string; payment_rejection_reason: string;
+  verify_token: string; scan_count: number; scanned_at: string;
 };
 
 type CompanyPayment = {
@@ -162,14 +165,32 @@ function TicketCard({
           ) : null}
         </View>
 
-        {/* QR visual */}
+        {/* QR Code حقيقي للتحقق */}
         <View style={styles.qrSection}>
-          <View style={styles.qrBox}>
-            <QRVisual code={booking.ticket_number} />
+          <View style={[styles.qrBox, { width:80, height:80, padding:6 }]}>
+            {booking.verify_token ? (
+              <QRCode
+                value={`${getApiUrl()}/travel/verify/${booking.verify_token}`}
+                size={68}
+                backgroundColor="#ffffff"
+                color="#000000"
+              />
+            ) : (
+              <QRVisual code={booking.ticket_number} />
+            )}
           </View>
           <View style={styles.ticketNumberBlock}>
             <Text style={styles.ticketNumberLabel}>رقم التذكرة</Text>
             <Text style={styles.ticketNumberValue}>{booking.ticket_number}</Text>
+            <Text style={{ fontSize:10, color:"#64748B", marginTop:3 }}>امسح الكود للتحقق من صحة التذكرة</Text>
+            {booking.scan_count > 0 && (
+              <View style={{ flexDirection:"row", alignItems:"center", marginTop:4, gap:4 }}>
+                <Ionicons name="checkmark-circle" size={12} color="#34D399" />
+                <Text style={{ fontSize:10, color:"#34D399" }}>
+                  تم فحصها {booking.scan_count} {booking.scan_count===1?"مرة":"مرات"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -866,7 +887,7 @@ function PartnersTab() {
       <Text style={styles.sectionTitle}>شركاؤنا الحاليون</Text>
       {companies.length === 0 ? (
         <View style={styles.emptyBox}>
-          <MaterialCommunityIcons name="bus-outline" size={48} color={ACCENT+"44"} />
+          <MaterialCommunityIcons name="bus" size={48} color={ACCENT+"44"} />
           <Text style={styles.emptyTitle}>لا توجد شركات مسجّلة بعد</Text>
         </View>
       ) : companies.map(c => (
@@ -962,7 +983,7 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex:1, backgroundColor:Colors.background }}>
+      <View style={{ flex:1, backgroundColor:Colors.bg }}>
         <View style={styles.contractHeader}>
           <Text style={styles.contractHeaderTitle}>عقد الشراكة</Text>
           <TouchableOpacity onPress={onClose}>
@@ -1095,12 +1116,12 @@ export default function TravelScreen() {
       {/* المحتوى */}
       <View style={{ flex:1 }}>
         {activeTab === "book" && (
-          <GuestGate message="سجّل دخولك لحجز تذاكر السفر">
+          <GuestGate title="سجّل دخولك لحجز تذاكر السفر">
             <BookingForm user={user} onBooked={()=>setMyBookingsCount(n=>n+1)} />
           </GuestGate>
         )}
         {activeTab === "tickets" && (
-          <GuestGate message="سجّل دخولك لعرض تذاكرك">
+          <GuestGate title="سجّل دخولك لعرض تذاكرك">
             <MyTickets user={user} />
           </GuestGate>
         )}
@@ -1114,7 +1135,7 @@ export default function TravelScreen() {
 // الأنماط
 // ═══════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-  container:       { flex:1, backgroundColor:Colors.background },
+  container:       { flex:1, backgroundColor:Colors.bg },
   header:          { paddingHorizontal:20, paddingVertical:16, paddingBottom:8 },
   headerTop:       { flexDirection:"row", justifyContent:"space-between", alignItems:"center" },
   headerTitle:     { fontSize:22, fontWeight:"700", color:"#fff" },
@@ -1123,7 +1144,7 @@ const styles = StyleSheet.create({
   planeLine:       { height:28, overflow:"hidden", marginTop:4 },
   movingPlane:     { position:"absolute", top:4 },
 
-  tabBar:          { flexDirection:"row", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.border },
+  tabBar:          { flexDirection:"row", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   tabItem:         { flex:1, alignItems:"center", paddingVertical:10, gap:3 },
   tabItemActive:   { borderBottomWidth:2, borderBottomColor:ACCENT },
   tabLabel:        { fontSize:11, color:Colors.textMuted, fontWeight:"500" },
@@ -1132,7 +1153,7 @@ const styles = StyleSheet.create({
   sectionTitle:    { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:12, marginTop:8 },
 
   cityPickerRow:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:12 },
-  cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:12, padding:12, gap:6, borderWidth:1, borderColor:Colors.border },
+  cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:12, padding:12, gap:6, borderWidth:1, borderColor:Colors.borderSubtle },
   cityPickerTxt:   { flex:1, fontSize:13, color:Colors.text },
   swapBtn:         { width:36, height:36, borderRadius:18, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" },
   searchBtn:       { flexDirection:"row", backgroundColor:ACCENT, borderRadius:12, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
@@ -1146,7 +1167,7 @@ const styles = StyleSheet.create({
   infoCardSub:     { color:"#93C5FD", fontSize:12, lineHeight:18 },
 
   fieldLabel:      { fontSize:13, color:Colors.textMuted, marginBottom:4, marginTop:12 },
-  input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.border },
+  input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.borderSubtle },
 
   bookBtn:         { flexDirection:"row", backgroundColor:ACCENT, borderRadius:14, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
   bookBtnText:     { color:"#fff", fontWeight:"700", fontSize:16 },
@@ -1154,7 +1175,7 @@ const styles = StyleSheet.create({
   sectionHeader:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:16 },
   backBtn:         { width:36, height:36, borderRadius:18, backgroundColor:Colors.cardBg, justifyContent:"center", alignItems:"center" },
 
-  routeCard:       { backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, flexDirection:"row", borderWidth:1, borderColor:Colors.border },
+  routeCard:       { backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, flexDirection:"row", borderWidth:1, borderColor:Colors.borderSubtle },
   routeCardSelected:{ borderColor:ACCENT, borderWidth:2 },
   routeCardLeft:   { flex:1 },
   routeCardRight:  { alignItems:"flex-end", justifyContent:"space-between" },
@@ -1202,8 +1223,8 @@ const styles = StyleSheet.create({
   planIcon:        { marginHorizontal:4 },
 
   tearLine:        { flexDirection:"row", alignItems:"center", marginVertical:8 },
-  tearCircleLeft:  { width:20, height:20, borderRadius:10, backgroundColor:Colors.background, marginStart:-10 },
-  tearCircleRight: { width:20, height:20, borderRadius:10, backgroundColor:Colors.background, marginEnd:-10 },
+  tearCircleLeft:  { width:20, height:20, borderRadius:10, backgroundColor:Colors.bg, marginStart:-10 },
+  tearCircleRight: { width:20, height:20, borderRadius:10, backgroundColor:Colors.bg, marginEnd:-10 },
   dashedRow:       { flex:1, flexDirection:"row", justifyContent:"space-between", paddingHorizontal:4 },
   dashSegment:     { width:6, height:1, backgroundColor:"#ffffff30" },
 
@@ -1232,7 +1253,7 @@ const styles = StyleSheet.create({
 
   // قوائم
   filterRow:       { flexDirection:"row", gap:8, marginBottom:16 },
-  filterChip:      { flex:1, paddingVertical:7, borderRadius:10, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.border },
+  filterChip:      { flex:1, paddingVertical:7, borderRadius:10, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.borderSubtle },
   filterChipActive:{ backgroundColor:ACCENT, borderColor:ACCENT },
   filterChipTxt:   { fontSize:13, color:Colors.textMuted, fontWeight:"600" },
   filterChipTxtActive:{ color:"#fff" },
@@ -1248,7 +1269,7 @@ const styles = StyleSheet.create({
   contractBtn:     { flexDirection:"row", backgroundColor:"#1E40AF", borderRadius:12, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   contractBtnTxt:  { color:"#fff", fontWeight:"700", fontSize:14 },
 
-  companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.border },
+  companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.borderSubtle },
   companyCardIcon: { width:44, height:44, borderRadius:22, backgroundColor:ACCENT+"20", justifyContent:"center", alignItems:"center" },
   companyCardName: { fontSize:15, fontWeight:"700", color:Colors.text },
   companyCardOwner:{ fontSize:12, color:Colors.textMuted, marginTop:2 },
@@ -1260,7 +1281,7 @@ const styles = StyleSheet.create({
   waCircleBtn:     { width:32, height:32, borderRadius:16, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center" },
 
   // عقد الشراكة
-  contractHeader:  { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.border },
+  contractHeader:  { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   contractHeaderTitle:{ fontSize:18, fontWeight:"700", color:Colors.text },
   contractBadge:   { borderRadius:16, padding:20, alignItems:"center", marginBottom:16 },
   contractBadgeTitle:{ color:"#fff", fontWeight:"700", fontSize:18, marginTop:8 },
@@ -1271,13 +1292,13 @@ const styles = StyleSheet.create({
 
   // موديالات
   modalOverlay:    { flex:1, backgroundColor:"#00000088", justifyContent:"flex-end" },
-  cityModal:       { backgroundColor:Colors.background, borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:"75%", paddingBottom:32 },
-  cityModalHeader: { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.border },
+  cityModal:       { backgroundColor:Colors.bg, borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:"75%", paddingBottom:32 },
+  cityModalHeader: { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   cityModalTitle:  { fontSize:16, fontWeight:"700", color:Colors.text },
-  cityOption:      { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:14, borderBottomWidth:1, borderColor:Colors.border+"44" },
+  cityOption:      { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:14, borderBottomWidth:1, borderColor:Colors.dividerSoft },
   cityOptionTxt:   { fontSize:15, color:Colors.text },
 
-  smallModal:      { backgroundColor:Colors.background, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24 },
+  smallModal:      { backgroundColor:Colors.bg, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24 },
   smallModalTitle: { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:4 },
   smallModalSub:   { fontSize:12, color:Colors.textMuted, marginBottom:16 },
   modalBtns:       { flexDirection:"row", gap:10, marginTop:16 },

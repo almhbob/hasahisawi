@@ -1832,6 +1832,14 @@ export async function initHasahisawiDb() {
   await query(`INSERT INTO admin_settings(key,value) VALUES('travel_enabled','true') ON CONFLICT(key) DO NOTHING`);
   await query(`INSERT INTO admin_settings(key,value) VALUES('travel_payment_timeout_hrs','3') ON CONFLICT(key) DO NOTHING`);
   await query(`INSERT INTO admin_settings(key,value) VALUES('travel_admin_whatsapp','') ON CONFLICT(key) DO NOTHING`);
+  // ترقية جدول travel_bookings بحقول التحقق من التذكرة
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS verify_token VARCHAR(64) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS scanned_by VARCHAR(100) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS scan_count INTEGER NOT NULL DEFAULT 0`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_tb_verify_token ON travel_bookings(verify_token)`);
+  // تعبئة رموز تحقق للحجوزات القديمة الفارغة
+  await query(`UPDATE travel_bookings SET verify_token = encode(sha256((id::text || ticket_number || booking_ref)::bytea), 'hex') WHERE verify_token = ''`);
 
   // بيانات افتراضية للشركة
   const { rows: tcCheck } = await query(`SELECT COUNT(*) as cnt FROM travel_companies`);
@@ -13918,14 +13926,18 @@ router.post("/travel/bookings", async (req: Request, res: Response) => {
     const seatNum    = Math.floor(Math.random()*15)+1;
     const seatNumber = `${seatLetter}${seatNum}`;
 
+    // رمز التحقق المشفّر (SHA-256)
+    const rawToken  = `${ticketNumber}:${bookingRef}:${Date.now()}:${Math.random()}`;
+    const verifyTok = require("crypto").createHash("sha256").update(rawToken).digest("hex");
+
     const r = await query(
       `INSERT INTO travel_bookings
          (user_id, company_id, route_id, company_name, from_city, to_city, travel_date,
-          departure_time, passenger_name, passenger_phone, seat_number, price, ticket_number, booking_ref, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+          departure_time, passenger_name, passenger_phone, seat_number, price, ticket_number, booking_ref, notes, verify_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [user?.id||null, company_id||null, route_id||null, companyName,
        from_city, to_city, travel_date, departure_time||"", passenger_name,
-       passenger_phone||"", seatNumber, price||0, ticketNumber, bookingRef, notes||""]
+       passenger_phone||"", seatNumber, price||0, ticketNumber, bookingRef, notes||"", verifyTok]
     );
     return res.status(201).json(r.rows[0]);
   } catch (err: any) {
@@ -14254,5 +14266,93 @@ router.get("/admin/travel/settings", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     for (const row of r.rows) settings[row.key] = row.value;
     return res.json(settings);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// نظام التحقق من التذاكر بالباركود
+// ═══════════════════════════════════════════════════════════════════
+
+// ── GET /api/travel/verify/:token  ────────────────────────────────
+// يُعاد JSON بالحالة — مفتوح بلا مصادقة (يُطلب من الماسح)
+router.get("/travel/verify/:token", async (req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT tb.*,
+              tc.payment_account_type, tc.payment_account_number
+       FROM travel_bookings tb
+       LEFT JOIN travel_companies tc ON tc.id = tb.company_id
+       WHERE tb.verify_token = $1`,
+      [req.params.token]
+    );
+    if (!r.rows.length) return res.status(404).json({ valid: false, error: "رمز التذكرة غير صالح" });
+    const b = r.rows[0];
+
+    // تقييم الصلاحية
+    let verdict: "valid" | "invalid" | "warning" = "valid";
+    const reasons: string[] = [];
+
+    if (b.status === "cancelled") { verdict = "invalid"; reasons.push("التذكرة ملغاة"); }
+    if (b.payment_status === "pending_payment") { verdict = "warning"; reasons.push("لم يُسدَّد الدفع بعد"); }
+    if (b.payment_status === "rejected") { verdict = "invalid"; reasons.push("الدفع مرفوض"); }
+    if (b.scan_count >= 1 && verdict !== "invalid") { verdict = "warning"; reasons.push(`تم فحص هذه التذكرة ${b.scan_count} مرة من قبل`); }
+
+    return res.json({
+      valid: verdict !== "invalid",
+      verdict,
+      reasons,
+      ticket: {
+        ticket_number:  b.ticket_number,
+        passenger_name: b.passenger_name,
+        passenger_phone:b.passenger_phone,
+        from_city:      b.from_city,
+        to_city:        b.to_city,
+        travel_date:    b.travel_date,
+        departure_time: b.departure_time,
+        seat_number:    b.seat_number,
+        company_name:   b.company_name,
+        payment_status: b.payment_status,
+        status:         b.status,
+        scan_count:     b.scan_count,
+        scanned_at:     b.scanned_at,
+      },
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/travel/verify/:token/scan  ──────────────────────────
+// تسجيل الفحص (صعود الراكب) — يتطلب صلاحية أدمن
+router.post("/travel/verify/:token/scan", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const admin = await getSessionUser(req);
+    const r = await query(
+      `UPDATE travel_bookings
+       SET scanned_at  = NOW(),
+           scanned_by  = $1,
+           scan_count  = scan_count + 1
+       WHERE verify_token = $2
+       RETURNING id, ticket_number, passenger_name, scan_count`,
+      [String(admin?.name || admin?.email || req.body.scanner_name || "scanner"), req.params.token]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "رمز التذكرة غير صالح" });
+    return res.json({ ok: true, ...r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/travel/scans  ──────────────────────────────────
+// سجل كل عمليات الفحص اليوم
+router.get("/admin/travel/scans", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT ticket_number, passenger_name, from_city, to_city,
+              travel_date, departure_time, seat_number, company_name,
+              scanned_at, scanned_by, scan_count, payment_status, status
+       FROM travel_bookings
+       WHERE scanned_at IS NOT NULL
+       ORDER BY scanned_at DESC LIMIT 200`
+    );
+    return res.json(r.rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });

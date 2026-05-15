@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch, apiJson } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
@@ -25,6 +25,20 @@ type Booking = {
   booking_ref: string; payment_proof_url: string; payment_ref: string;
   payment_verified_by: string; payment_verified_at: string;
   payment_rejection_reason: string; user_display: string; created_at: string;
+};
+type VerifyResult = {
+  valid: boolean; verdict: "valid" | "invalid" | "warning"; reasons: string[];
+  ticket: {
+    ticket_number: string; passenger_name: string; passenger_phone: string;
+    from_city: string; to_city: string; travel_date: string; departure_time: string;
+    seat_number: string; company_name: string; payment_status: string;
+    status: string; scan_count: number; scanned_at: string;
+  };
+};
+type ScanRecord = {
+  ticket_number: string; passenger_name: string; from_city: string; to_city: string;
+  travel_date: string; departure_time: string; seat_number: string; company_name: string;
+  scanned_at: string; scanned_by: string; scan_count: number; payment_status: string; status: string;
 };
 type Stats = {
   total: number; confirmed: number; pending: number; cancelled: number;
@@ -153,7 +167,7 @@ function SaveBtn({ onClick, loading, label = "حفظ" }: { onClick: () => void; 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function TravelAdmin() {
   const confirm = useConfirm();
-  const [tab, setTab] = useState<"overview"|"companies"|"routes"|"bookings"|"settings">("overview");
+  const [tab, setTab] = useState<"overview"|"companies"|"routes"|"bookings"|"scanner"|"settings">("overview");
   const [stats,     setStats]     = useState<Stats | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [routes,    setRoutes]    = useState<Route[]>([]);
@@ -171,6 +185,16 @@ export default function TravelAdmin() {
   const [addRouteOpen,     setAddRouteOpen]     = useState(false);
   const [paymentAccModal,  setPaymentAccModal]  = useState<Company | null>(null);
   const [rejectReason,     setRejectReason]     = useState("");
+
+  // Scanner state
+  const [scannerName,    setScannerName]   = useState("");
+  const [manualToken,    setManualToken]   = useState("");
+  const [activeToken,    setActiveToken]   = useState("");  // رمز التذكرة المُتحقَّق منه
+  const [verifyResult,   setVerifyResult]  = useState<VerifyResult | null>(null);
+  const [verifyLoading,  setVerifyLoading] = useState(false);
+  const [scanHistory,    setScanHistory]   = useState<ScanRecord[]>([]);
+  const [confirmingBoard,setConfirmingBoard] = useState(false);
+  const scannerRef = useRef<any>(null);
 
   // New Company form
   const [nc, setNc] = useState({ name:"", owner_name:"", phone:"", wa_number:"",
@@ -219,7 +243,7 @@ export default function TravelAdmin() {
     } catch { toast.error("تعذّر التحديث"); }
   }
   async function toggleCompany(c: Company) {
-    const ok = await confirm(`${c.active ? "إلغاء تفعيل" : "تفعيل"} شركة "${c.name}"؟`);
+    const ok = await confirm({ description: `${c.active ? "إلغاء تفعيل" : "تفعيل"} شركة "${c.name}"؟` });
     if (!ok) return;
     await apiFetch(`/admin/travel/companies/${c.id}`, { method:"PATCH", body: JSON.stringify({ active: !c.active }) });
     loadAll();
@@ -263,7 +287,7 @@ export default function TravelAdmin() {
     } catch { toast.error("تعذّر التحديث"); }
   }
   async function deleteRoute(r: Route) {
-    const ok = await confirm(`حذف خط "${r.from_city} → ${r.to_city}"؟`);
+    const ok = await confirm({ description: `حذف خط "${r.from_city} → ${r.to_city}"؟`, destructive: true });
     if (!ok) return;
     await apiFetch(`/admin/travel/routes/${r.id}`, { method:"DELETE" });
     toast.success("تم حذف الخط"); loadAll();
@@ -271,7 +295,7 @@ export default function TravelAdmin() {
 
   // ── Booking actions ──────────────────────────────────────────
   async function verifyPayment(b: Booking) {
-    const ok = await confirm(`تأكيد استلام دفعة تذكرة "${b.ticket_number}"؟`);
+    const ok = await confirm({ description: `تأكيد استلام دفعة تذكرة "${b.ticket_number}"؟` });
     if (!ok) return;
     await apiFetch(`/admin/travel/bookings/${b.id}/verify-payment`, { method:"PATCH" });
     toast.success("✓ تم تأكيد الدفع"); setViewBooking(null); loadAll();
@@ -298,11 +322,94 @@ export default function TravelAdmin() {
     return true;
   });
 
+  // ── Scanner helpers ───────────────────────────────────────────
+  const loadScanHistory = useCallback(async () => {
+    try {
+      const r = await apiJson<ScanRecord[]>("/admin/travel/scans");
+      setScanHistory(r);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (tab === "scanner") loadScanHistory();
+  }, [tab, loadScanHistory]);
+
+  // بدء ماسح QR بالكاميرا
+  useEffect(() => {
+    if (tab !== "scanner") return;
+    let html5Scanner: any = null;
+    (async () => {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        html5Scanner = new Html5Qrcode("qr-reader");
+        scannerRef.current = html5Scanner;
+        await html5Scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText: string) => {
+            // استخراج التوكن من الرابط أو استخدام النص مباشرة
+            const tokenMatch = decodedText.match(/\/travel\/verify\/([a-f0-9]{64})/);
+            const token = tokenMatch ? tokenMatch[1] : decodedText.trim();
+            if (token.length === 64) {
+              html5Scanner.pause(true);
+              await handleVerify(token);
+            }
+          },
+          () => {}
+        );
+      } catch {
+        // الكاميرا غير متاحة — استخدم الإدخال اليدوي
+      }
+    })();
+    return () => {
+      try { html5Scanner?.stop(); } catch {}
+    };
+  }, [tab]); // eslint-disable-line
+
+  function extractToken(raw: string): string {
+    const urlMatch = raw.match(/\/travel\/verify\/([a-f0-9]{64})/);
+    return urlMatch ? urlMatch[1] : raw.trim();
+  }
+
+  async function handleVerify(token: string) {
+    if (!token.trim()) { toast.error("أدخل رمز التذكرة"); return; }
+    const cleanToken = extractToken(token);
+    setActiveToken(cleanToken);
+    setVerifyLoading(true);
+    setVerifyResult(null);
+    try {
+      const r = await fetch(`/api/travel/verify/${cleanToken}`);
+      const data = await r.json() as VerifyResult;
+      setVerifyResult(data);
+      if (!data.valid) { toast.error("❌ تذكرة غير صالحة"); }
+      else if (data.verdict === "warning") { toast.warning("⚠️ تحذير — راجع التفاصيل"); }
+      else { toast.success("✅ تذكرة صالحة"); }
+    } catch { toast.error("تعذّر التحقق"); }
+    finally { setVerifyLoading(false); }
+  }
+
+  async function handleConfirmBoarding() {
+    if (!verifyResult || !activeToken) return;
+    setConfirmingBoard(true);
+    try {
+      await apiFetch(`/travel/verify/${activeToken}/scan`, {
+        method: "POST",
+        body: JSON.stringify({ scanner_name: scannerName || "الإدارة" }),
+      });
+      toast.success("✅ تم تسجيل صعود الراكب");
+      setVerifyResult(null); setManualToken(""); setActiveToken("");
+      loadScanHistory();
+      try { scannerRef.current?.resume(); } catch {}
+    } catch { toast.error("تعذّر تسجيل الصعود"); }
+    finally { setConfirmingBoard(false); }
+  }
+
   const TABS = [
     { key:"overview",   label:"نظرة عامة",   icon:"📊" },
     { key:"companies",  label:"الشركات",      icon:"🏢" },
     { key:"routes",     label:"الخطوط والأسعار", icon:"🗺️" },
     { key:"bookings",   label:"الحجوزات والمدفوعات", icon:"🎫" },
+    { key:"scanner",    label:"فحص التذاكر",   icon:"📷" },
     { key:"settings",   label:"الإعدادات",    icon:"⚙️" },
   ] as const;
 
@@ -766,6 +873,178 @@ export default function TravelAdmin() {
               </div>
             </Modal>
           )}
+        </div>
+      )}
+
+      {/* ══ Scanner ══ */}
+      {tab === "scanner" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <h2 style={{ margin:0, fontSize:16, fontWeight:700, color:TEXT }}>📷 فحص تذاكر الصعود</h2>
+              <p style={{ margin:"4px 0 0", fontSize:12, color:MUTED }}>امسح رمز QR الموجود على تذكرة المسافر قبل السماح بالصعود</p>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <input value={scannerName} onChange={e=>setScannerName(e.target.value)} placeholder="اسم الفاحص (اختياري)"
+                style={{ padding:"8px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"hsl(222 47% 9%)", color:TEXT, fontSize:12, fontFamily:"inherit", width:180 }} />
+            </div>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+
+            {/* ── القارئ ── */}
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* كاميرا QR */}
+              <div style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:16, padding:20 }}>
+                <h3 style={{ margin:"0 0 14px", fontSize:13, fontWeight:700, color:TEXT }}>📸 مسح بالكاميرا</h3>
+                <div id="qr-reader" style={{ width:"100%", borderRadius:12, overflow:"hidden", background:"#000", minHeight:260 }} />
+                <p style={{ margin:"10px 0 0", fontSize:11, color:MUTED, textAlign:"center" }}>
+                  وجّه الكاميرا نحو رمز QR على تذكرة المسافر
+                </p>
+              </div>
+
+              {/* إدخال يدوي */}
+              <div style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:16, padding:20 }}>
+                <h3 style={{ margin:"0 0 14px", fontSize:13, fontWeight:700, color:TEXT }}>⌨️ إدخال يدوي</h3>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input value={manualToken} onChange={e=>setManualToken(e.target.value)}
+                    placeholder="الصق رمز التذكرة أو الرابط كاملاً..."
+                    onKeyDown={e=>{ if(e.key==="Enter") handleVerify(manualToken); }}
+                    style={{ flex:1, padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`,
+                      background:"hsl(222 47% 9%)", color:TEXT, fontSize:12, fontFamily:"inherit" }} />
+                  <button onClick={()=>handleVerify(manualToken)} disabled={verifyLoading || !manualToken.trim()}
+                    style={{ background:BLUE, color:"#fff", border:"none", borderRadius:10, padding:"0 18px",
+                      fontWeight:700, cursor:"pointer", fontSize:13, opacity: (!manualToken.trim()||verifyLoading)?0.5:1 }}>
+                    {verifyLoading ? "..." : "فحص"}
+                  </button>
+                </div>
+                <p style={{ margin:"8px 0 0", fontSize:11, color:MUTED }}>
+                  يمكن لصق الرابط الكامل مثل <span style={{color:BLUE, fontFamily:"monospace"}}>https://...api.../travel/verify/abc123...</span> أو الرمز وحده (64 حرف)
+                </p>
+              </div>
+            </div>
+
+            {/* ── نتيجة التحقق ── */}
+            <div>
+              {verifyLoading && (
+                <div style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:16, padding:40, textAlign:"center" }}>
+                  <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
+                  <div style={{ color:MUTED, fontSize:14 }}>جارٍ التحقق من التذكرة...</div>
+                </div>
+              )}
+
+              {!verifyLoading && !verifyResult && (
+                <div style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:16, padding:40, textAlign:"center" }}>
+                  <div style={{ fontSize:48, marginBottom:12 }}>🎫</div>
+                  <div style={{ color:MUTED, fontSize:14 }}>امسح تذكرة المسافر لعرض نتيجة التحقق هنا</div>
+                </div>
+              )}
+
+              {!verifyLoading && verifyResult && (
+                <div style={{ background:CARD, border:`2px solid ${verifyResult.verdict==="valid"?GREEN:verifyResult.verdict==="warning"?GOLD:RED}`,
+                  borderRadius:16, padding:20, display:"flex", flexDirection:"column", gap:16 }}>
+
+                  {/* شارة النتيجة */}
+                  <div style={{ display:"flex", alignItems:"center", gap:14, padding:"16px 20px", borderRadius:12,
+                    background: verifyResult.verdict==="valid" ? GREEN+"18" : verifyResult.verdict==="warning" ? GOLD+"18" : RED+"18" }}>
+                    <span style={{ fontSize:40 }}>
+                      {verifyResult.verdict==="valid" ? "✅" : verifyResult.verdict==="warning" ? "⚠️" : "❌"}
+                    </span>
+                    <div>
+                      <div style={{ fontSize:20, fontWeight:800,
+                        color: verifyResult.verdict==="valid" ? GREEN : verifyResult.verdict==="warning" ? GOLD : RED }}>
+                        {verifyResult.verdict==="valid" ? "تذكرة صالحة — يُسمح بالصعود" :
+                         verifyResult.verdict==="warning" ? "تحذير — راجع التفاصيل" :
+                         "تذكرة غير صالحة — يُرفض الصعود"}
+                      </div>
+                      {verifyResult.reasons.length > 0 && (
+                        <ul style={{ margin:"6px 0 0 0", padding:"0 20px", fontSize:12,
+                          color: verifyResult.verdict==="valid" ? GREEN : verifyResult.verdict==="warning" ? GOLD : RED }}>
+                          {verifyResult.reasons.map((r,i) => <li key={i}>{r}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* بيانات التذكرة */}
+                  {verifyResult.ticket && (
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                      {[
+                        ["👤 المسافر",     verifyResult.ticket.passenger_name],
+                        ["📱 الهاتف",      verifyResult.ticket.passenger_phone],
+                        ["🏙️ من",          verifyResult.ticket.from_city],
+                        ["🏙️ إلى",         verifyResult.ticket.to_city],
+                        ["📅 تاريخ السفر", fmtDate(verifyResult.ticket.travel_date)],
+                        ["🕐 وقت المغادرة", verifyResult.ticket.departure_time],
+                        ["💺 رقم المقعد",  verifyResult.ticket.seat_number || "—"],
+                        ["🚌 الشركة",       verifyResult.ticket.company_name],
+                        ["💳 الدفع",        verifyResult.ticket.payment_status === "verified" ? "✅ مدفوع" : verifyResult.ticket.payment_status === "free" ? "✅ مجاني" : "⚠️ " + verifyResult.ticket.payment_status],
+                        ["🔍 مسح سابق",    verifyResult.ticket.scan_count > 0 ? `${verifyResult.ticket.scan_count} مرة` : "لا"],
+                      ].map(([label, val]) => (
+                        <div key={label} style={{ background:BG, borderRadius:8, padding:"8px 12px" }}>
+                          <div style={{ fontSize:10, color:MUTED, marginBottom:2 }}>{label}</div>
+                          <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* أزرار الإجراء */}
+                  <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+                    <button onClick={()=>{ setVerifyResult(null); setManualToken(""); try{scannerRef.current?.resume();}catch{} }}
+                      style={{ background:"none", border:`1px solid ${BORDER}`, color:MUTED, borderRadius:10,
+                        padding:"10px 20px", cursor:"pointer", fontWeight:600, fontSize:13 }}>
+                      مسح أخرى
+                    </button>
+                    {(verifyResult.verdict === "valid" || verifyResult.verdict === "warning") && (
+                      <button onClick={handleConfirmBoarding} disabled={confirmingBoard}
+                        style={{ background: verifyResult.verdict==="valid" ? GREEN : GOLD,
+                          color: "#000", border:"none", borderRadius:10, padding:"10px 24px",
+                          cursor:"pointer", fontWeight:800, fontSize:13, opacity: confirmingBoard ? 0.6 : 1 }}>
+                        {confirmingBoard ? "⏳ جاري التسجيل..." :
+                          verifyResult.verdict === "valid" ? "✅ تأكيد الصعود" : "⚠️ تأكيد رغم التحذير"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* سجل آخر عمليات الفحص */}
+              <div style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:16, padding:20, marginTop:14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <h3 style={{ margin:0, fontSize:13, fontWeight:700, color:TEXT }}>📋 آخر عمليات الفحص</h3>
+                  <button onClick={loadScanHistory}
+                    style={{ background:"none", border:`1px solid ${BORDER}`, color:MUTED, borderRadius:8, padding:"4px 10px", fontSize:11, cursor:"pointer" }}>
+                    تحديث
+                  </button>
+                </div>
+                {scanHistory.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"20px 0", color:MUTED, fontSize:13 }}>لا توجد عمليات فحص بعد</div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:300, overflowY:"auto" }}>
+                    {scanHistory.map((s, i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                        padding:"10px 14px", background:BG, borderRadius:10 }}>
+                        <div>
+                          <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{s.passenger_name}</div>
+                          <div style={{ fontSize:11, color:MUTED, marginTop:2 }}>
+                            {s.from_city} ← {s.to_city} · {s.departure_time} · مقعد {s.seat_number || "—"}
+                          </div>
+                        </div>
+                        <div style={{ textAlign:"left" }}>
+                          <div style={{ fontSize:11, color:BLUE, fontWeight:700 }}>{s.ticket_number}</div>
+                          <div style={{ fontSize:10, color:MUTED, marginTop:2 }}>
+                            {s.scanned_at ? new Date(s.scanned_at).toLocaleTimeString("ar-SD", {hour:"2-digit",minute:"2-digit"}) : "—"}
+                            {s.scan_count > 1 && <span style={{color:GOLD, marginRight:6}}> ⚠️ {s.scan_count}×</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
