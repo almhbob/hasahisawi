@@ -2747,7 +2747,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  استضافة الخادم الخلفي (Express) وقاعدة البيانات (PostgreSQL) على hasahisawi.onrender.com — العمود الفقري للتطبيق
+                  استضافة الخادم الخلفي (Express) على Vercel وقاعدة البيانات (PostgreSQL) على Railway — العمود الفقري للتطبيق
                 </Text>
                 <View style={sub_s.tagRow}>
                   <View style={sub_s.tag}><Text style={sub_s.tagText}>API Server</Text></View>

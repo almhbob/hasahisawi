@@ -8,21 +8,21 @@ const USER_TOKEN_KEY = "auth_backend_token"; // يطابق BACKEND_TOKEN_KEY ف�
  * Gets the base URL for the Express API server.
  * Priority: EXPO_PUBLIC_API_URL (full URL) → EXPO_PUBLIC_DOMAIN (host only) → Railway fallback → Render fallback
  */
-const RAILWAY_DOMAIN = "hasahisawi-production-74c9.up.railway.app";
+const VERCEL_DOMAIN  = "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
 const RENDER_DOMAIN  = "hasahisawi.onrender.com";
 
 export function getApiUrl(): string {
-  // EXPO_PUBLIC_API_URL — URL كامل مثل https://...railway.app
+  // EXPO_PUBLIC_API_URL — URL كامل مثل https://...vercel.app
   const fullUrl = process.env.EXPO_PUBLIC_API_URL;
   if (fullUrl) {
     try { return new URL(fullUrl).href.replace(/\/$/, ""); } catch {}
   }
   // EXPO_PUBLIC_DOMAIN — اسم النطاق فقط
-  const host = process.env.EXPO_PUBLIC_DOMAIN || RAILWAY_DOMAIN;
+  const host = process.env.EXPO_PUBLIC_DOMAIN || VERCEL_DOMAIN;
   try {
     return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
-    return `https://${RAILWAY_DOMAIN}`;
+    return `https://${VERCEL_DOMAIN}`;
   }
 }
 

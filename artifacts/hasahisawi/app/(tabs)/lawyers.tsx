@@ -393,7 +393,7 @@ export default function LawyersScreen() {
       const approvedAt = full.reviewed_at || full.created_at || today.toISOString();
       const sigPayload = `${a.id}|${full.full_name}|${full.bar_number||""}|${full.phone||""}|${approvedAt}|HSWAY-LEGAL-V1`;
       const digSig = `${fnv(sigPayload)}-${fnv(sigPayload.split("").reverse().join(""))}`;
-      const verifyUrl = `https://hasahisawi.onrender.com/api/lawyer-applications/verify/${encodeURIComponent(contractNo)}`;
+      const verifyUrl = `https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/api/lawyer-applications/verify/${encodeURIComponent(contractNo)}`;
       const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=2&data=${encodeURIComponent(verifyUrl)}`;
 
       // ── ألوان وعناصر مشتركة ───────────────────────────────

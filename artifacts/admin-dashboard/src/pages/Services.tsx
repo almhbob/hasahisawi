@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 type HealthStatus = "checking" | "online" | "offline" | "slow";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const DB_EXPIRY = new Date("2026-05-20T00:00:00Z");
 
 const C = {
   bg:       "hsl(222 47% 8%)",
@@ -21,9 +20,6 @@ const C = {
 };
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
-function getDaysLeft(expiry: Date): number {
-  return Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
-}
 
 function useCopyToClipboard() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -173,47 +169,6 @@ function ServiceCard({
   );
 }
 
-// ─── Countdown component ──────────────────────────────────────────────────────
-function Countdown({ expiry }: { expiry: Date }) {
-  const [days, setDays] = useState(getDaysLeft(expiry));
-  useEffect(() => {
-    const t = setInterval(() => setDays(getDaysLeft(expiry)), 60_000);
-    return () => clearInterval(t);
-  }, [expiry]);
-
-  const color = days <= 7 ? C.red : days <= 30 ? C.yellow : C.green;
-  return (
-    <div style={{
-      background: color + "10", border: `1px solid ${color}40`,
-      borderRadius: 12, padding: "14px 18px", margin: "14px 0",
-      display: "flex", alignItems: "center", gap: 14,
-    }}>
-      <div style={{ fontSize: 30 }}>{days <= 7 ? "🚨" : days <= 30 ? "⚠️" : "📅"}</div>
-      <div>
-        <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "monospace" }}>
-          {days} يوم
-        </div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-          متبق حتى انتهاء قاعدة البيانات المجانية — {expiry.toLocaleDateString("ar-SD")}
-        </div>
-      </div>
-      {days <= 30 && (
-        <a
-          href="https://dashboard.render.com/"
-          target="_blank" rel="noopener noreferrer"
-          style={{
-            marginRight: "auto", padding: "8px 16px", borderRadius: 8,
-            background: C.red, color: "#fff", fontSize: 13, fontWeight: 700,
-            textDecoration: "none", flexShrink: 0,
-          }}
-        >
-          ترقية الآن
-        </a>
-      )}
-    </div>
-  );
-}
-
 // ─── Health Ping ──────────────────────────────────────────────────────────────
 function HealthPing({ url }: { url: string }) {
   const [status, setStatus] = useState<HealthStatus>("checking");
@@ -271,10 +226,8 @@ function HealthPing({ url }: { url: string }) {
 export default function Services() {
   const { copied, copy } = useCopyToClipboard();
 
-  // ── Render Web Service
-  const RENDER_SVC_URL = "https://dashboard.render.com/web/srv-d7hnfmvaqgkc739ea5f0";
-  const RENDER_DB_URL  = "https://dashboard.render.com/d/dpg-d7iqkae7r5hc73cd8icg-a";
-  const API_URL        = "https://hasahisawi.onrender.com";
+  // ── Vercel + Railway (الخادم الحالي)
+  const API_URL        = "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
   const HEALTH_URL     = `${API_URL}/api/healthz`;
 
   return (
@@ -303,10 +256,10 @@ export default function Services() {
           display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 24,
         }}>
           {[
-            { label: "Render Server",   icon: "🖥️", status: "تشغيل", color: C.green   },
-            { label: "قاعدة البيانات",  icon: "🗄️", status: "مجانية", color: C.yellow  },
-            { label: "Firebase",         icon: "🔥", status: "نشط",    color: C.orange  },
-            { label: "EAS / Expo",       icon: "📱", status: "نشط",    color: C.blue    },
+            { label: "Vercel API",        icon: "▲",  status: "يعمل",   color: C.green   },
+            { label: "Railway Postgres",  icon: "🗄️", status: "يعمل",   color: C.green   },
+            { label: "Firebase",          icon: "🔥", status: "نشط",    color: C.orange  },
+            { label: "EAS / Expo",        icon: "📱", status: "نشط",    color: C.blue    },
           ].map((s) => (
             <div key={s.label} style={{
               background: C.surface, border: `1px solid ${s.color}30`,
@@ -364,22 +317,22 @@ export default function Services() {
             <tbody>
               {[
                 {
-                  service: "🖥️ Render — API Server",
-                  plan: "Starter (مُوصى به)",
-                  cost: "$7",
-                  priority: "عالية", priorityColor: C.red,
-                  status: "مجاني حالياً ينام", statusColor: C.yellow,
-                  btnLabel: "ترقية الآن", btnColor: C.red,
-                  href: "https://dashboard.render.com/web/srv-d7hnfmvaqgkc739ea5f0/settings",
+                  service: "▲ Vercel — API Server",
+                  plan: "Hobby (مجاني)",
+                  cost: "$0",
+                  priority: "—", priorityColor: C.muted,
+                  status: "يعمل بلا cold-start", statusColor: C.green,
+                  btnLabel: "لوحة Vercel", btnColor: C.green,
+                  href: "https://vercel.com/asim-abdulrahman-mohammed/hasahisawi-api",
                 },
                 {
-                  service: "🗄️ Render — PostgreSQL",
-                  plan: "Starter DB (قبل 20 مايو)",
-                  cost: "$7",
-                  priority: "حرجة", priorityColor: C.red,
-                  status: "تنتهي 20 مايو 2026", statusColor: C.red,
-                  btnLabel: "ترقية الخطة", btnColor: C.red,
-                  href: "https://dashboard.render.com/d/dpg-d7iqkae7r5hc73cd8icg-a",
+                  service: "🗄️ Railway — PostgreSQL",
+                  plan: "مجاني (5$ رصيد/شهر)",
+                  cost: "$0",
+                  priority: "متوسطة", priorityColor: C.yellow,
+                  status: "يعمل", statusColor: C.green,
+                  btnLabel: "لوحة Railway", btnColor: C.purple,
+                  href: "https://railway.app",
                 },
                 {
                   service: "🔥 Firebase",
@@ -450,59 +403,53 @@ export default function Services() {
       {/* ── Cards Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
-        {/* ── 1. Render Web Service */}
+        {/* ── 1. Vercel API Server */}
         <ServiceCard
-          icon="🖥️" title="Render — API Server"
-          subtitle="خادم التطبيق الرئيسي"
+          icon="▲" title="Vercel — API Server"
+          subtitle="خادم التطبيق الرئيسي (مجاني، بلا cold-start)"
           status="ok" statusLabel="يعمل" accentColor={C.green}
         >
           <HealthPing url={HEALTH_URL} />
-          <InfoRow label="رابط الـ API"     value={API_URL}                        copyId="api-url"     copied={copied} onCopy={copy} mono />
-          <InfoRow label="معرف الخدمة"     value="srv-d7hnfmvaqgkc739ea5f0"        copyId="srv-id"      copied={copied} onCopy={copy} mono />
-          <InfoRow label="فحص الصحة"       value={HEALTH_URL}                      copyId="health-url"  copied={copied} onCopy={copy} mono />
-          <InfoRow label="المنطقة"          value="Frankfurt — EU West" />
-          <InfoRow label="أمر التشغيل"     value="node dist/index.mjs"             copyId="start-cmd"   copied={copied} onCopy={copy} mono />
+          <InfoRow label="رابط الـ API"     value={API_URL}                                   copyId="api-url"    copied={copied} onCopy={copy} mono />
+          <InfoRow label="Project ID"       value="prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm"         copyId="prj-id"     copied={copied} onCopy={copy} mono />
+          <InfoRow label="فحص الصحة"       value={HEALTH_URL}                                 copyId="health-url" copied={copied} onCopy={copy} mono />
+          <InfoRow label="المنطقة"          value="Washington D.C. — US East (iad1)" />
+          <InfoRow label="النشر"            value="Vercel Deploy API (بدون GitHub push)" />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-            <ActionBtn href={RENDER_SVC_URL}                              icon="📊" label="لوحة التحكم"   color={C.green} />
-            <ActionBtn href={`${RENDER_SVC_URL}/logs`}                   icon="📄" label="سجلات التشغيل" color={C.green} outline />
-            <ActionBtn href={`${RENDER_SVC_URL}/settings`}               icon="⚙️" label="الإعدادات"      color={C.green} outline />
-            <ActionBtn href="https://dashboard.render.com/billing/info"   icon="💳" label="الفواتير"        color={C.muted} outline />
+            <ActionBtn href="https://vercel.com/asim-abdulrahman-mohammed/hasahisawi-api"         icon="▲" label="لوحة Vercel"       color={C.green} />
+            <ActionBtn href="https://vercel.com/asim-abdulrahman-mohammed/hasahisawi-api/logs"    icon="📄" label="سجلات التشغيل"  color={C.green} outline />
+            <ActionBtn href="https://vercel.com/asim-abdulrahman-mohammed/hasahisawi-api/settings" icon="⚙️" label="الإعدادات"       color={C.green} outline />
           </div>
           <div style={{
             marginTop: 14, padding: "10px 14px", borderRadius: 8,
             background: "hsl(217 32% 14%)", border: `1px solid ${C.border}`,
             fontSize: 12, color: C.muted, lineHeight: 1.7,
           }}>
-            💡 لترقية الخطة: افتح لوحة التحكم → Settings → Instance Type → اختر Starter ($7/شهر) أو أعلى
+            💡 للنشر: شغّل <code>node build.mjs</code> ثم ارفع الملفات عبر Vercel Deploy API باستخدام <code>VERCEL_TOKEN</code>
           </div>
         </ServiceCard>
 
-        {/* ── 2. Render PostgreSQL */}
+        {/* ── 2. Railway PostgreSQL */}
         <ServiceCard
-          icon="🗄️" title="Render — PostgreSQL"
-          subtitle="قاعدة البيانات الرئيسية"
-          status={getDaysLeft(DB_EXPIRY) <= 7 ? "danger" : getDaysLeft(DB_EXPIRY) <= 30 ? "warning" : "ok"}
-          statusLabel={getDaysLeft(DB_EXPIRY) <= 30 ? "تنتهي قريباً" : "مجانية"}
-          accentColor={getDaysLeft(DB_EXPIRY) <= 30 ? C.yellow : C.green}
+          icon="🗄️" title="Railway — PostgreSQL"
+          subtitle="قاعدة البيانات الرئيسية (60 جدول)"
+          status="ok" statusLabel="يعمل" accentColor={C.green}
         >
-          <Countdown expiry={DB_EXPIRY} />
-          <InfoRow label="معرف قاعدة البيانات" value="dpg-d7iqkae7r5hc73cd8icg-a" copyId="db-id" copied={copied} onCopy={copy} mono />
-          <InfoRow label="الاسم"               value="hasahisawi-db" />
-          <InfoRow label="المنطقة"             value="Frankfurt — EU West" />
-          <InfoRow label="الخطة الحالية"       value="Free (90 يوم)" />
-          <InfoRow label="تاريخ الانتهاء"      value="20 مايو 2026" />
+          <InfoRow label="Host"             value="shortline.proxy.rlwy.net:28066"              copyId="db-host"    copied={copied} onCopy={copy} mono />
+          <InfoRow label="Database"         value="railway"                                      copyId="db-name"    copied={copied} onCopy={copy} mono />
+          <InfoRow label="Project ID"       value="4e3750d2 (sunny-peace)"                      copyId="db-proj"    copied={copied} onCopy={copy} mono />
+          <InfoRow label="الجداول"          value="60 جدول — مُهيَّأة وجاهزة" />
+          <InfoRow label="SSL"              value="sslmode=require + rejectUnauthorized: false" />
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-            <ActionBtn href={RENDER_DB_URL}                     icon="📊" label="إدارة القاعدة" color={C.yellow} />
-            <ActionBtn href={`${RENDER_DB_URL}/info`}           icon="ℹ️" label="معلومات الاتصال" color={C.yellow} outline />
-            <ActionBtn href="https://dashboard.render.com/new/database" icon="⬆️" label="قاعدة بيانات جديدة" color={C.red} outline />
+            <ActionBtn href="https://railway.app/project/4e3750d2" icon="🚂" label="لوحة Railway"     color={C.purple} />
+            <ActionBtn href="https://railway.app"                  icon="➕" label="لوحة عامة"        color={C.purple} outline />
           </div>
           <div style={{
             marginTop: 14, padding: "10px 14px", borderRadius: 8,
-            background: C.red + "10", border: `1px solid ${C.red}30`,
-            fontSize: 12, color: C.yellow, lineHeight: 1.7,
+            background: "hsl(217 32% 14%)", border: `1px solid ${C.border}`,
+            fontSize: 12, color: C.muted, lineHeight: 1.7,
           }}>
-            ⚠️ الخطة المجانية تنتهي بعد 90 يوم وتُحذف البيانات نهائياً. للترقية: افتح الإدارة → Upgrade → Starter ($7/شهر).
-            يُنصح بعمل نسخة احتياطية قبل الانتهاء مباشرةً.
+            💡 Railway يمنح رصيداً مجانياً $5/شهر. إن انتهى، قم بترقية الخطة أو نقل البيانات لـ Neon PostgreSQL (مجاني).
           </div>
         </ServiceCard>
 
@@ -625,8 +572,8 @@ export default function Services() {
             { label: "Admin Email",        value: "Hasahisawi@hotmail.com", id: "ref-email" },
             { label: "Admin PIN",          value: "4444",                   id: "ref-pin"   },
             { label: "Firebase Project",   value: "hasahisawi",             id: "ref-fbp"   },
-            { label: "Render Service ID",  value: "srv-d7hnfmvaqgkc739ea5f0", id: "ref-srv" },
-            { label: "Render DB ID",       value: "dpg-d7iqkae7r5hc73cd8icg-a", id: "ref-db" },
+            { label: "Vercel Project ID",   value: "prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm", id: "ref-vercel" },
+            { label: "Railway Host",       value: "shortline.proxy.rlwy.net:28066", id: "ref-railway" },
             { label: "EAS Project ID",     value: "0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a", id: "ref-eas" },
             { label: "App Bundle",         value: "com.almhbob.hasahisawi", id: "ref-bundle" },
           ].map(row => (
@@ -650,28 +597,28 @@ export default function Services() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[
             {
-              pri: "عالية جداً",
-              color: C.red,
-              title: "ترقية قاعدة البيانات على Render",
-              desc: `قاعدة البيانات المجانية تنتهي ${DB_EXPIRY.toLocaleDateString("ar-SD")} وتُحذف البيانات نهائياً. يجب الترقية أو نسخ البيانات قبل ذلك.`,
-              href: RENDER_DB_URL,
-              action: "ترقية الآن",
-            },
-            {
               pri: "متوسطة",
               color: C.yellow,
-              title: "ترقية Render Web Service",
-              desc: "الخطة المجانية تُعيد تشغيل السيرفر بعد 15 دقيقة خمول مما يسبب بطئاً عند أول طلب. الترقية للـ Starter ($7/شهر) تحل هذه المشكلة.",
-              href: `${RENDER_SVC_URL}/settings`,
-              action: "ترقية الخطة",
+              title: "رصيد Railway ($5/شهر)",
+              desc: "Railway يمنح $5 رصيداً مجانياً شهرياً. إن قاربت الحدّ، قم بترقية الخطة أو انقل قاعدة البيانات إلى Neon PostgreSQL (طبقة مجانية سخية).",
+              href: "https://railway.app",
+              action: "لوحة Railway",
             },
             {
               pri: "منخفضة",
               color: C.blue,
-              title: "تخزين الملفات المرفوعة",
-              desc: "الملفات تُخزّن حالياً في /tmp/uploads (مؤقتة تُحذف عند إعادة التشغيل). يُنصح بالانتقال إلى Cloudinary أو Render Disk للتخزين الدائم.",
-              href: "https://cloudinary.com/pricing",
-              action: "خيارات التخزين",
+              title: "تفعيل Firebase Storage",
+              desc: "تشغيل Firebase Storage مطلوب للصور والفيديوهات المرفوعة. افتح Firebase Console → Storage → Get Started ثم انشر القواعد.",
+              href: "https://console.firebase.google.com/project/hasahisawi/storage",
+              action: "فتح Firebase Storage",
+            },
+            {
+              pri: "منخفضة",
+              color: C.blue,
+              title: "إضافة SHA-1 لـ Play App Signing",
+              desc: "أضف SHA-1 مفتاح توقيع Play إلى Firebase لتفعيل Google Sign-In على الإصدار المنشور. افتح Play Console → App Integrity → Copy Signing Certificate SHA-1.",
+              href: "https://console.firebase.google.com/project/hasahisawi/settings/general/android:com.almhbob.hasahisawi",
+              action: "إعدادات Firebase Android",
             },
           ].map(item => (
             <div key={item.title} style={{

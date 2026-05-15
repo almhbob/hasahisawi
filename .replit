@@ -51,3 +51,4 @@ FIREBASE_SERVICE_ACCOUNT_JSON = '''
     "universe_domain": "googleapis.com"
   }'''
 RENDER_DEPLOY_HOOK = "https://api.render.com/deploy/srv-d7hnfmvaqgkc739ea5f0?key=Hlk91B8gk6s"
+VERCEL_TOKEN = "vcp_3LSud9yHE2cAbW9N8z5Z881t5ww3vMtQcIyQIaQ5P94KPnWH3J1unziS"

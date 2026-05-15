@@ -18,32 +18,35 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 - **التحقق**: Zod, drizzle-zod
 - **البناء**: esbuild, TypeScript (tsc for Firebase Functions)
 
-## البنية الإنتاجية
+## البنية الإنتاجية ✅ (مكتملة ومُختبَرة)
 
-- **API URL**: `https://hasahisawi-production.up.railway.app` (Railway.com) — قم بتحديث هذا بعد نشر Railway
-- **قاعدة البيانات**: PostgreSQL — أضف PostgreSQL plugin من Railway dashboard
-- **المصادقة**: Firebase Authentication + Backend JWT sessions + Firebase Admin SDK للتحقق من ID tokens خادمياً
+- **API URL**: `https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app` (Vercel Hobby — مجاني بلا cold-start)
+- **قاعدة البيانات**: Railway PostgreSQL — `shortline.proxy.rlwy.net:28066` — 60 جدول مُهيَّأة
+- **المصادقة**: Firebase Authentication + Backend JWT sessions + Firebase Admin SDK
 - **بناء AAB**: GitHub Actions → `.github/workflows/build-aab.yml`
 - **توقيع التطبيق**: مفتاح الرفع SHA-1 `7bc4a4fc7a923705d36653b1e067794d6bd4c208`
 - **Firebase project**: `hasahisawi` | Package: `com.almhbob.hasahisawi`
 - **webClientId (Google Sign-In)**: `133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com`
 
-### بنية النشر على Railway (الخادم الأساسي الجديد)
-- **ملف الإعداد**: `artifacts/api-server/railway.json` + `artifacts/api-server/nixpacks.toml`
-- **Root Directory على Railway**: `artifacts/api-server`
-- **Build Command** (تلقائي من railway.json): `npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && node build.mjs`
-- **Start Command**: `node --enable-source-maps ./dist/index.mjs`
-- **Health Check**: `GET /api/healthz` — مُعرَّف في railway.json (timeout: 60s)
-- **متغيرات البيئة المطلوبة على Railway**:
-  - `DATABASE_URL` — من PostgreSQL plugin أو Neon
-  - `CLOUDINARY_URL` أو `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` + `CLOUDINARY_CLOUD_NAME`
+### بنية النشر على Vercel (الخادم الحالي النشط)
+- **Vercel Project ID**: `prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm`
+- **نشر عبر Vercel Deploy API** (بدون GitHub push) — رمز الأمان في `VERCEL_TOKEN`
+- **ملفات النشر**: `api/index.js` + `vercel.json` + `dist/vercel-handler.mjs` (مُجمَّع بـ esbuild)
+- **Build**: `node build.mjs` في `artifacts/api-server/` ثم رفع الملفات عبر API
+- **Health Check**: `GET /api/healthz` ← يعيد `{"status":"ok"}`
+- **متغيرات البيئة على Vercel**:
+  - `DATABASE_URL` = `postgresql://postgres:...@shortline.proxy.rlwy.net:28066/railway?sslmode=require`
+  - `NODE_TLS_REJECT_UNAUTHORIZED=0` (لقبول شهادة Railway self-signed)
+  - `CLOUDINARY_URL`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_CLOUD_NAME`
   - `NODE_ENV=production`
-- **لا cold-start** — Railway يُبقي السيرفر يعمل دائماً (على عكس Render)
-- **URL التطبيق**: حدّث `artifacts/hasahisawi/.env` و`eas.json` بعنوان Railway الفعلي
+- **SSL Fix**: Pool يُمرر `ssl: { rejectUnauthorized: false }` عندما يحتوي URL على `sslmode=require`
+- **Stable alias**: `hasahisawi-api-asim-abdulrahman-mohammed.vercel.app`
 
-### ملاحظة: Render كـ fallback
-- `package.render.json` محفوظ للرجوع إليه عند الحاجة
-- `RENDER_DEPLOY_HOOK`, `RENDER_API_KEY` محفوظان في Replit Secrets
+### قاعدة البيانات (Railway PostgreSQL)
+- **Connection**: `postgresql://postgres:...@shortline.proxy.rlwy.net:28066/railway?sslmode=require`
+- **كلمة المرور**: محفوظة في Replit Secrets (يُستخرج من `RAILWAY_TOKEN`)
+- **الجداول**: 60 جدول — مُنشأة يدوياً عبر node script بعد أن كانت `initHasahisawiDb()` تفشل بسبب indexes قبل tables
+- **البيانات الأولية**: أرقام طوارئ (4)، مصفوفة أسعار مواصلات (25 خلية)، PIN إدمن (`4444`)
 
 ## الهيكل
 

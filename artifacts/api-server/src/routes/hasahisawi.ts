@@ -27,6 +27,9 @@ const pool: Pool | null = _dbEnabled
       idleTimeoutMillis: 30_000,
       max: 15,
       allowExitOnIdle: false,
+      ssl: _dbUrl.includes("sslmode=require") || _dbUrl.includes("ssl=true")
+        ? { rejectUnauthorized: false }
+        : false,
     })
   : null;
 
@@ -45,6 +48,7 @@ async function query(sql: string, params: unknown[] = []) {
     client.release();
   }
 }
+
 
 // ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
@@ -159,20 +163,9 @@ export async function initHasahisawiDb() {
   // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
-
-  // Performance indexes — added for faster reads on high-volume tables
-  await query(`CREATE INDEX IF NOT EXISTS idx_social_posts_category_created ON social_posts(category, created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_social_posts_created          ON social_posts(created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_social_likes_post             ON social_likes(post_id)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_social_comments_post_created  ON social_comments(post_id, created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_notifications_unread_created  ON notifications(is_read, created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_news_pinned_created           ON city_news(is_pinned, created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_created    ON chat_messages(chat_id, created_at DESC)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_token           ON user_sessions(token)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_users_phone                   ON users(phone) WHERE phone IS NOT NULL`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_users_email                   ON users(email) WHERE email IS NOT NULL`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_users_firebase_uid            ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_ratings_target                ON ratings(target_type, target_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_phone    ON users(phone) WHERE phone IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email) WHERE email IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
 
   await query(`
     CREATE TABLE IF NOT EXISTS social_posts (

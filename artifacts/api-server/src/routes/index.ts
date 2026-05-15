@@ -9,6 +9,7 @@ router.use(healthRouter);
 router.use(uploadRouter);
 router.use(hasahisawiRouter);
 
-setImmediate(() => initHasahisawiDb().catch(console.error));
+// Run DB init eagerly — not via setImmediate — so tables exist before any request
+initHasahisawiDb().catch(console.error);
 
 export default router;
