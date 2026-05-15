@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -34,9 +35,9 @@ const pool: Pool | null = _dbEnabled
   : null;
 
 if (pool) {
-  pool.on("error", (err) => console.error("pg pool idle-client error:", err));
+  pool.on("error", (err) => logger.error({ err }, "pg pool idle-client error"));
 } else {
-  console.warn("⚠️  DATABASE_URL not set or is a placeholder — DB features are disabled until a real URL is configured.");
+  logger.warn("DATABASE_URL not set or is a placeholder — DB features are disabled until a real URL is configured.");
 }
 
 async function query(sql: string, params: unknown[] = []) {
@@ -120,7 +121,7 @@ function safeUserPayload(user: Record<string, unknown>) {
 
 export async function initHasahisawiDb() {
   if (!pool) {
-    console.warn("⚠️  initHasahisawiDb: skipped — no valid DATABASE_URL");
+    logger.warn("initHasahisawiDb: skipped — no valid DATABASE_URL");
     return;
   }
   // ══ جدول المستخدمين أولاً — لأن كل الجداول الأخرى تُشير إليه ══
@@ -403,7 +404,7 @@ export async function initHasahisawiDb() {
           [k, JSON.stringify({ label: loc.label, type: loc.type, key: k })]
         );
       }
-      console.log(`✅ تم تهيئة ${realLocations.length} حياً وقرية حقيقية في قاعدة البيانات`);
+      logger.info(`تم تهيئة ${realLocations.length} حياً وقرية حقيقية في قاعدة البيانات`);
     }
   }
 
@@ -1751,7 +1752,7 @@ export async function initHasahisawiDb() {
     `UPDATE users SET role='admin' WHERE LOWER(email)=LOWER('almhbob.iii@gmail.com') AND role != 'admin'`
   );
 
-  console.log("✅ Hasahisawi DB initialized");
+  logger.info("Hasahisawi DB initialized");
 }
 
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
@@ -1847,7 +1848,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       if (detail.includes("national_id")) return res.status(400).json({ error: "رقم الهوية مسجّل مسبقاً، تواصل مع الدعم إن كنت تعتقد أن هذا خطأ" });
       return res.status(400).json({ error: "هذه البيانات مسجّلة مسبقاً، يرجى تسجيل الدخول" });
     }
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1867,7 +1868,7 @@ router.get("/app/version", async (_req: Request, res: Response) => {
       force:    map.app_update_force  === "true",
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1888,7 +1889,7 @@ router.patch("/admin/app/version", async (req: Request, res: Response) => {
     }
     return res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1909,7 +1910,7 @@ router.get("/app/feature-flags", async (_req: Request, res: Response) => {
       ride_status:               (map.ride_status as "soon" | "maintenance" | "available") || "soon",
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1933,7 +1934,7 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
     }
     return res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1956,7 +1957,7 @@ router.post("/auth/register-admin", async (req: Request, res: Response) => {
     return res.json({ user, token });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "البريد موجود بالفعل" });
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -1979,7 +1980,7 @@ router.put("/auth/profile", async (req: Request, res: Response) => {
     );
     return res.json({ user: safeUserPayload(result.rows[0]) });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2002,7 +2003,7 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2019,7 +2020,7 @@ router.post("/auth/admin-login", async (req: Request, res: Response) => {
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2042,7 +2043,7 @@ router.post("/auth/moderator-login", async (req: Request, res: Response) => {
     const safeUser = safeUserPayload(user);
     return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) }, token });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2063,7 +2064,7 @@ router.post("/auth/transport-login", async (req: Request, res: Response) => {
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // إنشاء مشرف ترحيل جديد (يتطلب كود المشرف الرئيسي)
@@ -2081,7 +2082,7 @@ router.post("/auth/register-transport-supervisor", async (req: Request, res: Res
     return res.status(201).json({ user: result.rows[0] });
   } catch (err: any) {
     if (err.code === "23505") return res.status(400).json({ error: "البريد مستخدم بالفعل" });
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2094,7 +2095,7 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
     }
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2107,7 +2108,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
     const permsResult = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [rawUser.id]);
     return res.json({ user: { ...safeUser, permissions: permsResult.rows.map((r: any) => r.section) } });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2122,7 +2123,7 @@ router.patch("/auth/me/gender", async (req: Request, res: Response) => {
     await query(`UPDATE users SET gender=$1 WHERE id=$2`, [gender, user.id]);
     return res.json({ success: true, gender });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2137,7 +2138,7 @@ router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Respons
     const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
     return res.json({ valid: safeCompare(pin, storedPin) });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2156,7 +2157,7 @@ router.post("/admin/change-pin", async (req: Request, res: Response) => {
     await query(`UPDATE admin_settings SET value=$1 WHERE key='admin_pin'`, [new_pin]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2166,7 +2167,7 @@ router.get("/admin/name", async (_req: Request, res: Response) => {
     const result = await query(`SELECT value FROM admin_settings WHERE key='admin_name'`);
     return res.json({ name: result.rows[0]?.value || "المسؤول" });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2178,7 +2179,7 @@ router.post("/admin/name", async (req: Request, res: Response) => {
     await query(`UPDATE admin_settings SET value=$1 WHERE key='admin_name'`, [name]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2193,7 +2194,7 @@ router.post("/ratings", writeLimiter, async (req: Request, res: Response) => {
     );
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2209,7 +2210,7 @@ router.post("/appointments", async (req: Request, res: Response) => {
     );
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2219,7 +2220,7 @@ router.get("/women-services", async (_req: Request, res: Response) => {
     const result = await query(`SELECT * FROM women_services ORDER BY name`);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2229,7 +2230,7 @@ router.get("/organizations", async (_req: Request, res: Response) => {
     const result = await query(`SELECT * FROM organizations ORDER BY name`);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2241,7 +2242,7 @@ router.get("/prayer-settings", async (_req: Request, res: Response) => {
     const row = result.rows[0] || {};
     return res.json({ settings: row });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2269,7 +2270,7 @@ router.put("/admin/prayer-settings", async (req: Request, res: Response) => {
     const result = await query(`SELECT * FROM prayer_settings WHERE id = 1`);
     return res.json({ success: true, settings: result.rows[0] });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2372,7 +2373,7 @@ router.get("/posts", async (req: Request, res: Response) => {
     const result = await query(sql, params);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2408,7 +2409,7 @@ router.post("/posts", writeLimiter, async (req: Request, res: Response) => {
     );
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2422,7 +2423,7 @@ router.delete("/posts/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM social_posts WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2432,7 +2433,7 @@ router.get("/posts/:id/comments", async (req: Request, res: Response) => {
     const result = await query(`SELECT * FROM social_comments WHERE post_id=$1 ORDER BY created_at ASC`, [req.params.id]);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2459,7 +2460,7 @@ router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Respo
     );
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2473,7 +2474,7 @@ router.delete("/comments/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM social_comments WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2497,7 +2498,7 @@ router.post("/posts/:id/like", writeLimiter, async (req: Request, res: Response)
     await query(`DELETE FROM social_likes WHERE post_id=$1 AND device_id=$2`, [postId, device_id]);
     return res.json({ liked: false });
   } catch (err) {
-    console.error("post like error:", err);
+    logger.error({ err }, "post like error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2522,7 +2523,7 @@ router.post("/push-tokens", writeLimiter, async (req: Request, res: Response) =>
     );
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2539,7 +2540,7 @@ router.get("/map/places", async (_req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2558,7 +2559,7 @@ router.post("/map/places", async (req: Request, res: Response) => {
     );
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2575,7 +2576,7 @@ router.put("/map/places/:id", async (req: Request, res: Response) => {
     );
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2587,7 +2588,7 @@ router.delete("/map/places/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM map_places WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2599,7 +2600,7 @@ router.get("/notifications", async (_req: Request, res: Response) => {
     const result = await query(`SELECT * FROM notifications ORDER BY created_at DESC`);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2614,7 +2615,7 @@ router.post("/notifications", async (req: Request, res: Response) => {
     );
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2624,7 +2625,7 @@ router.put("/notifications/:id/read", async (req: Request, res: Response) => {
     await query(`UPDATE notifications SET is_read=true WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2634,7 +2635,7 @@ router.put("/notifications/read-all", async (_req: Request, res: Response) => {
     await query(`UPDATE notifications SET is_read=true`);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2645,7 +2646,7 @@ router.delete("/notifications/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM notifications WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2660,7 +2661,7 @@ router.get("/news", async (req: Request, res: Response) => {
     const result = await query(sql, params);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2675,7 +2676,7 @@ router.post("/news", async (req: Request, res: Response) => {
     );
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2697,7 +2698,7 @@ router.put("/news/:id", async (req: Request, res: Response) => {
     if (result.rows.length === 0) return res.status(404).json({ error: "الخبر غير موجود" });
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2708,7 +2709,7 @@ router.delete("/news/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM city_news WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2736,7 +2737,7 @@ router.get("/ratings/entities", async (req: Request, res: Response) => {
     const result = await query(sql, params);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2753,7 +2754,7 @@ router.post("/ratings/entities", async (req: Request, res: Response) => {
     );
     return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2783,7 +2784,7 @@ router.get("/ratings/entities/:id", async (req: Request, res: Response) => {
     if (!entityRes.rows[0]) return res.status(404).json({ error: "غير موجود" });
     return res.json({ entity: entityRes.rows[0], ratings: ratingsRes.rows });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2822,7 +2823,7 @@ router.post("/ratings/entities/:id/rate", async (req: Request, res: Response) =>
     );
     return res.status(201).json({ success: true, updated: false });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2843,7 +2844,7 @@ router.get("/ratings/leaderboard", async (req: Request, res: Response) => {
     const result = await query(sql, params);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2861,7 +2862,7 @@ router.get("/stats", async (_req: Request, res: Response) => {
       news: newsResult.rows[0]?.count || 0,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2889,7 +2890,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
       avatar_url: u.avatar_url,
     }));
     return res.json({ users, total: users.length });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
@@ -2945,7 +2946,7 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
     const synced = created + updated;
     return res.json({ firebase_total: firebaseUsers.length, synced, created, updated, skipped, errors, details });
   } catch (e: any) {
-    console.error("sync-firebase-users error:", e?.message);
+    logger.error({ err: e?.message }, "sync-firebase-users error");
     return res.status(500).json({ error: "تعذّر مزامنة المستخدمين، حاول لاحقاً" });
   }
 });
@@ -2975,7 +2976,7 @@ router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
       recentUsers: recent.rows,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2994,7 +2995,7 @@ router.patch("/admin/users/:id/role", async (req: Request, res: Response) => {
     await query(`UPDATE users SET role=$1 WHERE id=$2`, [role, targetId]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3012,7 +3013,7 @@ router.patch("/admin/users/:id/ban", async (req: Request, res: Response) => {
     await query(`UPDATE users SET is_banned=$1 WHERE id=$2`, [!!ban, targetId]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3062,7 +3063,7 @@ router.get("/admin/users/:id/stats", async (req: Request, res: Response) => {
       last_seen:     sessionsR.rows[0]?.last_seen ?? null,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3079,7 +3080,7 @@ router.delete("/admin/users/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM users WHERE id=$1`, [targetId]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3109,7 +3110,7 @@ router.get("/admin/users/:id/permissions", async (req: Request, res: Response) =
     const result = await query(`SELECT section FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
     return res.json(result.rows.map((r: any) => r.section));
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3127,7 +3128,7 @@ router.put("/admin/users/:id/permissions", async (req: Request, res: Response) =
     }
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3145,7 +3146,7 @@ router.get("/users/list", async (req: Request, res: Response) => {
     );
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3167,7 +3168,7 @@ router.get("/chats", async (req: Request, res: Response) => {
     `, [me.id]);
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3183,7 +3184,7 @@ router.get("/chats/unread", async (req: Request, res: Response) => {
     `, [me.id]);
     return res.json({ total: result.rows[0]?.total ?? 0 });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3212,7 +3213,7 @@ router.post("/chats", async (req: Request, res: Response) => {
     `, [u1, u2]);
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3235,7 +3236,7 @@ router.get("/chats/:chatId/messages", async (req: Request, res: Response) => {
     );
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3292,7 +3293,7 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
 
     return res.json(msg);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3313,7 +3314,7 @@ router.post("/chats/:chatId/read", async (req: Request, res: Response) => {
     );
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3331,7 +3332,7 @@ router.get("/landmarks", async (_req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3356,7 +3357,7 @@ router.post("/admin/landmarks", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3373,7 +3374,7 @@ router.delete("/admin/landmarks/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM city_landmarks WHERE id=$1`, [id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3398,7 +3399,7 @@ router.patch("/admin/landmarks/:id", async (req: Request, res: Response) => {
     if (!rows[0]) return res.status(404).json({ error: "المعلم غير موجود" });
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3422,7 +3423,7 @@ router.get("/honored-figure", async (_req: Request, res: Response) => {
     if (!rows.length) return res.json(null);
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3444,7 +3445,7 @@ router.get("/greetings", async (req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3463,7 +3464,7 @@ router.post("/greetings", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3508,7 +3509,7 @@ router.get("/honored-figures", async (req: Request, res: Response) => {
     const { rows: countRows } = await query(`SELECT COUNT(*) FROM honored_figures WHERE is_visible = TRUE`);
     return res.json({ figures: rows, total: parseInt(countRows[0].count) });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3525,7 +3526,7 @@ router.get("/admin/honored-figures", async (req: Request, res: Response) => {
     `);
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3547,7 +3548,7 @@ router.post("/admin/honored-figures", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3587,7 +3588,7 @@ router.patch("/admin/honored-figures/:id", async (req: Request, res: Response) =
     if (!rows[0]) return res.status(404).json({ error: "السجل غير موجود" });
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3606,7 +3607,7 @@ router.patch("/admin/honored-figures/:id/visibility", async (req: Request, res: 
     if (!rows[0]) return res.status(404).json({ error: "السجل غير موجود" });
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3621,7 +3622,7 @@ router.delete("/admin/honored-figures/:id", async (req: Request, res: Response) 
     await query(`DELETE FROM honored_figures WHERE id = $1`, [id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3649,7 +3650,7 @@ router.get("/communities", async (req: Request, res: Response) => {
     const { rows } = await query(sql, params);
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3699,7 +3700,7 @@ router.post("/communities/register", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3720,7 +3721,7 @@ router.get("/admin/communities", async (req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3748,7 +3749,7 @@ router.put("/admin/communities/:id/status", async (req: Request, res: Response) 
     if (!rows.length) return res.status(404).json({ error: "الجالية غير موجودة" });
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3805,7 +3806,7 @@ router.post("/moderator/communities", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3822,7 +3823,7 @@ router.delete("/admin/communities/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM communities WHERE id=$1`, [id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3851,7 +3852,7 @@ router.get("/communities/:id/services", async (req: Request, res: Response) => {
       requests: reqs,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3879,7 +3880,7 @@ router.post("/communities/:id/service-requests", async (req: Request, res: Respo
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3902,7 +3903,7 @@ router.get("/moderator/service-requests", async (req: Request, res: Response) =>
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3968,7 +3969,7 @@ router.patch("/moderator/service-requests/:id", async (req: Request, res: Respon
 
     return res.json({ success: true, decision });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -3999,7 +4000,7 @@ router.get("/ads/settings", async (_req: Request, res: Response) => {
     for (const r of rows) settings[r.key] = r.value;
     return res.json(settings);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4018,7 +4019,7 @@ router.put("/admin/ads-settings", async (req: Request, res: Response) => {
     }
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4059,7 +4060,7 @@ router.put("/admin/contract-settings", async (req: Request, res: Response) => {
     );
     return res.json({ success: true, contract_whatsapp: cleaned });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4076,7 +4077,7 @@ router.get("/ads", async (_req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4123,7 +4124,7 @@ router.post("/ads/request", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4143,7 +4144,7 @@ router.get("/ads/my-requests", async (req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4168,7 +4169,7 @@ router.get("/admin/ads", async (req: Request, res: Response) => {
     );
     return res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4215,7 +4216,7 @@ router.post("/admin/ads", async (req: Request, res: Response) => {
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4253,7 +4254,7 @@ router.put("/admin/ads/:id/status", async (req: Request, res: Response) => {
     if (!rows.length) return res.status(404).json({ error: "الإعلان غير موجود" });
     return res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4270,7 +4271,7 @@ router.delete("/admin/ads/:id", async (req: Request, res: Response) => {
     await query(`DELETE FROM ads WHERE id=$1`, [id]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4361,7 +4362,7 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
 
     return res.json({ user: safeUserPayload(userRow), token: sessionToken });
   } catch (err) {
-    console.error("firebase-exchange error:", err);
+    logger.error({ err: err }, "firebase-exchange error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4381,7 +4382,7 @@ router.get("/admin/neighborhoods", async (req: Request, res: Response) => {
     const items = rows.map(r => JSON.parse(r.value));
     return res.json(items);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4400,7 +4401,7 @@ router.post("/admin/neighborhoods", async (req: Request, res: Response) => {
     );
     return res.json(item);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4440,7 +4441,7 @@ router.post("/admin/neighborhoods/seed", async (req: Request, res: Response) => 
 
     return res.json({ inserted: saved.length, items: saved });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4460,7 +4461,7 @@ router.put("/admin/neighborhoods/:key", async (req: Request, res: Response) => {
     );
     return res.json(item);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4474,7 +4475,7 @@ router.delete("/admin/neighborhoods/:key", async (req: Request, res: Response) =
     await query(`DELETE FROM admin_settings WHERE key=$1`, [key]);
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4493,7 +4494,7 @@ router.get("/admin/ai-settings", async (req: Request, res: Response) => {
     rows.forEach(r => { result[r.key] = r.value; });
     return res.json(result);
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4516,7 +4517,7 @@ router.put("/admin/ai-settings", async (req: Request, res: Response) => {
     }
     return res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4667,7 +4668,7 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
 
         lastStatus = geminiRes.status;
         const errBody = await geminiRes.text();
-        console.error(`Gemini error (${model}/${apiKey.slice(-4)}):`, errBody.slice(0, 150));
+        logger.error({ model, errBody: errBody.slice(0,150) }, "Gemini error");
 
         if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) break;
         if (lastStatus === 429) { blockKey(apiKey); break; }
@@ -4685,7 +4686,7 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
       resetIn: nextQuotaReset(),
     });
   } catch (err) {
-    console.error("AI chat error:", err);
+    logger.error({ err: err }, "AI chat error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4772,7 +4773,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
 
     return res.json({ application: result.rows[0] });
   } catch (err) {
-    console.error("POST /institution-applications error:", err);
+    logger.error({ err: err }, "POST /institution-applications error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4825,7 +4826,7 @@ router.patch("/institution-applications/:id/signed-contract", async (req: Reques
     );
     return res.json({ ok: true });
   } catch (err) {
-    console.error("PATCH /institution-applications/:id/signed-contract error:", err);
+    logger.error({ err: err }, "PATCH /institution-applications/:id/signed-contract error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4909,7 +4910,7 @@ router.post("/reports", async (req: Request, res: Response) => {
     );
     return res.json({ report: result.rows[0] });
   } catch (err) {
-    console.error("POST /reports error:", err);
+    logger.error({ err: err }, "POST /reports error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -4937,7 +4938,7 @@ router.get("/reports", async (req: Request, res: Response) => {
     }
     return res.json(rows);
   } catch (err) {
-    console.error("GET /reports error:", err);
+    logger.error({ err: err }, "GET /reports error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5001,7 +5002,7 @@ router.post("/feedback", async (req: Request, res: Response) => {
     );
     return res.json({ feedback: result.rows[0] });
   } catch (err) {
-    console.error("POST /feedback error:", err);
+    logger.error({ err: err }, "POST /feedback error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5099,7 +5100,7 @@ router.get("/search", async (req: Request, res: Response) => {
       communities: commR.rows,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5127,7 +5128,7 @@ router.get("/users/:id/profile", async (req: Request, res: Response) => {
       reports_count: reportsR.rows[0]?.cnt ?? 0,
     });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5166,7 +5167,7 @@ router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Resp
 
     return res.json({ ok: true, message: "تم تغيير كلمة المرور بنجاح" });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5199,14 +5200,8 @@ function generateOTP(): string {
 async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<void> {
   const isEmail = identifier.includes("@");
   const channel = isEmail ? "📧 email" : "📱 SMS";
-  console.log(`\n╔══════════════════════════════════════╗`);
-  console.log(`║  OTP [${type}] → ${channel}`);
-  console.log(`║  المستلم : ${identifier}`);
-  console.log(`║  الرمز   : ${code}`);
-  console.log(`║  ينتهي خلال: 5 دقائق`);
-  console.log(`╚══════════════════════════════════════╝\n`);
-
-  // خطاف SMS (Africa's Talking / Twilio) — أضف بيانات الاعتماد للإنتاج
+  logger.info({ type, channel, identifier }, "[OTP] code generated — expires 5 min");
+// خطاف SMS (Africa's Talking / Twilio) — أضف بيانات الاعتماد للإنتاج
   const smsKey = process.env.AFRICASTALKING_API_KEY;
   const smsUser = process.env.AFRICASTALKING_USERNAME;
   if (!isEmail && smsKey && smsUser) {
@@ -5215,9 +5210,9 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
       if (AfricasTalking) {
         const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
         await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
-        console.log("[OTP] SMS sent via Africa's Talking");
+        logger.info("[OTP] SMS sent via Africa's Talking");
       }
-    } catch (e: any) { console.warn("[OTP] SMS send failed:", e?.message); }
+    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] SMS send failed:"); }
   }
 
   // خطاف Email (nodemailer) — أضف SMTP_HOST / SMTP_USER / SMTP_PASS
@@ -5227,9 +5222,9 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
       if (nodemailer) {
         const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
         await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 5 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 5 دقائق فقط.</p></div>` });
-        console.log("[OTP] Email sent via SMTP");
+        logger.info("[OTP] Email sent via SMTP");
       }
-    } catch (e: any) { console.warn("[OTP] Email send failed:", e?.message); }
+    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Email send failed:"); }
   }
 }
 
@@ -5265,7 +5260,7 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
 
     return res.json({ sent: true, expires_in: 300, channel: identifier.includes("@") ? "email" : "sms" });
   } catch (e: any) {
-    console.error("[send-otp]", e?.message);
+    logger.error({ err: e?.message }, "[send-otp]");
     return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
   }
 });
@@ -5314,7 +5309,7 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
 
     return res.json({ verified: true, message: "تم التحقق بنجاح" });
   } catch (e: any) {
-    console.error("[verify-otp]", e?.message);
+    logger.error({ err: e?.message }, "[verify-otp]");
     return res.status(500).json({ error: "حدث خطأ في التحقق" });
   }
 });
@@ -5335,7 +5330,7 @@ router.post("/women/join-request", async (req: Request, res: Response) => {
     );
     return res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5376,7 +5371,7 @@ router.get("/occasions/shops", async (_req: Request, res: Response) => {
     }
     return res.json(shops.map((s: any) => ({ ...s, items: grouped[s.id] ?? [] })));
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5396,7 +5391,7 @@ router.post("/occasions/join-request", async (req: Request, res: Response) => {
     );
     return res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5417,7 +5412,7 @@ router.post("/occasions/items", async (req: Request, res: Response) => {
     );
     return res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5438,7 +5433,7 @@ router.patch("/occasions/items/:id/toggle", async (req: Request, res: Response) 
     if (!r.rows.length) return res.status(403).json({ error: "الصنف غير موجود أو لا تملك صلاحية" });
     return res.json({ ok: true, is_available: r.rows[0].is_available });
   } catch (err) {
-    console.error(err);
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -5909,7 +5904,7 @@ router.post("/inst/login", async (req: Request, res: Response) => {
     );
     return res.json({ token, institution: inst });
   } catch (err) {
-    console.error("inst/login error:", err);
+    logger.error({ err: err }, "inst/login error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -6915,7 +6910,7 @@ setImmediate(() => (async () => {
         updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
-  } catch (e) { console.error("student_libraries/merchant_spaces init:", e); }
+  } catch (e) { logger.error({ err: e }, "student_libraries/merchant_spaces init"); }
 })());
 
 // ────────────────────────────────────────────────────────────────
@@ -7164,7 +7159,7 @@ router.get("/phone-shops", async (req: Request, res: Response) => {
     sql += ` ORDER BY ps.is_featured DESC, ps.is_verified DESC, ps.created_at DESC`;
     const result = await query(sql, params);
     return res.json({ shops: result.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST /api/phone-shops — register shop ────────────────────────
@@ -7185,7 +7180,7 @@ router.post("/phone-shops", async (req: Request, res: Response) => {
        specialties||[], working_hours||null, facebook||null, logo_emoji||'📱']
     );
     return res.status(201).json({ shop: result.rows[0] });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET /api/my-phone-shop ───────────────────────────────────────
@@ -7198,7 +7193,7 @@ router.get("/my-phone-shop", async (req: Request, res: Response) => {
     const shop = shopRes.rows[0];
     const prods = await query(`SELECT * FROM phone_products WHERE shop_id=$1 ORDER BY is_featured DESC, created_at DESC`, [shop.id]);
     return res.json({ shop, products: prods.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── PUT /api/my-phone-shop ─── update shop info ──────────────────
@@ -7218,7 +7213,7 @@ router.put("/my-phone-shop", async (req: Request, res: Response) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: "متجرك غير موجود" });
     return res.json({ shop: result.rows[0] });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET /api/phone-shops/:id/products ───────────────────────────
@@ -7232,7 +7227,7 @@ router.get("/phone-shops/:id/products", async (req: Request, res: Response) => {
     const result = await query(sql, params);
     // increment view counts would be here
     return res.json({ products: result.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST /api/phone-shops/:id/products ─── add product ──────────
@@ -7255,7 +7250,7 @@ router.post("/phone-shops/:id/products", async (req: Request, res: Response) => 
     );
     await query(`UPDATE phone_shops SET products_count=products_count+1 WHERE id=$1`, [shopId]);
     return res.status(201).json({ product: result.rows[0] });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── PUT /api/phone-shops/:id/products/:pid ─── edit product ─────
@@ -7281,7 +7276,7 @@ router.put("/phone-shops/:id/products/:pid", async (req: Request, res: Response)
     );
     if (!result.rows.length) return res.status(404).json({ error: "المنتج غير موجود" });
     return res.json({ product: result.rows[0] });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── DELETE /api/phone-shops/:id/products/:pid ────────────────────
@@ -7292,7 +7287,7 @@ router.delete("/phone-shops/:id/products/:pid", async (req: Request, res: Respon
     await query(`DELETE FROM phone_products WHERE id=$1 AND shop_id=$2`, [req.params.pid, shopId]);
     await query(`UPDATE phone_shops SET products_count=GREATEST(products_count-1,0) WHERE id=$1`, [shopId]);
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin routes ─────────────────────────────────────────────────
@@ -7373,7 +7368,7 @@ setImmediate(() => (async () => {
       created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-})().catch(e => console.error("events init:", e)));
+})().catch(e => logger.error({ err: e }, "events init")));
 
 // ── GET /events ──────────────────────────────
 router.get("/events", async (req: Request, res: Response) => {
@@ -7521,7 +7516,7 @@ router.get("/lost-items", async (req: Request, res: Response) => {
     sql += ` ORDER BY li.created_at DESC LIMIT 200`;
     const { rows } = await query(sql, params);
     return res.json({ items: rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/lost-items", async (req: Request, res: Response) => {
@@ -7539,7 +7534,7 @@ router.post("/lost-items", async (req: Request, res: Response) => {
        description || "", last_seen || "", contact_phone.trim()]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/lost-items/:id/status", async (req: Request, res: Response) => {
@@ -7554,7 +7549,7 @@ router.patch("/lost-items/:id/status", async (req: Request, res: Response) => {
     );
     if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/lost-items/:id", async (req: Request, res: Response) => {
@@ -7567,7 +7562,7 @@ router.delete("/lost-items/:id", async (req: Request, res: Response) => {
     );
     if (!rows.length) return res.status(403).json({ error: "غير مصرح أو غير موجود" });
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/lost-items", async (req: Request, res: Response) => {
@@ -7597,7 +7592,7 @@ router.patch("/admin/lost-items/:id", async (req: Request, res: Response) => {
     );
     if (!rows.length) return res.status(404).json({ error: "غير موجود" });
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/lost-items/:id", async (req: Request, res: Response) => {
@@ -7632,7 +7627,7 @@ router.post("/sports/posts", async (req: Request, res: Response) => {
       [user.name, user.id, title.trim(), content.trim(), type || "news", team || null, image_url || null]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/sports/posts/:id/like", async (_req: Request, res: Response) => {
@@ -7669,7 +7664,7 @@ router.post("/sports/players", async (req: Request, res: Response) => {
       [name.trim(), position || "", team || "", age || null, goals || 0, assists || 0, matches_played || 0, photo_url || null, bio || null]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/sports/players/:id", async (req: Request, res: Response) => {
@@ -7715,7 +7710,7 @@ router.post("/sports/matches", async (req: Request, res: Response) => {
        venue || "ملعب الحصاحيصا", status || "upcoming", notes || ""]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/sports/matches/:id", async (req: Request, res: Response) => {
@@ -7770,7 +7765,7 @@ router.post("/admin/emergency-numbers", async (req: Request, res: Response) => {
       [name.trim(), number.trim(), category || "general", icon || "call", color || "#F97316", note || "", sort_order || 99]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/emergency-numbers/:id", async (req: Request, res: Response) => {
@@ -7812,7 +7807,7 @@ router.get("/organizations", async (req: Request, res: Response) => {
     sql += ` ORDER BY is_verified DESC, rating DESC`;
     const { rows } = await query(sql, params);
     return res.json({ organizations: rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/organizations", async (req: Request, res: Response) => {
@@ -7834,7 +7829,7 @@ router.post("/admin/organizations", async (req: Request, res: Response) => {
       [name.trim(),type||"initiative",description||"",full_description||"",contact_phone.trim(),email||null,members_count||0,founded_year||"",goals||[],needs||[],rating||5.0,is_verified||false]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/organizations/:id", async (req: Request, res: Response) => {
@@ -7880,7 +7875,7 @@ router.get("/external-partnerships", async (req: Request, res: Response) => {
     sql += ` ORDER BY is_featured DESC, created_at DESC`;
     const { rows } = await query(sql, params);
     return res.json({ partnerships: rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // تقديم طلب تعاون جديد (عام)
@@ -7913,7 +7908,7 @@ router.post("/external-partnerships/apply", async (req: Request, res: Response) 
       ]
     );
     return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
-  } catch (e) { console.error("external-partnerships/apply", e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "external-partnerships/apply"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // إدارة الطلبات (مسؤول)
@@ -7927,7 +7922,7 @@ router.get("/admin/external-partnerships", async (req: Request, res: Response) =
     sql += ` ORDER BY created_at DESC`;
     const { rows } = await query(sql, params);
     return res.json({ partnerships: rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
@@ -7952,7 +7947,7 @@ router.patch("/admin/external-partnerships/:id", async (req: Request, res: Respo
     );
     if (!rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/external-partnerships/:id", async (req: Request, res: Response) => {
@@ -7993,7 +7988,7 @@ router.post("/admin/educational-institutions", async (req: Request, res: Respons
       [name.trim(),type||"primary",address||"",phone.trim(),principal||null,email||null,website||null,description||null,grades||null,shifts||null,services||[],status||"active"]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/educational-institutions/:id", async (req: Request, res: Response) => {
@@ -8073,7 +8068,7 @@ router.post("/education/register-student", async (req: Request, res: Response) =
       ]
     );
     return res.status(201).json({ registration: rows[0], reg_number, message: "تم تقديم طلب التسجيل بنجاح" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET /api/education/my-registrations?phone=xxx ── استعلام بالهاتف ──
@@ -8136,7 +8131,7 @@ router.post("/education/transfer-request", async (req: Request, res: Response) =
       ]
     );
     return res.status(201).json({ transfer: rows[0], transfer_number, message: "تم تقديم طلب النقل بنجاح" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET /api/education/my-transfers?phone=xxx ── استعلام النقل ──
@@ -8283,7 +8278,7 @@ router.post("/admin/women-services", async (req: Request, res: Response) => {
       [name.trim(),type||"salon",address||"",phone.trim(),hours||"",description||"",rating||5.0,tags||[]]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/women-services/:id", async (req: Request, res: Response) => {
@@ -8482,7 +8477,7 @@ router.get("/admin/full-stats", async (req: Request, res: Response) => {
       notifications: notifications.rows[0],
       zawajil: zawajil.rows[0],
     });
-  } catch (e: any) { console.error("full-stats error:", e?.message); return res.status(500).json({ error: "Server error" }); }
+  } catch (e: any) { logger.error({ err: e?.message }, ""); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════
@@ -8502,7 +8497,7 @@ async function sendExpoPushToUser(userId: number, title: string, body: string, d
       headers: { "Content-Type": "application/json", Accept: "application/json", "accept-encoding": "gzip, deflate" },
       body: JSON.stringify(messages),
     });
-  } catch (e) { console.error("Push send error:", e); }
+  } catch (e) { logger.error({ err: e }, "Push send error"); }
 }
 
 async function sendExpoPushBroadcast(title: string, body: string, data?: any) {
@@ -8519,7 +8514,7 @@ async function sendExpoPushBroadcast(title: string, body: string, data?: any) {
         body: JSON.stringify(messages),
       });
     }
-  } catch (e) { console.error("Broadcast error:", e); }
+  } catch (e) { logger.error({ err: e }, "Broadcast error"); }
 }
 
 // POST /api/admin/push/broadcast — إشعار جماعي لجميع المستخدمين
@@ -8598,7 +8593,7 @@ router.get("/lawyers", async (req: Request, res: Response) => {
        ORDER BY p.sort_order NULLS LAST, l.is_featured DESC, l.experience_y DESC, l.id`, params
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // تفاصيل محامي + خدماته
@@ -8621,7 +8616,7 @@ router.get("/lawyers/:id", async (req: Request, res: Response) => {
       [rows[0].entity_id]
     );
     return res.json({ ...rows[0], services: services.rows, reviews: reviews.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // إعلانات المحامين النشطة
@@ -8661,7 +8656,7 @@ router.post("/lawyers/:id/contracts", async (req: Request, res: Response) => {
        String(service_title || "").slice(0,200), String(details || "").slice(0,2000), preferred_date || null, contractNo]
     );
     return res.json(ins.rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // عقود المستخدم (بحسب user_id أو device_id)
@@ -8686,7 +8681,7 @@ router.get("/my-lawyer-contracts", async (req: Request, res: Response) => {
       [userId || deviceId]
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // تقييم محامي (يستخدم نظام التقييم القائم لكن بـ entity_id)
@@ -8713,7 +8708,7 @@ router.post("/lawyers/:id/ratings", async (req: Request, res: Response) => {
       [lw.rows[0].entity_id, r, String(comment || "").slice(0,500), String(lawyerId), userId, device_id || null]
     );
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // قائمة الاستمارات القانونية (للقراءة العامة)
@@ -8781,7 +8776,7 @@ router.post("/lawyer-applications", async (req: Request, res: Response) => {
       ]
     );
     return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // متابعة طلب الانضمام (للمتقدّم)
@@ -8823,7 +8818,7 @@ router.get("/admin/lawyer-applications", async (req: Request, res: Response) => 
       params
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // قبول طلب انضمام → ينشئ المحامي تلقائياً (تعاقد)
@@ -8856,7 +8851,7 @@ router.post("/admin/lawyer-applications/:id/approve", async (req: Request, res: 
       [id, String(admin_note || "").slice(0, 500), lw.rows[0].id]
     );
     return res.json({ ok: true, lawyer_id: lw.rows[0].id });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // تحقّق عام من صحة عقد محامي عبر رقم العقد (للقراءة فقط — للاستخدام من رمز QR)
@@ -8890,7 +8885,7 @@ router.get("/lawyer-applications/verify/:contractNo", async (req: Request, res: 
         ? "الوثيقة موثّقة رسمياً ومعتمدة من إدارة المنصة"
         : "هذه النسخة مسودّة/قيد المراجعة ولا تعتبر عقداً موثّقاً",
     });
-  } catch (e) { console.error(e); return res.status(500).json({ valid: false, error: "خطأ في الخادم" }); }
+  } catch (e) { logger.error({ err: e }, "route error"); return res.status(500).json({ valid: false, error: "خطأ في الخادم" }); }
 });
 
 // رفض طلب انضمام
@@ -8987,7 +8982,7 @@ router.put("/admin/lawyers/:id/subscription", async (req: Request, res: Response
       await query(`UPDATE lawyers SET is_featured=$1, is_verified=$2 WHERE id=$3`, [has_featured, has_verified_badge, lawyerId]);
     }
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── إحصائيات الاشتراكات (إدارة) ────────────────────────────
@@ -9010,7 +9005,7 @@ router.get("/admin/subscription-stats", async (req: Request, res: Response) => {
           WHERE s.lawyer_id=l.id AND s.is_active=TRUE AND p.name != 'free')`
     );
     return res.json({ plans: rows, total_paid: total.rows[0].c, free_lawyers: free_count.rows[0].c });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // قائمة المحامين للإدارة (يشمل غير الفعّال + بيانات الاشتراك)
@@ -9044,7 +9039,7 @@ router.patch("/admin/lawyers/:id", async (req: Request, res: Response) => {
     vals.push(id);
     await query(`UPDATE lawyers SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/lawyers/:id", async (req: Request, res: Response) => {
@@ -9069,7 +9064,7 @@ router.get("/admin/subscription-history/:lawyerId", async (req: Request, res: Re
       [Number(req.params.lawyerId)]
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── اشتراكات تنتهي قريباً ─────────────────────────────────
@@ -9092,7 +9087,7 @@ router.get("/admin/subscriptions/expiring", async (req: Request, res: Response) 
       [String(days)]
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── تصدير CSV للمحامين والاشتراكات ──────────────────────────
@@ -9140,7 +9135,7 @@ router.get("/admin/lawyers/export.csv", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="lawyers_${Date.now()}.csv"`);
     return res.send("\uFEFF" + csvRows.join("\r\n"));
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── إدارة خطط الاشتراك (إدارة) ─────────────────────────────
@@ -9168,7 +9163,7 @@ router.put("/admin/subscription-plans/:id", async (req: Request, res: Response) 
     vals.push(id);
     await query(`UPDATE lawyer_subscription_plans SET ${fields.join(", ")} WHERE id = $${vals.length}`, vals);
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -9217,7 +9212,7 @@ router.get("/my-lawyer-profile", async (req: Request, res: Response) => {
     if (!rows[0]) return res.status(404).json({ error: "لم يُعثر على ملف المحامي" });
     const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order,id`, [me.lawyer_id]);
     return res.json({ ...rows[0], services: services.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 2. تحديث ملف المحامي ────────────────────────────────────
@@ -9256,7 +9251,7 @@ router.put("/my-lawyer-profile", async (req: Request, res: Response) => {
       }
     }
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 3. إحصائيات لوحة المحامي ────────────────────────────────
@@ -9293,7 +9288,7 @@ router.get("/my-lawyer-stats", async (req: Request, res: Response) => {
       recent_cases: recent.rows,
       unread_messages: msgs.rows[0]?.unread || 0,
     });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 4. قائمة القضايا (من جانب المحامي) ─────────────────────
@@ -9315,7 +9310,7 @@ router.get("/my-lawyer-cases", async (req: Request, res: Response) => {
          FROM lawyer_contracts c WHERE ${where} ORDER BY c.updated_at DESC LIMIT 100`, params
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 5. تفاصيل قضية واحدة ─────────────────────────────────────
@@ -9333,7 +9328,7 @@ router.get("/my-lawyer-cases/:id", async (req: Request, res: Response) => {
     // اجعل الرسائل كلها مقروءة من العميل
     await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='client'`, [cid]);
     return res.json({ ...rows[0], messages: msgs.rows, documents: docs.rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 6. تغيير حالة القضية ─────────────────────────────────────
@@ -9352,7 +9347,7 @@ router.patch("/my-lawyer-cases/:id/status", async (req: Request, res: Response) 
     );
     if (!r.rows[0]) return res.status(404).json({ error: "القضية غير موجودة" });
     return res.json({ ok: true });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 7. إرسال رسالة (المحامي في قضية) ───────────────────────
@@ -9374,7 +9369,7 @@ router.post("/my-lawyer-cases/:id/messages", async (req: Request, res: Response)
     );
     await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [cid]);
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 8. رفع / إضافة مستند للقضية (المحامي) ──────────────────
@@ -9395,7 +9390,7 @@ router.post("/my-lawyer-cases/:id/documents", async (req: Request, res: Response
        Number(file_size) || 0, String(notes || "").slice(0, 1000)]
     );
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 9. حذف مستند ────────────────────────────────────────────
@@ -9436,7 +9431,7 @@ router.get("/my-lawyer-pdf-data", async (req: Request, res: Response) => {
       subscription_history: history.rows,
       generated_at: new Date().toISOString(),
     });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -9468,7 +9463,7 @@ router.get("/client/cases/:id/messages", async (req: Request, res: Response) => 
     // اجعل رسائل المحامي مقروءة
     await query(`UPDATE lawyer_case_messages SET is_read=TRUE WHERE contract_id=$1 AND sender_role='lawyer'`, [contract.id]);
     return res.json({ contract, messages: rows });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 12. العميل يرسل رسالة ────────────────────────────────────
@@ -9487,7 +9482,7 @@ router.post("/client/cases/:id/messages", async (req: Request, res: Response) =>
     );
     await query(`UPDATE lawyer_contracts SET updated_at=NOW() WHERE id=$1`, [contract.id]);
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── 13. مستندات القضية للعميل ────────────────────────────────
@@ -9514,7 +9509,7 @@ router.post("/client/cases/:id/documents", async (req: Request, res: Response) =
        String(file_name||"").slice(0,255), String(file_type||"").slice(0,80), Number(file_size)||0, String(notes||"").slice(0,1000)]
     );
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // محتوى استمارة محددة (HTML للطباعة)
@@ -9662,7 +9657,7 @@ router.post("/admin/seed-db", async (_req: Request, res: Response) => {
 
     return res.json({ ok: true, seeded });
   } catch (err: any) {
-    console.error("seed error:", err);
+    logger.error({ err: err }, "seed error");
     return res.status(500).json({ error: err.message });
   }
 });
@@ -9742,7 +9737,7 @@ router.get("/telecom/companies", async (req: Request, res: Response) => {
     await seedTelecomCompanies();
     const result = await query(`SELECT * FROM telecom_companies WHERE is_active=TRUE ORDER BY sort_order,id`);
     return res.json(result.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/telecom/offers
@@ -9761,7 +9756,7 @@ router.get("/telecom/offers", async (req: Request, res: Response) => {
       params
     );
     return res.json(result.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/telecom/events
@@ -9775,7 +9770,7 @@ router.get("/telecom/events", async (req: Request, res: Response) => {
        ORDER BY e.event_date ASC NULLS LAST, e.created_at DESC LIMIT 50`
     );
     return res.json(result.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin: CRUD الشركات ─────────────────────────────────────────────────────
@@ -9791,7 +9786,7 @@ router.post("/admin/telecom/companies", async (req: Request, res: Response) => {
       [name,short||null,logo_initial||null,brand_color||'#0EA5E9',brand_color2||'#2563EB',description||null,founded||null,subscribers||null,coverage||null,website||null,hotline||null,ussd||null,recharge||null,Number(sort_order)||0]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/telecom/companies/:id", async (req: Request, res: Response) => {
@@ -9812,7 +9807,7 @@ router.patch("/admin/telecom/companies/:id", async (req: Request, res: Response)
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/telecom/companies/:id", async (req: Request, res: Response) => {
@@ -9820,7 +9815,7 @@ router.delete("/admin/telecom/companies/:id", async (req: Request, res: Response
   try {
     await query(`DELETE FROM telecom_companies WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin: CRUD العروض ──────────────────────────────────────────────────────
@@ -9830,7 +9825,7 @@ router.get("/admin/telecom/offers", async (req: Request, res: Response) => {
     await ensureTelecomTables();
     const r = await query(`SELECT o.*, c.name AS company_name FROM telecom_offers o LEFT JOIN telecom_companies c ON c.id=o.company_id ORDER BY o.created_at DESC`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/telecom/offers", async (req: Request, res: Response) => {
@@ -9845,7 +9840,7 @@ router.post("/admin/telecom/offers", async (req: Request, res: Response) => {
       [company_id?Number(company_id):null,title,description||null,category||'data',Number(price)||0,currency||'SDG',validity||null,details||null,image_url||null,Number(sort_order)||0]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/telecom/offers/:id", async (req: Request, res: Response) => {
@@ -9862,7 +9857,7 @@ router.patch("/admin/telecom/offers/:id", async (req: Request, res: Response) =>
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/telecom/offers/:id", async (req: Request, res: Response) => {
@@ -9870,7 +9865,7 @@ router.delete("/admin/telecom/offers/:id", async (req: Request, res: Response) =
   try {
     await query(`DELETE FROM telecom_offers WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin: CRUD الفعاليات ───────────────────────────────────────────────────
@@ -9880,7 +9875,7 @@ router.get("/admin/telecom/events", async (req: Request, res: Response) => {
     await ensureTelecomTables();
     const r = await query(`SELECT e.*, c.name AS company_name FROM telecom_events e LEFT JOIN telecom_companies c ON c.id=e.company_id ORDER BY e.event_date ASC NULLS LAST, e.created_at DESC`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/telecom/events", async (req: Request, res: Response) => {
@@ -9895,7 +9890,7 @@ router.post("/admin/telecom/events", async (req: Request, res: Response) => {
       [company_id?Number(company_id):null,title,description||null,event_date||null,location||null,image_url||null]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/telecom/events/:id", async (req: Request, res: Response) => {
@@ -9912,7 +9907,7 @@ router.patch("/admin/telecom/events/:id", async (req: Request, res: Response) =>
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/telecom/events/:id", async (req: Request, res: Response) => {
@@ -9920,7 +9915,7 @@ router.delete("/admin/telecom/events/:id", async (req: Request, res: Response) =
   try {
     await query(`DELETE FROM telecom_events WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -10054,7 +10049,7 @@ router.get("/unions", async (req: Request, res: Response) => {
     await ensureUnionsTables();
     const r = await query(`SELECT * FROM unions WHERE is_active=TRUE ORDER BY sort_order,id`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/unions/:id
@@ -10065,7 +10060,7 @@ router.get("/unions/:id", async (req: Request, res: Response) => {
     if (!r.rows[0]) return res.status(404).json({ error: "النقابة غير موجودة" });
     const ann = await query(`SELECT * FROM union_announcements WHERE union_id=$1 AND is_active=TRUE ORDER BY is_pinned DESC, created_at DESC LIMIT 20`, [req.params.id]);
     return res.json({ ...r.rows[0], announcements: ann.rows });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/unions/announcements/all  — كل الإعلانات
@@ -10078,7 +10073,7 @@ router.get("/unions/announcements/all", async (req: Request, res: Response) => {
        WHERE a.is_active=TRUE ORDER BY a.is_pinned DESC, a.created_at DESC LIMIT 50`
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // POST /api/unions/apply — تقديم طلب عضوية
@@ -10124,7 +10119,7 @@ router.post("/unions/apply", async (req: Request, res: Response) => {
       ]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/unions/my-membership — عضويتي
@@ -10138,7 +10133,7 @@ router.get("/unions/my-membership", async (req: Request, res: Response) => {
       [user.id]
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin ──────────────────────────────────────────────────────────────────
@@ -10148,7 +10143,7 @@ router.get("/admin/unions", async (req: Request, res: Response) => {
     await ensureUnionsTables();
     const r = await query(`SELECT u.*, (SELECT COUNT(*) FROM union_members m WHERE m.union_id=u.id)::int AS members_total FROM unions u ORDER BY u.sort_order,u.id`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/unions", async (req: Request, res: Response) => {
@@ -10163,7 +10158,7 @@ router.post("/admin/unions", async (req: Request, res: Response) => {
       [name,short_name||null,field||null,description||null,logo_url||null,banner_url||null,website||null,email||null,phone||null,address||null,founded||null,members_count||null,Number(sort_order)||0]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/unions/:id", async (req: Request, res: Response) => {
@@ -10181,7 +10176,7 @@ router.patch("/admin/unions/:id", async (req: Request, res: Response) => {
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/unions/:id", async (req: Request, res: Response) => {
@@ -10189,7 +10184,7 @@ router.delete("/admin/unions/:id", async (req: Request, res: Response) => {
   try {
     await query(`DELETE FROM unions WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: الأعضاء
@@ -10207,7 +10202,7 @@ router.get("/admin/union-members", async (req: Request, res: Response) => {
       params
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/union-members/:id/status", async (req: Request, res: Response) => {
@@ -10223,7 +10218,7 @@ router.patch("/admin/union-members/:id/status", async (req: Request, res: Respon
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/union-members/:id", async (req: Request, res: Response) => {
@@ -10231,7 +10226,7 @@ router.delete("/admin/union-members/:id", async (req: Request, res: Response) =>
   try {
     await query(`DELETE FROM union_members WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: الإعلانات
@@ -10241,7 +10236,7 @@ router.get("/admin/union-announcements", async (req: Request, res: Response) => 
     await ensureUnionsTables();
     const r = await query(`SELECT a.*, u.name AS union_name FROM union_announcements a LEFT JOIN unions u ON u.id=a.union_id ORDER BY a.created_at DESC`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/union-announcements", async (req: Request, res: Response) => {
@@ -10255,7 +10250,7 @@ router.post("/admin/union-announcements", async (req: Request, res: Response) =>
       [union_id?Number(union_id):null, title, body||null, image_url||null, link||null, Boolean(is_pinned)]
     );
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/union-announcements/:id", async (req: Request, res: Response) => {
@@ -10271,7 +10266,7 @@ router.patch("/admin/union-announcements/:id", async (req: Request, res: Respons
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/union-announcements/:id", async (req: Request, res: Response) => {
@@ -10279,7 +10274,7 @@ router.delete("/admin/union-announcements/:id", async (req: Request, res: Respon
   try {
     await query(`DELETE FROM union_announcements WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Programs public routes ─────────────────────────────────────────────────
@@ -10299,7 +10294,7 @@ router.get("/unions/programs", async (req: Request, res: Response) => {
       params
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/unions/laws — كل القوانين
@@ -10318,7 +10313,7 @@ router.get("/unions/laws", async (req: Request, res: Response) => {
       params
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Programs admin routes ──────────────────────────────────────────────────
@@ -10337,7 +10332,7 @@ router.get("/admin/union-programs", async (req: Request, res: Response) => {
       params
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/union-programs", async (req: Request, res: Response) => {
@@ -10352,7 +10347,7 @@ router.post("/admin/union-programs", async (req: Request, res: Response) => {
       [union_id||null, title, description||null, type||"event", start_date||null, end_date||null, location||null, max_participants||null, fee||null, contact||null, link||null, is_active!==false, sort_order||0]
     );
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/union-programs/:id", async (req: Request, res: Response) => {
@@ -10374,7 +10369,7 @@ router.patch("/admin/union-programs/:id", async (req: Request, res: Response) =>
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/union-programs/:id", async (req: Request, res: Response) => {
@@ -10382,7 +10377,7 @@ router.delete("/admin/union-programs/:id", async (req: Request, res: Response) =
   try {
     await query(`DELETE FROM union_programs WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Laws admin routes ──────────────────────────────────────────────────────
@@ -10402,7 +10397,7 @@ router.get("/admin/union-laws", async (req: Request, res: Response) => {
       params
     );
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/union-laws", async (req: Request, res: Response) => {
@@ -10417,7 +10412,7 @@ router.post("/admin/union-laws", async (req: Request, res: Response) => {
       [union_id||null, title, body||null, category||"bylaw", document_url||null, effective_date||null, version||null, is_active!==false, sort_order||0]
     );
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/union-laws/:id", async (req: Request, res: Response) => {
@@ -10438,7 +10433,7 @@ router.patch("/admin/union-laws/:id", async (req: Request, res: Response) => {
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/union-laws/:id", async (req: Request, res: Response) => {
@@ -10446,7 +10441,7 @@ router.delete("/admin/union-laws/:id", async (req: Request, res: Response) => {
   try {
     await query(`DELETE FROM union_laws WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -10511,7 +10506,7 @@ router.get("/telecom/services", async (req: Request, res: Response) => {
     if (company_id) { params.push(Number(company_id)); where += ` AND s.company_id=$${params.length}`; }
     const r = await query(`SELECT s.*, c.name AS company_name, c.brand_color AS company_color FROM telecom_services s LEFT JOIN telecom_companies c ON c.id=s.company_id ${where} ORDER BY s.sort_order,s.created_at`, params);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Public: company promo data
@@ -10520,7 +10515,7 @@ router.get("/telecom/companies/promo", async (req: Request, res: Response) => {
     await ensureTelecomV2();
     const r = await query(`SELECT id,name,short,logo_initial,brand_color,brand_color2,promo_tagline,promo_banner_url,promo_badge,package_type,contract_end FROM telecom_companies WHERE is_active=TRUE AND package_type IN ('standard','premium') AND (contract_end IS NULL OR contract_end >= NOW()) ORDER BY CASE package_type WHEN 'premium' THEN 1 WHEN 'standard' THEN 2 ELSE 3 END, sort_order`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Portal auth ───────────────────────────────────────────────────
@@ -10538,7 +10533,7 @@ router.post("/telecom/portal/login", async (req: Request, res: Response) => {
     await query(`UPDATE telecom_companies SET portal_token=$1 WHERE id=$2`, [token, company.id]);
     const { portal_pin_hash: _, portal_token: __, ...safe } = company;
     return res.json({ token, company: { ...safe, portal_token: token } });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/telecom/portal/me", async (req: Request, res: Response) => {
@@ -10548,7 +10543,7 @@ router.get("/telecom/portal/me", async (req: Request, res: Response) => {
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     const { portal_pin_hash: _, ...safe } = company;
     return res.json(safe);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/telecom/portal/me", async (req: Request, res: Response) => {
@@ -10571,7 +10566,7 @@ router.patch("/telecom/portal/me", async (req: Request, res: Response) => {
     );
     const { portal_pin_hash: _, ...safe } = r.rows[0];
     return res.json(safe);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Portal: Offers
@@ -10581,7 +10576,7 @@ router.get("/telecom/portal/offers", async (req: Request, res: Response) => {
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     const r = await query(`SELECT * FROM telecom_offers WHERE company_id=$1 ORDER BY sort_order,created_at DESC`, [company.id]);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/telecom/portal/offers", async (req: Request, res: Response) => {
@@ -10593,7 +10588,7 @@ router.post("/telecom/portal/offers", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO telecom_offers (company_id,title,description,category,price,currency,validity,details,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [company.id,title,description||null,category||'data',Number(price)||0,currency||'SDG',validity||null,details||null,Number(sort_order)||0]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/telecom/portal/offers/:id", async (req: Request, res: Response) => {
@@ -10605,7 +10600,7 @@ router.patch("/telecom/portal/offers/:id", async (req: Request, res: Response) =
       [title||null,description||null,category||null,price!=null?Number(price):null,currency||null,validity||null,details||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id,company.id]);
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/telecom/portal/offers/:id", async (req: Request, res: Response) => {
@@ -10614,7 +10609,7 @@ router.delete("/telecom/portal/offers/:id", async (req: Request, res: Response) 
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     await query(`DELETE FROM telecom_offers WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Portal: Events (premium only)
@@ -10624,7 +10619,7 @@ router.get("/telecom/portal/events", async (req: Request, res: Response) => {
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     const r = await query(`SELECT * FROM telecom_events WHERE company_id=$1 ORDER BY event_date ASC NULLS LAST`, [company.id]);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/telecom/portal/events", async (req: Request, res: Response) => {
@@ -10637,7 +10632,7 @@ router.post("/telecom/portal/events", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO telecom_events (company_id,title,description,event_date,location) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [company.id,title,description||null,event_date||null,location||null]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/telecom/portal/events/:id", async (req: Request, res: Response) => {
@@ -10648,7 +10643,7 @@ router.patch("/telecom/portal/events/:id", async (req: Request, res: Response) =
     const r = await query(`UPDATE telecom_events SET title=COALESCE($1,title),description=COALESCE($2,description),event_date=COALESCE($3,event_date),location=COALESCE($4,location),is_active=COALESCE($5,is_active) WHERE id=$6 AND company_id=$7 RETURNING *`,
       [title||null,description||null,event_date||null,location||null,is_active!=null?Boolean(is_active):null,req.params.id,company.id]);
     return res.json(r.rows[0] || { error: "لم يُعثر" });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/telecom/portal/events/:id", async (req: Request, res: Response) => {
@@ -10657,7 +10652,7 @@ router.delete("/telecom/portal/events/:id", async (req: Request, res: Response) 
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     await query(`DELETE FROM telecom_events WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Portal: Services (standard + premium)
@@ -10668,7 +10663,7 @@ router.get("/telecom/portal/services", async (req: Request, res: Response) => {
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     const r = await query(`SELECT * FROM telecom_services WHERE company_id=$1 ORDER BY sort_order,created_at`, [company.id]);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/telecom/portal/services", async (req: Request, res: Response) => {
@@ -10682,7 +10677,7 @@ router.post("/telecom/portal/services", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO telecom_services (company_id,title,description,icon,price,category,ussd_code,link,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [company.id,title,description||null,icon||'star-outline',price||null,category||'other',ussd_code||null,link||null,Number(sort_order)||0]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/telecom/portal/services/:id", async (req: Request, res: Response) => {
@@ -10693,7 +10688,7 @@ router.patch("/telecom/portal/services/:id", async (req: Request, res: Response)
     const r = await query(`UPDATE telecom_services SET title=COALESCE($1,title),description=COALESCE($2,description),icon=COALESCE($3,icon),price=COALESCE($4,price),category=COALESCE($5,category),ussd_code=COALESCE($6,ussd_code),link=COALESCE($7,link),is_active=COALESCE($8,is_active),sort_order=COALESCE($9,sort_order) WHERE id=$10 AND company_id=$11 RETURNING *`,
       [title||null,description||null,icon||null,price||null,category||null,ussd_code||null,link||null,is_active!=null?Boolean(is_active):null,sort_order!=null?Number(sort_order):null,req.params.id,company.id]);
     return res.json(r.rows[0] || { error: "لم يُعثر" });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/telecom/portal/services/:id", async (req: Request, res: Response) => {
@@ -10702,7 +10697,7 @@ router.delete("/telecom/portal/services/:id", async (req: Request, res: Response
     if (!company) return res.status(401).json({ error: "غير مصرح" });
     await query(`DELETE FROM telecom_services WHERE id=$1 AND company_id=$2`, [req.params.id, company.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Admin: credentials + contracts ───────────────────────────────
@@ -10725,7 +10720,7 @@ router.patch("/admin/telecom/companies/:id/credentials", async (req: Request, re
     );
     if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
     return res.json({ ...r.rows[0], pin_set: !!pinHash || undefined });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/telecom/services", async (req: Request, res: Response) => {
@@ -10734,7 +10729,7 @@ router.get("/admin/telecom/services", async (req: Request, res: Response) => {
     await ensureTelecomV2();
     const r = await query(`SELECT s.*, c.name AS company_name FROM telecom_services s LEFT JOIN telecom_companies c ON c.id=s.company_id ORDER BY s.created_at DESC`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 
@@ -10815,7 +10810,7 @@ router.get("/admin/chart-data", async (req: Request, res: Response) => {
       })),
       section_usage: sectionUsage.rows,
     });
-  } catch (e: any) { console.error("chart-data error:", e?.message); return res.status(500).json({ error: "Server error" }); }
+  } catch (e: any) { logger.error({ err: e?.message }, ""); return res.status(500).json({ error: "Server error" }); }
 });
 
 // إضافة إحصائيات زواجل لـ full-stats (patch في الـ router)
@@ -10881,7 +10876,7 @@ router.post("/admin/push/segment", async (req: Request, res: Response) => {
     await query(`INSERT INTO notifications (user_id, type, title, body, data) SELECT id, 'segment', $1, $2, $3 FROM users WHERE role IN ('admin','moderator')`,
       [title, body, JSON.stringify({ segment, ...(extraData ?? {}) })]).catch(() => {});
     return res.json({ ok: true, sent });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -10938,7 +10933,7 @@ router.post("/merchant-portal/login", async (req: Request, res: Response) => {
     const items = await query(`SELECT * FROM merchant_items WHERE shop_id=$1 ORDER BY sort_order, name`, [shop.id]);
     const { portal_pin_hash: _, portal_token: __, ...safe } = shop;
     return res.json({ shop: { ...safe, portal_token: token }, items: items.rows, token });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/merchant-portal/shop/:id/items
@@ -11094,7 +11089,7 @@ router.get("/gov-entities", async (_req: Request, res: Response) => {
          FROM gov_entities WHERE is_visible = TRUE ORDER BY sort_order, id`
     );
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: all entities
@@ -11104,7 +11099,7 @@ router.get("/admin/gov-entities", async (req: Request, res: Response) => {
     await ensureGovEntitiesTables();
     const { rows } = await query(`SELECT * FROM gov_entities ORDER BY sort_order, id`);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: add entity
@@ -11121,7 +11116,7 @@ router.post("/admin/gov-entities", async (req: Request, res: Response) => {
        address||null, is_visible!==false, join_status||"pending", notes||null, sort_order||0]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: update entity
@@ -11142,7 +11137,7 @@ router.patch("/admin/gov-entities/:id", async (req: Request, res: Response) => {
       `UPDATE gov_entities SET ${fields.join(", ")} WHERE id = $${vals.length} RETURNING *`, vals
     );
     return res.json(rows[0] || { error: "لم يُعثر" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // Admin: delete entity
@@ -11264,7 +11259,7 @@ router.get("/design-gallery/packages", async (_req: Request, res: Response) => {
     await ensureDesignGalleryTables();
     const { rows } = await query(`SELECT * FROM design_gallery_packages WHERE is_active=TRUE ORDER BY sort_order`);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/design-gallery/products", async (req: Request, res: Response) => {
@@ -11282,7 +11277,7 @@ router.get("/design-gallery/products", async (req: Request, res: Response) => {
     vals.push(Number(lim), Number(off));
     const { rows } = await query(sql, vals);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/design-gallery/members", async (_req: Request, res: Response) => {
@@ -11299,7 +11294,7 @@ router.get("/design-gallery/members", async (_req: Request, res: Response) => {
       ORDER BY pkg.is_featured DESC NULLS LAST, m.rating DESC, m.created_at DESC
     `);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/design-gallery/orders", async (req: Request, res: Response) => {
@@ -11315,7 +11310,7 @@ router.post("/design-gallery/orders", async (req: Request, res: Response) => {
     );
     if (product_id) await query(`UPDATE design_gallery_products SET orders_count = orders_count+1 WHERE id=$1`, [product_id]);
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/design-gallery/subscribe", async (req: Request, res: Response) => {
@@ -11340,7 +11335,7 @@ router.post("/design-gallery/subscribe", async (req: Request, res: Response) => 
       [userId, package_id, shop_name, bio||null, whatsapp||null, instagram||null, facebook||null, categories||[]]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/design-gallery/my-shop", async (req: Request, res: Response) => {
@@ -11357,7 +11352,7 @@ router.get("/design-gallery/my-shop", async (req: Request, res: Response) => {
     if (!rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
     const { rows: prods } = await query(`SELECT * FROM design_gallery_products WHERE member_id=$1 ORDER BY created_at DESC`, [rows[0].id]);
     return res.json({ ...rows[0], products: prods });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/design-gallery/my-products", async (req: Request, res: Response) => {
@@ -11375,7 +11370,7 @@ router.post("/design-gallery/my-products", async (req: Request, res: Response) =
       [mem[0].id, title, description||null, category||'invitations', price||0, images||[], is_custom!==false, delivery_days||3]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
@@ -11395,7 +11390,7 @@ router.patch("/design-gallery/my-products/:id", async (req: Request, res: Respon
       `UPDATE design_gallery_products SET ${fields.join(',')} WHERE id=$${vals.length-1} AND member_id=$${vals.length} RETURNING *`, vals
     );
     return res.json(rows[0] || { error: "لم يُعثر" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
@@ -11424,7 +11419,7 @@ router.get("/admin/design-gallery/members", async (req: Request, res: Response) 
       GROUP BY m.id, pkg.name, pkg.color ORDER BY m.created_at DESC
     `);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/design-gallery/members/:id", async (req: Request, res: Response) => {
@@ -11436,7 +11431,7 @@ router.patch("/admin/design-gallery/members/:id", async (req: Request, res: Resp
       [status||null, expires_at||null, Number(req.params.id)]
     );
     return res.json(rows[0] || { error: "لم يُعثر" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/design-gallery/members/:id", async (req: Request, res: Response) => {
@@ -11459,7 +11454,7 @@ router.get("/admin/design-gallery/orders", async (req: Request, res: Response) =
       ORDER BY o.created_at DESC LIMIT 300
     `);
     return res.json(rows);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/design-gallery/orders/:id", async (req: Request, res: Response) => {
@@ -11468,7 +11463,7 @@ router.patch("/admin/design-gallery/orders/:id", async (req: Request, res: Respo
     const { status } = req.body;
     const { rows } = await query(`UPDATE design_gallery_orders SET status=$1 WHERE id=$2 RETURNING *`, [status, Number(req.params.id)]);
     return res.json(rows[0] || { error: "لم يُعثر" });
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/design-gallery/packages", async (req: Request, res: Response) => {
@@ -11481,7 +11476,7 @@ router.post("/admin/design-gallery/packages", async (req: Request, res: Response
       [name, description||null, price_monthly||0, max_products||10, is_unlimited||false, is_featured||false, color||'#22C55E', icon||'🎨', features||[], sort_order||0]
     );
     return res.status(201).json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/design-gallery/packages/:id", async (req: Request, res: Response) => {
@@ -11495,7 +11490,7 @@ router.patch("/admin/design-gallery/packages/:id", async (req: Request, res: Res
     vals.push(Number(req.params.id));
     const { rows } = await query(`UPDATE design_gallery_packages SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
     return res.json(rows[0]);
-  } catch (e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
+  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/design-gallery/packages/:id", async (req: Request, res: Response) => {
@@ -11571,7 +11566,7 @@ router.get("/zawajil/products", async (req: Request, res: Response) => {
     await ensureZawajilTables();
     const r = await query(`SELECT * FROM zawajil_products WHERE is_available=TRUE ORDER BY sort_order,name`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/zawajil/orders", async (req: Request, res: Response) => {
@@ -11601,7 +11596,7 @@ router.post("/zawajil/orders", async (req: Request, res: Response) => {
        message_text||null,Boolean(message_by_us),Boolean(voice_presentation),gift_type||"none",
        gift_product_id||null,gift_product_name||null,gift_external_desc||null,gift_money_amount||0,true]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/zawajil/orders/mine", async (req: Request, res: Response) => {
@@ -11615,7 +11610,7 @@ router.get("/zawajil/orders/mine", async (req: Request, res: Response) => {
     else { params.push(`%${name}%`); where += ` AND sender_name ILIKE $${params.length}`; }
     const r = await query(`SELECT * FROM zawajil_orders ${where} ORDER BY created_at DESC LIMIT 50`, params);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/zawajil/shoubash-guests", async (req: Request, res: Response) => {
@@ -11626,7 +11621,7 @@ router.post("/zawajil/shoubash-guests", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO zawajil_shoubash_guests(order_id,guest_name,guest_phone,gift_desc,gift_amount) VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [order_id,guest_name,guest_phone||null,gift_desc||null,gift_amount||0]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/zawajil/orders", async (req: Request, res: Response) => {
@@ -11639,7 +11634,7 @@ router.get("/admin/zawajil/orders", async (req: Request, res: Response) => {
     if (status && status !== "all") { params.push(status); where += ` AND status=$${params.length}`; }
     const r = await query(`SELECT o.*, (SELECT json_agg(g) FROM zawajil_shoubash_guests g WHERE g.order_id=o.id) AS shoubash_guests FROM zawajil_orders o ${where} ORDER BY o.created_at DESC`, params);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Response) => {
@@ -11669,7 +11664,7 @@ router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Respo
       }
     }
     return res.json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Response) => {
@@ -11698,7 +11693,7 @@ router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Respo
       }
     }
     return res.json(r.rows[0] || { error: "لم يُعثر" });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/zawajil/products", async (req: Request, res: Response) => {
@@ -11707,7 +11702,7 @@ router.get("/admin/zawajil/products", async (req: Request, res: Response) => {
     await ensureZawajilTables();
     const r = await query(`SELECT * FROM zawajil_products ORDER BY sort_order,name`);
     return res.json(r.rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/zawajil/products", async (req: Request, res: Response) => {
@@ -11719,7 +11714,7 @@ router.post("/admin/zawajil/products", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO zawajil_products(name,description,price,category,image_url,is_available,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [name,description||null,price||0,category||"general",image_url||null,is_available!==false,sort_order||0]);
     return res.status(201).json(r.rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/zawajil/products/:id", async (req: Request, res: Response) => {
@@ -11729,7 +11724,7 @@ router.patch("/admin/zawajil/products/:id", async (req: Request, res: Response) 
     const r = await query(`UPDATE zawajil_products SET name=COALESCE($1,name),description=COALESCE($2,description),price=COALESCE($3::numeric,price),category=COALESCE($4,category),image_url=COALESCE($5,image_url),is_available=COALESCE($6,is_available),sort_order=COALESCE($7::int,sort_order) WHERE id=$8 RETURNING *`,
       [name||null,description||null,price!=null?Number(price):null,category||null,image_url||null,is_available!=null?Boolean(is_available):null,sort_order!=null?Number(sort_order):null,req.params.id]);
     return res.json(r.rows[0] || { error: "لم يُعثر" });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response) => {
@@ -11737,7 +11732,7 @@ router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response)
   try {
     await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -11829,7 +11824,7 @@ router.get("/farmers/crops", async (req: Request, res: Response) => {
     sql += ` ORDER BY created_at DESC LIMIT 200`;
     const { rows } = await query(sql, params);
     return res.json(rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/farmers/crops", async (req: Request, res: Response) => {
@@ -11851,7 +11846,7 @@ router.post("/farmers/crops", async (req: Request, res: Response) => {
        contact_phone||null,contact_whatsapp||null]
     );
     return res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/farmers/crops/:id", async (req: Request, res: Response) => {
@@ -11883,7 +11878,7 @@ router.patch("/farmers/crops/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
     return res.json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/farmers/crops/:id", async (req: Request, res: Response) => {
@@ -11893,7 +11888,7 @@ router.delete("/farmers/crops/:id", async (req: Request, res: Response) => {
     const isAdmin = await isAdminRequest(req);
     await query(`DELETE FROM farmer_crops WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── الأراضي ───────────────────────────────────────────────────────
@@ -11902,7 +11897,7 @@ router.get("/farmers/lands", async (_req: Request, res: Response) => {
     await ensureFarmersTables();
     const { rows } = await query(`SELECT * FROM farmer_lands WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
     return res.json(rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/farmers/lands", async (req: Request, res: Response) => {
@@ -11922,7 +11917,7 @@ router.post("/farmers/lands", async (req: Request, res: Response) => {
        neighborhood||null,contact_phone||null,contact_whatsapp||null]
     );
     return res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/farmers/lands/:id", async (req: Request, res: Response) => {
@@ -11947,7 +11942,7 @@ router.patch("/farmers/lands/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
     return res.json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/farmers/lands/:id", async (req: Request, res: Response) => {
@@ -11957,7 +11952,7 @@ router.delete("/farmers/lands/:id", async (req: Request, res: Response) => {
     const isAdmin = await isAdminRequest(req);
     await query(`DELETE FROM farmer_lands WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── الأدوات الزراعية ─────────────────────────────────────────────
@@ -11966,7 +11961,7 @@ router.get("/farmers/tools", async (_req: Request, res: Response) => {
     await ensureFarmersTables();
     const { rows } = await query(`SELECT * FROM farmer_tools WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
     return res.json(rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/farmers/tools", async (req: Request, res: Response) => {
@@ -11985,7 +11980,7 @@ router.post("/farmers/tools", async (req: Request, res: Response) => {
        rent_period||"day",location||null,neighborhood||null,contact_phone||null,contact_whatsapp||null]
     );
     return res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/farmers/tools/:id", async (req: Request, res: Response) => {
@@ -12008,7 +12003,7 @@ router.patch("/farmers/tools/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
     return res.json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/farmers/tools/:id", async (req: Request, res: Response) => {
@@ -12018,7 +12013,7 @@ router.delete("/farmers/tools/:id", async (req: Request, res: Response) => {
     const isAdmin = await isAdminRequest(req);
     await query(`DELETE FROM farmer_tools WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── العمال الموسميون ──────────────────────────────────────────────
@@ -12027,7 +12022,7 @@ router.get("/farmers/workers", async (_req: Request, res: Response) => {
     await ensureFarmersTables();
     const { rows } = await query(`SELECT * FROM farmer_workers WHERE is_available=TRUE ORDER BY created_at DESC LIMIT 200`);
     return res.json(rows);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/farmers/workers", async (req: Request, res: Response) => {
@@ -12047,7 +12042,7 @@ router.post("/farmers/workers", async (req: Request, res: Response) => {
        location||null,neighborhood||null,contact_phone||null,contact_whatsapp||null]
     );
     return res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/farmers/workers/:id", async (req: Request, res: Response) => {
@@ -12073,7 +12068,7 @@ router.patch("/farmers/workers/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "لم يُعثر أو غير مصرح" });
     return res.json(rows[0]);
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.delete("/farmers/workers/:id", async (req: Request, res: Response) => {
@@ -12083,6 +12078,6 @@ router.delete("/farmers/workers/:id", async (req: Request, res: Response) => {
     const isAdmin = await isAdminRequest(req);
     await query(`DELETE FROM farmer_workers WHERE id=$1 AND ($2 OR user_id=$3)`, [req.params.id, isAdmin, uid]);
     return res.json({ success: true });
-  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
