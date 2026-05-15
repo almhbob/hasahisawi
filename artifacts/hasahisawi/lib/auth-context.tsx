@@ -841,12 +841,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const base = getApiUrl();
     if (!base) throw new Error("تعذّر الاتصال بالخادم");
     if (!token) throw new Error("يجب تسجيل الدخول أولاً");
+
+    // إذا كان التوكن هو Firebase ID Token (JWT)، جدّده ببكند توكن أولاً
+    let activeToken = token;
+    const isFirebaseJwt = token.split(".").length === 3 && token.startsWith("eyJ");
+    if (isFirebaseJwt && user?.uid) {
+      const freshTok = await exchangeForBackendToken(
+        user.uid, user.name, user.email ?? null, user.role ?? "user", token
+      );
+      if (freshTok) {
+        activeToken = freshTok;
+        setToken(freshTok);
+        await AsyncStorage.setItem(TOKEN_KEY, freshTok);
+      }
+    }
+
+    const body: Record<string, unknown> = {
+      gender,
+      ...(neighborhood ? { neighborhood } : {}),
+      // fallback: أرسل firebase_uid حتى يتمكن الخادم من التعرف على المستخدم
+      ...(user?.uid ? { firebase_uid: user.uid } : {}),
+    };
+
     const { res, json } = await safeFetchJson(
       `${base}/api/auth/me/complete-profile`,
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gender, ...(neighborhood ? { neighborhood } : {}) }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
+        body: JSON.stringify(body),
       },
       3,
       15000,

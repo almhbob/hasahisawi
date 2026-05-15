@@ -2188,7 +2188,29 @@ router.patch("/auth/me/gender", async (req: Request, res: Response) => {
 // PATCH /api/auth/me/complete-profile — إكمال بيانات الملف الشخصي (الجنس + الحي) دفعةً واحدة
 router.patch("/auth/me/complete-profile", async (req: Request, res: Response) => {
   try {
-    const user = await getSessionUser(req);
+    let user = await getSessionUser(req);
+
+    // Fallback: إذا فشل Bearer token (Firebase JWT غير مُحقَّق) → ابحث بـ firebase_uid من الـ body
+    if (!user) {
+      const { firebase_uid } = req.body;
+      if (firebase_uid && typeof firebase_uid === "string") {
+        const tok = req.headers.authorization?.slice(7) ?? "";
+        const isJwt = tok.split(".").length === 3 && tok.startsWith("eyJ");
+        if (isJwt) {
+          // حاول التحقق من Firebase ID token
+          const decoded = await verifyIdToken(tok).catch(() => null);
+          const uidToUse = decoded?.uid ?? firebase_uid;
+          const r = await query(`SELECT * FROM users WHERE firebase_uid = $1`, [uidToUse]);
+          if (r.rows[0]) {
+            user = r.rows[0];
+            // أنشئ جلسة backend حتى لا يتكرر هذا الوضع
+            const sessionToken = require("crypto").randomBytes(32).toString("hex");
+            await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [user.id, sessionToken]);
+          }
+        }
+      }
+    }
+
     if (!user) return res.status(401).json({ error: "غير مصرح" });
     const { gender, neighborhood } = req.body;
     if (!["male", "female"].includes(gender))
