@@ -28,6 +28,7 @@ import Jobs           from "@/pages/Jobs";
 import Sports         from "@/pages/Sports";
 import Notifications  from "@/pages/Notifications";
 import MedicalClinics from "@/pages/MedicalClinics";
+import MedicalSubscriptions from "@/pages/MedicalSubscriptions";
 import Services       from "@/pages/Services";
 import LawyersAdmin   from "@/pages/Lawyers";
 import AppVersion    from "@/pages/AppVersion";
@@ -110,7 +111,8 @@ function AppRoutes() {
         <Route path="/jobs"           component={Jobs} />
         <Route path="/sports"         component={Sports} />
         <Route path="/notifications"  component={Notifications} />
-        <Route path="/medical"        component={MedicalClinics} />
+        <Route path="/medical"               component={MedicalClinics} />
+        <Route path="/medical-subscriptions" component={MedicalSubscriptions} />
         <Route path="/services"       component={Services} />
         <Route path="/lawyers"        component={LawyersAdmin} />
         <Route path="/app-version"    component={AppVersion} />

@@ -5818,7 +5818,58 @@ router.post("/appointments/book", async (req: Request, res: Response) => {
       [user.id, user.name, user_phone||null, target_type, target_id,
        facility_name||null, appointment_date, appointment_time, notes||null]
     );
-    return res.json({ appointment: result.rows[0] });
+    const appt = result.rows[0];
+
+    // ── توليد رابط تأكيد واتساب ──────────────────────────────────────
+    // رسالة للمريض عند الحجز
+    const confirmMsg =
+      `🏥 *تأكيد حجز موعدك*\n` +
+      `السلام عليكم ${user.name}،\n` +
+      `تم تسجيل موعدك بنجاح في *${facility_name || target_id}*\n` +
+      `📅 التاريخ: *${appointment_date}*\n` +
+      `⏰ الوقت: *${appointment_time}*\n` +
+      `${notes ? `📝 ملاحظة: ${notes}\n` : ""}` +
+      `سنرسل لك تذكيراً قبل 5 ساعات من الموعد.\n` +
+      `— فريق حصاحيصاوي 💚`;
+
+    // رسالة للإدارة بالحجز الجديد
+    const adminMsg =
+      `📋 *حجز جديد — حصاحيصاوي*\n` +
+      `المريض: ${user.name}\n` +
+      `الهاتف: ${user_phone || "غير محدد"}\n` +
+      `المنشأة: ${facility_name || target_id}\n` +
+      `📅 ${appointment_date} ⏰ ${appointment_time}\n` +
+      `${notes ? `ملاحظة: ${notes}` : ""}`;
+
+    // محاولة جلب واتساب المؤسسة من قاعدة البيانات
+    let facilityWaLink: string | null = null;
+    try {
+      const instR = await query(
+        `SELECT whatsapp, phone FROM medical_institutions WHERE id=$1 OR phone=$1 LIMIT 1`,
+        [target_id]
+      );
+      if (instR.rows[0]?.whatsapp) {
+        const wa = instR.rows[0].whatsapp.replace(/[^0-9]/g, "");
+        facilityWaLink = `https://wa.me/${wa}?text=${encodeURIComponent(confirmMsg)}`;
+      }
+    } catch {}
+
+    // رابط واتساب الإدارة (الاحتياطي)
+    const adminWa = "249597083352";
+    const adminWaLink = `https://wa.me/${adminWa}?text=${encodeURIComponent(adminMsg)}`;
+
+    // رابط التأكيد للمريض (يُفتح من التطبيق)
+    const patientPhone = (user_phone || "").replace(/[^0-9]/g, "");
+    const patientWaLink = patientPhone
+      ? `https://wa.me/249${patientPhone.replace(/^0/, "")}?text=${encodeURIComponent(confirmMsg)}`
+      : null;
+
+    return res.json({
+      appointment: appt,
+      wa_confirm_link: facilityWaLink || patientWaLink,  // يُعطى للمريض
+      wa_admin_link: adminWaLink,                          // يُرسل للإدارة
+      wa_patient_link: patientWaLink,                      // لإرسال تأكيد للمريض
+    });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -12711,3 +12762,513 @@ router.post("/admin/factories/:id/subscribe", async (req: Request, res: Response
     return res.status(201).json(r.rows[0]);
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// نظام اشتراكات العيادات والمؤسسات الطبية
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ensureClinicTables = (() => {
+  let done = false;
+  return async () => {
+    if (done) return;
+    done = true;
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS medical_institutions (
+        id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, type VARCHAR(50) DEFAULT 'clinic',
+        phone VARCHAR(30), whatsapp VARCHAR(30), address TEXT, description TEXT,
+        logo_url TEXT, owner_name VARCHAR(100), owner_phone VARCHAR(30),
+        is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS clinic_subscription_plans (
+        id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, name_ar VARCHAR(100),
+        price_monthly NUMERIC(10,2) DEFAULT 0, price_yearly NUMERIC(10,2) DEFAULT 0,
+        max_doctors INT DEFAULT 1, max_appointments_per_month INT DEFAULT 50,
+        features JSONB DEFAULT '[]', is_active BOOLEAN DEFAULT true,
+        sort_order INT DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS clinic_subscriptions (
+        id SERIAL PRIMARY KEY, institution_id INT, plan_id INT,
+        status VARCHAR(20) DEFAULT 'active', started_at TIMESTAMPTZ DEFAULT NOW(),
+        expires_at TIMESTAMPTZ, payment_method VARCHAR(50), notes TEXT,
+        is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS clinic_supervisors (
+        id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL,
+        phone VARCHAR(30) UNIQUE NOT NULL, whatsapp VARCHAR(30),
+        password_hash VARCHAR(200), notes TEXT,
+        is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS clinic_supervisor_assignments (
+        id SERIAL PRIMARY KEY, supervisor_id INT, institution_id INT,
+        assigned_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(supervisor_id, institution_id)
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS appointment_reminders (
+        id SERIAL PRIMARY KEY, appointment_id INT, reminder_type VARCHAR(30) DEFAULT 'whatsapp_5h',
+        sent_at TIMESTAMPTZ DEFAULT NOW(), sent_by INT, wa_link TEXT
+      )`);
+      // أعمدة جديدة على appointments
+      const apptAlters = [
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS institution_id INT`,
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS wa_confirm_sent BOOLEAN DEFAULT false`,
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false`,
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ`,
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`,
+        `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_fee NUMERIC(10,2)`,
+      ];
+      for (const sql of apptAlters) { try { await query(sql); } catch {} }
+      // seed plans if empty
+      const pc = await query(`SELECT count(*) FROM clinic_subscription_plans`);
+      if (parseInt(pc.rows[0].count) === 0) {
+        await query(`INSERT INTO clinic_subscription_plans (name,name_ar,price_monthly,price_yearly,max_doctors,max_appointments_per_month,features,sort_order) VALUES
+          ('free','مجاني',0,0,1,30,'["ظهور في دليل العيادات","حجز مواعيد أساسي"]',1),
+          ('bronze','برونزي',299,2990,3,100,'["كل مزايا المجاني","تذكير تلقائي واتساب","إدارة قائمة انتظار","إحصائيات أساسية"]',2),
+          ('silver','فضي',599,5990,7,300,'["كل مزايا البرونزي","مشرف مخصص","تقارير شهرية","أولوية في نتائج البحث"]',3),
+          ('gold','ذهبي',999,9990,999,9999,'["كل مزايا الفضي","مشرف VIP","دعم 24/7","شارة مؤسسة موثقة","تسويق مميز"]',4)`);
+      }
+      await query(`CREATE INDEX IF NOT EXISTS idx_med_inst_active ON medical_institutions(is_active)`);
+    } catch {}
+  };
+})();
+
+// ── Public ────────────────────────────────────────────────────────────────
+
+// GET /api/clinic-subscription-plans
+router.get("/clinic-subscription-plans", async (_req: Request, res: Response) => {
+  try {
+    await ensureClinicTables();
+    const r = await query(`SELECT * FROM clinic_subscription_plans WHERE is_active=TRUE ORDER BY sort_order`);
+    return res.json({ plans: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/medical-institutions — قائمة المؤسسات المشتركة (عامة)
+router.get("/medical-institutions", async (req: Request, res: Response) => {
+  try {
+    await ensureClinicTables();
+    const { type, search } = req.query as Record<string, string>;
+    let sql = `
+      SELECT i.*,
+             cs.is_active AS sub_active,
+             p.name AS plan_name, p.name_ar AS plan_name_ar,
+             p.color AS plan_color, p.icon AS plan_icon,
+             p.has_whatsapp_confirm, p.has_reminder, p.has_priority,
+             p.has_featured_badge, p.has_analytics,
+             cs.expires_at AS sub_expires
+      FROM medical_institutions i
+      LEFT JOIN clinic_subscriptions cs ON cs.institution_id = i.id AND cs.is_active=TRUE
+      LEFT JOIN clinic_subscription_plans p ON p.id = cs.plan_id
+      WHERE i.is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type)   { sql += ` AND i.type=$${params.length+1}`;   params.push(type); }
+    if (search) { sql += ` AND (i.name ILIKE $${params.length+1} OR i.address ILIKE $${params.length+1})`; params.push(`%${search}%`); }
+    sql += ` ORDER BY i.is_featured DESC, i.sort_order, i.name`;
+    const r = await query(sql, params);
+    return res.json({ institutions: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: المؤسسات ────────────────────────────────────────────────────────
+
+// GET /api/admin/medical-institutions
+router.get("/admin/medical-institutions", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const r = await query(`
+      SELECT i.*,
+             cs.is_active AS sub_active, cs.expires_at AS sub_expires, cs.amount_paid,
+             p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color
+      FROM medical_institutions i
+      LEFT JOIN clinic_subscriptions cs ON cs.institution_id = i.id AND cs.is_active=TRUE
+      LEFT JOIN clinic_subscription_plans p ON p.id = cs.plan_id
+      ORDER BY i.is_featured DESC, i.sort_order, i.name
+    `);
+    return res.json({ institutions: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/medical-institutions
+router.post("/admin/medical-institutions", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const { name, short_name, type, description, address, phone, whatsapp,
+            email, website, contact_person, working_hours, fees_range,
+            brand_color, logo_initial, is_featured, sort_order } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const r = await query(
+      `INSERT INTO medical_institutions
+         (name,short_name,type,description,address,phone,whatsapp,email,website,
+          contact_person,working_hours,fees_range,brand_color,logo_initial,is_featured,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [name.trim(), short_name||null, type||"clinic", description||null,
+       address||null, phone||null, whatsapp||null, email||null, website||null,
+       contact_person||null, working_hours||null, fees_range||null,
+       brand_color||"#2E7D9A", logo_initial||"🏥",
+       !!is_featured, Number(sort_order)||0]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/medical-institutions/:id
+router.patch("/admin/medical-institutions/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const fields: string[] = []; const vals: unknown[] = []; let i = 1;
+    const allowed = ["name","short_name","type","description","address","phone","whatsapp",
+                     "email","website","contact_person","working_hours","fees_range",
+                     "brand_color","logo_initial","is_active","is_verified","is_featured",
+                     "sort_order","subscription_tier","specialties"];
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) { fields.push(`${k}=$${i++}`); vals.push(req.body[k]); }
+    }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد حقول للتحديث" });
+    vals.push(req.params.id);
+    const r = await query(`UPDATE medical_institutions SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/medical-institutions/:id
+router.delete("/admin/medical-institutions/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM medical_institutions WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: الاشتراكات ──────────────────────────────────────────────────────
+
+// GET /api/admin/clinic-subscriptions
+router.get("/admin/clinic-subscriptions", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const r = await query(`
+      SELECT cs.*, i.name AS inst_name, i.type AS inst_type, i.phone AS inst_phone,
+             p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.price_monthly
+      FROM clinic_subscriptions cs
+      JOIN medical_institutions i ON i.id = cs.institution_id
+      JOIN clinic_subscription_plans p ON p.id = cs.plan_id
+      ORDER BY cs.created_at DESC
+    `);
+    return res.json({ subscriptions: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/clinic-subscriptions — تعيين اشتراك
+router.post("/admin/clinic-subscriptions", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const { institution_id, plan_id, expires_at, amount_paid, payment_method, notes } = req.body;
+    if (!institution_id || !plan_id) return res.status(400).json({ error: "المؤسسة والباقة مطلوبتان" });
+    // إلغاء الاشتراك القديم
+    await query(`UPDATE clinic_subscriptions SET is_active=FALSE WHERE institution_id=$1`, [institution_id]);
+    const r = await query(
+      `INSERT INTO clinic_subscriptions (institution_id,plan_id,is_active,expires_at,amount_paid,payment_method,notes)
+       VALUES ($1,$2,TRUE,$3,$4,$5,$6) RETURNING *`,
+      [institution_id, plan_id, expires_at||null,
+       amount_paid ? Number(amount_paid) : null, payment_method||null, notes||null]
+    );
+    // تحديث tier في المؤسسة
+    const plan = await query(`SELECT name FROM clinic_subscription_plans WHERE id=$1`, [plan_id]);
+    if (plan.rows[0]) {
+      await query(`UPDATE medical_institutions SET subscription_tier=$1 WHERE id=$2`,
+        [plan.rows[0].name, institution_id]);
+    }
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/clinic-subscriptions/:id
+router.patch("/admin/clinic-subscriptions/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { is_active, expires_at, notes } = req.body;
+    const r = await query(
+      `UPDATE clinic_subscriptions SET is_active=COALESCE($1,is_active), expires_at=COALESCE($2,expires_at),
+       notes=COALESCE($3,notes) WHERE id=$4 RETURNING *`,
+      [is_active??null, expires_at||null, notes||null, req.params.id]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: الباقات ─────────────────────────────────────────────────────────
+
+// GET /api/admin/clinic-subscription-plans
+router.get("/admin/clinic-subscription-plans", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM clinic_subscription_plans ORDER BY sort_order`);
+    return res.json({ plans: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PUT /api/admin/clinic-subscription-plans/:id
+router.put("/admin/clinic-subscription-plans/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name_ar, description, price_monthly, max_appointments_per_month,
+            has_whatsapp_confirm, has_reminder, has_priority, has_featured_badge,
+            has_analytics, has_supervisor, has_monthly_report, color, icon } = req.body;
+    const r = await query(
+      `UPDATE clinic_subscription_plans SET
+         name_ar=COALESCE($1,name_ar), description=COALESCE($2,description),
+         price_monthly=COALESCE($3,price_monthly),
+         max_appointments_per_month=COALESCE($4,max_appointments_per_month),
+         has_whatsapp_confirm=COALESCE($5,has_whatsapp_confirm),
+         has_reminder=COALESCE($6,has_reminder), has_priority=COALESCE($7,has_priority),
+         has_featured_badge=COALESCE($8,has_featured_badge),
+         has_analytics=COALESCE($9,has_analytics), has_supervisor=COALESCE($10,has_supervisor),
+         has_monthly_report=COALESCE($11,has_monthly_report),
+         color=COALESCE($12,color), icon=COALESCE($13,icon)
+       WHERE id=$14 RETURNING *`,
+      [name_ar||null, description||null, price_monthly!=null?Number(price_monthly):null,
+       max_appointments_per_month!=null?Number(max_appointments_per_month):null,
+       has_whatsapp_confirm??null, has_reminder??null, has_priority??null,
+       has_featured_badge??null, has_analytics??null, has_supervisor??null,
+       has_monthly_report??null, color||null, icon||null, req.params.id]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Admin: المشرفون الطبيون ────────────────────────────────────────────────
+
+// GET /api/admin/clinic-supervisors
+router.get("/admin/clinic-supervisors", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const sups = await query(`SELECT * FROM clinic_supervisors ORDER BY created_at DESC`);
+    // جلب عدد المؤسسات لكل مشرف
+    const counts = await query(
+      `SELECT supervisor_id, COUNT(*) AS cnt FROM clinic_supervisor_assignments GROUP BY supervisor_id`
+    );
+    const countMap: Record<number, number> = {};
+    counts.rows.forEach((r: any) => { countMap[r.supervisor_id] = Number(r.cnt); });
+    const rows = sups.rows.map((s: any) => ({ ...s, assigned_count: countMap[s.id] || 0 }));
+    return res.json({ supervisors: rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/clinic-supervisors
+router.post("/admin/clinic-supervisors", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    const { name, phone, whatsapp, email, assigned_plan, notes } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const r = await query(
+      `INSERT INTO clinic_supervisors (name,phone,whatsapp,email,assigned_plan,notes)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [name.trim(), phone||null, whatsapp||null, email||null, assigned_plan||"all", notes||null]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/clinic-supervisors/:id
+router.patch("/admin/clinic-supervisors/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, phone, whatsapp, email, assigned_plan, notes, is_active } = req.body;
+    const r = await query(
+      `UPDATE clinic_supervisors SET
+         name=COALESCE($1,name), phone=COALESCE($2,phone), whatsapp=COALESCE($3,whatsapp),
+         email=COALESCE($4,email), assigned_plan=COALESCE($5,assigned_plan),
+         notes=COALESCE($6,notes), is_active=COALESCE($7,is_active)
+       WHERE id=$8 RETURNING *`,
+      [name||null, phone||null, whatsapp||null, email||null,
+       assigned_plan||null, notes||null, is_active??null, req.params.id]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/clinic-supervisors/:id/assign — ربط مشرف بمؤسسة
+router.post("/admin/clinic-supervisors/:id/assign", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { institution_id } = req.body;
+    await query(
+      `INSERT INTO clinic_supervisor_assignments (supervisor_id, institution_id)
+       VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+      [req.params.id, institution_id]
+    );
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/clinic-supervisors/:id/assign/:instId
+router.delete("/admin/clinic-supervisors/:id/assign/:instId", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`DELETE FROM clinic_supervisor_assignments WHERE supervisor_id=$1 AND institution_id=$2`,
+      [req.params.id, req.params.instId]);
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── نظام التذكيرات ────────────────────────────────────────────────────────
+
+// GET /api/admin/appointments/all — جميع المواعيد
+router.get("/admin/appointments/all", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { date, status } = req.query as Record<string, string>;
+    let sql = `SELECT a.*, u.name AS user_display_name, u.phone AS user_reg_phone
+               FROM appointments a
+               LEFT JOIN users u ON u.id = a.user_id WHERE 1=1`;
+    const params: unknown[] = [];
+    if (date)   { sql += ` AND a.appointment_date=$${params.length+1}`; params.push(date); }
+    if (status) { sql += ` AND a.status=$${params.length+1}`; params.push(status); }
+    sql += ` ORDER BY a.appointment_date, a.appointment_time`;
+    const r = await query(sql, params);
+    return res.json({ appointments: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/appointments/reminders-due — المواعيد التي تحتاج تذكير خلال 5 ساعات
+router.get("/admin/appointments/reminders-due", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureClinicTables();
+    // التحقق من وجود أعمدة التذكير قبل الاستعلام
+    const colsR = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name='appointments' AND table_schema='public'
+    `);
+    const cols = colsR.rows.map((r: any) => r.column_name);
+    const hasReminderSent = cols.includes("reminder_sent");
+    const hasAppointmentTime = cols.includes("appointment_time");
+    const hasAppointmentDate = cols.includes("appointment_date");
+
+    // إضافة الأعمدة المفقودة تلقائياً
+    if (!hasReminderSent) {
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false`);
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ`);
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`);
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS wa_confirm_sent BOOLEAN DEFAULT false`);
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS institution_id INT`);
+      await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_fee NUMERIC(10,2)`);
+    }
+
+    // بناء الاستعلام حسب الأعمدة المتاحة
+    let timeFilter = "";
+    if (hasAppointmentDate && hasAppointmentTime) {
+      timeFilter = `AND (a.appointment_date::text || ' ' || a.appointment_time::text)::timestamptz
+                    BETWEEN NOW() + INTERVAL '4 hours' AND NOW() + INTERVAL '6 hours'`;
+    }
+
+    const r = await query(`
+      SELECT a.*, u.name AS user_display_name
+      FROM appointments a
+      LEFT JOIN users u ON u.id = a.user_id
+      WHERE a.status = 'pending'
+        AND (a.reminder_sent = FALSE OR a.reminder_sent IS NULL)
+        ${timeFilter}
+      ORDER BY a.id DESC
+      LIMIT 100
+    `);
+    return res.json({ reminders: r.rows, count: r.rowCount });
+  } catch (err: any) { logger.error({ err }, "reminders-due error"); return res.status(500).json({ error: "Server error", detail: err?.message }); }
+});
+
+// POST /api/admin/appointments/:id/send-reminder — إرسال تذكير (يعيد رابط واتساب)
+router.post("/admin/appointments/:id/send-reminder", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const apptR = await query(`SELECT * FROM appointments WHERE id=$1`, [req.params.id]);
+    if (!apptR.rows[0]) return res.status(404).json({ error: "الموعد غير موجود" });
+    const appt = apptR.rows[0];
+    const phone = (appt.user_phone || "").replace(/[^0-9]/g, "");
+    // رسالة التذكير
+    const msg =
+      `🔔 *تذكير موعدك*\n` +
+      `السلام عليكم ${appt.user_name || ""}،\n` +
+      `نذكّرك بموعدك في *${appt.facility_name || "المنشأة"}*\n` +
+      `📅 اليوم الساعة *${appt.appointment_time}*\n` +
+      `يرجى الحضور قبل الموعد بـ 15 دقيقة.\n` +
+      `للإلغاء أو إعادة الجدولة تواصل معنا.\n` +
+      `— فريق حصاحيصاوي 💚`;
+    const waLink = phone
+      ? `https://wa.me/249${phone.replace(/^0/, "")}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    // تحديث الموعد
+    await query(`UPDATE appointments SET reminder_sent=TRUE, reminder_sent_at=NOW() WHERE id=$1`, [req.params.id]);
+    // تسجيل التذكير
+    await query(
+      `INSERT INTO appointment_reminders (appointment_id, reminder_type, sent_by, wa_link)
+       VALUES ($1,'pre_5h',$2,$3)`,
+      [req.params.id, req.headers["x-admin-pin"] ? "admin" : "supervisor", waLink]
+    );
+    return res.json({ ok: true, wa_link: waLink, message: msg, phone });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/appointments/:id/confirm — تأكيد موعد
+router.post("/admin/appointments/:id/confirm", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(
+      `UPDATE appointments SET status='confirmed', confirmed_at=NOW() WHERE id=$1`,
+      [req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── بوابة المشرف (Supervisor Portal) ─────────────────────────────────────
+
+// POST /api/supervisor/login — تسجيل دخول المشرف بالهاتف
+router.post("/supervisor/login", async (req: Request, res: Response) => {
+  try {
+    await ensureClinicTables();
+    const { phone } = req.body as { phone?: string };
+    if (!phone?.trim()) return res.status(400).json({ error: "الهاتف مطلوب" });
+    const r = await query(
+      `SELECT * FROM clinic_supervisors WHERE (phone=$1 OR whatsapp=$1) AND is_active=TRUE LIMIT 1`,
+      [phone.trim()]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "المشرف غير موجود أو غير مفعّل" });
+    const sup = r.rows[0];
+    // توليد token مؤقت
+    const token = `sup_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    await query(`UPDATE clinic_supervisors SET notes=COALESCE(notes,'') || '' WHERE id=$1`, [sup.id]);
+    return res.json({ supervisor: sup, token });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/supervisor/reminders-due — تذكيرات المشرف
+router.get("/supervisor/reminders-due", async (req: Request, res: Response) => {
+  try {
+    await ensureClinicTables();
+    const colsR = await query(`SELECT column_name FROM information_schema.columns WHERE table_name='appointments' AND table_schema='public'`);
+    const cols = colsR.rows.map((r: any) => r.column_name);
+    const hasAppointmentTime = cols.includes("appointment_time");
+    const hasAppointmentDate = cols.includes("appointment_date");
+    let timeFilter = "";
+    if (hasAppointmentDate && hasAppointmentTime) {
+      timeFilter = `AND (a.appointment_date::text || ' ' || a.appointment_time::text)::timestamptz
+                    BETWEEN NOW() + INTERVAL '4 hours' AND NOW() + INTERVAL '7 hours'`;
+    }
+    const r = await query(`
+      SELECT a.*, u.name AS user_display_name
+      FROM appointments a
+      LEFT JOIN users u ON u.id = a.user_id
+      WHERE a.status IN ('pending','confirmed')
+        AND (a.reminder_sent = FALSE OR a.reminder_sent IS NULL)
+        ${timeFilter}
+      ORDER BY a.id DESC
+      LIMIT 100
+    `);
+    return res.json({ reminders: r.rows });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+

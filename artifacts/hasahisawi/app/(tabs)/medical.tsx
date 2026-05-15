@@ -72,10 +72,18 @@ const SPECIALTIES = [
 const APT_TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
 // ══════════════════════════════════════════════════════
-// زر انضمام المنشأة الطبية
+// بانر انضمام المنشأة الطبية + باقات الاشتراك
 // ══════════════════════════════════════════════════════
+const CLINIC_PLANS = [
+  { name: "مجاني",  color: "#6B7280", icon: "●", price: "0",       perks: ["القائمة الأساسية", "30 موعد/شهر"] },
+  { name: "برونزي", color: "#CD7F32", icon: "◉", price: "80,000",  perks: ["تأكيد واتساب", "100 موعد/شهر"] },
+  { name: "فضي",    color: "#9CA3AF", icon: "⬡", price: "180,000", perks: ["تذكير تلقائي", "أولوية العرض", "مشرف مخصص"] },
+  { name: "ذهبي",   color: "#F59E0B", icon: "★", price: "350,000", perks: ["تقارير شهرية", "غير محدود", "شارة مميّز"] },
+];
+
 function MedicalJoinBanner() {
   const router = useRouter();
+  const waLink = `https://wa.me/249597083352?text=${encodeURIComponent("مرحباً، أريد تسجيل منشأتي الطبية في حصاحيصاوي")}`;
   return (
     <Animated.View entering={FadeIn.delay(150).duration(400)} style={mj.wrapper}>
       <LinearGradient colors={["#0E2B18", "#0B2215", "#091C12"]} style={mj.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -95,8 +103,9 @@ function MedicalJoinBanner() {
         <View style={mj.featuresList}>
           {[
             { icon: "people-outline",          text: "وصول مباشر لآلاف المرضى في الحصاحيصا" },
-            { icon: "calendar-outline",         text: "نظام حجز مواعيد إلكتروني متكامل" },
+            { icon: "calendar-outline",         text: "تذكير تلقائي للمرضى قبل الموعد بـ 5 ساعات" },
             { icon: "shield-checkmark-outline", text: "ختم التحقق الرسمي على صفحتك الطبية" },
+            { icon: "logo-whatsapp" as any,     text: "تأكيد المواعيد فوراً عبر واتساب" },
           ].map((f, i) => (
             <View key={i} style={mj.featureRow}>
               <Ionicons name={f.icon as any} size={15} color="#E74C6F" />
@@ -104,6 +113,24 @@ function MedicalJoinBanner() {
             </View>
           ))}
         </View>
+
+        {/* باقات الاشتراك */}
+        <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: "#9CA3AF", fontFamily: "Cairo_700Bold" }]}>
+          اختر الباقة المناسبة لمنشأتك:
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingHorizontal: 2 }}>
+          {CLINIC_PLANS.map((p) => (
+            <View key={p.name} style={[mj.planCard, { borderColor: p.color + "55" }]}>
+              <Text style={{ fontSize: 16, textAlign: "center" }}>{p.icon}</Text>
+              <Text style={[mj.planName, { color: p.color }]}>{p.name}</Text>
+              <Text style={mj.planPrice}>{p.price === "0" ? "مجاني" : `${p.price} SDG`}</Text>
+              {p.perks.map(pk => (
+                <Text key={pk} style={mj.planPerk}>✓ {pk}</Text>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+
         <View style={mj.typesRow}>
           {[
             { icon: "hospital-building", label: "مستشفيات", color: "#E74C6F" },
@@ -116,16 +143,26 @@ function MedicalJoinBanner() {
             </View>
           ))}
         </View>
-        <TouchableOpacity onPress={() => router.push("/org-join" as any)} activeOpacity={0.85} style={mj.joinBtnWrap}>
-          <LinearGradient colors={["#E74C6F", "#C43057"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <Ionicons name="arrow-back" size={18} color="#fff" />
-            <Text style={mj.joinBtnText}>قدّم طلب انضمام منشأتك</Text>
-            <View style={mj.joinBtnIcon}>
-              <MaterialCommunityIcons name="domain-plus" size={18} color="#E74C6F" />
+
+        {/* أزرار الانضمام */}
+        <View style={{ gap: 8, marginTop: 4 }}>
+          <TouchableOpacity onPress={() => router.push("/org-join" as any)} activeOpacity={0.85} style={mj.joinBtnWrap}>
+            <LinearGradient colors={["#E74C6F", "#C43057"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              <Ionicons name="arrow-back" size={18} color="#fff" />
+              <Text style={mj.joinBtnText}>قدّم طلب انضمام منشأتك</Text>
+              <View style={mj.joinBtnIcon}>
+                <MaterialCommunityIcons name="domain-plus" size={18} color="#E74C6F" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL(waLink)} activeOpacity={0.85} style={mj.joinBtnWrap}>
+            <View style={[mj.joinBtn, { backgroundColor: "#1e3a1e", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }]}>
+              <Ionicons name="logo-whatsapp" size={18} color="#3EFF9C" />
+              <Text style={[mj.joinBtnText, { color: "#3EFF9C" }]}>تواصل معنا عبر واتساب</Text>
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={mj.freeNote}>التسجيل مجاني · عقد رسمي موثّق · موافقة خلال ٣-٥ أيام</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={mj.freeNote}>الباقة المجانية متاحة دائماً · موافقة خلال ٣-٥ أيام · عقد رسمي موثّق</Text>
       </LinearGradient>
     </Animated.View>
   );
@@ -314,10 +351,25 @@ function AppointmentsTab({ auth }: { auth: any }) {
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const data = await res.json() as any;
         setShowBook(false);
         setFacilityName(""); setAptDate(""); setAptTime(""); setAptNotes("");
         setPayMethod(""); setProofUri(null); setProofUrl(null);
         loadAppointments();
+        // رابط واتساب التأكيد
+        const waLink = data.wa_confirm_link || data.wa_admin_link;
+        if (waLink) {
+          Alert.alert(
+            "✅ تم الحجز بنجاح",
+            "موعدك مُسجَّل. هل تريد إرسال تأكيد عبر واتساب؟",
+            [
+              { text: "لاحقاً", style: "cancel" },
+              { text: "📱 واتساب", onPress: () => Linking.openURL(waLink) },
+            ]
+          );
+        } else {
+          Alert.alert("✅ تم الحجز", "موعدك مُسجَّل وسيتم التواصل معك قريباً.");
+        }
       } else {
         const err = await res.json() as any;
         Alert.alert("خطأ", err.error || "تعذّر الحجز");
@@ -1164,6 +1216,10 @@ const mj = StyleSheet.create({
   joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
   joinBtnIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" },
   freeNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center", marginTop: -4 },
+  planCard:  { width: 130, backgroundColor: "#0B1E12", borderRadius: 12, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
+  planName:  { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
+  planPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9CA3AF", textAlign: "center" },
+  planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6EE7B7", textAlign: "center", width: "100%" },
 });
 
 const aptSty = StyleSheet.create({
