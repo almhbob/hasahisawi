@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, ActivityIndicator,
-  Platform, KeyboardAvoidingView,
+  Platform, KeyboardAvoidingView, Alert,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useRouter } from "expo-router";
@@ -36,6 +36,17 @@ export default function CompleteProfileScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSkip = () => {
+    Alert.alert(
+      "تخطى الآن؟",
+      "يمكنك تحديد الجنس لاحقاً من صفحة الإعدادات.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "تخطى", style: "destructive", onPress: () => router.replace("/(tabs)/" as any) },
+      ]
+    );
   };
 
   return (
@@ -178,6 +189,15 @@ export default function CompleteProfileScreen() {
             <Text style={s.helperTxt}>يرجى اختيار الجنس للمتابعة</Text>
           )}
         </Animated.View>
+
+        {/* ── زر التخطى ── */}
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={{ alignItems: "center", marginTop: 4 }}>
+          <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} style={s.skipBtn}>
+            <Text style={s.skipTxt}>تخطى الآن</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <Text style={s.skipHint}>يمكنك إكمال ملفك الشخصي لاحقاً من الإعدادات</Text>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -301,5 +321,17 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 12,
     color: Colors.textMuted, textAlign: "center",
     marginTop: 8, lineHeight: 18,
+  },
+
+  skipBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    paddingVertical: 10, paddingHorizontal: 16,
+  },
+  skipTxt: {
+    fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted,
+  },
+  skipHint: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: Colors.textMuted + "88", textAlign: "center", lineHeight: 18,
   },
 });

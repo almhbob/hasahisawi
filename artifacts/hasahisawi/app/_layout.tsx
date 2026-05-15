@@ -133,17 +133,7 @@ function AuthGate() {
       return;
     }
 
-    // المستخدم مسجّل لكن لم يحدد جنسه — اطلب منه مرة واحدة فقط (ماعدا الأدمن والمشرف)
-    const needsCompletion =
-      !isGuest &&
-      user.role === "user" &&
-      !user.gender;
-
-    if (needsCompletion) {
-      if (!inCompleteProfile) router.replace("/complete-profile" as any);
-      return;
-    }
-
+    // complete-profile اختيارية الآن — لا نُجبر المستخدم على إكمالها
     if (inLogin || inOnboarding || inCompleteProfile) {
       router.replace("/(tabs)/" as any);
     }

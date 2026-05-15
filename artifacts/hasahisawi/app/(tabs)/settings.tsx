@@ -1825,6 +1825,24 @@ export default function SettingsScreen() {
             </View>
           )}
 
+          {/* ─── تذكير إكمال الملف الشخصي ─── */}
+          {auth.user && !auth.isGuest && !auth.user.gender && (
+            <TouchableOpacity
+              style={profileCompleteSty.banner}
+              onPress={() => router.push("/complete-profile" as any)}
+              activeOpacity={0.85}
+            >
+              <View style={profileCompleteSty.iconWrap}>
+                <Ionicons name="person-add-outline" size={22} color={Colors.accent} />
+              </View>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={profileCompleteSty.title}>أكمل ملفك الشخصي</Text>
+                <Text style={profileCompleteSty.sub}>حدّد جنسك للوصول إلى كل ميزات التطبيق</Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color={Colors.accent} />
+            </TouchableOpacity>
+          )}
+
           {/* ─── دعم التطبيق ─── */}
           <View style={contactSty.card}>
             {/* رأس البطاقة */}
@@ -3584,5 +3602,29 @@ const contactSty = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 11,
     color: Colors.textMuted, textAlign: "center",
     letterSpacing: 0.3,
+  },
+});
+
+const profileCompleteSty = StyleSheet.create({
+  banner: {
+    flexDirection: "row-reverse", alignItems: "center",
+    backgroundColor: Colors.accent + "12",
+    borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.accent + "33",
+    marginBottom: 4,
+  },
+  iconWrap: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: Colors.accent + "20",
+    alignItems: "center", justifyContent: "center",
+  },
+  title: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14,
+    color: Colors.textPrimary, textAlign: "right",
+  },
+  sub: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: Colors.textSecondary, textAlign: "right",
+    marginTop: 2,
   },
 });
