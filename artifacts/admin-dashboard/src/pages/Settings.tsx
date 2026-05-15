@@ -18,20 +18,29 @@ type FeatureFlags = {
   gov_reports_enabled: boolean;
 };
 
+type RentalSettings = {
+  rental_account_number: string;
+  rental_whatsapp: string;
+  rental_commission_pct: string;
+  rental_enabled: boolean;
+};
+
 export default function Settings() {
-  const [version,  setVersion]  = useState<AppVersion>({ version: 1, notes: "", force: false });
-  const [aiConfig, setAiConfig] = useState<AiConfig>({ ai_enabled: false, ai_system_prompt: "", ai_api_key: "" });
-  const [flags,    setFlags]    = useState<FeatureFlags>({ gov_services_enabled: true, gov_appointments_enabled: true, gov_reports_enabled: true });
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState<string | null>(null);
-  const [msg,      setMsg]      = useState<{text: string; ok: boolean} | null>(null);
+  const [version,       setVersion]       = useState<AppVersion>({ version: 1, notes: "", force: false });
+  const [aiConfig,      setAiConfig]      = useState<AiConfig>({ ai_enabled: false, ai_system_prompt: "", ai_api_key: "" });
+  const [flags,         setFlags]         = useState<FeatureFlags>({ gov_services_enabled: true, gov_appointments_enabled: true, gov_reports_enabled: true });
+  const [rental,        setRental]        = useState<RentalSettings>({ rental_account_number: "1471388", rental_whatsapp: "249916897578", rental_commission_pct: "5", rental_enabled: true });
+  const [loading,       setLoading]       = useState(true);
+  const [saving,        setSaving]        = useState<string | null>(null);
+  const [msg,           setMsg]           = useState<{text: string; ok: boolean} | null>(null);
 
   useEffect(() => {
     Promise.all([
       apiJson<AppVersion>("/app/version").catch(() => null),
       apiJson<Record<string,string>>("/admin/ai-settings").catch(() => null),
       apiJson<FeatureFlags>("/app/feature-flags").catch(() => null),
-    ]).then(([v, ai, f]) => {
+      apiJson<Record<string,string>>("/rentals/settings").catch(() => null),
+    ]).then(([v, ai, f, r]) => {
       if (v) setVersion(v);
       if (ai) setAiConfig({
         ai_enabled: ai.ai_enabled === "true" || ai.ai_enabled === true as any,
@@ -39,6 +48,12 @@ export default function Settings() {
         ai_api_key: ai.ai_api_key ?? "",
       });
       if (f) setFlags(f);
+      if (r) setRental({
+        rental_account_number: r.rental_account_number ?? "1471388",
+        rental_whatsapp: r.rental_whatsapp ?? "249916897578",
+        rental_commission_pct: r.rental_commission_pct ?? "5",
+        rental_enabled: r.rental_enabled === "true" || r.rental_enabled === true as any,
+      });
       setLoading(false);
     });
   }, []);
@@ -76,6 +91,23 @@ export default function Settings() {
     try {
       await apiFetch("/admin/feature-flags", { method: "PATCH", body: JSON.stringify(flags) });
       setMsg({ text: "تم حفظ إعدادات الخدمات الحكومية بنجاح", ok: true });
+    } catch {
+      setMsg({ text: "فشل الحفظ", ok: false });
+    }
+    setSaving(null);
+    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const saveRental = async () => {
+    setSaving("rental");
+    try {
+      await apiFetch("/admin/rentals/settings", { method: "PATCH", body: JSON.stringify({
+        rental_account_number: rental.rental_account_number,
+        rental_whatsapp: rental.rental_whatsapp,
+        rental_commission_pct: rental.rental_commission_pct,
+        rental_enabled: rental.rental_enabled,
+      }) });
+      setMsg({ text: "تم حفظ إعدادات التأجير بنجاح", ok: true });
     } catch {
       setMsg({ text: "فشل الحفظ", ok: false });
     }
@@ -251,6 +283,95 @@ export default function Settings() {
 
               <button className="btn-primary" onClick={saveFlags} disabled={saving === "flags"} style={{ marginTop: 18 }}>
                 {saving === "flags" ? "جارٍ الحفظ..." : "💾 حفظ إعدادات الخدمات الحكومية"}
+              </button>
+            </div>
+
+            {/* Rental Settings */}
+            <div style={{ background: "hsl(222 47% 10%)", borderRadius: 16, border: "1px solid hsl(217 32% 14%)", padding: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: "hsl(24 95% 53% / 0.12)", border: "1px solid hsl(24 95% 53% / 0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🏠</div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(210 40% 90%)", margin: 0 }}>إعدادات التأجير</h3>
+                  <p style={{ fontSize: 12, color: "hsl(215 20% 50%)", margin: "3px 0 0" }}>حساب الاستلام، WhatsApp الإشعارات، نسبة العمولة</p>
+                </div>
+                <button
+                  onClick={() => setRental(r => ({ ...r, rental_enabled: !r.rental_enabled }))}
+                  style={{
+                    width: 52, height: 28, borderRadius: 14, border: "none", cursor: "pointer",
+                    background: rental.rental_enabled ? "hsl(24 95% 53%)" : "hsl(217 32% 20%)",
+                    position: "relative", transition: "background 0.2s", flexShrink: 0,
+                  }}
+                >
+                  <div style={{
+                    position: "absolute", top: 3, width: 22, height: 22, borderRadius: "50%",
+                    background: "#fff", transition: "right 0.2s, left 0.2s",
+                    right: rental.rental_enabled ? 3 : undefined,
+                    left: rental.rental_enabled ? undefined : 3,
+                  }} />
+                </button>
+                <span style={{ fontSize: 12, fontWeight: 600, minWidth: 40, color: rental.rental_enabled ? "hsl(24 95% 65%)" : "hsl(0 72% 65%)" }}>
+                  {rental.rental_enabled ? "مُفعَّل" : "مُعطَّل"}
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>رقم الحساب (استلام العمولة)</label>
+                  <input
+                    value={rental.rental_account_number}
+                    onChange={e => setRental(r => ({ ...r, rental_account_number: e.target.value }))}
+                    className="input-field"
+                    placeholder="1471388"
+                    dir="ltr"
+                  />
+                  <p style={{ fontSize: 11, color: "hsl(215 20% 45%)", margin: "4px 0 0" }}>رقم الحساب الذي يظهر للمستأجر عند الدفع</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>رقم واتساب الإشعارات</label>
+                  <input
+                    value={rental.rental_whatsapp}
+                    onChange={e => setRental(r => ({ ...r, rental_whatsapp: e.target.value }))}
+                    className="input-field"
+                    placeholder="249916897578"
+                    dir="ltr"
+                  />
+                  <p style={{ fontSize: 11, color: "hsl(215 20% 45%)", margin: "4px 0 0" }}>تُرسل إشعارات العقود الجديدة لهذا الرقم</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(215 20% 60%)", display: "block", marginBottom: 6 }}>نسبة العمولة (%)</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => setRental(r => ({ ...r, rental_commission_pct: String(Math.max(0, parseInt(r.rental_commission_pct || "0") - 1)) }))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid hsl(217 32% 20%)", background: "hsl(222 47% 13%)", color: "hsl(210 40% 70%)", fontSize: 18, cursor: "pointer" }}>−</button>
+                    <div style={{ flex: 1, textAlign: "center", fontWeight: 700, fontSize: 24, color: "hsl(24 95% 60%)" }}>
+                      {rental.rental_commission_pct}%
+                    </div>
+                    <button
+                      onClick={() => setRental(r => ({ ...r, rental_commission_pct: String(Math.min(30, parseInt(r.rental_commission_pct || "0") + 1)) }))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid hsl(24 95% 53% / 0.4)", background: "hsl(24 95% 53% / 0.12)", color: "hsl(24 95% 60%)", fontSize: 18, cursor: "pointer" }}>+</button>
+                  </div>
+                  <p style={{ fontSize: 11, color: "hsl(215 20% 45%)", margin: "4px 0 0" }}>النسبة المستقطعة من أول دفعة إيجار</p>
+                </div>
+                <div style={{ background: "hsl(24 95% 53% / 0.06)", border: "1px solid hsl(24 95% 53% / 0.15)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
+                  <div style={{ fontSize: 11, color: "hsl(215 20% 50%)" }}>💡 مثال حسابي</div>
+                  <div style={{ fontSize: 13, color: "hsl(24 95% 65%)", fontWeight: 600 }}>
+                    إيجار 10,000 جنيه/شهر
+                  </div>
+                  <div style={{ fontSize: 12, color: "hsl(210 40% 75%)" }}>
+                    عمولة = {Math.round(10000 * parseInt(rental.rental_commission_pct || "0") / 100).toLocaleString()} جنيه
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, padding: "10px 14px", background: "hsl(24 95% 53% / 0.07)", border: "1px solid hsl(24 95% 53% / 0.2)", borderRadius: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16 }}>⚖️</span>
+                <p style={{ fontSize: 12, color: "hsl(24 95% 70%)", lineHeight: 1.7, margin: 0 }}>
+                  العقود المُبرمة تستند إلى قانون المعاملات المدنية السوداني لعام 1984. تُحسب العمولة من أول دفعة إيجار وتُحوَّل للحساب المحدد أعلاه.
+                </p>
+              </div>
+
+              <button className="btn-primary" onClick={saveRental} disabled={saving === "rental"} style={{ marginTop: 16 }}>
+                {saving === "rental" ? "جارٍ الحفظ..." : "💾 حفظ إعدادات التأجير"}
               </button>
             </div>
 

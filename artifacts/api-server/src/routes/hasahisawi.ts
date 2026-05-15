@@ -13508,7 +13508,7 @@ router.post("/rentals", async (req: Request, res: Response) => {
 // ── GET /api/rentals/settings ─────────────────────────────────────
 router.get("/rentals/settings", async (_req: Request, res: Response) => {
   try {
-    const r = await query(`SELECT key, value FROM admin_settings WHERE key IN ('rental_account_number','rental_whatsapp','rental_commission_pct')`);
+    const r = await query(`SELECT key, value FROM admin_settings WHERE key IN ('rental_account_number','rental_whatsapp','rental_commission_pct','rental_enabled')`);
     const s: Record<string,string> = {};
     r.rows.forEach((row: any) => { s[row.key] = row.value; });
     return res.json(s);
@@ -13659,13 +13659,15 @@ router.get("/admin/rentals/contracts", async (req: Request, res: Response) => {
 router.patch("/admin/rentals/settings", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const { rental_account_number, rental_whatsapp, rental_commission_pct } = req.body;
+    const { rental_account_number, rental_whatsapp, rental_commission_pct, rental_enabled } = req.body;
     if (rental_account_number !== undefined)
-      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_account_number'`, [rental_account_number]);
+      await query(`INSERT INTO admin_settings(key,value) VALUES('rental_account_number',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [rental_account_number]);
     if (rental_whatsapp !== undefined)
-      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_whatsapp'`, [rental_whatsapp]);
+      await query(`INSERT INTO admin_settings(key,value) VALUES('rental_whatsapp',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [rental_whatsapp]);
     if (rental_commission_pct !== undefined)
-      await query(`UPDATE admin_settings SET value=$1 WHERE key='rental_commission_pct'`, [String(rental_commission_pct)]);
+      await query(`INSERT INTO admin_settings(key,value) VALUES('rental_commission_pct',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [String(rental_commission_pct)]);
+    if (rental_enabled !== undefined)
+      await query(`INSERT INTO admin_settings(key,value) VALUES('rental_enabled',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [String(rental_enabled)]);
     return res.json({ ok: true });
   } catch (err) { return res.status(500).json({ error: "Server error" }); }
 });
