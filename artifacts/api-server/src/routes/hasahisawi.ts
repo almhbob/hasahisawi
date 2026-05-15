@@ -2021,11 +2021,27 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
 router.post("/auth/admin-login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
+
     const result = await query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) AND role='admin'`, [email]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة" });
+
+    // محاولة 1: كلمة المرور العادية (bcrypt) — إذا كانت موجودة
+    let valid = false;
+    if (user.password_hash) {
+      valid = await bcrypt.compare(password, user.password_hash);
+    }
+
+    // محاولة 2: PIN المدير كبديل (للحسابات المرتبطة بـ Google بلا كلمة مرور)
+    if (!valid) {
+      const pinRow = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+      const storedPin = pinRow.rows[0]?.value || DEFAULT_ADMIN_PIN;
+      valid = safeCompare(password, storedPin);
+    }
+
+    if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة. يمكنك استخدام PIN المدير كلمة مرور." });
+
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
