@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [build-android]
+  push:
+    branches:
+      - replit-latest
+    paths:
+      - .github/workflows/.trigger
 
 jobs:
   build:
@@ -42,7 +47,14 @@ jobs:
           CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_code=$CODE" >> $GITHUB_OUTPUT
-          echo "Building v$VERSION (code=$CODE)"
+          echo "Building v$VERSION (versionCode: $CODE)"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
