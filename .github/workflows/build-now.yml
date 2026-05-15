@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - replit-latest
+    tags:
+      - build-*
 
 jobs:
   build:
