@@ -1,0 +1,60 @@
+name: Build iOS IPA (TestFlight)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        required: true
+        default: 'production-ios'
+        type: choice
+        options:
+          - preview-ios
+          - production-ios
+
+jobs:
+  build:
+    name: Build iOS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/hasahisawi
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: artifacts/hasahisawi/package.json
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build iOS with EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile ${{ inputs.profile }} \
+            --non-interactive \
+            --wait
+
+      - name: Get artifact URL
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "✅ Build complete. Download from: https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service/builds"

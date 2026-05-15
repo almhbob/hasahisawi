@@ -16,7 +16,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "5"
+      "buildNumber": "218",
+      "infoPlist": {
+        "NSCameraUsageDescription": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية",
+        "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
+        "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ",
+        "NSFaceIDUsageDescription": "التطبيق يستخدم معرف الوجه لتسجيل الدخول بأمان",
+        "NSMicrophoneUsageDescription": "التطبيق يحتاج إذناً للميكروفون لتسجيل مقاطع الصوت"
+      },
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "com.googleusercontent.apps.133656291161-kajn1h6a40oriel45qsb4douvl8apm5e"
+        }
+      }
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
