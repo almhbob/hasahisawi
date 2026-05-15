@@ -34,7 +34,7 @@ export async function initAppCheck(): Promise<void> {
     );
 
     // وضع التطوير: يسمح بـ Debug Token تلقائياً
-    if (__DEV__ && typeof window !== "undefined") {
+    if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
       (window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean })
         .FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }

@@ -170,7 +170,9 @@ export async function deleteFile(path: string): Promise<void> {
 }
 
 export async function uploadAvatar(userId: string, uri: string): Promise<string> {
-  return uploadFile(`avatars/${userId}/profile.jpg`, uri);
+  const { ext } = inferFileMeta(uri);
+  const safeExt = ["jpg", "jpeg", "png", "webp", "heic", "heif"].includes(ext) ? ext : "jpg";
+  return uploadFile(`avatars/${userId}/profile.${safeExt}`, uri);
 }
 
 export async function uploadPostImage(

@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { logger } from "./logger";
 
 let initialized = false;
 let initError: string | null = null;
@@ -10,7 +11,7 @@ export function getFirebaseAdmin(): typeof admin | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
     initError = "FIREBASE_SERVICE_ACCOUNT_JSON not set";
-    console.warn("[firebase-admin]", initError);
+    logger.warn("[firebase-admin] " + initError);
     return null;
   }
   try {
@@ -19,11 +20,11 @@ export function getFirebaseAdmin(): typeof admin | null {
       credential: admin.credential.cert(sa),
       projectId: sa.project_id,
     });
-    console.log("[firebase-admin] initialized for project:", sa.project_id);
+    logger.info({ project: sa.project_id }, "[firebase-admin] initialized");
     return admin;
   } catch (err) {
     initError = String(err);
-    console.error("[firebase-admin] init failed:", err);
+    logger.error({ err }, "[firebase-admin] init failed");
     return null;
   }
 }
@@ -45,7 +46,7 @@ export async function verifyIdToken(idToken: string): Promise<{
       phone: decoded.phone_number,
     };
   } catch (err) {
-    console.warn("[firebase-admin] verifyIdToken failed:", (err as Error).message);
+    logger.warn({ err }, "[firebase-admin] verifyIdToken failed");
     return null;
   }
 }
@@ -105,8 +106,8 @@ export async function ensureEmailPasswordProvider(
   if (!a) return;
   try {
     await a.auth().updateUser(uid, { password });
-    console.log("[firebase-admin] password updated for uid:", uid);
-  } catch (err: any) {
-    console.warn("[firebase-admin] ensureEmailPasswordProvider failed:", err?.message);
+    logger.info({ uid }, "[firebase-admin] password updated");
+  } catch (err) {
+    logger.warn({ err }, "[firebase-admin] ensureEmailPasswordProvider failed");
   }
 }

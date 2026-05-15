@@ -5,9 +5,7 @@ import { Platform } from "react-native";
 const DEFAULT_APP_ID =
   Platform.OS === "android"
     ? "1:133656291161:android:c91938f519fa219d418e48"
-    : Platform.OS === "ios"
-      ? "1:133656291161:ios:c91938f519fa219d418e48"
-      : "1:133656291161:web:7d0a88a80d3be1af418e48";
+    : "1:133656291161:web:7d0a88a80d3be1af418e48";
 
 // مفتاح API: على Android يُستخدم مفتاح google-services.json الحقيقي
 const DEFAULT_API_KEY =
