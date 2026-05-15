@@ -54,7 +54,10 @@ async function buildAll() {
     : [];
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/vercel-handler.ts"),
+    ],
     alias: wsAlias,
     nodePaths: extraNodePaths,
     platform: "node",
