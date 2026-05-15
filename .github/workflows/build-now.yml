@@ -1,0 +1,132 @@
+name: Build APK Now
+
+on:
+  push:
+    branches:
+      - replit-latest
+    paths:
+      - .github/build-trigger
+
+jobs:
+  build:
+    name: Build APK + AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout replit-latest
+        uses: actions/checkout@v4
+        with:
+          ref: replit-latest
+          lfs: true
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Read app version
+        id: ver
+        run: |
+          VER=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "ver=$VER" >> $GITHUB_OUTPUT
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          echo "v$VER ($CODE)"
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-
+
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Write .env
+        working-directory: artifacts/hasahisawi
+        run: |
+          cat > .env <<'EOF'
+EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
+EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:c91938f519fa219d418e48
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-8NDWWB1735
+EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+EOF
+
+      - name: Expo Prebuild
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_NO_GIT_STATUS: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
+          EXPO_PUBLIC_FIREBASE_APP_ID: '1:133656291161:android:c91938f519fa219d418e48'
+          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: G-8NDWWB1735
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+        run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d \
+            > artifacts/hasahisawi/android/app/release.keystore
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*') }}
+          restore-keys: gradle-
+
+      - name: Build
+        working-directory: artifacts/hasahisawi/android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/artifacts/hasahisawi/android/app/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+          find . -name "*.apk" -o -name "*.aab" | grep -v intermediate
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-v${{ steps.ver.outputs.ver }}-code${{ steps.ver.outputs.code }}-aab
+          path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-v${{ steps.ver.outputs.ver }}-code${{ steps.ver.outputs.code }}-apk
+          path: artifacts/hasahisawi/android/app/build/outputs/apk/release/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Cleanup
+        if: always()
+        run: rm -f artifacts/hasahisawi/android/app/release.keystore artifacts/hasahisawi/.env
