@@ -1830,6 +1830,20 @@ async function isAdminRequest(req: Request): Promise<boolean> {
   return false;
 }
 
+// مساعد مشترك: Transport Admin أو PIN أدمن
+async function isTransportOrAdminReq(req: Request): Promise<{ ok: boolean; me: any; scope: TransportScope }> {
+  const me = await getSessionUser(req);
+  if (me && isTransportAdmin(me.role)) return { ok: true, me, scope: getTransportScope(me) };
+  const pin = await isAdminRequest(req);
+  if (pin) return { ok: true, me: null, scope: { isFullAdmin: true, operatorId: null } };
+  return { ok: false, me: null, scope: { isFullAdmin: false, operatorId: null } };
+}
+async function isPlatformOrAdminReq(req: Request): Promise<boolean> {
+  const me = await getSessionUser(req);
+  if (me?.role === "admin") return true;
+  return isAdminRequest(req);
+}
+
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response) => {
   try {
     const { name, national_id, phone, email, password, birth_date, neighborhood, gender } = req.body;
@@ -6130,8 +6144,8 @@ router.get("/transport/status", async (_req: Request, res: Response) => {
 // GET /api/admin/transport/settings — إعدادات الخدمة (مدير أو مشرف ترحيل)
 router.get("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const { rows } = await query(
       `SELECT key, value FROM admin_settings WHERE key IN ('transport_enabled','transport_status','transport_note','transport_phone')`
     );
@@ -6148,7 +6162,7 @@ router.get("/admin/transport/settings", async (req: Request, res: Response) => {
 router.put("/admin/transport/settings", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الإعدادات العامة" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الإعدادات العامة" });
     const { transport_status, transport_note, transport_phone } = req.body;
     const valid = ["available", "coming_soon", "maintenance"];
     const entries: [string, string][] = [];
@@ -6313,7 +6327,7 @@ router.patch("/transport/drivers/:id/online", async (req: Request, res: Response
     const { is_online } = req.body;
     await query(`UPDATE transport_drivers SET is_online=$1 WHERE id=$2`, [!!is_online, req.params.id]);
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // ── Admin Transport Routes ──
@@ -6321,9 +6335,9 @@ router.patch("/transport/drivers/:id/online", async (req: Request, res: Response
 // GET /api/admin/transport/stats — إحصائيات الخدمة
 router.get("/admin/transport/stats", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
     const opAnd = scope.operatorId != null ? `AND operator_id=${Number(scope.operatorId)}` : "";
     const [drivers, trips, pending, revenue] = await Promise.all([
@@ -6339,15 +6353,15 @@ router.get("/admin/transport/stats", async (req: Request, res: Response) => {
       revenue: revenue.rows[0],
       scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/drivers — جميع السائقين (مفلترة حسب نطاق الشركة)
 router.get("/admin/transport/drivers", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const { status } = req.query;
     let q = `SELECT d.*, u.name AS user_name_ref, o.name AS operator_name FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id LEFT JOIN transport_operators o ON o.id=d.operator_id`;
     const params: any[] = [];
@@ -6358,15 +6372,15 @@ router.get("/admin/transport/drivers", async (req: Request, res: Response) => {
     q += ` ORDER BY d.created_at DESC`;
     const { rows } = await query(q, params);
     return res.json(rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PATCH /api/admin/transport/drivers/:id — قبول/رفض سائق (مفلتر حسب الشركة)
 router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     // تأكد أن السائق ضمن نطاق المشرف
     if (scope.operatorId != null) {
       const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
@@ -6384,15 +6398,15 @@ router.patch("/admin/transport/drivers/:id", async (req: Request, res: Response)
       [status, admin_note, operator_id ?? null, req.params.id]
     );
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // DELETE /api/admin/transport/drivers/:id — حذف سائق (ضمن النطاق فقط)
 router.delete("/admin/transport/drivers/:id", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     if (scope.operatorId != null) {
       const own = await query(`SELECT operator_id FROM transport_drivers WHERE id=$1`, [req.params.id]);
       if (!own.rows[0]) return res.status(404).json({ error: "السائق غير موجود" });
@@ -6400,15 +6414,15 @@ router.delete("/admin/transport/drivers/:id", async (req: Request, res: Response
     }
     await query(`DELETE FROM transport_drivers WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/trips — جميع الرحلات (مفلترة)
 router.get("/admin/transport/trips", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const { status } = req.query;
     let q = `SELECT t.*, d.name AS driver_name_ref, d.phone AS driver_phone, o.name AS operator_name
              FROM transport_trips t
@@ -6422,15 +6436,15 @@ router.get("/admin/transport/trips", async (req: Request, res: Response) => {
     q += ` ORDER BY t.created_at DESC LIMIT 200`;
     const { rows } = await query(q, params);
     return res.json(rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PATCH /api/admin/transport/trips/:id/complete — إتمام رحلة (مع عزل الشركة)
 router.patch("/admin/transport/trips/:id/complete", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const { actual_fare } = req.body;
     let { operator_id } = req.body;
     if (!actual_fare || actual_fare <= 0) return res.status(400).json({ error: "الأجرة الفعلية مطلوبة" });
@@ -6464,15 +6478,15 @@ router.patch("/admin/transport/trips/:id/complete", async (req: Request, res: Re
       [actual_fare, platformRevenue, operatorRevenue, opId, req.params.id]
     );
     return res.json({ success: true, actual_fare, platform_revenue: platformRevenue, operator_revenue: operatorRevenue });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // DELETE /api/admin/transport/trips/:id — حذف رحلة (ضمن النطاق)
 router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     if (scope.operatorId != null) {
       const own = await query(`SELECT operator_id FROM transport_trips WHERE id=$1`, [req.params.id]);
       if (!own.rows[0]) return res.status(404).json({ error: "الرحلة غير موجودة" });
@@ -6480,7 +6494,7 @@ router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) 
     }
     await query(`DELETE FROM transport_trips WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // ── مسارات الشركات المشغّلة (Operators) ──
@@ -6488,9 +6502,9 @@ router.delete("/admin/transport/trips/:id", async (req: Request, res: Response) 
 // GET /api/admin/transport/operators — قائمة الشركات (admin يرى الكل، مشرف الشركة يرى شركته فقط)
 router.get("/admin/transport/operators", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const opF = scope.operatorId != null ? `WHERE o.id=${Number(scope.operatorId)}` : "";
     const { rows } = await query(`
       SELECT o.*,
@@ -6507,14 +6521,14 @@ router.get("/admin/transport/operators", async (req: Request, res: Response) => 
       ORDER BY o.created_at DESC
     `);
     return res.json(rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // POST /api/admin/transport/operators — إنشاء شركة (مدير المنصة فقط)
 router.post("/admin/transport/operators", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه إنشاء شركات" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يمكنه إنشاء شركات" });
     const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, notes } = req.body;
     if (!name) return res.status(400).json({ error: "اسم الشركة مطلوب" });
     const opShare = Number(operator_share_pct ?? 70);
@@ -6526,14 +6540,14 @@ router.post("/admin/transport/operators", async (req: Request, res: Response) =>
       [name, contact_name || "", phone || "", email || "", contract_start || null, contract_end || null, opShare, platShare, notes || ""]
     );
     return res.status(201).json(rows[0]);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PATCH /api/admin/transport/operators/:id — تعديل شركة (مدير المنصة فقط)
 router.patch("/admin/transport/operators/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يمكنه تعديل بيانات الشركة" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يمكنه تعديل بيانات الشركة" });
     const { name, contact_name, phone, email, contract_start, contract_end, operator_share_pct, platform_share_pct, status, notes } = req.body;
     if (operator_share_pct !== undefined && platform_share_pct !== undefined) {
       const s = Number(operator_share_pct) + Number(platform_share_pct);
@@ -6549,7 +6563,7 @@ router.patch("/admin/transport/operators/:id", async (req: Request, res: Respons
       [name, contact_name, phone, email, contract_start || null, contract_end || null, operator_share_pct, platform_share_pct, status, notes, req.params.id]
     );
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // DELETE /api/admin/transport/operators/:id
@@ -6559,7 +6573,7 @@ router.delete("/admin/transport/operators/:id", async (req: Request, res: Respon
     if (!me || me.role !== "admin") return res.status(403).json({ error: "المديرون فقط" });
     await query(`DELETE FROM transport_operators WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -6571,7 +6585,7 @@ router.get("/transport/neighborhoods", async (req: Request, res: Response) => {
   try {
     const r = await query(`SELECT id, name, zone_id, submitted_by, created_at FROM transport_neighborhoods WHERE status='active' ORDER BY zone_id, name`);
     return res.json(r.rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/transport/neighborhoods/community-stats — إحصائيات المجتمع
@@ -6587,7 +6601,7 @@ router.get("/transport/neighborhoods/community-stats", async (req: Request, res:
       contributors: parseInt(contribs.rows[0].count),
       recent:      recent.rows,
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // POST /api/transport/neighborhoods/suggest — اقتراح حي من مستخدم
@@ -6603,24 +6617,25 @@ router.post("/transport/neighborhoods/suggest", async (req: Request, res: Respon
       [name.trim(), zone_id, submitted_by || ""]
     );
     return res.json({ success: true, neighborhood: r.rows[0] });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/neighborhoods — كل الأحياء (إداري)
 router.get("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const r = await query(`SELECT * FROM transport_neighborhoods ORDER BY status DESC, zone_id, name`);
     return res.json(r.rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // POST /api/admin/transport/neighborhoods — إضافة حي (مدير المنصة فقط)
 router.post("/admin/transport/neighborhoods", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع إضافة الأحياء" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع إضافة الأحياء" });
     const { name, zone_id, notes } = req.body;
     if (!name || !zone_id) return res.status(400).json({ error: "الاسم والمنطقة مطلوبان" });
     const exists = await query(`SELECT id FROM transport_neighborhoods WHERE LOWER(name)=LOWER($1) AND zone_id=$2 AND status != 'rejected'`, [name, zone_id]);
@@ -6630,14 +6645,14 @@ router.post("/admin/transport/neighborhoods", async (req: Request, res: Response
       [name.trim(), zone_id, (me as any).name || (me as any).email || "admin", notes || ""]
     );
     return res.json(r.rows[0]);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PATCH /api/admin/transport/neighborhoods/:id — تعديل حالة أو بيانات (مدير المنصة فقط)
 router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الأحياء" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل الأحياء" });
     const { status, name, zone_id, notes } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -6651,25 +6666,25 @@ router.patch("/admin/transport/neighborhoods/:id", async (req: Request, res: Res
     const r = await query(`UPDATE transport_neighborhoods SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
     if (!r.rows[0]) return res.status(404).json({ error: "غير موجود" });
     return res.json(r.rows[0]);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // DELETE /api/admin/transport/neighborhoods/:id — حذف (مدير المنصة فقط)
 router.delete("/admin/transport/neighborhoods/:id", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع حذف الأحياء" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع حذف الأحياء" });
     await query(`DELETE FROM transport_neighborhoods WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/operators/:id/report — تقرير مفصّل لشركة مشغّلة
 router.get("/admin/transport/operators/:id/report", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     if (scope.operatorId != null && Number(req.params.id) !== scope.operatorId)
       return res.status(403).json({ error: "تستطيع عرض تقرير شركتك فقط" });
     const opId = req.params.id;
@@ -6704,15 +6719,15 @@ router.get("/admin/transport/operators/:id/report", async (req: Request, res: Re
       trips: tripsRes.rows[0],
       monthly: monthlyRes.rows,
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/reports — تقارير الإيرادات الشاملة (مفلترة حسب نطاق الشركة)
 router.get("/admin/transport/reports", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const opId = scope.operatorId;
     const tWhereOp  = opId != null ? `WHERE operator_id=${Number(opId)}` : "";
     const tAndOp    = opId != null ? `AND operator_id=${Number(opId)}`   : "";
@@ -6767,7 +6782,7 @@ router.get("/admin/transport/reports", async (req: Request, res: Response) => {
       recent: recent.rows,
       scope: { isFullAdmin: scope.isFullAdmin, operatorId: opId },
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════
@@ -6791,14 +6806,14 @@ router.get("/transport/fares", async (_req: Request, res: Response) => {
       };
     }
     return res.json(matrix);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PUT /api/admin/transport/fares — تحديث خلية في مصفوفة التعرفة (مدير المنصة فقط)
 router.put("/admin/transport/fares", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
     const { from_zone, to_zone, fare_car, fare_rickshaw, fare_delivery, fare_motorcycle } = req.body;
     if (!from_zone || !to_zone) return res.status(400).json({ error: "المنطقتان مطلوبتان" });
     await query(
@@ -6812,14 +6827,14 @@ router.put("/admin/transport/fares", async (req: Request, res: Response) => {
       [from_zone, to_zone, fare_car ?? null, fare_rickshaw ?? null, fare_delivery ?? null, fare_motorcycle ?? null],
     );
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PUT /api/admin/transport/fares/bulk — تحديث التعرفة بالكامل (مدير المنصة فقط)
 router.put("/admin/transport/fares/bulk", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط يستطيع تعديل التعرفة" });
     const { fares } = req.body as { fares: Array<{ from_zone: number; to_zone: number; fare_car: number; fare_rickshaw: number; fare_delivery: number; fare_motorcycle?: number }> };
     if (!Array.isArray(fares)) return res.status(400).json({ error: "تنسيق خاطئ" });
     for (const f of fares) {
@@ -6830,7 +6845,7 @@ router.put("/admin/transport/fares/bulk", async (req: Request, res: Response) =>
       );
     }
     return res.json({ success: true, updated: fares.length });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/transport/fare-estimate — حساب التعرفة التقديرية
@@ -6851,15 +6866,15 @@ router.get("/transport/fare-estimate", async (req: Request, res: Response) => {
       delivery: Number(rows[0].fare_delivery),
       motorcycle: Number(rows[0].fare_motorcycle),
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // PATCH /api/admin/transport/trips/:id/assign — تعيين سائق لرحلة (ضمن النطاق)
 router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const { driver_id, status } = req.body;
     let { operator_id } = req.body;
     let driverName = null;
@@ -6897,15 +6912,15 @@ router.patch("/admin/transport/trips/:id/assign", async (req: Request, res: Resp
       [driver_id ?? null, driverName, status ?? null, opId, req.params.id],
     );
     return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // GET /api/admin/transport/overview — نظرة عامة متكاملة (مفلترة حسب النطاق)
 router.get("/admin/transport/overview", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || !isTransportAdmin(me.role)) return res.status(403).json({ error: "غير مصرح" });
-    const scope = getTransportScope(me);
+    await ensureTransportTables();
+    const { ok: _ta, me, scope } = await isTransportOrAdminReq(req);
+    if (!_ta) return res.status(403).json({ error: "غير مصرح" });
     const opF = scope.operatorId != null ? `WHERE operator_id=${Number(scope.operatorId)}` : "";
     const opOnlyMine = scope.operatorId != null ? `AND id=${Number(scope.operatorId)}` : "";
     const [drivers, trips, fares, settings, operators] = await Promise.all([
@@ -6925,14 +6940,14 @@ router.get("/admin/transport/overview", async (req: Request, res: Response) => {
       operators: operators.rows,
       scope: { isFullAdmin: scope.isFullAdmin, operatorId: scope.operatorId },
     });
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // POST /api/admin/transport/operators/:id/supervisor — إنشاء/ربط حساب مشرف لشركة (مدير المنصة فقط)
 router.post("/admin/transport/operators/:id/supervisor", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط" });
     const opId = Number(req.params.id);
     const { name, email, password, link_existing_user_id } = req.body as { name?: string; email?: string; password?: string; link_existing_user_id?: number };
     const opRow = await query(`SELECT id, name FROM transport_operators WHERE id=$1`, [opId]);
@@ -6963,7 +6978,7 @@ router.post("/admin/transport/operators/:id/supervisor", async (req: Request, re
 router.get("/admin/transport/operators/:id/supervisors", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط" });
     const opId = Number(req.params.id);
     const r = await query(
       `SELECT id, name, email, role, created_at FROM users WHERE role='transport_supervisor' AND operator_id=$1 ORDER BY created_at DESC`,
@@ -6977,7 +6992,7 @@ router.get("/admin/transport/operators/:id/supervisors", async (req: Request, re
 router.delete("/admin/transport/operators/:id/supervisor/:userId", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
-    if (!isPlatformAdmin(me)) return res.status(403).json({ error: "مدير المنصة فقط" });
+    if (!(await isPlatformOrAdminReq(req))) return res.status(403).json({ error: "مدير المنصة فقط" });
     await query(`UPDATE users SET operator_id=NULL WHERE id=$1 AND operator_id=$2`, [req.params.userId, req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
@@ -12762,6 +12777,111 @@ router.post("/admin/factories/:id/subscribe", async (req: Request, res: Response
     return res.status(201).json(r.rows[0]);
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// إنشاء جداول ترحال إن لم تكن موجودة (self-healing)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ensureTransportTables = (() => {
+  let done = false;
+  return async () => {
+    if (done) return;
+    done = true;
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS transport_drivers (
+        id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        name VARCHAR(100) NOT NULL, phone VARCHAR(25) NOT NULL,
+        vehicle_type VARCHAR(40) NOT NULL DEFAULT '', vehicle_desc VARCHAR(200) NOT NULL DEFAULT '',
+        plate VARCHAR(30) NOT NULL DEFAULT '', area VARCHAR(100) NOT NULL DEFAULT '',
+        status VARCHAR(20) NOT NULL DEFAULT 'pending', admin_note TEXT NOT NULL DEFAULT '',
+        is_online BOOLEAN NOT NULL DEFAULT FALSE, total_trips INTEGER NOT NULL DEFAULT 0,
+        rating NUMERIC(3,2) NOT NULL DEFAULT 0, zone_id INTEGER,
+        operator_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS transport_operators (
+        id SERIAL PRIMARY KEY, name VARCHAR(150) NOT NULL, contact_name VARCHAR(100) NOT NULL DEFAULT '',
+        phone VARCHAR(25) NOT NULL DEFAULT '', email VARCHAR(150) NOT NULL DEFAULT '',
+        contract_start DATE, contract_end DATE,
+        operator_share_pct NUMERIC(5,2) NOT NULL DEFAULT 70.00,
+        platform_share_pct NUMERIC(5,2) NOT NULL DEFAULT 30.00,
+        status VARCHAR(20) NOT NULL DEFAULT 'active', notes TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS transport_trips (
+        id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(100) NOT NULL, user_phone VARCHAR(25) NOT NULL,
+        trip_type VARCHAR(20) NOT NULL DEFAULT 'ride',
+        from_location VARCHAR(200) NOT NULL, to_location VARCHAR(200) NOT NULL,
+        notes TEXT NOT NULL DEFAULT '', status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        driver_id INTEGER REFERENCES transport_drivers(id) ON DELETE SET NULL,
+        driver_name VARCHAR(100), rating INTEGER, rating_note TEXT,
+        from_zone INTEGER, to_zone INTEGER, fare_estimate INTEGER,
+        vehicle_preference VARCHAR(30) DEFAULT 'car', delivery_desc TEXT,
+        operator_id INTEGER REFERENCES transport_operators(id) ON DELETE SET NULL,
+        actual_fare INTEGER, platform_revenue INTEGER, operator_revenue INTEGER,
+        completed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS transport_fares (
+        id SERIAL PRIMARY KEY, from_zone INTEGER NOT NULL, to_zone INTEGER NOT NULL,
+        fare_car INTEGER NOT NULL DEFAULT 500, fare_rickshaw INTEGER NOT NULL DEFAULT 300,
+        fare_delivery INTEGER NOT NULL DEFAULT 600, fare_motorcycle INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(from_zone, to_zone)
+      )`);
+      await query(`CREATE TABLE IF NOT EXISTS transport_neighborhoods (
+        id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, zone_id INTEGER, sort_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      // add missing columns to existing tables (idempotent)
+      const tripAlters = [
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS trip_type VARCHAR(20) NOT NULL DEFAULT 'ride'`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS from_zone INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS to_zone INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS fare_estimate INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS vehicle_preference VARCHAR(30) DEFAULT 'car'`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS delivery_desc TEXT`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS operator_id INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS actual_fare INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS platform_revenue INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS operator_revenue INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS driver_name VARCHAR(100)`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating INTEGER`,
+        `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating_note TEXT`,
+      ];
+      for (const sql of tripAlters) { try { await query(sql); } catch {} }
+      const nbAlters = [
+        `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`,
+        `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100) NOT NULL DEFAULT ''`,
+        `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+        `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
+      ];
+      for (const sql of nbAlters) { try { await query(sql); } catch {} }
+      const drvAlters = [
+        `ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`,
+        `ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS operator_id INTEGER`,
+      ];
+      for (const sql of drvAlters) { try { await query(sql); } catch {} }
+      const fareAlters = [
+        `ALTER TABLE transport_fares ADD COLUMN IF NOT EXISTS fare_motorcycle INTEGER NOT NULL DEFAULT 0`,
+      ];
+      for (const sql of fareAlters) { try { await query(sql); } catch {} }
+      // seed fares if empty
+      const fc = await query(`SELECT count(*) FROM transport_fares`);
+      if (parseInt(fc.rows[0].count) === 0) {
+        const fares: Array<[number,number,number,number,number]> = [
+          [1,1,500,300,600],[1,2,1000,600,1200],[1,3,1500,900,1800],[1,4,2000,1200,2400],[1,5,3000,1800,3600],
+          [2,1,1000,600,1200],[2,2,500,300,600],[2,3,1200,700,1400],[2,4,1500,900,1800],[2,5,2500,1500,3000],
+          [3,1,1500,900,1800],[3,2,1200,700,1400],[3,3,700,400,800],[3,4,1200,700,1400],[3,5,2000,1200,2400],
+          [4,1,2000,1200,2400],[4,2,1500,900,1800],[4,3,1200,700,1400],[4,4,700,400,800],[4,5,2000,1200,2400],
+          [5,1,3000,1800,3600],[5,2,2500,1500,3000],[5,3,2000,1200,2400],[5,4,2000,1200,2400],[5,5,1500,900,1800],
+        ];
+        for (const [fz,tz,car,rick,del_] of fares) {
+          await query(`INSERT INTO transport_fares (from_zone,to_zone,fare_car,fare_rickshaw,fare_delivery) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [fz,tz,car,rick,del_]);
+        }
+      }
+    } catch {}
+  };
+})();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // نظام اشتراكات العيادات والمؤسسات الطبية
