@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: master
+          lfs: true
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -50,7 +53,7 @@ jobs:
         working-directory: artifacts/hasahisawi
         run: |
           cat > .env << 'ENVEOF'
-          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
           EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
