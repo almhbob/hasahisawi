@@ -2,32 +2,17 @@ name: Keep API Server Alive
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
-    inputs:
-      build_android:
-        description: 'Build Android APK/AAB?'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['false', 'true']
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: android-build
+  cancel-in-progress: false
 
 jobs:
-  ping:
-    name: Ping API Server
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Railway Production API
-        run: |
-          echo "Pinging Hasahisawi API..."
-          STATUS=$(curl -sf --max-time 20 https://hasahisawi-production.up.railway.app/api/healthz | head -c 100 || echo "unreachable")
-          echo "Status: $STATUS"
-
   build_android:
     name: Build Android AAB + APK
-    if: ${{ github.event.inputs.build_android == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 65
     steps:
       - name: Checkout replit-latest
         uses: actions/checkout@v4
@@ -102,8 +87,7 @@ ENVEOF
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d \
-            > artifacts/hasahisawi/android/app/release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > artifacts/hasahisawi/android/app/release.keystore
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -125,9 +109,6 @@ ENVEOF
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
-
-      - name: List build outputs
-        run: find artifacts/hasahisawi/android/app/build/outputs -name "*.apk" -o -name "*.aab" 2>/dev/null | grep -v intermediate || echo "No outputs found"
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
