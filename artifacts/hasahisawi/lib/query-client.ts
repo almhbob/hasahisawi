@@ -1,47 +1,155 @@
 import { fetch } from "expo/fetch";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-const PRODUCTION_API_HOST = process.env.EXPO_PUBLIC_DOMAIN || "hasahisawi.vercel.app";
+const USER_TOKEN_KEY = "auth_backend_token"; // يطابق BACKEND_TOKEN_KEY في auth-context
 
 /**
  * Gets the base URL for the Express API server.
- * Always reads EXPO_PUBLIC_DOMAIN environment variable (set at build time in eas.json).
- * Falls back to hasahisawi.vercel.app if not set.
+ * Priority: EXPO_PUBLIC_API_URL (full URL) → EXPO_PUBLIC_DOMAIN (host only) → Railway fallback → Render fallback
  */
+const RAILWAY_DOMAIN = "hasahisawi-production-74c9.up.railway.app";
+const RENDER_DOMAIN  = "hasahisawi.onrender.com";
+
 export function getApiUrl(): string {
-  const host = PRODUCTION_API_HOST;
+  // EXPO_PUBLIC_API_URL — URL كامل مثل https://...railway.app
+  const fullUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (fullUrl) {
+    try { return new URL(fullUrl).href.replace(/\/$/, ""); } catch {}
+  }
+  // EXPO_PUBLIC_DOMAIN — اسم النطاق فقط
+  const host = process.env.EXPO_PUBLIC_DOMAIN || RAILWAY_DOMAIN;
   try {
     return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
-    return `https://${PRODUCTION_API_HOST}`;
+    return `https://${RAILWAY_DOMAIN}`;
   }
 }
+
+/** الـ fallback السابق للرجوع إليه عند الحاجة */
+export const LEGACY_API_URL = `https://${RENDER_DOMAIN}`;
 
 export function isApiConfigured(): boolean {
   return true;
 }
 
+/**
+ * يُرسل ping إلى السيرفر للتأكد من أنه يعمل.
+ * Railway لا يحتاج cold-start — الطلب الأول يكفي بمهلة 10 ثوانٍ.
+ * يحتفظ بـ retry احتياطي (3 محاولات × 5 ثوانٍ) لأي انقطاع مؤقت.
+ */
+export async function wakeUpServer(): Promise<void> {
+  const url = getApiUrl() + "/api/healthz";
+  const MAX_ATTEMPTS = 3;
+  const ATTEMPT_TIMEOUT = 10000;
+  const RETRY_DELAY = 3000;
+
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), ATTEMPT_TIMEOUT);
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (res.ok) return;
+    } catch {
+      // السيرفر لم يستجب
+    }
+    if (i < MAX_ATTEMPTS - 1) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
+    }
+  }
+}
+
+/**
+ * fetch مع AbortController صريح — بديل موثوق لـ AbortSignal.timeout في React Native.
+ * @param url     - العنوان
+ * @param init    - خيارات fetch
+ * @param ms      - مهلة بالمللي ثانية (افتراضي 15 ثانية)
+ */
+export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 15000): Promise<Response> {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+/** يُعيد Authorization header إذا كان المستخدم مسجلاً */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const token = await AsyncStorage.getItem(USER_TOKEN_KEY);
+    if (token) return { Authorization: `Bearer ${token}` };
+  } catch {}
+  return {};
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    // إذا كانت الاستجابة HTML (خطأ من proxy) أعطِ رسالة واضحة
+    if (text.trim().startsWith("<")) {
+      throw new Error(`${res.status}: الخادم غير متاح مؤقتاً`);
+    }
     throw new Error(`${res.status}: ${text}`);
   }
+}
+
+/**
+ * يُرسل الطلب مع retry وtimeout مناسبَين لمواجهة cold-start في Render.
+ * - timeout: 45 ثانية لكل محاولة
+ * - يُعيد المحاولة عند: انتهاء المهلة، خطأ شبكة، 5xx، HTML بدلاً من JSON
+ */
+async function fetchWithRetry(url: string, init: any, attempts = 2): Promise<Response> {
+  let lastErr: any;
+  const TIMEOUT_MS = 15000;
+  const RETRY_DELAY = 3000;
+
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY * i));
+    }
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      clearTimeout(tid);
+      // إذا أعاد الخادم 5xx جرّب مجدداً
+      if (res.status >= 500 && i < attempts - 1) {
+        continue;
+      }
+      return res;
+    } catch (e: any) {
+      clearTimeout(tid);
+      lastErr = e?.name === "AbortError"
+        ? new Error("انتهت مهلة الاتصال، جاري إعادة المحاولة…")
+        : new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
+    }
+  }
+  throw lastErr || new Error("تعذّر الاتصال بالخادم");
 }
 
 export async function apiRequest(
   method: string,
   route: string,
-  data?: unknown | undefined,
+  data?: unknown,
+  extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   if (!baseUrl) throw new Error("لا يوجد اتصال بالخادم");
-  const url = new URL(route, baseUrl);
+  const url = baseUrl + route;
 
-  const res = await fetch(url.toString(), {
+  const authHeaders = await getAuthHeaders();
+
+  const res = await fetchWithRetry(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(data ? { "Content-Type": "application/json" } : {}),
+      ...authHeaders,
+      ...extraHeaders,
+    },
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -56,27 +164,28 @@ export function getQueryFn<T>(options: {
   return async ({ queryKey }) => {
     const baseUrl = getApiUrl();
     if (!baseUrl) return null as unknown as T;
-    const url = new URL(queryKey.join("/") as string, baseUrl);
 
-    const res = await fetch(url.toString(), {
-      credentials: "include",
-    });
+    const path = queryKey.join("/") as string;
+    const url = path.startsWith("http") ? path : baseUrl + path;
+
+    const authHeaders = await getAuthHeaders();
+
+    const res = await fetchWithRetry(url, { headers: authHeaders });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null as unknown as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json() as T;
-  };
-}
 
-function shouldRetry(failureCount: number, error: unknown): boolean {
-  if (failureCount >= 2) return false;
-  const msg = error instanceof Error ? error.message : String(error);
-  const status = parseInt(msg.split(":")[0], 10);
-  if (!isNaN(status) && status >= 400 && status < 500) return false;
-  return true;
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // إذا كانت الاستجابة HTML (cold-start) أعطِ خطأ واضح
+      throw new Error("الخادم يستيقظ، أعد المحاولة بعد لحظة");
+    }
+  };
 }
 
 export const queryClient = new QueryClient({
@@ -85,11 +194,9 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      staleTime: 3 * 60 * 1000,
-      gcTime: 15 * 60 * 1000,
-      retry: shouldRetry,
-      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+      staleTime: Infinity,
+      retry: 2,
+      retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 15000),
     },
     mutations: {
       retry: false,
