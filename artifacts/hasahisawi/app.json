@@ -22,7 +22,8 @@
         "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
         "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لإرسال موقع الحادثة مع البلاغ",
         "NSFaceIDUsageDescription": "التطبيق يستخدم معرف الوجه لتسجيل الدخول بأمان",
-        "NSMicrophoneUsageDescription": "التطبيق يحتاج إذناً للميكروفون لتسجيل مقاطع الصوت"
+        "NSMicrophoneUsageDescription": "التطبيق يحتاج إذناً للميكروفون لتسجيل مقاطع الصوت",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
         "googleSignIn": {
