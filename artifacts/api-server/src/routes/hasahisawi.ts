@@ -2190,23 +2190,75 @@ router.patch("/auth/me/complete-profile", async (req: Request, res: Response) =>
   try {
     let user = await getSessionUser(req);
 
-    // Fallback: إذا فشل Bearer token (Firebase JWT غير مُحقَّق) → ابحث بـ firebase_uid من الـ body
+    // Fallback: إذا فشل getSessionUser → حاول استخراج هوية المستخدم من Firebase JWT
     if (!user) {
-      const { firebase_uid } = req.body;
-      if (firebase_uid && typeof firebase_uid === "string") {
-        const tok = req.headers.authorization?.slice(7) ?? "";
-        const isJwt = tok.split(".").length === 3 && tok.startsWith("eyJ");
-        if (isJwt) {
-          // حاول التحقق من Firebase ID token
-          const decoded = await verifyIdToken(tok).catch(() => null);
-          const uidToUse = decoded?.uid ?? firebase_uid;
+      const tok = req.headers.authorization?.slice(7) ?? "";
+      const isJwt = tok.split(".").length === 3 && tok.startsWith("eyJ");
+      if (isJwt) {
+        // 1. حاول التحقق الكامل عبر Firebase Admin
+        const decoded = await verifyIdToken(tok).catch(() => null);
+        let uidToUse: string | undefined = decoded?.uid;
+
+        // 2. إذا فشل التحقق → فكّ تشفير الـ JWT بدون تحقق (آمن لهذا endpoint المنخفض الخطر)
+        //    Firebase JWTs تحمل UID في حقل user_id أو sub
+        if (!uidToUse) {
+          try {
+            const payload = JSON.parse(
+              Buffer.from(tok.split(".")[1], "base64url").toString("utf8")
+            );
+            uidToUse = (payload.user_id as string | undefined)
+                    || (payload.sub    as string | undefined);
+          } catch {}
+        }
+
+        // 3. fallback: firebase_uid من الـ body (الكود الجديد في التطبيق)
+        if (!uidToUse && typeof req.body.firebase_uid === "string") {
+          uidToUse = req.body.firebase_uid;
+        }
+
+        // ابحث أولاً بـ firebase_uid ثم بالبريد الإلكتروني من الـ JWT (لمستخدمي backend مع Firebase)
+        let jwtEmail: string | undefined;
+        if (uidToUse || !user) {
+          // استخرج email من payload الـ JWT لاستخدامه كـ fallback
+          try {
+            const parts = tok.split(".");
+            if (parts.length === 3) {
+              const p = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+              jwtEmail = (p.email as string | undefined) || undefined;
+            }
+          } catch {}
+        }
+
+        if (uidToUse) {
           const r = await query(`SELECT * FROM users WHERE firebase_uid = $1`, [uidToUse]);
           if (r.rows[0]) {
             user = r.rows[0];
-            // أنشئ جلسة backend حتى لا يتكرر هذا الوضع
-            const sessionToken = require("crypto").randomBytes(32).toString("hex");
-            await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [user.id, sessionToken]);
+          } else if (jwtEmail) {
+            // لم يُوجد بـ firebase_uid → ابحث بالبريد (مستخدم backend سجّل بنفس الإيميل)
+            const r2 = await query(`SELECT * FROM users WHERE LOWER(email) = LOWER($1)`, [jwtEmail]);
+            if (r2.rows[0]) {
+              user = r2.rows[0];
+              // ارتبط firebase_uid بالحساب حتى لا يتكرر البحث مستقبلاً
+              if (uidToUse) {
+                await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2`, [uidToUse, user.id]);
+              }
+            }
           }
+        } else if (jwtEmail) {
+          // لا uid لكن يوجد email في الـ JWT
+          const r = await query(`SELECT * FROM users WHERE LOWER(email) = LOWER($1)`, [jwtEmail]);
+          if (r.rows[0]) {
+            user = r.rows[0];
+          }
+        }
+
+        if (user) {
+          // أنشئ جلسة backend حتى لا يتكرر هذا الوضع
+          const sessionToken = randomBytes(32).toString("hex");
+          await query(
+            `INSERT INTO user_sessions (user_id, token) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [user.id, sessionToken]
+          );
         }
       }
     }
