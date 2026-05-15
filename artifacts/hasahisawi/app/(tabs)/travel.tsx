@@ -61,6 +61,14 @@ type TravelBooking = {
   passenger_phone: string; seat_number: string; price: number;
   status: "confirmed" | "cancelled" | "completed" | "rescheduled";
   ticket_number: string; booking_ref: string; notes: string; created_at: string;
+  payment_status: "pending_payment" | "proof_submitted" | "verified" | "rejected" | "free";
+  payment_proof_url: string; payment_ref: string; payment_rejection_reason: string;
+};
+
+type CompanyPayment = {
+  id: number; name: string;
+  payment_account_type: string; payment_account_number: string;
+  payment_account_name: string; payment_booking_timeout_hrs: number;
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -216,6 +224,141 @@ function QRVisual({ code }: { code: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// شاشة تعليمات الدفع بعد الحجز
+// ═══════════════════════════════════════════════════════════════
+function PaymentInstructions({
+  booking, route, onNewBooking, user,
+}: { booking: TravelBooking; route: TravelRoute | null; onNewBooking: () => void; user: any }) {
+  const [payInfo,   setPayInfo]   = useState<CompanyPayment | null>(null);
+  const [payRef,    setPayRef]    = useState("");
+  const [submitting,setSubmitting]= useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!route?.company_id) return;
+    fetchWithTimeout(`${getApiUrl()}/travel/companies/${route.company_id}/payment`)
+      .then(r => r.json()).then(setPayInfo).catch(()=>{});
+  }, [route]);
+
+  const submitProof = async () => {
+    if (!payRef.trim()) { Alert.alert("تنبيه","أدخل رقم المرجع/العملية"); return; }
+    setSubmitting(true);
+    try {
+      const token = (user as any)?._token || "";
+      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${booking.id}/submit-payment`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ payment_ref: payRef }),
+      });
+      if (r.ok) {
+        setSubmitted(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else { Alert.alert("خطأ","تعذّر إرسال رقم الإيصال"); }
+    } catch { Alert.alert("خطأ","تعذّر الاتصال"); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding:16 }}>
+      {/* ✅ تم الحجز */}
+      <Animated.View entering={ZoomIn.springify()} style={{ marginBottom:16 }}>
+        <LinearGradient colors={["#064E3B","#065F46"]} style={{ borderRadius:20, padding:24, alignItems:"center" }}>
+          <Ionicons name="checkmark-circle" size={52} color="#34D399" />
+          <Text style={{ fontSize:22, fontWeight:"800", color:"#fff", marginTop:12 }}>تم الحجز بنجاح!</Text>
+          <Text style={{ fontSize:14, color:"#6EE7B7", marginTop:4 }}>تذكرة رقم: {booking.ticket_number}</Text>
+        </LinearGradient>
+      </Animated.View>
+
+      <TicketCard
+        booking={booking}
+        onShare={() => shareTicket(booking)}
+        onWhatsApp={() => sendToWhatsApp(booking)}
+      />
+
+      {/* 💳 تعليمات الدفع */}
+      {!submitted ? (
+        <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <LinearGradient colors={["#0C2A4A","#1A3D6B"]} style={{ borderRadius:18, padding:20, marginBottom:16 }}>
+            <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:16 }}>
+              <View style={{ width:40, height:40, borderRadius:12, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" }}>
+                <Ionicons name="wallet-outline" size={22} color={ACCENT} />
+              </View>
+              <View>
+                <Text style={{ fontSize:16, fontWeight:"800", color:"#fff" }}>تعليمات الدفع</Text>
+                <Text style={{ fontSize:12, color:"#93C5FD", marginTop:2 }}>أرسل قيمة التذكرة لإتمام الحجز</Text>
+              </View>
+            </View>
+
+            {payInfo?.payment_account_number ? (
+              <>
+                <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
+                  <Text style={{ fontSize:12, color:"#93C5FD", marginBottom:8 }}>ادفع عبر:</Text>
+                  {[
+                    ["وسيلة الدفع", payInfo.payment_account_type],
+                    ["اسم الحساب",  payInfo.payment_account_name],
+                    ["رقم الحساب",  payInfo.payment_account_number],
+                    ["المبلغ",       `${booking.price} جنيه`],
+                  ].map(([l,v]) => (
+                    <View key={l} style={{ flexDirection:"row", justifyContent:"space-between", marginBottom:6 }}>
+                      <Text style={{ fontSize:12, color:"#93C5FD" }}>{l}</Text>
+                      <Text style={{ fontSize:13, color:"#fff", fontWeight:"700" }}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={{ backgroundColor:"#F59E0B11", borderRadius:10, padding:12, marginBottom:14 }}>
+                  <Text style={{ fontSize:12, color:GOLD }}>
+                    ⏳ المهلة: {payInfo.payment_booking_timeout_hrs || 3} ساعات لإرسال الإيصال
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
+                <Text style={{ fontSize:13, color:"#93C5FD", textAlign:"center" }}>
+                  📞 تواصل مع الشركة لمعرفة تفاصيل الدفع: {route?.company_phone || ""}
+                </Text>
+              </View>
+            )}
+
+            {/* رقم المرجع */}
+            <Text style={{ fontSize:13, color:"#CBD5E1", marginBottom:8 }}>
+              بعد الإرسال، أدخل رقم العملية/المرجع:
+            </Text>
+            <TextInput
+              value={payRef}
+              onChangeText={setPayRef}
+              placeholder="مثال: TXN-123456789"
+              placeholderTextColor="#4B6A8A"
+              style={{ backgroundColor:"#0A1E38", borderRadius:10, padding:12, color:"#fff", fontSize:14,
+                borderWidth:1, borderColor:"#2D5A8A", marginBottom:12, textAlign:"right" }}
+            />
+            <TouchableOpacity onPress={submitProof} disabled={submitting}
+              style={{ backgroundColor:ACCENT, borderRadius:12, padding:14, alignItems:"center", opacity:submitting?0.6:1 }}>
+              <Text style={{ color:"#fff", fontWeight:"800", fontSize:15 }}>
+                {submitting ? "جاري الإرسال..." : "✓ أرسلت الدفعة — إبلاغ الإدارة"}
+              </Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      ) : (
+        <Animated.View entering={ZoomIn.springify()}>
+          <LinearGradient colors={["#064E3B","#065F46"]} style={{ borderRadius:16, padding:18, marginBottom:16, alignItems:"center" }}>
+            <Ionicons name="checkmark-circle" size={36} color="#34D399" />
+            <Text style={{ fontSize:16, fontWeight:"700", color:"#fff", marginTop:8 }}>تم إرسال إشعار الدفع!</Text>
+            <Text style={{ fontSize:13, color:"#6EE7B7", marginTop:4, textAlign:"center" }}>
+              سيتم تأكيد حجزك خلال دقائق بعد مراجعة الإدارة
+            </Text>
+          </LinearGradient>
+        </Animated.View>
+      )}
+
+      <TouchableOpacity onPress={onNewBooking} style={styles.newBookingBtn}>
+        <Text style={styles.newBookingBtnText}>حجز رحلة جديدة</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // نموذج الحجز
 // ═══════════════════════════════════════════════════════════════
 function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBooking) => void }) {
@@ -300,23 +443,12 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 
   if (step === "done" && newBooking) {
     return (
-      <ScrollView contentContainerStyle={{ padding:16 }}>
-        <Animated.View entering={ZoomIn.springify()} style={styles.successHeader}>
-          <LinearGradient colors={["#064E3B","#065F46"]} style={styles.successBadge}>
-            <Ionicons name="checkmark-circle" size={48} color="#34D399" />
-            <Text style={styles.successTitle}>تم الحجز بنجاح!</Text>
-            <Text style={styles.successSub}>تذكرتك جاهزة</Text>
-          </LinearGradient>
-        </Animated.View>
-        <TicketCard
-          booking={newBooking}
-          onShare={() => shareTicket(newBooking)}
-          onWhatsApp={() => sendToWhatsApp(newBooking)}
-        />
-        <AnimatedPress onPress={() => { setStep("form"); setRoutes([]); setSelectedRoute(null); setNewBooking(null); }} style={styles.newBookingBtn}>
-          <Text style={styles.newBookingBtnText}>حجز رحلة جديدة</Text>
-        </AnimatedPress>
-      </ScrollView>
+      <PaymentInstructions
+        booking={newBooking}
+        route={selectedRoute}
+        onNewBooking={() => { setStep("form"); setRoutes([]); setSelectedRoute(null); setNewBooking(null); }}
+        user={user}
+      />
     );
   }
 
@@ -480,12 +612,33 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 // ═══════════════════════════════════════════════════════════════
 // تبويب تذاكري
 // ═══════════════════════════════════════════════════════════════
+// باج حالة الدفع
+function PaymentBadge({ status }: { status: string }) {
+  const MAP: Record<string, { label: string; color: string; bg: string }> = {
+    pending_payment:  { label: "في انتظار الدفع",  color: GOLD,      bg: GOLD      + "22" },
+    proof_submitted:  { label: "إيصال مُرسَل",     color: "#38BDF8",  bg: "#38BDF822" },
+    verified:         { label: "✓ مدفوع ومؤكد",   color: "#34D399",  bg: "#34D39922" },
+    rejected:         { label: "✗ مرفوض",          color: "#F87171",  bg: "#F8717122" },
+    free:             { label: "بلا رسوم",         color: "#94A3B8",  bg: "#94A3B822" },
+  };
+  const m = MAP[status] ?? { label: status, color: "#94A3B8", bg: "#94A3B822" };
+  return (
+    <View style={{ backgroundColor: m.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+      borderWidth:1, borderColor: m.color + "44", alignSelf:"flex-start" }}>
+      <Text style={{ fontSize:11, fontWeight:"700", color: m.color }}>{m.label}</Text>
+    </View>
+  );
+}
+
 function MyTickets({ user }: { user: any }) {
   const [bookings, setBookings] = useState<TravelBooking[]>([]);
   const [loading,  setLoading]  = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState<TravelBooking | null>(null);
+  const [payModal, setPayModal]  = useState<TravelBooking | null>(null);
+  const [payRef,   setPayRef]    = useState("");
+  const [submittingPay, setSubmittingPay] = useState(false);
   const [newDate, setNewDate] = useState("");
-  const [filter, setFilter] = useState<"all"|"confirmed"|"cancelled">("all");
+  const [filter, setFilter] = useState<"all"|"confirmed"|"cancelled"|"pending_payment">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -534,21 +687,62 @@ function MyTickets({ user }: { user: any }) {
     } catch { Alert.alert("خطأ","تعذّر الاتصال"); }
   }, [rescheduleModal, newDate, user, load]);
 
+  const handleSubmitPayment = useCallback(async () => {
+    if (!payModal || !payRef.trim()) { Alert.alert("تنبيه","أدخل رقم المرجع/العملية"); return; }
+    setSubmittingPay(true);
+    try {
+      const token = (user as any)?._token || "";
+      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${payModal.id}/submit-payment`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ payment_ref: payRef }),
+      });
+      if (r.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setPayModal(null); setPayRef(""); load();
+        Alert.alert("✓ تم الإرسال","سيتم تأكيد حجزك بعد مراجعة الإدارة");
+      } else { Alert.alert("خطأ","تعذّر إرسال رقم الإيصال"); }
+    } catch { Alert.alert("خطأ","تعذّر الاتصال"); }
+    finally { setSubmittingPay(false); }
+  }, [payModal, payRef, user, load]);
+
   const filtered = filter === "all" ? bookings
-    : bookings.filter(b => b.status === filter);
+    : filter === "pending_payment"
+      ? bookings.filter(b => b.payment_status === "pending_payment" || b.payment_status === "rejected")
+      : bookings.filter(b => b.status === filter);
+
+  const pendingCount = bookings.filter(b => b.payment_status === "pending_payment" || b.payment_status === "rejected").length;
 
   if (loading) return <ActivityIndicator color={ACCENT} style={{ marginTop:40 }} />;
 
   return (
     <ScrollView contentContainerStyle={{ padding:16 }}>
+      {/* تحذير الدفع المعلّق */}
+      {pendingCount > 0 && (
+        <Animated.View entering={FadeIn.springify()}
+          style={{ backgroundColor: GOLD+"18", borderRadius:12, padding:12, marginBottom:12,
+            borderWidth:1, borderColor: GOLD+"44", flexDirection:"row", alignItems:"center", gap:10 }}>
+          <Ionicons name="warning-outline" size={20} color={GOLD} />
+          <Text style={{ color:GOLD, fontSize:13, fontWeight:"700", flex:1 }}>
+            {pendingCount} تذكرة تنتظر إرسال إيصال الدفع
+          </Text>
+          <TouchableOpacity onPress={()=>setFilter("pending_payment")}>
+            <Text style={{ color:GOLD, fontSize:12, fontWeight:"700", textDecorationLine:"underline" }}>عرض</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       {/* فلاتر الحالة */}
       <View style={styles.filterRow}>
-        {(["all","confirmed","cancelled"] as const).map(f => (
+        {([
+          ["all","الكل"],
+          ["confirmed","مؤكدة"],
+          ["pending_payment","بانتظار الدفع"],
+          ["cancelled","ملغاة"],
+        ] as const).map(([f,l]) => (
           <TouchableOpacity key={f} onPress={()=>setFilter(f)}
             style={[styles.filterChip, filter===f && styles.filterChipActive]}>
-            <Text style={[styles.filterChipTxt, filter===f && styles.filterChipTxtActive]}>
-              {f==="all"?"الكل":f==="confirmed"?"مؤكدة":"ملغاة"}
-            </Text>
+            <Text style={[styles.filterChipTxt, filter===f && styles.filterChipTxtActive]}>{l}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -560,16 +754,67 @@ function MyTickets({ user }: { user: any }) {
           <Text style={styles.emptySub}>احجز رحلتك القادمة من تبويب "حجز تذكرة"</Text>
         </View>
       ) : filtered.map(booking => (
-        <TicketCard
-          key={booking.id}
-          booking={booking}
-          onCancel={()=>handleCancel(booking)}
-          onReschedule={()=>{ setRescheduleModal(booking); setNewDate(""); }}
-          onShare={()=>shareTicket(booking)}
-          onWhatsApp={()=>sendToWhatsApp(booking)}
-        />
+        <View key={booking.id}>
+          <TicketCard
+            booking={booking}
+            onCancel={booking.payment_status !== "verified" ? ()=>handleCancel(booking) : undefined}
+            onReschedule={()=>{ setRescheduleModal(booking); setNewDate(""); }}
+            onShare={()=>shareTicket(booking)}
+            onWhatsApp={()=>sendToWhatsApp(booking)}
+          />
+          {/* شريط حالة الدفع */}
+          <View style={{ backgroundColor:"#0F1F35", borderRadius:12, padding:12, marginTop:-12, marginBottom:16,
+            flexDirection:"row", alignItems:"center", justifyContent:"space-between" }}>
+            <PaymentBadge status={booking.payment_status || "pending_payment"} />
+            {(booking.payment_status === "pending_payment" || booking.payment_status === "rejected") && (
+              <TouchableOpacity onPress={()=>{ setPayModal(booking); setPayRef(booking.payment_ref || ""); }}
+                style={{ backgroundColor:ACCENT, borderRadius:8, paddingHorizontal:12, paddingVertical:6 }}>
+                <Text style={{ color:"#fff", fontSize:12, fontWeight:"700" }}>📲 أرسل الإيصال</Text>
+              </TouchableOpacity>
+            )}
+            {booking.payment_status === "rejected" && booking.payment_rejection_reason ? (
+              <Text style={{ fontSize:11, color:"#F87171", flex:1, marginStart:8 }}>
+                {booking.payment_rejection_reason}
+              </Text>
+            ) : null}
+          </View>
+        </View>
       ))}
 
+      {/* مودال إرسال رقم الإيصال */}
+      <Modal visible={!!payModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.smallModal, { maxWidth:360 }]}>
+            <Text style={styles.smallModalTitle}>إرسال إيصال الدفع</Text>
+            <Text style={styles.smallModalSub}>التذكرة: {payModal?.ticket_number}</Text>
+            <Text style={{ fontSize:12, color:"#93C5FD", marginBottom:8, marginTop:4 }}>
+              المبلغ: {payModal?.price} جنيه
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={payRef}
+              onChangeText={setPayRef}
+              placeholder="رقم العملية / المرجع (مثال: TXN-12345)"
+              placeholderTextColor="#4B6A8A"
+              keyboardType="default"
+            />
+            <Text style={{ fontSize:11, color:"#64748B", marginBottom:12 }}>
+              * أدخل رقم العملية من تطبيق البنك أو شركة الاتصالات
+            </Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity onPress={()=>{ setPayModal(null); setPayRef(""); }} style={styles.modalCancelBtn}>
+                <Text style={styles.modalCancelTxt}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSubmitPayment} disabled={submittingPay}
+                style={[styles.modalConfirmBtn, { opacity:submittingPay?0.6:1 }]}>
+                <Text style={styles.modalConfirmTxt}>{submittingPay?"جاري الإرسال...":"تأكيد الإرسال"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* مودال التأجيل */}
       <Modal visible={!!rescheduleModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.smallModal}>

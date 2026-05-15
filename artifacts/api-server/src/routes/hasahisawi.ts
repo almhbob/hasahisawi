@@ -1810,6 +1810,28 @@ export async function initHasahisawiDb() {
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_tb_user ON travel_bookings(user_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_tb_date ON travel_bookings(travel_date)`);
+  // ترقية جدول travel_bookings بحقول الدفع
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'pending_payment' CHECK (payment_status IN ('pending_payment','proof_submitted','verified','rejected','free'))`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_proof_url TEXT NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_ref VARCHAR(80) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_expires_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_verified_by VARCHAR(100) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_verified_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE travel_bookings ADD COLUMN IF NOT EXISTS payment_rejection_reason TEXT NOT NULL DEFAULT ''`);
+  // ترقية travel_routes بأسعار الذروة
+  await query(`ALTER TABLE travel_routes ADD COLUMN IF NOT EXISTS peak_price_multiplier NUMERIC(4,2) NOT NULL DEFAULT 1.0`);
+  await query(`ALTER TABLE travel_routes ADD COLUMN IF NOT EXISTS peak_hours_start VARCHAR(5) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_routes ADD COLUMN IF NOT EXISTS peak_hours_end VARCHAR(5) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_routes ADD COLUMN IF NOT EXISTS notes VARCHAR(200) NOT NULL DEFAULT ''`);
+  // حساب الدفع لكل شركة
+  await query(`ALTER TABLE travel_companies ADD COLUMN IF NOT EXISTS payment_account_type VARCHAR(30) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_companies ADD COLUMN IF NOT EXISTS payment_account_number VARCHAR(80) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_companies ADD COLUMN IF NOT EXISTS payment_account_name VARCHAR(100) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE travel_companies ADD COLUMN IF NOT EXISTS payment_booking_timeout_hrs INTEGER NOT NULL DEFAULT 3`);
+  // إعدادات عامة للسفريات
+  await query(`INSERT INTO admin_settings(key,value) VALUES('travel_enabled','true') ON CONFLICT(key) DO NOTHING`);
+  await query(`INSERT INTO admin_settings(key,value) VALUES('travel_payment_timeout_hrs','3') ON CONFLICT(key) DO NOTHING`);
+  await query(`INSERT INTO admin_settings(key,value) VALUES('travel_admin_whatsapp','') ON CONFLICT(key) DO NOTHING`);
 
   // بيانات افتراضية للشركة
   const { rows: tcCheck } = await query(`SELECT COUNT(*) as cnt FROM travel_companies`);
@@ -14031,5 +14053,206 @@ router.post("/admin/travel/routes", async (req: Request, res: Response) => {
       [company_id, from_city, to_city, departure_time||"08:00", price, seats_total||30]
     );
     return res.status(201).json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// نظام الدفع والإدارة الشاملة لتذاكر السفر
+// ═══════════════════════════════════════════════════════════════════
+
+// ── GET /api/admin/travel/stats ──────────────────────────────────
+router.get("/admin/travel/stats", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const [total, confirmed, pending, cancelled, revenue, companies, routes] = await Promise.all([
+      query(`SELECT COUNT(*) AS cnt FROM travel_bookings`),
+      query(`SELECT COUNT(*) AS cnt FROM travel_bookings WHERE payment_status='verified'`),
+      query(`SELECT COUNT(*) AS cnt FROM travel_bookings WHERE payment_status IN ('pending_payment','proof_submitted')`),
+      query(`SELECT COUNT(*) AS cnt FROM travel_bookings WHERE status='cancelled'`),
+      query(`SELECT COALESCE(SUM(price),0) AS total FROM travel_bookings WHERE payment_status='verified'`),
+      query(`SELECT COUNT(*) AS cnt FROM travel_companies WHERE active=TRUE`),
+      query(`SELECT COUNT(*) AS cnt FROM travel_routes WHERE active=TRUE`),
+    ]);
+    const daily = await query(`
+      SELECT DATE(created_at) AS day, COUNT(*) AS bookings, COALESCE(SUM(price),0) AS revenue
+      FROM travel_bookings WHERE created_at >= NOW()-INTERVAL '30 days'
+      GROUP BY 1 ORDER BY 1 DESC LIMIT 30`);
+    const topRoutes = await query(`
+      SELECT from_city, to_city, COUNT(*) AS bookings, COALESCE(SUM(price),0) AS revenue
+      FROM travel_bookings GROUP BY 1,2 ORDER BY 3 DESC LIMIT 10`);
+    return res.json({
+      total: parseInt(total.rows[0].cnt),
+      confirmed: parseInt(confirmed.rows[0].cnt),
+      pending: parseInt(pending.rows[0].cnt),
+      cancelled: parseInt(cancelled.rows[0].cnt),
+      revenue: parseFloat(revenue.rows[0].total),
+      active_companies: parseInt(companies.rows[0].cnt),
+      active_routes: parseInt(routes.rows[0].cnt),
+      daily: daily.rows,
+      topRoutes: topRoutes.rows,
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/travel/companies/:id/payment ────────────────────────
+router.get("/travel/companies/:id/payment", async (req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT id, name, payment_account_type, payment_account_number, payment_account_name, payment_booking_timeout_hrs
+       FROM travel_companies WHERE id=$1 AND active=TRUE`, [req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الشركة غير موجودة" });
+    return res.json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel/companies/:id/payment-account ────────
+router.patch("/admin/travel/companies/:id/payment-account", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { payment_account_type, payment_account_number, payment_account_name, payment_booking_timeout_hrs } = req.body;
+    await query(
+      `UPDATE travel_companies SET
+         payment_account_type=COALESCE($1,payment_account_type),
+         payment_account_number=COALESCE($2,payment_account_number),
+         payment_account_name=COALESCE($3,payment_account_name),
+         payment_booking_timeout_hrs=COALESCE($4,payment_booking_timeout_hrs)
+       WHERE id=$5`,
+      [payment_account_type, payment_account_number, payment_account_name, payment_booking_timeout_hrs, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/travel/bookings/:id/submit-payment ─────────────────
+router.post("/travel/bookings/:id/submit-payment", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "غير مصرح" });
+    const { payment_proof_url, payment_ref } = req.body;
+    if (!payment_ref && !payment_proof_url)
+      return res.status(400).json({ error: "أرسل رقم المرجع أو صورة الإيصال" });
+    const r = await query(
+      `UPDATE travel_bookings
+       SET payment_status='proof_submitted',
+           payment_proof_url=COALESCE($1,payment_proof_url),
+           payment_ref=COALESCE($2,payment_ref)
+       WHERE id=$3 AND user_id=$4 AND payment_status IN ('pending_payment','rejected')
+       RETURNING id`,
+      [payment_proof_url||null, payment_ref||null, req.params.id, user.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "لا يمكن تحديث هذا الحجز" });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel/bookings/:id/verify-payment ──────────
+router.patch("/admin/travel/bookings/:id/verify-payment", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const admin = await getSessionUser(req);
+    await query(
+      `UPDATE travel_bookings
+       SET payment_status='verified', status='confirmed',
+           payment_verified_by=$1, payment_verified_at=NOW()
+       WHERE id=$2`,
+      [String(admin?.name || admin?.email || "admin"), req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel/bookings/:id/reject-payment ──────────
+router.patch("/admin/travel/bookings/:id/reject-payment", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { reason } = req.body;
+    await query(
+      `UPDATE travel_bookings
+       SET payment_status='rejected', payment_rejection_reason=COALESCE($1,''),
+           status='confirmed'
+       WHERE id=$2`,
+      [reason || "", req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/admin/travel/companies/:id ───────────────────────
+router.delete("/admin/travel/companies/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`UPDATE travel_companies SET active=FALSE WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel/routes/:id ──────────────────────────
+router.patch("/admin/travel/routes/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { price, departure_time, seats_total, active, peak_price_multiplier, peak_hours_start, peak_hours_end, notes } = req.body;
+    await query(
+      `UPDATE travel_routes SET
+         price=COALESCE($1,price),
+         departure_time=COALESCE($2,departure_time),
+         seats_total=COALESCE($3,seats_total),
+         active=COALESCE($4,active),
+         peak_price_multiplier=COALESCE($5,peak_price_multiplier),
+         peak_hours_start=COALESCE($6,peak_hours_start),
+         peak_hours_end=COALESCE($7,peak_hours_end),
+         notes=COALESCE($8,notes)
+       WHERE id=$9`,
+      [price, departure_time, seats_total, active, peak_price_multiplier, peak_hours_start, peak_hours_end, notes, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/admin/travel/routes/:id ─────────────────────────
+router.delete("/admin/travel/routes/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`UPDATE travel_routes SET active=FALSE WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/travel/routes ─────────────────────────────────
+router.get("/admin/travel/routes", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT tr.*, tc.name AS company_name
+       FROM travel_routes tr JOIN travel_companies tc ON tc.id=tr.company_id
+       ORDER BY tc.name, tr.from_city, tr.to_city`
+    );
+    return res.json(r.rows);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel/settings ────────────────────────────
+router.patch("/admin/travel/settings", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { travel_enabled, travel_payment_timeout_hrs, travel_admin_whatsapp } = req.body;
+    if (travel_enabled !== undefined)
+      await query(`INSERT INTO admin_settings(key,value) VALUES('travel_enabled',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [String(travel_enabled)]);
+    if (travel_payment_timeout_hrs !== undefined)
+      await query(`INSERT INTO admin_settings(key,value) VALUES('travel_payment_timeout_hrs',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [String(travel_payment_timeout_hrs)]);
+    if (travel_admin_whatsapp !== undefined)
+      await query(`INSERT INTO admin_settings(key,value) VALUES('travel_admin_whatsapp',$1) ON CONFLICT(key) DO UPDATE SET value=$1`, [travel_admin_whatsapp]);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/travel/settings ──────────────────────────────
+router.get("/admin/travel/settings", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT key, value FROM admin_settings WHERE key LIKE 'travel_%'`);
+    const settings: Record<string, string> = {};
+    for (const row of r.rows) settings[row.key] = row.value;
+    return res.json(settings);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
