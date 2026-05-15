@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type LostItem = {
   id: number;
@@ -140,11 +142,18 @@ export default function Missing() {
     }
   };
 
+  const confirm = useConfirm();
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا البلاغ نهائياً؟")) return;
+    const ok = await confirm({
+      title: "حذف البلاغ",
+      description: "سيتم حذف هذا البلاغ نهائياً.",
+      confirmText: "حذف",
+      destructive: true,
+    });
+    if (!ok) return;
     const res = await apiFetch(`/admin/lost-items/${id}`, { method: "DELETE" });
-    if (res.ok) setList(prev => prev.filter(i => i.id !== id));
-    else alert("فشل الحذف");
+    if (res.ok) { setList(prev => prev.filter(i => i.id !== id)); toast.success("تم الحذف"); }
+    else toast.error("فشل الحذف");
   };
 
   const toggleStatus = async (item: LostItem) => {

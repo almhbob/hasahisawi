@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type Job = {
   id: number; title: string; company: string;
@@ -54,10 +56,20 @@ export default function Jobs() {
     setSaving(null);
   };
 
+  const confirm = useConfirm();
   const deleteJob = async (id: number) => {
-    if (!confirm("حذف هذا الإعلان الوظيفي نهائياً؟")) return;
-    await apiFetch(`/admin/jobs/${id}`, { method: "DELETE" });
-    setJobs(prev => prev.filter(j => j.id !== id));
+    const ok = await confirm({
+      title: "حذف الإعلان الوظيفي",
+      description: "سيتم حذف هذا الإعلان نهائياً.",
+      confirmText: "حذف",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await apiFetch(`/admin/jobs/${id}`, { method: "DELETE" });
+      setJobs(prev => prev.filter(j => j.id !== id));
+      toast.success("تم حذف الإعلان");
+    } catch { toast.error("تعذّر الحذف"); }
   };
 
   const addJob = async () => {

@@ -1,54 +1,54 @@
-import React, { Component, ComponentType, PropsWithChildren } from "react";
-import { ErrorFallback, ErrorFallbackProps } from "@/components/ErrorFallback";
+import React, { Component, type ReactNode } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-export type ErrorBoundaryProps = PropsWithChildren<{
-  FallbackComponent?: ComponentType<ErrorFallbackProps>;
-  onError?: (error: Error, stackTrace: string) => void;
-}>;
+type Props = { children: ReactNode; fallback?: (err: Error, reset: () => void) => ReactNode };
+type State = { error: Error | null };
 
-type ErrorBoundaryState = { error: Error | null };
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = { error: null };
 
-/**
- * This is a special case for for using the class components. Error boundaries must be class components because React only provides error boundary functionality through lifecycle methods (componentDidCatch and getDerivedStateFromError) which are not available in functional components.
- * https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
- */
-
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
-  state: ErrorBoundaryState = { error: null };
-
-  static defaultProps: {
-    FallbackComponent: ComponentType<ErrorFallbackProps>;
-  } = {
-    FallbackComponent: ErrorFallback,
-  };
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: { componentStack: string }): void {
-    if (typeof this.props.onError === "function") {
-      this.props.onError(error, info.componentStack);
-    }
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    console.error("[ErrorBoundary]", error, info.componentStack);
   }
 
-  resetError = (): void => {
-    this.setState({ error: null });
-  };
+  reset = () => this.setState({ error: null });
 
   render() {
-    const { FallbackComponent } = this.props;
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    if (this.props.fallback) return this.props.fallback(error, this.reset);
 
-    return this.state.error && FallbackComponent ? (
-      <FallbackComponent
-        error={this.state.error}
-        resetError={this.resetError}
-      />
-    ) : (
-      this.props.children
+    return (
+      <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "#0F172A" }}>
+        <View style={{ width: "100%", maxWidth: 480, backgroundColor: "#1E293B", borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "#334155" }}>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: "#FBBF24", textAlign: "center", marginBottom: 8 }}>
+            حدث خطأ غير متوقع
+          </Text>
+          <Text style={{ color: "#CBD5E1", textAlign: "center", marginBottom: 16, lineHeight: 22 }}>
+            نعتذر عن الإزعاج. حدث خطأ في هذه الشاشة. يمكنك إعادة المحاولة الآن.
+          </Text>
+          <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
+            {error.message}
+          </Text>
+          <Pressable
+            onPress={this.reset}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? "#EA580C" : "#F97316",
+              paddingVertical: 12,
+              borderRadius: 12,
+              alignItems: "center",
+            })}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>إعادة المحاولة</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     );
   }
 }
+
+export default ErrorBoundary;

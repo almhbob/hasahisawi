@@ -2,6 +2,8 @@ import { Switch, Route, Router as WouterRouter, useRoute } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Layout } from "@/components/Layout";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
+import { Toaster } from "@/components/ui/sonner";
 import Login       from "@/pages/Login";
 import Dashboard   from "@/pages/Dashboard";
 import Users       from "@/pages/Users";
@@ -130,9 +132,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRoutes />
-        </WouterRouter>
+        <ConfirmProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppRoutes />
+          </WouterRouter>
+          <Toaster richColors position="top-center" dir="rtl" />
+        </ConfirmProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

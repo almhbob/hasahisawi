@@ -5,7 +5,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
-import { authLimiter, pinLimiter } from "../lib/rate-limiters";
+import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
 
 const router = Router();
@@ -159,6 +159,20 @@ export async function initHasahisawiDb() {
   // ربط مشرف الشركة المُشغِّلة بالشركة (لعزل لوحة "مشوارك علينا" عن المنصة العامة)
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS operator_id INTEGER`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_operator_id ON users(operator_id)`);
+
+  // Performance indexes — added for faster reads on high-volume tables
+  await query(`CREATE INDEX IF NOT EXISTS idx_social_posts_category_created ON social_posts(category, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_social_posts_created          ON social_posts(created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_social_likes_post             ON social_likes(post_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_social_comments_post_created  ON social_comments(post_id, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_notifications_unread_created  ON notifications(is_read, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_news_pinned_created           ON city_news(is_pinned, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_created    ON chat_messages(chat_id, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_token           ON user_sessions(token)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_phone                   ON users(phone) WHERE phone IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_email                   ON users(email) WHERE email IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_firebase_uid            ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_ratings_target                ON ratings(target_type, target_id)`);
 
   await query(`
     CREATE TABLE IF NOT EXISTS social_posts (
@@ -1805,7 +1819,7 @@ async function isAdminRequest(req: Request): Promise<boolean> {
   return false;
 }
 
-router.post("/auth/register", async (req: Request, res: Response) => {
+router.post("/auth/register", registerLimiter, async (req: Request, res: Response) => {
   try {
     const { name, national_id, phone, email, password, birth_date, neighborhood, gender } = req.body;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
@@ -2176,7 +2190,7 @@ router.post("/admin/name", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ratings", async (req: Request, res: Response) => {
+router.post("/ratings", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     const { target_type, target_id, rating, comment } = req.body;
@@ -2370,7 +2384,7 @@ router.get("/posts", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/posts", async (req: Request, res: Response) => {
+router.post("/posts", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     const { content, category, author_name, image_url, video_url } = req.body;
@@ -2430,7 +2444,7 @@ router.get("/posts/:id/comments", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/posts/:id/comments", async (req: Request, res: Response) => {
+router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     const { content, author_name } = req.body;
@@ -2471,20 +2485,26 @@ router.delete("/comments/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/posts/:id/like", async (req: Request, res: Response) => {
+router.post("/posts/:id/like", writeLimiter, async (req: Request, res: Response) => {
   try {
     const { device_id } = req.body;
-    if (!device_id) return res.status(400).json({ error: "device_id مطلوب" });
-    const existing = await query(`SELECT id FROM social_likes WHERE post_id=$1 AND device_id=$2`, [req.params.id, device_id]);
-    if (existing.rows.length > 0) {
-      await query(`DELETE FROM social_likes WHERE post_id=$1 AND device_id=$2`, [req.params.id, device_id]);
-      return res.json({ liked: false });
-    } else {
-      await query(`INSERT INTO social_likes (post_id, device_id) VALUES ($1,$2)`, [req.params.id, device_id]);
+    if (!device_id || typeof device_id !== "string" || device_id.length > 200) {
+      return res.status(400).json({ error: "device_id غير صالح" });
+    }
+    const postId = req.params.id;
+    // محاولة إدراج ذرّية: إن وُجد سجل سابق نحذفه (toggle)
+    const ins = await query(
+      `INSERT INTO social_likes (post_id, device_id) VALUES ($1,$2)
+       ON CONFLICT (post_id, device_id) DO NOTHING RETURNING id`,
+      [postId, device_id]
+    );
+    if (ins.rows.length > 0) {
       return res.json({ liked: true });
     }
+    await query(`DELETE FROM social_likes WHERE post_id=$1 AND device_id=$2`, [postId, device_id]);
+    return res.json({ liked: false });
   } catch (err) {
-    console.error(err);
+    console.error("post like error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -2493,7 +2513,7 @@ router.post("/posts/:id/like", async (req: Request, res: Response) => {
 // Push Tokens — تسجيل وتحديث رمز الإشعارات
 // ══════════════════════════════════════════════════════
 
-router.post("/push-tokens", async (req: Request, res: Response) => {
+router.post("/push-tokens", writeLimiter, async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
@@ -2880,7 +2900,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
 });
 
 // ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
-router.post("/admin/sync-firebase-users", async (req: Request, res: Response) => {
+router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const firebaseUsers = await listAllFirebaseUsers();
@@ -2933,7 +2953,7 @@ router.post("/admin/sync-firebase-users", async (req: Request, res: Response) =>
     return res.json({ firebase_total: firebaseUsers.length, synced, created, updated, skipped, errors, details });
   } catch (e: any) {
     console.error("sync-firebase-users error:", e?.message);
-    return res.status(500).json({ error: e?.message ?? "Server error" });
+    return res.status(500).json({ error: "تعذّر مزامنة المستخدمين، حاول لاحقاً" });
   }
 });
 

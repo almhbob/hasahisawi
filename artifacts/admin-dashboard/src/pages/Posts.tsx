@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type Post = {
   id: number; author_name: string; content: string;
@@ -16,6 +18,7 @@ export default function Posts() {
   const [cat,     setCat]     = useState("الكل");
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,12 +32,21 @@ export default function Posts() {
   useEffect(() => { load(); }, [load]);
 
   const deletePost = async (id: number) => {
-    if (!confirm("هل تريد حذف هذا المنشور؟")) return;
+    const ok = await confirm({
+      title: "حذف المنشور",
+      description: "سيتم حذف هذا المنشور نهائياً ولا يمكن استرجاعه.",
+      confirmText: "حذف",
+      destructive: true,
+    });
+    if (!ok) return;
     setDeleting(id);
     try {
       await apiFetch(`/posts/${id}`, { method: "DELETE" });
       setPosts(prev => prev.filter(p => p.id !== id));
-    } catch {}
+      toast.success("تم حذف المنشور");
+    } catch {
+      toast.error("تعذّر حذف المنشور");
+    }
     setDeleting(null);
   };
 

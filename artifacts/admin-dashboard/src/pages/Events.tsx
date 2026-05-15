@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type Event = {
   id: number;
@@ -56,12 +58,20 @@ export default function Events() {
     } catch {}
   };
 
+  const confirm = useConfirm();
   const deleteEvent = async (id: number) => {
-    if (!confirm("حذف الفعالية؟")) return;
+    const ok = await confirm({
+      title: "حذف الفعالية",
+      description: "سيتم حذف هذه الفعالية نهائياً.",
+      confirmText: "حذف",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await apiFetch(`/admin/events/${id}`, { method: "DELETE" });
       setList(prev => prev.filter(e => e.id !== id));
-    } catch {}
+      toast.success("تم حذف الفعالية");
+    } catch { toast.error("تعذّر الحذف"); }
   };
 
   const pending   = list.filter(e => e.status === "pending").length;

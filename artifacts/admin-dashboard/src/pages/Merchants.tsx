@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/Layout";
 import { apiFetch, apiJson } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type Merchant = {
   id: number; shop_name: string; owner_name: string;
@@ -51,10 +53,20 @@ export default function Merchants() {
     setMerchants(prev => prev.map(m => m.id === id ? { ...m, ...patch } : m));
   };
 
+  const confirm = useConfirm();
   const remove = async (id: number) => {
-    if (!confirm("حذف هذا التاجر؟")) return;
-    await apiFetch(`/admin/merchants/${id}`, { method: "DELETE" });
-    setMerchants(prev => prev.filter(m => m.id !== id));
+    const ok = await confirm({
+      title: "حذف التاجر",
+      description: "سيتم حذف هذا التاجر وكل بياناته نهائياً.",
+      confirmText: "حذف",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await apiFetch(`/admin/merchants/${id}`, { method: "DELETE" });
+      setMerchants(prev => prev.filter(m => m.id !== id));
+      toast.success("تم حذف التاجر");
+    } catch { toast.error("تعذّر الحذف"); }
   };
 
   const savePortalPin = async () => {
