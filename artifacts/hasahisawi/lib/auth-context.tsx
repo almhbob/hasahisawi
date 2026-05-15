@@ -1102,15 +1102,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    // Notify backend to invalidate session
+    // Notify backend to invalidate session — 5s timeout so logout never blocks
     if (token) {
       try {
         const base = getApiUrl();
         if (base) {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 5000);
           await fetch(`${base}/api/auth/logout`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
-          });
+            signal: ctrl.signal,
+          }).finally(() => clearTimeout(t));
         }
       } catch {}
     }
