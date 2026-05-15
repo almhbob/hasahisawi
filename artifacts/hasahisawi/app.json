@@ -90,28 +90,59 @@
           "defaultChannel": "hasahisawi-default",
           "androidChannels": [
             {
-              "name": "حصاحيصاوي — تنبيهات",
-              "importance": 5,
-              "vibrationPattern": [
-                0,
-                250,
-                250,
-                250
-              ],
+              "name": "حصاحيصاوي — تنبيهات عامة",
+              "importance": 3,
+              "vibrationPattern": [0, 200, 100, 200],
               "lightColor": "#27AE68",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
               "bypassDnd": false,
-              "lockscreenVisibility": 1,
-              "audioAttributes": {
-                "usage": "USAGE_NOTIFICATION",
-                "contentType": "CONTENT_TYPE_SONIFICATION",
-                "flags": {
-                  "enforceAudibility": true,
-                  "requestHardwareAudioVideoSynchronization": false
-                }
-              }
+              "lockscreenVisibility": 1
+            },
+            {
+              "name": "حصاحيصاوي — رسائل",
+              "importance": 4,
+              "vibrationPattern": [0, 100, 80, 100, 80, 100],
+              "lightColor": "#3B82F6",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": true,
+              "bypassDnd": false,
+              "lockscreenVisibility": 0
+            },
+            {
+              "name": "حصاحيصاوي — تنبيهات عاجلة",
+              "importance": 5,
+              "vibrationPattern": [0, 600, 200, 600, 200, 600],
+              "lightColor": "#EF4444",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": true,
+              "bypassDnd": true,
+              "lockscreenVisibility": 1
+            },
+            {
+              "name": "حصاحيصاوي — تحديثات السفر",
+              "importance": 4,
+              "vibrationPattern": [0, 300, 150, 300],
+              "lightColor": "#0EA5E9",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": true,
+              "bypassDnd": false,
+              "lockscreenVisibility": 1
+            },
+            {
+              "name": "حصاحيصاوي — أوقات الصلاة",
+              "importance": 4,
+              "vibrationPattern": [0, 400, 100, 400],
+              "lightColor": "#F59E0B",
+              "enableLights": true,
+              "enableVibrate": true,
+              "showBadge": false,
+              "bypassDnd": false,
+              "lockscreenVisibility": 1
             }
           ]
         }
