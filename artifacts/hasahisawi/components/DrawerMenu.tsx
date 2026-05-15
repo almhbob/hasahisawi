@@ -213,7 +213,7 @@ export default function DrawerMenu() {
 
   const displayName = isGuest ? "زائر" : (user?.name ?? "");
   const initial     = isGuest ? "ز" : (user?.name?.charAt(0) || "؟");
-  const roleLabel   = user?.role === "admin" ? "مشرف" : user?.role === "moderator" ? "مراقب" : null;
+  const roleLabel   = user?.role === "admin" ? "مسؤول" : user?.role === "moderator" ? "مشرف" : null;
 
   const EDGE_ZONE = 28;
 

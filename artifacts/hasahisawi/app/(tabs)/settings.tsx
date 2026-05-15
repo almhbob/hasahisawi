@@ -1650,7 +1650,7 @@ export default function SettingsScreen() {
       });
       if (res.ok) {
         const data = await res.json();
-        setManagedUsers(data);
+        setManagedUsers(Array.isArray(data) ? data : (data.users ?? []));
       }
     } catch { }
   };
@@ -1659,7 +1659,7 @@ export default function SettingsScreen() {
     if (!auth.token) return;
     try {
       const res = await fetchWithTimeout(new URL(`/api/admin/users/${userId}/role`, getApiUrl()).toString(), {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
         body: JSON.stringify({ role: newRole }),
       });

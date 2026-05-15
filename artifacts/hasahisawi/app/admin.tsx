@@ -457,7 +457,7 @@ export default function AdminDashboard() {
     setLoadingUsers(true);
     try {
       const res = await apiFetch("/api/admin/users", token);
-      if (res.ok) setUsers(await safeJson(res));
+      if (res.ok) { const d = await safeJson(res); setUsers(Array.isArray(d) ? d : (d.users ?? [])); }
     } catch {}
     finally { setLoadingUsers(false); }
   }, [token]);
