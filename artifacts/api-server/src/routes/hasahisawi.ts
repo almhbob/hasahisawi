@@ -1758,13 +1758,30 @@ export async function initHasahisawiDb() {
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
-  const token = auth.slice(7);
+  const tok = auth.slice(7);
+
+  // 1. البحث في جلسات الـ backend أولاً (المسار المعتاد)
   const result = await query(`
     SELECT u.* FROM users u
     JOIN user_sessions s ON s.user_id = u.id
     WHERE s.token = $1 AND s.expires_at > NOW()
-  `, [token]);
-  return result.rows[0] || null;
+  `, [tok]);
+  if (result.rows[0]) return result.rows[0];
+
+  // 2. fallback: Firebase ID token (JWT ذو 3 أجزاء)
+  if (tok.split(".").length === 3 && tok.startsWith("eyJ")) {
+    try {
+      const decoded = await verifyIdToken(tok);
+      if (decoded?.uid) {
+        const { rows } = await query(
+          `SELECT * FROM users WHERE firebase_uid = $1`, [decoded.uid]
+        );
+        if (rows[0]) return rows[0];
+      }
+    } catch { /* رمز Firebase غير صالح — تجاهل */ }
+  }
+
+  return null;
 }
 
 // مساعد: هل المستخدم مدير أو مشرف ترحيل؟
