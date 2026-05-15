@@ -55,6 +55,7 @@ catalog:
   drizzle-orm: ^0.45.1
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
+  wouter: ^3.3.5
   # Must be this exact version because expo requires it
   react: 19.1.0
   # Must be this exact version because expo requires it
