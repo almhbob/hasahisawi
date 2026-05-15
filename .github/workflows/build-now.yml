@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - replit-latest
-    paths:
-      - .github/build-trigger
 
 jobs:
   build:
@@ -44,7 +42,7 @@ jobs:
           CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
           echo "ver=$VER" >> $GITHUB_OUTPUT
           echo "code=$CODE" >> $GITHUB_OUTPUT
-          echo "v$VER ($CODE)"
+          echo "Building v$VER ($CODE)"
 
       - name: Cache pnpm
         uses: actions/cache@v4
