@@ -2,384 +2,310 @@ import React, { useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, ActivityIndicator,
-  Platform, Alert,
+  Platform, KeyboardAvoidingView,
 } from "react-native";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth-context";
 import Colors from "@/constants/colors";
-
-const NEIGHBORHOODS = [
-  "الحي الشرقي", "الحي الأوسط", "حي الواحة", "حي الصفاء", "حي الزهور",
-  "حي العمدة", "حي الموظفين", "حي كريمة", "حي الفيحاء", "حي الصداقة",
-  "حي المايقوما", "حي الضقالة", "حي فور", "الامتداد", "الحلة الجديدة",
-  "المنصورة", "المزاد", "الكرمك", "الكومبو", "الجملونات", "الطائف",
-  "ود الكامل", "أركويت", "الطالباب", "الكشامر", "أم دغينة", "أم عضام",
-  "أم شبانة", "مربع الفاتح", "جبرة", "حلة السودان", "ود حسون",
-  "الشيخ أحمد", "حي البنك", "حي الكبير", "أبو صابر", "الكبش",
-];
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, completeProfile } = useAuth();
 
-  const [gender, setGender]           = useState<"male" | "female" | null>(user?.gender ?? null);
+  const [gender, setGender]             = useState<"male" | "female" | null>(user?.gender ?? null);
   const [neighborhood, setNeighborhood] = useState<string>(user?.neighborhood ?? "");
-  const [search, setSearch]           = useState("");
-  const [saving, setSaving]           = useState(false);
-
-  const filtered = search.trim()
-    ? NEIGHBORHOODS.filter(n => n.includes(search.trim()))
-    : NEIGHBORHOODS;
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState("");
 
   const canSave = !!gender && neighborhood.trim().length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
+    setError("");
     setSaving(true);
     try {
       await completeProfile(gender!, neighborhood.trim());
       router.replace("/(tabs)/" as any);
     } catch (e: any) {
-      Alert.alert("خطأ", e?.message || "تعذّر الحفظ، حاول مرة أخرى");
+      setError(e?.message || "تعذّر الحفظ، حاول مرة أخرى");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#070D0A" }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* رأس الشاشة */}
-        <View style={s.header}>
+        {/* ── رأس الشاشة ── */}
+        <Animated.View entering={FadeInDown.springify()} style={s.header}>
           <View style={s.iconWrap}>
-            <Ionicons name="person-circle-outline" size={52} color={Colors.primary} />
+            <LinearGradient colors={[Colors.primaryDeep + "66", Colors.primaryDeep + "22"]} style={s.iconCircle}>
+              <Ionicons name="person-circle-outline" size={44} color={Colors.primary} />
+            </LinearGradient>
           </View>
           <Text style={s.title}>أكمل ملفك الشخصي</Text>
-          <Text style={s.subtitle}>
-            بيانات مهمة تساعدنا على تقديم خدمات مناسبة لك
-          </Text>
-        </View>
+          <Text style={s.subtitle}>معلومات مهمة تساعدنا على تقديم خدمات مناسبة لك</Text>
+        </Animated.View>
 
-        {/* ─── الجنس ─── */}
-        <View style={s.section}>
+        {/* ── الجنس ── */}
+        <Animated.View entering={FadeInDown.delay(80).springify()} style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>الجنس</Text>
-            <View style={s.required}><Text style={s.requiredTxt}>مطلوب</Text></View>
+            <View style={s.requiredBadge}><Text style={s.requiredTxt}>مطلوب</Text></View>
           </View>
           <View style={s.genderRow}>
             <TouchableOpacity
-              style={[s.genderBtn, gender === "male" && s.genderBtnActive]}
+              style={[s.genderBtn, gender === "male" && s.genderBtnMaleActive]}
               onPress={() => setGender("male")}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="male"
-                size={26}
-                color={gender === "male" ? "#fff" : Colors.textMuted}
-              />
-              <Text style={[s.genderTxt, gender === "male" && s.genderTxtActive]}>ذكر</Text>
               {gender === "male" && (
                 <View style={s.checkMark}>
                   <Ionicons name="checkmark-circle" size={18} color="#fff" />
                 </View>
               )}
+              <Ionicons name="male" size={28} color={gender === "male" ? "#fff" : Colors.textMuted} />
+              <Text style={[s.genderTxt, gender === "male" && { color: "#fff" }]}>ذكر</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[s.genderBtn, s.genderBtnFemale, gender === "female" && s.genderBtnFemaleActive]}
+              style={[s.genderBtn, gender === "female" && s.genderBtnFemaleActive]}
               onPress={() => setGender("female")}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="female"
-                size={26}
-                color={gender === "female" ? "#fff" : Colors.textMuted}
-              />
-              <Text style={[s.genderTxt, gender === "female" && s.genderTxtActive]}>أنثى</Text>
               {gender === "female" && (
                 <View style={s.checkMark}>
                   <Ionicons name="checkmark-circle" size={18} color="#fff" />
                 </View>
               )}
+              <Ionicons name="female" size={28} color={gender === "female" ? "#fff" : Colors.textMuted} />
+              <Text style={[s.genderTxt, gender === "female" && { color: "#fff" }]}>أنثى</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* ─── الحي / المنطقة ─── */}
-        <View style={s.section}>
+        {/* ── مكان السكن ── */}
+        <Animated.View entering={FadeInDown.delay(160).springify()} style={s.section}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>الحي / المنطقة</Text>
-            <View style={s.required}><Text style={s.requiredTxt}>مطلوب</Text></View>
+            <Text style={s.sectionTitle}>مكان السكن</Text>
+            <View style={s.requiredBadge}><Text style={s.requiredTxt}>مطلوب</Text></View>
           </View>
+          <Text style={s.sectionHint}>
+            اكتب اسم حيّك أو قريتك أو المنطقة التي تسكن فيها
+          </Text>
 
-          {/* حقل بحث */}
-          <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+          <View style={[s.inputWrap, neighborhood.trim().length > 0 && { borderColor: Colors.primary + "66" }]}>
+            <Ionicons name="location-outline" size={18} color={Colors.textMuted} style={s.inputIcon} />
             <TextInput
-              style={s.searchInput}
-              placeholder="ابحث عن حيك..."
+              style={s.input}
+              value={neighborhood}
+              onChangeText={v => setNeighborhood(v.slice(0, 60))}
+              placeholder="مثال: حي الواحة، ود الكامل، أم دغينة..."
               placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
               textAlign="right"
-              returnKeyType="search"
+              returnKeyType="done"
+              onSubmitEditing={handleSave}
+              maxLength={60}
+              autoCorrect={false}
             />
-            {search ? (
-              <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* الحي المختار */}
-          {neighborhood ? (
-            <View style={s.selectedBadge}>
-              <Ionicons name="location" size={14} color={Colors.primary} />
-              <Text style={s.selectedBadgeTxt}>{neighborhood}</Text>
+            {neighborhood.trim().length > 0 && (
               <TouchableOpacity onPress={() => setNeighborhood("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={Colors.primary} />
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {/* قائمة الأحياء */}
-          <View style={s.nbrGrid}>
-            {filtered.map(nbr => (
-              <TouchableOpacity
-                key={nbr}
-                style={[s.nbrChip, neighborhood === nbr && s.nbrChipActive]}
-                onPress={() => { setNeighborhood(nbr); setSearch(""); }}
-                activeOpacity={0.75}
-              >
-                <Text style={[s.nbrChipTxt, neighborhood === nbr && s.nbrChipTxtActive]}>
-                  {nbr}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            {/* خيار "خارج المدينة" */}
-            {(search === "" || "خارج المدينة".includes(search)) && (
-              <TouchableOpacity
-                style={[s.nbrChip, neighborhood === "خارج المدينة" && s.nbrChipActive]}
-                onPress={() => { setNeighborhood("خارج المدينة"); setSearch(""); }}
-                activeOpacity={0.75}
-              >
-                <Text style={[s.nbrChipTxt, neighborhood === "خارج المدينة" && s.nbrChipTxtActive]}>
-                  خارج المدينة
-                </Text>
+                <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
-        </View>
 
-        {/* زر الحفظ */}
-        <TouchableOpacity
-          style={[s.saveBtn, !canSave && s.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={!canSave || saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={s.saveBtnTxt}>متابعة إلى التطبيق</Text>
-            </>
+          {/* اقتراحات سريعة */}
+          <View style={s.suggestRow}>
+            {["حي الواحة", "الحي الأوسط", "ود الكامل", "أركويت", "خارج المدينة"].map(sug => (
+              <TouchableOpacity
+                key={sug}
+                style={[s.suggestChip, neighborhood === sug && s.suggestChipActive]}
+                onPress={() => setNeighborhood(sug)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.suggestTxt, neighborhood === sug && { color: Colors.primary }]}>{sug}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* ── خطأ ── */}
+        {error ? (
+          <Animated.View entering={FadeIn} style={s.errorBox}>
+            <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+            <Text style={s.errorTxt}>{error}</Text>
+          </Animated.View>
+        ) : null}
+
+        {/* ── زر الحفظ ── */}
+        <Animated.View entering={FadeInDown.delay(240).springify()}>
+          <TouchableOpacity
+            style={[s.saveBtn, (!canSave || saving) && s.saveBtnDisabled]}
+            onPress={handleSave}
+            disabled={!canSave || saving}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={canSave ? [Colors.primary, Colors.primaryDim] : [Colors.surface3, Colors.surface3]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={s.saveBtnGrad}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                  <Text style={s.saveBtnTxt}>متابعة إلى التطبيق</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {!canSave && (
+            <Text style={s.helperTxt}>
+              {!gender && !neighborhood.trim()
+                ? "يرجى اختيار الجنس وكتابة مكان السكن للمتابعة"
+                : !gender
+                ? "يرجى اختيار الجنس للمتابعة"
+                : "يرجى كتابة مكان سكنك للمتابعة"}
+            </Text>
           )}
-        </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#070D0A",
-  },
-  scroll: {
-    padding: 20,
-    gap: 20,
-  },
-  header: {
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 8,
-  },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primary + "20",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
+  scroll: { padding: 20, gap: 20 },
+
+  header: { alignItems: "center", gap: 10, paddingVertical: 8 },
+  iconWrap: { marginBottom: 4 },
+  iconCircle: {
+    width: 88, height: 88, borderRadius: 24,
+    alignItems: "center", justifyContent: "center",
   },
   title: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 22,
-    color: Colors.textPrimary,
-    textAlign: "center",
+    fontFamily: "Cairo_700Bold", fontSize: 22,
+    color: Colors.textPrimary, textAlign: "center",
   },
   subtitle: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textMuted,
-    textAlign: "center",
-    lineHeight: 22,
-    maxWidth: 280,
+    fontFamily: "Cairo_400Regular", fontSize: 14,
+    color: Colors.textMuted, textAlign: "center",
+    lineHeight: 22, maxWidth: 280,
   },
+
   section: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    borderRadius: 16, padding: 16, gap: 12,
+    borderWidth: 1, borderColor: Colors.divider,
   },
   sectionHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
+    flexDirection: "row-reverse", alignItems: "center",
     justifyContent: "space-between",
   },
   sectionTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
+    fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary,
   },
-  required: {
-    backgroundColor: Colors.accent + "22",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  sectionHint: {
+    fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: Colors.textSecondary, textAlign: "right", lineHeight: 20,
+  },
+  requiredBadge: {
+    backgroundColor: Colors.accent + "22", borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 2,
   },
   requiredTxt: {
-    fontFamily: "Cairo_500Medium",
-    fontSize: 11,
-    color: Colors.accent,
+    fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent,
   },
-  genderRow: {
-    flexDirection: "row-reverse",
-    gap: 12,
-  },
+
+  // Gender
+  genderRow: { flexDirection: "row-reverse", gap: 12 },
   genderBtn: {
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: Colors.divider,
-    backgroundColor: Colors.surface1,
-    gap: 6,
+    flex: 1, flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    paddingVertical: 20, borderRadius: 14,
+    borderWidth: 2, borderColor: Colors.divider,
+    backgroundColor: Colors.surface1, gap: 6,
     position: "relative",
   },
-  genderBtnActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "22",
+  genderBtnMaleActive: {
+    borderColor: Colors.primary, backgroundColor: Colors.primary + "22",
   },
-  genderBtnFemale: {},
   genderBtnFemaleActive: {
-    borderColor: "#E05567",
-    backgroundColor: "#E0556720",
+    borderColor: "#E05567", backgroundColor: "#E0556720",
   },
   genderTxt: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textMuted,
+    fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted,
   },
-  genderTxtActive: {
-    color: Colors.textPrimary,
+  checkMark: { position: "absolute", top: 8, left: 8 },
+
+  // Input
+  inputWrap: {
+    flexDirection: "row-reverse", alignItems: "center",
+    backgroundColor: Colors.bg,
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    height: 54, paddingHorizontal: 4,
   },
-  checkMark: {
-    position: "absolute",
-    top: 8,
-    left: 8,
+  inputIcon: { marginHorizontal: 10 },
+  input: {
+    flex: 1, fontFamily: "Cairo_400Regular",
+    fontSize: 15, color: Colors.textPrimary, paddingHorizontal: 4,
   },
-  searchBox: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    backgroundColor: Colors.surface1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "ios" ? 10 : 6,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+
+  // Suggestions
+  suggestRow: {
+    flexDirection: "row-reverse", flexWrap: "wrap", gap: 6,
   },
-  searchInput: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-  },
-  selectedBadge: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.primary + "18",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignSelf: "flex-end",
-    borderWidth: 1,
-    borderColor: Colors.primary + "40",
-  },
-  selectedBadgeTxt: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.primary,
-  },
-  nbrGrid: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  nbrChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+  suggestChip: {
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 16, borderWidth: 1, borderColor: Colors.divider,
     backgroundColor: Colors.surface1,
   },
-  nbrChipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "20",
+  suggestChipActive: {
+    borderColor: Colors.primary, backgroundColor: Colors.primary + "18",
   },
-  nbrChipTxt: {
-    fontFamily: "Cairo_500Medium",
-    fontSize: 13,
-    color: Colors.textMuted,
+  suggestTxt: {
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
   },
-  nbrChipTxtActive: {
-    color: Colors.primary,
-    fontFamily: "Cairo_600SemiBold",
+
+  // Error
+  errorBox: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+    backgroundColor: Colors.danger + "15",
+    borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: Colors.danger + "33",
   },
-  saveBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginTop: 4,
+  errorTxt: {
+    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: "#FCA5A5", textAlign: "right", lineHeight: 20,
   },
-  saveBtnDisabled: {
-    opacity: 0.4,
+
+  // Save button
+  saveBtn: { borderRadius: 14, overflow: "hidden" },
+  saveBtnDisabled: { opacity: 0.45 },
+  saveBtnGrad: {
+    height: 54, flexDirection: "row-reverse",
+    alignItems: "center", justifyContent: "center", gap: 8,
   },
-  saveBtnTxt: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: "#fff",
+  saveBtnTxt: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  helperTxt: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: Colors.textMuted, textAlign: "center",
+    marginTop: 8, lineHeight: 18,
   },
 });
