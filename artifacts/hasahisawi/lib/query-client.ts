@@ -6,32 +6,43 @@ const USER_TOKEN_KEY = "auth_backend_token"; // يطابق BACKEND_TOKEN_KEY ف�
 
 /**
  * Gets the base URL for the Express API server.
- * Falls back to the production Replit domain when EXPO_PUBLIC_DOMAIN is not set.
+ * Priority: EXPO_PUBLIC_API_URL (full URL) → EXPO_PUBLIC_DOMAIN (host only) → Railway fallback → Render fallback
  */
-const FALLBACK_DOMAIN = "hasahisawi.onrender.com";
+const RAILWAY_DOMAIN = "hasahisawi-production.up.railway.app";
+const RENDER_DOMAIN  = "hasahisawi.onrender.com";
 
 export function getApiUrl(): string {
-  const host = process.env.EXPO_PUBLIC_DOMAIN || FALLBACK_DOMAIN;
+  // EXPO_PUBLIC_API_URL — URL كامل مثل https://...railway.app
+  const fullUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (fullUrl) {
+    try { return new URL(fullUrl).href.replace(/\/$/, ""); } catch {}
+  }
+  // EXPO_PUBLIC_DOMAIN — اسم النطاق فقط
+  const host = process.env.EXPO_PUBLIC_DOMAIN || RAILWAY_DOMAIN;
   try {
     return new URL(`https://${host}`).href.replace(/\/$/, "");
   } catch {
-    return `https://${FALLBACK_DOMAIN}`;
+    return `https://${RAILWAY_DOMAIN}`;
   }
 }
+
+/** الـ fallback السابق للرجوع إليه عند الحاجة */
+export const LEGACY_API_URL = `https://${RENDER_DOMAIN}`;
 
 export function isApiConfigured(): boolean {
   return true;
 }
 
 /**
- * يُرسل ping متكرر إلى السيرفر حتى يستيقظ تماماً قبل أي طلب حقيقي.
- * يتعامل مع cold-start في Render بإعادة المحاولة كل 5 ثواني لمدة 90 ثانية.
+ * يُرسل ping إلى السيرفر للتأكد من أنه يعمل.
+ * Railway لا يحتاج cold-start — الطلب الأول يكفي بمهلة 10 ثوانٍ.
+ * يحتفظ بـ retry احتياطي (3 محاولات × 5 ثوانٍ) لأي انقطاع مؤقت.
  */
 export async function wakeUpServer(): Promise<void> {
   const url = getApiUrl() + "/api/healthz";
-  const MAX_ATTEMPTS = 6;
-  const ATTEMPT_TIMEOUT = 15000;
-  const RETRY_DELAY = 5000;
+  const MAX_ATTEMPTS = 3;
+  const ATTEMPT_TIMEOUT = 10000;
+  const RETRY_DELAY = 3000;
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     try {
@@ -41,7 +52,7 @@ export async function wakeUpServer(): Promise<void> {
       clearTimeout(tid);
       if (res.ok) return;
     } catch {
-      // السيرفر لم يستيقظ بعد
+      // السيرفر لم يستجب
     }
     if (i < MAX_ATTEMPTS - 1) {
       await new Promise(r => setTimeout(r, RETRY_DELAY));

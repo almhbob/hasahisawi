@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app: Express = express();
 
-// ── Trust Replit/Render reverse proxy ──────────────────────────────────────
+// ── Trust reverse proxy (Replit / Render / Railway) ───────────────────────
 app.set("trust proxy", 1);
 
 // ── Security headers (Helmet) ──────────────────────────────────────────────
@@ -63,8 +63,8 @@ app.use(globalLimiter);
 const publicDir = path.join(__dirname, "..", "public");
 const uploadsDir = path.join(publicDir, "uploads");
 
-// في الإنتاج على Render، الملفات المرفوعة تذهب إلى /tmp/uploads
-// لذا يجب خدمتها من هناك أيضاً
+// في الإنتاج (Render / Railway) الملفات المرفوعة تُحفَظ في /tmp/uploads
+// لأن نظام الملفات في كلا المنصتين ephemeral — خدّمها من هناك أيضاً
 if (process.env.NODE_ENV === "production") {
   app.use("/uploads", express.static("/tmp/uploads"));
 }

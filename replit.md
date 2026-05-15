@@ -20,20 +20,30 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 
 ## البنية الإنتاجية
 
-- **API URL**: `https://hasahisawi.onrender.com` (Render.com)
-- **قاعدة البيانات**: PostgreSQL على Render
+- **API URL**: `https://hasahisawi-production.up.railway.app` (Railway.com) — قم بتحديث هذا بعد نشر Railway
+- **قاعدة البيانات**: PostgreSQL — أضف PostgreSQL plugin من Railway dashboard
 - **المصادقة**: Firebase Authentication + Backend JWT sessions + Firebase Admin SDK للتحقق من ID tokens خادمياً
 - **بناء AAB**: GitHub Actions → `.github/workflows/build-aab.yml`
 - **توقيع التطبيق**: مفتاح الرفع SHA-1 `7bc4a4fc7a923705d36653b1e067794d6bd4c208`
 - **Firebase project**: `hasahisawi` | Package: `com.almhbob.hasahisawi`
 - **webClientId (Google Sign-In)**: `133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com`
 
-### بنية النشر على Render (مهم جداً)
-- **buildCommand الفعلي على Render** (مختلف عن render.yaml): `cd artifacts/api-server && cp package.render.json package.json && npm install --include=dev --legacy-peer-deps && node build.mjs`
-- ⚠️ **`package.render.json`** هو الملف المُستخدَم على Render (يُنسخ فوق package.json). أي dependency جديد للـ api-server يجب إضافته هنا أيضاً.
-- **Deploy hook + API key** محفوظان في Replit Secrets: `RENDER_DEPLOY_HOOK`, `RENDER_API_KEY` — يمكن للـ agent تشغيل النشر وقراءة logs بنفسه.
-- **Service ID**: `srv-d7hnfmvaqgkc739ea5f0`
-- **Auto-deploy**: مفعّل من master branch.
+### بنية النشر على Railway (الخادم الأساسي الجديد)
+- **ملف الإعداد**: `artifacts/api-server/railway.json` + `artifacts/api-server/nixpacks.toml`
+- **Root Directory على Railway**: `artifacts/api-server`
+- **Build Command** (تلقائي من railway.json): `npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && node build.mjs`
+- **Start Command**: `node --enable-source-maps ./dist/index.mjs`
+- **Health Check**: `GET /api/healthz` — مُعرَّف في railway.json (timeout: 60s)
+- **متغيرات البيئة المطلوبة على Railway**:
+  - `DATABASE_URL` — من PostgreSQL plugin أو Neon
+  - `CLOUDINARY_URL` أو `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` + `CLOUDINARY_CLOUD_NAME`
+  - `NODE_ENV=production`
+- **لا cold-start** — Railway يُبقي السيرفر يعمل دائماً (على عكس Render)
+- **URL التطبيق**: حدّث `artifacts/hasahisawi/.env` و`eas.json` بعنوان Railway الفعلي
+
+### ملاحظة: Render كـ fallback
+- `package.render.json` محفوظ للرجوع إليه عند الحاجة
+- `RENDER_DEPLOY_HOOK`, `RENDER_API_KEY` محفوظان في Replit Secrets
 
 ## الهيكل
 
