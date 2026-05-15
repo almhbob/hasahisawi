@@ -11574,6 +11574,7 @@ async function ensureZawajilTables() {
     sender_id              INTEGER,
     sender_name            VARCHAR(100),
     sender_phone           VARCHAR(30),
+    sender_anonymous       BOOLEAN DEFAULT FALSE,
     recipient_name         VARCHAR(100) NOT NULL,
     recipient_phone        VARCHAR(30),
     recipient_address      TEXT,
@@ -11597,6 +11598,21 @@ async function ensureZawajilTables() {
     created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS sender_anonymous BOOLEAN DEFAULT FALSE`).catch(() => {});
+  await query(`CREATE TABLE IF NOT EXISTS zawajil_applications (
+    id            SERIAL PRIMARY KEY,
+    role          VARCHAR(60) NOT NULL,
+    gender        VARCHAR(10),
+    full_name     VARCHAR(200) NOT NULL,
+    phone         VARCHAR(50) NOT NULL,
+    age           INTEGER,
+    neighborhood  VARCHAR(100),
+    experience    TEXT,
+    notes         TEXT,
+    samples_url   VARCHAR(500),
+    status        VARCHAR(30) NOT NULL DEFAULT 'pending',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
   await query(`CREATE TABLE IF NOT EXISTS zawajil_shoubash_guests (
     id          SERIAL PRIMARY KEY,
     order_id    INTEGER REFERENCES zawajil_orders(id) ON DELETE CASCADE,
@@ -11619,7 +11635,7 @@ router.get("/zawajil/products", async (req: Request, res: Response) => {
 router.post("/zawajil/orders", async (req: Request, res: Response) => {
   try {
     await ensureZawajilTables();
-    const { sender_name, sender_phone, recipient_name, recipient_phone, recipient_address,
+    const { sender_name, sender_phone, sender_anonymous, recipient_name, recipient_phone, recipient_address,
       delivery_location, service_type, occasion_type, message_text, message_by_us,
       voice_presentation, gift_type, gift_product_id, gift_product_name,
       gift_external_desc, gift_money_amount, pledge_accepted } = req.body;
@@ -11634,15 +11650,34 @@ router.post("/zawajil/orders", async (req: Request, res: Response) => {
       try { const p = JSON.parse(Buffer.from(auth.slice(7).split(".")[1],"base64").toString()); senderId = p.userId || null; } catch { /* ignore */ }
     }
     const r = await query(`INSERT INTO zawajil_orders
-      (order_number,sender_id,sender_name,sender_phone,recipient_name,recipient_phone,recipient_address,
+      (order_number,sender_id,sender_name,sender_phone,sender_anonymous,recipient_name,recipient_phone,recipient_address,
        delivery_location,service_type,occasion_type,message_text,message_by_us,voice_presentation,
        gift_type,gift_product_id,gift_product_name,gift_external_desc,gift_money_amount,pledge_accepted)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
-      [orderNumber,senderId,sender_name||null,sender_phone||null,recipient_name,recipient_phone||null,
-       recipient_address||null,delivery_location||"inside_city",service_type,occasion_type||null,
-       message_text||null,Boolean(message_by_us),Boolean(voice_presentation),gift_type||"none",
-       gift_product_id||null,gift_product_name||null,gift_external_desc||null,gift_money_amount||0,true]);
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
+      [orderNumber,senderId,sender_name||null,sender_phone||null,Boolean(sender_anonymous),
+       recipient_name,recipient_phone||null,recipient_address||null,delivery_location||"inside_city",
+       service_type,occasion_type||null,message_text||null,Boolean(message_by_us),Boolean(voice_presentation),
+       gift_type||"none",gift_product_id||null,gift_product_name||null,gift_external_desc||null,
+       gift_money_amount||0,true]);
     return res.status(201).json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/zawajil/apply", async (req: Request, res: Response) => {
+  try {
+    await ensureZawajilTables();
+    const { role, gender, full_name, phone, age, neighborhood, experience, notes, samples_url } = req.body;
+    if (!role || !full_name?.trim() || !phone?.trim()) {
+      return res.status(400).json({ error: "الاسم ورقم الهاتف ونوع الطلب مطلوبة" });
+    }
+    if (full_name.length > 200 || phone.length > 50) return res.status(400).json({ error: "بيانات غير صالحة" });
+    const r = await query(
+      `INSERT INTO zawajil_applications(role,gender,full_name,phone,age,neighborhood,experience,notes,samples_url)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [role, gender||null, full_name.trim(), phone.trim(), age ? parseInt(age) : null,
+       neighborhood||null, experience||null, notes||null, samples_url||null]
+    );
+    return res.status(201).json({ ok: true, id: r.rows[0].id });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
