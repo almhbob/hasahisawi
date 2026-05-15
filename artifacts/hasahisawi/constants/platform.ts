@@ -2,7 +2,10 @@
 export const PLATFORM = {
   name:      "حصاحيصاوي",
   nameEn:    "Hasahisawi",
-  version:   "5.7.0",
+  version:   "5.9.3",
+
+  // روابط قانونية (مستضافة على Vercel API)
+  privacyPolicyUrl: "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/privacy-policy",
 
   // أرقام الدعم الرسمية
   whatsapp:     "+966597083352",   // الرقم السعودي (واتساب أعمال)

@@ -1987,6 +1987,48 @@ export default function SettingsScreen() {
             <Text style={contactSty.infoText}>{PLATFORM.email}</Text>
           </View>
 
+          {/* ─── معلومات قانونية ─── */}
+          <View style={legalSty.card}>
+            <View style={legalSty.headerRow}>
+              <View style={legalSty.iconBox}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#10B981" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={legalSty.title}>الخصوصية والسياسات</Text>
+                <Text style={legalSty.sub}>كيف نحمي بياناتك وحقوقك كمستخدم</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={legalSty.btn}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Linking.openURL(PLATFORM.privacyPolicyUrl).catch(() =>
+                  Alert.alert("تنبيه", "تعذّر فتح صفحة سياسة الخصوصية")
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={legalSty.btnIcon}>
+                <Ionicons name="document-text-outline" size={18} color="#10B981" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={legalSty.btnTitle}>سياسة الخصوصية</Text>
+                <Text style={legalSty.btnSub}>كيف نجمع بياناتك ونستخدمها ونحميها</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={legalSty.divider} />
+
+            <View style={legalSty.infoRow}>
+              <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
+              <Text style={legalSty.infoTxt}>
+                تطبيق حصاحيصاوي v{PLATFORM.version} — جميع البيانات مشفّرة ومحمية
+              </Text>
+            </View>
+          </View>
+
           {/* ─── بوابة المؤسسات ─── */}
           <TouchableOpacity
             style={instPortalSty.card}
@@ -3680,6 +3722,41 @@ const contactSty = StyleSheet.create({
     color: Colors.textMuted, textAlign: "center",
     letterSpacing: 0.3,
   },
+});
+
+const legalSty = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16, borderWidth: 1,
+    borderColor: "#10B98125",
+    padding: 16, gap: 10,
+  },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  iconBox: {
+    width: 42, height: 42, borderRadius: 12,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "#10B98118",
+    borderWidth: 1, borderColor: "#10B98130",
+  },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  btn: {
+    flexDirection: "row-reverse", alignItems: "center",
+    backgroundColor: Colors.surface1 ?? Colors.bg,
+    borderRadius: 13, borderWidth: 1, borderColor: "#10B98120",
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  btnIcon: {
+    width: 38, height: 38, borderRadius: 10,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98130",
+    marginLeft: 10,
+  },
+  btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 1 },
+  divider:  { height: 1, backgroundColor: Colors.divider, marginVertical: 2 },
+  infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1 },
 });
 
 const profileCompleteSty = StyleSheet.create({
