@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/hasahisawi-deck/"
+title = "حصاحيصاوي — عرض المنصة الرقمية"
+version = "1.0.0"
+id = "artifacts/hasahisawi-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/hasahisawi-deck/" ]
+localPort = 24847
+
+[services.development]
+run = "pnpm --filter @workspace/hasahisawi-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hasahisawi-deck", "run", "build" ]
+publicDir = "artifacts/hasahisawi-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24847"
+BASE_PATH = "/hasahisawi-deck/"
