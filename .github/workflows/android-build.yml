@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Upload to Google Play
+    name: Build APK + AAB
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -26,7 +26,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '9'
+          version: '10'
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -34,40 +34,38 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      - name: Install dependencies
+      - name: Read app version
+        id: ver
         run: |
-          echo "shamefully-hoist=true" >> .npmrc
-          pnpm install --no-frozen-lockfile
-          echo "node_modules hoisted ✓"
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "code=$CODE"       >> $GITHUB_OUTPUT
+          echo "📦 Building v$VERSION (versionCode: $CODE)"
 
-      - name: Create .env file with Firebase config
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Create .env file
         working-directory: artifacts/hasahisawi
         run: |
-          cat > .env << EOF
-          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
-          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
-          EXPO_PUBLIC_DOMAIN=hasahisawi-production.up.railway.app
-          EXPO_PUBLIC_API_URL=https://hasahisawi-production.up.railway.app
-          EOF
+          cat > .env << 'ENVEOF'
+          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
+          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:c91938f519fa219d418e48
+          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-8NDWWB1735
+          EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          ENVEOF
 
-      - name: Expo prebuild
+      - name: Expo prebuild (Android)
         working-directory: artifacts/hasahisawi
         env:
-          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
-          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID }}
-          EXPO_PUBLIC_DOMAIN: hasahisawi-production.up.railway.app
-          EXPO_PUBLIC_API_URL: https://hasahisawi-production.up.railway.app
           EXPO_NO_GIT_STATUS: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
       - name: Decode keystore
@@ -85,25 +83,14 @@ jobs:
           restore-keys: gradle-
 
       - name: Build release APK + AAB
+        working-directory: artifacts/hasahisawi/android
         env:
-          NODE_ENV: production
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          EXPO_PROJECT_ROOT: ${{ github.workspace }}/artifacts/hasahisawi
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: G-8NDWWB1735
-          EXPO_PUBLIC_DOMAIN: hasahisawi-production.up.railway.app
-          EXPO_PUBLIC_API_URL: https://hasahisawi-production.up.railway.app
         run: |
-          chmod +x artifacts/hasahisawi/android/gradlew
-          cd artifacts/hasahisawi/android
+          chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
@@ -114,32 +101,22 @@ jobs:
           echo "=== Build outputs ==="
           find . -name "*.apk" -o -name "*.aab" 2>/dev/null | grep -v intermediate
 
-      - name: Upload AAB
+      - name: Upload AAB (Play Store)
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v3.3.5-release-aab
+          name: hasahisawi-v${{ steps.ver.outputs.version }}-code${{ steps.ver.outputs.code }}-aab
           path: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      - name: Upload APK
+      - name: Upload APK (Direct Install)
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-v3.3.5-release-apk
-          path: artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
+          name: hasahisawi-v${{ steps.ver.outputs.version }}-code${{ steps.ver.outputs.code }}-apk
+          path: artifacts/hasahisawi/android/app/build/outputs/apk/release/
           retention-days: 30
+          if-no-files-found: warn
 
-      - name: Upload to Google Play
-        if: false
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.almhbob.hasahisawi
-          releaseFiles: artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
-          track: production
-          status: draft
-          whatsNewDirectory: .github/whatsnew
-
-      - name: Cleanup
+      - name: Cleanup secrets
         if: always()
         run: |
           rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore
