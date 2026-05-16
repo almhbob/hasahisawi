@@ -15,8 +15,8 @@ const SCENE_DURATIONS = [6000, 5000, 8000, 8000, 8000];
 // ============================================================================
 // SHARED MOTION PRESETS
 // ============================================================================
-const EASE_CINEMATIC = [0.25, 0.1, 0.25, 1];
-const EASE_SNAP = [0.16, 1, 0.3, 1];
+const EASE_CINEMATIC: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+const EASE_SNAP: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const springSnappy = { type: "spring", stiffness: 400, damping: 30 };
 const springSmooth = { type: "spring", stiffness: 120, damping: 25 };
 
