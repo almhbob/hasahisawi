@@ -14,7 +14,10 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { uploadMissingPersonImage } from "@/lib/firebase/storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -179,15 +182,82 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
   const [description, setDescription] = useState("");
   const [lastSeen, setLastSeen] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const reset = () => { setItemName(""); setCategory("other"); setDescription(""); setLastSeen(""); setContactPhone(""); };
+  const reset = () => {
+    setItemName(""); setCategory("other"); setDescription("");
+    setLastSeen(""); setContactPhone(""); setImageUri(null); setUploadProgress(0);
+  };
 
-  const save = () => {
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("إذن مطلوب", "يجب السماح للتطبيق بالوصول إلى الصور");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const pickFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("إذن مطلوب", "يجب السماح للتطبيق بالوصول إلى الكاميرا");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const showImagePicker = () => {
+    Alert.alert("إضافة صورة", "اختر مصدر الصورة", [
+      { text: "الكاميرا 📷", onPress: pickFromCamera },
+      { text: "معرض الصور 🖼️", onPress: pickImage },
+      { text: "إلغاء", style: "cancel" },
+    ]);
+  };
+
+  const save = async () => {
     if (!itemName.trim() || !contactPhone.trim()) {
       Alert.alert("بيانات ناقصة", "اسم الغرض ورقم التواصل مطلوبان");
       return;
     }
-    onSave({ item_name: itemName.trim(), category, description: description.trim(), last_seen: lastSeen.trim(), contact_phone: contactPhone.trim() });
+    let photoUrl: string | undefined;
+    if (imageUri) {
+      try {
+        setUploading(true);
+        photoUrl = await uploadMissingPersonImage(imageUri, (p) => setUploadProgress(p.percent));
+      } catch (e: any) {
+        Alert.alert("خطأ في الرفع", e?.message || "فشل رفع الصورة");
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+    onSave({
+      item_name: itemName.trim(),
+      category,
+      description: description.trim(),
+      last_seen: lastSeen.trim(),
+      contact_phone: contactPhone.trim(),
+      photo_url: photoUrl,
+    });
     reset();
   };
 
@@ -199,6 +269,30 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
             <Text style={addModal.title}>الإبلاغ عن مفقود</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* صورة الغرض */}
+              <Text style={addModal.label}>صورة الغرض (اختياري)</Text>
+              <TouchableOpacity style={addModal.imagePicker} onPress={showImagePicker} activeOpacity={0.8}>
+                {imageUri ? (
+                  <View>
+                    <Image source={{ uri: imageUri }} style={addModal.imagePreview} resizeMode="cover" />
+                    {uploading && (
+                      <View style={addModal.progressOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={addModal.progressText}>{uploadProgress}%</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity style={addModal.removeImg} onPress={() => setImageUri(null)}>
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={addModal.imagePickerInner}>
+                    <Ionicons name="camera-outline" size={28} color={Colors.textSecondary} />
+                    <Text style={addModal.imagePickerText}>أضف صورة</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
               <Text style={addModal.label}>اسم الغرض المفقود *</Text>
               <TextInput style={addModal.input} value={itemName} onChangeText={setItemName} placeholder="مثال: هاتف سامسونج" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
@@ -238,8 +332,8 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
               <TouchableOpacity style={addModal.cancelBtn} onPress={() => { reset(); onClose(); }}>
                 <Text style={addModal.cancelText}>إلغاء</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[addModal.saveBtn, { opacity: saving ? 0.6 : 1 }]} onPress={save} disabled={saving}>
-                {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={addModal.saveText}>نشر</Text>}
+              <TouchableOpacity style={[addModal.saveBtn, { opacity: (saving || uploading) ? 0.6 : 1 }]} onPress={save} disabled={saving || uploading}>
+                {(saving || uploading) ? <ActivityIndicator size="small" color="#fff" /> : <Text style={addModal.saveText}>نشر</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -531,7 +625,7 @@ const styles = StyleSheet.create({
 
 const addModal = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "flex-end" },
-  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: "90%" },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: "92%" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 16 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
@@ -542,4 +636,11 @@ const addModal = StyleSheet.create({
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
   saveBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  imagePicker: { borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", marginBottom: 14, minHeight: 90 },
+  imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
+  imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  imagePreview: { width: "100%", height: 160 },
+  progressOverlay: { position: "absolute", inset: 0, backgroundColor: "#0007", alignItems: "center", justifyContent: "center", gap: 4 },
+  progressText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  removeImg: { position: "absolute", top: 6, right: 6 },
 });
