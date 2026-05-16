@@ -49,7 +49,7 @@ LogBox.ignoreLogs([
 // ── معالج أخطاء React Native (Hermes) العالمي ───────────────────
 // يمنع Firebase من كسر التطبيق عند وجود مفتاح API غير صالح
 try {
-  const EU = (global as any).ErrorUtils;
+  const EU = (globalThis as any).ErrorUtils;
   if (EU?.getGlobalHandler && EU?.setGlobalHandler) {
     const prev = EU.getGlobalHandler();
     EU.setGlobalHandler((error: Error, isFatal: boolean) => {
