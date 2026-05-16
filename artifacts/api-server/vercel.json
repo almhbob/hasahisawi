@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "node build.mjs",
-  "installCommand": "corepack enable && corepack prepare pnpm@10 --activate && cd ../.. && pnpm install --no-frozen-lockfile",
+  "installCommand": "corepack enable && corepack prepare pnpm@10 --activate && pnpm install --no-frozen-lockfile",
   "builds": [
     {
       "src": "api/index.js",
