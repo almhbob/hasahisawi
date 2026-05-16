@@ -11,7 +11,11 @@ import {
   TextInput,
   ScrollView,
   Linking,
+  Image,
+  ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { uploadJobImage } from "@/lib/firebase/storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -140,7 +144,7 @@ function AddJobModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (job: Omit<Job, "id" | "createdAt">) => Promise<void>;
+  onSave: (job: Omit<Job, "id" | "createdAt"> & { imageUrl?: string }) => Promise<void>;
 }) {
   const { t, isRTL } = useLang();
   const insets = useSafeAreaInsets();
@@ -151,10 +155,36 @@ function AddJobModal({
   const [description, setDescription] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [salary, setSalary] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const reset = () => {
     setTitle(""); setCompany(""); setType("fulltime");
     setLocation(""); setDescription(""); setContactPhone(""); setSalary("");
+    setImageUri(null); setUploadProgress(0);
+  };
+
+  const showImagePicker = () => {
+    Alert.alert("إضافة صورة للإعلان", "اختر مصدر الصورة", [
+      {
+        text: "الكاميرا 📷", onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") { Alert.alert("إذن مطلوب", "يجب السماح بالوصول للكاميرا"); return; }
+          const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [16, 9], quality: 0.85 });
+          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+        },
+      },
+      {
+        text: "معرض الصور 🖼️", onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") { Alert.alert("إذن مطلوب", "يجب السماح بالوصول للصور"); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [16, 9], quality: 0.85 });
+          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+        },
+      },
+      { text: "إلغاء", style: "cancel" },
+    ]);
   };
 
   const handleSave = async () => {
@@ -162,7 +192,20 @@ function AddJobModal({
       Alert.alert(t("common", "error"), t("common", "fillAll"));
       return;
     }
-    await onSave({ title: title.trim(), company: company.trim(), type, location: location.trim(), description: description.trim(), contactPhone: contactPhone.trim(), salary: salary.trim() || undefined });
+    let imageUrl: string | undefined;
+    if (imageUri) {
+      try {
+        setUploading(true);
+        imageUrl = await uploadJobImage(imageUri, (p) => setUploadProgress(p.percent));
+      } catch (e: any) {
+        Alert.alert("خطأ في الرفع", e?.message || "فشل رفع الصورة");
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+    await onSave({ title: title.trim(), company: company.trim(), type, location: location.trim(), description: description.trim(), contactPhone: contactPhone.trim(), salary: salary.trim() || undefined, imageUrl });
     reset();
     onClose();
   };
@@ -187,6 +230,31 @@ function AddJobModal({
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={modalStyles.form}>
+              {/* صورة الإعلان */}
+              <View style={modalStyles.field}>
+                <Text style={[modalStyles.label, { textAlign: isRTL ? "right" : "left" }]}>صورة الإعلان (اختياري)</Text>
+                <TouchableOpacity style={modalStyles.imagePicker} onPress={showImagePicker} activeOpacity={0.8}>
+                  {imageUri ? (
+                    <View>
+                      <Image source={{ uri: imageUri }} style={modalStyles.imagePreview} resizeMode="cover" />
+                      {uploading && (
+                        <View style={modalStyles.progressOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                          <Text style={modalStyles.progressText}>{uploadProgress}%</Text>
+                        </View>
+                      )}
+                      <TouchableOpacity style={modalStyles.removeImg} onPress={() => setImageUri(null)}>
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={modalStyles.imagePickerInner}>
+                      <Ionicons name="image-outline" size={26} color={Colors.textSecondary} />
+                      <Text style={modalStyles.imagePickerText}>أضف صورة للإعلان</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
               <View style={modalStyles.field}>
                 <Text style={[modalStyles.label, { textAlign: isRTL ? "right" : "left" }]}>{t("common", "name")} *</Text>
                 <TextInput style={modalStyles.input} placeholder={t("jobs", "title")} placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} textAlign={isRTL ? "right" : "left"} />
@@ -225,8 +293,10 @@ function AddJobModal({
                 <Text style={[modalStyles.label, { textAlign: isRTL ? "right" : "left" }]}>{t("common", "phone")} *</Text>
                 <TextInput style={modalStyles.input} placeholder="+249..." placeholderTextColor={Colors.textMuted} value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" textAlign={isRTL ? "right" : "left"} />
               </View>
-              <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
-                <Text style={modalStyles.saveBtnText}>{t("jobs", "postJob")}</Text>
+              <TouchableOpacity style={[modalStyles.saveBtn, { opacity: uploading ? 0.6 : 1 }]} onPress={handleSave} disabled={uploading} activeOpacity={0.8}>
+                {uploading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={modalStyles.saveBtnText}>{t("jobs", "postJob")}</Text>}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -663,4 +733,11 @@ const modalStyles = StyleSheet.create({
     elevation: 4,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  imagePicker: { borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", minHeight: 90 },
+  imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
+  imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  imagePreview: { width: "100%", height: 160 },
+  progressOverlay: { position: "absolute", inset: 0, backgroundColor: "#0007", alignItems: "center", justifyContent: "center", gap: 4 },
+  progressText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  removeImg: { position: "absolute", top: 6, right: 6 },
 });
