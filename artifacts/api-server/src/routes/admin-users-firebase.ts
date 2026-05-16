@@ -18,7 +18,7 @@ const pool: Pool | null = dbEnabled
       connectionString: dbUrl,
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
-      max: 10,
+      max: 12,
       allowExitOnIdle: false,
       ssl: dbUrl.includes("sslmode=require") || dbUrl.includes("ssl=true")
         ? { rejectUnauthorized: false }
@@ -31,6 +31,8 @@ if (pool) {
 }
 
 const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
+const MAX_ADMIN_USERS_LIMIT = 1000;
+const DEFAULT_ADMIN_USERS_LIMIT = 1000;
 
 type DbUser = {
   id: number;
@@ -55,6 +57,9 @@ type SyncSummary = {
   updated: number;
   skipped: number;
   errors: number;
+  postgres_after_sync: number | null;
+  firebase_synced_after_sync: number | null;
+  all_firebase_users_visible_in_admin: boolean | null;
   details: Array<{ uid: string; email?: string; action: string; error?: string }>;
 };
 
@@ -125,6 +130,18 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
+function parsePositiveInt(value: unknown, fallback: number, max: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+function parseOffset(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
@@ -165,6 +182,10 @@ async function ensureUserColumns(): Promise<void> {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_created_at_desc ON users(created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(LOWER(email)) WHERE email IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_users_phone_text ON users(phone) WHERE phone IS NOT NULL`);
 }
 
 async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "updated" | "skipped"> {
@@ -216,6 +237,19 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
   return "created";
 }
 
+async function getUserCounts(): Promise<{ postgres_total: number; firebase_synced_total: number }> {
+  const { rows } = await query(
+    `SELECT
+       COUNT(*)::int AS postgres_total,
+       COUNT(*) FILTER (WHERE firebase_uid IS NOT NULL)::int AS firebase_synced_total
+     FROM users`,
+  );
+  return {
+    postgres_total: Number(rows[0]?.postgres_total ?? 0),
+    firebase_synced_total: Number(rows[0]?.firebase_synced_total ?? 0),
+  };
+}
+
 async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummary> {
   const health = firebaseConnectionHealth();
   if (!health.configured) {
@@ -232,6 +266,9 @@ async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummar
     updated: 0,
     skipped: 0,
     errors: 0,
+    postgres_after_sync: null,
+    firebase_synced_after_sync: null,
+    all_firebase_users_visible_in_admin: null,
     details: [],
   };
 
@@ -259,7 +296,12 @@ async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummar
     }
   }
 
+  const counts = await getUserCounts();
   summary.synced = summary.created + summary.updated;
+  summary.postgres_after_sync = counts.postgres_total;
+  summary.firebase_synced_after_sync = counts.firebase_synced_total;
+  summary.all_firebase_users_visible_in_admin =
+    summary.errors === 0 && counts.firebase_synced_total >= firebaseUsers.length;
   return summary;
 }
 
@@ -284,29 +326,45 @@ function formatUser(u: DbUser) {
   };
 }
 
-async function listPostgresUsers(search?: string) {
+async function listPostgresUsers(options: { search?: string; limit: number; offset: number }) {
   const params: unknown[] = [];
-  let where = "";
-  if (search?.trim()) {
-    params.push(`%${search.trim()}%`);
-    where = `WHERE name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1 OR firebase_uid ILIKE $1`;
+  const conditions: string[] = [];
+
+  if (options.search?.trim()) {
+    params.push(`%${options.search.trim()}%`);
+    conditions.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR phone ILIKE $${params.length} OR firebase_uid ILIKE $${params.length})`);
   }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const countResult = await query(`SELECT COUNT(*)::int AS total FROM users ${where}`, params);
+
+  params.push(options.limit);
+  const limitParam = params.length;
+  params.push(options.offset);
+  const offsetParam = params.length;
 
   const { rows } = await query(
     `SELECT id, name, phone, email, role, neighborhood, birth_date,
             national_id, is_banned, created_at, firebase_uid, avatar_url, gender
      FROM users
      ${where}
-     ORDER BY created_at DESC`,
+     ORDER BY created_at DESC, id DESC
+     LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params,
   );
-  return rows.map(formatUser);
+
+  return {
+    users: rows.map(formatUser),
+    total: Number(countResult.rows[0]?.total ?? 0),
+  };
 }
 
 router.get("/admin/users", async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
 
+    const limit = parsePositiveInt(req.query.limit, DEFAULT_ADMIN_USERS_LIMIT, MAX_ADMIN_USERS_LIMIT);
+    const offset = parseOffset(req.query.offset);
     const shouldSync = req.query.sync !== "false";
     let sync: SyncSummary | { skipped: true; reason: string; firebase: FirebaseConnectionHealth } | null = null;
 
@@ -323,14 +381,28 @@ router.get("/admin/users", async (req: Request, res: Response) => {
       }
     }
 
-    const users = await listPostgresUsers(typeof req.query.search === "string" ? req.query.search : undefined);
+    const listed = await listPostgresUsers({
+      search: typeof req.query.search === "string" ? req.query.search : undefined,
+      limit,
+      offset,
+    });
+    const counts = await getUserCounts();
+
     return res.json({
-      users,
-      total: users.length,
+      users: listed.users,
+      total: listed.total,
+      count: listed.users.length,
+      pagination: {
+        limit,
+        offset,
+        has_more: offset + listed.users.length < listed.total,
+        next_offset: offset + listed.users.length < listed.total ? offset + listed.users.length : null,
+      },
       sync,
       sourceTotals: {
-        postgres: users.filter((u: { source: string }) => u.source === "postgres").length,
-        firebase_synced: users.filter((u: { source: string }) => u.source === "firebase_synced").length,
+        postgres: counts.postgres_total - counts.firebase_synced_total,
+        firebase_synced: counts.firebase_synced_total,
+        all_postgres: counts.postgres_total,
       },
     });
   } catch (err) {
@@ -357,8 +429,9 @@ router.post("/admin/sync-firebase-users", async (req: Request, res: Response) =>
 router.get("/admin/users-source-health", async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    await ensureUserColumns();
     const firebase = firebaseConnectionHealth();
-    const postgresCount = await query(`SELECT COUNT(*)::int AS count FROM users`);
+    const counts = await getUserCounts();
 
     let firebaseUsers: FirebaseUserRecord[] | null = null;
     let firebaseError: string | null = null;
@@ -371,14 +444,27 @@ router.get("/admin/users-source-health", async (req: Request, res: Response) => 
       }
     }
 
+    const firebaseTotal = firebaseUsers?.length ?? null;
+    const missing = firebaseTotal === null
+      ? null
+      : Math.max(0, firebaseTotal - counts.firebase_synced_total);
+
     return res.json({
-      postgres_users: postgresCount.rows[0]?.count ?? 0,
-      firebase_users: firebaseUsers?.length ?? null,
+      status:
+        firebaseError ? "firebase_error" :
+        !firebase.configured ? firebase.status :
+        missing === 0 ? "healthy" : "needs_sync",
+      postgres_users: counts.postgres_total,
+      postgres_firebase_synced_users: counts.firebase_synced_total,
+      firebase_users: firebaseTotal,
       firebase_admin_configured: firebase.configured,
       firebase,
       firebase_error: firebaseError,
-      firebase_missing_in_postgres:
-        firebaseUsers === null ? null : Math.max(0, firebaseUsers.length - Number(postgresCount.rows[0]?.count ?? 0)),
+      firebase_missing_in_postgres: missing,
+      all_firebase_users_visible_in_admin: firebaseTotal === null ? null : missing === 0,
+      supports_600_plus_users: true,
+      admin_users_default_limit: DEFAULT_ADMIN_USERS_LIMIT,
+      admin_users_max_limit: MAX_ADMIN_USERS_LIMIT,
     });
   } catch (err) {
     logger.error({ err }, "users source health route error");
