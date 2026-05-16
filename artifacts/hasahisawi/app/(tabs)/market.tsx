@@ -12,7 +12,11 @@ import {
   TextInput,
   ScrollView,
   Pressable,
+  Image,
+  ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { uploadMarketImage } from "@/lib/firebase/storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -800,7 +804,7 @@ function AddFamilyModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (item: Omit<FamilyItem, "id" | "createdAt" | "status">) => Promise<void>;
+  onSave: (item: Omit<FamilyItem, "id" | "createdAt" | "status"> & { imageUrl?: string }) => Promise<void>;
 }) {
   const { t, isRTL, tr } = useLang();
   const insets = useSafeAreaInsets();
@@ -810,20 +814,59 @@ function AddFamilyModal({
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const reset = () => {
     setSellerName(""); setItemName(""); setCategory("food");
     setDescription(""); setPrice(""); setContactPhone("");
+    setImageUri(null); setUploadProgress(0);
   };
 
   const catColors: Record<FamilyItem["category"], string> = FAMILY_CAT_COLORS;
+
+  const showImagePicker = () => {
+    Alert.alert(tr("إضافة صورة للمنتج", "Add Product Image"), tr("اختر مصدر الصورة", "Choose image source"), [
+      {
+        text: tr("الكاميرا 📷", "Camera 📷"), onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") { Alert.alert(tr("إذن مطلوب", "Permission required"), tr("يجب السماح بالوصول للكاميرا", "Allow camera access")); return; }
+          const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.85 });
+          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+        },
+      },
+      {
+        text: tr("معرض الصور 🖼️", "Gallery 🖼️"), onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") { Alert.alert(tr("إذن مطلوب", "Permission required"), tr("يجب السماح بالوصول للصور", "Allow photo access")); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.85 });
+          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+        },
+      },
+      { text: tr("إلغاء", "Cancel"), style: "cancel" },
+    ]);
+  };
 
   const handleSave = async () => {
     if (!sellerName.trim() || !itemName.trim() || !price.trim() || !contactPhone.trim()) {
       Alert.alert(t("common", "error"), t("common", "fillAll"));
       return;
     }
-    await onSave({ sellerName: sellerName.trim(), itemName: itemName.trim(), category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim() });
+    let imageUrl: string | undefined;
+    if (imageUri) {
+      try {
+        setUploading(true);
+        imageUrl = await uploadMarketImage("family", imageUri, (p) => setUploadProgress(p.percent));
+      } catch (e: any) {
+        Alert.alert(tr("خطأ في الرفع", "Upload Error"), e?.message || tr("فشل رفع الصورة", "Image upload failed"));
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+    await onSave({ sellerName: sellerName.trim(), itemName: itemName.trim(), category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim(), imageUrl });
     reset(); onClose();
   };
 
@@ -849,6 +892,31 @@ function AddFamilyModal({
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.form}>
+              {/* صورة المنتج */}
+              <View style={styles.formField}>
+                <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{tr("صورة المنتج", "Product Photo")} ({tr("اختياري", "optional")})</Text>
+                <TouchableOpacity style={styles.imgPickerBtn} onPress={showImagePicker} activeOpacity={0.8}>
+                  {imageUri ? (
+                    <View>
+                      <Image source={{ uri: imageUri }} style={styles.imgPreview} resizeMode="cover" />
+                      {uploading && (
+                        <View style={styles.imgProgressOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                          <Text style={styles.imgProgressText}>{uploadProgress}%</Text>
+                        </View>
+                      )}
+                      <TouchableOpacity style={styles.imgRemoveBtn} onPress={() => setImageUri(null)}>
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.imgPickerInner}>
+                      <Ionicons name="camera-outline" size={26} color={Colors.textSecondary} />
+                      <Text style={styles.imgPickerText}>{tr("أضف صورة", "Add Photo")}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
               <View style={styles.formField}>
                 <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{t("common", "type")}</Text>
                 <View style={[styles.catBtnRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -888,9 +956,10 @@ function AddFamilyModal({
                   />
                 </View>
               ))}
-              <TouchableOpacity style={[styles.saveBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]} onPress={handleSave} activeOpacity={0.85}>
-                <MaterialCommunityIcons name="storefront-outline" size={18} color={Colors.cardBg} />
-                <Text style={styles.saveBtnText}>{tr("نشر المنتج", "Post Product")}</Text>
+              <TouchableOpacity style={[styles.saveBtn, { flexDirection: isRTL ? "row-reverse" : "row", opacity: uploading ? 0.6 : 1 }]} onPress={handleSave} disabled={uploading} activeOpacity={0.85}>
+                {uploading
+                  ? <ActivityIndicator size="small" color={Colors.cardBg} />
+                  : <><MaterialCommunityIcons name="storefront-outline" size={18} color={Colors.cardBg} /><Text style={styles.saveBtnText}>{tr("نشر المنتج", "Post Product")}</Text></>}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -909,7 +978,7 @@ function AddAuctionModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (item: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount">) => Promise<void>;
+  onSave: (item: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount"> & { imageUrl?: string }) => Promise<void>;
 }) {
   const { t, isRTL, tr } = useLang();
   const insets = useSafeAreaInsets();
@@ -920,10 +989,13 @@ function AddAuctionModal({
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const reset = () => {
     setSellerName(""); setItemName(""); setCondition("used"); setCategory("tools");
-    setDescription(""); setPrice(""); setContactPhone("");
+    setDescription(""); setPrice(""); setContactPhone(""); setImageUri(null); setUploadProgress(0);
   };
 
   const handleSave = async () => {
@@ -931,7 +1003,20 @@ function AddAuctionModal({
       Alert.alert(t("common", "error"), t("common", "fillAll"));
       return;
     }
-    await onSave({ sellerName: sellerName.trim(), itemName: itemName.trim(), condition, category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim() });
+    let imageUrl: string | undefined;
+    if (imageUri) {
+      try {
+        setUploading(true);
+        imageUrl = await uploadMarketImage("auction", imageUri, (p) => setUploadProgress(p.percent));
+      } catch (e: any) {
+        Alert.alert(tr("خطأ في الرفع", "Upload Error"), e?.message || tr("فشل رفع الصورة", "Upload failed"));
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+    await onSave({ sellerName: sellerName.trim(), itemName: itemName.trim(), condition, category, description: description.trim(), price: price.trim(), contactPhone: contactPhone.trim(), imageUrl });
     reset(); onClose();
   };
 
@@ -966,6 +1051,37 @@ function AddAuctionModal({
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.form}>
+              {/* صورة الغرض */}
+              <View style={styles.formField}>
+                <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{tr("صورة الغرض", "Item Photo")} ({tr("اختياري", "optional")})</Text>
+                <TouchableOpacity style={styles.imgPickerBtn} onPress={() => {
+                  Alert.alert(tr("إضافة صورة", "Add Photo"), tr("اختر مصدر", "Choose source"), [
+                    { text: tr("الكاميرا 📷", "Camera 📷"), onPress: async () => {
+                      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                      if (status !== "granted") return;
+                      const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4,3], quality: 0.85 });
+                      if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+                    }},
+                    { text: tr("معرض الصور 🖼️", "Gallery 🖼️"), onPress: async () => {
+                      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                      if (status !== "granted") return;
+                      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4,3], quality: 0.85 });
+                      if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+                    }},
+                    { text: tr("إلغاء", "Cancel"), style: "cancel" },
+                  ]);
+                }} activeOpacity={0.8}>
+                  {imageUri ? (
+                    <View>
+                      <Image source={{ uri: imageUri }} style={styles.imgPreview} resizeMode="cover" />
+                      {uploading && <View style={styles.imgProgressOverlay}><ActivityIndicator size="small" color="#fff" /><Text style={styles.imgProgressText}>{uploadProgress}%</Text></View>}
+                      <TouchableOpacity style={styles.imgRemoveBtn} onPress={() => setImageUri(null)}><Ionicons name="close-circle" size={22} color="#EF4444" /></TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.imgPickerInner}><Ionicons name="camera-outline" size={26} color={Colors.textSecondary} /><Text style={styles.imgPickerText}>{tr("أضف صورة", "Add Photo")}</Text></View>
+                  )}
+                </TouchableOpacity>
+              </View>
               {/* Condition */}
               <View style={styles.formField}>
                 <Text style={[styles.formLabel, { textAlign: isRTL ? "right" : "left" }]}>{t("market", "condition")}</Text>
@@ -1024,9 +1140,8 @@ function AddAuctionModal({
                   />
                 </View>
               ))}
-              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Colors.violet, flexDirection: isRTL ? "row-reverse" : "row" }]} onPress={handleSave} activeOpacity={0.85}>
-                <Ionicons name="hammer-outline" size={18} color={Colors.cardBg} />
-                <Text style={styles.saveBtnText}>{tr("نشر الإعلان", "Post Ad")}</Text>
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Colors.violet, flexDirection: isRTL ? "row-reverse" : "row", opacity: uploading ? 0.6 : 1 }]} onPress={handleSave} disabled={uploading} activeOpacity={0.85}>
+                {uploading ? <ActivityIndicator size="small" color={Colors.cardBg} /> : <><Ionicons name="hammer-outline" size={18} color={Colors.cardBg} /><Text style={styles.saveBtnText}>{tr("نشر الإعلان", "Post Ad")}</Text></>}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -2863,6 +2978,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  // ─── Image Picker Styles ────────────────────────────────────────────────────
+  imgPickerBtn: {
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    borderStyle: "dashed", overflow: "hidden", minHeight: 90,
+  },
+  imgPickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 24 },
+  imgPickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  imgPreview: { width: "100%", height: 160 },
+  imgProgressOverlay: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "#0007", alignItems: "center", justifyContent: "center", gap: 4,
+  },
+  imgProgressText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  imgRemoveBtn: { position: "absolute", top: 6, right: 6 },
   // ─── Carpentry Styles ───────────────────────────────────────────────────────
   carpCard: {
     backgroundColor: Colors.cardBg, borderRadius: 18,
