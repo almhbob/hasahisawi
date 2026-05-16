@@ -49,15 +49,18 @@ jobs:
         working-directory: artifacts/api-server
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_0AaPNMDJ2x12u3oQH5SaiB35
+          VERCEL_PROJECT_ID: prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm
         run: |
-          npx vercel --version
-          npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-          npx vercel build --prod --token=$VERCEL_TOKEN
-          npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          vercel build --prod --token=$VERCEL_TOKEN
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN 2>&1 | tail -1)
+          echo "Deployed to: $DEPLOY_URL"
 
       - name: Health check
         run: |
-          sleep 10
-          STATUS=$(curl -sf --max-time 20 \
+          sleep 20
+          STATUS=$(curl -sf --max-time 30 \
             "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/api/healthz" || echo "unreachable")
           echo "Health check: $STATUS"
