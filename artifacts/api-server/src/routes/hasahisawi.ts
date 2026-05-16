@@ -2415,6 +2415,7 @@ router.patch("/auth/me/complete-profile", async (req: Request, res: Response) =>
   }
 });
 
+
 router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { pin } = req.body;
