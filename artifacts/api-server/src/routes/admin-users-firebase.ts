@@ -58,6 +58,15 @@ type SyncSummary = {
   details: Array<{ uid: string; email?: string; action: string; error?: string }>;
 };
 
+type FirebaseConnectionHealth = {
+  configured: boolean;
+  json_valid: boolean;
+  project_id: string | null;
+  client_email_present: boolean;
+  status: "missing_env" | "invalid_json" | "configured";
+  message: string;
+};
+
 async function query(sql: string, params: unknown[] = []) {
   if (!pool) throw Object.assign(new Error("db_not_configured"), { code: "DB_NOT_CONFIGURED" });
   const client = await pool.connect();
@@ -65,6 +74,44 @@ async function query(sql: string, params: unknown[] = []) {
     return await client.query(sql, params);
   } finally {
     client.release();
+  }
+}
+
+function firebaseConnectionHealth(): FirebaseConnectionHealth {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw?.trim()) {
+    return {
+      configured: false,
+      json_valid: false,
+      project_id: null,
+      client_email_present: false,
+      status: "missing_env",
+      message: "FIREBASE_SERVICE_ACCOUNT_JSON is not configured on the API server.",
+    };
+  }
+
+  try {
+    const serviceAccount = JSON.parse(raw) as { project_id?: string; client_email?: string; private_key?: string };
+    const valid = !!serviceAccount.project_id && !!serviceAccount.client_email && !!serviceAccount.private_key;
+    return {
+      configured: valid,
+      json_valid: true,
+      project_id: serviceAccount.project_id ?? null,
+      client_email_present: !!serviceAccount.client_email,
+      status: "configured",
+      message: valid
+        ? "Firebase Admin credentials are configured."
+        : "FIREBASE_SERVICE_ACCOUNT_JSON is present but missing required service-account fields.",
+    };
+  } catch {
+    return {
+      configured: false,
+      json_valid: false,
+      project_id: null,
+      client_email_present: false,
+      status: "invalid_json",
+      message: "FIREBASE_SERVICE_ACCOUNT_JSON is present but is not valid JSON.",
+    };
   }
 }
 
@@ -170,6 +217,11 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
 }
 
 async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummary> {
+  const health = firebaseConnectionHealth();
+  if (!health.configured) {
+    throw Object.assign(new Error(health.message), { code: health.status });
+  }
+
   await ensureUserColumns();
   const firebaseUsers = await listAllFirebaseUsers();
 
@@ -256,7 +308,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
 
     const shouldSync = req.query.sync !== "false";
-    let sync: SyncSummary | { skipped: true; reason: string } | null = null;
+    let sync: SyncSummary | { skipped: true; reason: string; firebase: FirebaseConnectionHealth } | null = null;
 
     if (shouldSync) {
       try {
@@ -265,6 +317,7 @@ router.get("/admin/users", async (req: Request, res: Response) => {
         sync = {
           skipped: true,
           reason: err instanceof Error ? err.message : String(err),
+          firebase: firebaseConnectionHealth(),
         };
         logger.warn({ err }, "admin users automatic firebase sync skipped");
       }
@@ -296,6 +349,7 @@ router.post("/admin/sync-firebase-users", async (req: Request, res: Response) =>
     return res.status(500).json({
       error: "تعذّر مزامنة المستخدمين",
       detail: err instanceof Error ? err.message : String(err),
+      firebase: firebaseConnectionHealth(),
     });
   }
 });
@@ -303,17 +357,26 @@ router.post("/admin/sync-firebase-users", async (req: Request, res: Response) =>
 router.get("/admin/users-source-health", async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const [postgresCount, firebaseUsers] = await Promise.all([
-      query(`SELECT COUNT(*)::int AS count FROM users`),
-      listAllFirebaseUsers().catch((err) => {
+    const firebase = firebaseConnectionHealth();
+    const postgresCount = await query(`SELECT COUNT(*)::int AS count FROM users`);
+
+    let firebaseUsers: FirebaseUserRecord[] | null = null;
+    let firebaseError: string | null = null;
+    if (firebase.configured) {
+      try {
+        firebaseUsers = await listAllFirebaseUsers();
+      } catch (err) {
+        firebaseError = err instanceof Error ? err.message : String(err);
         logger.warn({ err }, "firebase users health check failed");
-        return null;
-      }),
-    ]);
+      }
+    }
+
     return res.json({
       postgres_users: postgresCount.rows[0]?.count ?? 0,
       firebase_users: firebaseUsers?.length ?? null,
-      firebase_admin_configured: firebaseUsers !== null,
+      firebase_admin_configured: firebase.configured,
+      firebase,
+      firebase_error: firebaseError,
       firebase_missing_in_postgres:
         firebaseUsers === null ? null : Math.max(0, firebaseUsers.length - Number(postgresCount.rows[0]?.count ?? 0)),
     });
