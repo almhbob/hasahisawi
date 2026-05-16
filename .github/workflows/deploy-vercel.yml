@@ -7,8 +7,6 @@ on:
       - 'artifacts/api-server/**'
       - 'lib/**'
       - 'pnpm-workspace.yaml'
-  schedule:
-    - cron: '15 13 16 5 *'
   workflow_dispatch:
     inputs:
       force:
@@ -47,97 +45,19 @@ jobs:
         run: node build.mjs
         working-directory: artifacts/api-server
 
-      - name: Upload files to Vercel
-        id: upload
+      - name: Deploy via Vercel CLI
         working-directory: artifacts/api-server
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          HANDLER_SHA=$(sha1sum dist/vercel-handler.mjs | awk '{print $1}')
-          HANDLER_SIZE=$(wc -c < dist/vercel-handler.mjs)
-          APIJS_SHA=$(sha1sum api/index.js | awk '{print $1}')
-          APIJS_SIZE=$(wc -c < api/index.js)
-          VERCEL_JSON_SHA=$(sha1sum vercel.json | awk '{print $1}')
-          VERCEL_JSON_SIZE=$(wc -c < vercel.json)
-
-          curl -s -X POST "https://api.vercel.com/v2/files" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            -H "x-vercel-digest: $HANDLER_SHA" \
-            -H "x-vercel-size: $HANDLER_SIZE" \
-            --data-binary @dist/vercel-handler.mjs > /dev/null
-
-          curl -s -X POST "https://api.vercel.com/v2/files" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            -H "x-vercel-digest: $APIJS_SHA" \
-            -H "x-vercel-size: $APIJS_SIZE" \
-            --data-binary @api/index.js > /dev/null
-
-          curl -s -X POST "https://api.vercel.com/v2/files" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            -H "x-vercel-digest: $VERCEL_JSON_SHA" \
-            -H "x-vercel-size: $VERCEL_JSON_SIZE" \
-            --data-binary @vercel.json > /dev/null
-
-          echo "handler_sha=$HANDLER_SHA" >> $GITHUB_OUTPUT
-          echo "handler_size=$HANDLER_SIZE" >> $GITHUB_OUTPUT
-          echo "apijs_sha=$APIJS_SHA" >> $GITHUB_OUTPUT
-          echo "apijs_size=$APIJS_SIZE" >> $GITHUB_OUTPUT
-          echo "vercel_json_sha=$VERCEL_JSON_SHA" >> $GITHUB_OUTPUT
-          echo "vercel_json_size=$VERCEL_JSON_SIZE" >> $GITHUB_OUTPUT
-
-      - name: Create Vercel deployment
-        id: deploy
-        working-directory: artifacts/api-server
-        run: |
-          RESULT=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "name": "hasahisawi-api",
-              "project": "prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm",
-              "target": "production",
-              "files": [
-                {"file":"dist/vercel-handler.mjs","sha":"${{ steps.upload.outputs.handler_sha }}","size":${{ steps.upload.outputs.handler_size }}},
-                {"file":"api/index.js","sha":"${{ steps.upload.outputs.apijs_sha }}","size":${{ steps.upload.outputs.apijs_size }}},
-                {"file":"vercel.json","sha":"${{ steps.upload.outputs.vercel_json_sha }}","size":${{ steps.upload.outputs.vercel_json_size }}}
-              ],
-              "projectSettings":{"framework":null}
-            }')
-          echo "Deploy result: $RESULT"
-          DEPLOY_ID=$(echo $RESULT | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.id||'error')")
-          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
-          echo "🚀 Deployment ID: $DEPLOY_ID"
-
-      - name: Wait for deployment ready
-        run: |
-          DEPLOY_ID="${{ steps.deploy.outputs.deploy_id }}"
-          if [[ "$DEPLOY_ID" == "error" ]]; then
-            echo "⚠️ Deploy failed or rate-limited"
-            exit 1
-          fi
-          echo "⏳ Waiting for deployment $DEPLOY_ID..."
-          for i in $(seq 1 20); do
-            STATUS=$(curl -s \
-              "https://api.vercel.com/v13/deployments/$DEPLOY_ID" \
-              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" | \
-              node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.readyState||'?')")
-            echo "Status [$i/20]: $STATUS"
-            if [[ "$STATUS" == "READY" ]]; then
-              echo "✅ Vercel deployment is READY!"
-              exit 0
-            fi
-            if [[ "$STATUS" == "ERROR" ]] || [[ "$STATUS" == "CANCELED" ]]; then
-              echo "❌ Deployment failed with status: $STATUS"
-              exit 1
-            fi
-            sleep 10
-          done
-          echo "⏱️ Timed out waiting — deployment may still be in progress"
+          npx vercel --version
+          npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          npx vercel build --prod --token=$VERCEL_TOKEN
+          npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
 
       - name: Health check
         run: |
-          sleep 5
-          STATUS=$(curl -sf --max-time 15 \
+          sleep 10
+          STATUS=$(curl -sf --max-time 20 \
             "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/api/healthz" || echo "unreachable")
           echo "Health check: $STATUS"
