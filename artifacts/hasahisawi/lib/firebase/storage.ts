@@ -182,3 +182,35 @@ export async function uploadMissingPersonImage(
   const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
   return uploadFile(`missing-persons/${name}`, uri, onProgress);
 }
+
+export async function uploadMarketImage(
+  section: string,
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const { ext } = inferFileMeta(uri);
+  const safeExt = ["jpg", "jpeg", "png", "webp", "heic"].includes(ext) ? ext : "jpg";
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.${safeExt}`;
+  return uploadFile(`market/${section}/${name}`, uri, onProgress);
+}
+
+export async function uploadJobImage(
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const { ext } = inferFileMeta(uri);
+  const safeExt = ["jpg", "jpeg", "png", "webp", "heic"].includes(ext) ? ext : "jpg";
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.${safeExt}`;
+  return uploadFile(`jobs/${name}`, uri, onProgress);
+}
+
+export async function uploadCommunityImage(
+  section: string,
+  uri: string,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<string> {
+  const { ext } = inferFileMeta(uri);
+  const safeExt = ["jpg", "jpeg", "png", "webp", "heic"].includes(ext) ? ext : "jpg";
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.${safeExt}`;
+  return uploadFile(`community/${section}/${name}`, uri, onProgress);
+}
