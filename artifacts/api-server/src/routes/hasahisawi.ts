@@ -2370,8 +2370,8 @@ router.patch("/auth/me/complete-profile", async (req: Request, res: Response) =>
             if (r2.rows[0]) {
               user = r2.rows[0];
               // ارتبط firebase_uid بالحساب حتى لا يتكرر البحث مستقبلاً
-              if (uidToUse) {
-                await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2`, [uidToUse, user.id]);
+              if (uidToUse && user) {
+                await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2`, [uidToUse, (user as any).id]);
               }
             }
           }
@@ -5504,7 +5504,8 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
   const smsUser = process.env.AFRICASTALKING_USERNAME;
   if (!isEmail && smsKey && smsUser) {
     try {
-      const { default: AfricasTalking } = await import("africastalking").catch(() => ({ default: null })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { default: AfricasTalking } = await (Function('return import("africastalking")')().catch(() => ({ default: null }))) as any;
       if (AfricasTalking) {
         const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
         await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
@@ -5516,7 +5517,8 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
   // خطاف Email (nodemailer) — أضف SMTP_HOST / SMTP_USER / SMTP_PASS
   if (isEmail && process.env.SMTP_HOST) {
     try {
-      const nodemailer = await import("nodemailer").catch(() => null) as any;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nodemailer = await (Function('return import("nodemailer")')().catch(() => null)) as any;
       if (nodemailer) {
         const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
         await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 5 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 5 دقائق فقط.</p></div>` });
