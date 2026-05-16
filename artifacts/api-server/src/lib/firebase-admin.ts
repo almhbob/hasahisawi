@@ -1,32 +1,41 @@
 import admin from "firebase-admin";
 import { logger } from "./logger";
 
-let initialized = false;
-let initError: string | null = null;
-
-export function getFirebaseAdmin(): typeof admin | null {
-  if (initialized) return initError ? null : admin;
-  initialized = true;
-
+function getOrInitApp(): admin.app.App | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    initError = "FIREBASE_SERVICE_ACCOUNT_JSON not set";
-    logger.warn("[firebase-admin] " + initError);
+    logger.warn("[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set");
     return null;
   }
+
+  let sa: any;
   try {
-    const sa = JSON.parse(raw);
-    admin.initializeApp({
+    sa = JSON.parse(raw);
+  } catch (err) {
+    logger.error({ err }, "[firebase-admin] failed to parse service account JSON");
+    return null;
+  }
+
+  // On Vercel serverless each cold-start is a fresh process, but on warm
+  // instances the module is reused — check if already initialised first.
+  const existing = admin.apps.find(a => a?.name === "[DEFAULT]");
+  if (existing) return existing;
+
+  try {
+    const app = admin.initializeApp({
       credential: admin.credential.cert(sa),
       projectId: sa.project_id,
     });
-    logger.info({ project: sa.project_id }, "[firebase-admin] initialized");
-    return admin;
+    logger.info({ project: sa.project_id, key_id: sa.private_key_id }, "[firebase-admin] initialized");
+    return app;
   } catch (err) {
-    initError = String(err);
-    logger.error({ err }, "[firebase-admin] init failed");
+    logger.error({ err }, "[firebase-admin] initializeApp failed");
     return null;
   }
+}
+
+export function getFirebaseAdmin(): admin.app.App | null {
+  return getOrInitApp();
 }
 
 export async function verifyIdToken(idToken: string): Promise<{
@@ -64,9 +73,6 @@ export type FirebaseUserRecord = {
   providers: string[];
 };
 
-/**
- * يُعيد قائمة بجميع مستخدمي Firebase Authentication (صفحة صفحة).
- */
 export async function listAllFirebaseUsers(): Promise<FirebaseUserRecord[]> {
   const a = getFirebaseAdmin();
   if (!a) return [];
@@ -93,10 +99,6 @@ export async function listAllFirebaseUsers(): Promise<FirebaseUserRecord[]> {
   return all;
 }
 
-/**
- * يُضيف/يُحدّث كلمة مرور لحساب Firebase حتى لو كان مرتبطاً بـ Google.
- * يُستدعى بعد نجاح Backend Login — يُتيح تسجيل الدخول بالبريد+كلمة مرور لاحقاً.
- */
 export async function ensureEmailPasswordProvider(
   uid: string,
   email: string,
