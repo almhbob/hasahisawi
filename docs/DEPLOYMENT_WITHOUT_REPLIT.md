@@ -6,12 +6,12 @@
 - **GitHub Actions**: الفحص الآلي عند كل Push أو Pull Request.
 - **Render**: تشغيل `artifacts/api-server` كخدمة Web API.
 - **Neon PostgreSQL**: قاعدة البيانات الإنتاجية عبر `DATABASE_URL`.
-- **Firebase**: للخدمات التي تعتمد على Firebase Admin أو Cloud Functions عند الحاجة.
+- **Firebase**: للمصادقة وقراءة مستخدمي Firebase Authentication عبر Firebase Admin SDK.
 - **Vercel**: اختياري فقط للواجهات أو صفحات الويب إن وجدت.
 
 ## لماذا هذا البديل؟
 
-Replit مفيد للتطوير السريع، لكنه ليس مطلوبًا للإنتاج. المشروع يحتوي بالفعل على إعداد `render.yaml` لتشغيل API على Render، كما أن قاعدة البيانات متصلة عبر PostgreSQL/Neon، لذلك الأفضل جعل GitHub + Render + Neon هي البنية الأساسية.
+Replit مفيد للتطوير السريع، لكنه ليس مطلوبًا للإنتاج. المشروع يحتوي بالفعل على إعداد `render.yaml` لتشغيل API على Render، كما أن قاعدة البيانات متصلة عبر PostgreSQL/Neon، لذلك الأفضل جعل GitHub + Render + Neon + Firebase هي البنية الأساسية.
 
 ## متغيرات البيئة المطلوبة
 
@@ -29,7 +29,53 @@ RECAPTCHA_SECRET=...
 VITE_RECAPTCHA_SITE_KEY=...
 ```
 
-أضف فقط المتغيرات التي يستخدمها الجزء المنشور فعليًا من التطبيق.
+أضف فقط المتغيرات التي يستخدمها الجزء المنشور فعليًا من التطبيق. يوجد ملف `.env.example` في الجذر يوضح الشكل الآمن للقيم بدون أسرار حقيقية.
+
+## ربط Firebase باحترافية
+
+1. من Firebase Console افتح:
+   `Project settings` → `Service accounts` → `Generate new private key`.
+2. انسخ محتوى ملف JSON كاملًا.
+3. في Render افتح خدمة API ثم:
+   `Environment` → أضف متغيرًا باسم:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT_JSON
+```
+
+4. ضع قيمة JSON كسطر واحد أو كما تقبلها لوحة Render.
+5. أعد نشر الخدمة.
+6. اختبر الربط من لوحة الإدارة أو عبر المسار:
+
+```text
+GET /api/admin/users-source-health
+```
+
+الاستجابة الاحترافية المتوقعة توضح:
+
+- `firebase_admin_configured`: هل بيانات Firebase Admin مضبوطة.
+- `firebase.project_id`: اسم مشروع Firebase المقروء من JSON.
+- `firebase_users`: عدد مستخدمي Firebase Authentication.
+- `postgres_users`: عدد مستخدمي قاعدة البيانات.
+- `firebase_missing_in_postgres`: الفرق التقريبي قبل/بعد المزامنة.
+
+لتنفيذ المزامنة يدويًا:
+
+```text
+POST /api/admin/sync-firebase-users
+```
+
+ولعرض المستخدمين مع مزامنة تلقائية:
+
+```text
+GET /api/admin/users
+```
+
+ولعرض المستخدمين بدون مزامنة تلقائية:
+
+```text
+GET /api/admin/users?sync=false
+```
 
 ## تشغيل API على Render
 
