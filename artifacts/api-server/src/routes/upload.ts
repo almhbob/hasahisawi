@@ -133,7 +133,8 @@ router.post(
   (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(15 * 60 * 1000);
     res.setTimeout(15 * 60 * 1000);
-    upload.single("file")(req, res, (err: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    upload.single("file")(req as any, res as any, (err: unknown) => {
       if (err) {
         const e = err as { code?: string; message?: string };
         if (e?.code === "LIMIT_FILE_SIZE") {
