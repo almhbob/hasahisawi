@@ -2,10 +2,38 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import multer from "multer";
 import path from "node:path";
 import crypto from "node:crypto";
+import { mkdirSync } from "node:fs";
 import { v2 as cloudinary } from "cloudinary";
 import { logger } from "../lib/logger";
 
 const router = Router();
+const TMP_UPLOAD_DIR = "/tmp/uploads";
+const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
+
+function safeCompare(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a.padEnd(64, "\0"));
+    const bb = Buffer.from(b.padEnd(64, "\0"));
+    return crypto.timingSafeEqual(ba, bb) && a.length === b.length;
+  } catch {
+    return false;
+  }
+}
+
+function isAdminPinRequest(req: Request): boolean {
+  const submittedPin = req.headers["x-admin-pin"];
+  if (typeof submittedPin !== "string") return false;
+  if (submittedPin.length < 4 || submittedPin.length > 20) return false;
+  return safeCompare(submittedPin, DEFAULT_ADMIN_PIN);
+}
+
+// Ensure local fallback uploads never fail because the Render/Railway ephemeral
+// temp directory has not been created yet.
+try {
+  mkdirSync(TMP_UPLOAD_DIR, { recursive: true });
+} catch (err) {
+  logger.warn({ err }, "failed to create temporary upload directory");
+}
 
 // ── Cloudinary config ────────────────────────────────────────────────────────
 // الـ SDK يقرأ CLOUDINARY_URL تلقائياً عند التهيئة.
@@ -74,7 +102,7 @@ function resolveResourceType(mimetype: string, ext: string): "image" | "video" |
 const multerStorage = CLOUDINARY_OK
   ? multer.memoryStorage()
   : multer.diskStorage({
-      destination: "/tmp/uploads",
+      destination: TMP_UPLOAD_DIR,
       filename: (_req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase() || ".bin";
         cb(null, `${Date.now()}_${crypto.randomBytes(6).toString("hex")}${ext}`);
@@ -192,8 +220,6 @@ router.post(
     } else if (req.headers.host) {
       const proto = (req.headers["x-forwarded-proto"] as string) || "https";
       host = `${proto}://${req.headers.host}`;
-    } else if (process.env["REPLIT_DEV_DOMAIN"]) {
-      host = `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
     } else {
       host = `http://localhost:${process.env["PORT"] ?? 8080}`;
     }
@@ -209,9 +235,14 @@ router.post(
 
 // ── DELETE /api/upload — حذف ملف من Cloudinary ───────────────────────────────
 router.delete("/upload", async (req: Request, res: Response) => {
+  if (!isAdminPinRequest(req)) {
+    res.status(403).json({ error: "غير مصرح بحذف الملفات" });
+    return;
+  }
+
   const { public_id, resource_type } = req.body as { public_id?: string; resource_type?: string };
-  if (!public_id) {
-    res.status(400).json({ error: "public_id مطلوب" });
+  if (!public_id || typeof public_id !== "string" || public_id.length > 255) {
+    res.status(400).json({ error: "public_id غير صالح" });
     return;
   }
   if (!CLOUDINARY_OK) {
@@ -219,9 +250,9 @@ router.delete("/upload", async (req: Request, res: Response) => {
     return;
   }
   try {
-    const result = await cloudinary.uploader.destroy(public_id, {
-      resource_type: (resource_type as "image" | "video" | "raw") ?? "image",
-    });
+    const validResourceTypes = new Set(["image", "video", "raw"]);
+    const rt = validResourceTypes.has(String(resource_type)) ? resource_type as "image" | "video" | "raw" : "image";
+    const result = await cloudinary.uploader.destroy(public_id, { resource_type: rt });
     res.json({ ok: result.result === "ok", result: result.result });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
