@@ -11,7 +11,7 @@ const SCENE_DURATIONS = [
   5000, // 5: GOOGLE PLAY LAUNCH
 ];
 
-const Character = ({ color, side, walking, handshake, presenting, reacting, facingFront }) => {
+const Character = ({ color, side, walking, handshake, presenting, reacting, facingFront }: { color: string; side: string; walking: boolean; handshake: boolean; presenting: boolean; reacting: boolean; facingFront: boolean }) => {
   const isLeft = side === "left";
   const bodyColor = color;
   
@@ -192,6 +192,7 @@ export function WhatsAppStatus() {
                 walking={currentScene === 1}
                 handshake={currentScene === 2}
                 presenting={currentScene === 3}
+                reacting={false}
                 facingFront={currentScene === 4}
               />
               <Character 
@@ -199,6 +200,7 @@ export function WhatsAppStatus() {
                 side="right" 
                 walking={currentScene === 1}
                 handshake={currentScene === 2}
+                presenting={false}
                 reacting={currentScene === 3}
                 facingFront={currentScene === 4}
               />
