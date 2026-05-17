@@ -22,13 +22,27 @@ import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
-import { I18nManager, Platform, View, LogBox } from "react-native";
+import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
+
+// ── ضبط حجم الخط على الموبايل ─────────────────────────────────────
+// بعض الأجهزة تكون عليها إعدادات Accessibility بحجم خط كبير جداً، وهذا كان يسبب
+// تداخل البطاقات في شاشة الإعدادات. نسمح بتكبير بسيط فقط للحفاظ على الشكل.
+try {
+  (Text as any).defaultProps = {
+    ...((Text as any).defaultProps || {}),
+    maxFontSizeMultiplier: 1.12,
+  };
+  (TextInput as any).defaultProps = {
+    ...((TextInput as any).defaultProps || {}),
+    maxFontSizeMultiplier: 1.08,
+  };
+} catch {}
 
 // ── إعداد RTL متزامن قبل أي render ─────────────────────────────
 // التطبيق عربي بالأساس — يُطبَّق RTL مباشرةً عند تحميل الموديول
