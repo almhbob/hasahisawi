@@ -10,7 +10,10 @@
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "apk:prepare": "expo prebuild --platform android --clean --no-install",
+    "apk:debug": "pnpm run apk:prepare && cd android && ./gradlew assembleDebug --no-daemon --stacktrace",
+    "apk:path": "node -e \"console.log('artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk')\""
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
