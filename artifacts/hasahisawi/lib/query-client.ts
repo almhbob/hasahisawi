@@ -8,7 +8,7 @@ const USER_TOKEN_KEY = "auth_backend_token"; // يطابق BACKEND_TOKEN_KEY ف�
  * Gets the base URL for the Express API server.
  * Priority: EXPO_PUBLIC_API_URL (full URL) → EXPO_PUBLIC_DOMAIN (host only) → Railway fallback → Render fallback
  */
-const VERCEL_DOMAIN  = "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
+const VERCEL_DOMAIN  = "workspaceapi-server-production-3e22.up.railway.app";
 const RENDER_DOMAIN  = "hasahisawi.onrender.com";
 
 export function getApiUrl(): string {
