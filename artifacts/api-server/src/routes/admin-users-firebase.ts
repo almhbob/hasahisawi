@@ -20,7 +20,7 @@ const pool: Pool | null = dbEnabled
       idleTimeoutMillis: 30_000,
       max: 12,
       allowExitOnIdle: false,
-      ssl: dbUrl.includes("sslmode=require") || dbUrl.includes("ssl=true")
+      ssl: dbUrl.includes("sslmode=require") || dbUrl.includes("ssl=true") || dbUrl.includes("railway") || dbUrl.includes("rlwy")
         ? { rejectUnauthorized: false }
         : false,
     })
@@ -33,6 +33,7 @@ if (pool) {
 const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 const MAX_ADMIN_USERS_LIMIT = 1000;
 const DEFAULT_ADMIN_USERS_LIMIT = 1000;
+const FIREBASE_ONLY_PASSWORD_MARKER = "firebase_only_account";
 
 type DbUser = {
   id: number;
@@ -181,11 +182,22 @@ async function ensureUserColumns(): Promise<void> {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(200)`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_created_at_desc ON users(created_at DESC)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(LOWER(email)) WHERE email IS NOT NULL`);
   await query(`CREATE INDEX IF NOT EXISTS idx_users_phone_text ON users(phone) WHERE phone IS NOT NULL`);
+}
+
+function providerSummary(fu: FirebaseUserRecord): string[] {
+  const providers = Array.isArray((fu as any).providerData)
+    ? (fu as any).providerData.map((p: any) => String(p?.providerId || "")).filter(Boolean)
+    : [];
+  if (!providers.length && fu.email) providers.push("password");
+  if (!providers.length && fu.phoneNumber) providers.push("phone");
+  return [...new Set(providers)];
 }
 
 async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "updated" | "skipped"> {
@@ -195,7 +207,7 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
   const photo = fu.photoURL || null;
 
   const existing = await query(
-    `SELECT id, firebase_uid, name, email, phone, avatar_url
+    `SELECT id, firebase_uid, name, email, phone, avatar_url, password_hash
      FROM users
      WHERE firebase_uid = $1
         OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2::text))
@@ -212,7 +224,8 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
       (!row.name && !!name) ||
       (!row.email && !!email) ||
       (!row.phone && !!phone) ||
-      (!row.avatar_url && !!photo);
+      (!row.avatar_url && !!photo) ||
+      row.password_hash === "$firebase$";
 
     if (!needsUpdate) return "skipped";
 
@@ -222,9 +235,10 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
         name = COALESCE(NULLIF($2, ''), name),
         email = COALESCE(email, $3),
         phone = COALESCE(phone, $4),
-        avatar_url = COALESCE(avatar_url, $5)
-       WHERE id = $6`,
-      [fu.uid, name, email, phone, photo, row.id],
+        avatar_url = COALESCE(avatar_url, $5),
+        password_hash = CASE WHEN password_hash = '$firebase$' THEN $6 ELSE password_hash END
+       WHERE id = $7`,
+      [fu.uid, name, email, phone, photo, FIREBASE_ONLY_PASSWORD_MARKER, row.id],
     );
     return "updated";
   }
@@ -232,7 +246,7 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
   await query(
     `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
      VALUES ($1, $2, $3, $4, $5, 'user', $6)`,
-    [fu.uid, name, email, phone, "$firebase$", photo],
+    [fu.uid, name, email, phone, FIREBASE_ONLY_PASSWORD_MARKER, photo],
   );
   return "created";
 }
@@ -445,6 +459,15 @@ router.get("/admin/users-source-health", async (req: Request, res: Response) => 
     }
 
     const firebaseTotal = firebaseUsers?.length ?? null;
+    const providerCounts: Record<string, number> = {};
+    if (firebaseUsers) {
+      for (const fu of firebaseUsers) {
+        const providers = providerSummary(fu);
+        if (!providers.length) providerCounts.unknown = (providerCounts.unknown ?? 0) + 1;
+        for (const p of providers) providerCounts[p] = (providerCounts[p] ?? 0) + 1;
+      }
+    }
+
     const missing = firebaseTotal === null
       ? null
       : Math.max(0, firebaseTotal - counts.firebase_synced_total);
@@ -457,12 +480,19 @@ router.get("/admin/users-source-health", async (req: Request, res: Response) => 
       postgres_users: counts.postgres_total,
       postgres_firebase_synced_users: counts.firebase_synced_total,
       firebase_users: firebaseTotal,
+      firebase_provider_counts: providerCounts,
       firebase_admin_configured: firebase.configured,
       firebase,
       firebase_error: firebaseError,
       firebase_missing_in_postgres: missing,
       all_firebase_users_visible_in_admin: firebaseTotal === null ? null : missing === 0,
       supports_600_plus_users: true,
+      account_continuity: {
+        firebase_auth_is_source_of_truth: true,
+        preserves_existing_firebase_uid: true,
+        postgres_is_operational_mirror: true,
+        destructive_reset_required: false,
+      },
       admin_users_default_limit: DEFAULT_ADMIN_USERS_LIMIT,
       admin_users_max_limit: MAX_ADMIN_USERS_LIMIT,
     });
