@@ -1008,10 +1008,11 @@ const styles = StyleSheet.create({
   /* Grid — 3 columns */
   gridContainer: {
     flexDirection: "row", flexWrap: "wrap",
-    gap: 9,
   },
   gridItemContainer: {
-    width: (width - 32 - 18) / 3, marginBottom: 2,
+    width: "33.33%",
+    paddingHorizontal: 4.5,
+    paddingBottom: 9,
   },
   gridItem: {
     backgroundColor: "rgba(255,255,255,0.04)",
