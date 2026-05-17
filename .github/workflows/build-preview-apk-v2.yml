@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-apk:
-    name: Build Android preview APK locally
+    name: Build standalone Android APK locally
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -37,19 +37,19 @@ jobs:
         working-directory: artifacts/hasahisawi
         run: pnpm run apk:prepare
 
-      - name: Build debug APK
+      - name: Build standalone release APK
         working-directory: artifacts/hasahisawi/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Prepare APK artifact
         run: |
           mkdir -p apk-output
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk apk-output/hasahisawi-debug.apk
-          ls -lh apk-output/hasahisawi-debug.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk apk-output/hasahisawi-preview-standalone.apk
+          ls -lh apk-output/hasahisawi-preview-standalone.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-debug-apk
-          path: apk-output/hasahisawi-debug.apk
+          name: hasahisawi-preview-standalone-apk
+          path: apk-output/hasahisawi-preview-standalone.apk
           retention-days: 14
