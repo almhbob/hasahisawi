@@ -1,14 +1,78 @@
 import { Router, type IRouter } from "express";
+import { Pool } from "pg";
 import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
+function getDatabaseUrl(): string {
+  return process.env.DATABASE_URL ?? "";
+}
+
 function hasRealDatabaseUrl(): boolean {
-  const dbUrl = process.env.DATABASE_URL ?? "";
+  const dbUrl = getDatabaseUrl();
   return dbUrl.length > 0 &&
     !dbUrl.includes(".invalid") &&
     !dbUrl.includes("placeholder") &&
     !dbUrl.includes("nodb");
+}
+
+function shouldUseSsl(dbUrl: string): boolean {
+  return dbUrl.includes("sslmode=require") ||
+    dbUrl.includes("ssl=true") ||
+    dbUrl.includes("railway.internal") ||
+    dbUrl.includes("proxy.rlwy.net");
+}
+
+async function databaseStatus() {
+  const dbUrl = getDatabaseUrl();
+  const configured = hasRealDatabaseUrl();
+
+  if (!configured) {
+    return {
+      configured: false,
+      connected: false,
+      latency_ms: null,
+      provider_hint: null,
+      reason: "DATABASE_URL missing or placeholder",
+    };
+  }
+
+  const providerHint = dbUrl.includes("railway") || dbUrl.includes("rlwy")
+    ? "railway"
+    : dbUrl.includes("neon.tech")
+      ? "neon"
+      : null;
+
+  const started = Date.now();
+  const pool = new Pool({
+    connectionString: dbUrl,
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 1_000,
+    max: 1,
+    allowExitOnIdle: true,
+    ssl: shouldUseSsl(dbUrl) ? { rejectUnauthorized: false } : false,
+  });
+
+  try {
+    const result = await pool.query("SELECT 1 AS ok");
+    return {
+      configured: true,
+      connected: result.rows[0]?.ok === 1,
+      latency_ms: Date.now() - started,
+      provider_hint: providerHint,
+      reason: null,
+    };
+  } catch (err) {
+    return {
+      configured: true,
+      connected: false,
+      latency_ms: Date.now() - started,
+      provider_hint: providerHint,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    await pool.end().catch(() => undefined);
+  }
 }
 
 function firebaseEnvStatus() {
@@ -48,11 +112,11 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
-router.get("/healthz/full", (_req, res) => {
-  const database = { configured: hasRealDatabaseUrl() };
+router.get("/healthz/full", async (_req, res) => {
+  const database = await databaseStatus();
   const firebase = firebaseEnvStatus();
   const cloudinary = cloudinaryEnvStatus();
-  const ok = database.configured && firebase.configured;
+  const ok = database.connected && firebase.configured;
 
   res.status(ok ? 200 : 503).json({
     status: ok ? "ok" : "degraded",
