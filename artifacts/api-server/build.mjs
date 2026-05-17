@@ -11,6 +11,12 @@ import { rm } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(artifactDir, "../..");
+const authPatch = path.join(repoRoot, "scripts", "patch-auth-login-error.mjs");
+if (existsSync(authPatch)) {
+  console.log("[build] applying API auth safety patch");
+  execSync(`node ${JSON.stringify(authPatch)}`, { cwd: repoRoot, stdio: "inherit" });
+}
 
 // Ensure runtime deps that get bundled (not externalized) actually exist on disk.
 // On Render, `pnpm install --filter` sometimes fails to create the symlink for
