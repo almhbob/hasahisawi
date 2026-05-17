@@ -5,9 +5,9 @@ on:
 
 jobs:
   build-apk:
-    name: Build Android preview APK
+    name: Build Android preview APK locally
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -24,50 +24,32 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Set up Expo and EAS
-        uses: expo/expo-github-action@v8
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          distribution: temurin
+          java-version: 17
 
-      - name: Install dependencies for preview build
+      - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build APK with EAS
+      - name: Generate Android project
         working-directory: artifacts/hasahisawi
-        run: |
-          eas build --platform android --profile preview --non-interactive --wait --json > eas-build-result.json
-          cat eas-build-result.json
+        run: pnpm run apk:prepare
 
-      - name: Download APK
-        working-directory: artifacts/hasahisawi
+      - name: Build debug APK
+        working-directory: artifacts/hasahisawi/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK artifact
         run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const raw = fs.readFileSync('eas-build-result.json', 'utf8');
-          const parsed = JSON.parse(raw);
-          const build = Array.isArray(parsed) ? parsed[0] : parsed;
-          const url = build?.artifacts?.buildUrl || build?.artifactUrl || build?.artifacts?.applicationArchiveUrl;
-          if (!url) {
-            console.error('Could not find APK artifact URL in EAS result.');
-            process.exit(1);
-          }
-          fs.writeFileSync('apk-url.txt', url + '\n');
-          console.log(url);
-          NODE
-          curl -L "$(cat apk-url.txt)" -o hasahisawi-preview.apk
-          ls -lh hasahisawi-preview.apk
+          mkdir -p apk-output
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk apk-output/hasahisawi-debug.apk
+          ls -lh apk-output/hasahisawi-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-preview-apk
-          path: artifacts/hasahisawi/hasahisawi-preview.apk
-          retention-days: 14
-
-      - name: Upload EAS build URL
-        uses: actions/upload-artifact@v4
-        with:
-          name: eas-build-url
-          path: artifacts/hasahisawi/apk-url.txt
+          name: hasahisawi-debug-apk
+          path: apk-output/hasahisawi-debug.apk
           retention-days: 14
