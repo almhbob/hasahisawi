@@ -25,11 +25,7 @@ import { useAuth } from "@/lib/auth-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
-import { requireNetwork } from "@/lib/network";
-import {
-  fsGetCollection, fsAddDoc, fsDeleteDoc,
-  COLLECTIONS, orderBy, isFirebaseAvailable,
-} from "@/lib/firebase/firestore";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
 export type Job = {
   id: string;
@@ -43,8 +39,6 @@ export type Job = {
   createdAt: string;
 };
 
-// STORAGE_KEY kept for reference only — data now lives in Firestore
-const STORAGE_KEY = "jobs_listings_legacy";
 
 const SAMPLE_JOBS: Job[] = [
   {
@@ -347,9 +341,24 @@ export default function JobsScreen() {
 
   const loadJobs = async () => {
     try {
-      if (isFirebaseAvailable()) {
-        const docs = await fsGetCollection<Job>(COLLECTIONS.JOBS, orderBy("createdAt", "desc"));
-        setJobs(docs.length > 0 ? docs : SAMPLE_JOBS);
+      const base = getApiUrl();
+      if (!base) { setJobs(SAMPLE_JOBS); return; }
+      const res = await fetchWithTimeout(`${base}/api/jobs`);
+      if (res.ok) {
+        const data = await res.json();
+        const list: Job[] = (data.jobs || data || []).map((j: any) => ({
+          id: String(j.id),
+          title: j.title || "",
+          company: j.company || "",
+          type: (j.type as Job["type"]) || "fulltime",
+          location: j.location || "",
+          description: j.description || "",
+          contactPhone: j.contact_phone || "",
+          salary: j.salary || undefined,
+          createdAt: j.created_at || new Date().toISOString(),
+          imageUrl: j.image_url || undefined,
+        }));
+        setJobs(list.length > 0 ? list : SAMPLE_JOBS);
       } else {
         setJobs(SAMPLE_JOBS);
       }
@@ -358,14 +367,34 @@ export default function JobsScreen() {
     }
   };
 
-  const saveJob = async (jobData: Omit<Job, "id" | "createdAt">): Promise<void> => {
+  const saveJob = async (jobData: Omit<Job, "id" | "createdAt"> & { imageUrl?: string }): Promise<void> => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const base = getApiUrl();
+    if (!base) { Alert.alert(t("common", "error"), "تعذّر الاتصال بالخادم"); return; }
     try {
-      await fsAddDoc(COLLECTIONS.JOBS, {
-        ...jobData,
-        postedBy: auth.user?.uid ?? null,
-        createdAt: new Date().toISOString(),
+      const res = await fetchWithTimeout(`${base}/api/jobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+        },
+        body: JSON.stringify({
+          title: jobData.title,
+          company: jobData.company,
+          type: jobData.type,
+          location: jobData.location,
+          description: jobData.description,
+          contact_phone: jobData.contactPhone,
+          salary: jobData.salary,
+          author_name: auth.user?.name || tr("مجهول", "Anonymous"),
+          image_url: jobData.imageUrl,
+        }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert(t("common", "error"), err.error || "تعذّر حفظ الوظيفة");
+        return;
+      }
       await loadJobs();
     } catch {
       Alert.alert(t("common", "error"), "تعذّر حفظ الوظيفة، تحقق من الاتصال");
@@ -382,7 +411,13 @@ export default function JobsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await fsDeleteDoc(COLLECTIONS.JOBS, id);
+            const base = getApiUrl();
+            if (!base) return;
+            const res = await fetchWithTimeout(`${base}/api/jobs/${id}`, {
+              method: "DELETE",
+              headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+            });
+            if (!res.ok) { Alert.alert(t("common", "error"), "تعذّر الحذف"); return; }
             loadJobs();
           } catch { Alert.alert(t("common", "error"), "تعذّر الحذف"); }
         },
