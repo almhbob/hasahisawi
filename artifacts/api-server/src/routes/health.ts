@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v2";
 
 function getDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? "";
@@ -132,7 +133,7 @@ function authReadinessStatus(firebase: ReturnType<typeof firebaseEnvStatus>, dat
 
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+  res.json({ ...data, version: HEALTH_ROUTE_VERSION });
 });
 
 router.get("/healthz/full", async (_req, res) => {
@@ -145,6 +146,7 @@ router.get("/healthz/full", async (_req, res) => {
   res.status(ok ? 200 : 503).json({
     status: ok ? "ok" : "degraded",
     service: "api-server",
+    version: HEALTH_ROUTE_VERSION,
     environment: process.env.NODE_ENV ?? "unknown",
     uptime_seconds: Math.round(process.uptime()),
     checks: {
