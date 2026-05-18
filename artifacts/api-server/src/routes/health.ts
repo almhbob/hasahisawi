@@ -1,9 +1,8 @@
 import { Router, type IRouter } from "express";
 import { Pool } from "pg";
-import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v4";
+const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v5";
 
 function getDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? "";
@@ -132,8 +131,7 @@ function authReadinessStatus(firebase: ReturnType<typeof firebaseEnvStatus>, dat
 }
 
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json({ ...data, version: HEALTH_ROUTE_VERSION });
+  res.json({ status: "ok", version: HEALTH_ROUTE_VERSION });
 });
 
 router.get("/healthz/full", async (_req, res) => {
