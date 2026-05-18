@@ -40,21 +40,34 @@ jobs:
 
       - name: Generate Android project
         working-directory: artifacts/hasahisawi
+        env:
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_API_URL: https://workspaceapi-server-production-3e22.up.railway.app
         run: pnpm run apk:prepare
 
-      - name: Build installable debug APK
+      - name: Build standalone release APK
         working-directory: artifacts/hasahisawi/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          NODE_ENV: production
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_API_URL: https://workspaceapi-server-production-3e22.up.railway.app
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace --info
+
+      - name: Verify APK contains bundled JS
+        run: |
+          APK="artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          unzip -l "$APK" | grep -E "assets/index.android.bundle|index.android.bundle"
 
       - name: Prepare APK artifact
         run: |
           mkdir -p apk-output
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk apk-output/hasahisawi-preview-debug.apk
-          ls -lh apk-output/hasahisawi-preview-debug.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk apk-output/hasahisawi-preview-release.apk
+          ls -lh apk-output/hasahisawi-preview-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-preview-debug-apk
-          path: apk-output/hasahisawi-preview-debug.apk
+          name: hasahisawi-preview-release-apk
+          path: apk-output/hasahisawi-preview-release.apk
           retention-days: 14
