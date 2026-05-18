@@ -42,19 +42,19 @@ jobs:
         working-directory: artifacts/hasahisawi
         run: pnpm run apk:prepare
 
-      - name: Build standalone release APK
+      - name: Build installable debug APK
         working-directory: artifacts/hasahisawi/android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Prepare APK artifact
         run: |
           mkdir -p apk-output
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk apk-output/hasahisawi-preview-standalone.apk
-          ls -lh apk-output/hasahisawi-preview-standalone.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk apk-output/hasahisawi-preview-debug.apk
+          ls -lh apk-output/hasahisawi-preview-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-preview-standalone-apk
-          path: apk-output/hasahisawi-preview-standalone.apk
+          name: hasahisawi-preview-debug-apk
+          path: apk-output/hasahisawi-preview-debug.apk
           retention-days: 14
