@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v2";
+const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v3";
 
 function getDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? "";
