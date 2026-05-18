@@ -3,12 +3,11 @@ nixPkgs = ["nodejs_22"]
 
 [phases.install]
 cmds = [
-  "npm install -g pnpm@10",
-  "pnpm install --no-frozen-lockfile"
+  "npm install --no-package-lock --include=dev --legacy-peer-deps"
 ]
 
 [phases.build]
-cmds = ["node build.mjs"]
+cmds = ["node ./build.mjs"]
 
 [start]
 cmd = "node --enable-source-maps ./dist/index.mjs"
