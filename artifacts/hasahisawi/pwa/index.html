@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#27AE68" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="حصاحيصاوي" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <title>حصاحيصاوي - تثبيت الآيفون</title>
+  <style>
+    :root { color-scheme: dark; --bg:#07130D; --card:#0E2117; --primary:#27AE68; --text:#F4FFF8; --muted:#9CC7AD; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top, #17442c, var(--bg)); color:var(--text); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { width:min(520px, 100%); background:rgba(14,33,23,.92); border:1px solid rgba(39,174,104,.35); border-radius:28px; padding:28px; box-shadow:0 24px 80px rgba(0,0,0,.35); text-align:center; }
+    .logo { width:92px; height:92px; border-radius:26px; background:#fff; object-fit:contain; padding:8px; margin:0 auto 16px; box-shadow:0 0 28px rgba(39,174,104,.45); }
+    h1 { margin:0 0 8px; font-size:32px; }
+    p { margin:8px 0; line-height:1.8; color:var(--muted); font-size:16px; }
+    .steps { margin:22px 0; text-align:right; background:rgba(0,0,0,.2); border-radius:20px; padding:18px; }
+    .step { display:flex; gap:12px; align-items:flex-start; margin:12px 0; }
+    .num { flex:0 0 30px; width:30px; height:30px; border-radius:50%; background:var(--primary); color:#001b0d; font-weight:800; display:flex; align-items:center; justify-content:center; }
+    .btn { display:block; width:100%; border:0; border-radius:18px; background:var(--primary); color:#001b0d; padding:16px 18px; font-size:18px; font-weight:800; text-decoration:none; margin-top:18px; }
+    .hint { font-size:13px; opacity:.9; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="./icon.png" alt="حصاحيصاوي" />
+    <h1>حصاحيصاوي</h1>
+    <p>نسخة iPhone فورية عبر الويب. افتحها من Safari ثم أضفها إلى الشاشة الرئيسية.</p>
+    <section class="steps">
+      <div class="step"><span class="num">1</span><p>افتح هذه الصفحة من متصفح Safari على الآيفون.</p></div>
+      <div class="step"><span class="num">2</span><p>اضغط زر المشاركة في Safari.</p></div>
+      <div class="step"><span class="num">3</span><p>اختر: إضافة إلى الشاشة الرئيسية.</p></div>
+      <div class="step"><span class="num">4</span><p>افتح التطبيق من الأيقونة الجديدة.</p></div>
+    </section>
+    <a class="btn" href="./">فتح حصاحيصاوي</a>
+    <p class="hint">هذا حل PWA مؤقت حتى تفعيل TestFlight الرسمي.</p>
+  </main>
+</body>
+</html>
