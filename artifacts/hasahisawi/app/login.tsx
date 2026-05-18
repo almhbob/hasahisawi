@@ -135,9 +135,55 @@ export default function LoginScreen() {
     const err = validate();
     if (err) { setError(err); return; }
 
-    // وضع التسجيل: أرسل OTP أولاً بدلاً من إنشاء الحساب مباشرة
+    // إنشاء الحساب مباشرة بدون OTP مؤقتاً إلى حين تفعيل مزود رسائل رسمي لاحقاً
     if (mode === "register") {
-      await handleSendOtp();
+      setLoading(true);
+      try {
+        const id = identifier.trim();
+        const isEmail = useEmail || id.includes("@");
+        const nid = nationalId.trim().replace(/\s+/g, "");
+
+        await register(
+          name.trim(),
+          nid,
+          id,
+          isEmail,
+          password,
+          getBirthDateISO(),
+          buildNeighborhood(),
+          gender || undefined
+        );
+
+        promptEnableBiometrics(id);
+
+        if (feedback.trim()) {
+          fetch(`${getApiUrl()}/feedback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "suggestion",
+              title: "اقتراح عند التسجيل",
+              body: feedback.trim(),
+              sender_name: name.trim(),
+              phone: !isEmail ? id : undefined,
+              category: "تسجيل",
+            }),
+          }).catch(() => {});
+        }
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch (e: any) {
+        setError(e?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+      } finally {
+        setLoading(false);
+      }
+
       return;
     }
 
@@ -264,7 +310,7 @@ export default function LoginScreen() {
       startOtpCountdown();
       setTimeout(() => otpInputRef.current?.focus(), 300);
     } catch (e: any) {
-      setError(e.message || "فشل إرسال رمز التحقق");
+      setError(e.message || "فشل إنشاء الحساب");
     }
     setOtpSending(false);
   };
@@ -715,10 +761,10 @@ export default function LoginScreen() {
                 ? <ActivityIndicator color="#000" size="small" />
                 : <>
                     <Text style={styles.submitText}>
-                      {mode === "login" ? "تسجيل الدخول" : "إرسال رمز التحقق"}
+                      {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
                     </Text>
                     <Ionicons
-                      name={mode === "login" ? "arrow-back" : "shield-checkmark-outline"}
+                      name={mode === "login" ? "arrow-back" : "person-add-outline"}
                       size={19} color="#000"
                     />
                   </>
