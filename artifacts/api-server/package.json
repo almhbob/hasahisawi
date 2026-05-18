@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "export NODE_ENV=development && npm run build && npm run start",
     "prebuild": "node -e \"const fs=require('fs'); const cp=require('child_process'); const p='../../scripts/patch-auth-login-error.mjs'; if (fs.existsSync(p)) cp.execFileSync('node',[p],{stdio:'inherit'});\"",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
@@ -12,8 +12,6 @@
   },
   "dependencies": {
     "@types/multer": "^2.1.0",
-    "@workspace/api-zod": "file:../../lib/api-zod",
-    "@workspace/db": "file:../../lib/db",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
