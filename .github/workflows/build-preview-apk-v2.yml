@@ -9,8 +9,8 @@ on:
       - 'artifacts/hasahisawi/**'
 
 jobs:
-  build-apk:
-    name: Build standalone Android APK locally
+  build-apk-aab:
+    name: Build standalone Android APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -45,29 +45,52 @@ jobs:
           EXPO_PUBLIC_API_URL: https://workspaceapi-server-production-3e22.up.railway.app
         run: pnpm run apk:prepare
 
-      - name: Build standalone release APK
+      - name: Create preview signing key
+        working-directory: artifacts/hasahisawi/android
+        run: |
+          keytool -genkeypair -v -storetype PKCS12 -keystore preview-release-key.p12 -alias preview -keyalg RSA -keysize 2048 -validity 10000 -storepass preview1234 -keypass preview1234 -dname "CN=Hasahisawi Preview,O=Hasahisawi,C=SD"
+
+      - name: Build signed release APK and AAB
         working-directory: artifacts/hasahisawi/android
         env:
           NODE_ENV: production
           EXPO_NO_TELEMETRY: '1'
           EXPO_PUBLIC_API_URL: https://workspaceapi-server-production-3e22.up.railway.app
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace --info
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            -Pandroid.injected.signing.store.file="$PWD/preview-release-key.p12" \
+            -Pandroid.injected.signing.store.password="preview1234" \
+            -Pandroid.injected.signing.key.alias="preview" \
+            -Pandroid.injected.signing.key.password="preview1234"
 
-      - name: Verify APK contains bundled JS
+      - name: Verify release outputs
         run: |
           APK="artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk"
+          AAB="artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab"
           test -f "$APK"
+          test -f "$AAB"
           unzip -l "$APK" | grep -E "assets/index.android.bundle|index.android.bundle"
+          ls -lh "$APK" "$AAB"
 
-      - name: Prepare APK artifact
+      - name: Prepare artifacts
         run: |
-          mkdir -p apk-output
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk apk-output/hasahisawi-preview-release.apk
-          ls -lh apk-output/hasahisawi-preview-release.apk
+          mkdir -p android-output
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk android-output/hasahisawi-preview-release.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab android-output/hasahisawi-preview-release.aab
+          ls -lh android-output
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: hasahisawi-preview-release-apk
-          path: apk-output/hasahisawi-preview-release.apk
+          path: android-output/hasahisawi-preview-release.apk
+          retention-days: 14
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-preview-release-aab
+          path: android-output/hasahisawi-preview-release.aab
           retention-days: 14
