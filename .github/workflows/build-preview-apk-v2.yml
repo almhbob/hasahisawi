@@ -2,6 +2,11 @@ name: Build preview APK v2
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-preview-apk-v2.yml'
+      - 'artifacts/hasahisawi/**'
 
 jobs:
   build-apk:
