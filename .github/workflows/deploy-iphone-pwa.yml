@@ -1,0 +1,58 @@
+name: Deploy iPhone PWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - 'artifacts/hasahisawi/pwa/**'
+      - '.github/workflows/deploy-iphone-pwa.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: iphone-pwa
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy iPhone PWA to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare site
+        run: |
+          mkdir -p public
+          cp -R artifacts/hasahisawi/pwa/* public/
+          if [ -f artifacts/hasahisawi/assets/images/icon.png ]; then
+            cp artifacts/hasahisawi/assets/images/icon.png public/icon.png
+          elif [ -f artifacts/hasahisawi/assets/images/logo.png ]; then
+            cp artifacts/hasahisawi/assets/images/logo.png public/icon.png
+          fi
+          touch public/.nojekyll
+          cat > public/README.txt <<'EOF'
+          Hasahisawi iPhone PWA install page.
+          Open this site in Safari, then Share -> Add to Home Screen.
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
