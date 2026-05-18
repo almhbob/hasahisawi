@@ -1,0 +1,21 @@
+{
+  "name": "حصاحيصاوي",
+  "short_name": "حصاحيصاوي",
+  "description": "بوابتك الذكية لمدينة الحصاحيصا",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07130D",
+  "theme_color": "#27AE68",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
