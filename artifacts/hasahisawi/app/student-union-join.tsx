@@ -31,7 +31,7 @@ const FIELDS: Field[] = [
 
 export default function StudentUnionJoinScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [form, setForm] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,8 +52,11 @@ export default function StudentUnionJoinScreen() {
     try {
       const res = await fetch(`${getApiUrl()}/api/student-union/apply`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, user_id: user?.id }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(form),
       });
 
       if (res.ok) {

@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { fsGetCollection, fsAddDoc, fsUpdateDoc, COLLECTIONS, orderBy, where, isFirebaseAvailable } from "@/lib/firebase/firestore";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
@@ -37,18 +37,17 @@ type BookingFacility = {
 };
 
 type Appointment = {
-  id: string;
-  facilityId: string;
-  facilityName: string;
-  facilityCategory: FacilityCategory;
-  service: string;
-  patientName: string;
-  phone: string;
-  date: string;
-  time: string;
-  notes: string;
+  id: number;
+  target_id: string;
+  facility_name: string | null;
+  target_type: string;
+  user_name: string;
+  user_phone: string | null;
+  appointment_date: string;
+  appointment_time: string;
+  notes: string | null;
   status: AppStatus;
-  createdAt: string;
+  created_at: string;
 };
 
 // ══════════════════════════════════════════════════════════
@@ -178,7 +177,7 @@ const STATUS_LABELS: Record<AppStatus, { label: string; color: string; icon: str
 type Step = "category" | "facility" | "service" | "datetime" | "info" | "confirm";
 
 export default function AppointmentsScreen() {
-  const { isGuest, user } = useAuth();
+  const { isGuest, user, token } = useAuth();
   const { gov_appointments_enabled } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -201,15 +200,23 @@ export default function AppointmentsScreen() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [apptFilter, setApptFilter] = useState<AppStatus | "all">("all");
 
+  const authHeaders = (): Record<string, string> => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+
   const loadAppointments = async () => {
-    if (!user?.uid || !isFirebaseAvailable()) { setAppointments([]); return; }
+    if (!user) { setAppointments([]); return; }
     try {
-      const docs = await fsGetCollection<Appointment>(
-        COLLECTIONS.APPOINTMENTS,
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc"),
-      );
-      setAppointments(docs);
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/appointments/mine`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(data.appointments ?? []);
+      } else {
+        setAppointments([]);
+      }
     } catch { setAppointments([]); }
   };
 
@@ -226,35 +233,52 @@ export default function AppointmentsScreen() {
     if (!patientName.trim()) { Alert.alert("تنبيه", "يرجى إدخال الاسم الكامل"); return; }
     if (!phone.trim()) { Alert.alert("تنبيه", "يرجى إدخال رقم الهاتف"); return; }
 
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
     try {
-      await fsAddDoc(COLLECTIONS.APPOINTMENTS, {
-        facilityId: facility!.id,
-        facilityName: facility!.name,
-        facilityCategory: facility!.category,
-        service, patientName: patientName.trim(),
-        phone: phone.trim(), date, time, notes: notes.trim(),
-        status: "pending",
-        userId: user?.uid ?? null,
-        createdAt: new Date().toISOString(),
+      const fullNotes = [
+        `الخدمة: ${service}`,
+        patientName.trim() && patientName.trim() !== user?.name ? `المريض: ${patientName.trim()}` : null,
+        notes.trim() || null,
+      ].filter(Boolean).join("\n");
+
+      const res = await fetch(`${getApiUrl()}/api/appointments/book`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          target_type:      facility!.category,
+          target_id:        facility!.id,
+          facility_name:    facility!.name,
+          appointment_date: date,
+          appointment_time: time,
+          notes:            fullNotes,
+          user_phone:       phone.trim(),
+        }),
       });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.error || "فشل الحجز");
+      }
+
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadAppointments();
       resetBooking();
       setTab("my");
       Alert.alert("✅ تم الحجز!", `تم إرسال طلب موعدك في ${facility!.name}\nيوم ${date} الساعة ${time}\nسيتم التواصل معك للتأكيد`);
-    } catch {
-      Alert.alert("خطأ", "تعذّر حفظ الموعد، تحقق من الاتصال");
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.message || "تعذّر حفظ الموعد، تحقق من الاتصال");
     }
   };
 
-  const cancelAppointment = async (id: string) => {
+  const cancelAppointment = async (id: number) => {
     Alert.alert("إلغاء الموعد", "هل تريد إلغاء هذا الموعد؟", [
       { text: "لا", style: "cancel" },
       {
         text: "نعم، ألغِ", style: "destructive", onPress: async () => {
           try {
-            await fsUpdateDoc(COLLECTIONS.APPOINTMENTS, id, { status: "cancelled" });
+            await fetch(`${getApiUrl()}/api/appointments/${id}/cancel`, {
+              method: "PATCH",
+              headers: authHeaders(),
+            });
             setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled" as AppStatus } : a));
           } catch { Alert.alert("خطأ", "تعذّر الإلغاء"); }
         }
@@ -682,14 +706,14 @@ export default function AppointmentsScreen() {
                         <Ionicons name={st.icon as any} size={13} color={st.color} />
                         <Text style={[s.apptStatusText, { color: st.color }]}>{st.label}</Text>
                       </View>
-                      <Text style={s.apptFacility}>{appt.facilityName}</Text>
+                      <Text style={s.apptFacility}>{appt.facility_name || appt.target_id}</Text>
                     </View>
                     <View style={s.apptBody}>
                       {[
-                        { icon: "medical-bag", label: appt.service },
-                        { icon: "calendar-outline", label: `${appt.date} — ${appt.time}` },
-                        { icon: "person-outline", label: appt.patientName },
-                        { icon: "call-outline", label: appt.phone },
+                        { icon: "medical-bag",      label: appt.notes?.split("\n")[0]?.replace("الخدمة: ", "") ?? "" },
+                        { icon: "calendar-outline", label: `${appt.appointment_date} — ${appt.appointment_time}` },
+                        { icon: "person-outline",   label: appt.user_name },
+                        { icon: "call-outline",     label: appt.user_phone ?? "" },
                       ].map((row, ri) => (
                         <View key={ri} style={s.apptRow}>
                           <Text style={s.apptRowVal}>{row.label}</Text>
@@ -698,7 +722,7 @@ export default function AppointmentsScreen() {
                       ))}
                     </View>
                     {appt.status !== "cancelled" && (
-                      <TouchableOpacity style={s.cancelBtn} onPress={() => cancelAppointment(appt.id)}>
+                      <TouchableOpacity style={s.cancelBtn} onPress={() => cancelAppointment(appt.id as number)}>
                         <Ionicons name="close-circle-outline" size={16} color={Colors.danger} />
                         <Text style={s.cancelBtnText}>إلغاء الموعد</Text>
                       </TouchableOpacity>

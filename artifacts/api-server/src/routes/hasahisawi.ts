@@ -14434,3 +14434,122 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
     return res.json(r.rows);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
+
+// ══════════════════════════════════════════════════════════════════
+// اتحاد الطلاب — Student Union Applications
+// ══════════════════════════════════════════════════════════════════
+
+// إنشاء الجدول عند الحاجة
+(async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS student_union_applications (
+        id            SERIAL PRIMARY KEY,
+        user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        full_name     VARCHAR(200) NOT NULL,
+        national_id   VARCHAR(50)  NOT NULL,
+        phone         VARCHAR(40)  NOT NULL,
+        email         VARCHAR(200),
+        institution   VARCHAR(200) NOT NULL,
+        major         VARCHAR(200) NOT NULL,
+        year          VARCHAR(60)  NOT NULL,
+        neighborhood  VARCHAR(100),
+        status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        admin_note    TEXT,
+        reviewed_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at   TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sua_status ON student_union_applications(status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sua_user   ON student_union_applications(user_id)`);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[student-union] table init failed"); }
+})();
+
+// POST /api/student-union/apply — تقديم طلب عضوية طلابية
+router.post("/student-union/apply", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    const { full_name, national_id, phone, email, institution, major, year, neighborhood } = req.body as Record<string, string>;
+
+    if (!full_name?.trim())   return res.status(400).json({ error: "الاسم مطلوب" });
+    if (!national_id?.trim()) return res.status(400).json({ error: "الرقم الوطني مطلوب" });
+    if (!phone?.trim())       return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    if (!institution?.trim()) return res.status(400).json({ error: "الجامعة / المعهد مطلوب" });
+    if (!major?.trim())       return res.status(400).json({ error: "التخصص مطلوب" });
+    if (!year?.trim())        return res.status(400).json({ error: "السنة الدراسية مطلوبة" });
+
+    // منع التقديم المزدوج لنفس الرقم الوطني
+    const dup = await query(
+      `SELECT id FROM student_union_applications WHERE national_id=$1 AND status != 'rejected'`,
+      [national_id.trim()]
+    );
+    if (dup.rows.length) return res.status(409).json({ error: "يوجد طلب مقدَّم مسبقاً بهذا الرقم الوطني" });
+
+    const result = await query(
+      `INSERT INTO student_union_applications
+         (user_id, full_name, national_id, phone, email, institution, major, year, neighborhood)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [
+        user?.id ?? null,
+        full_name.trim(), national_id.trim(), phone.trim(),
+        email?.trim() || null, institution.trim(), major.trim(),
+        year.trim(), neighborhood?.trim() || null,
+      ]
+    );
+    return res.status(201).json({ application: result.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/apply]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/student-union/applications — قائمة الطلبات (أدمن)
+router.get("/student-union/applications", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status } = req.query as { status?: string };
+    const params: unknown[] = [];
+    let where = "";
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      where = " WHERE status=$1";
+      params.push(status);
+    }
+    const result = await query(
+      `SELECT * FROM student_union_applications${where} ORDER BY created_at DESC`,
+      params
+    );
+    return res.json({ applications: result.rows, total: result.rowCount });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/applications]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PATCH /api/student-union/applications/:id/status — تحديث حالة طلب (أدمن)
+router.patch("/student-union/applications/:id/status", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+
+    const admin = await getSessionUser(req);
+    const { status, admin_note } = req.body as { status?: string; admin_note?: string };
+
+    if (!["approved", "rejected"].includes(status ?? "")) {
+      return res.status(400).json({ error: "الحالة يجب أن تكون approved أو rejected" });
+    }
+
+    const result = await query(
+      `UPDATE student_union_applications
+       SET status=$1, admin_note=$2, reviewed_by=$3, reviewed_at=NOW()
+       WHERE id=$4 RETURNING *`,
+      [status, admin_note?.trim() || null, admin?.id ?? null, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json({ application: result.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/status]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});

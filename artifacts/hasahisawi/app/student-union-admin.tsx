@@ -45,7 +45,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function StudentUnionAdminScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAdmin } = useAuth();
+  const { user, token } = useAuth();
   const [apps, setApps] = useState<Application[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function StudentUnionAdminScreen() {
 
   const apiHeaders = () => ({
     "Content-Type": "application/json",
-    ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   });
 
   const load = useCallback(async () => {
@@ -129,7 +129,7 @@ export default function StudentUnionAdminScreen() {
 
   const filtered = filter === "all" ? apps : apps.filter(a => a.status === filter);
 
-  if (!isAdmin) {
+  if (user?.role !== "admin") {
     return (
       <View style={[s.center, { paddingTop: insets.top }]}>
         <Ionicons name="lock-closed-outline" size={48} color={Colors.textMuted} />
