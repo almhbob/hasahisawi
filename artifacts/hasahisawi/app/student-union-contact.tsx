@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
@@ -57,6 +57,10 @@ function ChipSelect({ options, value, onSelect }: { options: string[]; value: st
     </View>
   );
 }
+
+// رقم التواصل مع الاتحاد — يُجلب من إعدادات التطبيق
+const UNION_WHATSAPP = "249923000000";
+const UNION_PHONE    = "+249923000000";
 
 export default function StudentUnionContactScreen() {
   const insets = useSafeAreaInsets();
@@ -189,14 +193,14 @@ export default function StudentUnionContactScreen() {
           <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 12 }}>
             <TouchableOpacity
               style={[s.directBtn, { backgroundColor: "#25D366" }]}
-              onPress={() => Linking.openURL("https://wa.me/249XXXXXXXXX")}
+              onPress={() => Linking.openURL(`https://wa.me/${UNION_WHATSAPP}`)}
             >
               <Ionicons name="logo-whatsapp" size={18} color="#fff" />
               <Text style={s.directBtnText}>واتساب</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.directBtn, { backgroundColor: "#2563EB" }]}
-              onPress={() => Linking.openURL("tel:+249XXXXXXXXX")}
+              onPress={() => Linking.openURL(`tel:${UNION_PHONE}`)}
             >
               <Ionicons name="call-outline" size={18} color="#fff" />
               <Text style={s.directBtnText}>اتصال</Text>

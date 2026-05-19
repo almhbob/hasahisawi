@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -1420,6 +1420,7 @@ export default function AdminDashboard() {
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
+    { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -1574,6 +1575,7 @@ export default function AdminDashboard() {
                 style={[s.tabBtn, active && { backgroundColor: t.color + "20", borderColor: t.color + "80" }]}
                 onPress={() => {
                   if (t.key === "transport") { router.push("/admin-transport" as any); return; }
+                  if (t.key === "sections_config") { router.push("/admin-sections-config" as any); return; }
                   setTab(t.key);
                 }}
                 activeOpacity={0.75}

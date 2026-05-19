@@ -1,12 +1,12 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Switch,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeInDown, FadeInRight, FadeInLeft } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
@@ -121,6 +121,21 @@ export default function StudentUnionJoinScreen() {
   const [email, setEmail]           = useState("");
   const [address, setAddress]       = useState("");
 
+  // حساب العمر تلقائياً من تاريخ الميلاد
+  const handleBirthDateChange = useCallback((val: string) => {
+    setBirthDate(val);
+    if (val.length >= 8) {
+      const parts = val.replace(/\//g, "-").split("-");
+      if (parts.length === 3) {
+        const y = parseInt(parts[0].length === 4 ? parts[0] : parts[2], 10);
+        if (!isNaN(y) && y > 1900 && y <= new Date().getFullYear()) {
+          const calculated = new Date().getFullYear() - y;
+          if (calculated > 5 && calculated < 100) setAge(String(calculated));
+        }
+      }
+    }
+  }, []);
+
   // القسم 2
   const [institution, setInstitution] = useState("");
   const [studyStage, setStudyStage]   = useState("");
@@ -145,9 +160,10 @@ export default function StudentUnionJoinScreen() {
   const [weeklyHours, setWeeklyHours]       = useState("");
   const [otherCommitments, setOtherCommit]  = useState("");
 
-  // القسم 7
+  // القسم 7 — تاريخ اليوم كقيمة افتراضية للتعهد
+  const todayStr = new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "2-digit", day: "2-digit" });
   const [pledgeName, setPledgeName] = useState("");
-  const [pledgeDate, setPledgeDate] = useState("");
+  const [pledgeDate, setPledgeDate] = useState(todayStr);
   const [pledgeAgreed, setPledgeAgreed] = useState(false);
 
   const toggleSkill = (s: string) =>
@@ -190,12 +206,12 @@ export default function StudentUnionJoinScreen() {
     if (err) { Alert.alert("تنبيه", err); return; }
     if (Platform.OS !== "web") Haptics.selectionAsync();
     setSection(p => p + 1);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
   };
 
   const goBack = () => {
     setSection(p => p - 1);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
   };
 
   const handleSubmit = async () => {
@@ -301,7 +317,7 @@ export default function StudentUnionJoinScreen() {
             <Input value={fullName} onChange={setFullName} placeholder="أدخل اسمك الرباعي كاملاً" />
 
             <FieldLabel text="تاريخ الميلاد" />
-            <Input value={birthDate} onChange={setBirthDate} placeholder="مثال: 2000/01/15" />
+            <Input value={birthDate} onChange={handleBirthDateChange} placeholder="مثال: 2000/01/15" />
 
             <FieldLabel text="العمر" />
             <Input value={age} onChange={setAge} placeholder="مثال: 22" keyboardType="numeric" />

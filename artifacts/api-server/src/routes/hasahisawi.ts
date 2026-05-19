@@ -14857,3 +14857,208 @@ router.delete("/admin/cultural-events/:id", async (req: Request, res: Response) 
     return res.json({ ok: true });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
+
+// ══════════════════════════════════════════════════════════════════
+// رسائل التواصل — Contact Messages
+// ══════════════════════════════════════════════════════════════════
+(async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id               SERIAL PRIMARY KEY,
+        sender_name      VARCHAR(200) NOT NULL,
+        phone            VARCHAR(40)  NOT NULL,
+        whatsapp         VARCHAR(40),
+        email            VARCHAR(200),
+        locality         VARCHAR(200),
+        category         VARCHAR(100),
+        message          TEXT         NOT NULL,
+        best_contact_time VARCHAR(100),
+        source           VARCHAR(50),
+        is_read          BOOLEAN      NOT NULL DEFAULT FALSE,
+        admin_note       TEXT,
+        created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_cm_source ON contact_messages(source)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_cm_read   ON contact_messages(is_read)`);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[contact-messages] table init failed"); }
+})();
+
+// POST /api/contact-messages
+router.post("/contact-messages", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const b = req.body as Record<string, any>;
+    if (!b.sender_name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    if (!b.phone?.trim())       return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    if (!b.message?.trim())     return res.status(400).json({ error: "الرسالة مطلوبة" });
+
+    const result = await query(
+      `INSERT INTO contact_messages
+         (sender_name, phone, whatsapp, email, locality, category, message, best_contact_time, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [
+        b.sender_name.trim(), b.phone.trim(), b.whatsapp?.trim()||null,
+        b.email?.trim()||null, b.locality?.trim()||null,
+        b.category?.trim()||"استفسار عام", b.message.trim(),
+        b.best_contact_time?.trim()||null, b.source?.trim()||"general",
+      ]
+    );
+    return res.status(201).json({ message: result.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[contact-messages/post]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/admin/contact-messages
+router.get("/admin/contact-messages", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { source, unread } = req.query as { source?: string; unread?: string };
+    const params: unknown[] = [];
+    const wheres: string[] = [];
+    if (source) { wheres.push(`source=$${params.length+1}`); params.push(source); }
+    if (unread === "1") { wheres.push(`is_read=FALSE`); }
+    const where = wheres.length ? ` WHERE ${wheres.join(" AND ")}` : "";
+    const result = await query(
+      `SELECT * FROM contact_messages${where} ORDER BY created_at DESC`, params
+    );
+    return res.json({ messages: result.rows, total: result.rowCount });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/contact-messages/:id/read
+router.patch("/admin/contact-messages/:id/read", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { admin_note } = req.body as { admin_note?: string };
+    await query(
+      `UPDATE contact_messages SET is_read=TRUE, admin_note=COALESCE($1,admin_note) WHERE id=$2`,
+      [admin_note?.trim()||null, req.params.id]
+    );
+    return res.json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// إدارة أقسام التطبيق — Section Configurations (إخفاء/إظهار + العقود)
+// ══════════════════════════════════════════════════════════════════
+(async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS section_configurations (
+        section_key        VARCHAR(100) PRIMARY KEY,
+        section_name       VARCHAR(200) NOT NULL,
+        section_name_en    VARCHAR(200),
+        section_description TEXT,
+        is_visible         BOOLEAN     NOT NULL DEFAULT TRUE,
+        requires_contract  BOOLEAN     NOT NULL DEFAULT FALSE,
+        contract_status    VARCHAR(20) NOT NULL DEFAULT 'none',
+        contract_signed_at TIMESTAMPTZ,
+        contract_expiry_at TIMESTAMPTZ,
+        contract_notes     TEXT,
+        authorized_entity  VARCHAR(300),
+        authorized_contact VARCHAR(200),
+        sort_order         INTEGER     NOT NULL DEFAULT 0,
+        updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by         INTEGER REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
+    // إدراج الأقسام الافتراضية
+    const defaults = [
+      ["gov_services",       "الخدمات الحكومية",           "Government Services",      true,  true,  0],
+      ["gov_appointments",   "المواعيد الحكومية",           "Gov Appointments",         true,  true,  1],
+      ["gov_reports",        "البلاغات والشكاوى",           "Reports & Complaints",     true,  true,  2],
+      ["medical",            "الخدمات الصحية",              "Medical Services",         true,  true,  3],
+      ["student_union",      "اتحاد الطلاب",               "Student Union",            true,  false, 4],
+      ["cultural_centers",   "المراكز الثقافية",            "Cultural Centers",         true,  false, 5],
+      ["unions_orgs",        "النقابات والجمعيات",          "Unions & Organizations",   true,  false, 6],
+      ["jobs",               "سوق العمل",                  "Job Market",               true,  false, 7],
+      ["transport",          "النقل والمواصلات",            "Transport",                true,  false, 8],
+      ["market",             "السوق المحلي",               "Local Market",             true,  false, 9],
+      ["real_estate",        "العقارات والإيجارات",          "Real Estate",              true,  false, 10],
+      ["farmers",            "المزارعون",                   "Farmers",                  true,  false, 11],
+      ["factories",          "المصانع والصناعة",            "Factories & Industry",     true,  false, 12],
+      ["sports",             "الرياضة والأنشطة",            "Sports & Activities",      true,  false, 13],
+      ["union_partnership",  "شراكة الاتحادات",             "Union Partnerships",       true,  false, 14],
+    ];
+
+    for (const [key, name, name_en, visible, requires, order] of defaults) {
+      await query(
+        `INSERT INTO section_configurations (section_key, section_name, section_name_en, is_visible, requires_contract, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (section_key) DO NOTHING`,
+        [key, name, name_en, visible, requires, order]
+      );
+    }
+  } catch (e: any) { logger.warn({ err: e?.message }, "[section-configs] table init failed"); }
+})();
+
+// GET /api/app/section-configs — public: returns visibility map
+router.get("/app/section-configs", async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT section_key, is_visible, contract_status FROM section_configurations ORDER BY sort_order`
+    );
+    const map: Record<string, { visible: boolean; contract_status: string }> = {};
+    for (const r of result.rows) {
+      map[r.section_key] = { visible: r.is_visible, contract_status: r.contract_status };
+    }
+    return res.json(map);
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/section-configs — admin: full details
+router.get("/admin/section-configs", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const result = await query(`SELECT * FROM section_configurations ORDER BY sort_order`);
+    return res.json({ sections: result.rows });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/section-configs/:key — admin: update a section
+router.patch("/admin/section-configs/:key", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const key = req.params.key;
+    const admin = await getSessionUser(req);
+    const {
+      is_visible, contract_status, contract_signed_at, contract_expiry_at,
+      contract_notes, authorized_entity, authorized_contact, section_description,
+    } = req.body as Record<string, any>;
+
+    if (contract_status && !["none","pending","signed","expired"].includes(contract_status)) {
+      return res.status(400).json({ error: "حالة عقد غير صالحة" });
+    }
+
+    const result = await query(
+      `UPDATE section_configurations SET
+         is_visible        = COALESCE($1, is_visible),
+         contract_status   = COALESCE($2, contract_status),
+         contract_signed_at= COALESCE($3::TIMESTAMPTZ, contract_signed_at),
+         contract_expiry_at= COALESCE($4::TIMESTAMPTZ, contract_expiry_at),
+         contract_notes    = COALESCE($5, contract_notes),
+         authorized_entity = COALESCE($6, authorized_entity),
+         authorized_contact= COALESCE($7, authorized_contact),
+         section_description=COALESCE($8, section_description),
+         updated_at        = NOW(),
+         updated_by        = $9
+       WHERE section_key=$10 RETURNING *`,
+      [
+        is_visible ?? null, contract_status||null,
+        contract_signed_at||null, contract_expiry_at||null,
+        contract_notes?.trim()||null, authorized_entity?.trim()||null,
+        authorized_contact?.trim()||null, section_description?.trim()||null,
+        admin?.id??null, key,
+      ]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "القسم غير موجود" });
+    return res.json({ section: result.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[section-configs/patch]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
