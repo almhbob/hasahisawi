@@ -14436,65 +14436,145 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// اتحاد الطلاب — Student Union Applications
+// اتحاد الطلاب — Student Union Applications & Partnership
 // ══════════════════════════════════════════════════════════════════
 
-// إنشاء الجدول عند الحاجة
 (async () => {
   try {
+    // جدول طلبات العضوية الطلابية — الاستمارة الرسمية ذات السبعة أقسام
     await query(`
       CREATE TABLE IF NOT EXISTS student_union_applications (
-        id            SERIAL PRIMARY KEY,
-        user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        full_name     VARCHAR(200) NOT NULL,
-        national_id   VARCHAR(50)  NOT NULL,
-        phone         VARCHAR(40)  NOT NULL,
-        email         VARCHAR(200),
-        institution   VARCHAR(200) NOT NULL,
-        major         VARCHAR(200) NOT NULL,
-        year          VARCHAR(60)  NOT NULL,
-        neighborhood  VARCHAR(100),
-        status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
-        admin_note    TEXT,
-        reviewed_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        reviewed_at   TIMESTAMPTZ,
-        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id                  SERIAL PRIMARY KEY,
+        user_id             INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        -- القسم 1: البيانات الشخصية
+        full_name           VARCHAR(200) NOT NULL,
+        birth_date          VARCHAR(30),
+        age                 VARCHAR(10),
+        gender              VARCHAR(10),
+        national_id         VARCHAR(50)  NOT NULL,
+        phone               VARCHAR(40)  NOT NULL,
+        email               VARCHAR(200),
+        address             VARCHAR(300),
+        neighborhood        VARCHAR(100),
+        -- القسم 2: البيانات الأكاديمية
+        institution         VARCHAR(200) NOT NULL,
+        study_stage         VARCHAR(50),
+        year                VARCHAR(60)  NOT NULL,
+        major               VARCHAR(200) NOT NULL,
+        -- القسم 3: الخبرات والمهارات
+        skills              TEXT,
+        previous_experience BOOLEAN,
+        experience_details  TEXT,
+        -- القسم 4: مجالات الاهتمام
+        committees          TEXT,
+        -- القسم 5: الدوافع والرؤية
+        motivation          TEXT,
+        contribution        TEXT,
+        vision              TEXT,
+        -- القسم 6: الالتزام والتفرغ
+        can_attend_meetings BOOLEAN,
+        weekly_hours        VARCHAR(20),
+        other_commitments   TEXT,
+        -- القسم 7: التعهد
+        pledge_name         VARCHAR(200),
+        pledge_date         VARCHAR(30),
+        -- إدارة
+        status              VARCHAR(20) NOT NULL DEFAULT 'pending',
+        admin_note          TEXT,
+        reviewed_by         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at         TIMESTAMPTZ,
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_sua_status ON student_union_applications(status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sua_natid  ON student_union_applications(national_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_sua_user   ON student_union_applications(user_id)`);
+
+    // ترقية الجدول القديم بإضافة الأعمدة الجديدة إن لم تكن موجودة
+    const newCols = [
+      ["birth_date","VARCHAR(30)"], ["age","VARCHAR(10)"], ["gender","VARCHAR(10)"],
+      ["address","VARCHAR(300)"], ["study_stage","VARCHAR(50)"], ["skills","TEXT"],
+      ["previous_experience","BOOLEAN"], ["experience_details","TEXT"], ["committees","TEXT"],
+      ["motivation","TEXT"], ["contribution","TEXT"], ["vision","TEXT"],
+      ["can_attend_meetings","BOOLEAN"], ["weekly_hours","VARCHAR(20)"],
+      ["other_commitments","TEXT"], ["pledge_name","VARCHAR(200)"], ["pledge_date","VARCHAR(30)"],
+    ];
+    for (const [col, typ] of newCols) {
+      await query(`ALTER TABLE student_union_applications ADD COLUMN IF NOT EXISTS ${col} ${typ}`).catch(() => {});
+    }
   } catch (e: any) { logger.warn({ err: e?.message }, "[student-union] table init failed"); }
+
+  try {
+    // جدول طلبات انضمام الاتحادات لخدمات التطبيق (شراكة)
+    await query(`
+      CREATE TABLE IF NOT EXISTS union_partnership_applications (
+        id                SERIAL PRIMARY KEY,
+        union_name        VARCHAR(200) NOT NULL,
+        union_type        VARCHAR(100),
+        contact_person    VARCHAR(200) NOT NULL,
+        phone             VARCHAR(40)  NOT NULL,
+        email             VARCHAR(200),
+        address           VARCHAR(300),
+        description       TEXT,
+        membership_count  INTEGER,
+        requested_tier    VARCHAR(50),
+        contract_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+        status            VARCHAR(20) NOT NULL DEFAULT 'pending',
+        annual_fee        NUMERIC(10,2),
+        admin_note        TEXT,
+        reviewed_by       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at       TIMESTAMPTZ,
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_upa_status ON union_partnership_applications(status)`);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[union-partnership] table init failed"); }
 })();
 
-// POST /api/student-union/apply — تقديم طلب عضوية طلابية
+// POST /api/student-union/apply
 router.post("/student-union/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
-    const { full_name, national_id, phone, email, institution, major, year, neighborhood } = req.body as Record<string, string>;
+    const b = req.body as Record<string, any>;
 
-    if (!full_name?.trim())   return res.status(400).json({ error: "الاسم مطلوب" });
-    if (!national_id?.trim()) return res.status(400).json({ error: "الرقم الوطني مطلوب" });
-    if (!phone?.trim())       return res.status(400).json({ error: "رقم الهاتف مطلوب" });
-    if (!institution?.trim()) return res.status(400).json({ error: "الجامعة / المعهد مطلوب" });
-    if (!major?.trim())       return res.status(400).json({ error: "التخصص مطلوب" });
-    if (!year?.trim())        return res.status(400).json({ error: "السنة الدراسية مطلوبة" });
+    if (!b.full_name?.trim())   return res.status(400).json({ error: "الاسم الرباعي مطلوب" });
+    if (!b.national_id?.trim()) return res.status(400).json({ error: "الرقم الوطني مطلوب" });
+    if (!b.phone?.trim())       return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    if (!b.institution?.trim()) return res.status(400).json({ error: "المؤسسة التعليمية مطلوبة" });
+    if (!b.major?.trim())       return res.status(400).json({ error: "التخصص مطلوب" });
+    if (!b.year?.trim())        return res.status(400).json({ error: "السنة/المستوى مطلوب" });
+    if (!b.pledge_name?.trim()) return res.status(400).json({ error: "الاسم في التعهد مطلوب" });
 
-    // منع التقديم المزدوج لنفس الرقم الوطني
     const dup = await query(
       `SELECT id FROM student_union_applications WHERE national_id=$1 AND status != 'rejected'`,
-      [national_id.trim()]
+      [b.national_id.trim()]
     );
     if (dup.rows.length) return res.status(409).json({ error: "يوجد طلب مقدَّم مسبقاً بهذا الرقم الوطني" });
 
     const result = await query(
       `INSERT INTO student_union_applications
-         (user_id, full_name, national_id, phone, email, institution, major, year, neighborhood)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         (user_id, full_name, birth_date, age, gender, national_id, phone, email, address, neighborhood,
+          institution, study_stage, year, major,
+          skills, previous_experience, experience_details,
+          committees,
+          motivation, contribution, vision,
+          can_attend_meetings, weekly_hours, other_commitments,
+          pledge_name, pledge_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+       RETURNING *`,
       [
         user?.id ?? null,
-        full_name.trim(), national_id.trim(), phone.trim(),
-        email?.trim() || null, institution.trim(), major.trim(),
-        year.trim(), neighborhood?.trim() || null,
+        b.full_name.trim(), b.birth_date?.trim()||null, b.age?.trim()||null, b.gender?.trim()||null,
+        b.national_id.trim(), b.phone.trim(), b.email?.trim()||null, b.address?.trim()||null, b.neighborhood?.trim()||null,
+        b.institution.trim(), b.study_stage?.trim()||null, b.year.trim(), b.major.trim(),
+        Array.isArray(b.skills) ? JSON.stringify(b.skills) : (b.skills||null),
+        typeof b.previous_experience === "boolean" ? b.previous_experience : null,
+        b.experience_details?.trim()||null,
+        Array.isArray(b.committees) ? JSON.stringify(b.committees) : (b.committees||null),
+        b.motivation?.trim()||null, b.contribution?.trim()||null, b.vision?.trim()||null,
+        typeof b.can_attend_meetings === "boolean" ? b.can_attend_meetings : null,
+        b.weekly_hours?.trim()||null, b.other_commitments?.trim()||null,
+        b.pledge_name.trim(), b.pledge_date?.trim()||null,
       ]
     );
     return res.status(201).json({ application: result.rows[0] });
@@ -14504,20 +14584,18 @@ router.post("/student-union/apply", writeLimiter, async (req: Request, res: Resp
   }
 });
 
-// GET /api/student-union/applications — قائمة الطلبات (أدمن)
+// GET /api/student-union/applications
 router.get("/student-union/applications", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
     const { status } = req.query as { status?: string };
     const params: unknown[] = [];
     let where = "";
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
-      where = " WHERE status=$1";
-      params.push(status);
+    if (status && ["pending","approved","rejected"].includes(status)) {
+      where = " WHERE status=$1"; params.push(status);
     }
     const result = await query(
-      `SELECT * FROM student_union_applications${where} ORDER BY created_at DESC`,
-      params
+      `SELECT * FROM student_union_applications${where} ORDER BY created_at DESC`, params
     );
     return res.json({ applications: result.rows, total: result.rowCount });
   } catch (e: any) {
@@ -14526,25 +14604,22 @@ router.get("/student-union/applications", async (req: Request, res: Response) =>
   }
 });
 
-// PATCH /api/student-union/applications/:id/status — تحديث حالة طلب (أدمن)
+// PATCH /api/student-union/applications/:id/status
 router.patch("/student-union/applications/:id/status", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
-
     const admin = await getSessionUser(req);
     const { status, admin_note } = req.body as { status?: string; admin_note?: string };
-
-    if (!["approved", "rejected"].includes(status ?? "")) {
+    if (!["approved","rejected"].includes(status ?? "")) {
       return res.status(400).json({ error: "الحالة يجب أن تكون approved أو rejected" });
     }
-
     const result = await query(
       `UPDATE student_union_applications
        SET status=$1, admin_note=$2, reviewed_by=$3, reviewed_at=NOW()
        WHERE id=$4 RETURNING *`,
-      [status, admin_note?.trim() || null, admin?.id ?? null, id]
+      [status, admin_note?.trim()||null, admin?.id??null, id]
     );
     if (!result.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
     return res.json({ application: result.rows[0] });
@@ -14552,4 +14627,233 @@ router.patch("/student-union/applications/:id/status", async (req: Request, res:
     logger.error({ err: e?.message }, "[student-union/status]");
     return res.status(500).json({ error: "Server error" });
   }
+});
+
+// POST /api/union-partnership/apply — طلب انضمام اتحاد لخدمات التطبيق
+router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const b = req.body as Record<string, any>;
+    if (!b.union_name?.trim())     return res.status(400).json({ error: "اسم الاتحاد مطلوب" });
+    if (!b.contact_person?.trim()) return res.status(400).json({ error: "اسم المسؤول مطلوب" });
+    if (!b.phone?.trim())          return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    if (!b.contract_accepted)      return res.status(400).json({ error: "يجب الموافقة على الشروط والأحكام" });
+
+    const result = await query(
+      `INSERT INTO union_partnership_applications
+         (union_name, union_type, contact_person, phone, email, address,
+          description, membership_count, requested_tier, contract_accepted)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [
+        b.union_name.trim(), b.union_type?.trim()||null, b.contact_person.trim(),
+        b.phone.trim(), b.email?.trim()||null, b.address?.trim()||null,
+        b.description?.trim()||null, b.membership_count||null,
+        b.requested_tier?.trim()||"basic", true,
+      ]
+    );
+    return res.status(201).json({ application: result.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[union-partnership/apply]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/admin/union-partnership — قائمة طلبات الشراكة (أدمن)
+router.get("/admin/union-partnership", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const result = await query(`SELECT * FROM union_partnership_applications ORDER BY created_at DESC`);
+    return res.json({ applications: result.rows });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/union-partnership/:id — تحديث حالة وتفاصيل الشراكة (أدمن)
+router.patch("/admin/union-partnership/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const admin = await getSessionUser(req);
+    const { status, annual_fee, admin_note } = req.body as any;
+    if (status && !["approved","rejected","pending"].includes(status)) {
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    }
+    const result = await query(
+      `UPDATE union_partnership_applications
+       SET status=COALESCE($1,status), annual_fee=COALESCE($2,annual_fee),
+           admin_note=COALESCE($3,admin_note), reviewed_by=$4, reviewed_at=NOW()
+       WHERE id=$5 RETURNING *`,
+      [status||null, annual_fee||null, admin_note?.trim()||null, admin?.id??null, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json({ application: result.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// الثقافة — Cultural Centers & Events
+// ══════════════════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS cultural_centers (
+        id          SERIAL PRIMARY KEY,
+        name        VARCHAR(200) NOT NULL,
+        type        VARCHAR(50)  NOT NULL DEFAULT 'other',
+        address     TEXT         NOT NULL DEFAULT '',
+        phone       VARCHAR(40)  NOT NULL DEFAULT '',
+        description TEXT,
+        hours       VARCHAR(100),
+        is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
+        sort_order  INTEGER      NOT NULL DEFAULT 0,
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS cultural_events (
+        id            SERIAL PRIMARY KEY,
+        title         VARCHAR(200) NOT NULL,
+        type          VARCHAR(50)  NOT NULL DEFAULT 'other',
+        event_date    DATE         NOT NULL,
+        location      TEXT         NOT NULL DEFAULT '',
+        description   TEXT,
+        contact_phone VARCHAR(40),
+        is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    // بيانات أولية للحصاحيصا
+    await query(`
+      INSERT INTO cultural_centers (name, type, address, phone, description, hours, sort_order)
+      VALUES
+        ('مكتبة الحصاحيصا العامة',   'library',         'وسط المدينة، الحصاحيصا',    '+249912000001', 'مكتبة عامة تضم آلاف الكتب والمراجع العلمية والأدبية', 'السبت - الخميس 8ص - 2م', 1),
+        ('مركز الثقافة والفنون',      'cultural_center', 'حي الوحدة، الحصاحيصا',      '+249912000002', 'مركز متعدد الأنشطة الثقافية والفنية والاجتماعية',     'السبت - الخميس 9ص - 5م', 2),
+        ('قاعة التراث والموروث',      'heritage',        'قرب السوق الكبير، الحصاحيصا','+249912000003', 'معرض دائم للتراث السوداني وموروث الحصاحيصا',           'السبت - الخميس 9ص - 3م', 3)
+      ON CONFLICT DO NOTHING
+    `);
+    await query(`
+      INSERT INTO cultural_events (title, type, event_date, location, description, contact_phone)
+      VALUES
+        ('معرض الفنون التشكيلية السنوي', 'exhibition', (NOW() + INTERVAL '30 days')::date, 'مركز الثقافة والفنون', 'معرض سنوي للفنانين المحليين', '+249912000002'),
+        ('ورشة الخط العربي',             'workshop',   (NOW() + INTERVAL '14 days')::date, 'مكتبة الحصاحيصا العامة', 'ورشة تعليمية في فن الخط العربي للمبتدئين والمتقدمين', '+249912000001')
+      ON CONFLICT DO NOTHING
+    `);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[cultural] table init failed"); }
+})();
+
+// GET /api/cultural-centers
+router.get("/cultural-centers", async (req: Request, res: Response) => {
+  try {
+    const { type, search } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM cultural_centers WHERE is_active=TRUE`;
+    const params: unknown[] = [];
+    if (type)   { sql += ` AND type=$${params.length+1}`;                                     params.push(type); }
+    if (search) { sql += ` AND (name ILIKE $${params.length+1} OR address ILIKE $${params.length+1})`; params.push(`%${search}%`); }
+    sql += ` ORDER BY sort_order, name`;
+    const r = await query(sql, params);
+    return res.json({ centers: r.rows });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[cultural-centers]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/cultural-events
+router.get("/cultural-events", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query as Record<string, string>;
+    let sql = `SELECT * FROM cultural_events WHERE is_active=TRUE AND event_date >= CURRENT_DATE - INTERVAL '7 days'`;
+    const params: unknown[] = [];
+    if (type) { sql += ` AND type=$${params.length+1}`; params.push(type); }
+    sql += ` ORDER BY event_date ASC`;
+    const r = await query(sql, params);
+    return res.json({ events: r.rows });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[cultural-events]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/admin/cultural-centers
+router.post("/admin/cultural-centers", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { name, type, address, phone, description, hours } = req.body as Record<string, string>;
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    const r = await query(
+      `INSERT INTO cultural_centers (name, type, address, phone, description, hours)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [name.trim(), type||"other", address||"", phone||"", description||null, hours||null]
+    );
+    return res.status(201).json({ center: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/cultural-centers/:id
+router.patch("/admin/cultural-centers/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { name, type, address, phone, description, hours, is_active } = req.body as any;
+    const r = await query(
+      `UPDATE cultural_centers SET
+         name=$1, type=$2, address=$3, phone=$4, description=$5, hours=$6,
+         is_active=COALESCE($7, is_active)
+       WHERE id=$8 RETURNING *`,
+      [name, type||"other", address||"", phone||"", description||null, hours||null, is_active, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ center: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/cultural-centers/:id
+router.delete("/admin/cultural-centers/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`UPDATE cultural_centers SET is_active=FALSE WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/admin/cultural-events
+router.post("/admin/cultural-events", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { title, type, event_date, location, description, contact_phone } = req.body as Record<string, string>;
+    if (!title?.trim() || !event_date) return res.status(400).json({ error: "العنوان والتاريخ مطلوبان" });
+    const r = await query(
+      `INSERT INTO cultural_events (title, type, event_date, location, description, contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [title.trim(), type||"other", event_date, location||"", description||null, contact_phone||null]
+    );
+    return res.status(201).json({ event: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/cultural-events/:id
+router.patch("/admin/cultural-events/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { title, type, event_date, location, description, contact_phone, is_active } = req.body as any;
+    const r = await query(
+      `UPDATE cultural_events SET
+         title=$1, type=$2, event_date=$3, location=$4,
+         description=$5, contact_phone=$6, is_active=COALESCE($7, is_active)
+       WHERE id=$8 RETURNING *`,
+      [title, type||"other", event_date, location||"", description||null, contact_phone||null, is_active, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ event: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/admin/cultural-events/:id
+router.delete("/admin/cultural-events/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await query(`UPDATE cultural_events SET is_active=FALSE WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
