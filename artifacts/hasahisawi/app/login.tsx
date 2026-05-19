@@ -135,8 +135,14 @@ export default function LoginScreen() {
     const err = validate();
     if (err) { setError(err); return; }
 
-    // إنشاء الحساب مباشرة بدون OTP مؤقتاً إلى حين تفعيل مزود رسائل رسمي لاحقاً
     if (mode === "register") {
+      // إذا كان OTP مُفعَّلاً (الافتراضي)، أرسل رمز التحقق أولاً
+      if (process.env.EXPO_PUBLIC_DISABLE_OTP !== "true") {
+        await handleSendOtp();
+        return;
+      }
+
+      // OTP معطَّل عبر EXPO_PUBLIC_DISABLE_OTP=true — تسجيل مباشر
       setLoading(true);
       try {
         const id = identifier.trim();

@@ -38,6 +38,9 @@ jobs:
             cp artifacts/hasahisawi/assets/images/icon.png public/icon.png
           elif [ -f artifacts/hasahisawi/assets/images/logo.png ]; then
             cp artifacts/hasahisawi/assets/images/logo.png public/icon.png
+          else
+            echo "ERROR: No icon file found in assets/images/" >&2
+            exit 1
           fi
           touch public/.nojekyll
           cat > public/README.txt <<'EOF'

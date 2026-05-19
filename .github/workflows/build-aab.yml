@@ -68,6 +68,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-8NDWWB1735
           EXPO_PUBLIC_DOMAIN=${{ secrets.API_DOMAIN }}
           EXPO_PUBLIC_API_URL=https://${{ secrets.API_DOMAIN }}
+          EXPO_PUBLIC_DISABLE_OTP=true
           EOF
 
       - name: Expo Prebuild (generate Android native code)

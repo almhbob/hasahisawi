@@ -113,7 +113,7 @@ function TicketCard({
         <View style={styles.ticketHeader}>
           <View style={styles.ticketHeaderLeft}>
             <View style={styles.airlineLogoWrap}>
-              <MaterialCommunityIcons name="airplane" size={20} color={ACCENT2} />
+              <MaterialCommunityIcons name="bus" size={20} color={ACCENT2} />
             </View>
             <View>
               <Text style={styles.ticketAirline}>{booking.company_name || "خدمة السفر"}</Text>
@@ -133,7 +133,7 @@ function TicketCard({
           </View>
           <View style={styles.routeCenter}>
             <View style={styles.routeLine} />
-            <MaterialCommunityIcons name="airplane-takeoff" size={22} color={ACCENT2} style={styles.planIcon} />
+            <MaterialCommunityIcons name="bus-clock" size={22} color={ACCENT2} style={styles.planIcon} />
             <View style={styles.routeLine} />
           </View>
           <View style={[styles.cityBlock, { alignItems:"flex-start" }]}>
@@ -531,7 +531,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
         <LinearGradient colors={["#0F2744","#1E3A5F"]} style={styles.confirmCard}>
           <View style={styles.confirmRoute}>
             <Text style={styles.confirmCity}>{fromCity}</Text>
-            <MaterialCommunityIcons name="airplane" size={24} color={ACCENT2} />
+            <MaterialCommunityIcons name="bus" size={24} color={ACCENT2} />
             <Text style={styles.confirmCity}>{toCity}</Text>
           </View>
           <Text style={styles.confirmCompany}>{selectedRoute?.company_name}</Text>
@@ -552,7 +552,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 
         <AnimatedPress onPress={submitBooking} style={[styles.bookBtn, submitting && { opacity:0.6 }]}>
           {submitting ? <ActivityIndicator color="#fff" />
-            : <><MaterialCommunityIcons name="airplane-takeoff" size={20} color="#fff" /><Text style={styles.bookBtnText}>تأكيد الحجز</Text></>}
+            : <><MaterialCommunityIcons name="bus-clock" size={20} color="#fff" /><Text style={styles.bookBtnText}>تأكيد الحجز</Text></>}
         </AnimatedPress>
       </ScrollView>
     );
@@ -1088,17 +1088,17 @@ export default function TravelScreen() {
       <LinearGradient colors={["#0C1D3A","#1E3A5F","#0369A1"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerTitle}>تذاكر السفر</Text>
-            <Text style={styles.headerSub}>حجز آمن بين مدن السودان</Text>
+            <Text style={styles.headerTitle}>السفريات</Text>
+            <Text style={styles.headerSub}>حجوزات موثوقة عبر شركات ووكالات السفر</Text>
           </View>
           <View style={styles.headerIcon}>
-            <MaterialCommunityIcons name="airplane" size={32} color={ACCENT2} />
+            <MaterialCommunityIcons name="bus" size={32} color={ACCENT2} />
           </View>
         </View>
         {/* طائرة متحركة */}
         <View style={styles.planeLine}>
           <Animated.View style={[styles.movingPlane, planeStyle]}>
-            <MaterialCommunityIcons name="airplane" size={18} color={ACCENT2 + "80"} />
+            <MaterialCommunityIcons name="bus" size={18} color={ACCENT2 + "80"} />
           </Animated.View>
         </View>
       </LinearGradient>
@@ -1106,7 +1106,7 @@ export default function TravelScreen() {
       {/* تبويبات */}
       <View style={styles.tabBar}>
         {([
-          { key:"book",     label:"حجز تذكرة",  icon:"airplane-outline" },
+          { key:"book",     label:"حجز تذكرة",  icon:"bus-outline" },
           { key:"tickets",  label:"تذاكري",      icon:"ticket-outline" },
           { key:"partners", label:"الشركاء",     icon:"handshake-outline" },
         ] as const).map(tab => (
