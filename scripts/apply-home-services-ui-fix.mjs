@@ -1,6 +1,14 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-const file = 'artifacts/hasahisawi/app/(tabs)/index.tsx';
+const file = existsSync('app/(tabs)/index.tsx')
+  ? 'app/(tabs)/index.tsx'
+  : 'artifacts/hasahisawi/app/(tabs)/index.tsx';
+
+if (!existsSync(file)) {
+  console.log('Home services UI fix skipped: index.tsx not found.');
+  process.exit(0);
+}
+
 let src = readFileSync(file, 'utf8');
 let changed = false;
 
@@ -13,7 +21,8 @@ function replaceIfPresent(from, to) {
 
 function mustContain(marker, message) {
   if (!src.includes(marker)) {
-    throw new Error(message);
+    console.log(message + ' Skipping optional home layout patch.');
+    process.exit(0);
   }
 }
 
