@@ -51,6 +51,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Apply latest app patches
+        working-directory: artifacts/hasahisawi
+        run: pnpm run prebuild
+
       - name: Write .env for Firebase and API
         working-directory: artifacts/hasahisawi
         run: |
