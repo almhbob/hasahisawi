@@ -12080,6 +12080,12 @@ async function ensureZawajilTables() {
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
   await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS sender_anonymous BOOLEAN DEFAULT FALSE`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS assigned_zaajil_id INTEGER`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS assigned_zaajil_name VARCHAR(200)`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS assigned_zaajil_phone VARCHAR(50)`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS delivery_notes TEXT`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS pickup_time TIMESTAMPTZ`).catch(() => {});
+  await query(`ALTER TABLE zawajil_orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ`).catch(() => {});
   await query(`CREATE TABLE IF NOT EXISTS zawajil_applications (
     id            SERIAL PRIMARY KEY,
     role          VARCHAR(60) NOT NULL,
@@ -12301,6 +12307,48 @@ router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response)
     await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/zawajil/orders/:id/assign — assign a zaajil courier to order
+router.patch("/admin/zawajil/orders/:id/assign", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { zaajil_id, zaajil_name, zaajil_phone, delivery_notes, pickup_time } = req.body as any;
+    const r = await query(
+      `UPDATE zawajil_orders SET
+        assigned_zaajil_id=$1, assigned_zaajil_name=$2, assigned_zaajil_phone=$3,
+        delivery_notes=COALESCE($4, delivery_notes),
+        pickup_time=COALESCE($5::timestamptz, pickup_time),
+        status=CASE WHEN status='approved' THEN 'preparing' ELSE status END,
+        updated_at=NOW()
+       WHERE id=$6 RETURNING *`,
+      [zaajil_id||null, zaajil_name||null, zaajil_phone||null, delivery_notes||null, pickup_time||null, req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json({ success: true, order: r.rows[0] });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/zawajil/orders/:id/complete-delivery — mark as delivered
+router.patch("/admin/zawajil/orders/:id/complete-delivery", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { delivery_notes } = req.body as any;
+    await query(
+      `UPDATE zawajil_orders SET status='completed', delivered_at=NOW(), delivery_notes=COALESCE($1,delivery_notes), updated_at=NOW() WHERE id=$2`,
+      [delivery_notes||null, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/zawajil/zaajileen — list approved zaajil (couriers) for assignment
+router.get("/admin/zawajil/zaajileen", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT id, full_name, phone, neighborhood, experience FROM zawajil_applications WHERE role='zaajil' AND status='approved' ORDER BY full_name`);
+    return res.json({ zaajileen: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/admin/zawajil/applications

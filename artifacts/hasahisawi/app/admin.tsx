@@ -821,6 +821,397 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
   );
 }
 
+// ─── Admin Unions Tab ─────────────────────────────────────────────────────────
+function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const UC = "#8B5CF6";
+  const [subTab, setSubTab] = React.useState<"members" | "unions" | "announcements">("members");
+  const [unions, setUnions]       = React.useState<any[]>([]);
+  const [members, setMembers]     = React.useState<any[]>([]);
+  const [announcements, setAnnouncements] = React.useState<any[]>([]);
+  const [loading, setLoading]     = React.useState(true);
+  const [acting, setActing]       = React.useState<number | null>(null);
+  const [memberFilter, setMemberFilter] = React.useState("pending");
+  const [unionFilter, setUnionFilter]   = React.useState<number | "all">("all");
+  const [addUnionModal, setAddUnionModal] = React.useState(false);
+  const [addAnnoModal, setAddAnnoModal]   = React.useState(false);
+  const [newUnion, setNewUnion]   = React.useState({ name: "", field: "", phone: "", address: "", description: "" });
+  const [newAnno, setNewAnno]     = React.useState({ title: "", body: "", union_id: "" });
+  const [memberNo, setMemberNo]   = React.useState("");
+  const [approveModal, setApproveModal] = React.useState<any>(null);
+  const [lastRefresh, setLastRefresh] = React.useState(new Date());
+
+  const loadMembers = React.useCallback(() => {
+    const q = memberFilter !== "all" ? `?status=${memberFilter}` : "";
+    fetch(`${apiBase}/admin/union-members${q}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setMembers(Array.isArray(d) ? d : []); setLastRefresh(new Date()); }).catch(() => {}).finally(() => setLoading(false));
+  }, [memberFilter, token, apiBase]);
+
+  const loadUnions = React.useCallback(() => {
+    fetch(`${apiBase}/admin/unions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setUnions(Array.isArray(d) ? d : []); }).catch(() => {}).finally(() => setLoading(false));
+  }, [token, apiBase]);
+
+  const loadAnnouncements = React.useCallback(() => {
+    fetch(`${apiBase}/admin/union-announcements`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setAnnouncements(Array.isArray(d) ? d : []); }).catch(() => {}).finally(() => setLoading(false));
+  }, [token, apiBase]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    if (subTab === "members")       loadMembers();
+    else if (subTab === "unions")   loadUnions();
+    else                            loadAnnouncements();
+  }, [subTab, loadMembers, loadUnions, loadAnnouncements]);
+
+  React.useEffect(() => {
+    const iv = setInterval(() => {
+      if (subTab === "members") loadMembers();
+      else if (subTab === "unions") loadUnions();
+    }, 30000);
+    return () => clearInterval(iv);
+  }, [subTab, loadMembers, loadUnions]);
+
+  const updateMemberStatus = async (id: number, status: string, membership_no?: string) => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/admin/union-members/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status, membership_no: membership_no || undefined }),
+      });
+      setMembers(prev => prev.map(m => m.id === id ? { ...m, status, membership_no: membership_no || m.membership_no } : m));
+      setApproveModal(null); setMemberNo("");
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الطلب"); } finally { setActing(null); }
+  };
+
+  const toggleUnionActive = async (u: any) => {
+    setActing(u.id);
+    try {
+      await fetch(`${apiBase}/admin/unions/${u.id}`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !u.is_active }),
+      });
+      setUnions(prev => prev.map(x => x.id === u.id ? { ...x, is_active: !u.is_active } : x));
+    } catch { Alert.alert("خطأ", "تعذّر التحديث"); } finally { setActing(null); }
+  };
+
+  const createUnion = async () => {
+    if (!newUnion.name.trim()) { Alert.alert("خطأ", "اسم النقابة مطلوب"); return; }
+    try {
+      const r = await fetch(`${apiBase}/admin/unions`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(newUnion),
+      });
+      const d = await r.json();
+      if (d.id) { setUnions(prev => [d, ...prev]); setAddUnionModal(false); setNewUnion({ name: "", field: "", phone: "", address: "", description: "" }); }
+    } catch { Alert.alert("خطأ", "تعذّر الإضافة"); }
+  };
+
+  const createAnnouncement = async () => {
+    if (!newAnno.title.trim() || !newAnno.body.trim()) { Alert.alert("خطأ", "العنوان والمحتوى مطلوبان"); return; }
+    try {
+      await fetch(`${apiBase}/admin/union-announcements`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newAnno, union_id: newAnno.union_id ? parseInt(newAnno.union_id) : null }),
+      });
+      loadAnnouncements(); setAddAnnoModal(false); setNewAnno({ title: "", body: "", union_id: "" });
+    } catch { Alert.alert("خطأ", "تعذّر النشر"); }
+  };
+
+  const deleteAnnouncement = async (id: number) => {
+    Alert.alert("تأكيد الحذف", "هل تريد حذف هذا الإعلان؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: async () => {
+        await fetch(`${apiBase}/admin/union-announcements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+        setAnnouncements(prev => prev.filter(a => a.id !== id));
+      }},
+    ]);
+  };
+
+  const pendingCount = members.filter(m => m.status === "pending").length;
+  const filteredMembers = members.filter(m => {
+    const statusOk = memberFilter === "all" ? true : m.status === memberFilter;
+    const unionOk  = unionFilter === "all" ? true : m.union_id === unionFilter;
+    return statusOk && unionOk;
+  });
+
+  const statusColor = (s: string) => s === "approved" ? "#10B981" : s === "rejected" ? "#EF4444" : "#F59E0B";
+  const statusLabel = (s: string) => s === "approved" ? "مقبول" : s === "rejected" ? "مرفوض" : "معلق";
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Sub tabs */}
+      <View style={{ flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle, backgroundColor: Colors.cardBg }}>
+        {([["members","طلبات الانضمام"], ["unions","النقابات"], ["announcements","الإعلانات"]] as [string,string][]).map(([k, lbl]) => (
+          <TouchableOpacity key={k} onPress={() => setSubTab(k as any)}
+            style={{ flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: subTab === k ? UC : "transparent" }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+              <Text style={{ fontFamily: subTab === k ? "Cairo_700Bold" : "Cairo_500Medium", fontSize: 12, color: subTab === k ? UC : Colors.textMuted }}>{lbl}</Text>
+              {k === "members" && pendingCount > 0 && (
+                <View style={{ backgroundColor: "#EF4444", borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" }}>{pendingCount}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── طلبات الانضمام ── */}
+      {subTab === "members" && (
+        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
+              آخر تحديث: {lastRefresh.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>طلبات الانضمام</Text>
+          </View>
+
+          {/* Filter status */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+              {[["pending","معلق"], ["approved","مقبول"], ["rejected","مرفوض"], ["all","الكل"]].map(([k, lbl]) => (
+                <TouchableOpacity key={k} onPress={() => setMemberFilter(k)}
+                  style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: memberFilter === k ? UC : "#FFFFFF0A" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: memberFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Filter by union */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+              <TouchableOpacity onPress={() => setUnionFilter("all")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: unionFilter === "all" ? UC + "40" : "#FFFFFF0A" }}>
+                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>كل النقابات</Text>
+              </TouchableOpacity>
+              {unions.map(u => (
+                <TouchableOpacity key={u.id} onPress={() => setUnionFilter(u.id)} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: unionFilter === u.id ? UC + "40" : "#FFFFFF0A" }}>
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>{u.short_name || u.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {loading ? <ActivityIndicator color={UC} style={{ marginTop: 40 }} /> : filteredMembers.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
+          ) : filteredMembers.map(m => (
+            <View key={m.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{m.full_name}</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 5 }}>
+                  {m.membership_no && (
+                    <View style={{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: UC + "20" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: UC }}>#{m.membership_no}</Text>
+                    </View>
+                  )}
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: statusColor(m.status) + "20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: statusColor(m.status) }}>{statusLabel(m.status)}</Text>
+                  </View>
+                </View>
+              </View>
+              {m.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: UC, textAlign: "right" }}>النقابة: {m.union_name}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {m.specialty || m.job_title || "—"}</Text>
+              {m.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${m.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 4 }}>
+                <Ionicons name="call-outline" size={13} color="#22C55E" />
+                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{m.phone}</Text>
+              </TouchableOpacity>}
+              {m.employer && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>جهة العمل: {m.employer}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>
+                {new Date(m.applied_at).toLocaleDateString("ar-SA")}
+              </Text>
+              {m.status === "pending" && (
+                <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity onPress={() => updateMemberStatus(m.id, "rejected")} disabled={acting === m.id}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setApproveModal(m); setMemberNo(""); }} disabled={acting === m.id}
+                    style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: UC, alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>✓ قبول وإصدار رقم عضوية</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* ── النقابات ── */}
+      {subTab === "unions" && (
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", padding: 14 }}>
+            <TouchableOpacity onPress={() => setAddUnionModal(true)}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: UC }}>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>نقابة جديدة</Text>
+            </TouchableOpacity>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>النقابات ({unions.length})</Text>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loading ? <ActivityIndicator color={UC} style={{ marginTop: 40 }} /> : unions.map(u => (
+              <View key={u.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: u.is_active ? UC + "40" : Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+                <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{u.name}</Text>
+                  <TouchableOpacity onPress={() => toggleUnionActive(u)} disabled={acting === u.id}
+                    style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: u.is_active ? "#10B98120" : "#6B728020", marginRight: 8 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: u.is_active ? "#10B981" : "#6B7280" }}>{u.is_active ? "نشطة" : "معطّلة"}</Text>
+                  </TouchableOpacity>
+                </View>
+                {u.field && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: UC, textAlign: "right" }}>المجال: {u.field}</Text>}
+                {u.address && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{u.address}</Text>}
+                <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 8 }}>
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>{u.members_total || 0} عضو</Text>
+                  {u.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${u.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: "#22C55E" }}>{u.phone}</Text>
+                    <Ionicons name="call-outline" size={13} color="#22C55E" />
+                  </TouchableOpacity>}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ── الإعلانات ── */}
+      {subTab === "announcements" && (
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", padding: 14 }}>
+            <TouchableOpacity onPress={() => setAddAnnoModal(true)}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: UC }}>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>إعلان جديد</Text>
+            </TouchableOpacity>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>الإعلانات</Text>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loading ? <ActivityIndicator color={UC} style={{ marginTop: 40 }} /> : announcements.length === 0 ? (
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد إعلانات</Text>
+            ) : announcements.map((a: any) => (
+              <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+                <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{a.title}</Text>
+                  <TouchableOpacity onPress={() => deleteAnnouncement(a.id)} style={{ padding: 4 }}>
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+                {a.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: UC, textAlign: "right", marginBottom: 4 }}>{a.union_name}</Text>}
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>{a.body}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 6 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Modal: قبول العضوية */}
+      <Modal visible={!!approveModal} transparent animationType="slide" onRequestClose={() => setApproveModal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" }} onPress={() => setApproveModal(null)}>
+            <Pressable style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }} onPress={() => {}}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text, textAlign: "right", marginBottom: 4 }}>قبول العضوية</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 16 }}>
+                {approveModal?.full_name} — {approveModal?.union_name}
+              </Text>
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, marginBottom: 16 }}
+                placeholder="رقم العضوية (اختياري)"
+                placeholderTextColor={Colors.textMuted}
+                value={memberNo} onChangeText={setMemberNo}
+                keyboardType="default"
+              />
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                <TouchableOpacity onPress={() => setApproveModal(null)} style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: "#FFFFFF0A", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => approveModal && updateMemberStatus(approveModal.id, "approved", memberNo)}
+                  disabled={!!(acting && approveModal && acting === approveModal.id)}
+                  style={{ flex: 2, paddingVertical: 13, borderRadius: 12, backgroundColor: UC, alignItems: "center" }}>
+                  {acting && approveModal && acting === approveModal.id ? <ActivityIndicator color="#fff" /> :
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>تأكيد القبول</Text>}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal: إضافة نقابة */}
+      <Modal visible={addUnionModal} transparent animationType="slide" onRequestClose={() => setAddUnionModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" }} onPress={() => setAddUnionModal(false)}>
+            <Pressable style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "80%" }} onPress={() => {}}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text, textAlign: "right", marginBottom: 16 }}>إضافة نقابة / اتحاد / جمعية</Text>
+              {[
+                { key: "name", placeholder: "الاسم الكامل *", keyboardType: "default" as const },
+                { key: "field", placeholder: "المجال / التخصص", keyboardType: "default" as const },
+                { key: "phone", placeholder: "رقم الهاتف", keyboardType: "phone-pad" as const },
+                { key: "address", placeholder: "العنوان", keyboardType: "default" as const },
+              ].map(f => (
+                <TextInput key={f.key}
+                  style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, marginBottom: 10 }}
+                  placeholder={f.placeholder} placeholderTextColor={Colors.textMuted}
+                  keyboardType={f.keyboardType}
+                  value={(newUnion as any)[f.key]} onChangeText={v => setNewUnion(p => ({ ...p, [f.key]: v }))}
+                />
+              ))}
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, height: 70, textAlignVertical: "top", marginBottom: 16 }}
+                placeholder="وصف مختصر" placeholderTextColor={Colors.textMuted}
+                value={newUnion.description} onChangeText={v => setNewUnion(p => ({ ...p, description: v }))}
+                multiline
+              />
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                <TouchableOpacity onPress={() => setAddUnionModal(false)} style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: "#FFFFFF0A", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={createUnion} style={{ flex: 2, paddingVertical: 13, borderRadius: 12, backgroundColor: UC, alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>إضافة</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal: إضافة إعلان */}
+      <Modal visible={addAnnoModal} transparent animationType="slide" onRequestClose={() => setAddAnnoModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" }} onPress={() => setAddAnnoModal(false)}>
+            <Pressable style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }} onPress={() => {}}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text, textAlign: "right", marginBottom: 16 }}>نشر إعلان</Text>
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, marginBottom: 10 }}
+                placeholder="العنوان *" placeholderTextColor={Colors.textMuted}
+                value={newAnno.title} onChangeText={v => setNewAnno(p => ({ ...p, title: v }))}
+              />
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, height: 90, textAlignVertical: "top", marginBottom: 10 }}
+                placeholder="المحتوى *" placeholderTextColor={Colors.textMuted}
+                value={newAnno.body} onChangeText={v => setNewAnno(p => ({ ...p, body: v }))}
+                multiline
+              />
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, marginBottom: 16 }}
+                placeholder="ID النقابة (اتركه فارغاً لإعلان عام)" placeholderTextColor={Colors.textMuted}
+                value={newAnno.union_id} onChangeText={v => setNewAnno(p => ({ ...p, union_id: v }))}
+                keyboardType="numeric"
+              />
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                <TouchableOpacity onPress={() => setAddAnnoModal(false)} style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: "#FFFFFF0A", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={createAnnouncement} style={{ flex: 2, paddingVertical: 13, borderRadius: 12, backgroundColor: UC, alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>نشر</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
