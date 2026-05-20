@@ -2897,10 +2897,11 @@ router.get("/notifications", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/notifications", async (req: Request, res: Response) => {
+router.post("/notifications", authLimiter, async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { title, body, type } = req.body;
+    if (!title?.trim() || !body?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
     const result = await query(
       `INSERT INTO notifications (title, body, type) VALUES ($1,$2,$3) RETURNING *`,
       [title, body, type || "general"]
@@ -5506,15 +5507,29 @@ router.post("/auth/sync-firebase-password", authLimiter, async (req: Request, re
 });
 
 // ── تحقق من وجود رقم الهاتف أو البريد الإلكتروني ────────────────────────────
-router.post("/auth/check-phone", async (req: Request, res: Response) => {
+router.post("/auth/check-phone", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, email, identifier } = req.body;
-    const lookup = (identifier || phone || email || "").trim();
-    if (!lookup) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
-    const isEmail = lookup.includes("@");
-    const userR = isEmail
+    const raw = (identifier || phone || email || "").trim();
+    if (!raw || raw.length > 200) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
+
+    const isEmail = raw.includes("@");
+    if (isEmail) {
+      // Basic email format check — prevents SQL-adjacent shenanigans and saves a DB hit
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw))
+        return res.status(400).json({ error: "البريد الإلكتروني غير صالح" });
+    } else {
+      // Phone: digits, +, spaces only
+      if (!/^\+?[\d\s\-]{7,20}$/.test(raw))
+        return res.status(400).json({ error: "رقم الهاتف غير صالح" });
+    }
+
+    const lookup = isEmail ? raw.toLowerCase() : raw;
+    const userR  = isEmail
       ? await query(`SELECT id, name FROM users WHERE email=$1`, [lookup])
       : await query(`SELECT id, name FROM users WHERE phone=$1`, [lookup]);
+
+    // Don't reveal whether account exists to unauthenticated callers beyond password-reset flow
     if (!userR.rows.length) return res.json({ exists: false });
     return res.json({ exists: true, name: userR.rows[0].name });
   } catch (err) {
@@ -5527,7 +5542,10 @@ router.post("/auth/check-phone", async (req: Request, res: Response) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Use crypto.randomBytes for cryptographically secure 6-digit OTP
+  const buf = require("crypto").randomBytes(4);
+  const num = buf.readUInt32BE(0) % 900000 + 100000;
+  return num.toString();
 }
 
 // Returns true if delivery was attempted via a real channel, false if no delivery configured.

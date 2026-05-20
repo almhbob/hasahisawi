@@ -973,7 +973,7 @@ export default function OrgJoinScreen() {
               <Text style={s.documentFooter}>
                 هذا العقد ملزم قانونياً لكلا الطرفين فور التوقيع عليه{"\n"}
                 أي تعديل يستلزم موافقة خطية من الطرفين{"\n"}
-                وثيقة رسمية صادرة عن منصة حصاحيصاوي © 2026
+                وثيقة صادرة عن منصة حصاحيصاوي المجتمعية © 2026
               </Text>
             </View>
 
@@ -1273,7 +1273,7 @@ export default function OrgJoinScreen() {
                 ))}
                 <View style={[s.documentDivider, { marginTop: 8 }]} />
                 <Text style={s.documentFooter}>
-                  وثيقة استلام رسمية — الإصدار {COMMITMENT_VERSION} — {COMMITMENT_DATE}
+                  وثيقة استلام — الإصدار {COMMITMENT_VERSION} — {COMMITMENT_DATE}
                 </Text>
               </View>
             </Animated.View>

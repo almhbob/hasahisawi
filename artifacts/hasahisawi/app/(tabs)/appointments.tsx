@@ -418,7 +418,7 @@ export default function AppointmentsScreen() {
                         <MaterialCommunityIcons name="office-building" size={36} color={Colors.accent} />
                       </View>
                       <View style={s.catInfo}>
-                        <Text style={s.catTitle}>الجهات الحكومية</Text>
+                        <Text style={s.catTitle}>الجهات والمرافق المحلية</Text>
                         <Text style={s.catSub}>محلية · سجل مدني · أراضي · قضاء</Text>
                         <View style={s.catCount}>
                           <Text style={[s.catCountText, { color: Colors.accent }]}>{govFacilities.length} جهات متاحة</Text>

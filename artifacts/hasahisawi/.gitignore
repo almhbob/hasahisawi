@@ -40,3 +40,4 @@ yarn-error.*
 
 .env
 *.keystore
+credentials.json
