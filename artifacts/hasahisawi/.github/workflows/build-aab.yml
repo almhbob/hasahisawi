@@ -1,0 +1,45 @@
+name: Build AAB (Android Bundle)
+
+on:
+  push:
+    branches: [claude/define-app-requirements-638Qf, main]
+    paths:
+      - 'app.json'
+  workflow_dispatch:
+
+jobs:
+  build-aab:
+    name: Build Android App Bundle (AAB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build AAB via EAS
+        run: eas build --platform android --profile production --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Print build URL
+        run: |
+          echo "Build queued. Download from:"
+          echo "https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service/builds"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
