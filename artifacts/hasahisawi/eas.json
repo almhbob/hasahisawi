@@ -48,6 +48,24 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:c91938f519fa219d418e48"
       }
     },
+    "ios-adhoc": {
+      "distribution": "internal",
+      "credentialsSource": "remote",
+      "ios": {
+        "buildConfiguration": "Release",
+        "enterpriseProvisioning": "adhoc"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:ios:REPLACE_WITH_IOS_APP_ID"
+      }
+    },
     "production": {
       "credentialsSource": "local",
       "android": {
@@ -65,6 +83,7 @@
       }
     },
     "production-ios": {
+      "distribution": "store",
       "credentialsSource": "remote",
       "ios": {
         "buildConfiguration": "Release"

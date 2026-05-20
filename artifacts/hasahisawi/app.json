@@ -53,7 +53,17 @@
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "name": "حصاحيصاوي",
+      "shortName": "حصاحيصاوي",
+      "description": "بوابتك المجتمعية لمدينة الحصاحيصا وقراها",
+      "themeColor": "#27AE68",
+      "backgroundColor": "#0D0D0D",
+      "lang": "ar",
+      "dir": "rtl",
+      "scope": "/",
+      "startUrl": "/"
     },
     "plugins": [
       "expo-router",
