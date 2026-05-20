@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -316,17 +316,45 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
   const [leaves, setLeaves] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filter, setFilter] = React.useState("all");
+  const [acting, setActing] = React.useState<number | null>(null);
   const TYPES = [["all","الكل"], ["student","طلاب"], ["military","عسكريون"], ["employee","موظفون"]];
 
-  React.useEffect(() => {
-    setLoading(true);
+  const load = React.useCallback(() => {
     const q = filter !== "all" ? `?type=${filter}` : "";
     fetch(`${apiBase}/admin/sick-leaves${q}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.sick_leaves) setLeaves(d.sick_leaves); }).catch(() => {}).finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, token, apiBase]);
+
+  React.useEffect(() => { setLoading(true); load(); }, [load]);
+  React.useEffect(() => {
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [load]);
+
+  const updateStatus = async (id: number, status: string) => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/admin/sick-leaves/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setLeaves(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الحالة"); } finally { setActing(null); }
+  };
+
+  const typeLabel = (t: string) => t === "student" ? "طالب" : t === "military" ? "عسكري" : "موظف";
+  const statusColor = (s: string) => s === "verified" ? "#10B981" : s === "flagged" ? "#EF4444" : "#F59E0B";
+  const statusLabel = (s: string) => s === "verified" ? "موثّق" : s === "flagged" ? "مشكوك فيه" : "قيد المراجعة";
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+          <Ionicons name="refresh" size={15} color={Colors.textMuted} />
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
+        </TouchableOpacity>
+        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>الإجازات المرضية</Text>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
         <View style={{ flexDirection: "row-reverse", gap: 8 }}>
           {TYPES.map(([k, lbl]) => (
@@ -340,16 +368,35 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
       {loading ? <ActivityIndicator color="#10B981" style={{ marginTop: 40 }} /> : leaves.length === 0 ? (
         <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد إجازات</Text>
       ) : leaves.map(sl => (
-        <View key={sl.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 10 }}>
+        <View key={sl.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{sl.doctor_name || "طبيب"}</Text>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: "#10B98120" }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>{sl.leave_type === "student" ? "طالب" : sl.leave_type === "military" ? "عسكري" : "موظف"}</Text>
+            <View style={{ flexDirection: "row-reverse", gap: 6, alignItems: "center" }}>
+              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#6366F120" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#6366F1" }}>{typeLabel(sl.leave_type)}</Text>
+              </View>
+              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: statusColor(sl.status || "pending") + "20" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: statusColor(sl.status || "pending") }}>{statusLabel(sl.status || "pending")}</Text>
+              </View>
             </View>
           </View>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} → {sl.end_date} ({sl.leave_days} يوم)</Text>
-          {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>المؤسسة: {sl.institution_name}</Text>}
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#4B5563", textAlign: "right", marginTop: 4 }}>رمز: {sl.barcode_token}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} ← {sl.end_date}  ({sl.leave_days} يوم)</Text>
+          {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>المؤسسة: {sl.institution_name}</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#4B5563", textAlign: "right", marginTop: 3 }}>رمز التحقق: {sl.barcode_token}</Text>
+          {(!sl.status || sl.status === "pending") && (
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+              <TouchableOpacity onPress={() => updateStatus(sl.id, "flagged")} disabled={acting === sl.id}
+                style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                {acting === sl.id ? <ActivityIndicator size="small" color="#EF4444" /> :
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>تشكيك</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => updateStatus(sl.id, "verified")} disabled={acting === sl.id}
+                style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10B981", alignItems: "center" }}>
+                {acting === sl.id ? <ActivityIndicator size="small" color="#fff" /> :
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>✓ توثيق الإجازة</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       ))}
     </ScrollView>
@@ -361,15 +408,44 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
   const [admissions, setAdmissions] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filter, setFilter] = React.useState("active");
+  const [acting, setActing] = React.useState<number | null>(null);
 
-  React.useEffect(() => {
-    setLoading(true);
+  const load = React.useCallback(() => {
     fetch(`${apiBase}/admin/admissions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.admissions) setAdmissions(d.admissions); }).catch(() => {}).finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, token, apiBase]);
+
+  React.useEffect(() => { setLoading(true); load(); }, [load]);
+  React.useEffect(() => {
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [load]);
+
+  const discharge = async (id: number) => {
+    Alert.alert("تأكيد الصرف", "هل تريد صرف هذا المريض؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "صرف", style: "destructive", onPress: async () => {
+        setActing(id);
+        try {
+          await fetch(`${apiBase}/admin/admissions/${id}/discharge`, {
+            method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          setAdmissions(prev => prev.filter(a => a.id !== id));
+        } catch { Alert.alert("خطأ", "تعذّر الصرف"); } finally { setActing(null); }
+      }},
+    ]);
+  };
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+          <Ionicons name="refresh" size={15} color={Colors.textMuted} />
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
+        </TouchableOpacity>
+        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>التنويم والمرافق</Text>
+      </View>
       <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
         {[["active","نشطة"], ["discharged","مُصرَّف"]].map(([k, lbl]) => (
           <TouchableOpacity key={k} onPress={() => setFilter(k)}
@@ -381,16 +457,364 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
       {loading ? <ActivityIndicator color="#3B82F6" style={{ marginTop: 40 }} /> : admissions.length === 0 ? (
         <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد حالات</Text>
       ) : admissions.map(a => (
-        <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 10 }}>
+        <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.patient_display_name || `مريض #${a.patient_user_id}`}</Text>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: a.status === "active" ? "#10B98120" : "#6B728020" }}>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: a.status === "active" ? "#10B98120" : "#6B728020" }}>
               <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: a.status === "active" ? "#10B981" : "#6B7280" }}>{a.status === "active" ? "نشط" : "صُرف"}</Text>
             </View>
           </View>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{a.facility_name || "مستشفى"}{a.ward ? ` — ${a.ward}` : ""}</Text>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الطبيب: {a.doctor_name || "—"}</Text>
           {a.diagnosis && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.diagnosis}</Text>}
+          {a.status === "active" && (
+            <TouchableOpacity onPress={() => discharge(a.id)} disabled={acting === a.id}
+              style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#3B82F6", alignItems: "center" }}>
+              {acting === a.id ? <ActivityIndicator size="small" color="#fff" /> :
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>صرف المريض</Text>}
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ─── Admin Zawajil Tab ────────────────────────────────────────────────────────
+function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const PINK = "#EC4899";
+  const [subTab, setSubTab] = React.useState<"orders" | "applications">("orders");
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [apps, setApps] = React.useState<any[]>([]);
+  const [ordFilter, setOrdFilter] = React.useState("pending_review");
+  const [loading, setLoading] = React.useState(true);
+  const [acting, setActing] = React.useState<number | null>(null);
+  const [reviewModal, setReviewModal] = React.useState<any>(null);
+  const [notes, setNotes] = React.useState("");
+  const [cost, setCost] = React.useState("");
+
+  const loadOrders = React.useCallback(() => {
+    const q = ordFilter !== "all" ? `?status=${ordFilter}` : "";
+    fetch(`${apiBase}/admin/zawajil/orders${q}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.orders) setOrders(d.orders); }).catch(() => {}).finally(() => setLoading(false));
+  }, [ordFilter, token, apiBase]);
+
+  const loadApps = React.useCallback(() => {
+    fetch(`${apiBase}/admin/zawajil/applications`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.applications) setApps(d.applications); }).catch(() => {});
+  }, [token, apiBase]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    if (subTab === "orders") loadOrders(); else loadApps();
+  }, [subTab, loadOrders, loadApps]);
+
+  React.useEffect(() => {
+    const iv = setInterval(() => { if (subTab === "orders") loadOrders(); else loadApps(); }, 30000);
+    return () => clearInterval(iv);
+  }, [subTab, loadOrders, loadApps]);
+
+  const reviewOrder = async (id: number, action: "approved" | "rejected" | "modification_requested") => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/admin/zawajil/orders/${id}/review`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action, admin_notes: notes, rejection_reason: action === "rejected" ? notes : undefined, estimated_cost: cost ? parseFloat(cost) : undefined }),
+      });
+      setReviewModal(null); setNotes(""); setCost("");
+      setOrders(prev => prev.filter(o => o.id !== id));
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الطلب"); } finally { setActing(null); }
+  };
+
+  const updateStatus = async (id: number, status: string) => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/admin/zawajil/orders/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الحالة"); } finally { setActing(null); }
+  };
+
+  const updateAppStatus = async (id: number, status: string) => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/admin/zawajil/applications/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الطلب"); } finally { setActing(null); }
+  };
+
+  const STATUS_NEXT: Record<string, string> = { approved: "preparing", preparing: "sending", sending: "completed" };
+  const STATUS_LABEL: Record<string, string> = { pending_review: "قيد المراجعة", approved: "مقبول", preparing: "جارٍ التجهيز", sending: "في الطريق", completed: "مكتمل", rejected: "مرفوض" };
+  const STATUS_COLOR: Record<string, string> = { pending_review: "#F59E0B", approved: "#22C55E", preparing: "#0EA5E9", sending: "#C084FC", completed: "#3EFF9C", rejected: "#EF4444" };
+  const roleLabel = (r: string) => ({ zaajil:"زاجل", krowan:"كروان", khattaat:"خطاط", gift_store:"متجر هدايا", service_girl:"مُقدِّمة خدمة", service_boy:"مُقدِّم خدمة" } as any)[r] || r;
+
+  const ORD_FILTERS = [["pending_review","معلقة"], ["approved","مقبولة"], ["preparing","تجهيز"], ["sending","إرسال"], ["completed","مكتملة"], ["all","الكل"]];
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Sub tabs */}
+      <View style={{ flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
+        {[["orders","الطلبات"],["applications","طلبات الانضمام"]].map(([k, lbl]) => (
+          <TouchableOpacity key={k} onPress={() => setSubTab(k as any)}
+            style={{ flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: subTab === k ? PINK : "transparent" }}>
+            <Text style={{ fontFamily: subTab === k ? "Cairo_700Bold" : "Cairo_500Medium", fontSize: 13, color: subTab === k ? PINK : Colors.textMuted }}>{lbl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {subTab === "orders" && (
+        <View style={{ flex: 1 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
+              {ORD_FILTERS.map(([k, lbl]) => (
+                <TouchableOpacity key={k} onPress={() => setOrdFilter(k)}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: ordFilter === k ? PINK : "#FFFFFF0A" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ordFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}{k === "pending_review" && orders.filter(o => o.status === "pending_review").length > 0 && ordFilter !== "pending_review" ? ` (${orders.filter(o => o.status === "pending_review").length})` : ""}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={loadOrders} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: "#FFFFFF0A" }}>
+                <Ionicons name="refresh" size={15} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+          <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loading ? <ActivityIndicator color={PINK} style={{ marginTop: 40 }} /> : orders.length === 0 ? (
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
+            ) : orders.map(o => (
+              <View key={o.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLOR[o.status] || "#888") + "40", marginBottom: 14, overflow: "hidden" }}>
+                <View style={{ height: 3, backgroundColor: STATUS_COLOR[o.status] || "#888" }} />
+                <View style={{ padding: 14 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
+                    <View>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{o.order_number}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>{new Date(o.created_at).toLocaleDateString("ar-SA")}</Text>
+                    </View>
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: (STATUS_COLOR[o.status] || "#888") + "20" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[o.status] || "#888" }}>{STATUS_LABEL[o.status] || o.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>من: {o.sender_anonymous ? "ممهول" : o.sender_name}  →  إلى: {o.recipient_name}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الخدمة: {o.service_type} · الهدية: {o.gift_type}</Text>
+                  {o.message_text && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }}>"{o.message_text}"</Text>}
+                  {o.delivery_location === "outside_city" && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: "#F97316", textAlign: "right", marginTop: 2 }}>خارج المدينة</Text>}
+                  {o.estimated_cost > 0 && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#D4AF37", textAlign: "right", marginTop: 3 }}>التكلفة: {Number(o.estimated_cost).toLocaleString()} SDG</Text>}
+                  {o.sender_phone && (
+                    <TouchableOpacity onPress={() => Linking.openURL(`tel:${o.sender_phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 6 }}>
+                      <Ionicons name="call-outline" size={13} color="#22C55E" />
+                      <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{o.sender_phone}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {/* Actions */}
+                  {o.status === "pending_review" && (
+                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
+                      <TouchableOpacity onPress={() => { setReviewModal({ ...o, action: "rejected" }); setNotes(""); }} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setReviewModal({ ...o, action: "approved" }); setNotes(""); setCost(""); }} style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: PINK, alignItems: "center" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>✓ قبول وتحديد تكلفة</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {STATUS_NEXT[o.status] && (
+                    <TouchableOpacity onPress={() => updateStatus(o.id, STATUS_NEXT[o.status])} disabled={acting === o.id}
+                      style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#0EA5E930", borderWidth: 1, borderColor: "#0EA5E950", alignItems: "center" }}>
+                      {acting === o.id ? <ActivityIndicator size="small" color="#0EA5E9" /> :
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0EA5E9" }}>تقدّم: {STATUS_LABEL[STATUS_NEXT[o.status]]}</Text>}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {subTab === "applications" && (
+        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <TouchableOpacity onPress={loadApps}><Ionicons name="refresh" size={16} color={Colors.textMuted} /></TouchableOpacity>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>طلبات الانضمام ({apps.length})</Text>
+          </View>
+          {apps.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
+          ) : apps.map(a => (
+            <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.full_name}</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 5, alignItems: "center" }}>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: PINK + "20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: PINK }}>{roleLabel(a.role)}</Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: a.status === "approved" ? "#10B98120" : a.status === "rejected" ? "#EF444420" : "#F59E0B20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>{a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}</Text>
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => Linking.openURL(`tel:${a.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5 }}>
+                <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{a.phone}</Text>
+              </TouchableOpacity>
+              {a.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الحي: {a.neighborhood}</Text>}
+              {a.experience && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.experience}</Text>}
+              {a.status === "pending" && (
+                <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity onPress={() => updateAppStatus(a.id, "rejected")} disabled={acting === a.id}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => updateAppStatus(a.id, "approved")} disabled={acting === a.id}
+                    style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: PINK, alignItems: "center" }}>
+                    {acting === a.id ? <ActivityIndicator size="small" color="#fff" /> :
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>✓ قبول في الفريق</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Review Modal */}
+      <Modal visible={!!reviewModal} transparent animationType="slide" onRequestClose={() => setReviewModal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" }} onPress={() => setReviewModal(null)}>
+            <Pressable style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }} onPress={() => {}}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.text, textAlign: "right", marginBottom: 6 }}>
+                {reviewModal?.action === "approved" ? "قبول الطلب" : "رفض الطلب"}
+              </Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 16 }}>
+                طلب: {reviewModal?.order_number} — إلى: {reviewModal?.recipient_name}
+              </Text>
+              {reviewModal?.action === "approved" && (
+                <TextInput
+                  style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, marginBottom: 12 }}
+                  placeholder="التكلفة التقديرية (SDG)"
+                  placeholderTextColor={Colors.textMuted}
+                  value={cost} onChangeText={setCost}
+                  keyboardType="numeric"
+                />
+              )}
+              <TextInput
+                style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", borderWidth: 1, borderColor: Colors.borderSubtle, height: 80, textAlignVertical: "top", marginBottom: 16 }}
+                placeholder={reviewModal?.action === "approved" ? "ملاحظات للمرسل (اختياري)" : "سبب الرفض (مطلوب)"}
+                placeholderTextColor={Colors.textMuted}
+                value={notes} onChangeText={setNotes}
+                multiline
+              />
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                <TouchableOpacity onPress={() => setReviewModal(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#FFFFFF0A", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => reviewModal && reviewOrder(reviewModal.id, reviewModal.action)}
+                  disabled={!!(acting && reviewModal && acting === reviewModal.id)}
+                  style={{ flex: 2, paddingVertical: 12, borderRadius: 12, backgroundColor: reviewModal?.action === "approved" ? PINK : "#EF4444", alignItems: "center" }}>
+                  {acting && reviewModal && acting === reviewModal.id ? <ActivityIndicator color="#fff" /> :
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>{reviewModal?.action === "approved" ? "تأكيد القبول" : "تأكيد الرفض"}</Text>}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
+
+// ─── Admin Student Union Tab ──────────────────────────────────────────────────
+function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const UC = "#6366F1";
+  const [apps, setApps] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [acting, setActing] = React.useState<number | null>(null);
+  const [filter, setFilter] = React.useState("pending");
+  const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
+
+  const load = React.useCallback(() => {
+    fetch(`${apiBase}/student-union/applications`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.applications) { setApps(d.applications); setLastUpdated(new Date()); } }).catch(() => {}).finally(() => setLoading(false));
+  }, [token, apiBase]);
+
+  React.useEffect(() => { setLoading(true); load(); }, [load]);
+  React.useEffect(() => {
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [load]);
+
+  const updateStatus = async (id: number, status: string, notes?: string) => {
+    setActing(id);
+    try {
+      await fetch(`${apiBase}/student-union/applications/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status, notes }),
+      });
+      setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    } catch { Alert.alert("خطأ", "تعذّر تحديث الطلب"); } finally { setActing(null); }
+  };
+
+  const filtered = apps.filter(a => filter === "all" ? true : a.status === filter);
+  const pendingCount = apps.filter(a => a.status === "pending").length;
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+          <Ionicons name="refresh" size={14} color={Colors.textMuted} />
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
+            {lastUpdated.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+          </Text>
+        </TouchableOpacity>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+          {pendingCount > 0 && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#EF444420" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#EF4444" }}>{pendingCount} معلق</Text>
+            </View>
+          )}
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>إتحاد الطلاب</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 14 }}>
+        {[["pending","معلق"],["approved","مقبول"],["rejected","مرفوض"],["all","الكل"]].map(([k, lbl]) => (
+          <TouchableOpacity key={k} onPress={() => setFilter(k)}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === k ? UC : "#FFFFFF0A", alignItems: "center" }}>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {loading ? <ActivityIndicator color={UC} style={{ marginTop: 40 }} /> : filtered.length === 0 ? (
+        <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
+      ) : filtered.map(a => (
+        <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.full_name || a.applicant_name || "مقدّم طلب"}</Text>
+            <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: a.status === "approved" ? "#10B98120" : a.status === "rejected" ? "#EF444420" : "#F59E0B20" }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>{a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}</Text>
+            </View>
+          </View>
+          {a.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${a.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginBottom: 4 }}>
+            <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{a.phone}</Text>
+          </TouchableOpacity>}
+          {a.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>المؤسسة: {a.institution}</Text>}
+          {a.field && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {a.field}</Text>}
+          {a.reason && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }}>"{a.reason}"</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
+          {a.status === "pending" && (
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+              <TouchableOpacity onPress={() => updateStatus(a.id, "rejected")} disabled={acting === a.id}
+                style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => updateStatus(a.id, "approved")} disabled={acting === a.id}
+                style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: UC, alignItems: "center" }}>
+                {acting === a.id ? <ActivityIndicator size="small" color="#fff" /> :
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>✓ قبول في الإتحاد</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       ))}
     </ScrollView>
@@ -1571,6 +1995,8 @@ export default function AdminDashboard() {
     { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#8B5CF6",      adminOnly: true },
     { key: "sick_leaves",      label: "الإجازات المرضية",   icon: "medical",            color: "#10B981",      adminOnly: true },
     { key: "admissions",       label: "التنويم",            icon: "bed",                color: "#3B82F6",      adminOnly: true },
+    { key: "zawajil",          label: "زواجل",              icon: "gift",               color: "#EC4899",      adminOnly: true },
+    { key: "student_union",    label: "إتحاد الطلاب",       icon: "people-circle",      color: "#6366F1",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -3885,6 +4311,20 @@ export default function AdminDashboard() {
       ═══════════════════════════════════════════════════════ */}
       {tab === "admissions" && isAdmin && (
         <AdminAdmissionsTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── زواجل
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "zawajil" && isAdmin && (
+        <AdminZawajilTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── إتحاد الطلاب
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "student_union" && isAdmin && (
+        <AdminStudentUnionTab token={token!} apiBase={getApiUrl()} />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════

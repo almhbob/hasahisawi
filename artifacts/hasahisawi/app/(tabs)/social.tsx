@@ -1148,6 +1148,13 @@ export default function SocialScreen() {
     }, [init, loadFromApi])
   );
 
+  // Auto-poll API posts every 60s when Firebase is not available
+  useEffect(() => {
+    if (isFirestoreEnabled) return;
+    const iv = setInterval(() => loadFromApi(true), 60000);
+    return () => clearInterval(iv);
+  }, [loadFromApi]);
+
   useEffect(() => {
     if (isFirestoreEnabled) setLoading(fsLoading);
   }, [fsLoading]);

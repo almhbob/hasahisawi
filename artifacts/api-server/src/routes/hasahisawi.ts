@@ -12103,6 +12103,11 @@ async function ensureZawajilTables() {
     gift_amount NUMERIC(12,2) DEFAULT 0,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await query(`ALTER TABLE zawajil_applications ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
+  await query(`ALTER TABLE zawajil_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`).catch(() => {});
+  await query(`ALTER TABLE sick_leaves ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
+  await query(`ALTER TABLE sick_leaves ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`).catch(() => {});
+  await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS discharge_date TIMESTAMPTZ`).catch(() => {});
 }
 
 router.get("/zawajil/products", async (req: Request, res: Response) => {
@@ -12296,6 +12301,62 @@ router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response)
     await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/zawajil/applications
+router.get("/admin/zawajil/applications", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const role = req.query.role as string;
+    const where = role ? `WHERE role=$1` : "";
+    const params = role ? [role] : [];
+    const r = await query(
+      `SELECT * FROM zawajil_applications ${where} ORDER BY created_at DESC LIMIT 200`,
+      params
+    );
+    return res.json({ applications: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/zawajil/applications/:id/status
+router.patch("/admin/zawajil/applications/:id/status", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status, notes } = req.body as any;
+    if (!["approved","rejected","pending"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    await query(
+      `UPDATE zawajil_applications SET status=$1, admin_notes=$2, reviewed_at=NOW() WHERE id=$3`,
+      [status, notes || null, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/sick-leaves/:id/status
+router.patch("/admin/sick-leaves/:id/status", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status, notes } = req.body as any;
+    if (!["verified","flagged","pending"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    await query(
+      `UPDATE sick_leaves SET status=$1, admin_notes=$2, reviewed_at=NOW() WHERE id=$3`,
+      [status, notes || null, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/admissions/:id/discharge
+router.patch("/admin/admissions/:id/discharge", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { notes } = req.body as any;
+    await query(
+      `UPDATE hospital_admissions SET status='discharged', notes=COALESCE($1, notes), discharge_date=NOW() WHERE id=$2`,
+      [notes || null, req.params.id]
+    );
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 // ═══════════════════════════════════════════════════════════════════

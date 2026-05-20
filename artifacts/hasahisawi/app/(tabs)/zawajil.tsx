@@ -181,6 +181,13 @@ export default function ZawajilScreen() {
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
+  // Auto-refresh orders every 30s when on orders tab and phone is set
+  useEffect(() => {
+    if (tab !== "orders" || !trackPhone) return;
+    const iv = setInterval(() => loadMyOrders(), 30000);
+    return () => clearInterval(iv);
+  }, [tab, trackPhone, loadMyOrders]);
+
   // ── Order helpers ──────────────────────────────────────────────────────────
   function openForm(service: ServiceDef) {
     setSelectedService(service);
