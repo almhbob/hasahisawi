@@ -5474,6 +5474,37 @@ router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Resp
   }
 });
 
+// ── مزامنة كلمة المرور بعد إعادة تعيينها في Firebase ────────────────────────
+// يُستدعى من التطبيق بعد تسجيل الدخول الناجح عبر Firebase بكلمة المرور الجديدة
+router.post("/auth/sync-firebase-password", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email, new_password, firebase_token } = req.body;
+    if (!email || !new_password || !firebase_token)
+      return res.status(400).json({ error: "البيانات ناقصة" });
+    if (new_password.length < 6)
+      return res.status(400).json({ error: "كلمة المرور قصيرة جداً" });
+    if (new_password.length > 128)
+      return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
+
+    // التحقق من رمز Firebase
+    const { getAuth } = await import("firebase-admin/auth").catch(() => ({ getAuth: null })) as any;
+    if (!getAuth) return res.status(501).json({ error: "Firebase Admin غير مُهيَّأ" });
+    const decoded = await getAuth().verifyIdToken(firebase_token);
+    if (decoded.email?.toLowerCase() !== email.trim().toLowerCase())
+      return res.status(403).json({ error: "الرمز لا يتطابق مع البريد الإلكتروني" });
+
+    const userR = await query(`SELECT id FROM users WHERE email=$1`, [email.trim().toLowerCase()]);
+    if (!userR.rows.length) return res.status(404).json({ error: "الحساب غير موجود في قاعدة البيانات" });
+
+    const hashed = await bcrypt.hash(new_password, 10);
+    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, userR.rows[0].id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "[sync-firebase-password]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ── تحقق من وجود رقم الهاتف أو البريد الإلكتروني ────────────────────────────
 router.post("/auth/check-phone", async (req: Request, res: Response) => {
   try {
@@ -5499,37 +5530,64 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<void> {
+// Returns true if delivery was attempted via a real channel, false if no delivery configured.
+async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<boolean> {
   const isEmail = identifier.includes("@");
-  const channel = isEmail ? "📧 email" : "📱 SMS";
-  logger.info({ type, channel, identifier }, "[OTP] code generated — expires 5 min");
-// خطاف SMS (Africa's Talking / Twilio) — أضف بيانات الاعتماد للإنتاج
-  const smsKey = process.env.AFRICASTALKING_API_KEY;
-  const smsUser = process.env.AFRICASTALKING_USERNAME;
-  if (!isEmail && smsKey && smsUser) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { default: AfricasTalking } = await (Function('return import("africastalking")')().catch(() => ({ default: null }))) as any;
-      if (AfricasTalking) {
-        const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
-        await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
-        logger.info("[OTP] SMS sent via Africa's Talking");
-      }
-    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] SMS send failed:"); }
+  logger.info({ type, channel: isEmail ? "email" : "sms", identifier }, "[OTP] code generated — expires 5 min");
+
+  if (!isEmail) {
+    const smsKey  = process.env.AFRICASTALKING_API_KEY;
+    const smsUser = process.env.AFRICASTALKING_USERNAME;
+    if (smsKey && smsUser) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { default: AfricasTalking } = await (Function('return import("africastalking")')().catch(() => ({ default: null }))) as any;
+        if (AfricasTalking) {
+          const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
+          await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
+          logger.info("[OTP] SMS sent via Africa's Talking");
+          return true;
+        }
+      } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] SMS send failed"); }
+    }
+
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioFrom  = process.env.TWILIO_PHONE_NUMBER;
+    if (twilioSid && twilioToken && twilioFrom) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const twilio = await (Function('return import("twilio")')().catch(() => null)) as any;
+        if (twilio) {
+          const client = twilio(twilioSid, twilioToken);
+          await client.messages.create({ body: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: twilioFrom, to: identifier });
+          logger.info("[OTP] SMS sent via Twilio");
+          return true;
+        }
+      } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Twilio SMS failed"); }
+    }
+
+    // SMS not configured — log code for admin visibility only
+    logger.warn({ code, identifier, type }, "[OTP] No SMS gateway configured — code logged for admin");
+    return false;
   }
 
-  // خطاف Email (nodemailer) — أضف SMTP_HOST / SMTP_USER / SMTP_PASS
-  if (isEmail && process.env.SMTP_HOST) {
+  // Email via SMTP
+  if (process.env.SMTP_HOST) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const nodemailer = await (Function('return import("nodemailer")')().catch(() => null)) as any;
       if (nodemailer) {
-        const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+        const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
         await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 5 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 5 دقائق فقط.</p></div>` });
         logger.info("[OTP] Email sent via SMTP");
+        return true;
       }
-    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Email send failed:"); }
+    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Email send failed"); }
   }
+
+  logger.warn({ identifier, type }, "[OTP] No email gateway configured");
+  return false;
 }
 
 // POST /api/auth/send-otp
@@ -5560,9 +5618,18 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
       [identifier, code, type, expiresAt]
     );
 
-    await sendOTPDelivery(identifier, code, type);
+    const delivered = await sendOTPDelivery(identifier, code, type);
 
-    return res.json({ sent: true, expires_in: 300, channel: identifier.includes("@") ? "email" : "sms" });
+    // لاستعادة كلمة المرور: يجب أن يصل الرمز فعلاً — أعد خطأ صريحاً إن لم يُرسَل
+    if (!delivered && type === "password_reset") {
+      const isEmailId = identifier.includes("@");
+      const msg = isEmailId
+        ? "خدمة البريد الإلكتروني غير مُهيَّأة. استخدم رابط Firebase لإعادة التعيين عبر التطبيق."
+        : "خدمة الرسائل القصيرة غير مُهيَّأة حالياً. يرجى التواصل مع الدعم أو استخدام بريدك الإلكتروني إن كان مسجّلاً.";
+      return res.status(503).json({ error: msg, no_delivery: true });
+    }
+
+    return res.json({ sent: true, delivered, expires_in: 300, channel: identifier.includes("@") ? "email" : "sms" });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[send-otp]");
     return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
