@@ -175,8 +175,12 @@ function RootLayoutNav() {
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="external-partnership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="lawyer-portal"    options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="client-case-chat" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="lawyer-portal"        options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="client-case-chat"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="sick-leave"           options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-sections-config" options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );

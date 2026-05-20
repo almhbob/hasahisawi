@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -247,6 +247,153 @@ function ActionButton({ label, color, icon, onPress, disabled, outline }: {
       {icon && <Ionicons name={icon} size={16} color={outline ? color : "#fff"} />}
       <Text style={[s.actionBtnTxt, { color: outline ? color : "#fff" }]}>{label}</Text>
     </TouchableOpacity>
+  );
+}
+
+// ─── Admin Legal Suggestions Tab ─────────────────────────────────────────────
+function AdminLegalSuggestionsTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const [suggestions, setSuggestions] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState("pending");
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(`${apiBase}/admin/legal-form-suggestions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.suggestions) setSuggestions(d.suggestions); }).catch(() => {}).finally(() => setLoading(false));
+  }, [filter]);
+
+  async function review(id: number, status: "approved" | "rejected", notes?: string) {
+    await fetch(`${apiBase}/admin/legal-form-suggestions/${id}`, {
+      method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ status, admin_notes: notes }),
+    });
+    setSuggestions(prev => prev.filter(s => s.id !== id));
+  }
+
+  const STATUS_COLOR: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444" };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+        {["pending","approved","rejected"].map(s => (
+          <TouchableOpacity key={s} onPress={() => setFilter(s)}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === s ? STATUS_COLOR[s] : "#FFFFFF0A", alignItems: "center" }}>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === s ? "#fff" : "#9CA3AF" }}>
+              {s === "pending" ? "معلقة" : s === "approved" ? "مقبولة" : "مرفوضة"}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : suggestions.length === 0 ? (
+        <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد اقتراحات</Text>
+      ) : suggestions.map(s => (
+        <View key={s.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{s.form_title || `استمارة #${s.form_id}`}</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{s.lawyer_name}</Text>
+          </View>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 10 }}>{s.suggestion_text}</Text>
+          {s.status === "pending" && (
+            <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+              <TouchableOpacity onPress={() => review(s.id, "rejected")}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 13 }}>رفض</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => review(s.id, "approved")}
+                style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#10B981", alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>اعتماد الاقتراح</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ─── Admin Sick Leaves Tab ────────────────────────────────────────────────────
+function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const [leaves, setLeaves] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState("all");
+  const TYPES = [["all","الكل"], ["student","طلاب"], ["military","عسكريون"], ["employee","موظفون"]];
+
+  React.useEffect(() => {
+    setLoading(true);
+    const q = filter !== "all" ? `?type=${filter}` : "";
+    fetch(`${apiBase}/admin/sick-leaves${q}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.sick_leaves) setLeaves(d.sick_leaves); }).catch(() => {}).finally(() => setLoading(false));
+  }, [filter]);
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+        <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+          {TYPES.map(([k, lbl]) => (
+            <TouchableOpacity key={k} onPress={() => setFilter(k)}
+              style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: filter === k ? "#10B981" : "#FFFFFF0A" }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: filter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+      {loading ? <ActivityIndicator color="#10B981" style={{ marginTop: 40 }} /> : leaves.length === 0 ? (
+        <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد إجازات</Text>
+      ) : leaves.map(sl => (
+        <View key={sl.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 10 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{sl.doctor_name || "طبيب"}</Text>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: "#10B98120" }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>{sl.leave_type === "student" ? "طالب" : sl.leave_type === "military" ? "عسكري" : "موظف"}</Text>
+            </View>
+          </View>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} → {sl.end_date} ({sl.leave_days} يوم)</Text>
+          {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>المؤسسة: {sl.institution_name}</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#4B5563", textAlign: "right", marginTop: 4 }}>رمز: {sl.barcode_token}</Text>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+// ─── Admin Admissions Tab ─────────────────────────────────────────────────────
+function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const [admissions, setAdmissions] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState("active");
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(`${apiBase}/admin/admissions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { if (d.admissions) setAdmissions(d.admissions); }).catch(() => {}).finally(() => setLoading(false));
+  }, [filter]);
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+        {[["active","نشطة"], ["discharged","مُصرَّف"]].map(([k, lbl]) => (
+          <TouchableOpacity key={k} onPress={() => setFilter(k)}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === k ? "#3B82F6" : "#FFFFFF0A", alignItems: "center" }}>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: filter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {loading ? <ActivityIndicator color="#3B82F6" style={{ marginTop: 40 }} /> : admissions.length === 0 ? (
+        <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد حالات</Text>
+      ) : admissions.map(a => (
+        <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 10 }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.patient_display_name || `مريض #${a.patient_user_id}`}</Text>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: a.status === "active" ? "#10B98120" : "#6B728020" }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: a.status === "active" ? "#10B981" : "#6B7280" }}>{a.status === "active" ? "نشط" : "صُرف"}</Text>
+            </View>
+          </View>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{a.facility_name || "مستشفى"}{a.ward ? ` — ${a.ward}` : ""}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الطبيب: {a.doctor_name || "—"}</Text>
+          {a.diagnosis && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.diagnosis}</Text>}
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -1421,6 +1568,9 @@ export default function AdminDashboard() {
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
+    { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#8B5CF6",      adminOnly: true },
+    { key: "sick_leaves",      label: "الإجازات المرضية",   icon: "medical",            color: "#10B981",      adminOnly: true },
+    { key: "admissions",       label: "التنويم",            icon: "bed",                color: "#3B82F6",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -3714,6 +3864,27 @@ export default function AdminDashboard() {
             ))
           )}
         </ScrollView>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── اقتراحات الاستمارات القانونية
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "legal_suggestions" && isAdmin && (
+        <AdminLegalSuggestionsTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── الإجازات المرضية
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "sick_leaves" && isAdmin && (
+        <AdminSickLeavesTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── التنويم
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "admissions" && isAdmin && (
+        <AdminAdmissionsTab token={token!} apiBase={getApiUrl()} />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════

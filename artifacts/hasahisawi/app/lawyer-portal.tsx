@@ -150,9 +150,155 @@ function Input({ label, value, onChangeText, placeholder, multiline, keyboardTyp
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+//                         LEGAL FORMS TAB
+// ══════════════════════════════════════════════════════════════════════════════
+
+type LegalForm = { id: number; title: string; category: string; description?: string; is_official: boolean };
+type LegalSuggestion = { id: number; form_id: number; form_title: string; suggestion_text: string; status: string; admin_notes?: string; created_at: string };
+
+function LegalFormsTab({ token }: { token: string }) {
+  const [forms, setForms]           = useState<LegalForm[]>([]);
+  const [suggestions, setSuggestions] = useState<LegalSuggestion[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [innerTab, setInnerTab]     = useState<"browse" | "mine">("browse");
+  const [selected, setSelected]     = useState<LegalForm | null>(null);
+  const [suggText, setSuggText]     = useState("");
+  const [proposedContent, setProposed] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const apiUrl = getApiUrl();
+
+  const loadForms = useCallback(async () => {
+    try {
+      const r = await fetch(`${apiUrl}/legal-forms`);
+      const d = await r.json();
+      if (d.forms) setForms(d.forms);
+    } catch {}
+  }, []);
+
+  const loadSuggestions = useCallback(async () => {
+    try {
+      const r = await fetch(`${apiUrl}/my-legal-suggestions`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (d.suggestions) setSuggestions(d.suggestions);
+    } catch {}
+  }, [token]);
+
+  useEffect(() => {
+    Promise.all([loadForms(), loadSuggestions()]).finally(() => setLoading(false));
+  }, []);
+
+  async function submitSuggestion() {
+    if (!selected || !suggText.trim()) return Alert.alert("خطأ", "اختر استمارة وأدخل نص الاقتراح");
+    setSubmitting(true);
+    try {
+      const r = await fetch(`${apiUrl}/legal-forms/${selected.id}/suggest`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ suggestion_text: suggText.trim(), proposed_content: proposedContent.trim() || undefined }),
+      });
+      const d = await r.json();
+      if (d.suggestion) {
+        Alert.alert("✅ تم إرسال الاقتراح", "سيراجعه المشرف ويُبلَّغ بالنتيجة");
+        setSuggText(""); setProposed(""); setSelected(null);
+        loadSuggestions();
+        setInnerTab("mine");
+      } else { Alert.alert("خطأ", d.error || "حدث خطأ"); }
+    } catch { Alert.alert("خطأ", "تعذر الإرسال"); }
+    setSubmitting(false);
+  }
+
+  const STATUS_COLORS: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444" };
+  const STATUS_LABELS: Record<string, string> = { pending: "بانتظار المراجعة", approved: "معتمد", rejected: "مرفوض" };
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* inner tab bar */}
+      <View style={{ flexDirection: "row", backgroundColor: "#0D0D1F", borderBottomWidth: 1, borderBottomColor: "#1E1E3A" }}>
+        {[["browse","استمارات الاقتراح"], ["mine","اقتراحاتي"]].map(([k, lbl]) => (
+          <TouchableOpacity key={k} onPress={() => setInnerTab(k as any)}
+            style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: innerTab === k ? PURPLE : "transparent" }}>
+            <Text style={{ fontSize: 13, color: innerTab === k ? PURPLE : "#6B7280", fontWeight: innerTab === k ? "700" : "400" }}>{lbl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {loading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={PURPLE} />
+        </View>
+      ) : innerTab === "browse" ? (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9CA3AF", textAlign: "right", marginBottom: 14, lineHeight: 20 }}>
+            اختر استمارة لاقتراح تعديل عليها. سيُرسَل الاقتراح للمشرف للمراجعة والاعتماد.
+          </Text>
+          {forms.map(f => (
+            <TouchableOpacity key={f.id} onPress={() => setSelected(selected?.id === f.id ? null : f)}
+              style={{ backgroundColor: selected?.id === f.id ? PURPLE + "22" : "#0F0F24", borderRadius: 14, borderWidth: 1, borderColor: selected?.id === f.id ? PURPLE : "#1E1E3A", padding: 14, marginBottom: 10 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: PURPLE + "20", alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="document-text-outline" size={20} color={PURPLE} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" }}>{f.title}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", textAlign: "right", marginTop: 2 }}>{f.category}{f.is_official ? " • رسمية" : ""}</Text>
+                </View>
+                {selected?.id === f.id && <Ionicons name="checkmark-circle" size={20} color={PURPLE} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+
+          {selected && (
+            <View style={{ backgroundColor: "#0F0F24", borderRadius: 16, borderWidth: 1, borderColor: PURPLE + "40", padding: 16, marginTop: 8 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right", marginBottom: 10 }}>اقتراح تعديل: {selected.title}</Text>
+              <TextInput value={suggText} onChangeText={setSuggText} placeholder="اكتب ملاحظتك أو التعديل المقترح..." placeholderTextColor="#4B5563" multiline
+                style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", textAlign: "right", minHeight: 80, marginBottom: 10 }} />
+              <TextInput value={proposedContent} onChangeText={setProposed} placeholder="النص المقترح البديل (اختياري)" placeholderTextColor="#4B5563" multiline
+                style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", textAlign: "right", minHeight: 60, marginBottom: 14 }} />
+              <TouchableOpacity onPress={submitSuggestion} disabled={submitting}
+                style={{ backgroundColor: PURPLE, borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 15 }}>إرسال الاقتراح للمشرف</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          {suggestions.length === 0 ? (
+            <View style={{ alignItems: "center", paddingTop: 50, gap: 12 }}>
+              <View style={{ width: 70, height: 70, borderRadius: 20, backgroundColor: PURPLE + "20", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="document-text-outline" size={36} color={PURPLE} />
+              </View>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>لا توجد اقتراحات بعد</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center" }}>ستظهر هنا اقتراحاتك المُرسَلة للمشرف</Text>
+            </View>
+          ) : suggestions.map(s => (
+            <View key={s.id} style={{ backgroundColor: "#0F0F24", borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLORS[s.status] || "#1E1E3A") + "44", padding: 14, marginBottom: 12 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", flex: 1, textAlign: "right" }}>{s.form_title}</Text>
+                <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: (STATUS_COLORS[s.status] || "#6B7280") + "20" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLORS[s.status] || "#6B7280" }}>{STATUS_LABELS[s.status] || s.status}</Text>
+                </View>
+              </View>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "right", lineHeight: 18 }}>{s.suggestion_text}</Text>
+              {s.admin_notes && (
+                <View style={{ backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10, marginTop: 8 }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#D1D5DB", textAlign: "right" }}>ملاحظة المشرف: {s.admin_notes}</Text>
+                </View>
+              )}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#4B5563", textAlign: "right", marginTop: 6 }}>{new Date(s.created_at).toLocaleDateString("ar-EG")}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 //                               MAIN SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
-type Tab = "dashboard" | "cases" | "chat" | "docs" | "settings";
+type Tab = "dashboard" | "cases" | "chat" | "docs" | "forms" | "settings";
 
 export default function LawyerPortal() {
   const insets = useSafeAreaInsets();
@@ -427,7 +573,7 @@ export default function LawyerPortal() {
 
       {/* Tabs */}
       <View style={{ flexDirection: "row", backgroundColor: "#111122", borderBottomWidth: 1, borderBottomColor: BORDER }}>
-        {([ ["dashboard","grid-outline","لوحتي"], ["cases","briefcase-outline","القضايا"], ["chat","chatbubbles-outline","الدردشة"], ["docs","documents-outline","المستندات"], ["settings","settings-outline","الإعدادات"] ] as [Tab, string, string][]).map(([key, icon, label]) => (
+        {([ ["dashboard","grid-outline","لوحتي"], ["cases","briefcase-outline","القضايا"], ["forms","document-text-outline","الاستمارات"], ["settings","settings-outline","الإعدادات"] ] as [Tab, string, string][]).map(([key, icon, label]) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)} style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: tab === key ? PURPLE : "transparent" }}>
             <Ionicons name={icon as any} size={18} color={tab === key ? PURPLE : "#6B7280"} />
             <Text style={{ fontSize: 9, color: tab === key ? PURPLE : "#6B7280", marginTop: 2, fontWeight: tab === key ? "700" : "400" }}>{label}</Text>
@@ -440,6 +586,7 @@ export default function LawyerPortal() {
       {tab === "cases"     && <CasesTab cases={cases} loading={casesLoading} filter={caseFilter} setFilter={setCaseFilter} search={caseSearch} setSearch={setCaseSearch} onSearch={loadCases} onOpen={openCase} />}
       {tab === "chat"      && <ChatListTab cases={cases} loading={casesLoading} onOpen={openCase} />}
       {tab === "docs"      && <DocsListTab cases={cases} loading={casesLoading} onOpen={openCase} />}
+      {tab === "forms"     && <LegalFormsTab token={token!} />}
       {tab === "settings"  && <SettingsTab form={settingsForm} setForm={setSettingsForm} services={services} setServices={setServices} saving={settingsSaving} onSave={saveSettings} pdfLoading={pdfLoading} onExportPdf={exportPDF} profile={profile!} />}
 
       {/* Case Detail Modal */}

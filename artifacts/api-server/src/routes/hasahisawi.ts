@@ -15062,3 +15062,1043 @@ router.patch("/admin/section-configs/:key", async (req: Request, res: Response) 
     return res.status(500).json({ error: "Server error" });
   }
 });
+
+// ══════════════════════════════════════════════════════════════════
+// النظام الطبي المتكامل — Integrated Medical System
+// مسار: الحجز ← تذكير ← كشف ← مختبر ← نتائج ← روشتة ← صيدلية
+// ══════════════════════════════════════════════════════════════════
+(async () => {
+  try {
+    const alts = [
+      `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_24h BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_2h  BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS user_name     VARCHAR(200)`,
+      `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS user_phone    VARCHAR(40)`,
+      `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS facility_name VARCHAR(200)`,
+    ];
+    for (const sql of alts) { await query(sql).catch(() => {}); }
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS medical_staff_profiles (
+        id             SERIAL PRIMARY KEY,
+        user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        staff_type     VARCHAR(30) NOT NULL,
+        facility_id    VARCHAR(100),
+        facility_name  VARCHAR(200),
+        specialty      VARCHAR(100),
+        license_number VARCHAR(100),
+        is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+        workspace_mode BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS patient_medical_records (
+        id                SERIAL PRIMARY KEY,
+        user_id           INTEGER REFERENCES users(id) ON DELETE SET NULL UNIQUE,
+        record_number     VARCHAR(80) UNIQUE NOT NULL,
+        full_name         VARCHAR(200),
+        birth_date        DATE,
+        gender            VARCHAR(10),
+        blood_type        VARCHAR(5),
+        allergies         TEXT,
+        chronic_diseases  TEXT,
+        emergency_contact VARCHAR(200),
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_pmr_record ON patient_medical_records(record_number)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_pmr_user   ON patient_medical_records(user_id)`);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS lab_orders (
+        id                    SERIAL PRIMARY KEY,
+        appointment_id        INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+        patient_user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_record_number VARCHAR(80),
+        patient_name          VARCHAR(200),
+        doctor_user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        doctor_name           VARCHAR(200),
+        lab_user_id           INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        facility_name         VARCHAR(200),
+        tests                 JSONB NOT NULL DEFAULT '[]',
+        custom_notes          TEXT,
+        priority              VARCHAR(20) NOT NULL DEFAULT 'normal',
+        status                VARCHAR(20) NOT NULL DEFAULT 'pending',
+        expected_at           TIMESTAMPTZ,
+        notified_patient      BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lo_patient ON lab_orders(patient_user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lo_doctor  ON lab_orders(doctor_user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lo_lab     ON lab_orders(lab_user_id)`);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS lab_results (
+        id               SERIAL PRIMARY KEY,
+        order_id         INTEGER REFERENCES lab_orders(id) ON DELETE CASCADE,
+        patient_user_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        doctor_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        lab_user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_name     VARCHAR(200),
+        results_data     JSONB NOT NULL DEFAULT '[]',
+        summary_notes    TEXT,
+        ready_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        notified_patient BOOLEAN NOT NULL DEFAULT FALSE,
+        notified_doctor  BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lr_patient ON lab_results(patient_user_id)`);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS prescriptions (
+        id                    SERIAL PRIMARY KEY,
+        appointment_id        INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+        patient_user_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_record_number VARCHAR(80),
+        patient_name          VARCHAR(200),
+        doctor_user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        doctor_name           VARCHAR(200),
+        facility_name         VARCHAR(200),
+        diagnosis             TEXT,
+        medications           JSONB NOT NULL DEFAULT '[]',
+        follow_up_date        VARCHAR(50),
+        follow_up_notes       TEXT,
+        general_notes         TEXT,
+        status                VARCHAR(20) NOT NULL DEFAULT 'active',
+        notified_patient      BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_rx_patient ON prescriptions(patient_user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_rx_doctor  ON prescriptions(doctor_user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_rx_record  ON prescriptions(patient_record_number)`);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS pharmacy_orders (
+        id                       SERIAL PRIMARY KEY,
+        prescription_id          INTEGER REFERENCES prescriptions(id) ON DELETE SET NULL,
+        patient_user_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_name             VARCHAR(200),
+        pharmacy_user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        delivery_type            VARCHAR(20) NOT NULL DEFAULT 'pickup',
+        delivery_address         TEXT,
+        status                   VARCHAR(20) NOT NULL DEFAULT 'pending',
+        dispensed_at             TIMESTAMPTZ,
+        dispensed_by             INTEGER REFERENCES users(id),
+        usage_instructions_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+        notes                    TEXT,
+        created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_po_patient  ON pharmacy_orders(patient_user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_po_pharmacy ON pharmacy_orders(pharmacy_user_id)`);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[medical-system] init failed"); }
+})();
+
+// ── مجدوِل تذكيرات المواعيد (كل 10 دقائق) ─────────────────────────
+(function startAppointmentReminderScheduler() {
+  const check = async () => {
+    try {
+      const r24 = await query(`
+        SELECT a.*, u.id AS uid FROM appointments a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.status IN ('pending','confirmed')
+          AND (a.reminder_sent_24h IS NULL OR a.reminder_sent_24h = FALSE)
+          AND (a.appointment_date::text || ' ' || COALESCE(a.appointment_time,'08:00'))::timestamptz
+              BETWEEN NOW() + INTERVAL '23 hours' AND NOW() + INTERVAL '25 hours'
+      `).catch(() => ({ rows: [] as any[] }));
+
+      for (const appt of r24.rows) {
+        await sendPushToUser(
+          appt.uid, "⏰ تذكير: موعدك غداً",
+          `لديك موعد في ${appt.facility_name || "المنشأة الصحية"} غداً الساعة ${appt.appointment_time || ""}`,
+          { type: "appointment_reminder_24h", appointment_id: appt.id }
+        );
+        await query(`UPDATE appointments SET reminder_sent_24h=TRUE WHERE id=$1`, [appt.id]).catch(() => {});
+      }
+
+      const r2 = await query(`
+        SELECT a.*, u.id AS uid FROM appointments a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.status IN ('pending','confirmed')
+          AND (a.reminder_sent_2h IS NULL OR a.reminder_sent_2h = FALSE)
+          AND (a.appointment_date::text || ' ' || COALESCE(a.appointment_time,'08:00'))::timestamptz
+              BETWEEN NOW() + INTERVAL '1 hour 45 minutes' AND NOW() + INTERVAL '2 hours 15 minutes'
+      `).catch(() => ({ rows: [] as any[] }));
+
+      for (const appt of r2.rows) {
+        await sendPushToUser(
+          appt.uid, "🔔 موعدك بعد ساعتين",
+          `تذكير: موعدك في ${appt.facility_name || "المنشأة الصحية"} بعد قليل. كن مستعداً!`,
+          { type: "appointment_reminder_2h", appointment_id: appt.id }
+        );
+        await query(`UPDATE appointments SET reminder_sent_2h=TRUE WHERE id=$1`, [appt.id]).catch(() => {});
+      }
+    } catch {}
+  };
+  setTimeout(check, 90_000);
+  setInterval(check, 10 * 60_000);
+})();
+
+// ─── Medical Staff ────────────────────────────────────────────────
+router.post("/medical/staff/register", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const b = req.body as any;
+    const TYPES = ["doctor","lab_technician","pharmacist","nurse","receptionist"];
+    if (!TYPES.includes(b.staff_type)) return res.status(400).json({ error: "نوع الموظف غير صالح" });
+    const r = await query(
+      `INSERT INTO medical_staff_profiles (user_id,staff_type,facility_id,facility_name,specialty,license_number)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (user_id) DO UPDATE SET staff_type=$2,facility_id=$3,facility_name=$4,specialty=$5,license_number=$6
+       RETURNING *`,
+      [user.id, b.staff_type, b.facility_id||null, b.facility_name?.trim()||null, b.specialty?.trim()||null, b.license_number?.trim()||null]
+    );
+    return res.json({ profile: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/staff/profile", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1`, [user.id]);
+    return res.json({ profile: r.rows[0] || null });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/staff/mode", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { workspace_mode } = req.body as { workspace_mode: boolean };
+    const r = await query(
+      `UPDATE medical_staff_profiles SET workspace_mode=$1 WHERE user_id=$2 RETURNING *`,
+      [workspace_mode, user.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "لا يوجد ملف موظف" });
+    return res.json({ profile: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Patient Records ──────────────────────────────────────────────
+router.get("/medical/my-record", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM patient_medical_records WHERE user_id=$1`, [user.id]);
+    return res.json({ record: r.rows[0] || null });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/medical/my-record", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const b = req.body as any;
+    const recNum = `PMR-${user.id}-${Date.now().toString(36).toUpperCase()}`;
+    const existing = await query(`SELECT record_number FROM patient_medical_records WHERE user_id=$1`, [user.id]);
+    const rn = existing.rows[0]?.record_number || recNum;
+    const r = await query(
+      `INSERT INTO patient_medical_records (user_id,record_number,full_name,birth_date,gender,blood_type,allergies,chronic_diseases,emergency_contact)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (user_id) DO UPDATE SET full_name=$3,birth_date=$4,gender=$5,blood_type=$6,allergies=$7,chronic_diseases=$8,emergency_contact=$9,updated_at=NOW()
+       RETURNING *`,
+      [user.id, rn, b.full_name?.trim()||null, b.birth_date||null, b.gender||null, b.blood_type||null, b.allergies?.trim()||null, b.chronic_diseases?.trim()||null, b.emergency_contact?.trim()||null]
+    );
+    return res.json({ record: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/patient-record/:recordNumber", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة للموظفين الطبيين فقط" });
+    const r = await query(`SELECT * FROM patient_medical_records WHERE record_number=$1`, [req.params.recordNumber]);
+    if (!r.rows.length) return res.status(404).json({ error: "رقم السجل غير موجود" });
+    const rec = r.rows[0];
+    const [labs, rxs] = await Promise.all([
+      query(`SELECT * FROM lab_results WHERE patient_user_id=$1 ORDER BY created_at DESC LIMIT 5`, [rec.user_id]).catch(() => ({ rows: [] })),
+      query(`SELECT * FROM prescriptions WHERE patient_user_id=$1 ORDER BY created_at DESC LIMIT 5`, [rec.user_id]).catch(() => ({ rows: [] })),
+    ]);
+    return res.json({ record: rec, recent_labs: labs.rows, recent_prescriptions: rxs.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Lab Orders ───────────────────────────────────────────────────
+router.post("/medical/lab-orders", writeLimiter, async (req: Request, res: Response) => {
+  const doctor = await getSessionUser(req);
+  if (!doctor) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type='doctor' AND is_active=TRUE`, [doctor.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة للأطباء فقط" });
+    const staff = staffR.rows[0];
+    const b = req.body as any;
+    if (!Array.isArray(b.tests) || !b.tests.length) return res.status(400).json({ error: "لم يتم تحديد أي فحص" });
+
+    let labUserId: number | null = null;
+    if (staff.facility_id) {
+      const labR = await query(`SELECT user_id FROM medical_staff_profiles WHERE facility_id=$1 AND staff_type='lab_technician' AND is_active=TRUE LIMIT 1`, [staff.facility_id]);
+      labUserId = labR.rows[0]?.user_id || null;
+    }
+
+    const r = await query(
+      `INSERT INTO lab_orders (appointment_id,patient_user_id,patient_record_number,patient_name,doctor_user_id,doctor_name,lab_user_id,facility_name,tests,custom_notes,priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [b.appointment_id||null, b.patient_user_id||null, b.patient_record_number||null, b.patient_name?.trim()||null,
+       doctor.id, doctor.name||null, labUserId, staff.facility_name||null,
+       JSON.stringify(b.tests), b.custom_notes?.trim()||null, b.priority||"normal"]
+    );
+    if (labUserId) {
+      await sendPushToUser(labUserId, "🔬 طلب فحوصات جديد",
+        `طلب الدكتور ${doctor.name || "الطبيب"} فحوصات للمريض ${b.patient_name || ""}`,
+        { type: "lab_order", order_id: r.rows[0].id });
+    }
+    return res.status(201).json({ order: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "[lab-orders]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/lab-orders", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "غير مصرح" });
+    const staff = staffR.rows[0];
+    let result;
+    if (staff.staff_type === "doctor") {
+      result = await query(`SELECT * FROM lab_orders WHERE doctor_user_id=$1 ORDER BY created_at DESC LIMIT 50`, [user.id]);
+    } else if (staff.staff_type === "lab_technician") {
+      result = await query(`SELECT * FROM lab_orders WHERE (lab_user_id=$1 OR facility_name=$2) AND status != 'completed' ORDER BY created_at DESC LIMIT 50`, [user.id, staff.facility_name||""]);
+    } else {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
+    return res.json({ orders: result.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/lab-orders/:id/status", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { status, expected_at } = req.body as any;
+    const id = parseInt(req.params.id, 10);
+    const r = await query(
+      `UPDATE lab_orders SET status=$1, expected_at=COALESCE($2::TIMESTAMPTZ,expected_at), lab_user_id=COALESCE(lab_user_id,$3) WHERE id=$4 RETURNING *`,
+      [status, expected_at||null, user.id, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json({ order: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Lab Results ──────────────────────────────────────────────────
+router.post("/medical/lab-results", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type='lab_technician'`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة لموظفي المختبر فقط" });
+    const b = req.body as any;
+    if (!b.order_id) return res.status(400).json({ error: "رقم الطلب مطلوب" });
+
+    const orderR = await query(`SELECT * FROM lab_orders WHERE id=$1`, [b.order_id]);
+    if (!orderR.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    const order = orderR.rows[0];
+
+    const r = await query(
+      `INSERT INTO lab_results (order_id,patient_user_id,doctor_user_id,lab_user_id,patient_name,results_data,summary_notes,ready_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW()) RETURNING *`,
+      [b.order_id, order.patient_user_id, order.doctor_user_id, user.id, order.patient_name, JSON.stringify(b.results||[]), b.summary_notes?.trim()||null]
+    );
+    await query(`UPDATE lab_orders SET status='completed' WHERE id=$1`, [b.order_id]);
+
+    if (order.patient_user_id) {
+      await sendPushToUser(order.patient_user_id, "✅ نتائج فحوصاتك جاهزة",
+        "تم الانتهاء من الفحوصات. يمكنك الاطلاع على التقرير الآن.",
+        { type: "lab_result", result_id: r.rows[0].id });
+      await query(`UPDATE lab_results SET notified_patient=TRUE WHERE id=$1`, [r.rows[0].id]);
+    }
+    if (order.doctor_user_id) {
+      await sendPushToUser(order.doctor_user_id, "🔬 نتائج مريضك جاهزة",
+        `نتائج فحوصات ${order.patient_name || "المريض"} جاهزة للمراجعة.`,
+        { type: "lab_result_doctor", result_id: r.rows[0].id });
+      await query(`UPDATE lab_results SET notified_doctor=TRUE WHERE id=$1`, [r.rows[0].id]);
+    }
+    return res.status(201).json({ result: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "[lab-results]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/lab-results/mine", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT lr.*, lo.tests FROM lab_results lr LEFT JOIN lab_orders lo ON lo.id=lr.order_id WHERE lr.patient_user_id=$1 ORDER BY lr.created_at DESC`,
+      [user.id]
+    );
+    return res.json({ results: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/lab-results/order/:orderId", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT lr.*, lo.tests FROM lab_results lr LEFT JOIN lab_orders lo ON lo.id=lr.order_id WHERE lr.order_id=$1 AND (lr.patient_user_id=$2 OR lr.doctor_user_id=$2 OR lr.lab_user_id=$2)`,
+      [req.params.orderId, user.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "لا توجد نتائج" });
+    return res.json({ result: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Prescriptions ────────────────────────────────────────────────
+router.post("/medical/prescriptions", writeLimiter, async (req: Request, res: Response) => {
+  const doctor = await getSessionUser(req);
+  if (!doctor) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type='doctor'`, [doctor.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة للأطباء فقط" });
+    const staff = staffR.rows[0];
+    const b = req.body as any;
+    if (!Array.isArray(b.medications) || !b.medications.length) return res.status(400).json({ error: "لم يتم إدخال أي دواء" });
+
+    const r = await query(
+      `INSERT INTO prescriptions (appointment_id,patient_user_id,patient_record_number,patient_name,doctor_user_id,doctor_name,facility_name,diagnosis,medications,follow_up_date,follow_up_notes,general_notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [b.appointment_id||null, b.patient_user_id||null, b.patient_record_number?.trim()||null, b.patient_name?.trim()||null,
+       doctor.id, doctor.name||null, staff.facility_name||null, b.diagnosis?.trim()||null,
+       JSON.stringify(b.medications), b.follow_up_date?.trim()||null, b.follow_up_notes?.trim()||null, b.general_notes?.trim()||null]
+    );
+
+    if (b.patient_user_id) {
+      await sendPushToUser(b.patient_user_id, "💊 وصفتك الطبية جاهزة",
+        `أرسل ${doctor.name || "الطبيب"} وصفتك. يمكنك تنزيلها ومشاركتها مع الصيدلية.`,
+        { type: "prescription", prescription_id: r.rows[0].id });
+    }
+    return res.status(201).json({ prescription: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "[prescriptions]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/prescriptions/mine", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM prescriptions WHERE patient_user_id=$1 ORDER BY created_at DESC`, [user.id]);
+    return res.json({ prescriptions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/prescriptions/doctor", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { record_number } = req.query as { record_number?: string };
+    const params: unknown[] = [user.id];
+    let sql = `SELECT * FROM prescriptions WHERE doctor_user_id=$1`;
+    if (record_number) { sql += ` AND patient_record_number=$2`; params.push(record_number); }
+    sql += ` ORDER BY created_at DESC LIMIT 50`;
+    const r = await query(sql, params);
+    return res.json({ prescriptions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/prescriptions/:id", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM prescriptions WHERE id=$1 AND (patient_user_id=$2 OR doctor_user_id=$2)`, [req.params.id, user.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "الوصفة غير موجودة" });
+    return res.json({ prescription: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/medical/queue — طابور المرضى اليوم (للطاقم الطبي)
+router.get("/medical/queue", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "غير مصرح" });
+    const today = new Date().toISOString().slice(0, 10);
+    const r = await query(
+      `SELECT a.*, u.name AS user_display_name, pmr.record_number, pmr.blood_type, pmr.allergies
+       FROM appointments a
+       LEFT JOIN users u ON u.id = a.user_id
+       LEFT JOIN patient_medical_records pmr ON pmr.user_id = a.user_id
+       WHERE a.appointment_date = $1 AND a.status IN ('pending','confirmed')
+       ORDER BY a.appointment_time ASC`,
+      [today]
+    );
+    return res.json({ queue: r.rows, date: today });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Pharmacy Orders ──────────────────────────────────────────────
+router.post("/medical/pharmacy-orders", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const b = req.body as any;
+    if (!b.prescription_id) return res.status(400).json({ error: "رقم الوصفة مطلوب" });
+    const rxR = await query(`SELECT * FROM prescriptions WHERE id=$1 AND patient_user_id=$2`, [b.prescription_id, user.id]);
+    if (!rxR.rows.length) return res.status(404).json({ error: "الوصفة غير موجودة" });
+    const rx = rxR.rows[0];
+
+    let pharmacyUserId: number | null = null;
+    if (rx.facility_name) {
+      const pharR = await query(`SELECT user_id FROM medical_staff_profiles WHERE facility_name=$1 AND staff_type='pharmacist' AND is_active=TRUE LIMIT 1`, [rx.facility_name]);
+      pharmacyUserId = pharR.rows[0]?.user_id || null;
+    }
+
+    const r = await query(
+      `INSERT INTO pharmacy_orders (prescription_id,patient_user_id,patient_name,pharmacy_user_id,delivery_type,delivery_address,notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [b.prescription_id, user.id, b.patient_name?.trim()||null, pharmacyUserId, b.delivery_type||"pickup", b.delivery_address?.trim()||null, b.notes?.trim()||null]
+    );
+    if (pharmacyUserId) {
+      await sendPushToUser(pharmacyUserId, "💊 طلب صرف دواء جديد",
+        `طلب ${user.name || "مريض"} صرف وصفة (${b.delivery_type === "delivery" ? "توصيل" : "استلام"})`,
+        { type: "pharmacy_order", order_id: r.rows[0].id });
+    }
+    return res.status(201).json({ order: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/pharmacy-orders", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type='pharmacist'`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة للصيادلة فقط" });
+    const r = await query(
+      `SELECT po.*, rx.medications, rx.diagnosis, rx.doctor_name, rx.patient_name AS rx_patient_name
+       FROM pharmacy_orders po JOIN prescriptions rx ON rx.id=po.prescription_id
+       WHERE po.pharmacy_user_id=$1 AND po.status != 'delivered' ORDER BY po.created_at DESC`,
+      [user.id]
+    );
+    return res.json({ orders: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/pharmacy-orders/:id/dispense", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await query(
+      `UPDATE pharmacy_orders SET status='delivered',dispensed_at=NOW(),dispensed_by=$1,usage_instructions_sent=TRUE WHERE id=$2 RETURNING *`,
+      [user.id, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    const order = r.rows[0];
+    const rxR = await query(`SELECT * FROM prescriptions WHERE id=$1`, [order.prescription_id]);
+    const rx = rxR.rows[0];
+    if (order.patient_user_id && rx) {
+      const meds: any[] = Array.isArray(rx.medications) ? rx.medications : JSON.parse(rx.medications || "[]");
+      const summary = meds.slice(0, 3).map((m: any) =>
+        `• ${m.name}: ${m.dosage || ""} ${m.frequency || ""}`
+      ).join("\n");
+      await sendPushToUser(
+        order.patient_user_id, "✅ تم تحضير دوائك",
+        `جاهز للاستلام.\n${summary}\nتعليمات الاستخدام والحفظ متاحة في التطبيق.`,
+        { type: "pharmacy_dispensed", order_id: id, prescription_id: order.prescription_id }
+      );
+    }
+    return res.json({ order: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "[pharmacy/dispense]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/my-pharmacy-orders", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT po.*, rx.medications, rx.doctor_name, rx.diagnosis FROM pharmacy_orders po JOIN prescriptions rx ON rx.id=po.prescription_id WHERE po.patient_user_id=$1 ORDER BY po.created_at DESC`,
+      [user.id]
+    );
+    return res.json({ orders: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// الإجازات المرضية — Sick Leaves (students / military / employees)
+// ══════════════════════════════════════════════════════════════════
+
+async function ensureSickLeaveTables() {
+  await query(`CREATE TABLE IF NOT EXISTS sick_leaves (
+    id                SERIAL PRIMARY KEY,
+    patient_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    doctor_user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    doctor_name       VARCHAR(200),
+    facility_name     VARCHAR(200),
+    leave_type        VARCHAR(30) NOT NULL DEFAULT 'employee',
+    institution_name  VARCHAR(300),
+    leave_days        INTEGER NOT NULL DEFAULT 1,
+    start_date        DATE NOT NULL,
+    end_date          DATE NOT NULL,
+    diagnosis         TEXT,
+    barcode_token     VARCHAR(80) UNIQUE NOT NULL,
+    org_notified      BOOLEAN DEFAULT FALSE,
+    is_verified       BOOLEAN DEFAULT TRUE,
+    admin_notes       TEXT,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_patient   ON sick_leaves(patient_user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_doctor    ON sick_leaves(doctor_user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_barcode   ON sick_leaves(barcode_token)`);
+}
+
+ensureSickLeaveTables().catch(() => {});
+
+function genSickLeaveToken(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let t = "SL-";
+  for (let i = 0; i < 12; i++) t += chars[Math.floor(Math.random() * chars.length)];
+  return t;
+}
+
+router.post("/medical/sick-leaves", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(
+      `SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type IN ('doctor','admin') AND is_active=TRUE`,
+      [user.id]
+    );
+    if (!staffR.rows.length) return res.status(403).json({ error: "هذه الخدمة للأطباء فقط" });
+    const staff = staffR.rows[0];
+    const b = req.body as any;
+    if (!b.start_date || !b.end_date) return res.status(400).json({ error: "تواريخ الإجازة مطلوبة" });
+    if (!["student","military","employee"].includes(b.leave_type)) return res.status(400).json({ error: "نوع الإجازة غير صالح" });
+    const start = new Date(b.start_date);
+    const end   = new Date(b.end_date);
+    if (end < start) return res.status(400).json({ error: "تاريخ الانتهاء قبل تاريخ البداية" });
+    const leaveDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+    const token = genSickLeaveToken();
+    const r = await query(
+      `INSERT INTO sick_leaves
+         (patient_user_id, doctor_user_id, doctor_name, facility_name, leave_type,
+          institution_name, leave_days, start_date, end_date, diagnosis, barcode_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [
+        b.patient_user_id || null,
+        user.id,
+        (user.name as string) || staff.doctor_name || "طبيب",
+        staff.facility_name || b.facility_name || null,
+        b.leave_type,
+        b.institution_name?.trim() || null,
+        leaveDays,
+        b.start_date,
+        b.end_date,
+        b.diagnosis?.trim() || null,
+        token,
+      ]
+    );
+    const sl = r.rows[0];
+    if (b.patient_user_id) {
+      await sendPushToUser(Number(b.patient_user_id), "📋 إجازتك المرضية جاهزة",
+        `إجازة ${leaveDays} يوم من ${b.start_date} حتى ${b.end_date}. يمكنك تحميلها من التطبيق.`,
+        { type: "sick_leave", id: sl.id });
+      await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'sick_leave',$2,$3,$4)`,
+        [b.patient_user_id, "📋 إجازة مرضية", `إجازة ${leaveDays} يوم جاهزة للتحميل`, JSON.stringify({ id: sl.id })]);
+    }
+    return res.status(201).json({ sick_leave: sl });
+  } catch (e: any) { logger.error({ err: e?.message }, "[sick-leaves/post]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/sick-leaves/mine", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(`SELECT * FROM sick_leaves WHERE patient_user_id=$1 ORDER BY created_at DESC LIMIT 30`, [user.id]);
+    return res.json({ sick_leaves: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/sick-leaves/doctor", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT 1 FROM medical_staff_profiles WHERE user_id=$1 AND staff_type IN ('doctor','admin') AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "للأطباء فقط" });
+    const r = await query(
+      `SELECT sl.*, u.name AS patient_display_name FROM sick_leaves sl LEFT JOIN users u ON u.id=sl.patient_user_id WHERE sl.doctor_user_id=$1 ORDER BY sl.created_at DESC LIMIT 100`,
+      [user.id]
+    );
+    return res.json({ sick_leaves: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/sick-leaves/verify/:token", async (req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT sl.*, u.name AS patient_name_reg FROM sick_leaves sl LEFT JOIN users u ON u.id=sl.patient_user_id WHERE sl.barcode_token=$1`,
+      [req.params.token]
+    );
+    if (!r.rows.length) return res.status(404).json({ valid: false, error: "الإجازة غير موجودة" });
+    const sl = r.rows[0];
+    const now = new Date();
+    const endDate = new Date(sl.end_date);
+    endDate.setHours(23, 59, 59);
+    const isExpired = now > endDate;
+    return res.json({ valid: !isExpired, expired: isExpired, sick_leave: sl });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/sick-leaves", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const type = req.query.type as string;
+    const where = type ? `WHERE sl.leave_type=$1` : "";
+    const params = type ? [type] : [];
+    const r = await query(
+      `SELECT sl.*, u.name AS patient_name_reg FROM sick_leaves sl LEFT JOIN users u ON u.id=sl.patient_user_id ${where} ORDER BY sl.created_at DESC LIMIT 200`,
+      params
+    );
+    return res.json({ sick_leaves: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// التنويم والمرافق — Hospital Admissions & Companions
+// ══════════════════════════════════════════════════════════════════
+
+async function ensureAdmissionTables() {
+  await query(`CREATE TABLE IF NOT EXISTS hospital_admissions (
+    id               SERIAL PRIMARY KEY,
+    patient_user_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    doctor_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    doctor_name      VARCHAR(200),
+    facility_name    VARCHAR(200),
+    ward             VARCHAR(200),
+    room_number      VARCHAR(50),
+    bed_number       VARCHAR(50),
+    admission_date   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expected_discharge DATE,
+    diagnosis        TEXT,
+    status           VARCHAR(30) DEFAULT 'active',
+    notes            TEXT,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS admission_companions (
+    id                  SERIAL PRIMARY KEY,
+    admission_id        INTEGER REFERENCES hospital_admissions(id) ON DELETE CASCADE,
+    companion_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    companion_name      VARCHAR(200) NOT NULL,
+    companion_phone     VARCHAR(50),
+    companion_id_number VARCHAR(100),
+    relation            VARCHAR(100),
+    requested_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    status              VARCHAR(20) DEFAULT 'pending',
+    permissions         JSONB DEFAULT '{}',
+    exit_pass_active    BOOLEAN DEFAULT FALSE,
+    admin_notes         TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_admissions_patient   ON hospital_admissions(patient_user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_companions_admission  ON admission_companions(admission_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_companions_user       ON admission_companions(companion_user_id)`);
+  await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS medications_needed JSONB`).catch(() => {});
+  await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS visit_schedule JSONB`).catch(() => {});
+}
+
+ensureAdmissionTables().catch(() => {});
+
+router.post("/medical/admissions", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND staff_type IN ('doctor','admin') AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length) return res.status(403).json({ error: "للأطباء فقط" });
+    const staff = staffR.rows[0];
+    const b = req.body as any;
+    if (!b.patient_user_id) return res.status(400).json({ error: "معرّف المريض مطلوب" });
+    const r = await query(
+      `INSERT INTO hospital_admissions
+         (patient_user_id, doctor_user_id, doctor_name, facility_name, ward, room_number, bed_number,
+          admission_date, expected_discharge, diagnosis, notes, medications_needed, visit_schedule)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [
+        b.patient_user_id, user.id, (user.name as string) || "طبيب",
+        staff.facility_name || b.facility_name || null,
+        b.ward?.trim() || null, b.room_number?.trim() || null, b.bed_number?.trim() || null,
+        b.admission_date || new Date().toISOString(),
+        b.expected_discharge || null, b.diagnosis?.trim() || null, b.notes?.trim() || null,
+        b.medications_needed ? JSON.stringify(b.medications_needed) : null,
+        b.visit_schedule ? JSON.stringify(b.visit_schedule) : null,
+      ]
+    );
+    const adm = r.rows[0];
+    await sendPushToUser(Number(b.patient_user_id), "🏥 تم تسجيل تنويمك",
+      `تم تسجيل دخولك للتنويم في ${staff.facility_name || "المستشفى"}. تفاصيل الغرفة في التطبيق.`,
+      { type: "hospital_admission", id: adm.id });
+    await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'admission',$2,$3,$4)`,
+      [b.patient_user_id, "🏥 تنويم", `تم تسجيل تنويمك`, JSON.stringify({ id: adm.id })]);
+    return res.status(201).json({ admission: adm });
+  } catch (e: any) { logger.error({ err: e?.message }, "[admissions/post]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/admissions/mine", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT ha.*, (SELECT json_agg(ac ORDER BY ac.created_at DESC) FROM admission_companions ac WHERE ac.admission_id=ha.id AND ac.status='approved') AS companions
+       FROM hospital_admissions ha WHERE ha.patient_user_id=$1 ORDER BY ha.created_at DESC LIMIT 20`,
+      [user.id]
+    );
+    return res.json({ admissions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/admissions/:id", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await query(`SELECT ha.*, u.name AS patient_display_name FROM hospital_admissions ha LEFT JOIN users u ON u.id=ha.patient_user_id WHERE ha.id=$1`, [id]);
+    if (!r.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
+    const adm = r.rows[0];
+    const isPatient  = adm.patient_user_id === Number(user.id);
+    const isDoctor   = adm.doctor_user_id  === Number(user.id);
+    const isAdmin    = await isAdminRequest(req);
+    const cmpR = await query(`SELECT 1 FROM admission_companions WHERE admission_id=$1 AND companion_user_id=$2 AND status='approved'`, [id, user.id]);
+    const isCompanion = cmpR.rows.length > 0;
+    if (!isPatient && !isDoctor && !isAdmin && !isCompanion) return res.status(403).json({ error: "غير مصرح" });
+    const companions = await query(`SELECT * FROM admission_companions WHERE admission_id=$1 ORDER BY created_at DESC`, [id]);
+    return res.json({ admission: adm, companions: companions.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/medical/admissions/:id/companions", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const admId = parseInt(req.params.id, 10);
+    const admR = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
+    if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
+    const adm = admR.rows[0];
+    const b = req.body as any;
+    if (!b.companion_name) return res.status(400).json({ error: "اسم المرافق مطلوب" });
+    const r = await query(
+      `INSERT INTO admission_companions (admission_id, companion_user_id, companion_name, companion_phone, companion_id_number, relation, requested_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [admId, b.companion_user_id || null, b.companion_name.trim(), b.companion_phone?.trim()||null, b.companion_id_number?.trim()||null, b.relation?.trim()||null, user.id]
+    );
+    const cmp = r.rows[0];
+    if (adm.patient_user_id && adm.patient_user_id !== Number(user.id)) {
+      await sendPushToUser(Number(adm.patient_user_id), "👤 طلب مرافقة جديد",
+        `${b.companion_name} يطلب المرافقة أثناء تنويمك. راجع التفاصيل في التطبيق.`,
+        { type: "companion_request", id: cmp.id, admission_id: admId });
+    }
+    return res.status(201).json({ companion: cmp });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/admissions/:id/companions/:cid/approve", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const admId = parseInt(req.params.id, 10);
+    const cmpId = parseInt(req.params.cid, 10);
+    const admR = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
+    if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
+    const adm = admR.rows[0];
+    const isPatient = adm.patient_user_id === Number(user.id);
+    const isAdmin   = await isAdminRequest(req);
+    if (!isPatient && !isAdmin) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_notes, permissions } = req.body as any;
+    if (!["approved","rejected"].includes(status)) return res.status(400).json({ error: "الحالة غير صالحة" });
+    const r = await query(
+      `UPDATE admission_companions SET status=$1, admin_notes=$2, permissions=COALESCE($3::jsonb, permissions) WHERE id=$4 AND admission_id=$5 RETURNING *`,
+      [status, admin_notes?.trim()||null, permissions ? JSON.stringify(permissions) : null, cmpId, admId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "طلب المرافقة غير موجود" });
+    const cmp = r.rows[0];
+    if (cmp.companion_user_id) {
+      const msg = status === "approved" ? "✅ تم اعتماد طلب مرافقتك" : "❌ تم رفض طلب مرافقتك";
+      await sendPushToUser(Number(cmp.companion_user_id), msg,
+        status === "approved" ? "يمكنك الآن متابعة حالة المريض من التطبيق." : admin_notes || "",
+        { type: "companion_response", status, admission_id: admId });
+    }
+    return res.json({ companion: cmp });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/admissions/:id/companions/:cid/exit-pass", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const admId = parseInt(req.params.id, 10);
+    const cmpId = parseInt(req.params.cid, 10);
+    const admR  = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
+    if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
+    const adm = admR.rows[0];
+    if (adm.patient_user_id !== Number(user.id) && !await isAdminRequest(req))
+      return res.status(403).json({ error: "غير مصرح" });
+    const { active } = req.body as any;
+    const r = await query(
+      `UPDATE admission_companions SET exit_pass_active=$1 WHERE id=$2 AND admission_id=$3 AND status='approved' RETURNING *`,
+      [Boolean(active), cmpId, admId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "المرافق غير موجود أو غير معتمد" });
+    return res.json({ companion: r.rows[0] });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/medical/my-companion-requests", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT ac.*, ha.facility_name, ha.ward, ha.room_number, ha.diagnosis, ha.status AS admission_status,
+              ha.expected_discharge, ha.medications_needed, ha.visit_schedule, u.name AS patient_name
+       FROM admission_companions ac
+       JOIN hospital_admissions ha ON ha.id=ac.admission_id
+       LEFT JOIN users u ON u.id=ha.patient_user_id
+       WHERE ac.companion_user_id=$1 OR ac.requested_by=$1
+       ORDER BY ac.created_at DESC LIMIT 20`,
+      [user.id]
+    );
+    return res.json({ companion_requests: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/medical/admissions/:id/discharge", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const staffR = await query(`SELECT 1 FROM medical_staff_profiles WHERE user_id=$1 AND staff_type IN ('doctor','admin') AND is_active=TRUE`, [user.id]);
+    if (!staffR.rows.length && !await isAdminRequest(req)) return res.status(403).json({ error: "للأطباء فقط" });
+    const r = await query(`UPDATE hospital_admissions SET status='discharged' WHERE id=$1 RETURNING *`, [parseInt(req.params.id, 10)]);
+    if (!r.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
+    const adm = r.rows[0];
+    if (adm.patient_user_id) {
+      await sendPushToUser(Number(adm.patient_user_id), "✅ تم صرفك من المستشفى",
+        "تم تسجيل خروجك رسمياً. نتمنى لك الشفاء العاجل.", { type: "discharged", id: adm.id });
+    }
+    return res.json({ admission: adm });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/admissions", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const status = req.query.status as string;
+    const where = status ? `WHERE ha.status=$1` : "";
+    const params = status ? [status] : [];
+    const r = await query(
+      `SELECT ha.*, u.name AS patient_display_name FROM hospital_admissions ha LEFT JOIN users u ON u.id=ha.patient_user_id ${where} ORDER BY ha.created_at DESC LIMIT 200`,
+      params
+    );
+    return res.json({ admissions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// اقتراحات تعديل الاستمارات القانونية — Legal Form Suggestions
+// ══════════════════════════════════════════════════════════════════
+
+async function ensureLegalSuggestionTables() {
+  await query(`CREATE TABLE IF NOT EXISTS legal_form_suggestions (
+    id               SERIAL PRIMARY KEY,
+    form_id          INTEGER REFERENCES legal_forms(id) ON DELETE SET NULL,
+    lawyer_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    lawyer_name      VARCHAR(200),
+    suggestion_text  TEXT NOT NULL,
+    current_content  TEXT,
+    proposed_content TEXT,
+    status           VARCHAR(20) DEFAULT 'pending',
+    admin_notes      TEXT,
+    reviewed_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at      TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_legal_sugg_form   ON legal_form_suggestions(form_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_legal_sugg_lawyer ON legal_form_suggestions(lawyer_user_id)`);
+}
+
+ensureLegalSuggestionTables().catch(() => {});
+
+router.post("/legal-forms/:id/suggest", writeLimiter, async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const formId = parseInt(req.params.id, 10);
+    const fR = await query(`SELECT id, title FROM legal_forms WHERE id=$1`, [formId]);
+    if (!fR.rows.length) return res.status(404).json({ error: "الاستمارة غير موجودة" });
+    const lawyerR = await query(`SELECT id, full_name FROM lawyers WHERE user_id=$1 AND is_active=TRUE`, [user.id]);
+    if (!lawyerR.rows.length) return res.status(403).json({ error: "هذه الخدمة للمحامين المسجلين فقط" });
+    const b = req.body as any;
+    if (!b.suggestion_text?.trim()) return res.status(400).json({ error: "نص الاقتراح مطلوب" });
+    const r = await query(
+      `INSERT INTO legal_form_suggestions (form_id, lawyer_user_id, lawyer_name, suggestion_text, current_content, proposed_content)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [formId, user.id, (user.name as string) || lawyerR.rows[0].full_name, b.suggestion_text.trim(), b.current_content?.trim()||null, b.proposed_content?.trim()||null]
+    );
+    return res.status(201).json({ suggestion: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/my-legal-suggestions", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const r = await query(
+      `SELECT lfs.*, lf.title AS form_title FROM legal_form_suggestions lfs LEFT JOIN legal_forms lf ON lf.id=lfs.form_id WHERE lfs.lawyer_user_id=$1 ORDER BY lfs.created_at DESC LIMIT 50`,
+      [user.id]
+    );
+    return res.json({ suggestions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.get("/admin/legal-form-suggestions", async (req: Request, res: Response) => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const status = req.query.status as string;
+    const where = status ? `WHERE lfs.status=$1` : "";
+    const params = status ? [status] : [];
+    const r = await query(
+      `SELECT lfs.*, lf.title AS form_title FROM legal_form_suggestions lfs LEFT JOIN legal_forms lf ON lf.id=lfs.form_id ${where} ORDER BY lfs.created_at DESC LIMIT 200`,
+      params
+    );
+    return res.json({ suggestions: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.patch("/admin/legal-form-suggestions/:id", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user || !await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { status, admin_notes, apply_to_form } = req.body as any;
+    if (!["approved","rejected"].includes(status)) return res.status(400).json({ error: "الحالة غير صالحة" });
+    const r = await query(
+      `UPDATE legal_form_suggestions SET status=$1, admin_notes=$2, reviewed_by=$3, reviewed_at=NOW() WHERE id=$4 RETURNING *`,
+      [status, admin_notes?.trim()||null, user.id, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الاقتراح غير موجود" });
+    const sug = r.rows[0];
+    if (status === "approved" && apply_to_form && sug.proposed_content && sug.form_id) {
+      await query(`UPDATE legal_forms SET content_html=$1 WHERE id=$2`, [sug.proposed_content, sug.form_id]);
+    }
+    if (sug.lawyer_user_id) {
+      const msg = status === "approved" ? "✅ تم اعتماد اقتراح التعديل" : "❌ تم رفض اقتراح التعديل";
+      await sendPushToUser(Number(sug.lawyer_user_id), msg,
+        admin_notes || (status === "approved" ? "تم قبول اقتراحك لتعديل الاستمارة القانونية." : ""),
+        { type: "legal_suggestion", id, status });
+    }
+    return res.json({ suggestion: sug });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});

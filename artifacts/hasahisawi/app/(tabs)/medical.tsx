@@ -1013,14 +1013,48 @@ function SpecialistsTab() {
 // ══════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════
-type MedTab = "directory" | "appointments" | "consultations" | "specialists";
+type MedTab = "directory" | "appointments" | "consultations" | "specialists" | "myservices";
 
 const TABS: { key: MedTab; label: string; icon: string }[] = [
-  { key: "directory",     label: "الدليل",        icon: "hospital-building" },
-  { key: "specialists",   label: "الأخصائيون",    icon: "stethoscope" },
-  { key: "appointments",  label: "المواعيد",       icon: "calendar-clock" },
-  { key: "consultations", label: "الاستشارات",     icon: "comment-question" },
+  { key: "myservices",    label: "خدماتي",         icon: "heart-pulse" },
+  { key: "directory",     label: "الدليل",         icon: "hospital-building" },
+  { key: "specialists",   label: "الأخصائيون",     icon: "stethoscope" },
+  { key: "appointments",  label: "المواعيد",        icon: "calendar-clock" },
+  { key: "consultations", label: "الاستشارات",      icon: "comment-question" },
 ];
+
+const PATIENT_SERVICES = [
+  { title: "رحلتي الطبية",    sub: "مواعيد · فحوصات · روشتات · صيدلية", icon: "clipboard-pulse",    color: "#10B981", route: "/medical-patient-hub" },
+  { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#6366F1", route: "/sick-leave" },
+  { title: "التنويم والمرافق", sub: "متابعة التنويم وإدارة المرافقين",    icon: "bed-outline",           color: "#3B82F6", route: "/hospital-admission" },
+] as const;
+
+function PatientServicesTab() {
+  const nav = useRouter();
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
+      {PATIENT_SERVICES.map((s, i) => (
+        <Animated.View key={s.route} entering={FadeInDown.delay(i * 80)}>
+          <TouchableOpacity onPress={() => nav.push(s.route as any)} activeOpacity={0.85}>
+            <LinearGradient
+              colors={[s.color + "18", s.color + "06"]}
+              style={{ borderRadius: 20, borderWidth: 1, borderColor: s.color + "40", padding: 18, flexDirection: "row-reverse", alignItems: "center", gap: 14 }}
+            >
+              <View style={{ width: 54, height: 54, borderRadius: 16, backgroundColor: s.color + "25", alignItems: "center", justifyContent: "center" }}>
+                <MaterialCommunityIcons name={s.icon as any} size={28} color={s.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" }}>{s.title}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>{s.sub}</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color={s.color} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      ))}
+    </ScrollView>
+  );
+}
 
 export default function MedicalScreen() {
   const { t, isRTL, lang, tr } = useLang();
@@ -1121,6 +1155,7 @@ export default function MedicalScreen() {
           { icon: "star-outline",     text: tr("قيّم الخدمات وشارك تجربتك", "Rate services and share your experience") },
         ]}
       >
+        {activeTab === "myservices"    && <PatientServicesTab />}
         {activeTab === "directory"     && <DirectoryTab search={search} filter={filter} facilities={facilities} t={t} isRTL={isRTL} tr={tr} />}
         {activeTab === "specialists"   && <SpecialistsTab />}
         {activeTab === "appointments"  && <AppointmentsTab auth={auth} />}
