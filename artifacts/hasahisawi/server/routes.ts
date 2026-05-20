@@ -2260,6 +2260,676 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // إصلاح النقص — Endpoints مفقودة من الواجهة الأمامية
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── تحديد كلمة المرور (نسيت كلمة المرور) ───────────────────────────────
+  app.post("/api/auth/check-phone", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+      const r = await query("SELECT id, name, phone FROM users WHERE phone=$1", [phone]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لا يوجد حساب بهذا الرقم" });
+      res.json({ exists: true, name: r.rows[0].name });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/auth/send-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+      const r = await query("SELECT id FROM users WHERE phone=$1", [phone]);
+      if (!r.rows[0]) return res.status(404).json({ error: "الرقم غير مسجل" });
+      // Generate 6-digit OTP and store temporarily
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
+        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
+      )`);
+      await query("DELETE FROM otp_tokens WHERE phone=$1", [phone]);
+      await query("INSERT INTO otp_tokens(phone,otp,expires_at) VALUES($1,$2,$3)", [phone, otp, expires]);
+      // In production would send SMS. Return for dev/testing.
+      res.json({ success: true, dev_otp: otp });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/auth/verify-reset-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone, otp } = req.body;
+      if (!phone || !otp) return res.status(400).json({ error: "بيانات ناقصة" });
+      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
+        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
+      )`);
+      const r = await query("SELECT * FROM otp_tokens WHERE phone=$1 AND otp=$2 AND used=FALSE AND expires_at>NOW()", [phone, otp]);
+      if (!r.rows[0]) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
+      res.json({ valid: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { phone, otp, new_password } = req.body;
+      if (!phone || !otp || !new_password) return res.status(400).json({ error: "بيانات ناقصة" });
+      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
+        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
+      )`);
+      const tkn = await query("SELECT * FROM otp_tokens WHERE phone=$1 AND otp=$2 AND used=FALSE AND expires_at>NOW()", [phone, otp]);
+      if (!tkn.rows[0]) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
+      const hash = await bcrypt.hash(new_password, 10);
+      await query("UPDATE users SET password_hash=$1 WHERE phone=$2", [hash, phone]);
+      await query("UPDATE otp_tokens SET used=TRUE WHERE phone=$1", [phone]);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── رسائل التواصل (اتحاد الطلاب والتواصل العام) ──────────────────────────
+  app.post("/api/contact-messages", async (req: Request, res: Response) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS contact_messages (
+        id SERIAL PRIMARY KEY, full_name VARCHAR(200) NOT NULL,
+        phone VARCHAR(20), whatsapp VARCHAR(20), email VARCHAR(100),
+        state VARCHAR(60), locality VARCHAR(60),
+        inquiry_type VARCHAR(50), message TEXT NOT NULL,
+        best_time VARCHAR(50), source VARCHAR(50) DEFAULT 'general',
+        status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const { full_name, phone, whatsapp, email, state, locality, inquiry_type, message, best_time, source } = req.body;
+      if (!full_name || !message) return res.status(400).json({ error: "الاسم والرسالة مطلوبان" });
+      const r = await query(
+        `INSERT INTO contact_messages(full_name,phone,whatsapp,email,state,locality,inquiry_type,message,best_time,source)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id,status`,
+        [full_name,phone||null,whatsapp||null,email||null,state||null,locality||null,
+         inquiry_type||null,message,best_time||null,source||'general']
+      );
+      res.status(201).json({ success: true, id: r.rows[0].id });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/contact-messages", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`CREATE TABLE IF NOT EXISTS contact_messages (
+        id SERIAL PRIMARY KEY, full_name VARCHAR(200) NOT NULL, phone VARCHAR(20), message TEXT, source VARCHAR(50), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMPTZ DEFAULT NOW()
+      ); SELECT * FROM contact_messages ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── الشراكات الخارجية ──────────────────────────────────────────────────────
+  app.get("/api/external-partnerships", async (req: Request, res: Response) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS external_partnerships (
+        id SERIAL PRIMARY KEY, org_name VARCHAR(200) NOT NULL, org_type VARCHAR(50),
+        description TEXT, logo_url VARCHAR(300), website VARCHAR(200),
+        contact_name VARCHAR(100), contact_phone VARCHAR(20), contact_email VARCHAR(100),
+        partnership_level VARCHAR(30) DEFAULT 'standard',
+        status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const r = await query("SELECT * FROM external_partnerships WHERE status='active' ORDER BY created_at DESC");
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/external-partnerships/apply", async (req: Request, res: Response) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS external_partnership_applications (
+        id SERIAL PRIMARY KEY, org_name VARCHAR(200) NOT NULL, org_type VARCHAR(50),
+        contact_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL,
+        email VARCHAR(100), description TEXT, website VARCHAR(200),
+        requested_level VARCHAR(30), status VARCHAR(20) DEFAULT 'pending',
+        admin_note TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const { org_name, org_type, contact_name, phone, email, description, website, requested_level } = req.body;
+      if (!org_name || !contact_name || !phone) return res.status(400).json({ error: "البيانات الأساسية مطلوبة" });
+      const r = await query(
+        `INSERT INTO external_partnership_applications(org_name,org_type,contact_name,phone,email,description,website,requested_level)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
+        [org_name,org_type||null,contact_name,phone,email||null,description||null,website||null,requested_level||'standard']
+      );
+      res.status(201).json({ success: true, application: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── شراكة النقابات ───────────────────────────────────────────────────────
+  app.post("/api/union-partnership/apply", async (req: Request, res: Response) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS union_partnership_applications (
+        id SERIAL PRIMARY KEY, union_name VARCHAR(200) NOT NULL, union_type VARCHAR(50),
+        contact_person VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL,
+        email VARCHAR(100), description TEXT, membership_count INTEGER,
+        requested_tier VARCHAR(30) DEFAULT 'basic', annual_fee NUMERIC(10,2),
+        status VARCHAR(20) DEFAULT 'pending', admin_note TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const { union_name, union_type, contact_person, phone, email, description, membership_count, requested_tier } = req.body;
+      if (!union_name || !contact_person || !phone) return res.status(400).json({ error: "البيانات الأساسية مطلوبة" });
+      const r = await query(
+        `INSERT INTO union_partnership_applications(union_name,union_type,contact_person,phone,email,description,membership_count,requested_tier)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
+        [union_name,union_type||null,contact_person,phone,email||null,description||null,membership_count||null,requested_tier||'basic']
+      );
+      res.status(201).json({ success: true, application: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/admin/union-partnership", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS union_partnership_applications (
+        id SERIAL PRIMARY KEY, union_name VARCHAR(200), contact_person VARCHAR(100), phone VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const r = await query("SELECT * FROM union_partnership_applications ORDER BY created_at DESC");
+      res.json({ applications: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/union-partnership/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_note, annual_fee } = req.body;
+      const r = await query(
+        `UPDATE union_partnership_applications SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note), annual_fee=COALESCE($3,annual_fee) WHERE id=$4 RETURNING *`,
+        [status||null, admin_note||null, annual_fee||null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── المواعيد — mine, book, cancel ────────────────────────────────────────
+  app.get("/api/appointments/mine", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      const r = await query(
+        "SELECT * FROM appointments WHERE user_id=$1 ORDER BY appointment_date DESC, appointment_time DESC LIMIT 50",
+        [user.id]
+      );
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/appointments/book", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      const { target_type, target_id, target_name, date, time, notes } = req.body;
+      if (!date || !time) return res.status(400).json({ error: "التاريخ والوقت مطلوبان" });
+      const r = await query(
+        `INSERT INTO appointments(user_id,target_type,target_id,appointment_date,appointment_time,notes)
+         VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [user.id, target_type||'general', target_id||'0', date, time, notes||null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/appointments/:id/cancel", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      const r = await query(
+        "UPDATE appointments SET status='cancelled' WHERE id=$1 AND user_id=$2 RETURNING *",
+        [req.params.id, user.id]
+      );
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يُعثر" });
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── السجلات الطبية والصيدلية ──────────────────────────────────────────────
+  async function ensureMedicalTables() {
+    await query(`CREATE TABLE IF NOT EXISTS medical_records (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      blood_type VARCHAR(5), allergies TEXT, chronic_conditions TEXT,
+      current_medications TEXT, emergency_contact_name VARCHAR(100),
+      emergency_contact_phone VARCHAR(20), notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS lab_results (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      test_name VARCHAR(200) NOT NULL, result TEXT, unit VARCHAR(50),
+      reference_range VARCHAR(100), status VARCHAR(20) DEFAULT 'normal',
+      test_date VARCHAR(20), facility VARCHAR(200), doctor VARCHAR(100),
+      notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS prescriptions (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      medication_name VARCHAR(200) NOT NULL, dosage VARCHAR(100),
+      frequency VARCHAR(100), duration VARCHAR(100), doctor VARCHAR(100),
+      facility VARCHAR(200), notes TEXT, is_active BOOLEAN DEFAULT TRUE,
+      prescribed_date VARCHAR(20), created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS pharmacy_orders (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      medications TEXT NOT NULL, delivery_address TEXT, phone VARCHAR(20),
+      notes TEXT, status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS hospital_admissions (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      patient_name VARCHAR(200) NOT NULL, hospital VARCHAR(200) NOT NULL,
+      room_number VARCHAR(20), ward VARCHAR(100), admission_date VARCHAR(20),
+      expected_discharge VARCHAR(20), diagnosis TEXT, notes TEXT,
+      status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS admission_companions (
+      id SERIAL PRIMARY KEY,
+      admission_id INTEGER REFERENCES hospital_admissions(id) ON DELETE CASCADE,
+      requester_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      companion_name VARCHAR(200) NOT NULL, relation VARCHAR(50),
+      phone VARCHAR(20), status VARCHAR(20) DEFAULT 'pending',
+      approved_at TIMESTAMPTZ, exit_pass_issued BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  }
+
+  app.get("/api/medical/record", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const r = await query("SELECT * FROM medical_records WHERE user_id=$1", [user.id]);
+      res.json(r.rows[0] || null);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/medical/record", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const { blood_type, allergies, chronic_conditions, current_medications, emergency_contact_name, emergency_contact_phone, notes } = req.body;
+      const existing = await query("SELECT id FROM medical_records WHERE user_id=$1", [user.id]);
+      if (existing.rows[0]) {
+        await query(
+          `UPDATE medical_records SET blood_type=$1,allergies=$2,chronic_conditions=$3,current_medications=$4,
+           emergency_contact_name=$5,emergency_contact_phone=$6,notes=$7,updated_at=NOW() WHERE user_id=$8`,
+          [blood_type||null,allergies||null,chronic_conditions||null,current_medications||null,
+           emergency_contact_name||null,emergency_contact_phone||null,notes||null,user.id]
+        );
+      } else {
+        await query(
+          `INSERT INTO medical_records(user_id,blood_type,allergies,chronic_conditions,current_medications,emergency_contact_name,emergency_contact_phone,notes)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [user.id,blood_type||null,allergies||null,chronic_conditions||null,current_medications||null,
+           emergency_contact_name||null,emergency_contact_phone||null,notes||null]
+        );
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── /api/medical/my-record — GET / PUT ──────────────────────────────
+  app.get("/api/medical/my-record", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS height_cm NUMERIC`);
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS weight_kg NUMERIC`);
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS emergency_contact_relation VARCHAR(100)`);
+      const r = await query("SELECT * FROM medical_records WHERE user_id=$1", [user.id]);
+      res.json({ record: r.rows[0] || null });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.put("/api/medical/my-record", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS height_cm NUMERIC`);
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS weight_kg NUMERIC`);
+      await query(`ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS emergency_contact_relation VARCHAR(100)`);
+      const {
+        blood_type, allergies, chronic_conditions, current_medications,
+        emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+        height_cm, weight_kg, notes,
+      } = req.body;
+      const existing = await query("SELECT id FROM medical_records WHERE user_id=$1", [user.id]);
+      if (existing.rows[0]) {
+        await query(
+          `UPDATE medical_records SET blood_type=$1,allergies=$2,chronic_conditions=$3,current_medications=$4,
+           emergency_contact_name=$5,emergency_contact_phone=$6,emergency_contact_relation=$7,
+           height_cm=$8,weight_kg=$9,notes=$10,updated_at=NOW() WHERE user_id=$11`,
+          [blood_type||null,allergies||null,chronic_conditions||null,current_medications||null,
+           emergency_contact_name||null,emergency_contact_phone||null,emergency_contact_relation||null,
+           height_cm||null,weight_kg||null,notes||null,user.id]
+        );
+      } else {
+        await query(
+          `INSERT INTO medical_records(user_id,blood_type,allergies,chronic_conditions,current_medications,
+           emergency_contact_name,emergency_contact_phone,emergency_contact_relation,height_cm,weight_kg,notes)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [user.id,blood_type||null,allergies||null,chronic_conditions||null,current_medications||null,
+           emergency_contact_name||null,emergency_contact_phone||null,emergency_contact_relation||null,
+           height_cm||null,weight_kg||null,notes||null]
+        );
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/medical/lab-results/mine", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const r = await query("SELECT * FROM lab_results WHERE user_id=$1 ORDER BY created_at DESC", [user.id]);
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/medical/prescriptions/mine", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const r = await query("SELECT * FROM prescriptions WHERE user_id=$1 ORDER BY created_at DESC", [user.id]);
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/medical/my-pharmacy-orders", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const r = await query("SELECT * FROM pharmacy_orders WHERE user_id=$1 ORDER BY created_at DESC", [user.id]);
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/medical/pharmacy-orders", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const { medications, delivery_address, phone, notes } = req.body;
+      if (!medications) return res.status(400).json({ error: "قائمة الأدوية مطلوبة" });
+      const r = await query(
+        "INSERT INTO pharmacy_orders(user_id,medications,delivery_address,phone,notes) VALUES($1,$2,$3,$4,$5) RETURNING *",
+        [user.id, medications, delivery_address||null, phone||null, notes||null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── قبول المرضى في المستشفى ───────────────────────────────────────────────
+  app.get("/api/medical/admissions/mine", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      // Add missing columns gracefully
+      await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS bed_number VARCHAR(20)`);
+      await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS doctor_name VARCHAR(200)`);
+      await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS medications_needed JSONB`);
+      await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS visit_schedule JSONB`);
+      await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS expected_discharge VARCHAR(20)`);
+      const admsR = await query("SELECT * FROM hospital_admissions WHERE user_id=$1 ORDER BY created_at DESC", [user.id]);
+      const admissions = await Promise.all(admsR.rows.map(async (adm: any) => {
+        const cmpR = await query("SELECT * FROM admission_companions WHERE admission_id=$1 ORDER BY created_at DESC", [adm.id]);
+        const companions = cmpR.rows.map((c: any) => ({
+          ...c,
+          exit_pass_active: c.exit_pass_issued,
+          companion_name: c.companion_name,
+          companion_phone: c.phone,
+        }));
+        return {
+          ...adm,
+          facility_name: adm.facility_name || adm.hospital,
+          companions,
+        };
+      }));
+      res.json({ admissions });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/medical/admissions", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const { patient_name, hospital, room_number, ward, admission_date, diagnosis, notes } = req.body;
+      if (!patient_name || !hospital) return res.status(400).json({ error: "اسم المريض والمستشفى مطلوبان" });
+      const r = await query(
+        "INSERT INTO hospital_admissions(user_id,patient_name,hospital,room_number,ward,admission_date,diagnosis,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+        [user.id,patient_name,hospital,room_number||null,ward||null,admission_date||null,diagnosis||null,notes||null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/medical/my-companion-requests", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const r = await query(
+        `SELECT c.*, a.patient_name, a.hospital as facility_name, a.ward, a.diagnosis, a.expected_discharge,
+                c.exit_pass_issued as exit_pass_active
+         FROM admission_companions c
+         JOIN hospital_admissions a ON a.id=c.admission_id
+         WHERE c.requester_id=$1 ORDER BY c.created_at DESC`,
+        [user.id]
+      );
+      res.json({ companion_requests: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/medical/admissions/:admId/companions", async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const { companion_name, relation, phone, companion_phone } = req.body;
+      if (!companion_name) return res.status(400).json({ error: "اسم المرافق مطلوب" });
+      const phoneVal = phone || companion_phone || null;
+      const r = await query(
+        "INSERT INTO admission_companions(admission_id,requester_id,companion_name,relation,phone) VALUES($1,$2,$3,$4,$5) RETURNING *",
+        [req.params.admId, user.id, companion_name, relation||null, phoneVal]
+      );
+      res.status(201).json({ companion: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  const approveCompanionHandler = async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const status = req.body?.status || "approved";
+      const r = await query(
+        `UPDATE admission_companions SET status=$1, approved_at=${status === "approved" ? "NOW()" : "NULL"} WHERE id=$2 AND admission_id=$3 RETURNING *`,
+        [status, req.params.cmpId, req.params.admId]
+      );
+      res.json({ companion: r.rows[0] || null });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  };
+  app.post("/api/medical/admissions/:admId/companions/:cmpId/approve", approveCompanionHandler);
+  app.patch("/api/medical/admissions/:admId/companions/:cmpId/approve", approveCompanionHandler);
+
+  const exitPassHandler = async (req: Request, res: Response) => {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    try {
+      await ensureMedicalTables();
+      const active = req.body?.active !== undefined ? req.body.active : true;
+      const r = await query(
+        "UPDATE admission_companions SET exit_pass_issued=$1 WHERE id=$2 AND admission_id=$3 RETURNING *",
+        [active, req.params.cmpId, req.params.admId]
+      );
+      res.json({ companion: r.rows[0] || null });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  };
+  app.post("/api/medical/admissions/:admId/companions/:cmpId/exit-pass", exitPassHandler);
+  app.patch("/api/medical/admissions/:admId/companions/:cmpId/exit-pass", exitPassHandler);
+
+  // ── بوابة المؤسسات التعليمية ──────────────────────────────────────────────
+  async function ensureInstTables() {
+    await query(`CREATE TABLE IF NOT EXISTS institutions (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) DEFAULT 'school', address TEXT, phone VARCHAR(20),
+      email VARCHAR(100), username VARCHAR(100) UNIQUE NOT NULL,
+      password_hash VARCHAR(200) NOT NULL, is_active BOOLEAN DEFAULT TRUE,
+      payment_methods JSONB DEFAULT '[]',
+      services_availability JSONB DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS institution_sessions (
+      id SERIAL PRIMARY KEY, inst_id INTEGER REFERENCES institutions(id) ON DELETE CASCADE,
+      token VARCHAR(200) UNIQUE NOT NULL, expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days')
+    )`);
+  }
+
+  async function getInstFromRequest(req: Request): Promise<any | null> {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!token || !token.startsWith("inst_")) return null;
+    try {
+      const r = await query(
+        `SELECT i.id,i.name,i.type,i.address,i.phone,i.email,i.username,i.payment_methods,i.services_availability
+         FROM institutions i JOIN institution_sessions s ON s.inst_id=i.id
+         WHERE s.token=$1 AND s.expires_at>NOW() AND i.is_active=TRUE`,
+        [token]
+      );
+      return r.rows[0] || null;
+    } catch { return null; }
+  }
+
+  app.post("/api/inst/login", async (req: Request, res: Response) => {
+    try {
+      await ensureInstTables();
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ error: "بيانات الدخول مطلوبة" });
+      const r = await query("SELECT * FROM institutions WHERE username=$1 AND is_active=TRUE", [username]);
+      const inst = r.rows[0];
+      if (!inst) return res.status(401).json({ error: "بيانات غير صحيحة" });
+      const valid = await bcrypt.compare(password, inst.password_hash);
+      if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة" });
+      const token = "inst_" + randomBytes(24).toString("hex");
+      await query("INSERT INTO institution_sessions(inst_id,token) VALUES($1,$2)", [inst.id, token]);
+      res.json({ token, institution: { id: inst.id, name: inst.name, type: inst.type, username: inst.username } });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/inst/logout", async (req: Request, res: Response) => {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (token) await query("DELETE FROM institution_sessions WHERE token=$1", [token]).catch(() => {});
+    res.json({ success: true });
+  });
+
+  app.get("/api/inst/my-info", async (req: Request, res: Response) => {
+    const inst = await getInstFromRequest(req);
+    if (!inst) return res.status(401).json({ error: "غير مصرح" });
+    res.json(inst);
+  });
+
+  app.get("/api/inst/payment-settings", async (req: Request, res: Response) => {
+    const inst = await getInstFromRequest(req);
+    if (!inst) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query("SELECT payment_methods FROM institutions WHERE id=$1", [inst.id]);
+      res.json({ payment_methods: r.rows[0]?.payment_methods || [] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/inst/payment-settings", async (req: Request, res: Response) => {
+    const inst = await getInstFromRequest(req);
+    if (!inst) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { payment_methods } = req.body;
+      await query("UPDATE institutions SET payment_methods=$1 WHERE id=$2", [JSON.stringify(payment_methods||[]), inst.id]);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/inst/services-availability", async (req: Request, res: Response) => {
+    const inst = await getInstFromRequest(req);
+    if (!inst) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query("SELECT services_availability FROM institutions WHERE id=$1", [inst.id]);
+      res.json(r.rows[0]?.services_availability || {});
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/inst/services-availability", async (req: Request, res: Response) => {
+    const inst = await getInstFromRequest(req);
+    if (!inst) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const updates = req.body;
+      await query("UPDATE institutions SET services_availability=$1 WHERE id=$2", [JSON.stringify(updates), inst.id]);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── ضبط الأقسام (admin) ──────────────────────────────────────────────────
+  app.get("/api/admin/section-configs", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS section_configs (
+        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
+        section_name VARCHAR(100), is_enabled BOOLEAN DEFAULT TRUE,
+        display_order INTEGER DEFAULT 0, config JSONB DEFAULT '{}',
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const r = await query("SELECT * FROM section_configs ORDER BY display_order, section_key");
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/section-configs", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS section_configs (
+        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
+        section_name VARCHAR(100), is_enabled BOOLEAN DEFAULT TRUE,
+        display_order INTEGER DEFAULT 0, config JSONB DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const { section_key, section_name, is_enabled, display_order, config } = req.body;
+      if (!section_key) return res.status(400).json({ error: "المفتاح مطلوب" });
+      const r = await query(
+        `INSERT INTO section_configs(section_key,section_name,is_enabled,display_order,config)
+         VALUES($1,$2,$3,$4,$5)
+         ON CONFLICT(section_key) DO UPDATE SET section_name=EXCLUDED.section_name,
+           is_enabled=EXCLUDED.is_enabled, display_order=EXCLUDED.display_order,
+           config=EXCLUDED.config, updated_at=NOW() RETURNING *`,
+        [section_key, section_name||section_key, is_enabled!==false, display_order||0, JSON.stringify(config||{})]
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/section-configs/:key", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS section_configs (
+        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
+        is_enabled BOOLEAN DEFAULT TRUE, display_order INTEGER DEFAULT 0,
+        config JSONB DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      const { is_enabled, display_order, config, section_name } = req.body;
+      await query(
+        `INSERT INTO section_configs(section_key,section_name,is_enabled,display_order,config)
+         VALUES($1,$2,$3,$4,$5)
+         ON CONFLICT(section_key) DO UPDATE SET
+           section_name=COALESCE($2,section_configs.section_name),
+           is_enabled=COALESCE($3,section_configs.is_enabled),
+           display_order=COALESCE($4,section_configs.display_order),
+           config=COALESCE($5,section_configs.config), updated_at=NOW()`,
+        [req.params.key, section_name||null, is_enabled!=null?Boolean(is_enabled):null,
+         display_order!=null?Number(display_order):null, config?JSON.stringify(config):null]
+      );
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
   // نظام إدارة اتحاد الطلاب — Student Union Management System
   // ═══════════════════════════════════════════════════════════════════════════
 

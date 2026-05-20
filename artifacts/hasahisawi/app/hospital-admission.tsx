@@ -69,8 +69,8 @@ export default function HospitalAdmissionScreen() {
     setLoading(true);
     try {
       const [admR, cmpR] = await Promise.all([
-        fetchWithTimeout(`${getApiUrl()}/medical/admissions/mine`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetchWithTimeout(`${getApiUrl()}/medical/my-companion-requests`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetchWithTimeout(`${getApiUrl()}/api/medical/admissions/mine`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetchWithTimeout(`${getApiUrl()}/api/medical/my-companion-requests`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const admD = await admR.json();
       const cmpD = await cmpR.json();
@@ -85,7 +85,7 @@ export default function HospitalAdmissionScreen() {
 
   async function approveCompanion(admId: number, cmpId: number, status: "approved" | "rejected") {
     try {
-      const r = await fetchWithTimeout(`${getApiUrl()}/medical/admissions/${admId}/companions/${cmpId}/approve`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/medical/admissions/${admId}/companions/${cmpId}/approve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -100,7 +100,7 @@ export default function HospitalAdmissionScreen() {
 
   async function toggleExitPass(admId: number, cmpId: number, active: boolean) {
     try {
-      await fetchWithTimeout(`${getApiUrl()}/medical/admissions/${admId}/companions/${cmpId}/exit-pass`, {
+      await fetchWithTimeout(`${getApiUrl()}/api/medical/admissions/${admId}/companions/${cmpId}/exit-pass`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ active }),
@@ -113,7 +113,7 @@ export default function HospitalAdmissionScreen() {
     if (!compName.trim()) return Alert.alert("خطأ", "اسم المرافق مطلوب");
     setCompLoading(true);
     try {
-      const r = await fetchWithTimeout(`${getApiUrl()}/medical/admissions/${admId}/companions`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/medical/admissions/${admId}/companions`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ companion_name: compName.trim(), companion_phone: compPhone.trim(), relation: compRelation.trim() }),

@@ -183,9 +183,14 @@ function RootLayoutNav() {
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="union-manager-apply"   options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="union-manager-portal"  options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="admin-sections-config" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-apply"      options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="designer"                 options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
