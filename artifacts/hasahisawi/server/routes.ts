@@ -271,6 +271,23 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  // ── Seed: حساب الآدمن الافتراضي ─────────────────────────────────────────
+  try {
+    const adminEmail = "almhbob.iii@gmail.com";
+    const existing = await query("SELECT id FROM users WHERE email=$1", [adminEmail]);
+    if (!existing.rows[0]) {
+      const hash = await bcrypt.hash("Almhbob2013#", 10);
+      await query(
+        `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'admin')
+         ON CONFLICT (email) DO UPDATE SET role='admin', password_hash=$3`,
+        ["عاصم عبدالرحمن", adminEmail, hash]
+      );
+    } else {
+      // تأكد من أن الدور admin
+      await query("UPDATE users SET role='admin' WHERE email=$1 AND role!='admin'", [adminEmail]);
+    }
+  } catch {}
 }
 
 async function getAdminPinFromDb(): Promise<string> {

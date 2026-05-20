@@ -297,6 +297,21 @@ export default function LoginScreen() {
     }, 1000);
   };
 
+  const proceedRegisterDirect = async () => {
+    setLoading(true);
+    try {
+      const id = identifier.trim();
+      const isEmail = useEmail || id.includes("@");
+      const nid = nationalId.trim().replace(/\s+/g, "");
+      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+      promptEnableBiometrics(id);
+    } catch (regErr: any) {
+      setError(regErr?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     const err = validate();
     if (err) { setError(err); return; }
@@ -308,7 +323,8 @@ export default function LoginScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       setOtpCode("");
       setOtpError("");
@@ -316,7 +332,8 @@ export default function LoginScreen() {
       startOtpCountdown();
       setTimeout(() => otpInputRef.current?.focus(), 300);
     } catch (e: any) {
-      setError(e.message || "فشل إنشاء الحساب");
+      // إذا كان الخطأ بسبب عدم توفر خدمة OTP → سجّل مباشرة
+      await proceedRegisterDirect();
     }
     setOtpSending(false);
   };
