@@ -197,7 +197,7 @@ export default function HomeScreen() {
     { id: "women",     label: t('home','womenService').label,    sub: t('home','womenService').sub,     icon: "face-woman",        iconType: "material"  as const, color: "#FF4FA3", bg: "#FF4FA320", route: "/(tabs)/women"     as const },
     { id: "orgs",        label: t('home','orgsService').label,     sub: t('home','orgsService').sub,      icon: "hand-heart",        iconType: "material"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/orgs"         as const },
     { id: "communities", label: "الجاليات",                          sub: "مجتمعات المنطقة",                 icon: "earth",             iconType: "ionicons"  as const, color: Colors.cyber, bg: Colors.cyber+"20", route: "/(tabs)/communities"  as const },
-    { id: "appointments",label: "حجز المواعيد",                    sub: "صحي وحكومي",                     icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
+    { id: "appointments",label: "حجز المواعيد",                    sub: "صحي ومجتمعي",                    icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
     { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, rideStatus: ride_status },
@@ -453,7 +453,7 @@ export default function HomeScreen() {
                 <Ionicons name="calendar" size={20} color={Colors.accent} />
               </View>
               <Text style={styles.quickBannerTitle}>حجز موعد</Text>
-              <Text style={styles.quickBannerSub}>{gov_appointments_enabled ? "صحي · حكومي" : "خدمات صحية"}</Text>
+              <Text style={styles.quickBannerSub}>{gov_appointments_enabled ? "صحي · مجتمعي" : "خدمات صحية"}</Text>
             </LinearGradient>
           </AnimatedPress>
 

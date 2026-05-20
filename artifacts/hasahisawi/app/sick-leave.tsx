@@ -62,12 +62,13 @@ async function generateSickLeavePDF(sl: any) {
     .valid   { background: #D1FAE5; color: #065F46; }
     .invalid { background: #FEE2E2; color: #991B1B; }
     .footer { text-align: center; margin-top: 32px; font-size: 11px; color: #9CA3AF; }
+    .disclaimer { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 12px 16px; margin-top: 24px; font-size: 11px; color: #92400E; line-height: 1.6; text-align: right; }
   </style>
   </head>
   <body>
   <div class="header">
-    <div class="title">إجازة مرضية رسمية</div>
-    <div class="subtitle">حصاحيصاوي — المنصة الصحية المتكاملة</div>
+    <div class="title">إجازة مرضية — منصة حصاحيصاوي</div>
+    <div class="subtitle">صادرة من طبيب مسجّل عبر المنصة</div>
     <div class="type-badge">${typeStr}</div>
   </div>
   <div class="field"><span class="label">اسم الطبيب:</span><span class="value">${sl.doctor_name || "—"}</span></div>
@@ -78,11 +79,15 @@ async function generateSickLeavePDF(sl: any) {
   <div class="field"><span class="label">عدد الأيام:</span><span class="value">${sl.leave_days} يوم</span></div>
   ${sl.diagnosis ? `<div class="field"><span class="label">التشخيص:</span><span class="value">${sl.diagnosis}</span></div>` : ""}
   <div class="barcode">
-    <div class="bc-label">رمز التحقق (بدلاً من الباركود)</div>
+    <div class="bc-label">رمز التحقق الإلكتروني</div>
     <div class="bc-token">${sl.barcode_token}</div>
     <div class="status ${isExpired ? "invalid" : "valid"}">${isExpired ? "⚠️ منتهية الصلاحية" : "✅ إجازة سارية"}</div>
   </div>
-  <div class="footer">أُصدرت هذه الإجازة إلكترونياً عبر منصة حصاحيصاوي — رقم ${sl.id} — ${new Date().toLocaleDateString("ar-EG")}</div>
+  <div class="disclaimer">
+    تنبيه: هذه الوثيقة صادرة من طبيب مسجّل عبر منصة حصاحيصاوي المجتمعية المستقلة، وهي ليست وثيقة حكومية رسمية.
+    منصة حصاحيصاوي غير تابعة لأي جهة حكومية أو مؤسسة رسمية في السودان.
+  </div>
+  <div class="footer">وثيقة رقم ${sl.id} — صادرة بتاريخ ${new Date().toLocaleDateString("ar-EG")} عبر منصة حصاحيصاوي</div>
   </body></html>`;
   return html;
 }

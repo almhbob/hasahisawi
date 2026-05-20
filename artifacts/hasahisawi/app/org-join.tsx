@@ -64,11 +64,11 @@ const ALL_SERVICES = [
   { id: "s10", label: "توزيع المساعدات الغذائية",       icon: "food-apple",            cat: "اجتماعي" },
   { id: "s11", label: "دعم ذوي الاحتياجات الخاصة",     icon: "wheelchair-accessibility", cat: "اجتماعي" },
   { id: "s12", label: "الإرشاد الأسري والاجتماعي",     icon: "account-multiple",       cat: "اجتماعي" },
-  // الخدمات الحكومية
-  { id: "s13", label: "استخراج الوثائق الرسمية",       icon: "file-document",          cat: "حكومي" },
-  { id: "s14", label: "التسجيل والترخيص",               icon: "clipboard-check",        cat: "حكومي" },
-  { id: "s15", label: "الخدمات القانونية والقضائية",   icon: "gavel",                  cat: "حكومي" },
-  { id: "s16", label: "الضرائب والرسوم",               icon: "receipt",                cat: "حكومي" },
+  // الخدمات المجتمعية والإدارية
+  { id: "s13", label: "مساعدة في استيفاء الوثائق",     icon: "file-document",          cat: "خدمات" },
+  { id: "s14", label: "إرشاد وتسجيل المجتمع",          icon: "clipboard-check",        cat: "خدمات" },
+  { id: "s15", label: "الاستشارات القانونية",           icon: "gavel",                  cat: "خدمات" },
+  { id: "s16", label: "الإرشاد المالي والضريبي",       icon: "receipt",                cat: "خدمات" },
   // التجارة والاقتصاد
   { id: "s17", label: "البيع بالتجزئة والجملة",        icon: "shopping",               cat: "تجارة" },
   { id: "s18", label: "الخدمات المصرفية والمالية",      icon: "bank",                   cat: "تجارة" },
@@ -88,7 +88,7 @@ const ALL_SERVICES = [
   { id: "s28", label: "التوعية المجتمعية",              icon: "bullhorn",               cat: "إعلام" },
 ];
 
-const SERVICE_CATS = ["الكل", "الصحة", "التعليم", "اجتماعي", "حكومي", "تجارة", "ديني", "رياضة", "بيئة", "إعلام"];
+const SERVICE_CATS = ["الكل", "الصحة", "التعليم", "اجتماعي", "خدمات", "تجارة", "ديني", "رياضة", "بيئة", "إعلام"];
 
 // ══════════════════════════════════════════════════════
 // COMMITMENT TEXT (v1.0)
