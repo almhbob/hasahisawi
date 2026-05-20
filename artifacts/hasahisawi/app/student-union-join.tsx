@@ -273,7 +273,7 @@ export default function StudentUnionJoinScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
+      style={{ flex: 1, backgroundColor: Colors.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* الهيدر */}

@@ -1886,6 +1886,10 @@ export async function initHasahisawiDb() {
   logger.info("Hasahisawi DB initialized");
 }
 
+function singleQueryValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
@@ -13248,7 +13252,8 @@ router.get("/clinic-subscription-plans", async (_req: Request, res: Response) =>
 router.get("/medical-institutions", async (req: Request, res: Response) => {
   try {
     await ensureClinicTables();
-    const { type, search } = req.query as Record<string, string>;
+    const type = singleQueryValue(req.query.type);
+    const search = singleQueryValue(req.query.search);
     let sql = `
       SELECT i.*,
              cs.is_active AS sub_active,
@@ -14588,7 +14593,7 @@ router.post("/student-union/apply", writeLimiter, async (req: Request, res: Resp
 router.get("/student-union/applications", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const { status } = req.query as { status?: string };
+    const status = singleQueryValue(req.query.status);
     const params: unknown[] = [];
     let where = "";
     if (status && ["pending","approved","rejected"].includes(status)) {
@@ -14608,7 +14613,7 @@ router.get("/student-union/applications", async (req: Request, res: Response) =>
 router.patch("/student-union/applications/:id/status", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
     const admin = await getSessionUser(req);
     const { status, admin_note } = req.body as { status?: string; admin_note?: string };
@@ -14670,7 +14675,7 @@ router.get("/admin/union-partnership", async (req: Request, res: Response) => {
 router.patch("/admin/union-partnership/:id", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
     const admin = await getSessionUser(req);
     const { status, annual_fee, admin_note } = req.body as any;
@@ -14761,7 +14766,7 @@ router.get("/cultural-centers", async (req: Request, res: Response) => {
 // GET /api/cultural-events
 router.get("/cultural-events", async (req: Request, res: Response) => {
   try {
-    const { type } = req.query as Record<string, string>;
+    const type = singleQueryValue(req.query.type);
     let sql = `SELECT * FROM cultural_events WHERE is_active=TRUE AND event_date >= CURRENT_DATE - INTERVAL '7 days'`;
     const params: unknown[] = [];
     if (type) { sql += ` AND type=$${params.length+1}`; params.push(type); }
@@ -14793,7 +14798,7 @@ router.post("/admin/cultural-centers", async (req: Request, res: Response) => {
 router.patch("/admin/cultural-centers/:id", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { name, type, address, phone, description, hours, is_active } = req.body as any;
     const r = await query(
       `UPDATE cultural_centers SET
@@ -14835,7 +14840,7 @@ router.post("/admin/cultural-events", async (req: Request, res: Response) => {
 router.patch("/admin/cultural-events/:id", async (req: Request, res: Response) => {
   if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { title, type, event_date, location, description, contact_phone, is_active } = req.body as any;
     const r = await query(
       `UPDATE cultural_events SET
@@ -15390,7 +15395,7 @@ router.patch("/medical/lab-orders/:id/status", async (req: Request, res: Respons
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
     const { status, expected_at } = req.body as any;
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const r = await query(
       `UPDATE lab_orders SET status=$1, expected_at=COALESCE($2::TIMESTAMPTZ,expected_at), lab_user_id=COALESCE(lab_user_id,$3) WHERE id=$4 RETURNING *`,
       [status, expected_at||null, user.id, id]
@@ -15595,7 +15600,7 @@ router.patch("/medical/pharmacy-orders/:id/dispense", async (req: Request, res: 
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const r = await query(
       `UPDATE pharmacy_orders SET status='delivered',dispensed_at=NOW(),dispensed_by=$1,usage_instructions_sent=TRUE WHERE id=$2 RETURNING *`,
       [user.id, id]
@@ -15866,7 +15871,7 @@ router.get("/medical/admissions/:id", async (req: Request, res: Response) => {
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const r = await query(`SELECT ha.*, u.name AS patient_display_name FROM hospital_admissions ha LEFT JOIN users u ON u.id=ha.patient_user_id WHERE ha.id=$1`, [id]);
     if (!r.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
     const adm = r.rows[0];
@@ -15885,7 +15890,7 @@ router.post("/medical/admissions/:id/companions", writeLimiter, async (req: Requ
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const admId = parseInt(req.params.id, 10);
+    const admId = parseInt(String(req.params.id), 10);
     const admR = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
     if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
     const adm = admR.rows[0];
@@ -15910,7 +15915,7 @@ router.patch("/medical/admissions/:id/companions/:cid/approve", async (req: Requ
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const admId = parseInt(req.params.id, 10);
+    const admId = parseInt(String(req.params.id), 10);
     const cmpId = parseInt(req.params.cid, 10);
     const admR = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
     if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
@@ -15940,7 +15945,7 @@ router.patch("/medical/admissions/:id/companions/:cid/exit-pass", async (req: Re
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const admId = parseInt(req.params.id, 10);
+    const admId = parseInt(String(req.params.id), 10);
     const cmpId = parseInt(req.params.cid, 10);
     const admR  = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
     if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
@@ -15981,7 +15986,7 @@ router.patch("/medical/admissions/:id/discharge", async (req: Request, res: Resp
   try {
     const staffR = await query(`SELECT 1 FROM medical_staff_profiles WHERE user_id=$1 AND staff_type IN ('doctor','admin') AND is_active=TRUE`, [user.id]);
     if (!staffR.rows.length && !await isAdminRequest(req)) return res.status(403).json({ error: "للأطباء فقط" });
-    const r = await query(`UPDATE hospital_admissions SET status='discharged' WHERE id=$1 RETURNING *`, [parseInt(req.params.id, 10)]);
+    const r = await query(`UPDATE hospital_admissions SET status='discharged' WHERE id=$1 RETURNING *`, [parseInt(String(req.params.id), 10)]);
     if (!r.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
     const adm = r.rows[0];
     if (adm.patient_user_id) {
@@ -16035,7 +16040,7 @@ router.post("/legal-forms/:id/suggest", writeLimiter, async (req: Request, res: 
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const formId = parseInt(req.params.id, 10);
+    const formId = parseInt(String(req.params.id), 10);
     const fR = await query(`SELECT id, title FROM legal_forms WHERE id=$1`, [formId]);
     if (!fR.rows.length) return res.status(404).json({ error: "الاستمارة غير موجودة" });
     const lawyerR = await query(`SELECT id, full_name FROM lawyers WHERE user_id=$1 AND is_active=TRUE`, [user.id]);
@@ -16081,7 +16086,7 @@ router.patch("/admin/legal-form-suggestions/:id", async (req: Request, res: Resp
   const user = await getSessionUser(req);
   if (!user || !await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { status, admin_notes, apply_to_form } = req.body as any;
     if (!["approved","rejected"].includes(status)) return res.status(400).json({ error: "الحالة غير صالحة" });
     const r = await query(

@@ -152,7 +152,7 @@ export default function AdminSectionsConfigScreen() {
   const otherSections = sections.filter(s => !s.requires_contract);
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       {/* الهيدر */}
       <LinearGradient colors={["#0B1224", "#172554"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
@@ -414,7 +414,7 @@ const s = StyleSheet.create({
   groupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   // Modal
   modalSheet: {
-    backgroundColor: Colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 20, maxHeight: "90%",
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.borderSubtle, alignSelf: "center", marginBottom: 20 },

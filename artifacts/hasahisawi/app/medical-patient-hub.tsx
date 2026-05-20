@@ -134,7 +134,7 @@ export default function MedicalPatientHubScreen() {
           ${rx.follow_up_date ? `
             <div class="follow">
               <strong>📅 موعد المتابعة:</strong> ${rx.follow_up_date}
-              ${rx.follow_up_notes ? `<br><span style="color:#92400e">${rx.follow_up_notes}</span>` : ""}
+              ${(rx as any).follow_up_notes ? `<br><span style="color:#92400e">${(rx as any).follow_up_notes}</span>` : ""}
             </div>
           ` : ""}
           <div class="footer">
@@ -185,7 +185,7 @@ export default function MedicalPatientHubScreen() {
         <body>
           <h1>نتيجة تحليل مختبر</h1>
           <div class="meta">تاريخ الجاهزية: ${formatDate(result.ready_at)}</div>
-          <div class="meta">المريض: ${result.patient_name || user?.name || "—"}</div>
+          <div class="meta">المريض: ${(result as any).patient_name || user?.name || "—"}</div>
           <table>
             <tr><th>الفحص</th><th>القيمة</th><th>الوحدة</th><th>المعدل الطبيعي</th><th>التقييم</th></tr>
             ${rowsHtml}
@@ -242,7 +242,7 @@ export default function MedicalPatientHubScreen() {
   ] as const;
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <LinearGradient colors={["#064E3B", "#065F46"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={MED2} />
@@ -484,7 +484,7 @@ const s = StyleSheet.create({
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   resultGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, paddingHorizontal: 14, paddingBottom: 10 },
-  resultCell: { flex: 1, minWidth: "45%", backgroundColor: Colors.background, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 8 },
+  resultCell: { flex: 1, minWidth: "45%", backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 8 },
   resultName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
   resultVal: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right", marginTop: 2 },
   pdfBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: "#4338CA", borderRadius: 10, flex: 1 },

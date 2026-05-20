@@ -119,7 +119,7 @@ export default function StudentUnionContactScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
+      style={{ flex: 1, backgroundColor: Colors.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <LinearGradient colors={["#0B1224", "#172554"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
@@ -259,11 +259,11 @@ const s = StyleSheet.create({
   sectionBoxTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right", marginBottom: 4 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 6, marginTop: 14 },
   input: {
-    backgroundColor: Colors.background, borderRadius: 12, padding: 13,
+    backgroundColor: Colors.bg, borderRadius: 12, padding: 13,
     color: Colors.text, fontSize: 14, fontFamily: "Cairo_400Regular",
     borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.borderSubtle },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.borderSubtle },
   chipActive: { backgroundColor: UC, borderColor: UC },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   chipTextActive: { color: "#fff" },

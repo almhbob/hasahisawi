@@ -192,12 +192,14 @@ async function ensureUserColumns(): Promise<void> {
 }
 
 function providerSummary(fu: FirebaseUserRecord): string[] {
-  const providers = Array.isArray((fu as any).providerData)
-    ? (fu as any).providerData.map((p: any) => String(p?.providerId || "")).filter(Boolean)
+  const providers: string[] = Array.isArray((fu as any).providerData)
+    ? (fu as any).providerData
+        .map((p: any) => String(p?.providerId || ""))
+        .filter((providerId: string): providerId is string => providerId.length > 0)
     : [];
   if (!providers.length && fu.email) providers.push("password");
   if (!providers.length && fu.phoneNumber) providers.push("phone");
-  return [...new Set(providers)];
+  return [...new Set<string>(providers)];
 }
 
 async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "updated" | "skipped"> {

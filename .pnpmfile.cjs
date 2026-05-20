@@ -44,7 +44,10 @@ function applyPr2TypeFixes() {
   if (fs.existsSync(apiPath)) {
     let api = fs.readFileSync(apiPath, 'utf8');
     if (!api.includes('function singleQueryValue(value: unknown): string | undefined')) {
-      const anchor = 'async function getSessionUser(req: Request): Promise<any | null> {';
+      // Support both Promise<any | null> and Promise<Record<string, unknown> | null> signatures
+      const anchor = api.includes('async function getSessionUser(req: Request): Promise<any | null> {')
+        ? 'async function getSessionUser(req: Request): Promise<any | null> {'
+        : 'async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {';
       const helper = `function singleQueryValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }

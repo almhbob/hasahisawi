@@ -199,7 +199,7 @@ export default function StudentUnionAdminScreen() {
   const filtered = filter === "all" ? apps : apps.filter(a => a.status === filter);
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       {/* الهيدر */}
       <LinearGradient colors={["#0B1224", "#172554"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
@@ -562,7 +562,7 @@ const s = StyleSheet.create({
   detailVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.text, flex: 1 },
   tag: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-    backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.borderSubtle,
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
   tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   actions: { flexDirection: "row-reverse", gap: 10, padding: 14, paddingTop: 0 },
