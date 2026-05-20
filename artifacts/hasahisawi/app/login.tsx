@@ -422,9 +422,9 @@ export default function LoginScreen() {
         {/* طبقة تدرج داكنة */}
         <LinearGradient
           colors={[
-            "rgba(9,15,12,0.25)",
-            "rgba(13,26,18,0.50)",
-            "rgba(9,15,12,0.88)",
+            "rgba(2,12,27,0.20)",
+            "rgba(37,99,235,0.12)",
+            "rgba(2,12,27,0.88)",
             Colors.bg,
           ]}
           locations={[0, 0.35, 0.72, 1]}

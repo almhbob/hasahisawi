@@ -226,15 +226,15 @@ export default function HomeScreen() {
         style={[styles.hero, { paddingTop: topPad }]}
         imageStyle={styles.heroImage}
       >
-        {/* طبقة التدرج الثلاثية المستقبلية */}
+        {/* طبقة التدرج العلمية الاحترافية */}
         <LinearGradient
           colors={[
-            "rgba(4,13,24,0.15)",
-            "rgba(0,214,143,0.08)",
-            "rgba(4,13,24,0.7)",
-            "rgba(4,13,24,0.98)",
+            "rgba(2,12,27,0.10)",
+            "rgba(37,99,235,0.12)",
+            "rgba(2,12,27,0.72)",
+            "rgba(2,12,27,0.98)",
           ]}
-          locations={[0, 0.3, 0.65, 1]}
+          locations={[0, 0.28, 0.65, 1]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -662,7 +662,7 @@ export default function HomeScreen() {
 
               {/* ── Hero Header ── */}
               <LinearGradient
-                colors={["#1A1200", "#0F1E0A", "#0A1210"]}
+                colors={["#0A0E1A", "#061529", "#050C1E"]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={styles.devHero}
               >
@@ -857,22 +857,23 @@ const styles = StyleSheet.create({
     width: 52, height: 52, borderRadius: 16,
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
-    borderWidth: 1.5, borderColor: Colors.primary + "60",
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 8,
+    borderWidth: 1.5, borderColor: Colors.primary + "70",
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
   },
   logoImg: { width: "100%", height: "100%" },
   appTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 24, color: "#FFFFFF",
-    textShadowColor: Colors.primary + "80", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10,
+    fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F0F9FF",
+    textShadowColor: Colors.primary + "90", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12,
+    letterSpacing: 0.5,
   },
   appSubtitle: {
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 1,
   },
   topBarIcon: {
     width: 42, height: 42, borderRadius: 14,
-    backgroundColor: "rgba(34,197,94,0.10)",
+    backgroundColor: "rgba(37,99,235,0.12)",
     borderWidth: 0.5,
-    borderColor: "rgba(34,197,94,0.30)",
+    borderColor: "rgba(37,99,235,0.35)",
     justifyContent: "center", alignItems: "center",
   },
   notifDot: {
@@ -887,30 +888,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.10)",
   },
 
-  /* Stats */
-  statsRow: { gap: 10 },
+  /* Stats — Data Panel Style */
+  statsRow: { gap: 8 },
   statCard: {
-    flex: 1, borderRadius: 18, padding: 12, alignItems: "center",
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    flex: 1, borderRadius: 14, padding: 12, alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.04)",
     overflow: "hidden",
   },
   statIcon: {
-    width: 34, height: 34, borderRadius: 11,
-    borderWidth: 0.5, justifyContent: "center", alignItems: "center",
+    width: 32, height: 32, borderRadius: 10,
+    borderWidth: 1, justifyContent: "center", alignItems: "center",
     marginBottom: 6,
     backgroundColor: "rgba(255,255,255,0.06)",
-    borderColor: "rgba(255,255,255,0.10)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
   statNum: {
-    fontFamily: "Cairo_700Bold", fontSize: 22,
-    textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8,
+    fontFamily: "Cairo_700Bold", fontSize: 20,
+    textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10,
+    letterSpacing: 0.5,
   },
   statLabel: {
-    fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 1,
+    fontFamily: "Cairo_400Regular", fontSize: 9.5, color: Colors.textSecondary, marginTop: 2,
+    letterSpacing: 0.2,
   },
   statGlowLine: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 2, opacity: 0.7,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 2, opacity: 0.8,
   },
 
   /* ══ BODY ══ */
@@ -921,11 +924,11 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 22, overflow: "hidden",
-    borderWidth: 0.5, borderColor: "rgba(34,197,94,0.20)",
-    marginBottom: 22,
+    borderRadius: 20, overflow: "hidden",
+    borderWidth: 1, borderColor: "rgba(37,99,235,0.22)",
+    marginBottom: 20,
     paddingHorizontal: 18, paddingVertical: 16,
-    backgroundColor: "rgba(34,197,94,0.06)",
+    backgroundColor: "rgba(37,99,235,0.07)",
   },
   greetingLeft: {
     flex: 1,
@@ -933,8 +936,9 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 18, color: Colors.textPrimary,
+    fontSize: 17, color: Colors.textPrimary,
     textAlign: "right",
+    letterSpacing: 0.3,
   },
   greetingDate: {
     fontFamily: "Cairo_400Regular",
@@ -948,8 +952,8 @@ const styles = StyleSheet.create({
   },
   greetingIconWrap: {
     width: 50, height: 50, borderRadius: 17,
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderWidth: 1, borderColor: "rgba(34,197,94,0.35)",
+    backgroundColor: "rgba(37,99,235,0.14)",
+    borderWidth: 1, borderColor: "rgba(37,99,235,0.38)",
     alignItems: "center", justifyContent: "center",
   },
   greetingInitial: {
@@ -994,94 +998,96 @@ const styles = StyleSheet.create({
     alignItems: "center", gap: 10, marginTop: 4, marginBottom: 18,
   },
   sectionAccentBar: {
-    width: 4, height: 22, borderRadius: 2,
+    width: 3, height: 24, borderRadius: 2,
   },
   sectionTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary,
+    fontFamily: "Cairo_700Bold", fontSize: 19, color: Colors.textPrimary,
+    letterSpacing: 0.4,
   },
   sectionLine: {
-    flex: 1, height: 1, backgroundColor: Colors.divider,
+    flex: 1, height: 0.5, backgroundColor: Colors.divider,
   },
   sectionDot: {
-    width: 6, height: 6, borderRadius: 3,
+    width: 5, height: 5, borderRadius: 3,
   },
 
-  /* Grid — 3 columns */
+  /* Grid — 3 columns (Scientific Card Style) */
   gridContainer: {
     flexDirection: "row", flexWrap: "wrap",
   },
   gridItemContainer: {
     width: "33.33%",
-    paddingHorizontal: 4.5,
-    paddingBottom: 9,
+    paddingHorizontal: 4,
+    paddingBottom: 8,
   },
   gridItem: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 20, padding: 14,
-    alignItems: "center", height: 128,
+    backgroundColor: "rgba(10,31,54,0.80)",
+    borderRadius: 16, padding: 13,
+    alignItems: "center", height: 124,
     justifyContent: "center",
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
     overflow: "hidden",
   },
   gridGlow: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 55, borderRadius: 20,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 48, borderRadius: 16,
   },
   gridIconWrap: {
-    width: 48, height: 48, borderRadius: 15,
+    width: 46, height: 46, borderRadius: 14,
     justifyContent: "center", alignItems: "center",
-    marginBottom: 9, borderWidth: 0.5,
+    marginBottom: 8, borderWidth: 1,
   },
   gridLabel: {
-    fontFamily: "Cairo_700Bold", fontSize: 12,
-    color: "rgba(240,253,244,0.92)", textAlign: "center",
-    letterSpacing: 0.1,
+    fontFamily: "Cairo_700Bold", fontSize: 11.5,
+    color: "rgba(240,249,255,0.93)", textAlign: "center",
+    letterSpacing: 0.2,
   },
   gridSub: {
     fontFamily: "Cairo_400Regular", fontSize: 9,
-    color: "rgba(167,243,208,0.60)", textAlign: "center", marginTop: 2,
+    color: "rgba(186,230,253,0.55)", textAlign: "center", marginTop: 2,
     lineHeight: 13,
   },
   gridBottomLine: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 1.5, borderRadius: 0, opacity: 0.50,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 0, opacity: 0.55,
   },
   soonBadge: {
-    position: "absolute", top: 7, left: 7,
+    position: "absolute", top: 6, left: 6,
     flexDirection: "row", alignItems: "center", gap: 3,
-    backgroundColor: "rgba(251,191,36,0.10)", borderWidth: 0.5, borderColor: "rgba(251,191,36,0.35)",
-    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 7,
+    backgroundColor: "rgba(251,191,36,0.12)", borderWidth: 1, borderColor: "rgba(251,191,36,0.30)",
+    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6,
   },
   soonBadgeText: {
     fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FBBF24",
   },
 
   /* Quick Banners Row */
-  quickBannersRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
+  quickBannersRow: { flexDirection: "row", gap: 7, marginBottom: 6 },
   quickBanner: {
-    borderRadius: 18, padding: 12, borderWidth: 0.5,
+    borderRadius: 16, padding: 12, borderWidth: 1,
     overflow: "hidden", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "rgba(10,31,54,0.70)",
   },
   quickBannerIcon: {
-    width: 44, height: 44, borderRadius: 13,
-    justifyContent: "center", alignItems: "center", borderWidth: 0.5,
+    width: 42, height: 42, borderRadius: 12,
+    justifyContent: "center", alignItems: "center", borderWidth: 1,
   },
   quickBannerTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 13, color: "rgba(240,253,244,0.94)", textAlign: "center",
+    fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "rgba(240,249,255,0.94)", textAlign: "center",
+    letterSpacing: 0.1,
   },
   quickBannerSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(167,243,208,0.65)", textAlign: "center",
+    fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(186,230,253,0.60)", textAlign: "center",
   },
 
   /* Footer */
   footerActions: { marginTop: 28, marginBottom: 20, gap: 10 },
   actionStrip: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18,
-    padding: 16, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)", gap: 12,
+    backgroundColor: "rgba(10,31,54,0.70)", borderRadius: 16,
+    padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", gap: 12,
   },
   actionText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: "rgba(240,253,244,0.90)", flex: 1,
+    color: "rgba(240,249,255,0.90)", flex: 1,
   },
 
   /* ── Developer Card ── */
@@ -1100,7 +1106,7 @@ const styles = StyleSheet.create({
   devCardInner: {
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#0A100A",
+    backgroundColor: "#060E1C",
   },
 
   /* Hero */

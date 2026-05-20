@@ -1353,7 +1353,7 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 
 // ─── styles ─────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0F0C" },
+  container: { flex: 1, backgroundColor: "#020C1B" },
   header: { paddingHorizontal: 14, paddingBottom: 12 },
   headerTop: { flexDirection: "row", alignItems: "center", paddingTop: 6 },
   backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
@@ -1425,7 +1425,7 @@ const s = StyleSheet.create({
 
   // detail modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#0A0F0C", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#1F2937" },
+  modalSheet: { backgroundColor: "#020C1B", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#1F2937" },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#374151", alignSelf: "center", marginBottom: 12 },
   detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
   avatarLg: { width: 70, height: 70, borderRadius: 18, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
@@ -1471,7 +1471,7 @@ const s = StyleSheet.create({
   contractTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
   contractSubt: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 6, lineHeight: 16 },
   fieldLabel: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 5 },
-  fieldInput: { backgroundColor: "#0A0F0C", borderRadius: 10, paddingHorizontal: 12, height: 44, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#1F2937", textAlign: "right" },
+  fieldInput: { backgroundColor: "#020C1B", borderRadius: 10, paddingHorizontal: 12, height: 44, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#1F2937", textAlign: "right" },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: "#1F2937", alignItems: "center" },
   cancelBtnText: { color: "#9CA3AF", fontFamily: "Cairo_700Bold", fontSize: 13 },
   submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: "#8B5CF6" },
@@ -1479,7 +1479,7 @@ const s = StyleSheet.create({
 
   rateModal: { backgroundColor: "#0F1A14", borderRadius: 18, padding: 22, borderWidth: 1, borderColor: "#1F2937" },
   rateTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
-  rateInput: { backgroundColor: "#0A0F0C", borderRadius: 10, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
+  rateInput: { backgroundColor: "#020C1B", borderRadius: 10, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
 
   joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#8B5CF6", padding: 14, borderRadius: 14, marginBottom: 14 },
   joinIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },

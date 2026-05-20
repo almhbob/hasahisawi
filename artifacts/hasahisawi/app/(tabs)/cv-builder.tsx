@@ -485,7 +485,7 @@ function CVPreview({ cv, template }: { cv: CVData; template: typeof TEMPLATES[0]
       </LinearGradient>
 
       {/* Body */}
-      <View style={{ backgroundColor: "#0F1814", padding: 16, gap: 14 }}>
+      <View style={{ backgroundColor: "#061525", padding: 16, gap: 14 }}>
         {cv.objective ? (
           <View>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: p, marginBottom: 6 }}>الهدف الوظيفي</Text>
