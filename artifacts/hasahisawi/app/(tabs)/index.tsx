@@ -204,6 +204,8 @@ export default function HomeScreen() {
     { id: "telecom",   label: "شركات الاتصالات",                     sub: "MTN · Zain · Sudani · عروض",      icon: "cellular",          iconType: "ionicons"  as const, color: "#0EA5E9",  bg: "#0EA5E920",    route: "/(tabs)/telecom"      as const },
     { id: "unions",    label: "النقابات المهنية",                    sub: "انضمام · إعلانات · عضوية",         icon: "people-circle-outline", iconType: "ionicons" as const, color: "#8B5CF6",  bg: "#8B5CF620",    route: "/(tabs)/unions"       as const },
     { id: "rental",   label: "التأجير",                            sub: "عقارات · مناسبات · بناء",            icon: "home-city-outline",     iconType: "material" as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/rental"       as const },
+    { id: "cv-builder", label: "منشئ السيرة الذاتية",             sub: "قوالب احترافية · PDF",                icon: "document-text-outline", iconType: "ionicons" as const, color: "#06B6D4",  bg: "#06B6D420",    route: "/(tabs)/cv-builder"   as const },
+    { id: "competitions", label: "المسابقات",                      sub: "تحدّ · فوز · جوائز",                  icon: "trophy-outline",        iconType: "ionicons" as const, color: "#7C3AED",  bg: "#7C3AED20",    route: "/(tabs)/competitions" as const },
   ], [lang]);
 
   const handlePress = (route: string) => {

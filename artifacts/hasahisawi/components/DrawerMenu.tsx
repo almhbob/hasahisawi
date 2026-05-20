@@ -69,6 +69,13 @@ const GROUPS: Group[] = [
     items: [
       { title: "الطلاب",      icon: "school-outline",     route: "/(tabs)/student",     color: Colors.cyber   },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
+      { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#06B6D4" },
+    ],
+  },
+  {
+    label: "مسابقات وتحديات",
+    items: [
+      { title: "المسابقات", icon: "trophy-outline", route: "/(tabs)/competitions", color: "#7C3AED" },
     ],
   },
   {
