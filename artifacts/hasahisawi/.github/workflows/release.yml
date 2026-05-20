@@ -1,0 +1,225 @@
+name: Release — APK + AAB + Web PWA
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v6.1.0)'
+        required: true
+        default: 'v6.1.0'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  # ─── 1. Build Android APK ───────────────────────────────────────────────────
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    outputs:
+      apk-path: ${{ steps.find.outputs.path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK (local)
+        run: |
+          eas build --platform android --profile preview --local --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+
+      - id: find
+        name: Locate APK
+        run: |
+          path=$(find . -name "*.apk" | head -1)
+          cp "$path" hasahisawi-${{ github.event.inputs.version }}.apk
+          echo "path=hasahisawi-${{ github.event.inputs.version }}.apk" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: ${{ steps.find.outputs.path }}
+
+  # ─── 2. Build Android AAB ───────────────────────────────────────────────────
+  build-aab:
+    name: Build AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build AAB (local)
+        run: |
+          eas build --platform android --profile production --local --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+
+      - id: find
+        name: Locate AAB
+        run: |
+          path=$(find . -name "*.aab" | head -1)
+          cp "$path" hasahisawi-${{ github.event.inputs.version }}.aab
+          echo "path=hasahisawi-${{ github.event.inputs.version }}.aab" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aab
+          path: ${{ steps.find.outputs.path }}
+
+  # ─── 3. Build & Deploy Web PWA → GitHub Pages ───────────────────────────────
+  build-web:
+    name: Build Web PWA
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Export web
+        run: pnpm exec expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+
+      - name: Add PWA assets
+        run: |
+          cp -r public/splash dist/splash 2>/dev/null || true
+          cp public/sw.js dist/sw.js 2>/dev/null || true
+          cp public/manifest.json dist/manifest.json 2>/dev/null || true
+          cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: pages
+        uses: actions/deploy-pages@v4
+
+      - name: Print URL
+        run: echo "Web PWA live at ${{ steps.pages.outputs.page_url }}"
+
+  # ─── 4. Create GitHub Release with APK + AAB ────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-apk, build-aab, build-web]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: aab
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: "حصاحيصاوي ${{ github.event.inputs.version }}"
+          body: |
+            ## حصاحيصاوي — الإصدار ${{ github.event.inputs.version }}
+
+            ### روابط التحميل المباشر
+            | النسخة | الملف | الاستخدام |
+            |--------|-------|-----------|
+            | **Android APK** | انقر "Assets" أدناه | تثبيت مباشر على أي Android |
+            | **Android AAB** | انقر "Assets" أدناه | رفع على Google Play Store |
+            | **Web / iPhone PWA** | https://almhbob.github.io/hasahisawi/ | Safari → إضافة للشاشة الرئيسية |
+
+            ### الميزات الجديدة في هذا الإصدار
+            - منشئ السيرة الذاتية (4 قوالب + تصدير PDF) — 5000 SDG مميز
+            - قسم المسابقات مع كويز تفاعلي ولوحة متصدرين
+            - اتحاد الطلاب داخل قسم النقابات
+            - تحسينات iOS PWA مع شاشات بداية لجميع موديلات iPhone
+            - دعم offline عبر Service Worker
+          files: |
+            hasahisawi-${{ github.event.inputs.version }}.apk
+            hasahisawi-${{ github.event.inputs.version }}.aab
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
