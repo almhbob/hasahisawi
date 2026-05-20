@@ -135,8 +135,14 @@ export default function LoginScreen() {
     const err = validate();
     if (err) { setError(err); return; }
 
-    // إنشاء الحساب مباشرة بدون OTP مؤقتاً إلى حين تفعيل مزود رسائل رسمي لاحقاً
     if (mode === "register") {
+      // إذا كان OTP مُفعَّلاً (الافتراضي)، أرسل رمز التحقق أولاً
+      if (process.env.EXPO_PUBLIC_DISABLE_OTP !== "true") {
+        await handleSendOtp();
+        return;
+      }
+
+      // OTP معطَّل عبر EXPO_PUBLIC_DISABLE_OTP=true — تسجيل مباشر
       setLoading(true);
       try {
         const id = identifier.trim();
@@ -267,7 +273,7 @@ export default function LoginScreen() {
       } else if (code === "auth/popup-blocked") {
         setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
       } else if (String(code) === "10" || e?.message?.includes("DEVELOPER_ERROR")) {
-        setError("تعذّر تسجيل الدخول عبر Google. يرجى استخدام البريد الإلكتروني أو رقم الهاتف بدلاً من ذلك.");
+        setError("يرجى المحاولة مرة أخرى — إذا استمرت المشكلة استخدم البريد الإلكتروني أو رقم الهاتف.");
       } else {
         setError(e?.message || "فشل تسجيل الدخول عبر Google");
       }

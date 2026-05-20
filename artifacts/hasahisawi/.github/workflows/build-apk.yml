@@ -1,0 +1,45 @@
+name: Build APK (Android)
+
+on:
+  push:
+    branches: [claude/define-app-requirements-638Qf, main]
+    paths:
+      - 'app.json'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK via EAS
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Wait and download APK
+        run: |
+          echo "Build started. Check https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service/builds for download link."
+          eas build:list --platform android --limit 1 --json | jq -r '.[0].artifacts.buildUrl // "Build in progress…"'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

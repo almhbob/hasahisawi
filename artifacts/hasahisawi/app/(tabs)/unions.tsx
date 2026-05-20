@@ -20,6 +20,7 @@ const { width: W } = Dimensions.get("window");
 
 const UC  = "#8B5CF6";
 const UC2 = "#6D28D9";
+const SU  = "#6366F1"; // اتحاد الطلاب
 const UC3 = "#C4B5FD";
 const GOLD = "#F59E0B";
 
@@ -101,10 +102,170 @@ const MEMBERSHIP_TYPES = [
   { key: "honorary",  label: "عضو فخري"   },
 ];
 
+// ── تبويب اتحاد الطلاب ──────────────────────────────────────────────
+function StudentUnionTab() {
+  const SU_FEATURES = [
+    { icon: "person-add-outline",        label: "الانتساب لاتحاد الطلاب",          route: "/student-union-join",    color: SU },
+    { icon: "chatbubbles-outline",       label: "تواصل مع مجلس الاتحاد",            route: "/student-union-contact", color: "#06B6D4" },
+    { icon: "megaphone-outline",         label: "إعلانات وأنشطة الاتحاد",           route: "/student-union-join",    color: "#F59E0B" },
+    { icon: "people-outline",            label: "اللجان والأمانات",                  route: "/student-union-join",    color: "#22C55E" },
+    { icon: "trophy-outline",            label: "الأنشطة الطلابية والفعاليات",       route: "/student-union-join",    color: "#EC4899" },
+    { icon: "shield-checkmark-outline",  label: "حقوق الطلاب والمناصرة",            route: "/student-union-join",    color: "#F97316" },
+  ];
+
+  const SU_COMMITTEES = [
+    { name: "الأمانة العامة",              icon: "star-outline" },
+    { name: "أمانة الإعلام والثقافة",      icon: "megaphone-outline" },
+    { name: "أمانة التدريب والتطوير",      icon: "school-outline" },
+    { name: "أمانة الشؤون الأكاديمية",    icon: "book-outline" },
+    { name: "أمانة الأنشطة والفعاليات",   icon: "calendar-outline" },
+    { name: "أمانة المرأة والأسرة",        icon: "flower-outline" },
+    { name: "أمانة الخدمات والرفاه",       icon: "heart-outline" },
+    { name: "أمانة العلاقات الخارجية",    icon: "earth-outline" },
+    { name: "أمانة الصحة والبيئة",         icon: "medkit-outline" },
+    { name: "أمانة المال والإدارة",        icon: "cash-outline" },
+  ];
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+
+      {/* بطاقة الهوية */}
+      <Animated.View entering={FadeInDown.delay(80).springify()}>
+        <LinearGradient colors={[SU, "#4338CA"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stuStyles.heroBanner}>
+          <View style={stuStyles.heroOrb} />
+          <View style={stuStyles.heroOrb2} />
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
+            <View style={stuStyles.heroIcon}>
+              <Ionicons name="school" size={36} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={stuStyles.heroTitle}>اتحاد طلاب الحصاحيصا</Text>
+              <Text style={stuStyles.heroSub}>منظمة طلابية مستقلة تمثل وتخدم الطلاب</Text>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
+                <View style={stuStyles.activeBadge}>
+                  <View style={stuStyles.activeDot} />
+                  <Text style={stuStyles.activeText}>نشط</Text>
+                </View>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  تأسس عام 2010
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* إحصائيات سريعة */}
+          <View style={stuStyles.statsRow}>
+            {[
+              { val: "1,200+", label: "طالب عضو" },
+              { val: "10",     label: "لجنة" },
+              { val: "50+",    label: "نشاط سنوي" },
+            ].map((s, i) => (
+              <View key={i} style={[stuStyles.statItem, i === 1 && stuStyles.statItemCenter]}>
+                <Text style={stuStyles.statVal}>{s.val}</Text>
+                <Text style={stuStyles.statLbl}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+      </Animated.View>
+
+      {/* الخدمات والروابط */}
+      <Animated.View entering={FadeInDown.delay(140).springify()}>
+        <Text style={stuStyles.sectionTitle}>خدمات الاتحاد</Text>
+        <View style={stuStyles.featuresGrid}>
+          {SU_FEATURES.map((f, i) => (
+            <Animated.View key={i} entering={FadeInDown.delay(160 + i * 50).springify()} style={{ width: "48%" }}>
+              <TouchableOpacity
+                style={stuStyles.featureCard}
+                onPress={() => router.push(f.route as any)}
+                activeOpacity={0.8}
+              >
+                <View style={[stuStyles.featureIcon, { backgroundColor: f.color + "20" }]}>
+                  <Ionicons name={f.icon as any} size={22} color={f.color} />
+                </View>
+                <Text style={stuStyles.featureLabel}>{f.label}</Text>
+                <View style={[stuStyles.featureArrow, { backgroundColor: f.color + "15" }]}>
+                  <Ionicons name="chevron-back" size={13} color={f.color} />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* زر الانضمام الكبير */}
+      <Animated.View entering={FadeInDown.delay(300).springify()}>
+        <TouchableOpacity onPress={() => router.push("/student-union-join" as any)} activeOpacity={0.85}>
+          <LinearGradient colors={[SU, "#4338CA"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={stuStyles.joinBtn}>
+            <Ionicons name="person-add-outline" size={22} color="#fff" />
+            <View>
+              <Text style={stuStyles.joinBtnTitle}>انضم إلى الاتحاد الآن</Text>
+              <Text style={stuStyles.joinBtnSub}>سجّل اهتمامك وكن جزءاً من المسيرة الطلابية</Text>
+            </View>
+            <Ionicons name="arrow-back" size={18} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* اللجان والأمانات */}
+      <Animated.View entering={FadeInDown.delay(360).springify()}>
+        <Text style={stuStyles.sectionTitle}>اللجان والأمانات</Text>
+        <View style={stuStyles.committeesGrid}>
+          {SU_COMMITTEES.map((c, i) => (
+            <View key={i} style={stuStyles.committeeChip}>
+              <Ionicons name={c.icon as any} size={14} color={SU} />
+              <Text style={stuStyles.committeeText}>{c.name}</Text>
+            </View>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* زر التواصل */}
+      <Animated.View entering={FadeInDown.delay(420).springify()}>
+        <TouchableOpacity
+          style={stuStyles.contactBtn}
+          onPress={() => router.push("/student-union-contact" as any)}
+          activeOpacity={0.85}
+        >
+          <View style={stuStyles.contactIcon}>
+            <Ionicons name="chatbubbles-outline" size={22} color="#06B6D4" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={stuStyles.contactTitle}>تواصل مع مجلس الاتحاد</Text>
+            <Text style={stuStyles.contactSub}>اقتراحات · شكاوى · استفسارات</Text>
+          </View>
+          <Ionicons name="chevron-back" size={18} color="#06B6D4" />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* بوابة إدارة الاتحاد */}
+      <Animated.View entering={FadeInDown.delay(490).springify()}>
+        <TouchableOpacity
+          style={stuStyles.portalBtn}
+          onPress={() => router.push("/union-manager-portal" as any)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={[SU, "#4338CA"]} style={stuStyles.portalGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={stuStyles.portalIconWrap}>
+              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={stuStyles.portalTitle}>بوابة إدارة الاتحاد</Text>
+              <Text style={stuStyles.portalSub}>للمسؤولين المعتمدين فقط · دخول آمن</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.7)" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+
+    </ScrollView>
+  );
+}
+
 export default function UnionsScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my">("unions");
+  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my" | "student">("unions");
 
   // Unions list
   const [unions, setUnions] = useState<Union[]>([]);
@@ -718,14 +879,16 @@ export default function UnionsScreen() {
       {/* Tabs — scrollable row */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, paddingVertical: 6 }}>
         {[
-          { key: "unions",   label: "النقابات", icon: "business-outline" },
-          { key: "programs", label: "البرامج",  icon: "school-outline" },
-          { key: "laws",     label: "القوانين", icon: "document-lock-outline" },
-          { key: "apply",    label: "انضم",     icon: "person-add-outline" },
-          { key: "my",       label: "طلباتي",   icon: "document-text-outline" },
+          { key: "unions",   label: "النقابات",    icon: "business-outline",      activeColor: UC  },
+          { key: "student",  label: "اتحاد الطلاب", icon: "school-outline",        activeColor: SU  },
+          { key: "programs", label: "البرامج",      icon: "clipboard-outline",     activeColor: UC  },
+          { key: "laws",     label: "القوانين",     icon: "document-lock-outline", activeColor: UC  },
+          { key: "apply",    label: "انضم",         icon: "person-add-outline",    activeColor: UC  },
+          { key: "my",       label: "طلباتي",       icon: "document-text-outline", activeColor: UC  },
         ].map(t => (
           <Pressable key={t.key}
-            style={[styles.tabBtn, { flex: 0, paddingHorizontal: 14 }, tab === t.key && styles.tabBtnActive]}
+            style={[styles.tabBtn, { flex: 0, paddingHorizontal: 14 },
+              tab === t.key && { backgroundColor: t.activeColor, borderColor: t.activeColor }]}
             onPress={() => { setTab(t.key as any); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
             <Ionicons name={t.icon as any} size={15} color={tab === t.key ? "#fff" : UC + "99"} />
             <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
@@ -934,6 +1097,7 @@ export default function UnionsScreen() {
         )
       )}
 
+      {tab === "student" && <StudentUnionTab />}
       {tab === "apply" && <ApplicationForm />}
       {tab === "my" && <MyMemberships />}
 
@@ -1206,4 +1370,108 @@ const styles = StyleSheet.create({
   miniInfo: { backgroundColor: "#071210", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "#1B3626" },
   miniLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#4B6E58" },
   miniVal: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9DBFAA" },
+});
+
+// ── أنماط تبويب اتحاد الطلاب ──────────────────────────────────────
+const stuStyles = StyleSheet.create({
+  heroBanner: {
+    borderRadius: 22, padding: 20, gap: 16, overflow: "hidden",
+    shadowColor: SU, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+  },
+  heroOrb: {
+    position: "absolute", top: -40, right: -30,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  heroOrb2: {
+    position: "absolute", bottom: -20, left: 20,
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  heroIcon: {
+    width: 70, height: 70, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
+  },
+  heroTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
+  heroSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 },
+  activeBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#4ADE80" },
+  activeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  statsRow: {
+    flexDirection: "row",
+    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.15)",
+    paddingTop: 14, marginTop: 4,
+  },
+  statItem: { flex: 1, alignItems: "center", gap: 3 },
+  statItemCenter: {
+    borderLeftWidth: 1, borderRightWidth: 1,
+    borderLeftColor: "rgba(255,255,255,0.2)", borderRightColor: "rgba(255,255,255,0.2)",
+  },
+  statVal: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
+  statLbl: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.75)" },
+
+  sectionTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FAFAFA",
+    textAlign: "right", marginBottom: 12,
+  },
+
+  featuresGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
+  featureCard: {
+    backgroundColor: "#0B1A12", borderRadius: 16, padding: 14, gap: 10,
+    borderWidth: 1, borderColor: "#1B3626", alignItems: "flex-end",
+  },
+  featureIcon: {
+    width: 44, height: 44, borderRadius: 13,
+    alignItems: "center", justifyContent: "center",
+  },
+  featureLabel: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 12,
+    color: "#FAFAFA", textAlign: "right", lineHeight: 18,
+  },
+  featureArrow: {
+    alignSelf: "flex-start", width: 26, height: 26,
+    borderRadius: 8, alignItems: "center", justifyContent: "center",
+  },
+
+  joinBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 14,
+    padding: 18, borderRadius: 18,
+    shadowColor: SU, shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+  },
+  joinBtnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  joinBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+
+  committeesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  committeeChip: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
+    backgroundColor: SU + "15", borderRadius: 20, borderWidth: 1, borderColor: SU + "35",
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  committeeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A5B4FC" },
+
+  contactBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 14,
+    backgroundColor: "#0B1A12", borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: "#06B6D430",
+  },
+  contactIcon: {
+    width: 48, height: 48, borderRadius: 14,
+    backgroundColor: "#06B6D415", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#06B6D430",
+  },
+  contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FAFAFA" },
+  contactSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890", marginTop: 2 },
+  portalBtn: { borderRadius: 18, overflow: "hidden" },
+  portalGradient: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16 },
+  portalIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  portalTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  portalSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 });

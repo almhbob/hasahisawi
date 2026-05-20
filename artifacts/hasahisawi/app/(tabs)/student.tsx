@@ -8,7 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -1865,7 +1865,7 @@ const iq = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-type Tab = "services" | "institutions" | "libraries" | "forms" | "join" | "admin";
+type Tab = "services" | "institutions" | "libraries" | "forms" | "join" | "union" | "admin";
 
 // ─── Library Types ────────────────────────────────────────────────────────────
 type LibraryCat = "books" | "stationery" | "printing" | "uniforms" | "tutoring" | "other";
@@ -1908,6 +1908,7 @@ const LIB_SERVICES = [
 export default function StudentScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const nav = useRouter();
 
   const [activeTab, setActiveTab]         = useState<Tab>("services");
   const [instFilter, setInstFilter]       = useState<"all" | InstType>("all");
@@ -2131,6 +2132,7 @@ export default function StudentScreen() {
     { key:"forms",        label:"الاستمارات",icon:"document-text-outline" },
     { key:"libraries",    label:"المكتبات",  icon:"book-outline" },
     { key:"join",         label:"انضمام",    icon:"add-circle-outline" },
+    { key:"union",        label:"إتحاد الطلاب", icon:"people-circle-outline" },
     { key:"admin",        label:"الإدارة",   icon:"shield-checkmark-outline" },
   ];
 
@@ -2707,6 +2709,44 @@ export default function StudentScreen() {
         ) : (
           <JoinRequestForm onSubmit={handleJoinSubmit} onCancel={()=>setActiveTab("institutions")} />
         )
+      )}
+
+      {/* ── TAB: UNION ── */}
+      {activeTab === "union" && (
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          <Animated.View entering={FadeInDown.springify()}>
+            <LinearGradient colors={["#6366F118", Colors.cardBg]} style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:18, marginBottom:20, borderWidth:1, borderColor:"#6366F130" }}>
+              <View style={{ width:52, height:52, borderRadius:16, backgroundColor:"#6366F120", alignItems:"center", justifyContent:"center" }}>
+                <Ionicons name="people-circle" size={32} color="#6366F1" />
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" }}>إتحاد الطلاب</Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", lineHeight:18 }}>صوت الطالب في الحصاحيصا — انضم وتفاعل وشارك</Text>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          {[
+            { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#6366F1", route:"/student-union-join" },
+            { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد واستفسر عن الأنشطة والعضوية",      icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
+            { title:"إدارة الإتحاد",       sub:"لوحة مشرفي الإتحاد لمراجعة طلبات الانضمام",    icon:"shield-checkmark-outline", color:"#8B5CF6", route:"/student-union-admin" },
+          ].map((item, i) => (
+            <Animated.View key={item.route} entering={FadeInDown.delay(i*80).springify()}>
+              <AnimatedPress onPress={() => { if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); nav.push(item.route as any); }}>
+                <LinearGradient colors={[item.color+"18", item.color+"06"]} style={{ borderRadius:20, borderWidth:1, borderColor:item.color+"40", padding:18, flexDirection:"row-reverse", alignItems:"center", gap:14, marginBottom:14 }}>
+                  <View style={{ width:54, height:54, borderRadius:16, backgroundColor:item.color+"25", alignItems:"center", justifyContent:"center" }}>
+                    <Ionicons name={item.icon as any} size={28} color={item.color} />
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" }}>{item.title}</Text>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", marginTop:3 }}>{item.sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-back" size={20} color={item.color} />
+                </LinearGradient>
+              </AnimatedPress>
+            </Animated.View>
+          ))}
+        </ScrollView>
       )}
 
       {/* ── TAB: ADMIN ── */}

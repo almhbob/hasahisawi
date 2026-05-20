@@ -3,7 +3,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const USER_TOKEN_KEY = "auth_backend_token";
-const API_URL = "https://workspaceapi-server-production-3e22.up.railway.app";
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
 
 export function getApiUrl(): string {
   return API_URL;
@@ -12,7 +14,7 @@ export function getApiUrl(): string {
 export const LEGACY_API_URL = API_URL;
 
 export function isApiConfigured(): boolean {
-  return true;
+  return !!API_URL;
 }
 
 export async function wakeUpServer(): Promise<void> {
@@ -33,13 +35,16 @@ export async function wakeUpServer(): Promise<void> {
 
 export async function fetchWithTimeout(
   url: string,
-  init: RequestInit = {},
+  init: RequestInit & { timeout?: number } = {},
   ms = 15000,
 ): Promise<Response> {
+  // Support timeout either as 3rd arg or as init.timeout property
+  const timeout = (init as any).timeout ?? ms;
+  const { timeout: _ignored, ...cleanInit } = init as any;
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), ms);
+  const tid = setTimeout(() => ctrl.abort(), timeout);
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal } as any);
+    return await fetch(url, { ...cleanInit, signal: ctrl.signal } as any);
   } finally {
     clearTimeout(tid);
   }

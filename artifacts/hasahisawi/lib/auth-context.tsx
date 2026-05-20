@@ -308,8 +308,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       GoogleSignin.configure({
-        webClientId: "133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com",
+        // Web OAuth client (Type 1) — required for react-native-google-signin
+        webClientId: "133656291161-ef0r1s8bpjrig606s9mahs6kafn8slcr.apps.googleusercontent.com",
         offlineAccess: false,
+        forceCodeForRefreshToken: false,
       });
     } catch {}
   }, []);

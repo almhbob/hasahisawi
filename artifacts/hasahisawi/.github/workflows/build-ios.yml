@@ -1,0 +1,49 @@
+name: Build iOS (iPhone/iPad)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'ios-adhoc'
+        type: choice
+        options:
+          - ios-adhoc
+          - production-ios
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS via EAS
+        run: eas build --platform ios --profile ${{ github.event.inputs.profile }} --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
+
+      - name: Print build URL
+        run: |
+          echo "iOS build queued. Download IPA from:"
+          echo "https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service/builds"

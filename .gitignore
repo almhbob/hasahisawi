@@ -58,3 +58,16 @@ attached_assets/*service_account*.json
 attached_assets/*client_secret*.json
 *serviceAccountKey*.json
 *-adminsdk-*.json
+
+# Large media directories — not needed in repo
+attached_assets/
+screenshots/
+
+# Android/iOS build outputs
+artifacts/hasahisawi/android/
+artifacts/hasahisawi/ios/
+artifacts/hasahisawi/.expo/
+*.apk
+*.aab
+*.ipa
+*.zip

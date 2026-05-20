@@ -36,7 +36,7 @@ const CATEGORIES: Category[] = [
   { id: "mosque",   label: "مساجد",    color: "#10B981",  icon: "moon-outline"        },
   { id: "landmark", label: "معالم",    color: "#D4AF37",  icon: "star-outline"        },
   { id: "pharmacy", label: "صيدليات",  color: "#06B6D4",  icon: "medical-outline"     },
-  { id: "gov",      label: "حكومي",    color: "#8B5CF6",  icon: "business-outline"    },
+  { id: "gov",      label: "محلية",    color: "#8B5CF6",  icon: "business-outline"    },
   { id: "bank",     label: "بنوك",     color: "#6366F1",  icon: "card-outline"        },
   { id: "sports",   label: "رياضة",    color: "#EF4444",  icon: "football-outline"    },
   { id: "culture",  label: "ثقافة",    color: "#A855F7",  icon: "color-palette-outline"},

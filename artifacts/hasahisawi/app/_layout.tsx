@@ -175,8 +175,22 @@ function RootLayoutNav() {
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="external-partnership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="lawyer-portal"    options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="client-case-chat" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="lawyer-portal"        options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="client-case-chat"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="sick-leave"           options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-apply"      options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="designer"                 options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );

@@ -79,6 +79,7 @@ const JOIN_ROLES: JoinRole[] = [
   { key: "zaajil",          label: "زاجل — مندوب توصيل",      icon: "bicycle-outline",    color: "#22C55E", desc: "توصيل الطلبات والهدايا داخل وخارج المدينة بسرعة واحترافية", showGender: true },
   { key: "krowan",          label: "كروان — مؤدي صوتي",        icon: "mic-outline",        color: "#C084FC", desc: "تقديم الهدايا بصوت جميل في الأفراح والمناسبات الخاصة", showSamples: true },
   { key: "khattaat",        label: "خطاط",                     icon: "create-outline",     color: GOLD,      desc: "كتابة الرسائل والبطاقات بخط جميل وتنسيق احترافي", showSamples: true },
+  { key: "designer",        label: "مصمم",                     icon: "brush-outline",      color: "#8B5CF6", desc: "تصميم البطاقات والدعوات والبوسترات الإلكترونية للمناسبات", showSamples: true },
   { key: "gift_store",      label: "انضمام متجر هدايا",        icon: "storefront-outline", color: PINK,      desc: "أضف منتجاتك إلى متجر زواجل وابدأ البيع عبر المنصة" },
   { key: "service_girl",    label: "طلب خدمة — بنات",          icon: "female-outline",     color: "#F472B6", desc: "انضمي لقائمة مقدمات الخدمات الخاصة للمناسبات النسائية" },
   { key: "service_boy",     label: "طلب خدمة — أولاد",         icon: "male-outline",       color: "#38BDF8", desc: "انضم لقائمة مقدمي الخدمات الخاصة للمناسبات والفعاليات" },
@@ -180,6 +181,13 @@ export default function ZawajilScreen() {
   }, [trackPhone]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  // Auto-refresh orders every 30s when on orders tab and phone is set
+  useEffect(() => {
+    if (tab !== "orders" || !trackPhone) return;
+    const iv = setInterval(() => loadMyOrders(), 30000);
+    return () => clearInterval(iv);
+  }, [tab, trackPhone, loadMyOrders]);
 
   // ── Order helpers ──────────────────────────────────────────────────────────
   function openForm(service: ServiceDef) {

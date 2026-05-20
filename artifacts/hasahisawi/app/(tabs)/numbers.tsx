@@ -48,12 +48,12 @@ const CATEGORY_META: Record<string, { title: string; icon: string; color: string
   طوارئ:    { title: "الطوارئ",           icon: "warning-outline",   color: "#EF4444" },
   صحة:      { title: "الصحة",             icon: "heart-outline",     color: "#2D8A96" },
   خدمات:    { title: "الخدمات العامة",    icon: "construct-outline", color: "#E07830" },
-  حكومي:    { title: "الجهات الحكومية",   icon: "business-outline",  color: "#6366F1" },
-  قانوني:   { title: "القانون",           icon: "hammer-outline",    color: "#8B5CF6" },
-  general:   { title: "عامة",             icon: "apps-outline",      color: Colors.primary },
-  health:    { title: "الصحة",            icon: "heart-outline",     color: "#2D8A96" },
-  services:  { title: "الخدمات العامة",   icon: "construct-outline", color: "#E07830" },
-  government:{ title: "الجهات الحكومية",  icon: "business-outline",  color: "#6366F1" },
+  حكومي:    { title: "جهات الاتصال المحلية",  icon: "business-outline",  color: "#6366F1" },
+  قانوني:   { title: "القانون",              icon: "hammer-outline",    color: "#8B5CF6" },
+  general:   { title: "عامة",                icon: "apps-outline",      color: Colors.primary },
+  health:    { title: "الصحة",               icon: "heart-outline",     color: "#2D8A96" },
+  services:  { title: "الخدمات العامة",      icon: "construct-outline", color: "#E07830" },
+  government:{ title: "جهات الاتصال المحلية", icon: "business-outline",  color: "#6366F1" },
   education: { title: "التعليم",          icon: "school-outline",    color: "#8B5CF6" },
   other:     { title: "أخرى",            icon: "apps-outline",      color: Colors.primary },
 };
@@ -388,6 +388,12 @@ export default function NumbersScreen() {
               <Ionicons name="settings-outline" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={{ backgroundColor: "#FEF3C720", borderRadius: 8, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#F59E0B30" }}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#92400E", textAlign: "right" }}>
+            الأرقام متاحة للعامة — المنصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية
+          </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.emergencyStrip}>
