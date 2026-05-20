@@ -182,7 +182,9 @@ function RootLayoutNav() {
         <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="student-union-admin"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-apply"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="union-manager-portal"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config" options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>

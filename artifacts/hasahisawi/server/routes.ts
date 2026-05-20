@@ -2259,6 +2259,417 @@ export async function registerRoutes(app: Express): Promise<Server> {
     catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // نظام إدارة اتحاد الطلاب — Student Union Management System
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async function ensureStudentUnionMgmtTables() {
+    await query(`CREATE TABLE IF NOT EXISTS union_manager_applications (
+      id              SERIAL PRIMARY KEY,
+      full_name       VARCHAR(200) NOT NULL,
+      birth_date      VARCHAR(20),
+      age             VARCHAR(10),
+      gender          VARCHAR(10),
+      national_id     VARCHAR(60),
+      phone           VARCHAR(20) NOT NULL,
+      email           VARCHAR(100),
+      state           VARCHAR(60),
+      locality        VARCHAR(60),
+      admin_unit      VARCHAR(100),
+      institution     VARCHAR(200),
+      study_stage     VARCHAR(60),
+      grade_level     VARCHAR(60),
+      major           VARCHAR(100),
+      skills          JSONB DEFAULT '[]',
+      prev_experience BOOLEAN,
+      exp_details     TEXT,
+      committees      JSONB DEFAULT '[]',
+      motivation      TEXT,
+      contribution    TEXT,
+      vision          TEXT,
+      can_attend      BOOLEAN,
+      weekly_hours    VARCHAR(20),
+      other_commits   TEXT,
+      pledge_name     VARCHAR(200),
+      status          VARCHAR(20) DEFAULT 'pending',
+      admin_note      TEXT,
+      created_at      TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS union_managers (
+      id              SERIAL PRIMARY KEY,
+      application_id  INTEGER REFERENCES union_manager_applications(id) ON DELETE SET NULL,
+      full_name       VARCHAR(200) NOT NULL,
+      title           VARCHAR(100) DEFAULT 'ممثل إدارة الاتحاد',
+      username        VARCHAR(100) UNIQUE NOT NULL,
+      password_hash   VARCHAR(200) NOT NULL,
+      phone           VARCHAR(20),
+      email           VARCHAR(100),
+      is_active       BOOLEAN DEFAULT TRUE,
+      created_at      TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS union_manager_sessions (
+      id          SERIAL PRIMARY KEY,
+      manager_id  INTEGER NOT NULL REFERENCES union_managers(id) ON DELETE CASCADE,
+      token       VARCHAR(200) UNIQUE NOT NULL,
+      expires_at  TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days'),
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS union_staff (
+      id          SERIAL PRIMARY KEY,
+      manager_id  INTEGER REFERENCES union_managers(id) ON DELETE CASCADE,
+      full_name   VARCHAR(200) NOT NULL,
+      role        VARCHAR(100) NOT NULL,
+      committee   VARCHAR(100),
+      phone       VARCHAR(20),
+      email       VARCHAR(100),
+      notes       TEXT,
+      is_active   BOOLEAN DEFAULT TRUE,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS union_meetings (
+      id            SERIAL PRIMARY KEY,
+      manager_id    INTEGER REFERENCES union_managers(id) ON DELETE CASCADE,
+      title         VARCHAR(300) NOT NULL,
+      description   TEXT,
+      meeting_date  VARCHAR(30),
+      meeting_time  VARCHAR(20),
+      location      VARCHAR(200),
+      type          VARCHAR(30) DEFAULT 'meeting',
+      status        VARCHAR(20) DEFAULT 'upcoming',
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS union_messages (
+      id          SERIAL PRIMARY KEY,
+      manager_id  INTEGER REFERENCES union_managers(id) ON DELETE CASCADE,
+      sender_name VARCHAR(200) NOT NULL,
+      content     TEXT NOT NULL,
+      is_pinned   BOOLEAN DEFAULT FALSE,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  }
+
+  async function getManagerFromRequest(req: Request): Promise<{ id: number; full_name: string; title: string; username: string } | null> {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!token || !token.startsWith("umt_")) return null;
+    try {
+      const r = await query(
+        `SELECT m.id, m.full_name, m.title, m.username FROM union_managers m
+         JOIN union_manager_sessions s ON s.manager_id = m.id
+         WHERE s.token = $1 AND s.expires_at > NOW() AND m.is_active = TRUE`,
+        [token]
+      );
+      return r.rows[0] || null;
+    } catch { return null; }
+  }
+
+  // ── استمارة طلب الانضمام للإدارة (عام) ──────────────────────────────
+  app.post("/api/union-manager/apply", async (req: Request, res: Response) => {
+    try {
+      await ensureStudentUnionMgmtTables();
+      const { full_name, birth_date, age, gender, national_id, phone, email,
+        state, locality, admin_unit, institution, study_stage, grade_level, major,
+        skills, prev_experience, exp_details, committees,
+        motivation, contribution, vision,
+        can_attend, weekly_hours, other_commits, pledge_name } = req.body;
+      if (!full_name || !phone) return res.status(400).json({ error: "الاسم ورقم الهاتف مطلوبان" });
+      const r = await query(
+        `INSERT INTO union_manager_applications
+          (full_name,birth_date,age,gender,national_id,phone,email,state,locality,admin_unit,
+           institution,study_stage,grade_level,major,skills,prev_experience,exp_details,
+           committees,motivation,contribution,vision,can_attend,weekly_hours,other_commits,pledge_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+         RETURNING id,full_name,phone,status,created_at`,
+        [full_name,birth_date||null,age||null,gender||null,national_id||null,phone,
+         email||null,state||null,locality||null,admin_unit||null,institution||null,
+         study_stage||null,grade_level||null,major||null,
+         JSON.stringify(skills||[]),prev_experience!=null?Boolean(prev_experience):null,
+         exp_details||null,JSON.stringify(committees||[]),
+         motivation||null,contribution||null,vision||null,
+         can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
+         other_commits||null,pledge_name||null]
+      );
+      res.status(201).json({ success: true, application: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تسجيل دخول مدير الاتحاد ──────────────────────────────────────
+  app.post("/api/union-manager/login", async (req: Request, res: Response) => {
+    try {
+      await ensureStudentUnionMgmtTables();
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+      const r = await query(`SELECT * FROM union_managers WHERE username=$1 AND is_active=TRUE`, [username]);
+      const mgr = r.rows[0];
+      if (!mgr) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const valid = await bcrypt.compare(password, mgr.password_hash);
+      if (!valid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const token = "umt_" + randomBytes(24).toString("hex");
+      await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
+      res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, title: mgr.title, username: mgr.username } });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── لوحة التحكم (dashboard) ───────────────────────────────────────
+  app.get("/api/union-manager/dashboard", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const staff   = await query(`SELECT COUNT(*) FROM union_staff WHERE manager_id=$1 AND is_active=TRUE`, [mgr.id]);
+      const meetings= await query(`SELECT COUNT(*) FROM union_meetings WHERE manager_id=$1 AND status='upcoming'`, [mgr.id]);
+      const msgs    = await query(`SELECT COUNT(*) FROM union_messages WHERE manager_id=$1`, [mgr.id]);
+      res.json({
+        manager: mgr,
+        stats: {
+          staff: parseInt(staff.rows[0].count),
+          upcoming_meetings: parseInt(meetings.rows[0].count),
+          messages: parseInt(msgs.rows[0].count),
+        }
+      });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── الموظفون ─────────────────────────────────────────────────────
+  app.get("/api/union-manager/staff", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`SELECT * FROM union_staff WHERE manager_id=$1 ORDER BY created_at DESC`, [mgr.id]);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/union-manager/staff", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { full_name, role, committee, phone, email, notes } = req.body;
+      if (!full_name || !role) return res.status(400).json({ error: "الاسم والمنصب مطلوبان" });
+      const r = await query(
+        `INSERT INTO union_staff (manager_id,full_name,role,committee,phone,email,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [mgr.id, full_name, role, committee||null, phone||null, email||null, notes||null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/union-manager/staff/:id", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { full_name, role, committee, phone, email, notes, is_active } = req.body;
+      const r = await query(
+        `UPDATE union_staff SET
+          full_name=COALESCE($1,full_name), role=COALESCE($2,role),
+          committee=COALESCE($3,committee), phone=COALESCE($4,phone),
+          email=COALESCE($5,email), notes=COALESCE($6,notes),
+          is_active=COALESCE($7,is_active)
+         WHERE id=$8 AND manager_id=$9 RETURNING *`,
+        [full_name||null,role||null,committee||null,phone||null,email||null,notes||null,
+         is_active!=null?Boolean(is_active):null, req.params.id, mgr.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/union-manager/staff/:id", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM union_staff WHERE id=$1 AND manager_id=$2`, [req.params.id, mgr.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── الاجتماعات ────────────────────────────────────────────────────
+  app.get("/api/union-manager/meetings", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`SELECT * FROM union_meetings WHERE manager_id=$1 ORDER BY created_at DESC`, [mgr.id]);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/union-manager/meetings", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { title, description, meeting_date, meeting_time, location, type } = req.body;
+      if (!title) return res.status(400).json({ error: "عنوان الاجتماع مطلوب" });
+      const r = await query(
+        `INSERT INTO union_meetings (manager_id,title,description,meeting_date,meeting_time,location,type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [mgr.id, title, description||null, meeting_date||null, meeting_time||null, location||null, type||'meeting']
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/union-manager/meetings/:id", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { title, description, meeting_date, meeting_time, location, type, status } = req.body;
+      const r = await query(
+        `UPDATE union_meetings SET
+          title=COALESCE($1,title), description=COALESCE($2,description),
+          meeting_date=COALESCE($3,meeting_date), meeting_time=COALESCE($4,meeting_time),
+          location=COALESCE($5,location), type=COALESCE($6,type), status=COALESCE($7,status)
+         WHERE id=$8 AND manager_id=$9 RETURNING *`,
+        [title||null,description||null,meeting_date||null,meeting_time||null,
+         location||null,type||null,status||null, req.params.id, mgr.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/union-manager/meetings/:id", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM union_meetings WHERE id=$1 AND manager_id=$2`, [req.params.id, mgr.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── التواصل الداخلي ───────────────────────────────────────────────
+  app.get("/api/union-manager/messages", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`SELECT * FROM union_messages WHERE manager_id=$1 ORDER BY is_pinned DESC, created_at DESC`, [mgr.id]);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/union-manager/messages", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { sender_name, content, is_pinned } = req.body;
+      if (!sender_name || !content) return res.status(400).json({ error: "المرسل والمحتوى مطلوبان" });
+      const r = await query(
+        `INSERT INTO union_messages (manager_id,sender_name,content,is_pinned)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [mgr.id, sender_name, content, Boolean(is_pinned)]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/union-manager/messages/:id/pin", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query(
+        `UPDATE union_messages SET is_pinned = NOT is_pinned WHERE id=$1 AND manager_id=$2 RETURNING *`,
+        [req.params.id, mgr.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/union-manager/messages/:id", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM union_messages WHERE id=$1 AND manager_id=$2`, [req.params.id, mgr.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── إدارة الطلبات من قبل المشرف الرئيسي ──────────────────────────
+  app.get("/api/admin/union-manager-apps", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureStudentUnionMgmtTables();
+      const r = await query(`SELECT * FROM union_manager_applications ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/union-manager-apps/:id/status", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureStudentUnionMgmtTables();
+      const { status, admin_note, username, password } = req.body;
+      if (!["approved","rejected","pending"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+
+      await query(`UPDATE union_manager_applications SET status=$1, admin_note=$2 WHERE id=$3`, [status, admin_note||null, req.params.id]);
+
+      if (status === "approved" && username && password) {
+        const appR = await query(`SELECT * FROM union_manager_applications WHERE id=$1`, [req.params.id]);
+        const app_ = appR.rows[0];
+        if (app_) {
+          const hash = await bcrypt.hash(password, 10);
+          const existing = await query(`SELECT id FROM union_managers WHERE username=$1`, [username]);
+          if (existing.rows.length > 0) return res.status(409).json({ error: "اسم المستخدم مستخدم مسبقاً" });
+          await query(
+            `INSERT INTO union_managers (application_id,full_name,username,password_hash,phone,email)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [app_.id, app_.full_name, username, hash, app_.phone, app_.email]
+          );
+        }
+      }
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── الـ endpoint المفقود لطلبات عضوية اتحاد الطلاب ───────────────
+  app.post("/api/student-union/apply", async (req: Request, res: Response) => {
+    try {
+      await ensureStudentUnionMgmtTables();
+      const { full_name, phone, national_id, institution, study_stage, major, year,
+        skills, committees, motivation, contribution, can_attend_meetings,
+        weekly_hours, pledge_name, gender, birth_date, email, address,
+        previous_experience, experience_details, vision, other_commitments, pledge_date } = req.body;
+      if (!full_name || !phone) return res.status(400).json({ error: "الاسم ورقم الهاتف مطلوبان" });
+      const r = await query(
+        `INSERT INTO union_manager_applications
+          (full_name,phone,national_id,institution,study_stage,grade_level,major,
+           skills,committees,motivation,contribution,can_attend,weekly_hours,pledge_name,
+           gender,birth_date,email,admin_unit,prev_experience,exp_details,vision,other_commits)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+         RETURNING id,full_name,status`,
+        [full_name,phone,national_id||null,institution||null,study_stage||null,year||null,major||null,
+         JSON.stringify(skills||[]),JSON.stringify(committees||[]),
+         motivation||null,contribution||null,can_attend_meetings!=null?Boolean(can_attend_meetings):null,
+         weekly_hours||null,pledge_name||null,gender||null,birth_date||null,email||null,
+         address||null,previous_experience!=null?Boolean(previous_experience):null,
+         experience_details||null,vision||null,other_commitments||null]
+      );
+      res.status(201).json({ success: true, application: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.get("/api/student-union/applications", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureStudentUnionMgmtTables();
+      const r = await query(`SELECT * FROM union_manager_applications ORDER BY created_at DESC`);
+      res.json({ applications: r.rows });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/student-union/applications/:id/status", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_note } = req.body;
+      const r = await query(
+        `UPDATE union_manager_applications SET status=$1, admin_note=$2 WHERE id=$3 RETURNING *`,
+        [status, admin_note||null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

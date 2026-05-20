@@ -238,6 +238,26 @@ function StudentUnionTab() {
         </TouchableOpacity>
       </Animated.View>
 
+      {/* بوابة إدارة الاتحاد */}
+      <Animated.View entering={FadeInDown.delay(490).springify()}>
+        <TouchableOpacity
+          style={stuStyles.portalBtn}
+          onPress={() => router.push("/union-manager-portal" as any)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={[SU, "#4338CA"]} style={stuStyles.portalGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={stuStyles.portalIconWrap}>
+              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={stuStyles.portalTitle}>بوابة إدارة الاتحاد</Text>
+              <Text style={stuStyles.portalSub}>للمسؤولين المعتمدين فقط · دخول آمن</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.7)" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+
     </ScrollView>
   );
 }
@@ -1449,4 +1469,9 @@ const stuStyles = StyleSheet.create({
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FAFAFA" },
   contactSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890", marginTop: 2 },
+  portalBtn: { borderRadius: 18, overflow: "hidden" },
+  portalGradient: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16 },
+  portalIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  portalTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  portalSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 });
