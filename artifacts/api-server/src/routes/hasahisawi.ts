@@ -14749,7 +14749,8 @@ router.patch("/admin/union-partnership/:id", async (req: Request, res: Response)
 // GET /api/cultural-centers
 router.get("/cultural-centers", async (req: Request, res: Response) => {
   try {
-    const { type, search } = req.query as Record<string, string>;
+    const type = singleQueryValue(req.query.type);
+    const search = singleQueryValue(req.query.search);
     let sql = `SELECT * FROM cultural_centers WHERE is_active=TRUE`;
     const params: unknown[] = [];
     if (type)   { sql += ` AND type=$${params.length+1}`;                                     params.push(type); }
