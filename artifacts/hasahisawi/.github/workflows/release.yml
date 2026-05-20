@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v6.1.0)'
+        description: 'Version tag (e.g. v6.2.0)'
         required: true
-        default: 'v6.1.0'
+        default: 'v6.2.0'
 
 permissions:
   contents: write
@@ -211,11 +211,15 @@ jobs:
             | **Web / iPhone PWA** | https://almhbob.github.io/hasahisawi/ | Safari → إضافة للشاشة الرئيسية |
 
             ### الميزات الجديدة في هذا الإصدار
-            - منشئ السيرة الذاتية (4 قوالب + تصدير PDF) — 5000 SDG مميز
-            - قسم المسابقات مع كويز تفاعلي ولوحة متصدرين
-            - اتحاد الطلاب داخل قسم النقابات
-            - تحسينات iOS PWA مع شاشات بداية لجميع موديلات iPhone
-            - دعم offline عبر Service Worker
+            - ✅ رفع الصور والفيديو يعمل عبر Cloudinary
+            - ✅ نظام إدارة اتحاد الطلاب المستقل (بوابة مدير + استمارة 7 أقسام)
+            - ✅ الملف الطبي الشخصي (فصيلة الدم، حساسيات، جهة طارئ)
+            - ✅ إصلاح شامل لجميع endpoints الطبية وقسم التنويم والمرافق
+            - ✅ إصلاح رسالة "Missing or insufficient permissions" في المجتمع
+            - ✅ حذف قسم المسابقات
+            - ✅ إصلاح مسارات API المفقودة في 15 خدمة مختلفة
+            - ✅ دعم OTP لاسترداد كلمة المرور
+            - ✅ نظام الشراكات الخارجية والتواصل والمواعيد
           files: |
             hasahisawi-${{ github.event.inputs.version }}.apk
             hasahisawi-${{ github.event.inputs.version }}.aab

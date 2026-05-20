@@ -1156,7 +1156,11 @@ export default function SocialScreen() {
   }, [loadFromApi]);
 
   useEffect(() => {
-    if (isFirestoreEnabled) setLoading(fsLoading);
+    if (!isFirestoreEnabled) return;
+    if (!fsLoading) { setLoading(false); return; }
+    // إذا ظل Firestore يحمّل لمدة 5 ثوانٍ → اعتبره فاشلاً واستخدم API
+    const timer = setTimeout(() => setLoading(false), 5000);
+    return () => clearTimeout(timer);
   }, [fsLoading]);
 
   const handlePost = async (
@@ -1238,7 +1242,12 @@ export default function SocialScreen() {
         onPress: async () => {
           try {
             if (isFirestoreEnabled) {
-              await fsDeletePost(String(postId));
+              try {
+                await fsDeletePost(String(postId));
+              } catch {
+                await apiDeletePost(postId, auth.token);
+                setApiPosts((prev) => prev.filter((p) => p.id !== postId));
+              }
             } else {
               await apiDeletePost(postId, auth.token);
               setApiPosts((prev) => prev.filter((p) => p.id !== postId));
