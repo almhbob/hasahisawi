@@ -180,6 +180,9 @@ function RootLayoutNav() {
         <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="sick-leave"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-admin"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config" options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>

@@ -35,13 +35,16 @@ export async function wakeUpServer(): Promise<void> {
 
 export async function fetchWithTimeout(
   url: string,
-  init: RequestInit = {},
+  init: RequestInit & { timeout?: number } = {},
   ms = 15000,
 ): Promise<Response> {
+  // Support timeout either as 3rd arg or as init.timeout property
+  const timeout = (init as any).timeout ?? ms;
+  const { timeout: _ignored, ...cleanInit } = init as any;
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), ms);
+  const tid = setTimeout(() => ctrl.abort(), timeout);
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal } as any);
+    return await fetch(url, { ...cleanInit, signal: ctrl.signal } as any);
   } finally {
     clearTimeout(tid);
   }

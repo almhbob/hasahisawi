@@ -3167,12 +3167,30 @@ router.get("/stats", async (_req: Request, res: Response) => {
 router.get("/admin/users", async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const result = await query(`
-      SELECT id, name, phone, email, role, neighborhood, birth_date,
-             national_id, is_banned, created_at, firebase_uid, avatar_url, gender
-      FROM users
-      ORDER BY created_at DESC
-    `);
+    const page   = Math.max(1, parseInt(singleQueryValue(req.query.page)  || "1"));
+    const limit  = Math.min(100, Math.max(1, parseInt(singleQueryValue(req.query.limit) || "50")));
+    const search = (singleQueryValue(req.query.search) || "").trim();
+    const offset = (page - 1) * limit;
+
+    const whereClause = search
+      ? `WHERE (name ILIKE $3 OR phone ILIKE $3 OR email ILIKE $3)`
+      : "";
+    const params: unknown[] = search
+      ? [limit, offset, `%${search}%`]
+      : [limit, offset];
+
+    const [result, countR] = await Promise.all([
+      query(`
+        SELECT id, name, phone, email, role, neighborhood, birth_date,
+               national_id, is_banned, created_at, firebase_uid, avatar_url, gender
+        FROM users ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
+      `, params),
+      query(`SELECT COUNT(*) AS cnt FROM users ${whereClause}`,
+        search ? [`%${search}%`] : []),
+    ]);
+
     const users = result.rows.map((u: any) => ({
       id: u.id, name: u.name, phone: u.phone, email: u.email, role: u.role,
       neighborhood: u.neighborhood, birth_date: u.birth_date, gender: u.gender,
@@ -3182,65 +3200,73 @@ router.get("/admin/users", async (req: Request, res: Response) => {
       has_firebase: !!u.firebase_uid,
       avatar_url: u.avatar_url,
     }));
-    return res.json({ users, total: users.length });
+    const total = parseInt(countR.rows[0]?.cnt || "0");
+    return res.json({ users, total, page, limit, pages: Math.ceil(total / limit) });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
+// يُرسل استجابة سريعة ثم يُكمل العملية في الخلفية (لتجاوز حد Vercel 10s)
 router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request, res: Response) => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+
+    // جلب مستخدمي Firebase أولاً (سريع — قراءة فقط)
     const firebaseUsers = await listAllFirebaseUsers();
-    if (!firebaseUsers.length) return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, skipped: 0, errors: 0, details: [] });
-
-    let created = 0, updated = 0, skipped = 0, errors = 0;
-    const details: Array<{ uid: string; email?: string; action: string; error?: string }> = [];
-
-    for (const fu of firebaseUsers) {
-      try {
-        // تحقق من وجود المستخدم بـ firebase_uid أو email
-        const existing = await query(
-          `SELECT id, firebase_uid, name, avatar_url FROM users WHERE firebase_uid=$1 OR (email=$2 AND $2 IS NOT NULL) LIMIT 1`,
-          [fu.uid, fu.email || null]
-        );
-
-        if (existing.rows.length > 0) {
-          const row = existing.rows[0];
-          const needsUpdate = !row.firebase_uid || (!row.name && fu.displayName) || (!row.avatar_url && fu.photoURL);
-          if (needsUpdate) {
-            await query(
-              `UPDATE users SET firebase_uid=COALESCE($1,firebase_uid), name=COALESCE(NULLIF($2,''),name), avatar_url=COALESCE($3,avatar_url) WHERE id=$4`,
-              [fu.uid, fu.displayName || null, fu.photoURL || null, row.id]
-            );
-            updated++;
-            details.push({ uid: fu.uid, email: fu.email, action: "updated" });
-          } else {
-            skipped++;
-          }
-        } else {
-          // إنشاء مستخدم جديد من Firebase
-          const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
-          const hash = "$firebase$"; // placeholder — لا يمكن تسجيل الدخول بكلمة مرور
-          await query(
-            `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
-             VALUES ($1,$2,$3,$4,$5,'user',$6)
-             ON CONFLICT (email) DO UPDATE SET firebase_uid=EXCLUDED.firebase_uid, avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url)`,
-            [fu.uid, name, fu.email || null, fu.phoneNumber || null, hash, fu.photoURL || null]
-          );
-          created++;
-          details.push({ uid: fu.uid, email: fu.email, action: "created" });
-        }
-      } catch (e: any) {
-        errors++;
-        details.push({ uid: fu.uid, email: fu.email, action: "error", error: e?.message });
-      }
+    if (!firebaseUsers.length) {
+      return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, skipped: 0, errors: 0 });
     }
 
-    const synced = created + updated;
-    return res.json({ firebase_total: firebaseUsers.length, synced, created, updated, skipped, errors, details });
+    // استجابة فورية حتى لا يُلغى الطلب
+    res.json({
+      firebase_total: firebaseUsers.length,
+      status: "processing",
+      message: `جارٍ مزامنة ${firebaseUsers.length} مستخدم في الخلفية…`,
+    });
+
+    // معالجة دُفعية في الخلفية بعد إرسال الرد
+    setImmediate(async () => {
+      let created = 0, updated = 0, skipped = 0, errors = 0;
+
+      // دُفعات من 25 لتجنب ضغط قاعدة البيانات
+      const BATCH = 25;
+      for (let i = 0; i < firebaseUsers.length; i += BATCH) {
+        const batch = firebaseUsers.slice(i, i + BATCH);
+        await Promise.allSettled(batch.map(async (fu) => {
+          try {
+            const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
+            const result = await query(
+              `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
+               VALUES ($1,$2,$3,$4,'$firebase$','user',$5)
+               ON CONFLICT (firebase_uid) DO UPDATE
+                 SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
+                     avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
+                     email=COALESCE(EXCLUDED.email,users.email)
+               RETURNING xmax`,
+              [fu.uid, name, fu.email || null, fu.phoneNumber || null, fu.photoURL || null]
+            );
+            // xmax=0 → INSERT (created), xmax>0 → UPDATE
+            if (result.rows[0]?.xmax === "0") created++;
+            else updated++;
+          } catch {
+            // email conflict with different firebase_uid — try uid-only upsert
+            try {
+              await query(
+                `UPDATE users SET firebase_uid=$1, avatar_url=COALESCE($2,avatar_url) WHERE email=$3`,
+                [fu.uid, fu.photoURL || null, fu.email || null]
+              );
+              updated++;
+            } catch { errors++; }
+          }
+        }));
+      }
+
+      logger.info({ firebase_total: firebaseUsers.length, created, updated, skipped, errors }, "[sync-firebase] complete");
+    });
+
   } catch (e: any) {
     logger.error({ err: e?.message }, "sync-firebase-users error");
-    return res.status(500).json({ error: "تعذّر مزامنة المستخدمين، حاول لاحقاً" });
+    if (!res.headersSent) res.status(500).json({ error: "تعذّر مزامنة المستخدمين، حاول لاحقاً" });
   }
 });
 
