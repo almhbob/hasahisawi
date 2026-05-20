@@ -3,6 +3,43 @@ import { createServer, type Server } from "node:http";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import multer from "multer";
+import * as path from "node:path";
+import * as fs from "node:fs";
+
+// ── إعداد رفع الملفات ────────────────────────────────────────────────────────
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+async function uploadToCloudinary(buffer: Buffer, mimeType: string, folder = "hasahisawi"): Promise<string> {
+  const { v2: cloudinary } = await import("cloudinary");
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  return new Promise((resolve, reject) => {
+    const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    const isVideo = mimeType.startsWith("video/");
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: isVideo ? "video" : "image", format: ext },
+      (err, result) => {
+        if (err || !result) return reject(err || new Error("Upload failed"));
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
+function saveLocally(buffer: Buffer, originalName: string): string {
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  const ext = path.extname(originalName) || ".jpg";
+  const fname = `${Date.now()}_${randomBytes(4).toString("hex")}${ext}`;
+  fs.writeFileSync(path.join(uploadsDir, fname), buffer);
+  return `/api/files/${fname}`;
+}
 
 const DEFAULT_ADMIN_PIN = "4444";
 
@@ -3338,6 +3375,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(r.rows[0] || { error: "لم يُعثر" });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── رفع الملفات ──────────────────────────────────────────────────────────────
+  app.post("/api/upload", upload.single("file"), async (req: Request, res: Response) => {
+    if (!req.file) return res.status(400).json({ error: "لم يتم إرسال أي ملف" });
+    const { buffer, originalname, mimetype } = req.file;
+    try {
+      let url: string;
+      if (
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+      ) {
+        url = await uploadToCloudinary(buffer, mimetype);
+      } else {
+        url = saveLocally(buffer, originalname);
+      }
+      res.json({ url });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      res.status(500).json({ error: err?.message || "فشل رفع الملف" });
+    }
+  });
+
+  // ── تقديم الملفات المحلية ─────────────────────────────────────────────────────
+  app.get("/api/files/:filename", (req: Request, res: Response) => {
+    const uploadsDir = path.resolve(process.cwd(), "uploads");
+    const filePath = path.join(uploadsDir, req.params.filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "الملف غير موجود" });
+    res.sendFile(filePath);
   });
 
   const httpServer = createServer(app);

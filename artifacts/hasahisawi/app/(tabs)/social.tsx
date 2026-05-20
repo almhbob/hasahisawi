@@ -1176,20 +1176,24 @@ export default function SocialScreen() {
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
     if (isFirestoreEnabled) {
-      await fsAddPost({
-        authorId: userId,
-        authorName: name,
-        content,
-        category,
-        likes: 0,
-        comments: 0,
-        ...(image_url ? { image_url } : {}),
-        ...(video_url ? { video_url } : {}),
-      });
-    } else {
-      await apiCreatePost({ author_name: name, content, category, image_url, video_url });
-      await loadFromApi(true);
+      try {
+        await fsAddPost({
+          authorId: userId,
+          authorName: name,
+          content,
+          category,
+          likes: 0,
+          comments: 0,
+          ...(image_url ? { image_url } : {}),
+          ...(video_url ? { video_url } : {}),
+        });
+        return;
+      } catch {
+        // Firestore permission error — fall back to backend API
+      }
     }
+    await apiCreatePost({ author_name: name, content, category, image_url, video_url });
+    await loadFromApi(true);
   };
 
   const handleLike = async (postId: string | number) => {
@@ -1197,16 +1201,14 @@ export default function SocialScreen() {
     if (isFirestoreEnabled) {
       const postKey = String(postId);
       const alreadyLiked = likedPostIds.has(postKey);
-      // تحديث فوري للواجهة
       const newLiked = new Set(likedPostIds);
       if (alreadyLiked) { newLiked.delete(postKey); } else { newLiked.add(postKey); }
       setLikedPostIds(newLiked);
       AsyncStorage.setItem("social_liked_posts", JSON.stringify([...newLiked]));
-      // تحديث العداد في Firestore
       const post = fsPosts.find((p) => p.id === postId);
       if (post) {
         const newCount = alreadyLiked ? Math.max(0, post.likes - 1) : post.likes + 1;
-        await fsUpdateDoc(COLLECTIONS.POSTS, postKey, { likes: newCount });
+        try { await fsUpdateDoc(COLLECTIONS.POSTS, postKey, { likes: newCount }); } catch {}
       }
       return;
     }
