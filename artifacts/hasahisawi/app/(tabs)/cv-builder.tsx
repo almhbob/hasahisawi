@@ -1,15 +1,246 @@
 import React, { useState, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  Alert, Platform, Dimensions, Share, KeyboardAvoidingView,
+  Alert, Platform, Dimensions, Share, KeyboardAvoidingView, Modal,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, withRepeat, withSequence, withTiming, Easing, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+
+const PREMIUM_PRICE = 5000;
+const PREMIUM_FEATURES = [
+  { icon: "layers-outline",         label: "4 قوالب احترافية مميزة" },
+  { icon: "document-text-outline",  label: "تصدير PDF عالي الجودة" },
+  { icon: "share-social-outline",   label: "مشاركة فورية عبر التواصل الاجتماعي" },
+  { icon: "color-palette-outline",  label: "تخصيص الألوان والتصميم" },
+  { icon: "refresh-outline",        label: "تعديل غير محدود مدى الحياة" },
+  { icon: "shield-checkmark-outline", label: "سيرة ذاتية احترافية بضغطة واحدة" },
+];
+
+// ── شاشة الدفع المميز ─────────────────────────────────────────────
+function PremiumGate({ onPay }: { onPay: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [processing, setProcessing] = useState(false);
+
+  // نبضة السعر
+  const scale = useSharedValue(1);
+  React.useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.00, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ), -1, true,
+    );
+  }, []);
+  const priceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const PAYMENT_METHODS = [
+    { id: "mtn", name: "MTN Mobile Money", icon: "phone-portrait-outline", color: "#FFCD00", bg: "#FFCD0015" },
+    { id: "zain", name: "Zain Cash",        icon: "phone-portrait-outline", color: "#E30613", bg: "#E3061315" },
+    { id: "bank", name: "تحويل بنكي",        icon: "card-outline",           color: "#0EA5E9", bg: "#0EA5E915" },
+  ];
+
+  function handlePay() {
+    if (!selectedMethod) {
+      Alert.alert("تنبيه", "يرجى اختيار طريقة الدفع أولاً");
+      return;
+    }
+    if (!phone.trim()) {
+      Alert.alert("تنبيه", "يرجى إدخال رقم الهاتف أو المرجع");
+      return;
+    }
+    setProcessing(true);
+    // محاكاة معالجة الدفع
+    setTimeout(() => {
+      setProcessing(false);
+      setShowPayModal(false);
+      Alert.alert(
+        "تم الدفع بنجاح ✅",
+        `شكراً! تم تفعيل خدمة إنشاء السيرة الذاتية المميزة.\nرقم العملية: CV-${Math.floor(Math.random() * 90000) + 10000}`,
+        [{ text: "ابدأ الآن", onPress: onPay }],
+      );
+    }, 2200);
+  }
+
+  return (
+    <View style={[pg.container, { paddingTop: insets.top }]}>
+      {/* خلفية متدرجة */}
+      <LinearGradient
+        colors={["#06B6D410", "#7C3AED08", Colors.bg]}
+        locations={[0, 0.4, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* رأس الصفحة */}
+      <View style={pg.header}>
+        <TouchableOpacity onPress={() => router.back()} style={pg.backBtn} hitSlop={12}>
+          <Ionicons name="chevron-forward" size={22} color={Colors.primary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={pg.headerTitle}>منشئ السيرة الذاتية</Text>
+          <Text style={pg.headerSub}>خدمة مميزة</Text>
+        </View>
+        <View style={{ width: 36 }} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+
+        {/* أيقونة البطل */}
+        <Animated.View entering={FadeIn.delay(100)} style={{ alignItems: "center", marginTop: 24, marginBottom: 8 }}>
+          <LinearGradient
+            colors={["#06B6D4", "#7C3AED"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={pg.heroIcon}
+          >
+            <Ionicons name="document-text-outline" size={52} color="#fff" />
+          </LinearGradient>
+          {/* شارة مميز */}
+          <View style={pg.premiumBadge}>
+            <MaterialCommunityIcons name="crown" size={13} color="#000" />
+            <Text style={pg.premiumBadgeText}>مميز</Text>
+          </View>
+        </Animated.View>
+
+        {/* العنوان */}
+        <Animated.View entering={FadeInDown.delay(150).springify()} style={{ alignItems: "center", paddingHorizontal: 24, gap: 8, marginBottom: 28 }}>
+          <Text style={pg.title}>سيرتك الذاتية في دقيقتين</Text>
+          <Text style={pg.subtitle}>
+            أنشئ سيرة ذاتية احترافية بقوالب عالمية وحمّلها PDF فوراً أو شاركها مباشرةً
+          </Text>
+        </Animated.View>
+
+        {/* السعر */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={{ alignItems: "center", marginBottom: 28 }}>
+          <Animated.View style={[pg.priceCard, priceStyle]}>
+            <LinearGradient
+              colors={["#06B6D420", "#7C3AED15"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={pg.priceLabel}>رسوم الخدمة</Text>
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, justifyContent: "center" }}>
+              <Text style={pg.priceCurrency}>جنيه</Text>
+              <Text style={pg.priceAmount}>{PREMIUM_PRICE.toLocaleString()}</Text>
+            </View>
+            <Text style={pg.priceNote}>دفعة واحدة · بدون اشتراك شهري</Text>
+          </Animated.View>
+        </Animated.View>
+
+        {/* المزايا */}
+        <Animated.View entering={FadeInDown.delay(250).springify()} style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+          <Text style={pg.featuresTitle}>ماذا تحصل؟</Text>
+          <View style={pg.featuresList}>
+            {PREMIUM_FEATURES.map((f, i) => (
+              <Animated.View key={i} entering={FadeInDown.delay(280 + i * 50).springify()} style={pg.featureItem}>
+                <View style={pg.featureIconWrap}>
+                  <Ionicons name={f.icon as any} size={18} color="#06B6D4" />
+                </View>
+                <Text style={pg.featureText}>{f.label}</Text>
+                <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              </Animated.View>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* زر الدفع */}
+        <Animated.View entering={FadeInUp.delay(400).springify()} style={{ paddingHorizontal: 20 }}>
+          <AnimatedPress onPress={() => setShowPayModal(true)}>
+            <LinearGradient
+              colors={["#06B6D4", "#7C3AED"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={pg.payBtn}
+            >
+              <MaterialCommunityIcons name="crown" size={20} color="#fff" />
+              <Text style={pg.payBtnText}>ادفع {PREMIUM_PRICE.toLocaleString()} جنيه وابدأ</Text>
+              <Ionicons name="arrow-back" size={18} color="#fff" />
+            </LinearGradient>
+          </AnimatedPress>
+
+          <Text style={pg.secureNote}>
+            🔒 الدفع آمن · يمكنك الاستفادة من الخدمة فور تأكيد الدفع
+          </Text>
+        </Animated.View>
+      </ScrollView>
+
+      {/* مودال الدفع */}
+      <Modal visible={showPayModal} transparent animationType="slide" onRequestClose={() => setShowPayModal(false)}>
+        <View style={pg.modalOverlay}>
+          <Animated.View entering={FadeInUp.springify().damping(18)} style={pg.modalSheet}>
+            <LinearGradient colors={["#06B6D4", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={pg.modalHeader}>
+              <TouchableOpacity onPress={() => setShowPayModal(false)} style={pg.modalClose}>
+                <Ionicons name="close" size={20} color="#fff" />
+              </TouchableOpacity>
+              <MaterialCommunityIcons name="credit-card-outline" size={28} color="#fff" />
+              <Text style={pg.modalTitle}>إتمام الدفع</Text>
+              <Text style={pg.modalSubtitle}>{PREMIUM_PRICE.toLocaleString()} جنيه سوداني</Text>
+            </LinearGradient>
+
+            <View style={{ padding: 20, gap: 14 }}>
+              {/* اختيار طريقة الدفع */}
+              <Text style={pg.modalLabel}>اختر طريقة الدفع</Text>
+              {PAYMENT_METHODS.map(method => (
+                <TouchableOpacity
+                  key={method.id}
+                  onPress={() => setSelectedMethod(method.id)}
+                  style={[pg.methodItem, selectedMethod === method.id && { borderColor: method.color + "80", backgroundColor: method.bg }]}
+                >
+                  <View style={[pg.methodIcon, { backgroundColor: method.color + "20" }]}>
+                    <Ionicons name={method.icon as any} size={22} color={method.color} />
+                  </View>
+                  <Text style={[pg.methodName, selectedMethod === method.id && { color: method.color }]}>{method.name}</Text>
+                  {selectedMethod === method.id && <Ionicons name="checkmark-circle" size={20} color={method.color} />}
+                </TouchableOpacity>
+              ))}
+
+              {/* رقم الهاتف / المرجع */}
+              <Text style={pg.modalLabel}>رقم الهاتف أو مرجع التحويل</Text>
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="09xxxxxxxx"
+                placeholderTextColor="#3F6B54"
+                keyboardType="phone-pad"
+                style={pg.phoneInput}
+              />
+
+              {/* ملاحظة */}
+              <View style={pg.infoBox}>
+                <Ionicons name="information-circle-outline" size={16} color={Colors.accent} />
+                <Text style={pg.infoText}>
+                  بعد الدفع، أرسل لقطة شاشة لمبلغ {PREMIUM_PRICE.toLocaleString()} جنيه عبر واتساب لتفعيل خدمتك فوراً.
+                </Text>
+              </View>
+
+              {/* زر التأكيد */}
+              <TouchableOpacity onPress={handlePay} disabled={processing} style={{ marginTop: 4 }}>
+                <LinearGradient
+                  colors={["#06B6D4", "#7C3AED"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[pg.payBtn, processing && { opacity: 0.7 }]}
+                >
+                  {processing
+                    ? <Text style={pg.payBtnText}>جاري التحقق...</Text>
+                    : <>
+                        <Ionicons name="lock-closed-outline" size={18} color="#fff" />
+                        <Text style={pg.payBtnText}>تأكيد الدفع</Text>
+                      </>
+                  }
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
 
 const { width } = Dimensions.get("window");
 
@@ -306,6 +537,16 @@ function CVPreview({ cv, template }: { cv: CVData; template: typeof TEMPLATES[0]
 
 // ── الشاشة الرئيسية ───────────────────────────────────────────────
 export default function CVBuilderScreen() {
+  const [isPremium, setIsPremium] = useState(false);
+
+  if (!isPremium) {
+    return <PremiumGate onPay={() => setIsPremium(true)} />;
+  }
+
+  return <CVBuilderWorkspace />;
+}
+
+function CVBuilderWorkspace() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
@@ -771,4 +1012,107 @@ const s = StyleSheet.create({
   stepIndicator: { flexDirection: "row", gap: 6 },
   stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.divider },
   stepDotActive: { width: 18, backgroundColor: Colors.primary },
+});
+
+// ── أنماط شاشة الدفع المميز ──────────────────────────────────────
+const pg = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.bg },
+
+  header: {
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 16,
+    paddingBottom: 14, paddingTop: 12,
+    borderBottomWidth: 0.5, borderBottomColor: "rgba(6,182,212,0.18)", gap: 8,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 11,
+    backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center",
+  },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#06B6D4" },
+
+  heroIcon: {
+    width: 110, height: 110, borderRadius: 32,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#06B6D4", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5, shadowRadius: 20, elevation: 14,
+  },
+  premiumBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#F59E0B", borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 4,
+    marginTop: -12, zIndex: 10,
+    shadowColor: "#F59E0B", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5, shadowRadius: 8, elevation: 6,
+  },
+  premiumBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#000" },
+
+  title: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },
+  subtitle: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+
+  priceCard: {
+    alignItems: "center", paddingVertical: 22, paddingHorizontal: 40,
+    borderRadius: 24, borderWidth: 1.5, borderColor: "#06B6D430",
+    overflow: "hidden", gap: 6, marginHorizontal: 24,
+  },
+  priceLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  priceAmount: { fontFamily: "Cairo_700Bold", fontSize: 52, color: "#06B6D4" },
+  priceCurrency: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#06B6D4", marginBottom: 8 },
+  priceNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 4 },
+
+  featuresTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 12 },
+  featuresList: { gap: 10 },
+  featureItem: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    backgroundColor: "rgba(6,182,212,0.05)", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: "rgba(6,182,212,0.15)",
+  },
+  featureIconWrap: {
+    width: 36, height: 36, borderRadius: 11,
+    backgroundColor: "#06B6D415", alignItems: "center", justifyContent: "center",
+  },
+  featureText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1 },
+
+  payBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 10, padding: 17, borderRadius: 18,
+    shadowColor: "#06B6D4", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
+  },
+  payBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
+  secureNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 12 },
+
+  // مودال الدفع
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
+  modalHeader: { padding: 20, alignItems: "center", gap: 4 },
+  modalClose: {
+    position: "absolute", top: 14, right: 14,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.25)", alignItems: "center", justifyContent: "center",
+  },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
+  modalSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.85)" },
+  modalLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+
+  methodItem: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
+    borderRadius: 16, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  methodIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  methodName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, flex: 1 },
+
+  phoneInput: {
+    backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
+    borderWidth: 1, borderColor: "rgba(6,182,212,0.25)", textAlign: "right",
+  },
+
+  infoBox: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+    backgroundColor: Colors.accent + "10", borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: Colors.accent + "30",
+  },
+  infoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, lineHeight: 20, textAlign: "right" },
 });
