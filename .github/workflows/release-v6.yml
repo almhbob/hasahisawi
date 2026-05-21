@@ -34,10 +34,12 @@ jobs:
           java-version: '17'
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'pnpm'
 
       - name: Read version
@@ -52,48 +54,53 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Apply source patches
+        working-directory: artifacts/hasahisawi
+        run: pnpm run prebuild
+
       - name: Create .env
         working-directory: artifacts/hasahisawi
         run: |
-          cat > .env <<'EOF'
-          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
-          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_DISABLE_OTP=true
-          EOF
+          printf '%s\n' \
+            'EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8' \
+            'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com' \
+            'EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi' \
+            'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app' \
+            'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161' \
+            'EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48' \
+            'EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app' \
+            'EXPO_PUBLIC_DISABLE_OTP=true' > .env
 
       - name: Expo prebuild
         working-directory: artifacts/hasahisawi
         env:
           EXPO_NO_GIT_STATUS: '1'
           EXPO_NO_TELEMETRY: '1'
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
         run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
 
       - name: Setup keystore
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          KEYSTORE_DEST=artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
           if [ -n "$KEYSTORE_B64" ]; then
             printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
-          fi
-          if [ ! -s "$KEYSTORE_DEST" ]; then
-            echo "⚠️  KEYSTORE_BASE64 secret not set — using repo keystore (not for Play Store)"
+            echo "✅ Keystore decoded from KEYSTORE_BASE64 secret"
+          else
+            echo "⚠️  KEYSTORE_BASE64 not set — using repo keystore (not for Play Store)"
             cp artifacts/hasahisawi/release.keystore "$KEYSTORE_DEST"
           fi
           echo "Keystore size: $(wc -c < $KEYSTORE_DEST) bytes"
+          # Verify keystore is valid
+          keytool -list -keystore "$KEYSTORE_DEST" \
+            -storepass "${KS_PASSWORD:-Hasahisawi@2026#Secure}" \
+            -alias "${KS_ALIAS:-hasahisawi}" 2>&1 | grep -E "alias|SHA|Entry type" || true
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -107,7 +114,6 @@ jobs:
       - name: Build release APK + AAB
         working-directory: artifacts/hasahisawi/android
         env:
-          KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
@@ -116,8 +122,7 @@ jobs:
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
             --stacktrace \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
-            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
@@ -144,7 +149,7 @@ jobs:
 
       - name: Cleanup secrets
         if: always()
-        run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
+        run: rm -f artifacts/hasahisawi/android/app/release.keystore artifacts/hasahisawi/.env
 
   # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
   deploy-web:
@@ -157,10 +162,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'pnpm'
 
       - run: pnpm install --no-frozen-lockfile
