@@ -3,10 +3,8 @@ name: حصاحيصاوي v6.2.0 — Release
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v6.*'
-    paths:
-      - '.release-trigger'
+    branches:
+      - release/v6
 
 permissions:
   contents: write
