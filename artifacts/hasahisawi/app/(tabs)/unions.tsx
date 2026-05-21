@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
@@ -104,6 +105,7 @@ const MEMBERSHIP_TYPES = [
 
 // ── تبويب اتحاد الطلاب ──────────────────────────────────────────────
 function StudentUnionTab() {
+  const router = useRouter();
   const SU_FEATURES = [
     { icon: "person-add-outline",        label: "الانتساب لاتحاد الطلاب",          route: "/student-union-join",    color: SU },
     { icon: "chatbubbles-outline",       label: "تواصل مع مجلس الاتحاد",            route: "/student-union-contact", color: "#06B6D4" },
@@ -264,6 +266,7 @@ function StudentUnionTab() {
 
 export default function UnionsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, token } = useAuth();
   const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my" | "student">("unions");
 
