@@ -398,7 +398,10 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
   const [newBooking, setNewBooking]= useState<TravelBooking | null>(null);
 
   useEffect(() => {
-    fetchWithTimeout(`${getApiUrl()}/travel/companies`).then(r=>r.json()).then(setCompanies).catch(()=>{});
+    fetchWithTimeout(`${getApiUrl()}/travel/companies`)
+      .then(r => r.json())
+      .then(d => setCompanies(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   const searchRoutes = useCallback(async () => {
@@ -866,7 +869,10 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
   const [showContract, setShowContract] = useState(false);
 
   useEffect(() => {
-    fetchWithTimeout(`${getApiUrl()}/travel/companies`).then(r=>r.json()).then(setCompanies).catch(()=>{});
+    fetchWithTimeout(`${getApiUrl()}/travel/companies`)
+      .then(r => r.json())
+      .then(d => setCompanies(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   return (
