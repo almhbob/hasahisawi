@@ -143,7 +143,7 @@ jobs:
     name: Build IPA (iOS — EAS)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ secrets.EXPO_TOKEN != '' }}
+    if: ${{ secrets.EXPO_TOKEN1 != '' }}
     outputs:
       ipa_url: ${{ steps.eas.outputs.ipa_url }}
     steps:
@@ -166,13 +166,13 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN1 }}
 
       - name: Build iOS IPA
         id: eas
         working-directory: artifacts/hasahisawi
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN1 }}
           EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
           EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
