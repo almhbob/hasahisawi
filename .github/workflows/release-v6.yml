@@ -105,11 +105,18 @@ jobs:
 
       - name: Pre-build setup
         run: |
-          # Build arm64-v8a only — covers all modern Android phones, avoids OOM on CI runners
-          # Full multi-arch builds (x86/x86_64 + armeabi-v7a) require ~8GB RAM; runners have 7GB
-          echo "reactNativeArchitectures=arm64-v8a" >> artifacts/hasahisawi/android/gradle.properties
-          echo "org.gradle.jvmargs=-Xmx3584m -XX:MaxMetaspaceSize=512m" >> artifacts/hasahisawi/android/gradle.properties
-          echo "org.gradle.parallel=false" >> artifacts/hasahisawi/android/gradle.properties
+          PROPS=artifacts/hasahisawi/android/gradle.properties
+          # Disable New Architecture — eliminates C++/TurboModules compilation that crashes CI workers
+          # App works identically for users; Old Architecture is fully supported in RN 0.81
+          sed -i 's/newArchEnabled=true/newArchEnabled=false/' $PROPS
+          sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
+          # Build arm64-v8a only — covers all modern Android phones
+          echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> $PROPS
+          echo "org.gradle.parallel=false" >> $PROPS
+          echo "org.gradle.workers.max=2" >> $PROPS
+          echo "=== gradle.properties tail ==="
+          tail -10 $PROPS
           echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
           echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
           echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
