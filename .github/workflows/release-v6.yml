@@ -34,8 +34,6 @@ jobs:
           java-version: '17'
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: '10.33.0'
 
       - uses: actions/setup-node@v4
         with:
@@ -140,7 +138,7 @@ jobs:
 
   # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
   deploy-web:
-    name: Build + Deploy Web PWA (iPhone PWA)
+    name: Build + Deploy Web PWA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -149,8 +147,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: '10.33.0'
 
       - uses: actions/setup-node@v4
         with:
@@ -195,7 +191,7 @@ jobs:
             git commit -m "deploy: web PWA v6.2.0 → docs/"
           git push origin master
 
-      - run: echo "✅ iPhone PWA live at https://almhbob.github.io/hasahisawi/"
+      - run: echo "✅ PWA live at https://almhbob.github.io/hasahisawi/"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
@@ -223,19 +219,18 @@ jobs:
             |--------|--------|---------|
             | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
             | **Android** | AAB ↓ | رفع على Google Play Store |
-            | **iPhone / iPad** | PWA | افتح الرابط في Safari ثم اضغط ↑ → "إضافة للشاشة الرئيسية" |
+            | **iPhone / iPad** | PWA | افتح في Safari ← ↑ ← "إضافة للشاشة الرئيسية" |
 
-            ### رابط iPhone / iPad PWA
+            ### رابط iPhone / iPad
             **https://almhbob.github.io/hasahisawi/**
 
             ### ميزات v${{ needs.build-android.outputs.version }}
             - ✅ بوابة الكوادر الطبية (طبيب · معمل · صيدلية · تمريض)
             - ✅ منشئ السيرة الذاتية (4 قوالب · PDF · 5000 SDG)
             - ✅ اتحاد الطلاب داخل قسم النقابات
-            - ✅ دعم iOS PWA مع شاشات بداية لجميع موديلات iPhone
-            - ✅ Service Worker + دعم بدون إنترنت
             - ✅ إصلاح خطأ شركاء وكالات السفر
-            - ✅ تحسينات على نظام المصادقة والأداء
+            - ✅ دعم iOS PWA + Service Worker
+            - ✅ تحسينات المصادقة والأداء
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
