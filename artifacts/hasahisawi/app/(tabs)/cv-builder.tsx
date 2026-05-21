@@ -265,15 +265,6 @@ type ExperienceItem = { position: string; company: string; period: string; desc:
 // ── القوالب المتاحة ───────────────────────────────────────────────
 const TEMPLATES = [
   {
-    id: "modern",
-    name: "عصري",
-    desc: "تصميم حديث بألوان زاهية",
-    primaryColor: "#22C55E",
-    accentColor: "#06B6D4",
-    icon: "layers-outline" as const,
-    gradient: ["#22C55E", "#06B6D4"] as [string, string],
-  },
-  {
     id: "classic",
     name: "كلاسيكي",
     desc: "أنيق ومحترف للوظائف الرسمية",
@@ -281,6 +272,7 @@ const TEMPLATES = [
     accentColor: "#2563EB",
     icon: "briefcase-outline" as const,
     gradient: ["#1E3A5F", "#2563EB"] as [string, string],
+    free: true,
   },
   {
     id: "minimal",
@@ -290,15 +282,27 @@ const TEMPLATES = [
     accentColor: "#6B7280",
     icon: "square-outline" as const,
     gradient: ["#374151", "#6B7280"] as [string, string],
+    free: true,
+  },
+  {
+    id: "modern",
+    name: "عصري ✦ مميز",
+    desc: "تصميم حديث بألوان زاهية — قالب مدفوع",
+    primaryColor: "#2563EB",
+    accentColor: "#06B6D4",
+    icon: "layers-outline" as const,
+    gradient: ["#2563EB", "#06B6D4"] as [string, string],
+    free: false,
   },
   {
     id: "creative",
-    name: "إبداعي",
-    desc: "جريء ومبتكر للمجالات الإبداعية",
+    name: "إبداعي ✦ مميز",
+    desc: "جريء ومبتكر للمجالات الإبداعية — قالب مدفوع",
     primaryColor: "#7C3AED",
     accentColor: "#EC4899",
     icon: "color-palette-outline" as const,
     gradient: ["#7C3AED", "#EC4899"] as [string, string],
+    free: false,
   },
 ];
 
@@ -537,12 +541,6 @@ function CVPreview({ cv, template }: { cv: CVData; template: typeof TEMPLATES[0]
 
 // ── الشاشة الرئيسية ───────────────────────────────────────────────
 export default function CVBuilderScreen() {
-  const [isPremium, setIsPremium] = useState(false);
-
-  if (!isPremium) {
-    return <PremiumGate onPay={() => setIsPremium(true)} />;
-  }
-
   return <CVBuilderWorkspace />;
 }
 
@@ -553,6 +551,8 @@ function CVBuilderWorkspace() {
   const [cv, setCv] = useState<CVData>({ ...EMPTY_CV });
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const [unlockedPremium, setUnlockedPremium] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
 
   function updateCv(field: keyof CVData, value: any) {
     setCv(prev => ({ ...prev, [field]: value }));
@@ -665,9 +665,39 @@ function CVBuilderWorkspace() {
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
+      {/* مودال الدفع للنماذج المدفوعة */}
+      {showPremiumGate && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setShowPremiumGate(false)}>
+          <View style={pg.modalOverlay}>
+            <Animated.View entering={FadeInUp.springify().damping(18)} style={pg.modalSheet}>
+              <LinearGradient colors={["#2563EB", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={pg.modalHeader}>
+                <TouchableOpacity onPress={() => setShowPremiumGate(false)} style={pg.modalClose}>
+                  <Ionicons name="close" size={20} color="#fff" />
+                </TouchableOpacity>
+                <MaterialCommunityIcons name="crown" size={28} color="#FFD700" />
+                <Text style={pg.modalTitle}>قالب مميز</Text>
+                <Text style={pg.modalSubtitle}>ادفع {PREMIUM_PRICE.toLocaleString()} جنيه لفتح القوالب المدفوعة</Text>
+              </LinearGradient>
+              <View style={{ padding: 20, gap: 14 }}>
+                <View style={pg.infoBox}>
+                  <Ionicons name="star-outline" size={16} color={Colors.accent} />
+                  <Text style={pg.infoText}>القوالب المدفوعة تتيح لك تصاميم أكثر احترافية وألواناً متميزة مناسبة للمجالات التخصصية والإبداعية.</Text>
+                </View>
+                <TouchableOpacity onPress={() => { setShowPremiumGate(false); setUnlockedPremium(true); Alert.alert("تم التفعيل ✅", "تم فتح جميع القوالب المميزة. يرجى مراجعة المطور لإتمام الدفع.", [{ text: "حسناً" }]); }} style={{ marginTop: 4 }}>
+                  <LinearGradient colors={["#2563EB", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[pg.payBtn]}>
+                    <MaterialCommunityIcons name="crown" size={18} color="#FFD700" />
+                    <Text style={pg.payBtnText}>فتح القوالب المميزة — {PREMIUM_PRICE.toLocaleString()} جنيه</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+      )}
+
       {/* رأس الصفحة */}
       <Animated.View entering={FadeInDown.duration(400)} style={s.header}>
-        <LinearGradient colors={["rgba(34,197,94,0.15)", "transparent"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["rgba(37,99,235,0.15)", "transparent"]} style={StyleSheet.absoluteFill} />
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
           <Ionicons name="chevron-forward" size={22} color={Colors.primary} />
         </TouchableOpacity>
@@ -702,32 +732,69 @@ function CVBuilderWorkspace() {
           {step === 0 && (
             <Animated.View entering={FadeInDown.delay(100).springify()}>
               <Text style={s.sectionTitle}>اختر قالب سيرتك الذاتية</Text>
+              {/* تقسيم مجاني / مدفوع */}
+              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#22C55E18", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#22C55E40" }}>
+                  <Ionicons name="checkmark-circle" size={13} color="#22C55E" />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#22C55E" }}>مجاناً: كلاسيكي، بسيط</Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#F0A50018", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#F0A50040" }}>
+                  <MaterialCommunityIcons name="crown" size={12} color="#F0A500" />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F0A500" }}>مدفوع: عصري، إبداعي</Text>
+                </View>
+              </View>
               <View style={{ gap: 12 }}>
-                {TEMPLATES.map((tmpl, i) => (
-                  <Animated.View key={tmpl.id} entering={FadeInDown.delay(80 + i * 60).springify()}>
-                    <AnimatedPress onPress={() => setSelectedTemplate(tmpl)}>
-                      <View style={[s.templateCard, selectedTemplate.id === tmpl.id && s.templateCardSelected]}>
-                        <LinearGradient
-                          colors={tmpl.gradient}
-                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                          style={s.templateGradientStrip}
-                        />
-                        <View style={[s.templateIconBox, { backgroundColor: tmpl.primaryColor + "20" }]}>
-                          <Ionicons name={tmpl.icon} size={26} color={tmpl.primaryColor} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.templateName}>{tmpl.name}</Text>
-                          <Text style={s.templateDesc}>{tmpl.desc}</Text>
-                        </View>
-                        {selectedTemplate.id === tmpl.id && (
-                          <View style={[s.checkBadge, { backgroundColor: tmpl.primaryColor }]}>
-                            <Ionicons name="checkmark" size={14} color="#fff" />
+                {TEMPLATES.map((tmpl, i) => {
+                  const isPremiumTemplate = !tmpl.free;
+                  const isLocked = isPremiumTemplate && !unlockedPremium;
+                  return (
+                    <Animated.View key={tmpl.id} entering={FadeInDown.delay(80 + i * 60).springify()}>
+                      <AnimatedPress onPress={() => {
+                        if (isLocked) { setShowPremiumGate(true); return; }
+                        setSelectedTemplate(tmpl);
+                      }}>
+                        <View style={[s.templateCard, selectedTemplate.id === tmpl.id && s.templateCardSelected, isLocked && { opacity: 0.75 }]}>
+                          <LinearGradient
+                            colors={tmpl.gradient}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={s.templateGradientStrip}
+                          />
+                          <View style={[s.templateIconBox, { backgroundColor: tmpl.primaryColor + "20" }]}>
+                            {isLocked
+                              ? <Ionicons name="lock-closed" size={22} color={tmpl.primaryColor} />
+                              : <Ionicons name={tmpl.icon} size={26} color={tmpl.primaryColor} />}
                           </View>
-                        )}
-                      </View>
-                    </AnimatedPress>
-                  </Animated.View>
-                ))}
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                              <Text style={s.templateName}>{tmpl.name}</Text>
+                              {isPremiumTemplate && (
+                                <View style={{ backgroundColor: "#F0A50020", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: "#F0A50050" }}>
+                                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 8, color: "#F0A500" }}>مميز</Text>
+                                </View>
+                              )}
+                              {tmpl.free && (
+                                <View style={{ backgroundColor: "#22C55E18", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: "#22C55E40" }}>
+                                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 8, color: "#22C55E" }}>مجاني</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={s.templateDesc}>{tmpl.desc}</Text>
+                          </View>
+                          {selectedTemplate.id === tmpl.id && !isLocked && (
+                            <View style={[s.checkBadge, { backgroundColor: tmpl.primaryColor }]}>
+                              <Ionicons name="checkmark" size={14} color="#fff" />
+                            </View>
+                          )}
+                          {isLocked && (
+                            <View style={[s.checkBadge, { backgroundColor: "#F0A500" }]}>
+                              <MaterialCommunityIcons name="crown" size={13} color="#000" />
+                            </View>
+                          )}
+                        </View>
+                      </AnimatedPress>
+                    </Animated.View>
+                  );
+                })}
               </View>
             </Animated.View>
           )}
