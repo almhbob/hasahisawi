@@ -137,13 +137,14 @@ export default function LoginScreen() {
     if (err) { setError(err); return; }
 
     if (mode === "register") {
-      // إذا كان OTP مُفعَّلاً (الافتراضي)، أرسل رمز التحقق أولاً
-      if (process.env.EXPO_PUBLIC_DISABLE_OTP !== "true") {
+      // OTP مُعطَّل مؤقتاً — سيُعاد تفعيله لاحقاً
+      // لإعادة التفعيل: غيّر السطر التالي إلى: if (process.env.EXPO_PUBLIC_DISABLE_OTP !== "true")
+      if (false) {
         await handleSendOtp();
         return;
       }
 
-      // OTP معطَّل عبر EXPO_PUBLIC_DISABLE_OTP=true — تسجيل مباشر
+      // تسجيل مباشر بدون OTP
       setLoading(true);
       try {
         const id = identifier.trim();

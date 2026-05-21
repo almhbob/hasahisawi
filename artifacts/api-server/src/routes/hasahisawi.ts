@@ -5574,10 +5574,10 @@ function generateOTP(): string {
   return num.toString();
 }
 
-// Returns true if delivery was attempted via a real channel, false if no delivery configured.
-async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<boolean> {
+// Returns delivery channel ("sms"|"email") if sent, "none" if no gateway configured.
+async function sendOTPDelivery(identifier: string, code: string, type: string): Promise<"sms" | "email" | "none"> {
   const isEmail = identifier.includes("@");
-  logger.info({ type, channel: isEmail ? "email" : "sms", identifier }, "[OTP] code generated — expires 5 min");
+  logger.info({ type, channel: isEmail ? "email" : "sms", identifier }, "[OTP] code generated — expires 10 min");
 
   if (!isEmail) {
     const smsKey  = process.env.AFRICASTALKING_API_KEY;
@@ -5588,9 +5588,9 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
         const { default: AfricasTalking } = await (Function('return import("africastalking")')().catch(() => ({ default: null }))) as any;
         if (AfricasTalking) {
           const at = AfricasTalking({ apiKey: smsKey, username: smsUser });
-          await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
+          await at.SMS.send({ to: [identifier], message: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 10 دقائق. لا تشاركه مع أحد.`, from: "Hasahisawi" });
           logger.info("[OTP] SMS sent via Africa's Talking");
-          return true;
+          return "sms";
         }
       } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] SMS send failed"); }
     }
@@ -5604,16 +5604,38 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
         const twilio = await (Function('return import("twilio")')().catch(() => null)) as any;
         if (twilio) {
           const client = twilio(twilioSid, twilioToken);
-          await client.messages.create({ body: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 5 دقائق. لا تشاركه مع أحد.`, from: twilioFrom, to: identifier });
+          await client.messages.create({ body: `رمز تحقق حصاحيصاوي: ${code}\nصالح لـ 10 دقائق. لا تشاركه مع أحد.`, from: twilioFrom, to: identifier });
           logger.info("[OTP] SMS sent via Twilio");
-          return true;
+          return "sms";
         }
       } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Twilio SMS failed"); }
     }
 
-    // SMS not configured — log code for admin visibility only
     logger.warn({ code, identifier, type }, "[OTP] No SMS gateway configured — code logged for admin");
-    return false;
+    return "none";
+  }
+
+  // Email via Resend
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    try {
+      const emailFrom = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
+      const resp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: `حصاحيصاوي <${emailFrom}>`,
+          to: [identifier],
+          subject: `رمز تحقق حصاحيصاوي: ${code}`,
+          html: `<div dir="rtl" style="font-family:Arial;font-size:16px;max-width:400px;margin:auto"><h2 style="color:#1e3a5f">حصاحيصاوي</h2><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:10px;color:#16a34a;font-size:36px">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.</p></div>`,
+        }),
+      });
+      if (resp.ok) {
+        logger.info("[OTP] Email sent via Resend");
+        return "email";
+      }
+      logger.warn({ status: resp.status, body: await resp.text() }, "[OTP] Resend send failed");
+    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Resend error"); }
   }
 
   // Email via SMTP
@@ -5623,15 +5645,15 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
       const nodemailer = await (Function('return import("nodemailer")')().catch(() => null)) as any;
       if (nodemailer) {
         const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
-        await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 5 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 5 دقائق فقط.</p></div>` });
+        await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط.</p></div>` });
         logger.info("[OTP] Email sent via SMTP");
-        return true;
+        return "email";
       }
     } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Email send failed"); }
   }
 
   logger.warn({ identifier, type }, "[OTP] No email gateway configured");
-  return false;
+  return "none";
 }
 
 // POST /api/auth/send-otp
@@ -5655,14 +5677,15 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
     await query(`UPDATE otp_codes SET used=TRUE WHERE phone_or_email=$1 AND type=$2 AND used=FALSE`, [identifier, type]);
 
     const code = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await query(
       `INSERT INTO otp_codes (phone_or_email, code, type, expires_at) VALUES ($1,$2,$3,$4)`,
       [identifier, code, type, expiresAt]
     );
 
-    const delivered = await sendOTPDelivery(identifier, code, type);
+    const sentVia = await sendOTPDelivery(identifier, code, type);
+    const delivered = sentVia !== "none";
 
     // لاستعادة كلمة المرور: يجب أن يصل الرمز فعلاً — أعد خطأ صريحاً إن لم يُرسَل
     if (!delivered && type === "password_reset") {
@@ -5673,9 +5696,59 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
       return res.status(503).json({ error: msg, no_delivery: true });
     }
 
-    return res.json({ sent: true, delivered, expires_in: 300, channel: identifier.includes("@") ? "email" : "sms" });
+    const exposeOtp = !delivered || process.env.SHOW_DEV_OTP === "true";
+    return res.json({ sent: true, delivered, sent_via: sentVia, expires_in: 600, channel: identifier.includes("@") ? "email" : "sms", ...(exposeOtp ? { dev_otp: code } : {}) });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[send-otp]");
+    return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
+  }
+});
+
+// POST /api/auth/send-registration-otp — إرسال رمز تحقق للتسجيل (مع sent_via وdev_otp)
+router.post("/auth/send-registration-otp", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone_or_email } = req.body as { phone_or_email?: string };
+    if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
+
+    const raw = phone_or_email.trim();
+    if (raw.length > 200) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
+
+    const isEmail = raw.includes("@");
+    if (isEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw))
+        return res.status(400).json({ error: "البريد الإلكتروني غير صالح" });
+    } else {
+      if (!/^\+?[\d\s\-]{7,20}$/.test(raw))
+        return res.status(400).json({ error: "رقم الهاتف غير صالح" });
+    }
+
+    const identifier = isEmail ? raw.toLowerCase() : raw;
+
+    const rateLimitR = await query(
+      `SELECT COUNT(*) AS cnt FROM otp_codes WHERE phone_or_email=$1 AND created_at > NOW() - INTERVAL '15 minutes'`,
+      [identifier]
+    );
+    if (parseInt(rateLimitR.rows[0].cnt) >= 3) {
+      return res.status(429).json({ error: "تجاوزت الحد المسموح. أعد المحاولة بعد 15 دقيقة." });
+    }
+
+    await query(`UPDATE otp_codes SET used=TRUE WHERE phone_or_email=$1 AND type='register' AND used=FALSE`, [identifier]);
+
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await query(
+      `INSERT INTO otp_codes (phone_or_email, code, type, expires_at) VALUES ($1,$2,$3,$4)`,
+      [identifier, code, "register", expiresAt]
+    );
+
+    const sentVia = await sendOTPDelivery(identifier, code, "register");
+    const exposeOtp = sentVia === "none" || process.env.SHOW_DEV_OTP === "true";
+
+    logger.info({ identifier, sentVia, exposeOtp }, "[send-registration-otp]");
+    return res.json({ success: true, sent_via: sentVia, ...(exposeOtp ? { dev_otp: code } : {}) });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[send-registration-otp]");
     return res.status(500).json({ error: "فشل إرسال رمز التحقق" });
   }
 });
