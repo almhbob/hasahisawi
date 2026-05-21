@@ -138,64 +138,6 @@ jobs:
         if: always()
         run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
 
-  # ─── Build IPA (iOS) via EAS Build ───────────────────────────────
-  build-ios:
-    name: Build IPA (iOS — EAS)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    if: ${{ secrets.EXPO_TOKEN1 != '' }}
-    outputs:
-      ipa_url: ${{ steps.eas.outputs.ipa_url }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: master
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: '10'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - run: pnpm install --no-frozen-lockfile
-
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN1 }}
-
-      - name: Build iOS IPA
-        id: eas
-        working-directory: artifacts/hasahisawi
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN1 }}
-          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
-        run: |
-          BUILD_JSON=$(eas build \
-            --platform ios \
-            --profile production-ios \
-            --non-interactive \
-            --json \
-            --no-wait 2>/dev/null || echo "[]")
-          IPA_URL=$(echo "$BUILD_JSON" | node -e "
-            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-            const b=Array.isArray(d)?d[0]:d;
-            console.log(b?.id ? 'https://expo.dev/accounts/almhbob2026/builds/'+b.id : '');
-          ")
-          echo "ipa_url=$IPA_URL" >> $GITHUB_OUTPUT
-          echo "EAS Build started: $IPA_URL"
-
   # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
   deploy-web:
     name: Build + Deploy Web PWA (iPhone PWA)
