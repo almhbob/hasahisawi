@@ -33,14 +33,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK components
+      - name: Configure NDK version
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "build-tools;36.0.0" \
-            "platforms;android-36" \
-            "ndk;27.1.12297006" 2>&1 | tail -5
-          echo "NDK installed: $(ls $ANDROID_HOME/ndk/)"
-          echo "Build-tools installed: $(ls $ANDROID_HOME/build-tools/)"
+          echo "=== Pre-installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" || echo "none"
+          echo "=== Pre-installed Build-tools ==="
+          ls "$ANDROID_HOME/build-tools/" || echo "none"
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          if [ -z "$NDK_VER" ]; then
+            echo "ERROR: No NDK found" && exit 1
+          fi
+          echo "Using NDK: $NDK_VER"
+          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
+          echo "Wrote ndkVersion=$NDK_VER to gradle.properties"
 
       - uses: pnpm/action-setup@v4
 
