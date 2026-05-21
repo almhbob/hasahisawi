@@ -86,7 +86,7 @@ function SponsorBanner({ sponsor }: { sponsor: Sponsor }) {
   const co = sponsor.brand_color || FAC;
   return (
     <Animated.View entering={FadeIn.delay(100).duration(700)} style={[styles.sponsorBanner, { borderColor: co + "50" }]}>
-      <LinearGradient colors={[co + "20", co + "08", "#0A0F0C"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[co + "20", co + "08", "#020C1B"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={[styles.sponsorIcon, { backgroundColor: co + "25", borderColor: co + "60" }]}>
         <Text style={{ fontSize: 22 }}>🏆</Text>
       </View>

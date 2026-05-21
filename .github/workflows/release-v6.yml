@@ -1,0 +1,231 @@
+name: حصاحيصاوي v6.1.0 — Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  # ─── Build APK + AAB ───────────────────────────────────────────
+  build-android:
+    name: Build APK + AAB (v6.1.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      code: ${{ steps.ver.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/define-app-requirements-638Qf
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Read version
+        id: ver
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "code=$CODE"       >> $GITHUB_OUTPUT
+          echo "Building v$VERSION (versionCode $CODE)"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Create .env
+        working-directory: artifacts/hasahisawi
+        run: |
+          cat > .env <<'EOF'
+          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
+          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EOF
+
+      - name: Expo prebuild
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_NO_GIT_STATUS: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+        run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
+            > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-v6-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*') }}
+          restore-keys: gradle-v6-
+
+      - name: Build release APK + AAB
+        working-directory: artifacts/hasahisawi/android
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Rename artifacts
+        run: |
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk \
+             hasahisawi-v${{ steps.ver.outputs.version }}.apk
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
+             hasahisawi-v${{ steps.ver.outputs.version }}.aab
+          ls -lh hasahisawi-v*.apk hasahisawi-v*.aab
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: hasahisawi-v${{ steps.ver.outputs.version }}.apk
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aab
+          path: hasahisawi-v${{ steps.ver.outputs.version }}.aab
+          retention-days: 30
+
+      - name: Cleanup secrets
+        if: always()
+        run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
+
+  # ─── Build + Deploy Web PWA ─────────────────────────────────────────
+  build-web:
+    name: Build Web PWA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/define-app-requirements-638Qf
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - name: Export web
+        working-directory: artifacts/hasahisawi
+        run: pnpm exec expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+
+      - name: Add PWA files
+        working-directory: artifacts/hasahisawi
+        run: |
+          cp -r public/splash dist/splash 2>/dev/null || true
+          cp public/sw.js dist/sw.js 2>/dev/null || true
+          cp public/manifest.json dist/manifest.json 2>/dev/null || true
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/hasahisawi/dist
+
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - run: echo "✅ Live at ${{ steps.deploy.outputs.page_url }}"
+
+  # ─── Create GitHub Release ────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [build-android, deploy-pages]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: aab
+
+      - name: Create Release + Upload APK/AAB
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build-android.outputs.version }}
+          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }}"
+          body: |
+            ## حصاحيصاوي — v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})
+
+            | النسخة | الاستخدام |
+            |-------|-----------|
+            | **APK** ↓ أدناه | تثبيت مباشر على Android |
+            | **AAB** ↓ أدناه | رفع على Google Play |
+            | **ويب / iPhone** | https://almhbob.github.io/hasahisawi/ |
+
+            ### ميزات هذا الإصدار
+            - ✅ منشئ السيرة الذاتية (4 قوالب · PDF · 5000 SDG)
+            - ✅ قسم المسابقات (كويز + لوحة متصدرين + مشاركة)
+            - ✅ اتحاد الطلاب داخل قسم النقابات
+            - ✅ دعم iOS PWA مع شاشات بداية لجميع موديلات iPhone
+            - ✅ Service Worker + Offline support
+          files: |
+            hasahisawi-v${{ needs.build-android.outputs.version }}.apk
+            hasahisawi-v${{ needs.build-android.outputs.version }}.aab
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

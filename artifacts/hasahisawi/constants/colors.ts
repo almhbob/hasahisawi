@@ -1,35 +1,33 @@
 // ═══════════════════════════════════════════════════════════════
-// نظام ألوان حصاحيصاوي — Design System v2 (World-class)
+// نظام ألوان حصاحيصاوي — Design System v3 (Scientific Edition)
 // ───────────────────────────────────────────────────────────────
-// مستوحى من أفضل أنظمة التصميم العالمية:
-// Material 3 · Apple HIG · Linear · Vercel · Notion
+// مستوحى من: NASA · WHO · IBM Carbon · Academic Research UIs
 // ───────────────────────────────────────────────────────────────
-// • Palette أساسي: أخضر زمردي + ذهبي عنبري (هوية الشعار)
+// • Palette أساسي: أزرق ملكي علمي + ذهبي أكاديمي (هوية رسمية)
 // • Section palette: لون مميز لكل قسم وخدمة (semantic)
-// • Surface tokens: 4 مستويات عمق للبطاقات
-// • Gradients: تدرجات مُعدّة مسبقاً لكل قسم
+// • Surface tokens: 4 مستويات عمق — كحلي ليلي عميق
+// • Gradients: تدرجات علمية مُعدّة مسبقاً
 // ═══════════════════════════════════════════════════════════════
 
 // ╔═══════════ 1. الألوان الجوهرية (Brand) ═══════════╗
-const primary      = "#22C55E";   // أخضر زمردي حيوي — أنقى وأكثر إشراقاً
-const primaryDeep  = "#15803D";   // أعمق للحدود والظلال
-const primaryDim   = "#16A34A";   // متوسط للحالات النشطة
-const primaryLight = "#86EFAC";   // فاتح للتلميحات
-const primarySoft  = "#DCFCE7";   // ناعم للخلفيات
-const primaryGlow  = "rgba(34,197,94,0.18)"; // توهج
+const primary      = "#2563EB";   // أزرق ملكي علمي — رصين واحترافي
+const primaryDeep  = "#1D4ED8";   // أعمق للحدود والظلال
+const primaryDim   = "#1E40AF";   // متوسط للحالات النشطة
+const primaryLight = "#93C5FD";   // فاتح للتلميحات
+const primarySoft  = "#DBEAFE";   // ناعم للخلفيات
+const primaryGlow  = "rgba(37,99,235,0.18)"; // توهج أزرق
 
-const accent       = "#F59E0B";   // ذهبي عنبري دافئ
+const accent       = "#F0A500";   // ذهبي أكاديمي راقٍ
 const accentDeep   = "#B45309";   // أعمق للظلال
 const accentDim    = "#D97706";   // متوسط
 const accentLight  = "#FCD34D";   // فاتح
-const accentGlow   = "rgba(245,158,11,0.18)";
+const accentGlow   = "rgba(240,165,0,0.18)";
 
 // ╔═══════════ 2. ألوان القطاعات (Section Palette) ═══════════╗
-// كل قسم له لونه الدلالي العالمي
 const SECTIONS = {
   // ── الصحة والطوارئ ──
   medical:      { primary: "#EF4444", deep: "#B91C1C", light: "#FCA5A5", soft: "#FEE2E2", grad: ["#EF4444", "#DC2626"] }, // أحمر طبي
-  emergency:    { primary: "#DC2626", deep: "#991B1B", light: "#FCA5A5", soft: "#FEE2E2", grad: ["#DC2626", "#7F1D1D"] }, // أحمر طوارئ داكن
+  emergency:    { primary: "#DC2626", deep: "#991B1B", light: "#FCA5A5", soft: "#FEE2E2", grad: ["#DC2626", "#7F1D1D"] }, // أحمر طوارئ
   missing:      { primary: "#F97316", deep: "#C2410C", light: "#FDBA74", soft: "#FFEDD5", grad: ["#F97316", "#EA580C"] }, // برتقالي تنبيهي
   reports:      { primary: "#F43F5E", deep: "#BE123C", light: "#FDA4AF", soft: "#FFE4E6", grad: ["#F43F5E", "#E11D48"] }, // وردي تحذيري
   women:        { primary: "#EC4899", deep: "#BE185D", light: "#F9A8D4", soft: "#FCE7F3", grad: ["#EC4899", "#DB2777"] }, // وردي راقٍ
@@ -73,13 +71,13 @@ const SECTIONS = {
   partnership:  { primary: "#FFD700", deep: "#B45309", light: "#FDE047", soft: "#FEF9C3", grad: ["#FFD700", "#F0C040"] }, // ذهبي شراكة
 
   // ── الاتصالات ──
-  telecom:      { primary: "#0EA5E9", deep: "#0369A1", light: "#7DD3FC", soft: "#E0F2FE", grad: ["#0EA5E9", "#2563EB"] }, // أزرق تقني اتصالات
+  telecom:      { primary: "#0EA5E9", deep: "#0369A1", light: "#7DD3FC", soft: "#E0F2FE", grad: ["#0EA5E9", "#2563EB"] }, // أزرق تقني
 } as const;
 
 export type SectionKey = keyof typeof SECTIONS;
 
 // ╔═══════════ 3. ألوان ثانوية متناسقة ═══════════╗
-const cyber       = "#06B6D4";   // أزرق سماوي
+const cyber       = "#06B6D4";   // أزرق سماوي تقني
 const violet      = "#8B5CF6";   // بنفسجي
 const teal        = "#14B8A6";   // تيل
 const indigo      = "#6366F1";   // إنديغو
@@ -87,32 +85,32 @@ const rose        = "#F43F5E";   // وردي
 const amber       = "#F59E0B";   // عنبري
 
 // ╔═══════════ 4. الخلفيات (Surface tokens) ═══════════╗
-// 4 مستويات عمق للبطاقات — Material 3 inspired
-const bg              = "#0A0F0C";   // الأعمق — خلفية الشاشة
-const bgDeep          = "#06090A";   // أعمق للزوايا والـ overlays
-const surface1        = "#0F1814";   // surface مرتفع +1
-const surface2        = "#15211B";   // surface مرتفع +2 (بطاقة عادية)
-const surface3        = "#1B2A23";   // surface مرتفع +3 (بطاقة بارزة)
-const surface4        = "#22332B";   // surface مرتفع +4 (modal/dialog)
+// 4 مستويات عمق — كحلي ليلي عميق (تصميم علمي)
+const bg              = "#020C1B";   // الأعمق — كحلي ليلي
+const bgDeep          = "#010810";   // أعمق للزوايا والـ overlays
+const surface1        = "#061525";   // surface مرتفع +1
+const surface2        = "#0A1F36";   // surface مرتفع +2 (بطاقة عادية)
+const surface3        = "#0D2846";   // surface مرتفع +3 (بطاقة بارزة)
+const surface4        = "#113355";   // surface مرتفع +4 (modal/dialog)
 const cardBg          = surface2;
 const cardBgElevated  = surface3;
-const glassCard       = "rgba(34,197,94,0.06)";
-const overlay         = "rgba(0,0,0,0.65)";
+const glassCard       = "rgba(37,99,235,0.07)";
+const overlay         = "rgba(0,0,0,0.70)";
 
 // ╔═══════════ 5. النصوص ═══════════╗
-const textPrimary    = "#F0FDF4";   // أبيض دافئ — للعناوين الرئيسية
-const textSecondary  = "#A7F3D0";   // ثانوي مقروء
-const textMuted      = "#6EE7B7";   // باهت — للتفاصيل
-const textSubtle     = "#4ADE80";   // أكثر بهتاناً
-const textDisabled   = "#3F6B54";   // غير فعّال
+const textPrimary    = "#F0F9FF";   // أبيض مائل للأزرق — للعناوين الرئيسية
+const textSecondary  = "#BAE6FD";   // ثانوي سماوي خفيف
+const textMuted      = "#7DD3FC";   // باهت سماوي — للتفاصيل
+const textSubtle     = "#38BDF8";   // أكثر بهتاناً
+const textDisabled   = "#1E4E78";   // غير فعّال
 
 // ╔═══════════ 6. الحدود والفواصل ═══════════╗
-const divider        = "#1F3329";
-const dividerSoft    = "#14211A";
-const borderGlow     = "rgba(34,197,94,0.18)";
-const borderGoldGlow = "rgba(245,158,11,0.22)";
+const divider        = "#0F2A42";
+const dividerSoft    = "#081829";
+const borderGlow     = "rgba(37,99,235,0.20)";
+const borderGoldGlow = "rgba(240,165,0,0.22)";
 const borderSubtle   = "rgba(255,255,255,0.06)";
-const borderStrong   = "rgba(34,197,94,0.35)";
+const borderStrong   = "rgba(37,99,235,0.38)";
 
 // ╔═══════════ 7. حالات النظام (Semantic) ═══════════╗
 const success     = "#22C55E";
@@ -127,15 +125,15 @@ const infoSoft    = "rgba(14,165,233,0.15)";
 // ╔═══════════ 8. التدرجات الجاهزة ═══════════╗
 const gradients = {
   brand:      [primary, primaryDeep] as [string, string],
-  brandSoft:  [primary + "20", primaryDeep + "10"] as [string, string],
+  brandSoft:  [primary + "22", primaryDeep + "10"] as [string, string],
   gold:       [accent, accentDeep] as [string, string],
   goldShine:  ["#FFD700", "#F0C040", accentDim] as [string, string, string],
-  hero:       ["#22C55E", "#15803D", "#0A5C44"] as [string, string, string],
-  dark:       ["#1E293B", "#0F172A", "#020617"] as [string, string, string],
+  hero:       ["#2563EB", "#1D4ED8", "#030F2B"] as [string, string, string],
+  dark:       ["#0A1929", "#061525", "#020C1B"] as [string, string, string],
   surface:    [surface3, surface2] as [string, string],
   glass:      ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.01)"] as [string, string],
   sunset:     ["#F59E0B", "#EF4444", "#EC4899"] as [string, string, string],
-  ocean:      ["#06B6D4", "#0EA5E9", "#3B82F6"] as [string, string, string],
+  ocean:      ["#06B6D4", "#2563EB", "#4F46E5"] as [string, string, string],
 } as const;
 
 // ╔═══════════ 9. Helper: lookup section colors ═══════════╗

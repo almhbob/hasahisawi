@@ -266,6 +266,7 @@ function StudentUnionTab() {
 
 export default function UnionsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, token } = useAuth();
   const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my" | "student">("unions");
 

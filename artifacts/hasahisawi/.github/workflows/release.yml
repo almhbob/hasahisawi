@@ -7,11 +7,19 @@ on:
         description: 'Version tag (e.g. v6.2.0)'
         required: true
         default: 'v6.2.0'
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
 
 permissions:
   contents: write
   pages: write
   id-token: write
+
+env:
+  RELEASE_VERSION: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'v6.2.0' }}
 
 jobs:
   # ─── 1. Build Android APK ───────────────────────────────────────────────────
@@ -60,13 +68,14 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: "false"
 
       - id: find
         name: Locate APK
         run: |
           path=$(find . -name "*.apk" | head -1)
-          cp "$path" hasahisawi-${{ github.event.inputs.version }}.apk
-          echo "path=hasahisawi-${{ github.event.inputs.version }}.apk" >> $GITHUB_OUTPUT
+          cp "$path" hasahisawi-${{ env.RELEASE_VERSION }}.apk
+          echo "path=hasahisawi-${{ env.RELEASE_VERSION }}.apk" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
@@ -117,13 +126,14 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: "false"
 
       - id: find
         name: Locate AAB
         run: |
           path=$(find . -name "*.aab" | head -1)
-          cp "$path" hasahisawi-${{ github.event.inputs.version }}.aab
-          echo "path=hasahisawi-${{ github.event.inputs.version }}.aab" >> $GITHUB_OUTPUT
+          cp "$path" hasahisawi-${{ env.RELEASE_VERSION }}.aab
+          echo "path=hasahisawi-${{ env.RELEASE_VERSION }}.aab" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
@@ -161,6 +171,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "133656291161"
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: "false"
 
       - name: Add PWA assets
         run: |
@@ -198,10 +209,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: "حصاحيصاوي ${{ github.event.inputs.version }}"
+          tag_name: ${{ env.RELEASE_VERSION }}
+          name: "حصاحيصاوي ${{ env.RELEASE_VERSION }}"
           body: |
-            ## حصاحيصاوي — الإصدار ${{ github.event.inputs.version }}
+            ## حصاحيصاوي — الإصدار ${{ env.RELEASE_VERSION }}
 
             ### روابط التحميل المباشر
             | النسخة | الملف | الاستخدام |
@@ -221,8 +232,8 @@ jobs:
             - ✅ دعم OTP لاسترداد كلمة المرور
             - ✅ نظام الشراكات الخارجية والتواصل والمواعيد
           files: |
-            hasahisawi-${{ github.event.inputs.version }}.apk
-            hasahisawi-${{ github.event.inputs.version }}.aab
+            hasahisawi-${{ env.RELEASE_VERSION }}.apk
+            hasahisawi-${{ env.RELEASE_VERSION }}.aab
           draft: false
           prerelease: false
         env:

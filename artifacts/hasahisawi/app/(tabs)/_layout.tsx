@@ -47,8 +47,8 @@ type TabItem = {
 const TAB_ITEMS: TabItem[] = [
   { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primary },
   { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: "#818CF8"       },
-  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#3E9CBF"       },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: "#F97316" },
+  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#38BDF8"       },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: "#F0A500" },
 ];
 
 // ── زر FAB مع نبض وتلميح أول مرة ────────────────────────────────
@@ -115,7 +115,7 @@ function FabMenuButton({ open }: { open: () => void }) {
 
       <Animated.View style={fabAnimStyle}>
         <LinearGradient
-          colors={[Colors.primary + "EE", "#16A34A"]}
+          colors={[Colors.primary + "EE", Colors.primaryDeep]}
           start={{ x: 0.2, y: 0 }}
           end={{ x: 0.8, y: 1 }}
           style={styles.fabGradient}
@@ -154,13 +154,13 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
 
         {/* تدرج الخلفية */}
         <LinearGradient
-          colors={["rgba(10,20,14,0.97)", "rgba(5,10,7,0.99)"]}
+          colors={["rgba(4,14,32,0.97)", "rgba(2,10,24,0.99)"]}
           style={StyleSheet.absoluteFill}
         />
 
         {/* خط علوي متدرج */}
         <LinearGradient
-          colors={["transparent", "rgba(34,197,94,0.35)", "transparent"]}
+          colors={["transparent", "rgba(37,99,235,0.45)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.topGradientLine}
@@ -190,7 +190,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#5A8A6A"}
+                  color={focused ? item.color : "#4A6A8C"}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>
@@ -236,7 +236,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#5A8A6A"}
+                  color={focused ? item.color : "#4A6A8C"}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(5,10,7,0.96)",
+    backgroundColor: "rgba(2,10,24,0.96)",
     borderTopWidth: 0,
     paddingTop: 8,
   },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 10,
-    color: "rgba(90,138,106,0.85)",
+    color: "rgba(74,106,140,0.85)",
   },
   activeBar: {
     position: "absolute",
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: "rgba(5,10,8,0.97)",
+    borderColor: "rgba(2,10,24,0.97)",
   },
   tabBadgeText: {
     fontFamily: "Cairo_700Bold",

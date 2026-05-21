@@ -297,42 +297,68 @@ export default function LoginScreen() {
     }, 1000);
   };
 
+  const proceedRegisterDirect = async () => {
+    setLoading(true);
+    try {
+      const id = identifier.trim();
+      const isEmail = useEmail || id.includes("@");
+      const nid = nationalId.trim().replace(/\s+/g, "");
+      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+      promptEnableBiometrics(id);
+    } catch (regErr: any) {
+      setError(regErr?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+
   const handleSendOtp = async () => {
     const err = validate();
     if (err) { setError(err); return; }
     setOtpSending(true);
     setError("");
+    setDevOtp(null);
     try {
-      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim() }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+      if (data.dev_otp) setDevOtp(data.dev_otp);
       setOtpCode("");
       setOtpError("");
       setOtpStep(true);
       startOtpCountdown();
       setTimeout(() => otpInputRef.current?.focus(), 300);
     } catch (e: any) {
-      setError(e.message || "فشل إنشاء الحساب");
+      if (e.message === "_otp_unavailable") {
+        await proceedRegisterDirect();
+      } else {
+        setError(e.message || "فشل إرسال رمز التحقق");
+      }
     }
     setOtpSending(false);
   };
 
   const handleResendOtp = async () => {
-    if (otpCountdown > 240) return; // لا تُعيد قبل 60 ثانية من الإرسال
+    if (otpCountdown > 240) return;
     setOtpSending(true);
     setOtpError("");
+    setDevOtp(null);
     try {
-      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "فشل الإعادة");
+      if (data.dev_otp) setDevOtp(data.dev_otp);
       setOtpCode("");
       startOtpCountdown();
     } catch (e: any) {
@@ -346,10 +372,10 @@ export default function LoginScreen() {
     setOtpVerifying(true);
     setOtpError("");
     try {
-      const res = await fetch(`${getApiUrl()}/auth/verify-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode, type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
@@ -405,9 +431,9 @@ export default function LoginScreen() {
         {/* طبقة تدرج داكنة */}
         <LinearGradient
           colors={[
-            "rgba(9,15,12,0.25)",
-            "rgba(13,26,18,0.50)",
-            "rgba(9,15,12,0.88)",
+            "rgba(2,12,27,0.20)",
+            "rgba(37,99,235,0.12)",
+            "rgba(2,12,27,0.88)",
             Colors.bg,
           ]}
           locations={[0, 0.35, 0.72, 1]}
@@ -833,6 +859,22 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
+          {/* زر QR — تسجيل دخول عبر الجوال (يظهر على الويب/كمبيوتر) */}
+          {mode === "login" && (
+            <TouchableOpacity
+              style={styles.qrLoginBtn}
+              onPress={() => router.push("/qr-web-login" as any)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.qrLoginTitle}>تسجيل الدخول عبر الجوال</Text>
+                <Text style={styles.qrLoginSub}>امسح رمز QR بتطبيق الجوال</Text>
+              </View>
+              <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+
           {/* فاصل */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -878,6 +920,21 @@ export default function LoginScreen() {
                 {identifier}
               </Text>
             </Text>
+
+            {/* رمز المطور — يظهر فقط في بيئة التطوير عند غياب SMS */}
+            {devOtp ? (
+              <Pressable
+                style={{ backgroundColor: "rgba(37,99,235,0.12)", borderWidth: 1, borderColor: "rgba(37,99,235,0.3)", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, marginBottom: 8 }}
+                onPress={() => setOtpCode(devOtp)}
+              >
+                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "center" }}>
+                  🔧 وضع التطوير — الرمز: <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{devOtp}</Text>
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 10, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 2 }}>
+                  (اضغط لتعبئة الرمز تلقائياً)
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* عداد تنازلي */}
             <View style={otpS.timerRow}>
@@ -1220,6 +1277,21 @@ const styles = StyleSheet.create({
   dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   /* Guest */
+  qrLoginBtn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    backgroundColor: "rgba(37,99,235,0.08)", borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 16,
+    borderWidth: 1.5, borderColor: "rgba(37,99,235,0.25)",
+    marginBottom: 10,
+  },
+  qrLoginTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  qrLoginSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary,
+    marginTop: 2, textAlign: "right",
+  },
   guestBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
     backgroundColor: Colors.bg, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16,
