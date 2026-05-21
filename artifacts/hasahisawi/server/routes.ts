@@ -2494,7 +2494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: process.env.EMAIL_FROM || "حصاحيصاوي <noreply@hasahisawi.app>",
+              from: process.env.EMAIL_FROM || "onboarding@resend.dev",
               to: [identifier],
               subject: "رمز التحقق — حصاحيصاوي",
               html: `
