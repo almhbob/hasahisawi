@@ -1,4 +1,4 @@
-name: حصاحيصاوي v6.1.0 — Release
+name: حصاحيصاوي v6.2.0 — Release
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   # ─── Build APK + AAB ───────────────────────────────────────────
   build-android:
-    name: Build APK + AAB (v6.1.0)
+    name: Build APK + AAB (v6.2.0)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/define-app-requirements-638Qf
+          ref: master
 
       - uses: actions/setup-java@v4
         with:
@@ -59,6 +59,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
           EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_DISABLE_OTP=true
           EOF
 
       - name: Expo prebuild
@@ -73,6 +74,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_DISABLE_OTP: 'true'
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
       - name: Decode keystore
@@ -137,7 +139,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/define-app-requirements-638Qf
+          ref: master
 
       - uses: pnpm/action-setup@v4
         with:
@@ -161,6 +163,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: 'true'
 
       - name: Add PWA files
         working-directory: artifacts/hasahisawi
@@ -217,11 +220,12 @@ jobs:
             | **ويب / iPhone** | https://almhbob.github.io/hasahisawi/ |
 
             ### ميزات هذا الإصدار
+            - ✅ بوابة الكوادر الطبية (طبيب · معمل · صيدلية · تمريض)
             - ✅ منشئ السيرة الذاتية (4 قوالب · PDF · 5000 SDG)
-            - ✅ قسم المسابقات (كويز + لوحة متصدرين + مشاركة)
             - ✅ اتحاد الطلاب داخل قسم النقابات
             - ✅ دعم iOS PWA مع شاشات بداية لجميع موديلات iPhone
             - ✅ Service Worker + Offline support
+            - ✅ تحسينات على نظام المصادقة والأداء
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
