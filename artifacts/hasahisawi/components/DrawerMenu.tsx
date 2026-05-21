@@ -73,12 +73,6 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    label: "مسابقات وتحديات",
-    items: [
-      { title: "المسابقات", icon: "trophy-outline", route: "/(tabs)/competitions", color: "#7C3AED" },
-    ],
-  },
-  {
     label: "اقتصاد وترفيه",
     items: [
       { title: "السوق",          icon: "storefront-outline",    route: "/(tabs)/market",      color: Colors.accent  },
