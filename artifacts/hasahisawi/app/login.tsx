@@ -312,44 +312,53 @@ export default function LoginScreen() {
     }
   };
 
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+
   const handleSendOtp = async () => {
     const err = validate();
     if (err) { setError(err); return; }
     setOtpSending(true);
     setError("");
+    setDevOtp(null);
     try {
-      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim() }),
       });
       let data: any = {};
       try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+      if (data.dev_otp) setDevOtp(data.dev_otp);
       setOtpCode("");
       setOtpError("");
       setOtpStep(true);
       startOtpCountdown();
       setTimeout(() => otpInputRef.current?.focus(), 300);
     } catch (e: any) {
-      // إذا كان الخطأ بسبب عدم توفر خدمة OTP → سجّل مباشرة
-      await proceedRegisterDirect();
+      if (e.message === "_otp_unavailable") {
+        await proceedRegisterDirect();
+      } else {
+        setError(e.message || "فشل إرسال رمز التحقق");
+      }
     }
     setOtpSending(false);
   };
 
   const handleResendOtp = async () => {
-    if (otpCountdown > 240) return; // لا تُعيد قبل 60 ثانية من الإرسال
+    if (otpCountdown > 240) return;
     setOtpSending(true);
     setOtpError("");
+    setDevOtp(null);
     try {
-      const res = await fetch(`${getApiUrl()}/auth/send-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "فشل الإعادة");
+      if (data.dev_otp) setDevOtp(data.dev_otp);
       setOtpCode("");
       startOtpCountdown();
     } catch (e: any) {
@@ -363,10 +372,10 @@ export default function LoginScreen() {
     setOtpVerifying(true);
     setOtpError("");
     try {
-      const res = await fetch(`${getApiUrl()}/auth/verify-otp`, {
+      const res = await fetch(`${getApiUrl()}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode, type: "register" }),
+        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
@@ -911,6 +920,21 @@ export default function LoginScreen() {
                 {identifier}
               </Text>
             </Text>
+
+            {/* رمز المطور — يظهر فقط في بيئة التطوير عند غياب SMS */}
+            {devOtp ? (
+              <Pressable
+                style={{ backgroundColor: "rgba(37,99,235,0.12)", borderWidth: 1, borderColor: "rgba(37,99,235,0.3)", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, marginBottom: 8 }}
+                onPress={() => setOtpCode(devOtp)}
+              >
+                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "center" }}>
+                  🔧 وضع التطوير — الرمز: <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{devOtp}</Text>
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 10, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 2 }}>
+                  (اضغط لتعبئة الرمز تلقائياً)
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* عداد تنازلي */}
             <View style={otpS.timerRow}>

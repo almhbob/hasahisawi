@@ -137,6 +137,21 @@ async function initDb() {
     ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
   `);
+  // OTP tokens table — create + migrate
+  await query(`
+    CREATE TABLE IF NOT EXISTS otp_tokens (
+      id SERIAL PRIMARY KEY,
+      phone VARCHAR(200) NOT NULL,
+      otp VARCHAR(255) NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`ALTER TABLE otp_tokens ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE otp_tokens ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
   // QR login sessions table
   await query(`
     CREATE TABLE IF NOT EXISTS qr_sessions (
@@ -2410,23 +2425,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
+  // ── POST /api/auth/send-registration-otp ─────────────────────────────────
+  // إرسال رمز OTP للتسجيل — مع Twilio SMS ومع Fallback للبيئة التطويرية
+  app.post("/api/auth/send-registration-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone_or_email } = req.body;
+      if (!phone_or_email) return res.status(400).json({ error: "رقم الهاتف أو البريد الإلكتروني مطلوب" });
+      const identifier = phone_or_email.trim();
+
+      // Rate limit: max 3 requests per identifier per 15 min
+      const recentR = await query(
+        "SELECT COUNT(*)::int AS cnt FROM otp_tokens WHERE phone=$1 AND created_at > NOW() - INTERVAL '15 minutes'",
+        [identifier]
+      );
+      if ((recentR.rows[0]?.cnt ?? 0) >= 3) {
+        return res.status(429).json({ error: "طلبات كثيرة، انتظر 15 دقيقة وحاول مجدداً" });
+      }
+
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      const otpHash = await bcrypt.hash(otp, 6);
+
+      await query("DELETE FROM otp_tokens WHERE phone=$1", [identifier]);
+      await query(
+        "INSERT INTO otp_tokens(phone, otp, expires_at, attempts) VALUES($1,$2,$3,0)",
+        [identifier, otpHash, expires]
+      );
+
+      let smsSent = false;
+      const isEmail = identifier.includes("@");
+
+      // ── Twilio SMS ──
+      if (!isEmail && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_FROM) {
+        try {
+          const rawPhone = identifier.replace(/^0/, "");
+          const toPhone = identifier.startsWith("+") ? identifier : `+249${rawPhone}`;
+          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+          const authHeader = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+          const body = new URLSearchParams({
+            To: toPhone,
+            From: process.env.TWILIO_PHONE_FROM,
+            Body: `رمز التحقق لـ حصاحيصاوي: ${otp}\nصالح 10 دقائق. لا تشاركه مع أحد.`,
+          });
+          const twilioRes = await fetch(twilioUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${authHeader}` },
+            body,
+          });
+          smsSent = twilioRes.status < 300;
+        } catch (smsErr) {
+          console.error("[OTP] Twilio error:", smsErr);
+        }
+      }
+
+      const isDev = process.env.NODE_ENV !== "production";
+      res.json({
+        success: true,
+        sent: smsSent,
+        // في بيئة التطوير فقط: أعد الـ OTP للاختبار
+        ...(isDev && !smsSent ? { dev_otp: otp } : {}),
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/verify-otp ─────────────────────────────────────────────
+  app.post("/api/auth/verify-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone_or_email, code } = req.body;
+      if (!phone_or_email || !code) return res.status(400).json({ error: "بيانات ناقصة" });
+      const identifier = phone_or_email.trim();
+
+      const r = await query(
+        "SELECT otp, expires_at, attempts FROM otp_tokens WHERE phone=$1",
+        [identifier]
+      );
+      if (!r.rows[0]) return res.status(400).json({ error: "لم يتم إرسال رمز لهذا الرقم أو انتهت صلاحيته" });
+
+      const { otp: storedHash, expires_at, attempts } = r.rows[0];
+
+      if (new Date(expires_at) < new Date()) {
+        await query("DELETE FROM otp_tokens WHERE phone=$1", [identifier]);
+        return res.status(400).json({ error: "انتهت صلاحية الرمز، اطلب رمزاً جديداً" });
+      }
+      if ((attempts ?? 0) >= 5) {
+        await query("DELETE FROM otp_tokens WHERE phone=$1", [identifier]);
+        return res.status(429).json({ error: "تجاوزت عدد المحاولات المسموح بها، اطلب رمزاً جديداً" });
+      }
+
+      await query("UPDATE otp_tokens SET attempts = attempts + 1 WHERE phone=$1", [identifier]);
+
+      const valid = await bcrypt.compare(String(code), storedHash);
+      if (!valid) {
+        const remaining = 4 - (attempts ?? 0);
+        return res.status(400).json({ error: `الرمز غير صحيح، متبقي ${remaining} محاولات` });
+      }
+
+      await query("DELETE FROM otp_tokens WHERE phone=$1", [identifier]);
+      res.json({ valid: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/send-otp (legacy — password reset only) ───────────────
   app.post("/api/auth/send-otp", async (req: Request, res: Response) => {
     try {
       const { phone } = req.body;
       if (!phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
       const r = await query("SELECT id FROM users WHERE phone=$1", [phone]);
       if (!r.rows[0]) return res.status(404).json({ error: "الرقم غير مسجل" });
-      // Generate 6-digit OTP and store temporarily
       const otp = String(Math.floor(100000 + Math.random() * 900000));
-      const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
-        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
-      )`);
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      const otpHash = await bcrypt.hash(otp, 6);
       await query("DELETE FROM otp_tokens WHERE phone=$1", [phone]);
-      await query("INSERT INTO otp_tokens(phone,otp,expires_at) VALUES($1,$2,$3)", [phone, otp, expires]);
-      // In production would send SMS. Return for dev/testing.
-      res.json({ success: true, dev_otp: otp });
+      await query("INSERT INTO otp_tokens(phone,otp,expires_at) VALUES($1,$2,$3)", [phone, otpHash, expires]);
+
+      let smsSent = false;
+      if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_FROM) {
+        try {
+          const rawPhone = phone.replace(/^0/, "");
+          const toPhone = phone.startsWith("+") ? phone : `+249${rawPhone}`;
+          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+          const authHeader = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+          const body = new URLSearchParams({
+            To: toPhone, From: process.env.TWILIO_PHONE_FROM,
+            Body: `رمز استعادة كلمة المرور لـ حصاحيصاوي: ${otp}\nصالح 10 دقائق.`,
+          });
+          const twilioRes = await fetch(twilioUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${authHeader}` },
+            body,
+          });
+          smsSent = twilioRes.status < 300;
+        } catch {}
+      }
+      const isDev = process.env.NODE_ENV !== "production";
+      res.json({ success: true, sent: smsSent, ...(isDev && !smsSent ? { dev_otp: otp } : {}) });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
@@ -2434,12 +2572,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { phone, otp } = req.body;
       if (!phone || !otp) return res.status(400).json({ error: "بيانات ناقصة" });
-      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
-        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
-      )`);
-      const r = await query("SELECT * FROM otp_tokens WHERE phone=$1 AND otp=$2 AND used=FALSE AND expires_at>NOW()", [phone, otp]);
+      const r = await query("SELECT otp, expires_at FROM otp_tokens WHERE phone=$1 AND expires_at>NOW()", [phone]);
       if (!r.rows[0]) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
+      const valid = await bcrypt.compare(String(otp), r.rows[0].otp);
+      if (!valid) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
       res.json({ valid: true });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -2448,15 +2584,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { phone, otp, new_password } = req.body;
       if (!phone || !otp || !new_password) return res.status(400).json({ error: "بيانات ناقصة" });
-      await query(`CREATE TABLE IF NOT EXISTS otp_tokens (
-        id SERIAL PRIMARY KEY, phone VARCHAR(20) NOT NULL, otp VARCHAR(10) NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL, used BOOLEAN DEFAULT FALSE
-      )`);
-      const tkn = await query("SELECT * FROM otp_tokens WHERE phone=$1 AND otp=$2 AND used=FALSE AND expires_at>NOW()", [phone, otp]);
+      const tkn = await query("SELECT otp, expires_at FROM otp_tokens WHERE phone=$1 AND expires_at>NOW()", [phone]);
       if (!tkn.rows[0]) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
+      const valid = await bcrypt.compare(String(otp), tkn.rows[0].otp);
+      if (!valid) return res.status(400).json({ error: "الرمز غير صحيح أو منتهي الصلاحية" });
       const hash = await bcrypt.hash(new_password, 10);
       await query("UPDATE users SET password_hash=$1 WHERE phone=$2", [hash, phone]);
-      await query("UPDATE otp_tokens SET used=TRUE WHERE phone=$1", [phone]);
+      await query("DELETE FROM otp_tokens WHERE phone=$1", [phone]);
       res.json({ success: true });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
