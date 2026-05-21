@@ -2807,6 +2807,251 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/medical/admissions/:admId/companions/:cmpId/exit-pass", exitPassHandler);
   app.patch("/api/medical/admissions/:admId/companions/:cmpId/exit-pass", exitPassHandler);
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── بوابات الطاقم الطبي (طبيب / معمل / صيدلاني) ──────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function ensureMedicalStaffTables() {
+    await query(`CREATE TABLE IF NOT EXISTS medical_staff (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      staff_type VARCHAR(20) NOT NULL CHECK (staff_type IN ('doctor','lab','pharmacist','nurse')),
+      full_name VARCHAR(200) NOT NULL,
+      specialty VARCHAR(200),
+      license_number VARCHAR(100),
+      facility VARCHAR(200),
+      phone VARCHAR(30),
+      is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id)
+    )`);
+    await query(`ALTER TABLE medical_staff ADD COLUMN IF NOT EXISTS specialty VARCHAR(200)`);
+    await query(`ALTER TABLE medical_staff ADD COLUMN IF NOT EXISTS license_number VARCHAR(100)`);
+    await query(`ALTER TABLE medical_staff ADD COLUMN IF NOT EXISTS facility VARCHAR(200)`);
+    await query(`ALTER TABLE medical_staff ADD COLUMN IF NOT EXISTS phone VARCHAR(30)`);
+    await query(`CREATE TABLE IF NOT EXISTS lab_orders (
+      id SERIAL PRIMARY KEY,
+      patient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      doctor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      doctor_name VARCHAR(200),
+      tests TEXT NOT NULL,
+      notes TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      result_id INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES users(id)`);
+    await query(`ALTER TABLE pharmacy_orders ADD COLUMN IF NOT EXISTS prescription_id INTEGER`);
+    await query(`ALTER TABLE pharmacy_orders ADD COLUMN IF NOT EXISTS handled_by INTEGER REFERENCES users(id)`);
+    await query(`ALTER TABLE pharmacy_orders ADD COLUMN IF NOT EXISTS handled_at TIMESTAMPTZ`);
+    await query(`ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS order_id INTEGER REFERENCES lab_orders(id)`);
+    await query(`ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS lab_staff_id INTEGER REFERENCES users(id)`);
+    await query(`ALTER TABLE hospital_admissions ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES users(id)`);
+  }
+
+  // ── POST /api/medical/staff/register ─────────────────────────────────────
+  app.post("/api/medical/staff/register", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const { staff_type, full_name, specialty, license_number, facility, phone } = req.body;
+      if (!staff_type || !full_name) return res.status(400).json({ error: "النوع والاسم مطلوبان" });
+      const r = await query(
+        `INSERT INTO medical_staff(user_id,staff_type,full_name,specialty,license_number,facility,phone)
+         VALUES($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT(user_id) DO UPDATE SET staff_type=$2,full_name=$3,specialty=$4,license_number=$5,facility=$6,phone=$7
+         RETURNING *`,
+        [user.id, staff_type, full_name, specialty||null, license_number||null, facility||null, phone||null]
+      );
+      res.json({ staff: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/staff/profile ────────────────────────────────────────
+  app.get("/api/medical/staff/profile", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const r = await query("SELECT * FROM medical_staff WHERE user_id=$1", [user.id]);
+      if (!r.rows[0]) return res.status(404).json({ error: "لم يتم التسجيل كطاقم طبي" });
+      res.json({ staff: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── POST /api/medical/staff/prescriptions — طبيب يكتب روشتة ──────────────
+  app.post("/api/medical/staff/prescriptions", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='doctor'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة للأطباء فقط" });
+      const { patient_id, medication_name, dosage, frequency, duration, notes, facility } = req.body;
+      if (!patient_id || !medication_name) return res.status(400).json({ error: "بيانات ناقصة" });
+      const r = await query(
+        `INSERT INTO prescriptions(user_id,medication_name,dosage,frequency,duration,doctor,doctor_id,facility,notes,prescribed_date)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW()::date::text) RETURNING *`,
+        [patient_id, medication_name, dosage||null, frequency||null, duration||null,
+         staff.rows[0].full_name, user.id, facility||staff.rows[0].facility, notes||null]
+      );
+      res.json({ prescription: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/staff/prescriptions — طبيب يرى روشتاته ──────────────
+  app.get("/api/medical/staff/prescriptions", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const r = await query(
+        `SELECT p.*, u.name AS patient_name, u.phone AS patient_phone
+         FROM prescriptions p LEFT JOIN users u ON u.id=p.user_id
+         WHERE p.doctor_id=$1 ORDER BY p.created_at DESC LIMIT 100`,
+        [user.id]
+      );
+      res.json({ prescriptions: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── POST /api/medical/staff/lab-orders — طبيب يطلب تحليل ─────────────────
+  app.post("/api/medical/staff/lab-orders", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='doctor'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة للأطباء فقط" });
+      const { patient_id, tests, notes } = req.body;
+      if (!patient_id || !tests) return res.status(400).json({ error: "بيانات ناقصة" });
+      const r = await query(
+        "INSERT INTO lab_orders(patient_id,doctor_id,doctor_name,tests,notes) VALUES($1,$2,$3,$4,$5) RETURNING *",
+        [patient_id, user.id, staff.rows[0].full_name, tests, notes||null]
+      );
+      res.json({ order: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/lab/orders — معمل يرى الطلبات ─────────────────────
+  app.get("/api/medical/lab/orders", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='lab'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة لموظفي المعامل فقط" });
+      const r = await query(
+        `SELECT lo.*, u.name AS patient_name, u.phone AS patient_phone
+         FROM lab_orders lo LEFT JOIN users u ON u.id=lo.patient_id
+         WHERE lo.status='pending' ORDER BY lo.created_at ASC`
+      );
+      res.json({ orders: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── POST /api/medical/lab/results — معمل يرفع النتائج ───────────────────
+  app.post("/api/medical/lab/results", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='lab'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة لموظفي المعامل فقط" });
+      const { order_id, patient_id, test_name, result, unit, reference_range, status, notes } = req.body;
+      if (!patient_id || !test_name || !result) return res.status(400).json({ error: "بيانات ناقصة" });
+      const r = await query(
+        `INSERT INTO lab_results(user_id,test_name,result,unit,reference_range,status,facility,doctor,notes,test_date,lab_staff_id,order_id)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW()::date::text,$10,$11) RETURNING *`,
+        [patient_id, test_name, result, unit||null, reference_range||null, status||'normal',
+         staff.rows[0].facility||null, staff.rows[0].full_name, notes||null, user.id, order_id||null]
+      );
+      if (order_id) {
+        await query("UPDATE lab_orders SET status='completed', result_id=$1 WHERE id=$2", [r.rows[0].id, order_id]);
+      }
+      res.json({ result: r.rows[0] });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/pharmacy/orders — صيدلاني يرى الطلبات ──────────────
+  app.get("/api/medical/pharmacy/orders", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='pharmacist'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة للصيادلة فقط" });
+      const { status } = req.query;
+      const where = status ? `WHERE po.status=$1` : `WHERE po.status IN ('pending','processing')`;
+      const params = status ? [status] : [];
+      const r = await query(
+        `SELECT po.*, u.name AS patient_name, u.phone AS patient_phone
+         FROM pharmacy_orders po LEFT JOIN users u ON u.id=po.user_id
+         ${where} ORDER BY po.created_at ASC`,
+        params
+      );
+      res.json({ orders: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── PATCH /api/medical/pharmacy/orders/:id/status — صيدلاني يحدث الحالة ─
+  app.patch("/api/medical/pharmacy/orders/:id/status", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='pharmacist'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة للصيادلة فقط" });
+      const { status } = req.body;
+      const allowed = ['pending','processing','ready','delivered','cancelled'];
+      if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      const r = await query(
+        "UPDATE pharmacy_orders SET status=$1, handled_by=$2, handled_at=NOW() WHERE id=$3 RETURNING *",
+        [status, user.id, req.params.id]
+      );
+      if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+      res.json({ order: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/staff/patients — طبيب يبحث عن مريض ────────────────
+  app.get("/api/medical/staff/patients", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "غير مصرح" });
+      const q = (req.query.q as string || "").trim();
+      if (!q || q.length < 3) return res.json({ patients: [] });
+      const r = await query(
+        `SELECT id, name, phone, gender, birth_date FROM users
+         WHERE (name ILIKE $1 OR phone ILIKE $1) AND role='user' LIMIT 20`,
+        [`%${q}%`]
+      );
+      res.json({ patients: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── GET /api/medical/staff/admissions — طبيب يرى التنويمات ──────────────
+  app.get("/api/medical/staff/admissions", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+      await ensureMedicalStaffTables();
+      const staff = await query("SELECT * FROM medical_staff WHERE user_id=$1 AND staff_type='doctor'", [user.id]);
+      if (!staff.rows[0]) return res.status(403).json({ error: "هذه البوابة للأطباء فقط" });
+      const r = await query(
+        `SELECT ha.*, u.name AS patient_name, u.phone AS patient_phone
+         FROM hospital_admissions ha LEFT JOIN users u ON u.id=ha.user_id
+         WHERE ha.doctor_id=$1 OR ha.status='active' ORDER BY ha.created_at DESC LIMIT 50`,
+        [user.id]
+      );
+      res.json({ admissions: r.rows });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
   // ── بوابة المؤسسات التعليمية ──────────────────────────────────────────────
   async function ensureInstTables() {
     await query(`CREATE TABLE IF NOT EXISTS institutions (

@@ -1027,6 +1027,7 @@ const PATIENT_SERVICES = [
   { title: "رحلتي الطبية",    sub: "مواعيد · فحوصات · روشتات · صيدلية", icon: "clipboard-pulse",    color: "#10B981", route: "/medical-patient-hub" },
   { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#6366F1", route: "/sick-leave" },
   { title: "التنويم والمرافق", sub: "متابعة التنويم وإدارة المرافقين",    icon: "bed-outline",           color: "#3B82F6", route: "/hospital-admission" },
+  { title: "بوابة الكوادر الطبية", sub: "طبيب · معمل · صيدلية · تمريض",  icon: "hospital-box-outline",  color: "#F59E0B", route: "/staff-portal" },
 ] as const;
 
 function PatientServicesTab() {
