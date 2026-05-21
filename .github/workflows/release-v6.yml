@@ -81,10 +81,19 @@ jobs:
           EXPO_PUBLIC_DISABLE_OTP: 'true'
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
-      - name: Decode keystore
+      - name: Setup keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
-            > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          KEYSTORE_DEST=artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
+          fi
+          if [ ! -s "$KEYSTORE_DEST" ]; then
+            echo "⚠️  KEYSTORE_BASE64 secret not set — using repo keystore (not for Play Store)"
+            cp artifacts/hasahisawi/release.keystore "$KEYSTORE_DEST"
+          fi
+          echo "Keystore size: $(wc -c < $KEYSTORE_DEST) bytes"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -99,13 +108,14 @@ jobs:
         working-directory: artifacts/hasahisawi/android
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
+            --stacktrace \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
             -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
