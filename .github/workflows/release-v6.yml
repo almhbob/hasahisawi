@@ -15,9 +15,9 @@ permissions:
   id-token: write
 
 jobs:
-  # ─── Build APK + AAB ───────────────────────────────────────────
+  # ─── Build APK + AAB (Android) ────────────────────────────────────
   build-android:
-    name: Build APK + AAB (v6.2.0)
+    name: Build APK + AAB (Android)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
@@ -138,9 +138,67 @@ jobs:
         if: always()
         run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
 
+  # ─── Build IPA (iOS) via EAS Build ───────────────────────────────
+  build-ios:
+    name: Build IPA (iOS — EAS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ secrets.EXPO_TOKEN != '' }}
+    outputs:
+      ipa_url: ${{ steps.eas.outputs.ipa_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS IPA
+        id: eas
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: 'true'
+        run: |
+          BUILD_JSON=$(eas build \
+            --platform ios \
+            --profile production-ios \
+            --non-interactive \
+            --json \
+            --no-wait 2>/dev/null || echo "[]")
+          IPA_URL=$(echo "$BUILD_JSON" | node -e "
+            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const b=Array.isArray(d)?d[0]:d;
+            console.log(b?.id ? 'https://expo.dev/accounts/almhbob2026/builds/'+b.id : '');
+          ")
+          echo "ipa_url=$IPA_URL" >> $GITHUB_OUTPUT
+          echo "EAS Build started: $IPA_URL"
+
   # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
   deploy-web:
-    name: Build + Deploy Web PWA
+    name: Build + Deploy Web PWA (iPhone PWA)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -185,14 +243,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git reset --hard origin/master
           rm -rf docs/
           mkdir -p docs
           cp -r artifacts/hasahisawi/dist/. docs/
           git add -f docs/
-          git diff --cached --quiet && echo "No changes" || git commit -m "deploy: web PWA v6.2.0 → docs/"
+          git diff --cached --quiet && echo "No changes to deploy" || \
+            git commit -m "deploy: web PWA v6.2.0 → docs/"
           git push origin master
 
-      - run: echo "✅ Live at https://almhbob.github.io/hasahisawi/"
+      - run: echo "✅ iPhone PWA live at https://almhbob.github.io/hasahisawi/"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
@@ -216,18 +277,22 @@ jobs:
           body: |
             ## حصاحيصاوي — v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})
 
-            | النسخة | الاستخدام |
-            |-------|-----------|
-            | **APK** ↓ أدناه | تثبيت مباشر على Android |
-            | **AAB** ↓ أدناه | رفع على Google Play |
-            | **ويب / iPhone** | https://almhbob.github.io/hasahisawi/ |
+            | المنصة | النسخة | الاستخدام |
+            |--------|--------|---------|
+            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
+            | **Android** | AAB ↓ | رفع على Google Play Store |
+            | **iPhone / iPad** | PWA | افتح الرابط في Safari ثم اضغط ↑ → "إضافة للشاشة الرئيسية" |
 
-            ### ميزات هذا الإصدار
+            ### رابط iPhone / iPad PWA
+            **https://almhbob.github.io/hasahisawi/**
+
+            ### ميزات v${{ needs.build-android.outputs.version }}
             - ✅ بوابة الكوادر الطبية (طبيب · معمل · صيدلية · تمريض)
             - ✅ منشئ السيرة الذاتية (4 قوالب · PDF · 5000 SDG)
             - ✅ اتحاد الطلاب داخل قسم النقابات
             - ✅ دعم iOS PWA مع شاشات بداية لجميع موديلات iPhone
-            - ✅ Service Worker + Offline support
+            - ✅ Service Worker + دعم بدون إنترنت
+            - ✅ إصلاح خطأ شركاء وكالات السفر
             - ✅ تحسينات على نظام المصادقة والأداء
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
