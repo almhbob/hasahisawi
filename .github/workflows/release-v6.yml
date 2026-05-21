@@ -4,10 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
-      - master
-    paths:
-      - '.release-trigger'
+      - release/v6
 
 permissions:
   contents: write
