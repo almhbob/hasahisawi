@@ -33,6 +33,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install Android SDK components
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;36.0.0" \
+            "platforms;android-36" \
+            "ndk;27.1.12297006" 2>&1 | tail -5
+          echo "NDK installed: $(ls $ANDROID_HOME/ndk/)"
+          echo "Build-tools installed: $(ls $ANDROID_HOME/build-tools/)"
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -88,6 +97,19 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-v6-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*') }}
           restore-keys: gradle-v6-
+
+      - name: Pre-build diagnostics
+        working-directory: artifacts/hasahisawi/android
+        run: |
+          echo "=== ANDROID_HOME: $ANDROID_HOME ==="
+          echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
+          echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
+          echo "=== Node module resolution from android/ ==="
+          node --print "require.resolve('react-native/package.json')" 2>&1 || echo "FAIL: react-native not found"
+          node --print "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })" 2>&1 || echo "FAIL: gradle-plugin not found"
+          echo "=== Keystore: $(ls -la app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
+          echo "=== Gradle version ==="
+          ./gradlew --version 2>&1 | tail -10
 
       - name: Build release APK + AAB
         working-directory: artifacts/hasahisawi/android
