@@ -11,7 +11,7 @@ expo-env.d.ts
 
 # Native
 ios/
-android/
+# android/ is committed (source only — build/ and .cxx/ excluded by android/.gitignore)
 *.orig.*
 *.jks
 *.p8

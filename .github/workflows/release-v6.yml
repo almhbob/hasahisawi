@@ -34,12 +34,10 @@ jobs:
           java-version: '17'
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Read version
@@ -54,10 +52,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Apply source patches
-        working-directory: artifacts/hasahisawi
-        run: pnpm run prebuild
-
       - name: Create .env
         working-directory: artifacts/hasahisawi
         run: |
@@ -71,36 +65,20 @@ jobs:
             'EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app' \
             'EXPO_PUBLIC_DISABLE_OTP=true' > .env
 
-      - name: Expo prebuild
-        working-directory: artifacts/hasahisawi
-        env:
-          EXPO_NO_GIT_STATUS: '1'
-          EXPO_NO_TELEMETRY: '1'
-        run: pnpm exec expo prebuild --platform android --clean --no-install
-
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
 
       - name: Setup keystore
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
-          KS_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
           if [ -n "$KEYSTORE_B64" ]; then
             printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
-            echo "✅ Keystore decoded from KEYSTORE_BASE64 secret"
+            echo "✅ Keystore from KEYSTORE_BASE64 secret ($(wc -c < $KEYSTORE_DEST) bytes)"
           else
-            echo "⚠️  KEYSTORE_BASE64 not set — using repo keystore (not for Play Store)"
-            cp artifacts/hasahisawi/release.keystore "$KEYSTORE_DEST"
+            echo "⚠️  KEYSTORE_BASE64 not set — build will use hardcoded signing config"
           fi
-          echo "Keystore size: $(wc -c < $KEYSTORE_DEST) bytes"
-          # Verify keystore is valid
-          keytool -list -keystore "$KEYSTORE_DEST" \
-            -storepass "${KS_PASSWORD:-Hasahisawi@2026#Secure}" \
-            -alias "${KS_ALIAS:-hasahisawi}" 2>&1 | grep -E "alias|SHA|Entry type" || true
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -162,12 +140,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - run: pnpm install --no-frozen-lockfile
