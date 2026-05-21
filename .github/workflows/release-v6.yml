@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - 'v6.*'
+    paths:
+      - '.release-trigger'
 
 permissions:
   contents: write
