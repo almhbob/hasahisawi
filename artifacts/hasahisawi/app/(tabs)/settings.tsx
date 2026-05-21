@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { PLATFORM } from "@/constants/platform";
 import type { LostItem } from "./missing";
@@ -1894,11 +1895,14 @@ export default function SettingsScreen() {
             {/* رأس البطاقة */}
             <View style={contactSty.headerRow}>
               <View style={contactSty.iconBox}>
-                <MaterialCommunityIcons name="headset" size={22} color={Colors.primary} />
+                <MaterialCommunityIcons name="headset" size={24} color={Colors.primary} />
               </View>
-              <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={{ flex: 1 }}>
                 <Text style={contactSty.title}>دعم تطبيق حصاحيصاوي</Text>
                 <Text style={contactSty.sub}>فريق الدعم جاهز — راسلنا عبر واتساب أعمال</Text>
+              </View>
+              <View style={{ backgroundColor: "#25D36620", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: "#25D36640" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#25D366" }}>متصل</Text>
               </View>
             </View>
 
@@ -2035,15 +2039,24 @@ export default function SettingsScreen() {
             onPress={() => router.push("/inst-portal")}
             activeOpacity={0.82}
           >
+            <LinearGradient
+              colors={[Colors.primary + "15", Colors.primary + "05"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
             <View style={instPortalSty.textCol}>
               <Text style={instPortalSty.title}>بوابة المؤسسات</Text>
               <Text style={instPortalSty.sub}>إدارة خدمات مؤسستك المعتمدة</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success }} />
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.success }}>متاحة للمؤسسات المسجّلة</Text>
+              </View>
             </View>
             <View style={instPortalSty.iconCol}>
               <View style={instPortalSty.iconBox}>
-                <MaterialCommunityIcons name="office-building-cog" size={26} color={Colors.primary} />
+                <MaterialCommunityIcons name="office-building-cog" size={28} color={Colors.primary} />
               </View>
-              <Ionicons name="arrow-back" size={16} color={Colors.textMuted} style={{ marginTop: 4 }} />
+              <Ionicons name="arrow-back" size={16} color={Colors.primary} style={{ marginTop: 6 }} />
             </View>
           </TouchableOpacity>
 
@@ -3625,136 +3638,152 @@ const instPortalSty = StyleSheet.create({
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.primary + "30",
-    padding: 14,
+    backgroundColor: Colors.surface2,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.primary + "40",
+    padding: 16,
     marginHorizontal: 0,
-    gap: 12,
+    gap: 14,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  textCol: { flex: 1, alignItems: "flex-end", gap: 3 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  textCol: { flex: 1, alignItems: "flex-end", gap: 4 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, letterSpacing: 0.3 },
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   iconCol: { alignItems: "center", gap: 4 },
   iconBox: {
-    width: 50, height: 50, borderRadius: 14,
+    width: 54, height: 54, borderRadius: 16,
     justifyContent: "center", alignItems: "center",
-    backgroundColor: Colors.primary + "15",
-    borderWidth: 1, borderColor: Colors.primary + "30",
+    backgroundColor: Colors.primary + "18",
+    borderWidth: 1.5, borderColor: Colors.primary + "45",
   },
 });
 
 const contactSty = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
+    backgroundColor: Colors.surface2,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.primary + "25",
-    padding: 16,
+    borderColor: Colors.primary + "30",
+    padding: 18,
     gap: 12,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 12,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   iconBox: {
-    width: 44, height: 44, borderRadius: 13,
+    width: 48, height: 48, borderRadius: 15,
     justifyContent: "center", alignItems: "center",
     backgroundColor: Colors.primary + "18",
-    borderWidth: 1, borderColor: Colors.primary + "30",
+    borderWidth: 1.5, borderColor: Colors.primary + "40",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.3 },
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   // أزرار الإجراءات الرئيسية (إبلاغ / اقتراح)
   actionBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: Colors.surface1,
-    borderRadius: 14,
+    backgroundColor: Colors.surface3,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E74C3C20",
+    borderColor: "#E74C3C25",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 0,
   },
   actionIconBox: {
-    width: 40, height: 40, borderRadius: 11,
+    width: 42, height: 42, borderRadius: 12,
     justifyContent: "center", alignItems: "center",
     backgroundColor: "#E74C3C15",
-    borderWidth: 1, borderColor: "#E74C3C30",
+    borderWidth: 1, borderColor: "#E74C3C35",
+    marginLeft: 10,
   },
   actionTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 14,
     color: Colors.textPrimary, textAlign: "right",
+    letterSpacing: 0.2,
   },
   actionSub: {
     fontFamily: "Cairo_400Regular", fontSize: 11,
     color: Colors.textMuted, textAlign: "right",
-    marginTop: 1,
+    marginTop: 2,
   },
   // فاصل
   divider: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
-    marginVertical: 2,
+    marginVertical: 4,
   },
   dividerLine: {
-    flex: 1, height: 1,
+    flex: 1, height: 0.5,
     backgroundColor: Colors.divider,
   },
   dividerText: {
     fontFamily: "Cairo_400Regular", fontSize: 11,
     color: Colors.textMuted,
+    paddingHorizontal: 4,
   },
   // أزرار ثانوية (اتصال / إيميل)
   btnRow: { flexDirection: "row-reverse", gap: 10 },
   btn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: "transparent",
+    gap: 7, paddingVertical: 12, borderRadius: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
-  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, letterSpacing: 0.2 },
   infoText: {
     fontFamily: "Cairo_400Regular", fontSize: 11,
     color: Colors.textMuted, textAlign: "center",
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
 });
 
 const legalSty = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16, borderWidth: 1,
-    borderColor: "#10B98125",
+    backgroundColor: Colors.surface2,
+    borderRadius: 18, borderWidth: 1,
+    borderColor: "#10B98130",
     padding: 16, gap: 10,
   },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   iconBox: {
-    width: 42, height: 42, borderRadius: 12,
+    width: 46, height: 46, borderRadius: 14,
     justifyContent: "center", alignItems: "center",
     backgroundColor: "#10B98118",
-    borderWidth: 1, borderColor: "#10B98130",
+    borderWidth: 1.5, borderColor: "#10B98140",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.2 },
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   btn: {
     flexDirection: "row-reverse", alignItems: "center",
-    backgroundColor: Colors.surface1 ?? Colors.bg,
-    borderRadius: 13, borderWidth: 1, borderColor: "#10B98120",
-    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.surface3,
+    borderRadius: 14, borderWidth: 1, borderColor: "#10B98125",
+    paddingHorizontal: 14, paddingVertical: 13,
   },
   btnIcon: {
-    width: 38, height: 38, borderRadius: 10,
+    width: 40, height: 40, borderRadius: 11,
     justifyContent: "center", alignItems: "center",
     backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98130",
     marginLeft: 10,
   },
-  btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.2 },
   btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 1 },
-  divider:  { height: 1, backgroundColor: Colors.divider, marginVertical: 2 },
+  divider:  { height: 0.5, backgroundColor: Colors.divider, marginVertical: 4 },
   infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1 },
 });
