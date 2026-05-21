@@ -63,6 +63,7 @@ export default function LoginScreen() {
   const [otpSending,   setOtpSending]   = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError,     setOtpError]     = useState("");
+  const [otpSentVia,   setOtpSentVia]   = useState<"sms"|"email"|"none"|null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpInputRef = useRef<TextInput>(null);
 
@@ -287,7 +288,7 @@ export default function LoginScreen() {
 
   // ── OTP Handlers ─────────────────────────────────────────
   const startOtpCountdown = () => {
-    setOtpCountdown(300);
+    setOtpCountdown(600); // 10 دقائق — تطابق صلاحية الخادم
     if (otpTimerRef.current) clearInterval(otpTimerRef.current);
     otpTimerRef.current = setInterval(() => {
       setOtpCountdown(c => {
@@ -330,6 +331,7 @@ export default function LoginScreen() {
       try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       if (data.dev_otp) setDevOtp(data.dev_otp);
+      setOtpSentVia(data.sent_via ?? "none");
       setOtpCode("");
       setOtpError("");
       setOtpStep(true);
@@ -346,7 +348,7 @@ export default function LoginScreen() {
   };
 
   const handleResendOtp = async () => {
-    if (otpCountdown > 240) return;
+    if (otpCountdown > 540) return; // يُتاح الإعادة بعد 60 ث من الإرسال
     setOtpSending(true);
     setOtpError("");
     setDevOtp(null);
@@ -359,6 +361,7 @@ export default function LoginScreen() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "فشل الإعادة");
       if (data.dev_otp) setDevOtp(data.dev_otp);
+      setOtpSentVia(data.sent_via ?? "none");
       setOtpCode("");
       startOtpCountdown();
     } catch (e: any) {
@@ -915,25 +918,41 @@ export default function LoginScreen() {
 
             <Text style={otpS.title}>التحقق من الهوية</Text>
             <Text style={otpS.subtitle}>
-              أُرسل رمز مكوّن من 6 أرقام إلى{"\n"}
+              {otpSentVia === "sms"
+                ? "أُرسل رمز SMS مكوّن من 6 أرقام إلى"
+                : otpSentVia === "email"
+                ? "أُرسل رمز التحقق إلى بريدك الإلكتروني"
+                : "أدخل رمز التحقق المُرسل إلى"}{"\n"}
               <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold" }}>
                 {identifier}
               </Text>
             </Text>
 
-            {/* رمز المطور — يظهر فقط في بيئة التطوير عند غياب SMS */}
+            {/* رمز الاختبار — يظهر عند غياب خدمة الإرسال */}
             {devOtp ? (
               <Pressable
-                style={{ backgroundColor: "rgba(37,99,235,0.12)", borderWidth: 1, borderColor: "rgba(37,99,235,0.3)", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, marginBottom: 8 }}
+                style={{ backgroundColor: "rgba(37,99,235,0.15)", borderWidth: 1.5, borderColor: Colors.primary + "60", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 4 }}
                 onPress={() => setOtpCode(devOtp)}
               >
-                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "center" }}>
-                  🔧 وضع التطوير — الرمز: <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{devOtp}</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_600SemiBold", textAlign: "center", marginBottom: 4 }}>
+                  رمز التحقق الخاص بك
                 </Text>
-                <Text style={{ color: Colors.textMuted, fontSize: 10, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 2 }}>
-                  (اضغط لتعبئة الرمز تلقائياً)
+                <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 28, textAlign: "center", letterSpacing: 8 }}>
+                  {devOtp}
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 10, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 4 }}>
+                  اضغط لتعبئته تلقائياً
                 </Text>
               </Pressable>
+            ) : otpSentVia === "none" ? (
+              <View style={{ backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.35)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4 }}>
+                <Text style={{ color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" }}>
+                  تعذّر إرسال الرمز تلقائياً
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "center", marginTop: 2 }}>
+                  تواصل مع الدعم لتلقّي رمزك
+                </Text>
+              </View>
             ) : null}
 
             {/* عداد تنازلي */}
@@ -981,9 +1000,9 @@ export default function LoginScreen() {
             {/* زر التحقق */}
             <TouchableOpacity
               onPress={handleVerifyOtp}
-              disabled={otpVerifying || otpCode.length < 6 || otpCountdown === 0}
+              disabled={otpVerifying || otpCode.length < 6}
               activeOpacity={0.88}
-              style={{ opacity: (otpVerifying || otpCode.length < 6 || otpCountdown === 0) ? 0.55 : 1, marginTop: 8 }}
+              style={{ opacity: (otpVerifying || otpCode.length < 6) ? 0.55 : 1, marginTop: 8 }}
             >
               <LinearGradient
                 colors={[Colors.primary, Colors.primaryDim]}
@@ -1003,15 +1022,15 @@ export default function LoginScreen() {
             {/* إعادة الإرسال */}
             <TouchableOpacity
               onPress={handleResendOtp}
-              disabled={otpSending || otpCountdown > 240}
-              style={[otpS.resendBtn, (otpSending || otpCountdown > 240) && { opacity: 0.4 }]}
+              disabled={otpSending || otpCountdown > 540}
+              style={[otpS.resendBtn, (otpSending || otpCountdown > 540) && { opacity: 0.4 }]}
             >
               {otpSending
                 ? <ActivityIndicator color={Colors.textMuted} size="small" />
                 : <>
                     <Ionicons name="refresh" size={15} color={Colors.textMuted} />
                     <Text style={otpS.resendText}>
-                      {otpCountdown > 240 ? `إعادة الإرسال بعد ${otpCountdown - 240} ث` : "إعادة إرسال الرمز"}
+                      {otpCountdown > 540 ? `إعادة الإرسال بعد ${otpCountdown - 540} ث` : "إعادة إرسال الرمز"}
                     </Text>
                   </>
               }

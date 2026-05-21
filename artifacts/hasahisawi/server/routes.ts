@@ -2426,14 +2426,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── POST /api/auth/send-registration-otp ─────────────────────────────────
-  // إرسال رمز OTP للتسجيل — مع Twilio SMS ومع Fallback للبيئة التطويرية
   app.post("/api/auth/send-registration-otp", async (req: Request, res: Response) => {
     try {
       const { phone_or_email } = req.body;
       if (!phone_or_email) return res.status(400).json({ error: "رقم الهاتف أو البريد الإلكتروني مطلوب" });
       const identifier = phone_or_email.trim();
+      const isEmail = identifier.includes("@");
 
-      // Rate limit: max 3 requests per identifier per 15 min
+      // Rate limit: max 3 OTPs per identifier per 15 minutes
+      // Count only unexpired tokens to avoid blocking after legitimate expiry
       const recentR = await query(
         "SELECT COUNT(*)::int AS cnt FROM otp_tokens WHERE phone=$1 AND created_at > NOW() - INTERVAL '15 minutes'",
         [identifier]
@@ -2443,6 +2444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const otp = String(Math.floor(100000 + Math.random() * 900000));
+      // 10-minute expiry — matches server verify check
       const expires = new Date(Date.now() + 10 * 60 * 1000);
       const otpHash = await bcrypt.hash(otp, 6);
 
@@ -2452,17 +2454,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         [identifier, otpHash, expires]
       );
 
-      let smsSent = false;
-      const isEmail = identifier.includes("@");
+      let sentVia: "sms" | "email" | "none" = "none";
 
-      // ── Twilio SMS ──
+      // ── 1. Twilio SMS (للأرقام) ──────────────────────────────────────────────
       if (!isEmail && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_FROM) {
         try {
           const rawPhone = identifier.replace(/^0/, "");
           const toPhone = identifier.startsWith("+") ? identifier : `+249${rawPhone}`;
           const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
           const authHeader = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-          const body = new URLSearchParams({
+          const smsBody = new URLSearchParams({
             To: toPhone,
             From: process.env.TWILIO_PHONE_FROM,
             Body: `رمز التحقق لـ حصاحيصاوي: ${otp}\nصالح 10 دقائق. لا تشاركه مع أحد.`,
@@ -2470,20 +2471,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const twilioRes = await fetch(twilioUrl, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${authHeader}` },
-            body,
+            body: smsBody,
           });
-          smsSent = twilioRes.status < 300;
+          if (twilioRes.status < 300) {
+            sentVia = "sms";
+          } else {
+            const errBody = await twilioRes.text().catch(() => "");
+            console.error("[OTP] Twilio rejected:", twilioRes.status, errBody);
+          }
         } catch (smsErr) {
           console.error("[OTP] Twilio error:", smsErr);
         }
       }
 
-      const isDev = process.env.NODE_ENV !== "production" || process.env.SHOW_DEV_OTP === "true";
+      // ── 2. Email via Resend API (للبريد الإلكتروني) ────────────────────────
+      if (isEmail && process.env.RESEND_API_KEY) {
+        try {
+          const emailRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from: process.env.EMAIL_FROM || "حصاحيصاوي <noreply@hasahisawi.app>",
+              to: [identifier],
+              subject: "رمز التحقق — حصاحيصاوي",
+              html: `
+                <div dir="rtl" style="font-family:Cairo,Arial,sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px">
+                  <h2 style="color:#2563EB;margin-bottom:8px">رمز التحقق</h2>
+                  <p style="color:#374151;margin-bottom:24px">استخدم الرمز التالي لإكمال تسجيلك في تطبيق حصاحيصاوي:</p>
+                  <div style="background:#2563EB;color:#fff;font-size:36px;font-weight:bold;letter-spacing:10px;padding:20px 32px;border-radius:12px;text-align:center;margin-bottom:24px">
+                    ${otp}
+                  </div>
+                  <p style="color:#6B7280;font-size:13px">الرمز صالح لمدة 10 دقائق فقط. لا تشاركه مع أي شخص.</p>
+                </div>
+              `,
+            }),
+          });
+          if (emailRes.status < 300) {
+            sentVia = "email";
+          } else {
+            console.error("[OTP] Resend error:", emailRes.status, await emailRes.text().catch(() => ""));
+          }
+        } catch (emailErr) {
+          console.error("[OTP] Email error:", emailErr);
+        }
+      }
+
+      // ── 3. Fallback: إعادة الرمز في الاستجابة عند غياب أي خدمة إرسال ────────
+      // يُستخدم عندما لا يكون Twilio أو Resend مربوطاً، أو عند SHOW_DEV_OTP=true
+      const noDeliveryConfigured =
+        (isEmail && !process.env.RESEND_API_KEY) ||
+        (!isEmail && !process.env.TWILIO_ACCOUNT_SID);
+      const forceShow = process.env.SHOW_DEV_OTP === "true";
+      const exposeOtp = sentVia === "none" && (noDeliveryConfigured || forceShow);
+
+      console.log(`[OTP] identifier=${identifier} sentVia=${sentVia} exposeOtp=${exposeOtp}`);
+
       res.json({
         success: true,
-        sent: smsSent,
-        // في بيئة التطوير فقط: أعد الـ OTP للاختبار
-        ...(isDev && !smsSent ? { dev_otp: otp } : {}),
+        sent_via: sentVia,
+        ...(exposeOtp ? { dev_otp: otp } : {}),
       });
     } catch (err) {
       console.error(err);
