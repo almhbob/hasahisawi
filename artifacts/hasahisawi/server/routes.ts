@@ -137,6 +137,18 @@ async function initDb() {
     ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
   `);
+  // QR login sessions table
+  await query(`
+    CREATE TABLE IF NOT EXISTS qr_sessions (
+      id SERIAL PRIMARY KEY,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      auth_token VARCHAR(255),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '3 minutes')
+    )
+  `);
   // Moderator permissions table
   await query(`
     CREATE TABLE IF NOT EXISTS moderator_permissions (
@@ -590,6 +602,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await getSessionUser(req);
       if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
       res.json({ user });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/qr/generate ────────────────────────────────────────────
+  app.post("/api/auth/qr/generate", async (req: Request, res: Response) => {
+    try {
+      // Clean up expired sessions first
+      await query("DELETE FROM qr_sessions WHERE expires_at < NOW()");
+      const token = generateToken();
+      await query("INSERT INTO qr_sessions (token) VALUES ($1)", [token]);
+      res.json({ token });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── GET /api/auth/qr/:token/poll ──────────────────────────────────────────
+  app.get("/api/auth/qr/:token/poll", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const r = await query(
+        "SELECT status, auth_token FROM qr_sessions WHERE token = $1",
+        [token]
+      );
+      if (!r.rows.length) return res.json({ status: "expired" });
+      const row = r.rows[0];
+      if (new Date(row.expires_at) < new Date()) {
+        await query("DELETE FROM qr_sessions WHERE token = $1", [token]);
+        return res.json({ status: "expired" });
+      }
+      res.json({
+        status: row.status,
+        token: row.status === "confirmed" ? row.auth_token : undefined,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/qr/:token/confirm ─────────────────────────────────────
+  app.post("/api/auth/qr/:token/confirm", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
+
+      const r = await query(
+        "SELECT id FROM qr_sessions WHERE token = $1 AND status = 'pending' AND expires_at > NOW()",
+        [token]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: "رمز QR منتهي الصلاحية أو غير صحيح" });
+
+      // Create a new session for the web device
+      const webToken = generateToken();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await query(
+        "INSERT INTO user_sessions (user_id, token, expires_at) VALUES ($1, $2, $3)",
+        [user.id, webToken, expiresAt]
+      );
+      await query(
+        "UPDATE qr_sessions SET status = 'confirmed', user_id = $1, auth_token = $2 WHERE token = $3",
+        [user.id, webToken, token]
+      );
+      res.json({ ok: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });

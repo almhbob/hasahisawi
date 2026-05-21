@@ -1867,6 +1867,22 @@ export default function SettingsScreen() {
                       <Text style={[profileSty.editBtnText, { color: Colors.danger }]}>خروج</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* ─── ربط بالكمبيوتر ─── */}
+                  <TouchableOpacity
+                    style={linkPcSty.btn}
+                    onPress={() => router.push("/qr-scanner" as any)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={linkPcSty.iconWrap}>
+                      <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
+                    </View>
+                    <View style={linkPcSty.textWrap}>
+                      <Text style={linkPcSty.title}>ربط بالكمبيوتر</Text>
+                      <Text style={linkPcSty.sub}>امسح رمز QR لتسجيل الدخول على المتصفح</Text>
+                    </View>
+                    <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -3810,4 +3826,22 @@ const profileCompleteSty = StyleSheet.create({
     color: Colors.textSecondary, textAlign: "right",
     marginTop: 2,
   },
+});
+
+const linkPcSty = StyleSheet.create({
+  btn: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
+    backgroundColor: "rgba(37,99,235,0.08)",
+    borderWidth: 1, borderColor: "rgba(37,99,235,0.20)",
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    marginTop: 10,
+  },
+  iconWrap: {
+    width: 40, height: 40, borderRadius: 11,
+    backgroundColor: "rgba(37,99,235,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  textWrap: { flex: 1, gap: 2 },
+  title: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right" },
+  sub:   { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
 });
