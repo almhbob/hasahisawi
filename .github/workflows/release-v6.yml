@@ -138,14 +138,15 @@ jobs:
         if: always()
         run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
 
-  # ─── Build + Deploy Web PWA ─────────────────────────────────────────
-  build-web:
-    name: Build Web PWA
+  # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
+  deploy-web:
+    name: Build + Deploy Web PWA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -180,27 +181,23 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: artifacts/hasahisawi/dist
+      - name: Deploy to docs/ on master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf docs/
+          mkdir -p docs
+          cp -r artifacts/hasahisawi/dist/. docs/
+          git add -f docs/
+          git diff --cached --quiet && echo "No changes" || git commit -m "deploy: web PWA v6.2.0 → docs/"
+          git push origin master
 
-  deploy-pages:
-    name: Deploy GitHub Pages
-    needs: build-web
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/configure-pages@v5
-      - id: deploy
-        uses: actions/deploy-pages@v4
-      - run: echo "✅ Live at ${{ steps.deploy.outputs.page_url }}"
+      - run: echo "✅ Live at https://almhbob.github.io/hasahisawi/"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
     name: Create GitHub Release
-    needs: [build-android, deploy-pages]
+    needs: [build-android, deploy-web]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
