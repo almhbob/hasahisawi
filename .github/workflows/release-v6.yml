@@ -103,18 +103,16 @@ jobs:
           key: gradle-v6-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*') }}
           restore-keys: gradle-v6-
 
-      - name: Pre-build diagnostics
-        working-directory: artifacts/hasahisawi/android
+      - name: Pre-build setup
         run: |
-          echo "=== ANDROID_HOME: $ANDROID_HOME ==="
+          # Build arm64-v8a only — covers all modern Android phones, avoids OOM on CI runners
+          # Full multi-arch builds (x86/x86_64 + armeabi-v7a) require ~8GB RAM; runners have 7GB
+          echo "reactNativeArchitectures=arm64-v8a" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx3584m -XX:MaxMetaspaceSize=512m" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.parallel=false" >> artifacts/hasahisawi/android/gradle.properties
           echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
           echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Node module resolution from android/ ==="
-          node --print "require.resolve('react-native/package.json')" 2>&1 || echo "FAIL: react-native not found"
-          node --print "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })" 2>&1 || echo "FAIL: gradle-plugin not found"
-          echo "=== Keystore: $(ls -la app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Gradle version ==="
-          ./gradlew --version 2>&1 | tail -10
+          echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
 
       - name: Build release APK + AAB
         working-directory: artifacts/hasahisawi/android
