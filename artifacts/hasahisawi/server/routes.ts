@@ -2478,7 +2478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const isDev = process.env.NODE_ENV !== "production";
+      const isDev = process.env.NODE_ENV !== "production" || process.env.SHOW_DEV_OTP === "true";
       res.json({
         success: true,
         sent: smsSent,
@@ -2563,7 +2563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           smsSent = twilioRes.status < 300;
         } catch {}
       }
-      const isDev = process.env.NODE_ENV !== "production";
+      const isDev = process.env.NODE_ENV !== "production" || process.env.SHOW_DEV_OTP === "true";
       res.json({ success: true, sent: smsSent, ...(isDev && !smsSent ? { dev_otp: otp } : {}) });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
