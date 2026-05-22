@@ -1541,6 +1541,11 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
+  // ── Firebase health + sync ──
+  const [fbHealth, setFbHealth]         = useState<any | null>(null);
+  const [fbSyncing, setFbSyncing]       = useState(false);
+  const [fbSyncResult, setFbSyncResult] = useState<any | null>(null);
+
   // ── Users ──
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -1752,6 +1757,28 @@ export default function AdminDashboard() {
     }
     finally { setLoadingUsers(false); }
   }, [token]);
+
+  const loadFirebaseHealth = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/admin/users-source-health", token);
+      if (res.ok) setFbHealth(await safeJson(res));
+    } catch {}
+  }, [token]);
+
+  const syncFirebaseNow = useCallback(async () => {
+    setFbSyncing(true);
+    setFbSyncResult(null);
+    try {
+      const res = await apiFetch("/api/admin/sync-firebase-users", token, { method: "POST" }, 60000);
+      const d = await safeJson(res);
+      setFbSyncResult(d);
+      // أعد تحميل المستخدمين والإحصائيات بعد المزامنة
+      await Promise.all([loadStats(), loadFirebaseHealth()]);
+    } catch (e: any) {
+      setFbSyncResult({ error: e?.message ?? "فشل الاتصال" });
+    }
+    finally { setFbSyncing(false); }
+  }, [token, loadStats, loadFirebaseHealth]);
 
   const loadLandmarks = useCallback(async () => {
     setLoadingLM(true);
@@ -2294,7 +2321,7 @@ export default function AdminDashboard() {
     finally { setSubmittingCommunity(false); }
   };
 
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { loadStats(); loadFirebaseHealth(); }, [loadStats, loadFirebaseHealth]);
   useEffect(() => {
     if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
     if (tab === "landmarks")    loadLandmarks();
@@ -2911,6 +2938,93 @@ export default function AdminDashboard() {
                 <StatCard icon="shield-half" label="المشرفون"           value={stats.totals.moderators} color="#F0A500"        />
                 <StatCard icon="person"      label="الأعضاء"            value={stats.totals.members}    color={Colors.cyber}   />
               </Animated.View>
+
+              {/* ── Firebase Sync Card ── */}
+              {isAdmin && (() => {
+                const configured = fbHealth?.firebase_admin_configured;
+                const fbTotal    = fbHealth?.firebase_users ?? null;
+                const pgTotal    = fbHealth?.postgres_users ?? stats.totals.total;
+                const missing    = fbHealth?.firebase_missing_in_postgres ?? null;
+                const status     = fbHealth?.status ?? "loading";
+                const statusColors: Record<string, string> = {
+                  healthy: "#10B981", needs_sync: "#F59E0B",
+                  firebase_error: "#EF4444", missing_env: "#6B7280",
+                  invalid_json: "#EF4444", configured: "#06B6D4", loading: "#6B7280",
+                };
+                const statusLabels: Record<string, string> = {
+                  healthy: "مزامَن بالكامل ✓", needs_sync: "يحتاج مزامنة",
+                  firebase_error: "خطأ Firebase", missing_env: "Firebase غير مُهيَّأ",
+                  invalid_json: "إعدادات خاطئة", configured: "جاهز", loading: "جارٍ الفحص…",
+                };
+                return (
+                  <Animated.View entering={FadeInDown.delay(80).springify()} style={{ backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 16, marginBottom: 12 }}>
+                    {/* Header */}
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary }}>مزامنة حسابات المستخدمين</Text>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: statusColors[status] ?? "#6B7280" }} />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: statusColors[status] ?? "#6B7280" }}>
+                          {statusLabels[status] ?? status}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Stats row */}
+                    <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+                      <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#EF444430" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F97316" }}>{pgTotal ?? "—"}</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>قاعدة البيانات</Text>
+                      </View>
+                      <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#4285F430" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#4285F4" }}>{fbTotal !== null ? fbTotal : "—"}</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>Firebase</Text>
+                      </View>
+                      {missing !== null && missing > 0 && (
+                        <View style={{ flex: 1, backgroundColor: "#F59E0B10", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#F59E0B40" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F59E0B" }}>{missing}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>غير مزامَن</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Result */}
+                    {fbSyncResult && !fbSyncResult.error && (
+                      <View style={{ backgroundColor: "#10B98115", borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#10B98130" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981", textAlign: "right" }}>
+                          ✓ تمت المزامنة — Firebase: {fbSyncResult.firebase_total} · أُضيف: {fbSyncResult.created} · حُدِّث: {fbSyncResult.updated}
+                          {fbSyncResult.errors > 0 ? ` · أخطاء: ${fbSyncResult.errors}` : ""}
+                        </Text>
+                      </View>
+                    )}
+                    {fbSyncResult?.error && (
+                      <View style={{ backgroundColor: "#EF444415", borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#EF444430" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444", textAlign: "right" }}>{fbSyncResult.error}</Text>
+                      </View>
+                    )}
+                    {!configured && fbHealth && (
+                      <View style={{ backgroundColor: "#6B728015", borderRadius: 10, padding: 10, marginBottom: 10 }}>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "right" }}>
+                          ⚠ Firebase Admin SDK غير مُهيَّأ. تأكد من ضبط متغير البيئة FIREBASE_SERVICE_ACCOUNT_JSON في Vercel.
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Sync button */}
+                    <TouchableOpacity
+                      onPress={syncFirebaseNow}
+                      disabled={fbSyncing}
+                      style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 13, backgroundColor: fbSyncing ? "#FFFFFF10" : Colors.primary, borderWidth: 1, borderColor: fbSyncing ? Colors.borderSubtle : Colors.primary }}
+                    >
+                      {fbSyncing
+                        ? <ActivityIndicator size="small" color={Colors.primary} />
+                        : <Ionicons name="sync-outline" size={17} color="#000" />}
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: fbSyncing ? Colors.textMuted : "#000" }}>
+                        {fbSyncing ? "جارٍ الاستيراد من Firebase…" : "استيراد كل الحسابات من Firebase"}
+                      </Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })()}
 
               {stats.byNeighborhood.length > 0 && (
                 <View style={s.card}>
