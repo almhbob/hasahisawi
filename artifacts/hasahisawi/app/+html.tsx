@@ -130,12 +130,50 @@ export default function Root({ children }: PropsWithChildren) {
             }
           }
 
-          /* ── Large desktop (≥ 1100px): show decorative side panels ── */
+          /* ── Large desktop (≥ 1100px): branded side panels ── */
           @media (min-width: 1100px) {
-            body::before, body::after {
-              content: '';
+            body {
+              gap: 48px;
+            }
+            body::before {
+              content: 'حصاحيصاوي\\A بوابتك الذكيّة\\A لمدينة الحصاحيصا';
+              white-space: pre;
               flex: 1;
-              max-width: 320px;
+              max-width: 280px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              font-size: 20px;
+              font-weight: 700;
+              line-height: 1.8;
+              direction: rtl;
+              background: linear-gradient(135deg, #22C55E 0%, #EAB308 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+            }
+            body::after {
+              content: 'الحصاحيصا\\A السودان';
+              white-space: pre;
+              flex: 1;
+              max-width: 280px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              font-size: 16px;
+              line-height: 2.2;
+              direction: rtl;
+              color: rgba(34,197,94,0.35);
+              font-weight: 600;
+              letter-spacing: 0.05em;
+            }
+            #root {
+              box-shadow:
+                0 0 0 1px rgba(34,197,94,0.25),
+                0 25px 80px rgba(0,0,0,0.7),
+                0 0 80px rgba(34,197,94,0.12);
             }
           }
 
