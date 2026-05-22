@@ -193,6 +193,7 @@ function RootLayoutNav() {
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-agencies"          options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );

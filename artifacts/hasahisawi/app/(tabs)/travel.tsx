@@ -14,7 +14,7 @@ import Animated, {
   withRepeat, withTiming, Easing, ZoomIn, SlideInRight,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, router } from "expo-router";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
@@ -877,6 +877,18 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <ScrollView contentContainerStyle={{ padding:16 }}>
+      {/* وكالات السفر والسياحة */}
+      <AnimatedPress onPress={() => router.push("/travel-agencies" as any)}>
+        <LinearGradient colors={["#0A1A2E","#1D4ED8"]} style={[styles.partnerBanner, { marginBottom:10 }]}>
+          <MaterialCommunityIcons name="airplane" size={32} color="#93C5FD" />
+          <View style={{ flex:1, marginStart:12 }}>
+            <Text style={styles.partnerBannerTitle}>وكالات السفر والسياحة</Text>
+            <Text style={styles.partnerBannerSub}>دليل الوكالات المعتمدة — محلية ودولية — وسجّل وكالتك</Text>
+          </View>
+          <Ionicons name="arrow-back" size={20} color="#60A5FA" />
+        </LinearGradient>
+      </AnimatedPress>
+
       <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.partnerBanner}>
         <MaterialCommunityIcons name="handshake" size={32} color={ACCENT2} />
         <View style={{ flex:1, marginStart:12 }}>

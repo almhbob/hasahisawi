@@ -19,12 +19,21 @@ async function uploadToCloudinary(buffer: Buffer, mimeType: string, folder = "ha
     secure: true,
   });
   return new Promise((resolve, reject) => {
-    const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
     const isVideo = mimeType.startsWith("video/");
+    // لا نُحدّد format — Cloudinary يحوّل تلقائياً إلى صيغة متوافقة مع الويب
+    // تحديد format: "heic" مثلاً يُفشل الرفع لأن Cloudinary لا يحفظ بصيغة heic
+    const uploadOptions: Record<string, any> = {
+      folder,
+      resource_type: isVideo ? "video" : "image",
+    };
+    // للصور فقط: حوّل HEIC/HEIF إلى jpg تلقائياً
+    if (!isVideo && (mimeType.includes("heic") || mimeType.includes("heif"))) {
+      uploadOptions.format = "jpg";
+    }
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: isVideo ? "video" : "image", format: ext },
+      uploadOptions,
       (err, result) => {
-        if (err || !result) return reject(err || new Error("Upload failed"));
+        if (err || !result) return reject(err || new Error("فشل رفع الملف إلى Cloudinary"));
         resolve(result.secure_url);
       }
     );
@@ -33,7 +42,8 @@ async function uploadToCloudinary(buffer: Buffer, mimeType: string, folder = "ha
 }
 
 function saveLocally(buffer: Buffer, originalName: string): string {
-  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  // على Vercel (serverless) لا يوجد تخزين دائم — نستخدم /tmp كـ fallback مؤقت فقط
+  const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : path.resolve(process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   const ext = path.extname(originalName) || ".jpg";
   const fname = `${Date.now()}_${randomBytes(4).toString("hex")}${ext}`;
@@ -4247,6 +4257,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
       await query(`DELETE FROM zawajil_managers WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── وكالات السفر والسياحة ───────────────────────────────────────────────────
+  async function ensureTravelAgencyTables() {
+    await query(`CREATE TABLE IF NOT EXISTS travel_agencies (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      name_en VARCHAR(200),
+      agency_type VARCHAR(40) NOT NULL DEFAULT 'local',
+      specialties TEXT[] DEFAULT '{}',
+      destinations TEXT[] DEFAULT '{}',
+      description TEXT,
+      logo_url VARCHAR(500),
+      website VARCHAR(300),
+      phone VARCHAR(30),
+      whatsapp VARCHAR(30),
+      email VARCHAR(100),
+      city VARCHAR(100),
+      country VARCHAR(100) DEFAULT 'السودان',
+      license_number VARCHAR(80),
+      founded_year INTEGER,
+      is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+      is_approved BOOLEAN NOT NULL DEFAULT FALSE,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      admin_note TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS travel_agency_applications (
+      id SERIAL PRIMARY KEY,
+      agency_name VARCHAR(200) NOT NULL,
+      agency_type VARCHAR(40) NOT NULL,
+      specialties TEXT[] DEFAULT '{}',
+      destinations TEXT[] DEFAULT '{}',
+      description TEXT,
+      website VARCHAR(300),
+      contact_name VARCHAR(100) NOT NULL,
+      contact_role VARCHAR(100),
+      phone VARCHAR(30),
+      whatsapp VARCHAR(30),
+      email VARCHAR(100),
+      city VARCHAR(100),
+      country VARCHAR(100),
+      license_number VARCHAR(80),
+      founded_year INTEGER,
+      services_offered TEXT,
+      target_routes TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      admin_note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  }
+
+  app.get("/api/travel-agencies", async (_req: Request, res: Response) => {
+    try {
+      await ensureTravelAgencyTables();
+      const r = await query(
+        `SELECT * FROM travel_agencies WHERE is_approved = TRUE ORDER BY is_featured DESC, sort_order ASC, created_at DESC`
+      );
+      res.json({ agencies: r.rows });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/travel-agencies/apply", async (req: Request, res: Response) => {
+    try {
+      await ensureTravelAgencyTables();
+      const {
+        agency_name, agency_type, specialties, destinations, description,
+        website, contact_name, contact_role, phone, whatsapp, email,
+        city, country, license_number, founded_year, services_offered, target_routes,
+      } = req.body;
+      if (!agency_name?.trim() || !contact_name?.trim()) {
+        return res.status(400).json({ error: "اسم الوكالة واسم المسؤول مطلوبان" });
+      }
+      const r = await query(
+        `INSERT INTO travel_agency_applications
+         (agency_name,agency_type,specialties,destinations,description,website,
+          contact_name,contact_role,phone,whatsapp,email,city,country,
+          license_number,founded_year,services_offered,target_routes)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         RETURNING id`,
+        [agency_name,agency_type||"local",specialties||[],destinations||[],description,
+         website,contact_name,contact_role,phone,whatsapp,email,city,country||"السودان",
+         license_number,founded_year||null,services_offered,target_routes]
+      );
+      await sendAdminNotifEmail("🛫 طلب انضمام وكالة سفر جديدة", {
+        "الوكالة": agency_name,
+        "النوع": agency_type,
+        "المسؤول": contact_name,
+        "الهاتف": phone || whatsapp || "",
+        "الإيميل": email || "",
+        "المدينة": `${city || ""} — ${country || ""}`,
+      }).catch(() => {});
+      res.json({ success: true, id: r.rows[0].id, message: "تم استلام طلبكم بنجاح — سيتم مراجعته خلال 48 ساعة" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // إدارة وكالات السفر (admin)
+  app.get("/api/admin/travel-agencies", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTravelAgencyTables();
+      const r = await query(`SELECT * FROM travel_agencies ORDER BY sort_order ASC, created_at DESC`);
+      const apps = await query(`SELECT * FROM travel_agency_applications ORDER BY created_at DESC`);
+      res.json({ agencies: r.rows, applications: apps.rows });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/travel-agencies", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTravelAgencyTables();
+      const { name, name_en, agency_type, specialties, destinations, description, logo_url,
+              website, phone, whatsapp, email, city, country, license_number, founded_year, is_featured } = req.body;
+      const r = await query(
+        `INSERT INTO travel_agencies (name,name_en,agency_type,specialties,destinations,description,logo_url,website,phone,whatsapp,email,city,country,license_number,founded_year,is_featured,is_approved,status)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,TRUE,'approved') RETURNING *`,
+        [name,name_en||null,agency_type||"local",specialties||[],destinations||[],description,
+         logo_url||null,website||null,phone||null,whatsapp||null,email||null,city||null,
+         country||"السودان",license_number||null,founded_year||null,!!is_featured]
+      );
+      res.json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/travel-agencies/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { is_approved, is_featured, status, admin_note, sort_order } = req.body;
+      const r = await query(
+        `UPDATE travel_agencies SET
+         is_approved=COALESCE($1,is_approved), is_featured=COALESCE($2,is_featured),
+         status=COALESCE($3,status), admin_note=COALESCE($4,admin_note), sort_order=COALESCE($5,sort_order)
+         WHERE id=$6 RETURNING *`,
+        [is_approved!=null?Boolean(is_approved):null, is_featured!=null?Boolean(is_featured):null,
+         status||null, admin_note||null, sort_order!=null?Number(sort_order):null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على الوكالة" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/travel-agencies/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM travel_agencies WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/travel-agency-applications/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_note } = req.body;
+      await query(
+        `UPDATE travel_agency_applications SET status=$1, admin_note=$2 WHERE id=$3`,
+        [status, admin_note||null, req.params.id]
+      );
       res.json({ success: true });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
