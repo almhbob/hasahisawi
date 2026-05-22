@@ -4,6 +4,7 @@ import {
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
   KeyboardAvoidingView, ActivityIndicator,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1256,6 +1257,7 @@ export default function SettingsScreen() {
   const [showAddSportEvent, setShowAddSportEvent] = useState(false);
   const [showAddCulturalCenter, setShowAddCulturalCenter] = useState(false);
   const [showAddCulturalEvent, setShowAddCulturalEvent] = useState(false);
+  const [showDevCard, setShowDevCard] = useState(false);
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
@@ -1869,20 +1871,49 @@ export default function SettingsScreen() {
                   </View>
 
                   {/* ─── ربط بالكمبيوتر ─── */}
-                  <TouchableOpacity
-                    style={linkPcSty.btn}
-                    onPress={() => router.push("/qr-scanner" as any)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={linkPcSty.iconWrap}>
-                      <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
+                  <View style={linkPcSty.card}>
+                    <View style={linkPcSty.cardHeader}>
+                      <View style={linkPcSty.iconWrap}>
+                        <Ionicons name="desktop-outline" size={20} color={Colors.primary} />
+                      </View>
+                      <View style={linkPcSty.textWrap}>
+                        <Text style={linkPcSty.title}>ربط بالكمبيوتر</Text>
+                        <Text style={linkPcSty.sub}>سجّل دخولك على المتصفح بدون كلمة مرور</Text>
+                      </View>
                     </View>
-                    <View style={linkPcSty.textWrap}>
-                      <Text style={linkPcSty.title}>ربط بالكمبيوتر</Text>
-                      <Text style={linkPcSty.sub}>امسح رمز QR لتسجيل الدخول على المتصفح</Text>
+
+                    {/* Steps */}
+                    <View style={linkPcSty.steps}>
+                      <View style={linkPcSty.step}>
+                        <View style={linkPcSty.stepNum}><Text style={linkPcSty.stepNumTxt}>١</Text></View>
+                        <Text style={linkPcSty.stepTxt}>افتح على الكمبيوتر:</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={linkPcSty.urlBox}
+                        onPress={() => {
+                          Linking.openURL("https://almhbob.github.io/hasahisawi/qr-web-login").catch(() => {});
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="globe-outline" size={14} color={Colors.primary} />
+                        <Text style={linkPcSty.urlText} numberOfLines={1}>almhbob.github.io/hasahisawi/qr-web-login</Text>
+                        <Ionicons name="open-outline" size={13} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                      <View style={linkPcSty.step}>
+                        <View style={linkPcSty.stepNum}><Text style={linkPcSty.stepNumTxt}>٢</Text></View>
+                        <Text style={linkPcSty.stepTxt}>امسح رمز QR بالكاميرا أدناه</Text>
+                      </View>
                     </View>
-                    <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
-                  </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={linkPcSty.btn}
+                      onPress={() => router.push("/qr-scanner" as any)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="qr-code-outline" size={18} color="#fff" />
+                      <Text style={linkPcSty.btnTxt}>فتح ماسح QR</Text>
+                    </TouchableOpacity>
+                  </View>
                 </>
               )}
             </View>
@@ -2048,6 +2079,38 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          {/* ─── بطاقة المطور ─── */}
+          <TouchableOpacity
+            onPress={() => setShowDevCard(true)}
+            activeOpacity={0.85}
+            style={devCardBtnSty.card}
+          >
+            <LinearGradient
+              colors={["#0D1B4B", "#091230"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <LinearGradient
+              colors={["#2563EB55", "transparent"]}
+              start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
+            />
+            <View style={devCardBtnSty.row}>
+              <View style={devCardBtnSty.iconWrap}>
+                <Text style={{ fontSize: 28 }}>👨‍💻</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={devCardBtnSty.title}>معلومات المطور</Text>
+                <Text style={devCardBtnSty.sub}>الفريق التقني وراء حصاحيصاوي</Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color="#2563EB" />
+            </View>
+            <View style={devCardBtnSty.footer}>
+              <View style={devCardBtnSty.dot} />
+              <Text style={devCardBtnSty.footerText}>مفتوح المصدر · مصنوع بـ ❤️ في الحصاحيصا</Text>
+            </View>
+          </TouchableOpacity>
 
           {/* ─── بوابة المؤسسات ─── */}
           <TouchableOpacity
@@ -3189,6 +3252,91 @@ export default function SettingsScreen() {
       <AddSportEventModal visible={showAddSportEvent} onClose={() => setShowAddSportEvent(false)} onSave={addSportEvent} />
       <AddCulturalCenterModal visible={showAddCulturalCenter} onClose={() => setShowAddCulturalCenter(false)} onSave={addCulturalCenter} />
       <AddCulturalEventModal visible={showAddCulturalEvent} onClose={() => setShowAddCulturalEvent(false)} onSave={addCulturalEvent} />
+
+      {/* ─── بطاقة المطور — مودال زجاجي ─── */}
+      <Modal visible={showDevCard} transparent animationType="fade" onRequestClose={() => setShowDevCard(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "center", alignItems: "center", padding: 20 }}
+          onPress={() => setShowDevCard(false)}>
+          <Pressable onPress={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380 }}>
+            <View style={devModalSty.card}>
+              <BlurView intensity={Platform.OS === "ios" ? 90 : 30} tint="dark" style={StyleSheet.absoluteFill} />
+              <LinearGradient
+                colors={["rgba(30,60,100,0.85)", "rgba(5,12,28,0.92)"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              {/* الحد المتدرج */}
+              <View style={devModalSty.borderGlow} />
+
+              {/* الرأس */}
+              <View style={devModalSty.header}>
+                <View style={devModalSty.avatarWrap}>
+                  <LinearGradient colors={["#2563EB", "#0EA5E9"]} style={devModalSty.avatar}>
+                    <Text style={devModalSty.avatarText}>A</Text>
+                  </LinearGradient>
+                  <View style={devModalSty.onlineDot} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={devModalSty.name}>عاصم عبد الرحمن محمد</Text>
+                  <Text style={devModalSty.role}>مطوّر البرمجيات · Full-Stack Engineer</Text>
+                  <View style={devModalSty.locationRow}>
+                    <Ionicons name="location" size={11} color="#2563EB" />
+                    <Text style={devModalSty.location}>الحصاحيصا، ولاية الجزيرة — السودان 🇸🇩</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => setShowDevCard(false)} style={devModalSty.closeBtn}>
+                  <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              </View>
+
+              {/* الفاصل */}
+              <LinearGradient colors={["transparent","rgba(37,99,235,0.4)","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={devModalSty.dividerLine} />
+
+              {/* المعلومات */}
+              <View style={devModalSty.infoGrid}>
+                {[
+                  { icon: "code-slash-outline", label: "التقنيات", value: "React Native · TypeScript · Node.js · PostgreSQL" },
+                  { icon: "phone-portrait-outline", label: "التطبيق", value: `حصاحيصاوي v${PLATFORM.version}` },
+                  { icon: "calendar-outline", label: "سنة الإطلاق", value: "٢٠٢٥" },
+                  { icon: "globe-outline", label: "الموقع", value: "github.com/almhbob/hasahisawi" },
+                ].map(({ icon, label, value }) => (
+                  <View key={label} style={devModalSty.infoRow}>
+                    <View style={devModalSty.infoIconWrap}>
+                      <Ionicons name={icon as any} size={15} color="#2563EB" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={devModalSty.infoLabel}>{label}</Text>
+                      <Text style={devModalSty.infoValue}>{value}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* الفاصل */}
+              <LinearGradient colors={["transparent","rgba(37,99,235,0.25)","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={devModalSty.dividerLine} />
+
+              {/* التواصل */}
+              <View style={devModalSty.contactRow}>
+                <TouchableOpacity onPress={() => Linking.openURL(`https://wa.me/${PLATFORM.whatsapp.replace("+","")}`)} style={devModalSty.contactBtn}>
+                  <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                  <Text style={[devModalSty.contactBtnText, { color: "#25D366" }]}>واتساب</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(PLATFORM.mailLink("تواصل مع المطور"))} style={devModalSty.contactBtn}>
+                  <Ionicons name="mail-outline" size={18} color="#2563EB" />
+                  <Text style={[devModalSty.contactBtnText, { color: "#2563EB" }]}>إيميل</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* الهاشتاق */}
+              <View style={devModalSty.footer}>
+                <Text style={devModalSty.footerTag}>#حصاحيصاوي</Text>
+                <Text style={devModalSty.footerTag}>#الحصاحيصا_تتطور</Text>
+                <Text style={devModalSty.footerTag}>#السودان</Text>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -3829,13 +3977,12 @@ const profileCompleteSty = StyleSheet.create({
 });
 
 const linkPcSty = StyleSheet.create({
-  btn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(37,99,235,0.08)",
+  card: {
+    backgroundColor: "rgba(37,99,235,0.06)",
     borderWidth: 1, borderColor: "rgba(37,99,235,0.20)",
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    marginTop: 10,
+    borderRadius: 16, padding: 14, gap: 12, marginTop: 10,
   },
+  cardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 40, height: 40, borderRadius: 11,
     backgroundColor: "rgba(37,99,235,0.15)",
@@ -3844,4 +3991,105 @@ const linkPcSty = StyleSheet.create({
   textWrap: { flex: 1, gap: 2 },
   title: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right" },
   sub:   { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  steps: { gap: 8, paddingHorizontal: 4 },
+  step:  { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  stepNum: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary + "25",
+    borderWidth: 1, borderColor: Colors.primary + "60",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  stepNumTxt: { color: Colors.primary, fontSize: 11, fontFamily: "Cairo_700Bold" },
+  stepTxt:    { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", flex: 1 },
+  urlBox: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1,
+    borderColor: Colors.primary + "40", paddingHorizontal: 12, paddingVertical: 8,
+    marginRight: 32,
+  },
+  urlText: { flex: 1, color: Colors.primary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  btn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12,
+  },
+  btnTxt: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
+});
+
+// ─── زر بطاقة المطور ──────────────────────────────────────────────────────────
+const devCardBtnSty = StyleSheet.create({
+  card: {
+    borderRadius: 18, overflow: "hidden",
+    borderWidth: 1, borderColor: "rgba(37,99,235,0.35)",
+    padding: 16, gap: 8, marginBottom: 4,
+  },
+  row: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
+  iconWrap: {
+    width: 50, height: 50, borderRadius: 14,
+    backgroundColor: "rgba(37,99,235,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.55)", textAlign: "right", marginTop: 2 },
+  footer: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#10B981" },
+  footerText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.4)" },
+});
+
+// ─── مودال بطاقة المطور ───────────────────────────────────────────────────────
+const devModalSty = StyleSheet.create({
+  card: {
+    borderRadius: 24, overflow: "hidden",
+    borderWidth: 1, borderColor: "rgba(37,99,235,0.4)",
+    padding: 20, gap: 14,
+  },
+  borderGlow: {
+    position: "absolute", inset: 0, borderRadius: 24,
+    borderWidth: 1.5, borderColor: "rgba(37,99,235,0.25)",
+  },
+  header: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
+  },
+  avatarWrap: { position: "relative" },
+  avatar: {
+    width: 60, height: 60, borderRadius: 18,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarText: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#fff" },
+  onlineDot: {
+    position: "absolute", bottom: 3, right: 3,
+    width: 12, height: 12, borderRadius: 6,
+    backgroundColor: "#10B981",
+    borderWidth: 2, borderColor: "rgba(5,12,28,0.9)",
+  },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
+  role: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#2563EB", textAlign: "right", marginTop: 2 },
+  locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 },
+  location: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.5)" },
+  closeBtn: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    alignItems: "center", justifyContent: "center",
+  },
+  dividerLine: { height: 1 },
+  infoGrid: { gap: 10 },
+  infoRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 },
+  infoIconWrap: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: "rgba(37,99,235,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  infoLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "right" },
+  infoValue: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.85)", textAlign: "right", marginTop: 1 },
+  contactRow: { flexDirection: "row-reverse", gap: 10 },
+  contactBtn: {
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 7, paddingVertical: 12, borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
+  contactBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  footer: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
+  footerTag: {
+    fontFamily: "Cairo_500Medium", fontSize: 11, color: "#2563EB",
+    backgroundColor: "rgba(37,99,235,0.12)", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
 });

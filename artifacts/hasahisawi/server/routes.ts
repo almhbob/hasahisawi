@@ -41,6 +41,28 @@ function saveLocally(buffer: Buffer, originalName: string): string {
   return `/api/files/${fname}`;
 }
 
+async function sendAdminNotifEmail(subject: string, rows: Record<string, string>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  const adminEmail = process.env.ADMIN_EMAIL || "almhbob.iii@gmail.com";
+  const tableRows = Object.entries(rows)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:bold;background:#f3f4f6;color:#374151">${k}</td><td style="padding:6px 12px;color:#111827">${v}</td></tr>`)
+    .join("");
+  const html = `<div dir="rtl" style="font-family:Cairo,Arial,sans-serif;max-width:600px;margin:auto;padding:24px;background:#f9fafb;border-radius:12px">
+    <h2 style="color:#1d4ed8;border-bottom:2px solid #e5e7eb;padding-bottom:12px">${subject}</h2>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">${tableRows}</table>
+    <p style="color:#6b7280;font-size:12px;margin-top:16px">تطبيق حصاحيصاوي — إشعار تلقائي</p>
+  </div>`;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM || "onboarding@resend.dev", to: [adminEmail], subject, html }),
+    });
+  } catch {}
+}
+
 const DEFAULT_ADMIN_PIN = "4444";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -121,7 +143,18 @@ async function initDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS views_count INTEGER NOT NULL DEFAULT 0`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`);
+  await query(`ALTER TABLE social_comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES social_comments(id) ON DELETE CASCADE`);
+  await query(`CREATE TABLE IF NOT EXISTS social_reactions (
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+    device_id VARCHAR(200) NOT NULL,
+    reaction VARCHAR(20) NOT NULL DEFAULT 'like',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(post_id, device_id)
+  )`);
   // Sessions table
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -642,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       const r = await query(
-        "SELECT status, auth_token FROM qr_sessions WHERE token = $1",
+        "SELECT status, auth_token, expires_at FROM qr_sessions WHERE token = $1",
         [token]
       );
       if (!r.rows.length) return res.json({ status: "expired" });
@@ -658,6 +691,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/qr/:token/scan — marks QR as scanned (mobile seen it) ─
+  app.post("/api/auth/qr/:token/scan", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
+      await query(
+        "UPDATE qr_sessions SET status = 'scanned' WHERE token = $1 AND status = 'pending' AND expires_at > NOW()",
+        [token]
+      );
+      res.json({ ok: true });
+    } catch {
+      res.json({ ok: true });
     }
   });
 
@@ -838,19 +887,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/posts", async (req: Request, res: Response) => {
     try {
       const deviceId = (req.query.device_id as string) || "";
+      const category = (req.query.category as string) || "";
+      const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+      const limit2 = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "30")));
+      const offset = (page - 1) * limit2;
+      const catFilter = category && category !== "الكل" ? "AND p.category = $2" : "";
+      const params: any[] = category && category !== "الكل" ? [deviceId, category] : [deviceId];
       const result = await query(
         `SELECT
-           p.*,
+           p.id, p.author_name, p.content, p.category,
+           p.image_url, p.video_url, p.is_pinned,
+           COALESCE(p.views_count, 0) AS views_count,
+           p.created_at,
            COUNT(DISTINCT c.id)::int AS comments_count,
            COUNT(DISTINCT sl.id)::int AS likes_count,
-           BOOL_OR(sl.device_id = $1) AS liked_by_me
+           BOOL_OR(sl.device_id = $1) AS liked_by_me,
+           (SELECT sr.reaction FROM social_reactions sr WHERE sr.post_id=p.id AND sr.device_id=$1 LIMIT 1) AS my_reaction
          FROM social_posts p
-         LEFT JOIN social_comments c ON c.post_id = p.id
+         LEFT JOIN social_comments c ON c.post_id = p.id AND c.parent_id IS NULL
          LEFT JOIN social_likes sl ON sl.post_id = p.id
+         WHERE 1=1 ${catFilter}
          GROUP BY p.id
-         ORDER BY p.created_at DESC
-         LIMIT 100`,
-        [deviceId]
+         ORDER BY p.is_pinned DESC, p.created_at DESC
+         LIMIT ${limit2} OFFSET ${offset}`,
+        params
       );
       res.json(result.rows);
     } catch (err) {
@@ -862,23 +922,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── POST /api/posts ────────────────────────────────────────────────────────
   app.post("/api/posts", async (req: Request, res: Response) => {
     try {
-      const { author_name, content, category } = req.body;
-      if (!content || content.trim().length === 0) {
+      const { author_name, content, category, image_url, video_url } = req.body;
+      if ((!content || content.trim().length === 0) && !image_url && !video_url) {
         return res.status(400).json({ error: "المحتوى مطلوب" });
       }
-      if (content.trim().length > 1000) {
+      if (content && content.trim().length > 1000) {
         return res.status(400).json({ error: "المحتوى طويل جداً (الحد الأقصى 1000 حرف)" });
       }
       const result = await query(
-        `INSERT INTO social_posts (author_name, content, category)
-         VALUES ($1, $2, $3) RETURNING *`,
+        `INSERT INTO social_posts (author_name, content, category, image_url, video_url)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *,
+           0::int AS comments_count,
+           0::int AS likes_count,
+           false AS liked_by_me`,
         [
           (author_name || "مجهول").substring(0, 100),
-          content.trim(),
+          (content || "").trim(),
           (category || "عام").substring(0, 50),
+          image_url || null,
+          video_url || null,
         ]
       );
       res.status(201).json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/posts/:id/view ───────────────────────────────────────────────
+  app.post("/api/posts/:id/view", async (req: Request, res: Response) => {
+    try {
+      await query("UPDATE social_posts SET views_count = views_count + 1 WHERE id = $1", [req.params.id]);
+      res.json({ ok: true });
+    } catch { res.json({ ok: true }); }
+  });
+
+  // ── POST /api/posts/:id/react ─────────────────────────────────────────────
+  app.post("/api/posts/:id/react", async (req: Request, res: Response) => {
+    try {
+      const { device_id, reaction } = req.body;
+      if (!device_id) return res.status(400).json({ error: "device_id مطلوب" });
+      const validReactions = ["like", "love", "haha", "wow", "sad", "angry"];
+      const r = validReactions.includes(reaction) ? reaction : "like";
+      const existing = await query(
+        "SELECT id, reaction FROM social_reactions WHERE post_id=$1 AND device_id=$2",
+        [req.params.id, device_id]
+      );
+      if (existing.rows.length > 0) {
+        if (existing.rows[0].reaction === r) {
+          await query("DELETE FROM social_reactions WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id]);
+          // keep social_likes in sync
+          await query("DELETE FROM social_likes WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id]);
+          return res.json({ reacted: false, reaction: null });
+        }
+        await query("UPDATE social_reactions SET reaction=$3 WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id, r]);
+        return res.json({ reacted: true, reaction: r });
+      }
+      await query("INSERT INTO social_reactions (post_id, device_id, reaction) VALUES ($1,$2,$3) ON CONFLICT (post_id,device_id) DO UPDATE SET reaction=$3", [req.params.id, device_id, r]);
+      await query("INSERT INTO social_likes (post_id, device_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", [req.params.id, device_id]);
+      return res.json({ reacted: true, reaction: r });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
@@ -901,7 +1004,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/posts/:id/comments", async (req: Request, res: Response) => {
     try {
       const result = await query(
-        `SELECT * FROM social_comments WHERE post_id = $1 ORDER BY created_at ASC`,
+        `SELECT *, COALESCE(parent_id::text, '') AS parent_id_str
+         FROM social_comments WHERE post_id = $1 ORDER BY created_at ASC`,
         [req.params.id]
       );
       res.json(result.rows);
@@ -914,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── POST /api/posts/:id/comments ──────────────────────────────────────────
   app.post("/api/posts/:id/comments", async (req: Request, res: Response) => {
     try {
-      const { author_name, content } = req.body;
+      const { author_name, content, parent_id } = req.body;
       if (!content || content.trim().length === 0) {
         return res.status(400).json({ error: "التعليق مطلوب" });
       }
@@ -925,9 +1029,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (postCheck.rows.length === 0) return res.status(404).json({ error: "المنشور غير موجود" });
 
       const result = await query(
-        `INSERT INTO social_comments (post_id, author_name, content)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [req.params.id, (author_name || "مجهول").substring(0, 100), content.trim()]
+        `INSERT INTO social_comments (post_id, author_name, content, parent_id)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [req.params.id, (author_name || "مجهول").substring(0, 100), content.trim(), parent_id || null]
       );
       res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -1216,6 +1320,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const me = await getSessionUser(req);
       if (!me) return res.status(401).json({ error: "غير مصرح" });
       const { name, bio, neighborhood, gender, birth_date, avatar_url } = req.body;
+
+      // الجنس يُحدَّد مرة واحدة فقط ولا يمكن تعديله لاحقاً (حماية من التلاعب)
+      const existingUser = await query("SELECT gender FROM users WHERE id=$1", [me.id]);
+      const existingGender = existingUser.rows[0]?.gender;
+      const genderToSet = existingGender ? existingGender : (gender || null);
+
       await query(
         `UPDATE users SET
           name = COALESCE($1, name),
@@ -1225,7 +1335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           birth_date = COALESCE($5, birth_date),
           avatar_url = COALESCE($6, avatar_url)
          WHERE id = $7`,
-        [name || null, bio || null, neighborhood || null, gender || null, birth_date || null, avatar_url || null, me.id]
+        [name || null, bio || null, neighborhood || null, genderToSet, birth_date || null, avatar_url || null, me.id]
       );
       const updated = await query(
         `SELECT id, name, email, phone, role, bio, neighborhood, gender, avatar_url, created_at FROM users WHERE id=$1`,
@@ -2129,6 +2239,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36) RETURNING *`,
         [union_id,user_id||null,full_name,national_id||null,birth_date||null,birth_place||null,gender||null,nationality||'سودانية',phone||null,alt_phone||null,email||null,address||null,neighborhood||null,city||'الحصاحيصا',job_title||null,employer||null,work_address||null,work_phone||null,specialty||null,work_start_date||null,work_years?Number(work_years):null,degree||null,institution||null,graduation_year?Number(graduation_year):null,field_of_study||null,JSON.stringify(previous_unions||[]),union_roles||null,existing_membership_no||null,JSON.stringify(workshops||[]),JSON.stringify(conferences||[]),JSON.stringify(trainings||[]),achievements||null,skills||null,JSON.stringify(references_list||[]),membership_type||'regular',notes||null]
       );
+      sendAdminNotifEmail("🏛️ طلب انضمام نقابة جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone||"",
+        "البريد الإلكتروني": email||"", "المهنة": job_title||"",
+        "جهة العمل": employer||"", "التخصص": specialty||"",
+        "نوع العضوية": membership_type||"regular",
+      });
       res.status(201).json(r.rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -2708,6 +2824,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
         [org_name,org_type||null,contact_name,phone,email||null,description||null,website||null,requested_level||'standard']
       );
+      sendAdminNotifEmail("🤝 طلب شراكة خارجية جديد", {
+        "اسم المنظمة": org_name, "نوعها": org_type||"",
+        "جهة الاتصال": contact_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "مستوى الشراكة": requested_level||"standard",
+        "الموقع الإلكتروني": website||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -2729,6 +2851,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
         [union_name,union_type||null,contact_person,phone,email||null,description||null,membership_count||null,requested_tier||'basic']
       );
+      sendAdminNotifEmail("🤝 طلب شراكة نقابية جديد", {
+        "اسم النقابة": union_name, "نوعها": union_type||"",
+        "جهة الاتصال": contact_person, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "عدد الأعضاء": membership_count?.toString()||"",
+        "مستوى الشراكة": requested_tier||"basic",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -3019,6 +3147,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "INSERT INTO hospital_admissions(user_id,patient_name,hospital,room_number,ward,admission_date,diagnosis,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
         [user.id,patient_name,hospital,room_number||null,ward||null,admission_date||null,diagnosis||null,notes||null]
       );
+      sendAdminNotifEmail("🏥 طلب دخول مستشفى جديد", {
+        "اسم المريض": patient_name, "المستشفى": hospital,
+        "الجناح": ward||"", "رقم الغرفة": room_number||"",
+        "تاريخ الدخول": admission_date||"", "التشخيص": diagnosis||"",
+        "ملاحظات": notes||"",
+      });
       res.status(201).json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -3382,6 +3516,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
          other_commits||null,pledge_name||null]
       );
+      sendAdminNotifEmail("📋 طلب انضمام لإدارة الاتحاد جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "المؤسسة": institution||"",
+        "التخصص": major||"", "مرحلة الدراسة": study_stage||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -3633,6 +3772,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          address||null,previous_experience!=null?Boolean(previous_experience):null,
          experience_details||null,vision||null,other_commitments||null]
       );
+      sendAdminNotifEmail("🎓 طلب عضوية اتحاد الطلاب جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "المؤسسة": institution||"",
+        "التخصص": major||"", "مرحلة الدراسة": study_stage||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -3723,6 +3867,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          RETURNING *`,
         [uid, staff_type, full_name, license_number||null, specialization||null, workplace||null, phone||null]
       );
+      sendAdminNotifEmail("⚕️ تسجيل كادر طبي جديد", {
+        "الاسم الكامل": full_name, "نوع الكادر": staff_type,
+        "رقم الترخيص": license_number||"", "التخصص": specialization||"",
+        "جهة العمل": workplace||"", "الهاتف": phone||"",
+      });
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -3857,6 +4006,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const filePath = path.join(uploadsDir, req.params.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "الملف غير موجود" });
     res.sendFile(filePath);
+  });
+
+  // ── زواجل — نظام مدير مستقل ─────────────────────────────────────────────────
+  async function ensureZawajilManagerTables() {
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_managers (
+      id SERIAL PRIMARY KEY,
+      full_name VARCHAR(200) NOT NULL,
+      username VARCHAR(80) UNIQUE NOT NULL,
+      password_hash VARCHAR(200) NOT NULL,
+      email VARCHAR(100),
+      phone VARCHAR(20),
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_manager_sessions (
+      id SERIAL PRIMARY KEY,
+      manager_id INTEGER NOT NULL REFERENCES zawajil_managers(id) ON DELETE CASCADE,
+      token VARCHAR(80) UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  }
+
+  async function getZawajilManager(req: Request): Promise<{ id: number; full_name: string; username: string } | null> {
+    const auth = req.headers.authorization || "";
+    const tok = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!tok || !tok.startsWith("zmt_")) return null;
+    try {
+      const r = await query(
+        `SELECT m.id, m.full_name, m.username FROM zawajil_managers m
+         JOIN zawajil_manager_sessions s ON s.manager_id = m.id
+         WHERE s.token = $1 AND s.expires_at > NOW() AND m.is_active = TRUE`,
+        [tok]
+      );
+      return r.rows[0] || null;
+    } catch { return null; }
+  }
+
+  // ── تسجيل دخول مدير زواجل ─────────────────────────────────────────────────
+  app.post("/api/zawajil-manager/login", async (req: Request, res: Response) => {
+    try {
+      await ensureZawajilManagerTables();
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+      const r = await query(`SELECT * FROM zawajil_managers WHERE username=$1 AND is_active=TRUE`, [username]);
+      const mgr = r.rows[0];
+      if (!mgr) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const valid = await bcrypt.compare(password, mgr.password_hash);
+      if (!valid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const token = "zmt_" + randomBytes(24).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await query(`INSERT INTO zawajil_manager_sessions (manager_id,token,expires_at) VALUES ($1,$2,$3)`, [mgr.id, token, expiresAt]);
+      res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, username: mgr.username } });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تسجيل خروج ─────────────────────────────────────────────────────────────
+  app.post("/api/zawajil-manager/logout", async (req: Request, res: Response) => {
+    const auth = req.headers.authorization || "";
+    const tok = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (tok) { try { await query(`DELETE FROM zawajil_manager_sessions WHERE token=$1`, [tok]); } catch {} }
+    res.json({ success: true });
+  });
+
+  // ── لوحة التحكم ────────────────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/dashboard", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const total     = await query(`SELECT COUNT(*) FROM zawajil_orders`);
+      const pending   = await query(`SELECT COUNT(*) FROM zawajil_orders WHERE status='pending_review'`);
+      const completed = await query(`SELECT COUNT(*) FROM zawajil_orders WHERE status='completed'`);
+      const revenue   = await query(`SELECT COALESCE(SUM(estimated_cost),0) AS total FROM zawajil_orders WHERE status='completed'`);
+      res.json({
+        manager: mgr,
+        stats: {
+          total_orders: parseInt(total.rows[0].count),
+          pending: parseInt(pending.rows[0].count),
+          completed: parseInt(completed.rows[0].count),
+          revenue: parseFloat(revenue.rows[0].total),
+        }
+      });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── قائمة الطلبات ──────────────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/orders", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { status } = req.query;
+      const where = status && status !== "all" ? "WHERE o.status=$1" : "";
+      const params = status && status !== "all" ? [status] : [];
+      const r = await query(
+        `SELECT o.*, (SELECT json_agg(g) FROM zawajil_shoubash_guests g WHERE g.order_id=o.id) AS shoubash_guests
+         FROM zawajil_orders o ${where} ORDER BY o.created_at DESC`,
+        params
+      );
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تحديث حالة الطلب ───────────────────────────────────────────────────────
+  app.patch("/api/zawajil-manager/orders/:id/status", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_notes } = req.body;
+      if (!status) return res.status(400).json({ error: "الحالة مطلوبة" });
+      const r = await query(
+        `UPDATE zawajil_orders SET status=$1, admin_notes=COALESCE($2,admin_notes), updated_at=NOW() WHERE id=$3 RETURNING *`,
+        [status, admin_notes || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على الطلب" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── مراجعة الطلب (موافقة / رفض) ───────────────────────────────────────────
+  app.patch("/api/zawajil-manager/orders/:id/review", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { action, admin_notes, rejection_reason, estimated_cost } = req.body;
+      if (!["approve", "reject"].includes(action)) return res.status(400).json({ error: "الإجراء غير صالح" });
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      const r = await query(
+        `UPDATE zawajil_orders SET status=$1, admin_notes=COALESCE($2,admin_notes),
+         rejection_reason=COALESCE($3,rejection_reason),
+         estimated_cost=COALESCE($4::numeric,estimated_cost), updated_at=NOW()
+         WHERE id=$5 RETURNING *`,
+        [newStatus, admin_notes || null, rejection_reason || null, estimated_cost || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على الطلب" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── المنتجات (مدير زواجل) ──────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/products", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const r = await query(`SELECT * FROM zawajil_products ORDER BY sort_order, name`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/zawajil-manager/products", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      if (!name) return res.status(400).json({ error: "اسم المنتج مطلوب" });
+      const r = await query(
+        `INSERT INTO zawajil_products(name,description,price,category,image_url,is_available,sort_order)
+         VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [name, description || null, price || 0, category || "general", image_url || null, is_available !== false, sort_order || 0]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/zawajil-manager/products/:id", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      const r = await query(
+        `UPDATE zawajil_products SET
+         name=COALESCE($1,name), description=COALESCE($2,description),
+         price=COALESCE($3::numeric,price), category=COALESCE($4,category),
+         image_url=COALESCE($5,image_url), is_available=COALESCE($6,is_available),
+         sort_order=COALESCE($7::int,sort_order)
+         WHERE id=$8 RETURNING *`,
+        [name || null, description || null, price || null, category || null,
+         image_url || null, is_available != null ? Boolean(is_available) : null,
+         sort_order || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على المنتج" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/zawajil-manager/products/:id", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── إدارة مديري زواجل (من قبل الأدمن) ────────────────────────────────────
+  app.get("/api/admin/zawajil-managers", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilManagerTables();
+      const r = await query(`SELECT id,full_name,username,email,phone,is_active,created_at FROM zawajil_managers ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/zawajil-managers", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilManagerTables();
+      const { full_name, username, password, email, phone } = req.body;
+      if (!full_name || !username || !password) return res.status(400).json({ error: "الاسم واسم المستخدم وكلمة المرور مطلوبة" });
+      const existing = await query(`SELECT id FROM zawajil_managers WHERE username=$1`, [username]);
+      if (existing.rows.length > 0) return res.status(409).json({ error: "اسم المستخدم مستخدم مسبقاً" });
+      const hash = await bcrypt.hash(password, 10);
+      const r = await query(
+        `INSERT INTO zawajil_managers (full_name,username,password_hash,email,phone)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id,full_name,username,email,phone,is_active,created_at`,
+        [full_name, username, hash, email || null, phone || null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/zawajil-managers/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { full_name, is_active, email, phone } = req.body;
+      const r = await query(
+        `UPDATE zawajil_managers SET
+         full_name=COALESCE($1,full_name), is_active=COALESCE($2,is_active),
+         email=COALESCE($3,email), phone=COALESCE($4,phone)
+         WHERE id=$5 RETURNING id,full_name,username,email,phone,is_active,created_at`,
+        [full_name || null, is_active != null ? Boolean(is_active) : null, email || null, phone || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على المدير" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/zawajil-managers/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM zawajil_managers WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
   const httpServer = createServer(app);

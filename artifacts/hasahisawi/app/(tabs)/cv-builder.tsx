@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import { getApiUrl } from "@/lib/query-client";
 
 const PREMIUM_PRICE = 5000;
 const PREMIUM_FEATURES = [
@@ -304,6 +305,16 @@ const TEMPLATES = [
     gradient: ["#7C3AED", "#EC4899"] as [string, string],
     free: false,
   },
+  {
+    id: "ats",
+    name: "نسخة ATS",
+    desc: "محسّن لأنظمة الفحص الآلي للسير الذاتية",
+    primaryColor: "#000000",
+    accentColor: "#333333",
+    icon: "checkmark-done-outline" as const,
+    gradient: ["#000000", "#333333"] as [string, string],
+    free: true,
+  },
 ];
 
 // ── الخطوات ───────────────────────────────────────────────────────
@@ -350,124 +361,350 @@ function InputField({
 
 // ── بناء HTML للسيرة الذاتية ──────────────────────────────────────
 function buildCVHtml(cv: CVData, template: typeof TEMPLATES[0]): string {
-  const skillsHtml = cv.skills.filter(Boolean).map(s => `<span class="skill">${s}</span>`).join("");
-  const langsHtml  = cv.languages.filter(Boolean).map(l => `<span class="skill">${l}</span>`).join("");
-  const coursesHtml = cv.courses.filter(Boolean).map(c => `<li>${c}</li>`).join("");
-
-  const educationHtml = cv.education.filter(e => e.degree).map(e => `
-    <div class="item">
-      <div class="item-title">${e.degree}</div>
-      <div class="item-sub">${e.institution} · ${e.year}</div>
-    </div>`).join("");
-
-  const experienceHtml = cv.experience.filter(e => e.position).map(e => `
-    <div class="item">
-      <div class="item-title">${e.position}</div>
-      <div class="item-sub">${e.company} · ${e.period}</div>
-      ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
-    </div>`).join("");
-
   const p = template.primaryColor;
   const a = template.accentColor;
 
-  return `<!DOCTYPE html>
+  // shared data helpers
+  const skills    = cv.skills.filter(Boolean);
+  const langs     = cv.languages.filter(Boolean);
+  const courses   = cv.courses.filter(Boolean);
+  const education = cv.education.filter(e => e.degree);
+  const experience = cv.experience.filter(e => e.position);
+
+  // ── ATS: plain text-optimised ──────────────────────────────────
+  if (template.id === "ats") {
+    const eduLines = education.map(e =>
+      `<p style="margin:0 0 4px"><strong>${e.degree}</strong><br>${e.institution}${e.year ? " — " + e.year : ""}</p>`
+    ).join("");
+    const expLines = experience.map(e =>
+      `<p style="margin:0 0 8px"><strong>${e.position}</strong><br>${e.company}${e.period ? " | " + e.period : ""}${e.desc ? "<br>" + e.desc : ""}</p>`
+    ).join("");
+    const skillList = skills.map(s => `<li>${s}</li>`).join("");
+    const langList  = langs.map(l => `<li>${l}</li>`).join("");
+    const courseList = courses.map(c => `<li>${c}</li>`).join("");
+
+    return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; font-size:12pt; color:#000; background:#fff; margin:30px; line-height:1.6; }
+  h1 { font-size:20pt; margin:0 0 2px; }
+  h2 { font-size:12pt; font-weight:bold; margin:18px 0 6px; border-bottom:1px solid #000; padding-bottom:3px; }
+  p, li { font-size:11pt; margin:0 0 4px; }
+  ul { margin:4px 0 0 0; padding-right:20px; }
+  .contact-line { font-size:10pt; margin:4px 0 0; }
+</style>
+</head>
+<body>
+<h1>${cv.name || "الاسم الكامل"}</h1>
+<p style="font-size:11pt;margin:2px 0 0">${cv.title || ""}</p>
+<p class="contact-line">${[cv.phone, cv.email, cv.address].filter(Boolean).join("  |  ")}</p>
+
+${cv.objective ? `<h2>الهدف الوظيفي</h2><p>${cv.objective}</p>` : ""}
+${education.length ? `<h2>المؤهل العلمي</h2>${eduLines}` : ""}
+${experience.length ? `<h2>الخبرة العملية</h2>${expLines}` : ""}
+${skills.length ? `<h2>المهارات</h2><ul>${skillList}</ul>` : ""}
+${langs.length ? `<h2>اللغات</h2><ul>${langList}</ul>` : ""}
+${courses.length ? `<h2>الدورات والشهادات</h2><ul>${courseList}</ul>` : ""}
+</body>
+</html>`;
+  }
+
+  // ── Classic: two-column with sidebar ──────────────────────────
+  if (template.id === "classic") {
+    const sideSkills = skills.map(s => `<div class="side-tag">${s}</div>`).join("");
+    const sideLangs  = langs.map(l => `<div class="side-tag">${l}</div>`).join("");
+    const eduItems   = education.map(e => `
+      <div class="item">
+        <div class="item-title">${e.degree}</div>
+        <div class="item-sub">${e.institution}${e.year ? " · " + e.year : ""}</div>
+      </div>`).join("");
+    const expItems   = experience.map(e => `
+      <div class="item">
+        <div class="item-title">${e.position}</div>
+        <div class="item-sub">${e.company}${e.period ? " · " + e.period : ""}</div>
+        ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
+      </div>`).join("");
+    const courseItems = courses.map(c => `<li>${c}</li>`).join("");
+
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:13px; }
-  .header { background: linear-gradient(135deg, ${p}, ${a}); color:#fff; padding:28px 30px 20px; }
-  .name { font-size:26px; font-weight:800; letter-spacing:0.5px; }
-  .job-title { font-size:14px; opacity:0.9; margin-top:4px; }
-  .contacts { display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:12px; opacity:0.92; }
-  .contact-item { display:flex; align-items:center; gap:5px; }
-  .body { padding:24px 30px; }
-  .section { margin-bottom:20px; }
-  .section-title {
-    font-size:14px; font-weight:700; color:${p};
-    border-right:3px solid ${p}; padding-right:8px;
-    margin-bottom:10px; text-transform:uppercase; letter-spacing:0.8px;
-  }
-  .section-line { height:1px; background:${p}22; margin-bottom:12px; }
-  .item { margin-bottom:10px; }
-  .item-title { font-weight:700; font-size:13px; color:#1a1a1a; }
-  .item-sub { font-size:11px; color:#555; margin-top:2px; }
-  .item-desc { font-size:12px; color:#444; margin-top:4px; line-height:1.6; }
-  .objective { font-size:13px; line-height:1.7; color:#333; }
-  .skills-grid { display:flex; flex-wrap:wrap; gap:7px; }
-  .skill {
-    background:${p}18; color:${p}; border:1px solid ${p}35;
-    padding:4px 11px; border-radius:20px; font-size:11px; font-weight:600;
-  }
-  .courses-list { padding-right:18px; }
-  .courses-list li { font-size:12px; color:#333; margin-bottom:4px; line-height:1.5; }
-  .two-col { display:flex; gap:24px; }
-  .col { flex:1; }
+  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; }
+  .header { background:${p}; color:#fff; padding:28px 30px 22px; }
+  .name { font-size:28px; font-weight:900; letter-spacing:0.5px; }
+  .job-title { font-size:14px; color:rgba(255,255,255,0.82); margin-top:5px; }
+  .header-contacts { display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:11px; color:rgba(255,255,255,0.78); }
+  .layout { display:flex; gap:0; min-height:600px; }
+  .sidebar { width:220px; background:#F0F4F8; padding:22px 16px; flex-shrink:0; border-left:3px solid ${p}; }
+  .main { flex:1; padding:22px 24px; }
+  .side-section { margin-bottom:20px; }
+  .side-label { font-size:10px; font-weight:800; color:${p}; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid ${p}; padding-bottom:4px; margin-bottom:10px; }
+  .side-contact { font-size:11px; color:#374151; margin-bottom:5px; line-height:1.4; }
+  .side-tag { background:${p}20; color:${p}; border:1px solid ${p}40; border-radius:4px; padding:3px 8px; font-size:10px; font-weight:700; display:inline-block; margin:2px 2px 2px 0; }
+  .sec { margin-bottom:18px; }
+  .sec-title { font-size:13px; font-weight:800; color:${p}; text-decoration:underline; text-underline-offset:4px; text-decoration-color:${p}60; margin-bottom:10px; letter-spacing:0.4px; }
+  .item { margin-bottom:10px; padding-right:10px; border-right:2px solid ${p}30; }
+  .item-title { font-weight:700; font-size:12px; color:#111; }
+  .item-sub { font-size:10px; color:#6B7280; margin-top:2px; }
+  .item-desc { font-size:11px; color:#444; margin-top:4px; line-height:1.5; }
+  .objective { font-size:12px; line-height:1.8; color:#374151; background:${p}08; border-right:3px solid ${p}; padding:10px 12px; border-radius:0 6px 6px 0; }
+  .course-list { padding-right:16px; }
+  .course-list li { font-size:11px; color:#374151; margin-bottom:3px; }
 </style>
 </head>
 <body>
 <div class="header">
   <div class="name">${cv.name || "الاسم الكامل"}</div>
-  <div class="job-title">${cv.title || "المسمى الوظيفي"}</div>
-  <div class="contacts">
-    ${cv.phone ? `<div class="contact-item">📞 ${cv.phone}</div>` : ""}
-    ${cv.email ? `<div class="contact-item">✉ ${cv.email}</div>` : ""}
-    ${cv.address ? `<div class="contact-item">📍 ${cv.address}</div>` : ""}
+  <div class="job-title">${cv.title || ""}</div>
+  <div class="header-contacts">
+    ${cv.phone ? `<span>&#128222; ${cv.phone}</span>` : ""}
+    ${cv.email ? `<span>&#9993; ${cv.email}</span>` : ""}
+    ${cv.address ? `<span>&#128205; ${cv.address}</span>` : ""}
   </div>
 </div>
-<div class="body">
-  ${cv.objective ? `
-  <div class="section">
-    <div class="section-title">الهدف الوظيفي</div>
-    <div class="section-line"></div>
-    <div class="objective">${cv.objective}</div>
-  </div>` : ""}
-
-  <div class="two-col">
-    <div class="col">
-      ${educationHtml ? `
-      <div class="section">
-        <div class="section-title">المؤهل العلمي</div>
-        <div class="section-line"></div>
-        ${educationHtml}
-      </div>` : ""}
-
-      ${experienceHtml ? `
-      <div class="section">
-        <div class="section-title">الخبرة العملية</div>
-        <div class="section-line"></div>
-        ${experienceHtml}
-      </div>` : ""}
-    </div>
-
-    <div class="col">
-      ${skillsHtml ? `
-      <div class="section">
-        <div class="section-title">المهارات</div>
-        <div class="section-line"></div>
-        <div class="skills-grid">${skillsHtml}</div>
-      </div>` : ""}
-
-      ${langsHtml ? `
-      <div class="section">
-        <div class="section-title">اللغات</div>
-        <div class="section-line"></div>
-        <div class="skills-grid">${langsHtml}</div>
-      </div>` : ""}
-
-      ${coursesHtml ? `
-      <div class="section">
-        <div class="section-title">الدورات والشهادات</div>
-        <div class="section-line"></div>
-        <ul class="courses-list">${coursesHtml}</ul>
-      </div>` : ""}
-    </div>
+<div class="layout">
+  <div class="sidebar">
+    ${skills.length ? `<div class="side-section"><div class="side-label">المهارات</div>${sideSkills}</div>` : ""}
+    ${langs.length ? `<div class="side-section"><div class="side-label">اللغات</div>${sideLangs}</div>` : ""}
+    ${courses.length ? `<div class="side-section"><div class="side-label">الدورات</div><ul class="course-list">${courseItems}</ul></div>` : ""}
+  </div>
+  <div class="main">
+    ${cv.objective ? `<div class="sec"><div class="sec-title">الهدف الوظيفي</div><div class="objective">${cv.objective}</div></div>` : ""}
+    ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
+    ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
   </div>
 </div>
 </body>
 </html>`;
+  }
+
+  // ── Minimal: ultra-clean single column ────────────────────────
+  if (template.id === "minimal") {
+    const eduItems = education.map(e => `
+      <div class="item">
+        <span class="item-title">${e.degree}</span>
+        <span class="item-meta">${e.institution}${e.year ? " · " + e.year : ""}</span>
+      </div>`).join("");
+    const expItems = experience.map(e => `
+      <div class="item">
+        <span class="item-title">${e.position}</span>
+        <span class="item-meta">${e.company}${e.period ? " · " + e.period : ""}</span>
+        ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
+      </div>`).join("");
+    const skillTags = skills.map(s => `<span class="tag">${s}</span>`).join("");
+    const langTags  = langs.map(l => `<span class="tag">${l}</span>`).join("");
+    const courseList = courses.map(c => `<li>${c}</li>`).join("");
+
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; max-width:680px; margin:0 auto; padding:40px 36px; }
+  .name { font-size:30px; font-weight:900; color:#111; letter-spacing:-0.5px; }
+  .title { font-size:14px; color:#6B7280; margin-top:4px; font-weight:400; }
+  .contacts { display:flex; flex-wrap:wrap; gap:18px; margin-top:10px; font-size:11px; color:#9CA3AF; padding-bottom:20px; border-bottom:1px solid #E5E7EB; }
+  .divider { height:1px; background:#F3F4F6; margin:18px 0; }
+  .sec { margin-bottom:24px; }
+  .sec-label { font-size:9px; font-weight:800; color:#9CA3AF; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; }
+  .item { margin-bottom:12px; }
+  .item-title { font-size:13px; font-weight:700; color:#111; display:block; }
+  .item-meta { font-size:11px; color:#9CA3AF; display:block; margin-top:2px; }
+  .item-desc { font-size:11px; color:#6B7280; margin-top:5px; line-height:1.6; }
+  .objective { font-size:12px; line-height:1.8; color:#4B5563; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { font-size:10px; color:#374151; border:1px solid #D1D5DB; padding:3px 9px; border-radius:3px; }
+  ul { padding-right:16px; }
+  ul li { font-size:11px; color:#4B5563; margin-bottom:3px; }
+</style>
+</head>
+<body>
+<div class="name">${cv.name || "الاسم الكامل"}</div>
+<div class="title">${cv.title || ""}</div>
+<div class="contacts">
+  ${cv.phone ? `<span>${cv.phone}</span>` : ""}
+  ${cv.email ? `<span>${cv.email}</span>` : ""}
+  ${cv.address ? `<span>${cv.address}</span>` : ""}
+</div>
+
+${cv.objective ? `<div class="sec"><div class="sec-label">ملخص مهني</div><div class="objective">${cv.objective}</div></div><div class="divider"></div>` : ""}
+${experience.length ? `<div class="sec"><div class="sec-label">الخبرة العملية</div>${expItems}</div><div class="divider"></div>` : ""}
+${education.length ? `<div class="sec"><div class="sec-label">المؤهل العلمي</div>${eduItems}</div><div class="divider"></div>` : ""}
+${skills.length ? `<div class="sec"><div class="sec-label">المهارات</div><div class="tags">${skillTags}</div></div>` : ""}
+${langs.length ? `<div class="sec"><div class="sec-label">اللغات</div><div class="tags">${langTags}</div></div>` : ""}
+${courses.length ? `<div class="sec"><div class="sec-label">الدورات والشهادات</div><ul>${courseList}</ul></div>` : ""}
+</body>
+</html>`;
+  }
+
+  // ── Modern: gradient header + two-column with sidebar ─────────
+  if (template.id === "modern") {
+    const sideContact = [
+      cv.phone ? `<div class="sc-item"><span class="sc-icon">&#128222;</span>${cv.phone}</div>` : "",
+      cv.email ? `<div class="sc-item"><span class="sc-icon">&#9993;</span>${cv.email}</div>` : "",
+      cv.address ? `<div class="sc-item"><span class="sc-icon">&#128205;</span>${cv.address}</div>` : "",
+    ].join("");
+    const skillBars = skills.map(s => `
+      <div class="skill-row">
+        <span class="skill-name">${s}</span>
+        <div class="skill-bar"><div class="skill-fill"></div></div>
+      </div>`).join("");
+    const langList = langs.map(l => `<div class="sc-item">&#128483; ${l}</div>`).join("");
+    const courseList = courses.map(c => `<li>${c}</li>`).join("");
+    const expItems = experience.map(e => `
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-content">
+          <div class="item-title">${e.position}</div>
+          <div class="item-meta">${e.company}${e.period ? " · " + e.period : ""}</div>
+          ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
+        </div>
+      </div>`).join("");
+    const eduItems = education.map(e => `
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-content">
+          <div class="item-title">${e.degree}</div>
+          <div class="item-meta">${e.institution}${e.year ? " · " + e.year : ""}</div>
+        </div>
+      </div>`).join("");
+
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; }
+  .header { background:linear-gradient(135deg,${p},${a}); color:#fff; padding:30px 30px 24px; }
+  .name { font-size:28px; font-weight:900; letter-spacing:0.3px; }
+  .job-title { font-size:14px; color:rgba(255,255,255,0.85); margin-top:6px; }
+  .layout { display:flex; min-height:620px; }
+  .sidebar { width:195px; background:${p}f0; padding:22px 16px; flex-shrink:0; }
+  .main { flex:1; padding:22px 24px; }
+  .side-sec { margin-bottom:22px; }
+  .side-title { font-size:9px; font-weight:800; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:10px; }
+  .sc-item { font-size:10.5px; color:#fff; margin-bottom:6px; display:flex; align-items:center; gap:6px; word-break:break-all; }
+  .sc-icon { font-size:13px; }
+  .skill-row { margin-bottom:7px; }
+  .skill-name { font-size:10.5px; color:#fff; display:block; margin-bottom:3px; }
+  .skill-bar { background:rgba(255,255,255,0.2); border-radius:4px; height:5px; overflow:hidden; }
+  .skill-fill { background:#fff; width:75%; height:100%; border-radius:4px; }
+  .sec { margin-bottom:20px; }
+  .sec-title { font-size:13px; font-weight:800; color:${p}; border-right:4px solid ${p}; padding-right:9px; margin-bottom:12px; }
+  .tl-item { display:flex; gap:10px; margin-bottom:12px; position:relative; padding-right:6px; }
+  .tl-dot { width:9px; height:9px; border-radius:50%; background:${p}; flex-shrink:0; margin-top:3px; }
+  .tl-content { flex:1; }
+  .item-title { font-weight:700; font-size:12px; color:#111; }
+  .item-meta { font-size:10px; color:#9CA3AF; margin-top:2px; }
+  .item-desc { font-size:11px; color:#555; margin-top:4px; line-height:1.5; }
+  .objective { font-size:12px; line-height:1.8; color:#374151; }
+  ul { padding-right:16px; }
+  ul li { font-size:11px; color:#374151; margin-bottom:3px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="name">${cv.name || "الاسم الكامل"}</div>
+  <div class="job-title">${cv.title || ""}</div>
+</div>
+<div class="layout">
+  <div class="sidebar">
+    ${sideContact ? `<div class="side-sec"><div class="side-title">التواصل</div>${sideContact}</div>` : ""}
+    ${skills.length ? `<div class="side-sec"><div class="side-title">المهارات</div>${skillBars}</div>` : ""}
+    ${langs.length ? `<div class="side-sec"><div class="side-title">اللغات</div>${langList}</div>` : ""}
+    ${courses.length ? `<div class="side-sec"><div class="side-title">الدورات</div><ul style="padding-right:12px">${courses.map(c=>`<li style="color:#fff;font-size:10px;margin-bottom:3px">${c}</li>`).join("")}</ul></div>` : ""}
+  </div>
+  <div class="main">
+    ${cv.objective ? `<div class="sec"><div class="sec-title">الملخص المهني</div><div class="objective">${cv.objective}</div></div>` : ""}
+    ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
+    ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
+  </div>
+</div>
+</body>
+</html>`;
+  }
+
+  // ── Creative: bold hero + card-style sections ──────────────────
+  if (template.id === "creative") {
+    const skillTags  = skills.map(s => `<span class="tag">${s}</span>`).join("");
+    const langTags   = langs.map(l => `<span class="tag lang-tag">${l}</span>`).join("");
+    const courseList = courses.map(c => `<li>${c}</li>`).join("");
+    const expItems   = experience.map(e => `
+      <div class="card">
+        <div class="card-title">${e.position}</div>
+        <div class="card-meta">${e.company}${e.period ? " &bull; " + e.period : ""}</div>
+        ${e.desc ? `<div class="card-desc">${e.desc}</div>` : ""}
+      </div>`).join("");
+    const eduItems   = education.map(e => `
+      <div class="card">
+        <div class="card-title">${e.degree}</div>
+        <div class="card-meta">${e.institution}${e.year ? " &bull; " + e.year : ""}</div>
+      </div>`).join("");
+
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#F9F7FF; color:#1a1a1a; font-size:12px; }
+  .hero { background:linear-gradient(135deg,${p} 0%,${a} 100%); color:#fff; padding:36px 32px 30px; position:relative; overflow:hidden; }
+  .hero::after { content:""; position:absolute; bottom:-30px; left:-30px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,0.06); }
+  .hero-name { font-size:32px; font-weight:900; letter-spacing:-0.5px; }
+  .hero-title { font-size:15px; color:rgba(255,255,255,0.82); margin-top:6px; font-weight:500; }
+  .hero-contacts { display:flex; flex-wrap:wrap; gap:14px; margin-top:16px; font-size:11px; color:rgba(255,255,255,0.75); }
+  .body { padding:24px 28px; }
+  .sec { margin-bottom:22px; }
+  .sec-title { font-size:13px; font-weight:900; color:${p}; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .sec-title::after { content:""; flex:1; height:2px; background:linear-gradient(90deg,${p}50,transparent); }
+  .card { background:#fff; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid ${p}20; border-right:4px solid ${p}; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+  .card-title { font-weight:700; font-size:13px; color:#111; }
+  .card-meta { font-size:10.5px; color:${a}; margin-top:3px; font-weight:600; }
+  .card-desc { font-size:11px; color:#555; margin-top:5px; line-height:1.5; }
+  .objective { font-size:12px; line-height:1.8; color:#374151; background:#fff; padding:14px 16px; border-radius:10px; border:1px solid ${p}20; border-right:4px solid ${a}; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+  .tags { display:flex; flex-wrap:wrap; gap:7px; }
+  .tag { background:${p}15; color:${p}; border:1px solid ${p}35; padding:5px 12px; border-radius:20px; font-size:10.5px; font-weight:700; }
+  .lang-tag { background:${a}15; color:${a}; border-color:${a}35; }
+  ul { padding-right:18px; }
+  ul li { font-size:11px; color:#374151; margin-bottom:4px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="hero-name">${cv.name || "الاسم الكامل"}</div>
+  <div class="hero-title">${cv.title || ""}</div>
+  <div class="hero-contacts">
+    ${cv.phone ? `<span>&#128222; ${cv.phone}</span>` : ""}
+    ${cv.email ? `<span>&#9993; ${cv.email}</span>` : ""}
+    ${cv.address ? `<span>&#128205; ${cv.address}</span>` : ""}
+  </div>
+</div>
+<div class="body">
+  ${cv.objective ? `<div class="sec"><div class="sec-title">الهدف الوظيفي</div><div class="objective">${cv.objective}</div></div>` : ""}
+  ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
+  ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
+  ${skills.length ? `<div class="sec"><div class="sec-title">المهارات</div><div class="tags">${skillTags}</div></div>` : ""}
+  ${langs.length ? `<div class="sec"><div class="sec-title">اللغات</div><div class="tags">${langTags}</div></div>` : ""}
+  ${courses.length ? `<div class="sec"><div class="sec-title">الدورات والشهادات</div><ul>${courseList}</ul></div>` : ""}
+</div>
+</body>
+</html>`;
+  }
+
+  // ── Fallback (should not reach here) ─────────────────────────
+  return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/></head><body><h1>${cv.name}</h1></body></html>`;
 }
 
 // ── معاينة السيرة داخل التطبيق ───────────────────────────────────

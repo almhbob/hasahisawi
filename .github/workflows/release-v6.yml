@@ -107,6 +107,13 @@ jobs:
           KOTLIN
           echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
 
+      - name: Add custom notification sound
+        run: |
+          mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
+          cp artifacts/hasahisawi/assets/sounds/adhan.mp3 \
+             artifacts/hasahisawi/android/app/src/main/res/raw/hasahisawi_notif.mp3
+          echo "✅ hasahisawi_notif.mp3 added to res/raw"
+
       - name: Create .env
         working-directory: artifacts/hasahisawi
         run: |

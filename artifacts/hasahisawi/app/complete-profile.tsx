@@ -17,6 +17,9 @@ export default function CompleteProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, completeProfile } = useAuth();
 
+  // الجنس مقفل إذا كان محدداً مسبقاً — لا يمكن تعديله
+  const genderLocked = !!user?.gender;
+
   const [gender, setGender]             = useState<"male" | "female" | null>(user?.gender ?? null);
   const [neighborhood, setNeighborhood] = useState<string>(user?.neighborhood ?? "");
   const [saving, setSaving]             = useState(false);
@@ -38,15 +41,16 @@ export default function CompleteProfileScreen() {
     }
   };
 
-  const handleSkip = () => {
-    Alert.alert(
-      "تخطى الآن؟",
-      "يمكنك تحديد الجنس لاحقاً من صفحة الإعدادات.",
-      [
-        { text: "إلغاء", style: "cancel" },
-        { text: "تخطى", style: "destructive", onPress: () => router.replace("/(tabs)/" as any) },
-      ]
-    );
+  const handleGenderPress = (selected: "male" | "female") => {
+    if (genderLocked) {
+      Alert.alert(
+        "الجنس محدد مسبقاً",
+        "لا يمكن تغيير الجنس بعد تحديده لأول مرة. تواصل مع الإدارة إذا كان هناك خطأ.",
+        [{ text: "حسناً" }]
+      );
+      return;
+    }
+    setGender(selected);
   };
 
   return (
@@ -74,17 +78,30 @@ export default function CompleteProfileScreen() {
         <Animated.View entering={FadeInDown.delay(80).springify()} style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>الجنس</Text>
-            <View style={s.requiredBadge}><Text style={s.requiredTxt}>مطلوب</Text></View>
+            <View style={genderLocked ? s.lockedBadge : s.requiredBadge}>
+              <Ionicons name={genderLocked ? "lock-closed" : "alert-circle"} size={11} color={genderLocked ? Colors.textMuted : Colors.accent} />
+              <Text style={[s.requiredTxt, genderLocked && { color: Colors.textMuted }]}>
+                {genderLocked ? "محدد ومقفل" : "مطلوب — يُحدَّد مرة واحدة"}
+              </Text>
+            </View>
           </View>
+
+          {genderLocked && (
+            <View style={s.lockNote}>
+              <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
+              <Text style={s.lockNoteText}>الجنس لا يمكن تعديله بعد تحديده</Text>
+            </View>
+          )}
+
           <View style={s.genderRow}>
             <TouchableOpacity
-              style={[s.genderBtn, gender === "male" && s.genderBtnMaleActive]}
-              onPress={() => setGender("male")}
-              activeOpacity={0.8}
+              style={[s.genderBtn, gender === "male" && s.genderBtnMaleActive, genderLocked && s.genderBtnLocked]}
+              onPress={() => handleGenderPress("male")}
+              activeOpacity={genderLocked ? 1 : 0.8}
             >
               {gender === "male" && (
                 <View style={s.checkMark}>
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                  <Ionicons name={genderLocked ? "lock-closed" : "checkmark-circle"} size={18} color="#fff" />
                 </View>
               )}
               <Ionicons name="male" size={28} color={gender === "male" ? "#fff" : Colors.textMuted} />
@@ -92,13 +109,13 @@ export default function CompleteProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[s.genderBtn, gender === "female" && s.genderBtnFemaleActive]}
-              onPress={() => setGender("female")}
-              activeOpacity={0.8}
+              style={[s.genderBtn, gender === "female" && s.genderBtnFemaleActive, genderLocked && s.genderBtnLocked]}
+              onPress={() => handleGenderPress("female")}
+              activeOpacity={genderLocked ? 1 : 0.8}
             >
               {gender === "female" && (
                 <View style={s.checkMark}>
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                  <Ionicons name={genderLocked ? "lock-closed" : "checkmark-circle"} size={18} color="#fff" />
                 </View>
               )}
               <Ionicons name="female" size={28} color={gender === "female" ? "#fff" : Colors.textMuted} />
@@ -111,7 +128,9 @@ export default function CompleteProfileScreen() {
         <Animated.View entering={FadeInDown.delay(160).springify()} style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>مكان السكن</Text>
-            <View style={[s.requiredBadge, { backgroundColor: Colors.surface2 }]}><Text style={[s.requiredTxt, { color: Colors.textMuted }]}>اختياري</Text></View>
+            <View style={[s.requiredBadge, { backgroundColor: Colors.surface2 }]}>
+              <Text style={[s.requiredTxt, { color: Colors.textMuted }]}>اختياري</Text>
+            </View>
           </View>
           <Text style={s.sectionHint}>
             اكتب اسم حيّك أو قريتك أو المنطقة التي تسكن فيها
@@ -186,17 +205,8 @@ export default function CompleteProfileScreen() {
           </TouchableOpacity>
 
           {!canSave && (
-            <Text style={s.helperTxt}>يرجى اختيار الجنس للمتابعة</Text>
+            <Text style={s.helperTxt}>يرجى اختيار الجنس للمتابعة — لا يمكن تخطى هذه الخطوة</Text>
           )}
-        </Animated.View>
-
-        {/* ── زر التخطى ── */}
-        <Animated.View entering={FadeInDown.delay(300).springify()} style={{ alignItems: "center", marginTop: 4 }}>
-          <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} style={s.skipBtn}>
-            <Text style={s.skipTxt}>تخطى الآن</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
-          <Text style={s.skipHint}>يمكنك إكمال ملفك الشخصي لاحقاً من الإعدادات</Text>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -239,11 +249,24 @@ const s = StyleSheet.create({
     color: Colors.textSecondary, textAlign: "right", lineHeight: 20,
   },
   requiredBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: Colors.accent + "22", borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 2,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  lockedBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    backgroundColor: Colors.surface2, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
   requiredTxt: {
     fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent,
+  },
+  lockNote: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
+    backgroundColor: Colors.surface2, borderRadius: 8, padding: 8,
+  },
+  lockNoteText: {
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
   },
 
   // Gender
@@ -261,6 +284,9 @@ const s = StyleSheet.create({
   },
   genderBtnFemaleActive: {
     borderColor: "#E05567", backgroundColor: "#E0556720",
+  },
+  genderBtnLocked: {
+    opacity: 0.75,
   },
   genderTxt: {
     fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textMuted,
@@ -321,17 +347,5 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 12,
     color: Colors.textMuted, textAlign: "center",
     marginTop: 8, lineHeight: 18,
-  },
-
-  skipBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    paddingVertical: 10, paddingHorizontal: 16,
-  },
-  skipTxt: {
-    fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted,
-  },
-  skipHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
-    color: Colors.textMuted + "88", textAlign: "center", lineHeight: 18,
   },
 });

@@ -35,7 +35,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "default",
+      sound: "hasahisawi_notif",
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
@@ -49,7 +49,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "default",
+      sound: "hasahisawi_notif",
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });
 
@@ -63,7 +63,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "default",
+      sound: "hasahisawi_notif",
       bypassDnd: true,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
@@ -78,7 +78,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "default",
+      sound: "hasahisawi_notif",
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
@@ -92,7 +92,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: false,
-      sound: "default",
+      sound: "hasahisawi_notif",
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   } catch {}
@@ -203,7 +203,7 @@ export async function scheduleLocalNotification(
         title:   notification.title,
         body:    notification.body,
         data:    { ...(notification.data ?? {}), channelId },
-        sound:   "default",
+        sound:   "hasahisawi_notif",
         priority: ch === "URGENT"
           ? Notifications.AndroidNotificationPriority.MAX
           : Notifications.AndroidNotificationPriority.HIGH,
@@ -269,7 +269,7 @@ export async function scheduleOccasionReminder(
         title:   notification.title,
         body:    notification.body,
         data:    { ...(notification.data ?? {}), channelId },
-        sound:   "default",
+        sound:   "hasahisawi_notif",
         priority: Notifications.AndroidNotificationPriority.HIGH,
         vibrate: [0, 250, 250, 250],
         ...(Platform.OS === "android" && { channelId }),

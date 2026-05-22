@@ -12,6 +12,7 @@ const SPRING_CONFIG = { damping: 15, stiffness: 300, mass: 0.8 };
 interface AnimatedPressProps {
   children: React.ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
   scaleDown?: number;
   haptic?: boolean;
@@ -22,6 +23,7 @@ interface AnimatedPressProps {
 export default function AnimatedPress({
   children,
   onPress,
+  onLongPress,
   style,
   scaleDown = 0.96,
   haptic = true,
@@ -51,6 +53,9 @@ export default function AnimatedPress({
         }}
         onPress={() => {
           if (!disabled && onPress) onPress();
+        }}
+        onLongPress={() => {
+          if (!disabled && onLongPress) onLongPress();
         }}
       >
         {children}
