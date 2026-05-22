@@ -194,6 +194,8 @@ function RootLayoutNav() {
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="travel-agencies"          options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
+        <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );

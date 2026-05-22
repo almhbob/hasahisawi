@@ -817,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
 
       const r = await query(
-        "SELECT id FROM qr_sessions WHERE token = $1 AND status = 'pending' AND expires_at > NOW()",
+        "SELECT id FROM qr_sessions WHERE token = $1 AND status IN ('pending','scanned') AND expires_at > NOW()",
         [token]
       );
       if (!r.rows.length) return res.status(404).json({ error: "رمز QR منتهي الصلاحية أو غير صحيح" });
