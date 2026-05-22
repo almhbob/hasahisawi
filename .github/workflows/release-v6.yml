@@ -19,7 +19,7 @@ jobs:
   build-android:
     name: Build APK + AAB (Android)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     outputs:
       version: ${{ steps.ver.outputs.version }}
       code: ${{ steps.ver.outputs.code }}
@@ -33,9 +33,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Configure NDK version
+        run: |
+          echo "=== Pre-installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" || echo "none"
+          echo "=== Pre-installed Build-tools ==="
+          ls "$ANDROID_HOME/build-tools/" || echo "none"
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          if [ -z "$NDK_VER" ]; then
+            echo "ERROR: No NDK found" && exit 1
+          fi
+          echo "Using NDK: $NDK_VER"
+          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
+          echo "Wrote ndkVersion=$NDK_VER to gradle.properties"
+
       - uses: pnpm/action-setup@v4
-        with:
-          version: '10'
 
       - uses: actions/setup-node@v4
         with:
@@ -54,39 +66,74 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Patch expo-camera — add missing BarCodeScannerResult stub
+        run: |
+          # expo-camera@16.0.18 references expo.modules.interfaces.barcodescanner.BarCodeScannerResult
+          # which was removed when expo-barcode-scanner was deprecated in Expo SDK 52.
+          # We inject a compatibility stub into expo-camera's own source tree so Kotlin can compile it.
+          EXPO_CAM_ROOT=$(node -e "
+            const path = require('path');
+            const pkg = require.resolve('expo-camera/package.json', {paths:['artifacts/hasahisawi/node_modules']});
+            console.log(path.dirname(pkg));
+          ")
+          STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
+          mkdir -p "$STUB_DIR"
+          cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
+          package expo.modules.interfaces.barcodescanner
+
+          class BarCodeScannerResult(
+              val type: Int,
+              private val _value: String?,
+              private val _raw: String?,
+              var cornerPoints: MutableList<Int>,
+              var referenceImageHeight: Int,
+              var referenceImageWidth: Int,
+          ) {
+              val value: String get() = _value ?: ""
+              val raw: String get() = _raw ?: ""
+
+              val boundingBox: BoundingBox
+                  get() {
+                      if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
+                      val xs = cornerPoints.indices.filter { it % 2 == 0 }.map { cornerPoints[it] }
+                      val ys = cornerPoints.indices.filter { it % 2 != 0 }.map { cornerPoints[it] }
+                      val minX = xs.min()
+                      val minY = ys.min()
+                      return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
+                  }
+
+              data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
+          }
+          KOTLIN
+          echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
+
       - name: Create .env
         working-directory: artifacts/hasahisawi
         run: |
-          cat > .env <<'EOF'
-          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161
-          EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_DISABLE_OTP=true
-          EOF
+          printf '%s\n' \
+            'EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8' \
+            'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com' \
+            'EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi' \
+            'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app' \
+            'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161' \
+            'EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48' \
+            'EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app' \
+            'EXPO_PUBLIC_DISABLE_OTP=true' > .env
 
-      - name: Expo prebuild
-        working-directory: artifacts/hasahisawi
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
+
+      - name: Setup keystore
         env:
-          EXPO_NO_GIT_STATUS: '1'
-          EXPO_NO_TELEMETRY: '1'
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
-        run: pnpm exec expo prebuild --platform android --clean --no-install
-
-      - name: Decode keystore
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
-            > artifacts/hasahisawi/android/app/hasahisawi-release.keystore
+          KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
+            echo "✅ Keystore from KEYSTORE_BASE64 secret ($(wc -c < $KEYSTORE_DEST) bytes)"
+          else
+            echo "⚠️  KEYSTORE_BASE64 not set — build will use hardcoded signing config"
+          fi
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -94,22 +141,46 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.gradle/build-cache
           key: gradle-v6-${{ hashFiles('artifacts/hasahisawi/android/**/*.gradle*') }}
           restore-keys: gradle-v6-
+
+      - name: Pre-build setup
+        run: |
+          PROPS=artifacts/hasahisawi/android/gradle.properties
+          # Keep newArchEnabled=true — reanimated 4.x requires New Architecture.
+          # Disabling it causes: GradleException("[Reanimated] Reanimated requires new architecture")
+          # OOM is prevented instead by parallel=false (Metro and C++ run sequentially, not simultaneously)
+          sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
+          # Build arm64-v8a only — covers all modern Android phones, reduces C++ compilation by 75%
+          echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
+          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> $PROPS
+          # parallel=false is the KEY: Metro (Node.js 4GB) and C++ compilation never run simultaneously
+          # Without this, both overlap → 4GB JVM + 4GB Metro + 4GB C++ = 12GB → OOM on 7GB runner
+          echo "org.gradle.parallel=false" >> $PROPS
+          echo "org.gradle.workers.max=1" >> $PROPS
+          echo "org.gradle.caching=true" >> $PROPS
+          echo "org.gradle.configuration-cache=false" >> $PROPS
+          echo "=== gradle.properties tail ==="
+          tail -12 $PROPS
+          echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
+          echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
+          echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
 
       - name: Build release APK + AAB
         working-directory: artifacts/hasahisawi/android
         env:
-          KEYSTORE_PATH: ${{ github.workspace }}/artifacts/hasahisawi/android/app/hasahisawi-release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          # Give Metro (Node.js subprocess) enough heap — default 512m causes OOM on large apps
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
-            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            --stacktrace \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
@@ -136,69 +207,11 @@ jobs:
 
       - name: Cleanup secrets
         if: always()
-        run: rm -f artifacts/hasahisawi/android/app/hasahisawi-release.keystore artifacts/hasahisawi/.env
-
-  # ─── Build IPA (iOS) via EAS Build ───────────────────────────────
-  build-ios:
-    name: Build IPA (iOS — EAS)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    if: ${{ secrets.EXPO_TOKEN1 != '' }}
-    outputs:
-      ipa_url: ${{ steps.eas.outputs.ipa_url }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: master
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: '10'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - run: pnpm install --no-frozen-lockfile
-
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN1 }}
-
-      - name: Build iOS IPA
-        id: eas
-        working-directory: artifacts/hasahisawi
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN1 }}
-          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
-        run: |
-          BUILD_JSON=$(eas build \
-            --platform ios \
-            --profile production-ios \
-            --non-interactive \
-            --json \
-            --no-wait 2>/dev/null || echo "[]")
-          IPA_URL=$(echo "$BUILD_JSON" | node -e "
-            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-            const b=Array.isArray(d)?d[0]:d;
-            console.log(b?.id ? 'https://expo.dev/accounts/almhbob2026/builds/'+b.id : '');
-          ")
-          echo "ipa_url=$IPA_URL" >> $GITHUB_OUTPUT
-          echo "EAS Build started: $IPA_URL"
+        run: rm -f artifacts/hasahisawi/android/app/release.keystore artifacts/hasahisawi/.env
 
   # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
   deploy-web:
-    name: Build + Deploy Web PWA (iPhone PWA)
+    name: Build + Deploy Web PWA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -207,8 +220,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: '10'
 
       - uses: actions/setup-node@v4
         with:
@@ -253,7 +264,7 @@ jobs:
             git commit -m "deploy: web PWA v6.2.0 → docs/"
           git push origin master
 
-      - run: echo "✅ iPhone PWA live at https://almhbob.github.io/hasahisawi/"
+      - run: echo "✅ PWA live at https://almhbob.github.io/hasahisawi/"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
@@ -281,19 +292,18 @@ jobs:
             |--------|--------|---------|
             | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
             | **Android** | AAB ↓ | رفع على Google Play Store |
-            | **iPhone / iPad** | PWA | افتح الرابط في Safari ثم اضغط ↑ → "إضافة للشاشة الرئيسية" |
+            | **iPhone / iPad** | PWA | افتح في Safari ← ↑ ← "إضافة للشاشة الرئيسية" |
 
-            ### رابط iPhone / iPad PWA
+            ### رابط iPhone / iPad
             **https://almhbob.github.io/hasahisawi/**
 
             ### ميزات v${{ needs.build-android.outputs.version }}
             - ✅ بوابة الكوادر الطبية (طبيب · معمل · صيدلية · تمريض)
             - ✅ منشئ السيرة الذاتية (4 قوالب · PDF · 5000 SDG)
             - ✅ اتحاد الطلاب داخل قسم النقابات
-            - ✅ دعم iOS PWA مع شاشات بداية لجميع موديلات iPhone
-            - ✅ Service Worker + دعم بدون إنترنت
             - ✅ إصلاح خطأ شركاء وكالات السفر
-            - ✅ تحسينات على نظام المصادقة والأداء
+            - ✅ دعم iOS PWA + Service Worker
+            - ✅ تحسينات المصادقة والأداء
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
