@@ -32,6 +32,7 @@ type Section = {
   color?: string;
   soon?: boolean;
   isTransport?: boolean;
+  femaleOnly?: boolean;
 };
 
 type Group = { label: string; items: Section[] };
@@ -58,7 +59,7 @@ const GROUPS: Group[] = [
       { title: "المفقودون",   icon: "eye-outline",        route: "/(tabs)/missing",     color: Colors.cyber   },
       { title: "المجتمع",     icon: "chatbubbles-outline",route: "/(tabs)/social",      color: Colors.primary },
       { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
-      { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC"      },
+      { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC", femaleOnly: true },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
       { title: "الجاليات",    icon: "earth-outline",      route: "/(tabs)/communities", color: Colors.cyber   },
       { title: "التقييمات",   icon: "star-outline",       route: "/(tabs)/ratings",     color: Colors.accent  },
@@ -102,6 +103,7 @@ const GROUPS: Group[] = [
     label: "هدايا وتواصل",
     items: [
       { title: "زواجل — أرسل هديتك", icon: "gift-outline", route: "/(tabs)/zawajil", color: "#EC4899" },
+      { title: "بوابة مدير زواجل", icon: "shield-outline", route: "/(tabs)/zawajil-manager", color: "#EC4899" },
     ],
   },
   {
@@ -323,10 +325,17 @@ export default function DrawerMenu() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
-          {GROUPS.map((group) => (
+          {GROUPS.map((group) => {
+            // فلتر العناصر النسائية — لا تظهر للرجال
+            const visibleItems = group.items.filter(item => {
+              if (!item.femaleOnly) return true;
+              return user?.gender !== "male";
+            });
+            if (visibleItems.length === 0) return null;
+            return (
             <View key={group.label} style={styles.group}>
               <Text style={styles.groupLabel}>{group.label}</Text>
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const isChatItem = item.route === "/(tabs)/chat";
                 const showBadge = isChatItem && unreadCount > 0;
                 return (
@@ -362,7 +371,8 @@ export default function DrawerMenu() {
                 );
               })}
             </View>
-          ))}
+            );
+          })}
 
           {/* ── قسم الإدارة (للمديرين والمشرفين فقط) ── */}
           {(user?.role === "admin" || user?.role === "moderator") && (

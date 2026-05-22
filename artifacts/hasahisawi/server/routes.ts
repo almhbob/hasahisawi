@@ -1238,6 +1238,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const me = await getSessionUser(req);
       if (!me) return res.status(401).json({ error: "غير مصرح" });
       const { name, bio, neighborhood, gender, birth_date, avatar_url } = req.body;
+
+      // الجنس يُحدَّد مرة واحدة فقط ولا يمكن تعديله لاحقاً (حماية من التلاعب)
+      const existingUser = await query("SELECT gender FROM users WHERE id=$1", [me.id]);
+      const existingGender = existingUser.rows[0]?.gender;
+      const genderToSet = existingGender ? existingGender : (gender || null);
+
       await query(
         `UPDATE users SET
           name = COALESCE($1, name),
@@ -1247,7 +1253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           birth_date = COALESCE($5, birth_date),
           avatar_url = COALESCE($6, avatar_url)
          WHERE id = $7`,
-        [name || null, bio || null, neighborhood || null, gender || null, birth_date || null, avatar_url || null, me.id]
+        [name || null, bio || null, neighborhood || null, genderToSet, birth_date || null, avatar_url || null, me.id]
       );
       const updated = await query(
         `SELECT id, name, email, phone, role, bio, neighborhood, gender, avatar_url, created_at FROM users WHERE id=$1`,
@@ -3918,6 +3924,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const filePath = path.join(uploadsDir, req.params.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "الملف غير موجود" });
     res.sendFile(filePath);
+  });
+
+  // ── زواجل — نظام مدير مستقل ─────────────────────────────────────────────────
+  async function ensureZawajilManagerTables() {
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_managers (
+      id SERIAL PRIMARY KEY,
+      full_name VARCHAR(200) NOT NULL,
+      username VARCHAR(80) UNIQUE NOT NULL,
+      password_hash VARCHAR(200) NOT NULL,
+      email VARCHAR(100),
+      phone VARCHAR(20),
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_manager_sessions (
+      id SERIAL PRIMARY KEY,
+      manager_id INTEGER NOT NULL REFERENCES zawajil_managers(id) ON DELETE CASCADE,
+      token VARCHAR(80) UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  }
+
+  async function getZawajilManager(req: Request): Promise<{ id: number; full_name: string; username: string } | null> {
+    const auth = req.headers.authorization || "";
+    const tok = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!tok || !tok.startsWith("zmt_")) return null;
+    try {
+      const r = await query(
+        `SELECT m.id, m.full_name, m.username FROM zawajil_managers m
+         JOIN zawajil_manager_sessions s ON s.manager_id = m.id
+         WHERE s.token = $1 AND s.expires_at > NOW() AND m.is_active = TRUE`,
+        [tok]
+      );
+      return r.rows[0] || null;
+    } catch { return null; }
+  }
+
+  // ── تسجيل دخول مدير زواجل ─────────────────────────────────────────────────
+  app.post("/api/zawajil-manager/login", async (req: Request, res: Response) => {
+    try {
+      await ensureZawajilManagerTables();
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+      const r = await query(`SELECT * FROM zawajil_managers WHERE username=$1 AND is_active=TRUE`, [username]);
+      const mgr = r.rows[0];
+      if (!mgr) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const valid = await bcrypt.compare(password, mgr.password_hash);
+      if (!valid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+      const token = "zmt_" + randomBytes(24).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await query(`INSERT INTO zawajil_manager_sessions (manager_id,token,expires_at) VALUES ($1,$2,$3)`, [mgr.id, token, expiresAt]);
+      res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, username: mgr.username } });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تسجيل خروج ─────────────────────────────────────────────────────────────
+  app.post("/api/zawajil-manager/logout", async (req: Request, res: Response) => {
+    const auth = req.headers.authorization || "";
+    const tok = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (tok) { try { await query(`DELETE FROM zawajil_manager_sessions WHERE token=$1`, [tok]); } catch {} }
+    res.json({ success: true });
+  });
+
+  // ── لوحة التحكم ────────────────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/dashboard", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const total     = await query(`SELECT COUNT(*) FROM zawajil_orders`);
+      const pending   = await query(`SELECT COUNT(*) FROM zawajil_orders WHERE status='pending_review'`);
+      const completed = await query(`SELECT COUNT(*) FROM zawajil_orders WHERE status='completed'`);
+      const revenue   = await query(`SELECT COALESCE(SUM(estimated_cost),0) AS total FROM zawajil_orders WHERE status='completed'`);
+      res.json({
+        manager: mgr,
+        stats: {
+          total_orders: parseInt(total.rows[0].count),
+          pending: parseInt(pending.rows[0].count),
+          completed: parseInt(completed.rows[0].count),
+          revenue: parseFloat(revenue.rows[0].total),
+        }
+      });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── قائمة الطلبات ──────────────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/orders", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { status } = req.query;
+      const where = status && status !== "all" ? "WHERE o.status=$1" : "";
+      const params = status && status !== "all" ? [status] : [];
+      const r = await query(
+        `SELECT o.*, (SELECT json_agg(g) FROM zawajil_shoubash_guests g WHERE g.order_id=o.id) AS shoubash_guests
+         FROM zawajil_orders o ${where} ORDER BY o.created_at DESC`,
+        params
+      );
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تحديث حالة الطلب ───────────────────────────────────────────────────────
+  app.patch("/api/zawajil-manager/orders/:id/status", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_notes } = req.body;
+      if (!status) return res.status(400).json({ error: "الحالة مطلوبة" });
+      const r = await query(
+        `UPDATE zawajil_orders SET status=$1, admin_notes=COALESCE($2,admin_notes), updated_at=NOW() WHERE id=$3 RETURNING *`,
+        [status, admin_notes || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على الطلب" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── مراجعة الطلب (موافقة / رفض) ───────────────────────────────────────────
+  app.patch("/api/zawajil-manager/orders/:id/review", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { action, admin_notes, rejection_reason, estimated_cost } = req.body;
+      if (!["approve", "reject"].includes(action)) return res.status(400).json({ error: "الإجراء غير صالح" });
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      const r = await query(
+        `UPDATE zawajil_orders SET status=$1, admin_notes=COALESCE($2,admin_notes),
+         rejection_reason=COALESCE($3,rejection_reason),
+         estimated_cost=COALESCE($4::numeric,estimated_cost), updated_at=NOW()
+         WHERE id=$5 RETURNING *`,
+        [newStatus, admin_notes || null, rejection_reason || null, estimated_cost || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على الطلب" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── المنتجات (مدير زواجل) ──────────────────────────────────────────────────
+  app.get("/api/zawajil-manager/products", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const r = await query(`SELECT * FROM zawajil_products ORDER BY sort_order, name`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/zawajil-manager/products", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilTables();
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      if (!name) return res.status(400).json({ error: "اسم المنتج مطلوب" });
+      const r = await query(
+        `INSERT INTO zawajil_products(name,description,price,category,image_url,is_available,sort_order)
+         VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [name, description || null, price || 0, category || "general", image_url || null, is_available !== false, sort_order || 0]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/zawajil-manager/products/:id", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { name, description, price, category, image_url, is_available, sort_order } = req.body;
+      const r = await query(
+        `UPDATE zawajil_products SET
+         name=COALESCE($1,name), description=COALESCE($2,description),
+         price=COALESCE($3::numeric,price), category=COALESCE($4,category),
+         image_url=COALESCE($5,image_url), is_available=COALESCE($6,is_available),
+         sort_order=COALESCE($7::int,sort_order)
+         WHERE id=$8 RETURNING *`,
+        [name || null, description || null, price || null, category || null,
+         image_url || null, is_available != null ? Boolean(is_available) : null,
+         sort_order || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على المنتج" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/zawajil-manager/products/:id", async (req: Request, res: Response) => {
+    const mgr = await getZawajilManager(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── إدارة مديري زواجل (من قبل الأدمن) ────────────────────────────────────
+  app.get("/api/admin/zawajil-managers", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilManagerTables();
+      const r = await query(`SELECT id,full_name,username,email,phone,is_active,created_at FROM zawajil_managers ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/admin/zawajil-managers", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureZawajilManagerTables();
+      const { full_name, username, password, email, phone } = req.body;
+      if (!full_name || !username || !password) return res.status(400).json({ error: "الاسم واسم المستخدم وكلمة المرور مطلوبة" });
+      const existing = await query(`SELECT id FROM zawajil_managers WHERE username=$1`, [username]);
+      if (existing.rows.length > 0) return res.status(409).json({ error: "اسم المستخدم مستخدم مسبقاً" });
+      const hash = await bcrypt.hash(password, 10);
+      const r = await query(
+        `INSERT INTO zawajil_managers (full_name,username,password_hash,email,phone)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id,full_name,username,email,phone,is_active,created_at`,
+        [full_name, username, hash, email || null, phone || null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/admin/zawajil-managers/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { full_name, is_active, email, phone } = req.body;
+      const r = await query(
+        `UPDATE zawajil_managers SET
+         full_name=COALESCE($1,full_name), is_active=COALESCE($2,is_active),
+         email=COALESCE($3,email), phone=COALESCE($4,phone)
+         WHERE id=$5 RETURNING id,full_name,username,email,phone,is_active,created_at`,
+        [full_name || null, is_active != null ? Boolean(is_active) : null, email || null, phone || null, req.params.id]
+      );
+      res.json(r.rows[0] || { error: "لم يُعثر على المدير" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/admin/zawajil-managers/:id", async (req: Request, res: Response) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM zawajil_managers WHERE id=$1`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
   const httpServer = createServer(app);
