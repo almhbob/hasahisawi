@@ -1,23 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-// نظام ألوان حصاحيصاوي — Design System v4 (Brand Edition)
+// نظام ألوان حصاحيصاوي — Design System v4 (Green + Gold Edition)
 // ───────────────────────────────────────────────────────────────
-// مستوحى من شعار التطبيق: أخضر زمردي + ذهبي (شخصيتان تتصافحان)
+// مستوحى من: شعار حصاحيصاوي (أخضر زمردي + ذهبي)
 // ───────────────────────────────────────────────────────────────
-// • Palette أساسي: أخضر زمردي + ذهبي (هوية الشعار)
+// • Palette أساسي: أخضر زمردي #22C55E + ذهبي #EAB308 (هوية الشعار)
 // • Section palette: لون مميز لكل قسم وخدمة (semantic)
-// • Surface tokens: 4 مستويات عمق — أخضر داكن عميق
-// • Gradients: تدرجات مُعدّة مسبقاً
+// • Surface tokens: 4 مستويات عمق — أخضر غابي ليلي عميق
+// • Gradients: تدرجات طبيعية مُعدّة مسبقاً
 // ═══════════════════════════════════════════════════════════════
 
 // ╔═══════════ 1. الألوان الجوهرية (Brand) ═══════════╗
-const primary      = "#22C55E";   // أخضر زمردي — لون الشعار الرئيسي
+const primary      = "#22C55E";   // أخضر زمردي — يسار الشعار
 const primaryDeep  = "#16A34A";   // أعمق للحدود والظلال
 const primaryDim   = "#15803D";   // متوسط للحالات النشطة
 const primaryLight = "#86EFAC";   // فاتح للتلميحات
 const primarySoft  = "#DCFCE7";   // ناعم للخلفيات
 const primaryGlow  = "rgba(34,197,94,0.18)"; // توهج أخضر
 
-const accent       = "#EAB308";   // ذهبي الشعار — الشخصية الثانية
+const accent       = "#EAB308";   // ذهبي — يمين الشعار
 const accentDeep   = "#A16207";   // أعمق للظلال
 const accentDim    = "#CA8A04";   // متوسط
 const accentLight  = "#FDE047";   // فاتح
@@ -85,8 +85,8 @@ const rose        = "#F43F5E";   // وردي
 const amber       = "#F59E0B";   // عنبري
 
 // ╔═══════════ 4. الخلفيات (Surface tokens) ═══════════╗
-// 4 مستويات عمق — أخضر داكن عميق (هوية الشعار)
-const bg              = "#07110A";   // الأعمق — أخضر داكن جداً
+// 4 مستويات عمق — أخضر غابي ليلي عميق
+const bg              = "#07110A";   // الأعمق — أخضر غابي ليلي
 const bgDeep          = "#040C07";   // أعمق للزوايا والـ overlays
 const surface1        = "#0A1A0D";   // surface مرتفع +1
 const surface2        = "#0D2211";   // surface مرتفع +2 (بطاقة عادية)
@@ -124,15 +124,15 @@ const infoSoft    = "rgba(52,211,153,0.15)";
 
 // ╔═══════════ 8. التدرجات الجاهزة ═══════════╗
 const gradients = {
-  brand:      [primary, primaryDeep] as [string, string],
+  brand:      ["#22C55E", "#16A34A"] as [string, string],
   brandSoft:  [primary + "22", primaryDeep + "10"] as [string, string],
   gold:       [accent, accentDeep] as [string, string],
-  goldShine:  ["#FFD700", "#EAB308", accentDim] as [string, string, string],
+  goldShine:  ["#FFD700", "#F0C040", accentDim] as [string, string, string],
   hero:       ["#22C55E", "#16A34A", "#040C07"] as [string, string, string],
   dark:       ["#0D2211", "#07110A", "#040C07"] as [string, string, string],
   surface:    [surface3, surface2] as [string, string],
   glass:      ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.01)"] as [string, string],
-  sunset:     ["#EAB308", "#EF4444", "#EC4899"] as [string, string, string],
+  sunset:     ["#F59E0B", "#EF4444", "#EC4899"] as [string, string, string],
   ocean:      ["#22C55E", "#16A34A", "#14532D"] as [string, string, string],
 } as const;
 
@@ -213,8 +213,8 @@ export default {
   light: {
     text:            textPrimary,
     background:      bg,
-    tint:            primary,
+    tint:            "#22C55E",
     tabIconDefault:  textMuted,
-    tabIconSelected: primary,
+    tabIconSelected: "#22C55E",
   },
 };

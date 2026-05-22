@@ -1,0 +1,75 @@
+name: Build iOS (iPhone/iPad)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'ios-adhoc'
+        type: choice
+        options:
+          - ios-adhoc
+          - production-ios
+  push:
+    branches:
+      - master
+    paths:
+      - '.ios-trigger'
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        working-directory: artifacts/hasahisawi
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Create .env
+        working-directory: artifacts/hasahisawi
+        run: |
+          printf '%s\n' \
+            'EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8' \
+            'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com' \
+            'EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi' \
+            'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app' \
+            'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161' \
+            'EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48' \
+            'EXPO_PUBLIC_API_URL=https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app' \
+            'EXPO_PUBLIC_DISABLE_OTP=true' > .env
+
+      - name: Build iOS via EAS Cloud
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          PROFILE="${{ github.event.inputs.profile }}"
+          PROFILE="${PROFILE:-ios-adhoc}"
+          echo "Building iOS with profile: $PROFILE"
+          eas build --platform ios --profile "$PROFILE" --non-interactive --no-wait
+
+      - name: Print download link
+        run: |
+          echo "✅ iOS build queued on EAS Cloud."
+          echo "Download IPA from:"
+          echo "https://expo.dev/accounts/almhbob2026/projects/al-hasahisa-service/builds"

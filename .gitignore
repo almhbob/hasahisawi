@@ -63,8 +63,8 @@ attached_assets/*client_secret*.json
 attached_assets/
 screenshots/
 
-# Android/iOS build outputs
-artifacts/hasahisawi/android/
+# Android/iOS build outputs — android/ source is committed; build/ excluded by android/.gitignore
+# artifacts/hasahisawi/android/
 artifacts/hasahisawi/ios/
 artifacts/hasahisawi/.expo/
 *.apk

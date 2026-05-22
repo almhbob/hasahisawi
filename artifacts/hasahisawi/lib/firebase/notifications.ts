@@ -10,6 +10,15 @@ export const CHANNELS = {
   PRAYER:    "hasahisawi-prayer",     // أذان
 } as const;
 
+// نغمة مخصصة لكل قناة (اسم الملف بدون امتداد لـ Android، مع امتداد لـ iOS)
+const CHANNEL_SOUNDS: Record<string, string> = {
+  "hasahisawi-default":   "hasahisawi_notif",
+  "hasahisawi-chat":      "hasahisawi_chat",
+  "hasahisawi-urgent":    "hasahisawi_urgent",
+  "hasahisawi-transport": "hasahisawi_notif",
+  "hasahisawi-prayer":    "hasahisawi_prayer",
+};
+
 // للتوافق مع الكود القديم
 export const NOTIF_CHANNEL_ID = CHANNELS.DEFAULT;
 
@@ -31,11 +40,11 @@ async function ensureAndroidChannels(
       name: "حصاحيصاوي — تنبيهات عامة",
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 200, 100, 200],
-      lightColor: "#27AE68",
+      lightColor: "#22C55E",
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "hasahisawi_notif",
+      sound: CHANNEL_SOUNDS[CHANNELS.DEFAULT],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
@@ -49,7 +58,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "hasahisawi_notif",
+      sound: CHANNEL_SOUNDS[CHANNELS.CHAT],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });
 
@@ -63,7 +72,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "hasahisawi_notif",
+      sound: CHANNEL_SOUNDS[CHANNELS.URGENT],
       bypassDnd: true,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
@@ -78,7 +87,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
-      sound: "hasahisawi_notif",
+      sound: CHANNEL_SOUNDS[CHANNELS.TRANSPORT],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
@@ -92,7 +101,7 @@ async function ensureAndroidChannels(
       enableLights: true,
       enableVibrate: true,
       showBadge: false,
-      sound: "hasahisawi_notif",
+      sound: CHANNEL_SOUNDS[CHANNELS.PRAYER],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   } catch {}
@@ -198,12 +207,14 @@ export async function scheduleLocalNotification(
       [CHANNELS.DEFAULT]:   [0, 200, 100, 200],
     };
 
+    const soundName = CHANNEL_SOUNDS[channelId] ?? CHANNEL_SOUNDS[CHANNELS.DEFAULT];
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title:   notification.title,
         body:    notification.body,
         data:    { ...(notification.data ?? {}), channelId },
-        sound:   "hasahisawi_notif",
+        sound:   Platform.OS === "ios" ? `${soundName}.wav` : soundName,
         priority: ch === "URGENT"
           ? Notifications.AndroidNotificationPriority.MAX
           : Notifications.AndroidNotificationPriority.HIGH,
@@ -269,7 +280,9 @@ export async function scheduleOccasionReminder(
         title:   notification.title,
         body:    notification.body,
         data:    { ...(notification.data ?? {}), channelId },
-        sound:   "hasahisawi_notif",
+        sound:   Platform.OS === "ios"
+          ? `${CHANNEL_SOUNDS[channelId] ?? "hasahisawi_notif"}.wav`
+          : (CHANNEL_SOUNDS[channelId] ?? "hasahisawi_notif"),
         priority: Notifications.AndroidNotificationPriority.HIGH,
         vibrate: [0, 250, 250, 250],
         ...(Platform.OS === "android" && { channelId }),

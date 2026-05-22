@@ -1,0 +1,20 @@
+# OSX
+#
+.DS_Store
+
+# Android/IntelliJ
+#
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Signing keys
+*.keystore
+*.jks
+
+# Bundle artifacts
+*.jsbundle

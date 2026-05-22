@@ -4625,7 +4625,13 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
 
     // ترتيب الصلاحيات: منع تخفيض الدور
     const roleRank: Record<string, number> = { user: 0, moderator: 1, admin: 2 };
-    const requestedRole = ["user", "admin", "moderator"].includes(role ?? "") ? (role as string) : "user";
+    let requestedRole = ["user", "admin", "moderator"].includes(role ?? "") ? (role as string) : "user";
+
+    // المطور الرئيسي يحصل دائماً على صلاحية admin
+    const ADMIN_EMAILS = ["almhbob.iii@gmail.com"];
+    if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
+      requestedRole = "admin";
+    }
 
     // 1. البحث بـ firebase_uid
     let userRow = (await query(
