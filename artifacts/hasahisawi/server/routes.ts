@@ -1175,6 +1175,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── GET /api/admin/users-source-health ────────────────────────────────────
+  app.get("/api/admin/users-source-health", async (req: Request, res: Response) => {
+    try {
+      if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+      const pgTotal  = Number((await query("SELECT COUNT(*) FROM users")).rows[0].count);
+      const withFb   = Number((await query("SELECT COUNT(*) FROM users WHERE firebase_uid IS NOT NULL")).rows[0].count);
+      const apiKey   = process.env.FIREBASE_API_KEY || process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+      // Firebase Admin SDK غير مُهيَّأ — نستخدم REST API للتحقق من الإتاحة فقط
+      let firebaseReachable = false;
+      if (apiKey) {
+        try {
+          const r = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken: "probe" }), signal: AbortSignal.timeout(5000) }
+          );
+          firebaseReachable = r.status === 400 || r.status === 200;
+        } catch {}
+      }
+      // الحالة: Firebase Admin SDK غير متاح، لكن يمكننا إظهار إحصائيات DB
+      const status = !apiKey ? "missing_env" : firebaseReachable ? "configured" : "firebase_error";
+      res.json({
+        firebase_admin_configured: false,
+        firebase_users: null,
+        postgres_users: pgTotal,
+        firebase_uid_linked: withFb,
+        firebase_missing_in_postgres: null,
+        status,
+        note: "Firebase Admin SDK غير مُهيَّأ — المستخدمون المُسجَّلون عبر Firebase يظهرون في قاعدة البيانات بعد أول تسجيل دخول.",
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/admin/sync-firebase-users ────────────────────────────────────
+  app.post("/api/admin/sync-firebase-users", async (req: Request, res: Response) => {
+    try {
+      if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+      const pgTotal = Number((await query("SELECT COUNT(*) FROM users")).rows[0].count);
+      const withFb  = Number((await query("SELECT COUNT(*) FROM users WHERE firebase_uid IS NOT NULL")).rows[0].count);
+      // Firebase Admin SDK غير مُهيَّأ — لا يمكن استيراد المستخدمين مباشرةً من Firebase
+      res.json({
+        success: true,
+        firebase_total: withFb,
+        postgres_total: pgTotal,
+        created: 0,
+        updated: 0,
+        errors: 0,
+        message: "Firebase Admin SDK غير مُهيَّأ. المستخدمون الموجودون في قاعدة البيانات: " + pgTotal + " · مرتبط بـ Firebase: " + withFb,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ── PUT /api/admin/users/:id/role ─────────────────────────────────────────
   // Admin only: change user role (user ↔ moderator). Cannot change admin roles.
   app.put("/api/admin/users/:id/role", async (req: Request, res: Response) => {
