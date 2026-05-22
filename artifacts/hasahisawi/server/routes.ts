@@ -1291,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Push Tokens ────────────────────────────────────────────────────────────
   app.post("/api/push-tokens", async (req: Request, res: Response) => {
     try {
-      const user = await getAuthUser(req);
+      const user = await getSessionUser(req);
       const { token, platform } = req.body;
       if (!token || !token.startsWith("ExponentPushToken[")) {
         return res.status(400).json({ error: "توكن غير صالح" });
@@ -1409,20 +1409,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       id SERIAL PRIMARY KEY,
       post_id INTEGER NOT NULL REFERENCES greeting_posts(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      device_id VARCHAR(200),
-      UNIQUE(post_id, COALESCE(user_id::text, device_id))
+      device_id VARCHAR(200)
     )`);
-    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS occasion_key VARCHAR(50)`);
-    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS card_style VARCHAR(30)`);
-    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0`);
-    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`);
-    await query(`CREATE TABLE IF NOT EXISTS greeting_likes (
-      id SERIAL PRIMARY KEY,
-      post_id INTEGER NOT NULL REFERENCES greeting_posts(id) ON DELETE CASCADE,
-      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      device_id VARCHAR(200),
-      UNIQUE NULLS NOT DISTINCT (post_id, user_id, device_id)
-    )`).catch(() => {});
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS greeting_likes_unique_idx
+      ON greeting_likes (post_id, COALESCE(user_id::text, device_id))`).catch(() => {});
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS occasion_key VARCHAR(50)`).catch(() => {});
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS card_style VARCHAR(30)`).catch(() => {});
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0`).catch(() => {});
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`).catch(() => {});
   }
 
   app.get("/api/greetings", async (req: Request, res: Response) => {
@@ -1444,7 +1438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/greetings", async (req: Request, res: Response) => {
     try {
       await ensureGreetingsTables();
-      const user = await getAuthUser(req);
+      const user = await getSessionUser(req);
       const { text, occasion_name, occasion_key, card_style } = req.body;
       if (!text?.trim()) return res.status(400).json({ error: "نص التهنئة مطلوب" });
       if (text.length > 600) return res.status(400).json({ error: "النص طويل جداً (الحد 600 حرف)" });
@@ -1461,7 +1455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/greetings/:id/like", async (req: Request, res: Response) => {
     try {
       await ensureGreetingsTables();
-      const user = await getAuthUser(req);
+      const user = await getSessionUser(req);
       const { device_id } = req.body;
       const postId = parseInt(req.params.id);
       try {
@@ -1483,7 +1477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/greetings/:id", async (req: Request, res: Response) => {
     try {
-      const user = await getAuthUser(req);
+      const user = await getSessionUser(req);
       if (!user) return res.status(401).json({ error: "غير مصرح" });
       await query(`DELETE FROM greeting_posts WHERE id=$1 AND (user_id=$2 OR $3)`,
         [req.params.id, user.id, user.role === "admin"]);

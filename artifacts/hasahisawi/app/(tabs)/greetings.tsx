@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, Share, Platform,
   RefreshControl, KeyboardAvoidingView, Keyboard, Modal,
-  Pressable, Dimensions, Clipboard,
+  Pressable, Dimensions,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, ZoomIn, FadeInUp, FadeInRight,
@@ -366,9 +366,9 @@ function GreetingCardModal({
 
   function copyText() {
     try {
-      Clipboard.setString(fullGreeting);
+      // expo-clipboard غير مثبَّت — نستخدم Share كبديل
+      Share.share({ message: fullGreeting, title: occ?.name ?? "" });
       if (Platform.OS !== "web") Haptics.selectionAsync();
-      Alert.alert("✅ تم النسخ", "تهنئتك جاهزة للصق في أي مكان");
     } catch {
       Alert.alert("نسخ النص", fullGreeting.substring(0, 200) + "...");
     }
