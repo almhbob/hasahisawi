@@ -109,8 +109,8 @@ export default function Root({ children }: PropsWithChildren) {
               height: 100vh;
               align-items: center;
               background:
-                radial-gradient(ellipse 60% 50% at 20% 30%, rgba(20,100,40,0.15) 0%, transparent 60%),
-                radial-gradient(ellipse 50% 40% at 80% 70%, rgba(15,80,30,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 20% 30%, rgba(20,80,30,0.20) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 80% 70%, rgba(34,197,94,0.10) 0%, transparent 60%),
                 linear-gradient(160deg, #07110A 0%, #0A1A0E 50%, #070D08 100%);
             }
 
@@ -130,12 +130,59 @@ export default function Root({ children }: PropsWithChildren) {
             }
           }
 
-          /* ── Large desktop (≥ 1100px): show decorative side panels ── */
+          /* ── Large desktop (≥ 1100px): decorative side panels ── */
           @media (min-width: 1100px) {
-            body::before, body::after {
-              content: '';
-              flex: 1;
-              max-width: 320px;
+            body {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 48px;
+            }
+            body::before {
+              content: 'حصاحيصاوي\A بوابتك الذكيّة\A لمدينة الحصاحيصا';
+              white-space: pre;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              width: 260px;
+              font-size: 22px;
+              font-weight: 700;
+              line-height: 1.7;
+              direction: rtl;
+              background: linear-gradient(135deg, #22C55E, #EAB308);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              opacity: 0.9;
+            }
+            body::after {
+              content: 'الحصاحيصا\A السودان';
+              white-space: pre;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              width: 260px;
+              font-size: 18px;
+              line-height: 2;
+              direction: rtl;
+              color: rgba(34,197,94,0.4);
+              font-weight: 600;
+            }
+            #root {
+              width: 430px;
+              max-width: 430px;
+              min-width: 320px;
+              height: 100vh;
+              max-height: 100vh;
+              border-radius: 0;
+              box-shadow:
+                0 0 0 1px rgba(34,197,94,0.2),
+                0 25px 80px rgba(0,0,0,0.7),
+                0 0 60px rgba(34,197,94,0.08);
+              overflow: hidden;
+              position: relative;
             }
           }
 
