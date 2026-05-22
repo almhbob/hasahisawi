@@ -41,6 +41,28 @@ function saveLocally(buffer: Buffer, originalName: string): string {
   return `/api/files/${fname}`;
 }
 
+async function sendAdminNotifEmail(subject: string, rows: Record<string, string>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  const adminEmail = process.env.ADMIN_EMAIL || "almhbob.iii@gmail.com";
+  const tableRows = Object.entries(rows)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:bold;background:#f3f4f6;color:#374151">${k}</td><td style="padding:6px 12px;color:#111827">${v}</td></tr>`)
+    .join("");
+  const html = `<div dir="rtl" style="font-family:Cairo,Arial,sans-serif;max-width:600px;margin:auto;padding:24px;background:#f9fafb;border-radius:12px">
+    <h2 style="color:#1d4ed8;border-bottom:2px solid #e5e7eb;padding-bottom:12px">${subject}</h2>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">${tableRows}</table>
+    <p style="color:#6b7280;font-size:12px;margin-top:16px">تطبيق حصاحيصاوي — إشعار تلقائي</p>
+  </div>`;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM || "onboarding@resend.dev", to: [adminEmail], subject, html }),
+    });
+  } catch {}
+}
+
 const DEFAULT_ADMIN_PIN = "4444";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -2129,6 +2151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36) RETURNING *`,
         [union_id,user_id||null,full_name,national_id||null,birth_date||null,birth_place||null,gender||null,nationality||'سودانية',phone||null,alt_phone||null,email||null,address||null,neighborhood||null,city||'الحصاحيصا',job_title||null,employer||null,work_address||null,work_phone||null,specialty||null,work_start_date||null,work_years?Number(work_years):null,degree||null,institution||null,graduation_year?Number(graduation_year):null,field_of_study||null,JSON.stringify(previous_unions||[]),union_roles||null,existing_membership_no||null,JSON.stringify(workshops||[]),JSON.stringify(conferences||[]),JSON.stringify(trainings||[]),achievements||null,skills||null,JSON.stringify(references_list||[]),membership_type||'regular',notes||null]
       );
+      sendAdminNotifEmail("🏛️ طلب انضمام نقابة جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone||"",
+        "البريد الإلكتروني": email||"", "المهنة": job_title||"",
+        "جهة العمل": employer||"", "التخصص": specialty||"",
+        "نوع العضوية": membership_type||"regular",
+      });
       res.status(201).json(r.rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -2708,6 +2736,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
         [org_name,org_type||null,contact_name,phone,email||null,description||null,website||null,requested_level||'standard']
       );
+      sendAdminNotifEmail("🤝 طلب شراكة خارجية جديد", {
+        "اسم المنظمة": org_name, "نوعها": org_type||"",
+        "جهة الاتصال": contact_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "مستوى الشراكة": requested_level||"standard",
+        "الموقع الإلكتروني": website||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -2729,6 +2763,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
         [union_name,union_type||null,contact_person,phone,email||null,description||null,membership_count||null,requested_tier||'basic']
       );
+      sendAdminNotifEmail("🤝 طلب شراكة نقابية جديد", {
+        "اسم النقابة": union_name, "نوعها": union_type||"",
+        "جهة الاتصال": contact_person, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "عدد الأعضاء": membership_count?.toString()||"",
+        "مستوى الشراكة": requested_tier||"basic",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -3019,6 +3059,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "INSERT INTO hospital_admissions(user_id,patient_name,hospital,room_number,ward,admission_date,diagnosis,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
         [user.id,patient_name,hospital,room_number||null,ward||null,admission_date||null,diagnosis||null,notes||null]
       );
+      sendAdminNotifEmail("🏥 طلب دخول مستشفى جديد", {
+        "اسم المريض": patient_name, "المستشفى": hospital,
+        "الجناح": ward||"", "رقم الغرفة": room_number||"",
+        "تاريخ الدخول": admission_date||"", "التشخيص": diagnosis||"",
+        "ملاحظات": notes||"",
+      });
       res.status(201).json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -3382,6 +3428,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
          other_commits||null,pledge_name||null]
       );
+      sendAdminNotifEmail("📋 طلب انضمام لإدارة الاتحاد جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "المؤسسة": institution||"",
+        "التخصص": major||"", "مرحلة الدراسة": study_stage||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -3633,6 +3684,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          address||null,previous_experience!=null?Boolean(previous_experience):null,
          experience_details||null,vision||null,other_commitments||null]
       );
+      sendAdminNotifEmail("🎓 طلب عضوية اتحاد الطلاب جديد", {
+        "الاسم الكامل": full_name, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "المؤسسة": institution||"",
+        "التخصص": major||"", "مرحلة الدراسة": study_stage||"",
+      });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -3723,6 +3779,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
          RETURNING *`,
         [uid, staff_type, full_name, license_number||null, specialization||null, workplace||null, phone||null]
       );
+      sendAdminNotifEmail("⚕️ تسجيل كادر طبي جديد", {
+        "الاسم الكامل": full_name, "نوع الكادر": staff_type,
+        "رقم الترخيص": license_number||"", "التخصص": specialization||"",
+        "جهة العمل": workplace||"", "الهاتف": phone||"",
+      });
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });

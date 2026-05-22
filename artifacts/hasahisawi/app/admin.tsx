@@ -159,18 +159,21 @@ const AD_STATUS_META: Record<string, { label: string; color: string; icon: keyof
 };
 
 // ─── API Helper ─────────────────────────────────────────────────────────────
-function apiFetch(path: string, token: string | null, opts: Parameters<typeof fetch>[1] = {}) {
+function apiFetch(path: string, token: string | null, opts: Parameters<typeof fetch>[1] = {}, timeoutMs = 30000) {
   const base = getApiUrl();
   if (!base) return Promise.reject(new Error("API not configured"));
   const url = new URL(path, base).toString();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, {
     ...opts,
+    signal: controller.signal,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts as any).headers,
     },
-  });
+  }).finally(() => clearTimeout(timer));
 }
 
 async function safeJson<T = any>(res: Response): Promise<T> {
@@ -1418,9 +1421,19 @@ export default function AdminDashboard() {
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const res = await apiFetch("/api/admin/users", token);
-      if (res.ok) { const d = await safeJson(res); setUsers(Array.isArray(d) ? d : (d.users ?? [])); }
-    } catch {}
+      const res = await apiFetch("/api/admin/users", token, {}, 30000);
+      if (res.ok) {
+        const d = await safeJson(res);
+        setUsers(Array.isArray(d) ? d : (d.users ?? []));
+      } else {
+        const d = await safeJson(res).catch(() => ({}));
+        Alert.alert("خطأ في التحميل", (d as any).error || `HTTP ${res.status}`);
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        Alert.alert("خطأ في التحميل", "تعذّر الاتصال بالخادم. تحقق من الإنترنت وأعد المحاولة.");
+      }
+    }
     finally { setLoadingUsers(false); }
   }, [token]);
 

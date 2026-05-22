@@ -259,7 +259,7 @@ async function exchangeForBackendToken(
   email: string | null,
   role: string,
   idToken?: string | null,
-): Promise<string | null> {
+): Promise<{ token: string; role: string } | null> {
   try {
     const base = getApiUrl();
     if (!base) return null;
@@ -270,10 +270,12 @@ async function exchangeForBackendToken(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, firebase_uid, name, email, role }),
       },
-      2, // محاولتان فقط — استدعاء خلفي
+      2,
     );
     if (!res.ok) return null;
-    return (json as { token?: string }).token ?? null;
+    const j = json as { token?: string; user?: { role?: string } };
+    if (!j.token) return null;
+    return { token: j.token, role: j.user?.role ?? role };
   } catch {
     return null;
   }
@@ -349,10 +351,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             parsedUser.name,
             parsedUser.email ?? null,
             parsedUser.role,
-          ).then((freshTok) => {
-            if (freshTok) {
-              setToken(freshTok);
-              AsyncStorage.setItem(TOKEN_KEY, freshTok).catch(() => {});
+          ).then((result) => {
+            if (result) {
+              setToken(result.token);
+              AsyncStorage.setItem(TOKEN_KEY, result.token).catch(() => {});
+              if (result.role !== parsedUser.role) {
+                const updated = { ...parsedUser, role: result.role as AuthUser["role"] };
+                setUser(updated);
+                AsyncStorage.setItem(USER_KEY, JSON.stringify(updated)).catch(() => {});
+              }
             }
           }).catch(() => {});
         }
@@ -398,10 +405,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   parsedUser.name,
                   parsedUser.email ?? null,
                   parsedUser.role,
-                ).then((freshTok) => {
-                  if (freshTok) {
-                    setToken(freshTok);
-                    AsyncStorage.setItem(TOKEN_KEY, freshTok).catch(() => {});
+                ).then((result) => {
+                  if (result) {
+                    setToken(result.token);
+                    AsyncStorage.setItem(TOKEN_KEY, result.token).catch(() => {});
+                    if (result.role !== parsedUser.role) {
+                      const updated = { ...parsedUser, role: result.role as AuthUser["role"] };
+                      setUser(updated);
+                      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated)).catch(() => {});
+                    }
                   }
                 }).catch(() => {});
               }
@@ -446,12 +458,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               try {
                 const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
                 if (profile) {
-                  const newToken = await exchangeForBackendToken(
+                  const result = await exchangeForBackendToken(
                     fbUser.uid, profile.name, fbUser.email ?? null, profile.role
                   );
-                  if (newToken && newToken !== savedToken) {
-                    await AsyncStorage.setItem(TOKEN_KEY, newToken);
-                    setToken(newToken);
+                  if (result && result.token !== savedToken) {
+                    await AsyncStorage.setItem(TOKEN_KEY, result.token);
+                    setToken(result.token);
                   }
                 }
               } catch {}
@@ -464,15 +476,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (profile) {
             const authUser = profileToAuthUser(profile, idToken);
-            // Exchange Firebase token for backend session token
-            const backendTok = await exchangeForBackendToken(
+            // Exchange Firebase token for backend session token (backend auto-promotes admin email)
+            const backendResult = await exchangeForBackendToken(
               fbUser.uid, profile.name, fbUser.email ?? null, profile.role, idToken
             );
+            // Apply the backend role (overrides Firestore role for admin accounts)
+            if (backendResult?.role && backendResult.role !== authUser.role) {
+              authUser.role = backendResult.role as AuthUser["role"];
+            }
             setUser(authUser);
             setIsGuest(false);
-            if (backendTok) {
-              setToken(backendTok);
-              await AsyncStorage.setItem(TOKEN_KEY, backendTok);
+            if (backendResult) {
+              setToken(backendResult.token);
+              await AsyncStorage.setItem(TOKEN_KEY, backendResult.token);
             }
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
             await AsyncStorage.removeItem(GUEST_KEY);
@@ -657,7 +673,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid).catch(() => null);
 
         // تبادل التوكن مع الخادم للحصول على backend token (يبني صف users إن لزم)
-        const backendTok = await exchangeForBackendToken(
+        // الخادم يترقّي almhbob.iii@gmail.com إلى admin تلقائياً
+        const backendResult = await exchangeForBackendToken(
           fbUser.uid,
           profile?.name ?? fbUser.displayName ?? "مستخدم",
           fbUser.email && !fbUser.email.includes("@hasahisawi.app") ? fbUser.email : email,
@@ -677,7 +694,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               avatar_url: null,
               gender: null,
             };
-        await saveSession(authUser, backendTok ?? idToken, backendTok);
+        // الخادم يُعيد الدور الصحيح (admin لـ almhbob.iii@gmail.com)
+        if (backendResult?.role) authUser.role = backendResult.role as AuthUser["role"];
+        const tok = backendResult?.token ?? idToken;
+        await saveSession(authUser, tok, backendResult?.token ?? null);
         return;
       } catch (fbErr: any) {
         const code = fbErr?.code ?? "";
@@ -784,10 +804,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("هذا الحساب لا يملك صلاحيات الإدارة.");
       }
       const authUser = profileToAuthUser(profile, idToken);
-      const backendTok = await exchangeForBackendToken(
+      const backendResult = await exchangeForBackendToken(
         fbUser.uid, authUser.name, authUser.email ?? null, authUser.role, idToken
       );
-      await saveSession(authUser, idToken, backendTok);
+      if (backendResult?.role) authUser.role = backendResult.role as AuthUser["role"];
+      await saveSession(authUser, idToken, backendResult?.token ?? null);
       return;
     }
 
@@ -848,27 +869,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let activeToken = token;
     const isFirebaseJwt = token.split(".").length === 3 && token.startsWith("eyJ");
     if (isFirebaseJwt && user?.uid) {
-      const freshTok = await exchangeForBackendToken(
+      const result = await exchangeForBackendToken(
         user.uid, user.name, user.email ?? null, user.role ?? "user", token
       );
-      if (freshTok) {
-        activeToken = freshTok;
-        setToken(freshTok);
-        await AsyncStorage.setItem(TOKEN_KEY, freshTok);
+      if (result) {
+        activeToken = result.token;
+        setToken(result.token);
+        await AsyncStorage.setItem(TOKEN_KEY, result.token);
       }
     }
 
     const body: Record<string, unknown> = {
       gender,
       ...(neighborhood ? { neighborhood } : {}),
-      // fallback: أرسل firebase_uid حتى يتمكن الخادم من التعرف على المستخدم
-      ...(user?.uid ? { firebase_uid: user.uid } : {}),
     };
 
+    // استخدام PUT /api/users/me (الـ endpoint الصحيح الموجود في الخادم)
     const { res, json } = await safeFetchJson(
-      `${base}/api/auth/me/complete-profile`,
+      `${base}/api/users/me`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
         body: JSON.stringify(body),
       },
@@ -941,13 +961,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const idToken = await fbUser.getIdToken();
         // تبادل التوكن مع الخادم (يبني صف users في Postgres تلقائياً)
-        const backendTok = await exchangeForBackendToken(
+        const backendExchange = await exchangeForBackendToken(
           fbUser.uid,
           name.trim(),
           isActualEmail ? phoneOrEmail.trim().toLowerCase() : firebaseEmail,
           "user",
           idToken,
         );
+        const backendTok = backendExchange?.token ?? null;
 
         // في الخلفية: حاول إنشاء صف Backend كامل بكل الحقول (national_id, birth_date, ...)
         // لو فشل، لا بأس — exchange أنشأ صفاً أساسياً
@@ -1030,7 +1051,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           permissions: ["manage_users", "manage_content", "manage_notifications"],
         };
         await fsSetDoc(COLLECTIONS.USERS, fbUser.uid, profile, false);
-        await exchangeForBackendToken(fbUser.uid, name, email.trim().toLowerCase(), "admin");
+        exchangeForBackendToken(fbUser.uid, name, email.trim().toLowerCase(), "admin").catch(() => {});
       } catch {
         // Firebase optional
       }
@@ -1090,13 +1111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await fsGetDoc<UserProfile>(COLLECTIONS.USERS, fbUser.uid);
       if (profile) {
         const authUser = profileToAuthUser(profile, idToken);
-        const backendTok = await exchangeForBackendToken(
+        const backendResult = await exchangeForBackendToken(
           fbUser.uid, profile.name, fbUser.email ?? null, profile.role, idToken
         );
+        if (backendResult?.role) authUser.role = backendResult.role as AuthUser["role"];
         setUser(authUser);
-        if (backendTok) {
-          setToken(backendTok);
-          await AsyncStorage.setItem(TOKEN_KEY, backendTok);
+        if (backendResult) {
+          setToken(backendResult.token);
+          await AsyncStorage.setItem(TOKEN_KEY, backendResult.token);
         }
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
       }
