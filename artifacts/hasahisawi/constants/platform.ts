@@ -2,10 +2,11 @@
 export const PLATFORM = {
   name:      "حصاحيصاوي",
   nameEn:    "Hasahisawi",
-  version:   "5.9.3",
+  version:   "6.2.2",
 
-  // روابط قانونية (مستضافة على Vercel API)
-  privacyPolicyUrl: "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/privacy-policy",
+  // روابط قانونية (مستضافة على GitHub Pages)
+  privacyPolicyUrl:  "https://almhbob.github.io/hasahisawi/privacy.html",
+  deleteAccountUrl:  "https://almhbob.github.io/hasahisawi/delete-account.html",
 
   // أرقام الدعم الرسمية
   whatsapp:     "+966597083352",   // الرقم السعودي (واتساب أعمال)
@@ -36,7 +37,7 @@ ${user}• نوع المشكلة: [صف المشكلة باختصار]
 [اكتب ما حدث خطوة بخطوة]
 
 ─────────────────────
-📱 التطبيق: حصاحيصاوي v5.7.0
+📱 التطبيق: حصاحيصاوي v6.2.2
 شكراً لمساعدتنا في التحسين 🌟`;
     return `https://wa.me/966597083352?text=${encodeURIComponent(msg)}`;
   },
@@ -54,7 +55,7 @@ ${user}• القسم أو الخاصية: [مثال: قسم الوظائف]
 • لماذا سيكون مفيداً: [اختياري]
 
 ─────────────────────
-📱 التطبيق: حصاحيصاوي v5.7.0
+📱 التطبيق: حصاحيصاوي v6.2.2
 نقدّر رأيكم ونسعى دائماً للتطوير 💫`;
     return `https://wa.me/966597083352?text=${encodeURIComponent(msg)}`;
   },

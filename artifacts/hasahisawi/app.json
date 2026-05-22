@@ -185,7 +185,9 @@
       "router": {},
       "eas": {
         "projectId": "0d3b27d0-5d06-49dd-9b21-be26fb7a5a1a"
-      }
+      },
+      "privacyPolicyUrl": "https://almhbob.github.io/hasahisawi/privacy.html",
+      "deleteAccountUrl": "https://almhbob.github.io/hasahisawi/delete-account.html"
     },
     "owner": "almhbob2026"
   }
