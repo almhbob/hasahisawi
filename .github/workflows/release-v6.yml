@@ -113,7 +113,7 @@ jobs:
           sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
           # Build arm64-v8a only — covers all modern Android phones
           echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> $PROPS
+          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> $PROPS
           echo "org.gradle.parallel=false" >> $PROPS
           echo "org.gradle.workers.max=2" >> $PROPS
           echo "org.gradle.caching=true" >> $PROPS
@@ -130,6 +130,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          # Give Metro (Node.js subprocess) enough heap — default 512m causes OOM on large apps
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
