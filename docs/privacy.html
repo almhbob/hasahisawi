@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>سياسة الخصوصية — حصاحيصاوي</title>
+  <meta name="description" content="سياسة الخصوصية لتطبيق حصاحيصاوي — كيف نجمع بياناتك ونستخدمها ونحميها" />
+  <style>
+    :root {
+      --green: #22C55E;
+      --gold: #EAB308;
+      --bg: #07110A;
+      --surface: #0D1F13;
+      --border: #1A3020;
+      --text: #E8F5EC;
+      --muted: #7FA98A;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', 'Tahoma', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      font-size: 16px;
+    }
+    header {
+      background: linear-gradient(135deg, #0D1F13 0%, #071A0E 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .logo-ring {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #1a3a20 0%, #07110A 100%);
+      border: 2px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px; font-weight: 900; color: var(--gold);
+      box-shadow: 0 0 24px rgba(234,179,8,0.25);
+    }
+    header h1 { font-size: 22px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+    header p  { font-size: 13px; color: var(--muted); }
+    .lang-switch {
+      display: flex; justify-content: center; gap: 12px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .lang-btn {
+      padding: 6px 20px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;
+      transition: all .2s;
+    }
+    .lang-btn.active { background: var(--green); color: #000; border-color: var(--green); font-weight: 600; }
+    .container { max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; }
+    .meta-bar {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px; margin-bottom: 32px;
+      font-size: 13px; color: var(--muted);
+    }
+    .meta-bar span { display: flex; align-items: center; gap: 6px; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 600; background: rgba(34,197,94,.15);
+      color: var(--green); border: 1px solid rgba(34,197,94,.3);
+    }
+    h2 {
+      font-size: 18px; font-weight: 700; color: var(--green);
+      margin: 36px 0 14px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    h2 .icon { font-size: 20px; }
+    h3 { font-size: 15px; font-weight: 600; color: var(--gold); margin: 20px 0 8px; }
+    p  { margin-bottom: 12px; color: #C8E6D0; }
+    ul, ol { padding-right: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; color: #C8E6D0; }
+    .table-wrap { overflow-x: auto; margin: 16px 0; }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 14px;
+    }
+    th {
+      background: var(--surface); color: var(--green);
+      padding: 10px 14px; text-align: right; font-weight: 600;
+      border: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px; border: 1px solid var(--border);
+      color: #C8E6D0; vertical-align: top;
+    }
+    tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+    .highlight {
+      background: rgba(34,197,94,.07);
+      border: 1px solid rgba(34,197,94,.2);
+      border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    }
+    .warning {
+      background: rgba(234,179,8,.07);
+      border: 1px solid rgba(234,179,8,.2);
+      border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+      color: #F5D76E;
+    }
+    .contact-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px; margin-top: 32px; text-align: center;
+    }
+    .contact-card a {
+      color: var(--green); text-decoration: none; font-weight: 600;
+    }
+    footer {
+      text-align: center; padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--muted);
+    }
+    [lang-section="en"] { display: none; }
+    [lang-section="en"] h2, [lang-section="en"] h3 { font-family: 'Segoe UI', sans-serif; }
+    [lang-section="en"] p, [lang-section="en"] li { font-family: 'Segoe UI', sans-serif; font-size: 15px; }
+    @media (max-width: 600px) {
+      .container { padding: 20px 16px 48px; }
+      h2 { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-ring">ح</div>
+  <h1>سياسة الخصوصية</h1>
+  <p>تطبيق حصاحيصاوي — Privacy Policy</p>
+</header>
+
+<div class="lang-switch">
+  <button class="lang-btn active" onclick="setLang('ar')">العربية</button>
+  <button class="lang-btn" onclick="setLang('en')">English</button>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════════ ARABIC ═══════════════ -->
+  <div lang-section="ar">
+    <div class="meta-bar">
+      <span>📅 آخر تحديث: مايو 2026</span>
+      <span>🌐 يُطبَّق على: Android · iOS · الويب</span>
+      <span><span class="badge">ساري</span></span>
+    </div>
+
+    <p>مرحباً بك في تطبيق <strong>حصاحيصاوي</strong>. نحن نحترم خصوصيتك ونلتزم بحماية بياناتك الشخصية. توضّح هذه السياسة ما نجمعه ولماذا وكيف نستخدمه، وحقوقك كاملة.</p>
+
+    <h2><span class="icon">📋</span>1. من نحن</h2>
+    <p>تطبيق <strong>حصاحيصاوي</strong> مبادرة مجتمعية مستقلة تهدف لخدمة سكان مدينة الحصاحيصا وقراها في ولاية الجزيرة، السودان. التطبيق غير تابع لأي جهة حكومية أو رسمية.</p>
+    <ul>
+      <li><strong>البريد الإلكتروني للتواصل:</strong> almhbob.2024@gmail.com</li>
+      <li><strong>الموقع الرسمي:</strong> https://almhbob.github.io/hasahisawi</li>
+    </ul>
+
+    <h2><span class="icon">📦</span>2. البيانات التي نجمعها</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>نوع البيانات</th><th>الغرض</th><th>إلزامي؟</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>الاسم الكامل</td><td>عرضه في الملف الشخصي والخدمات</td><td>نعم</td></tr>
+          <tr><td>رقم الهاتف أو البريد الإلكتروني</td><td>تسجيل الدخول والتحقق من الهوية</td><td>نعم (أحدهما)</td></tr>
+          <tr><td>الصورة الشخصية</td><td>تخصيص الملف الشخصي</td><td>اختياري</td></tr>
+          <tr><td>الموقع الجغرافي (عند الإبلاغ)</td><td>إرفاق موقع الحادثة مع البلاغ</td><td>اختياري</td></tr>
+          <tr><td>معرّف جهاز الإشعارات (Push Token)</td><td>إرسال الإشعارات للجهاز</td><td>اختياري</td></tr>
+          <tr><td>بيانات Firebase (UID)</td><td>التحقق من الهوية عبر Google Sign-In</td><td>عند استخدام Google</td></tr>
+          <tr><td>بيانات استخدام التطبيق</td><td>تحسين الخدمة وتشخيص الأخطاء</td><td>تلقائي</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2><span class="icon">🎯</span>3. كيف نستخدم البيانات</h2>
+    <ul>
+      <li>تقديم خدمات التطبيق (الإبلاغ، السفر، الطب، التعليم، إلخ)</li>
+      <li>إرسال إشعارات الخدمة والتنبيهات العاجلة وأوقات الصلاة</li>
+      <li>التواصل معك للرد على استفساراتك</li>
+      <li>تحسين تجربة المستخدم وإصلاح الأخطاء</li>
+      <li>الامتثال للمتطلبات القانونية عند الاقتضاء</li>
+    </ul>
+    <div class="highlight">
+      <strong>لا نبيع بياناتك أبداً.</strong> لا نشاركها مع أطراف ثالثة لأغراض تسويقية.
+    </div>
+
+    <h2><span class="icon">🔔</span>4. الإشعارات (Push Notifications)</h2>
+    <p>يُرسل التطبيق إشعارات من الأنواع التالية:</p>
+    <ul>
+      <li><strong>إشعارات الخدمة:</strong> تحديثات طلباتك وبلاغاتك الشخصية</li>
+      <li><strong>تنبيهات المجتمع:</strong> أخبار وأحداث عامة لسكان المدينة</li>
+      <li><strong>التنبيهات العاجلة:</strong> طوارئ وحوادث تستدعي الاهتمام الفوري</li>
+      <li><strong>أوقات الصلاة:</strong> تذكير بمواقيت الأذان (اختياري)</li>
+    </ul>
+    <div class="warning">
+      ⚙️ <strong>التحكم في الإشعارات:</strong> يمكنك إيقاف أي نوع من الإشعارات من داخل التطبيق (الإعدادات ← الإشعارات) أو من إعدادات نظام هاتفك في أي وقت.
+    </div>
+
+    <h2><span class="icon">🤝</span>5. مشاركة البيانات مع أطراف ثالثة</h2>
+    <p>نستخدم الخدمات التالية لتشغيل التطبيق:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>الخدمة</th><th>الغرض</th><th>سياسة الخصوصية</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Firebase (Google)</td><td>المصادقة وقاعدة البيانات</td><td>policies.google.com/privacy</td></tr>
+          <tr><td>Expo Push Notifications</td><td>توصيل الإشعارات</td><td>expo.dev/privacy</td></tr>
+          <tr><td>Cloudinary</td><td>تخزين الصور</td><td>cloudinary.com/privacy</td></tr>
+          <tr><td>Vercel</td><td>استضافة الخادم</td><td>vercel.com/legal/privacy-policy</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>جميع هذه الخدمات ملتزمة بمعايير حماية البيانات الدولية (GDPR).</p>
+
+    <h2><span class="icon">📍</span>6. الموقع الجغرافي</h2>
+    <p>يطلب التطبيق إذن الموقع <strong>فقط عند تقديم بلاغ</strong> وبموافقتك الصريحة. لا نتتبع موقعك في الخلفية أو بشكل مستمر.</p>
+
+    <h2><span class="icon">🔒</span>7. أمان البيانات</h2>
+    <ul>
+      <li>جميع الاتصالات مشفرة بـ HTTPS/TLS</li>
+      <li>كلمات المرور مُشفَّرة بخوارزمية bcrypt</li>
+      <li>الجلسات محمية بـ tokens عشوائية</li>
+      <li>قواعد البيانات محمية بصلاحيات محدودة</li>
+    </ul>
+
+    <h2><span class="icon">👤</span>8. حقوقك</h2>
+    <p>يحق لك في أي وقت:</p>
+    <ul>
+      <li><strong>الاطلاع</strong> على بياناتك المحفوظة</li>
+      <li><strong>تصحيح</strong> أي معلومات غير دقيقة</li>
+      <li><strong>حذف حسابك</strong> وجميع بياناتك نهائياً — عبر <a href="/hasahisawi/delete-account.html" style="color:var(--green)">صفحة الحذف</a> أو بالتواصل معنا</li>
+      <li><strong>إيقاف الإشعارات</strong> في أي وقت</li>
+      <li><strong>سحب الموافقة</strong> على أي معالجة اختيارية للبيانات</li>
+    </ul>
+
+    <h2><span class="icon">🧒</span>9. حماية الأطفال</h2>
+    <p>التطبيق غير موجَّه للأطفال دون سن 13 عاماً. إذا علمنا بأن طفلاً قاصراً قدّم بياناته دون إذن وليّ أمره، نحذف تلك البيانات فوراً.</p>
+
+    <h2><span class="icon">🌍</span>10. نقل البيانات الدولي</h2>
+    <p>قد تُعالَج بياناتك على خوادم خارج السودان (الولايات المتحدة/أوروبا) عبر مزودي الخدمة المذكورين. جميعهم ملتزمون بمعايير الحماية المعتمدة دولياً.</p>
+
+    <h2><span class="icon">✏️</span>11. تحديثات السياسة</h2>
+    <p>قد نُحدِّث هذه السياسة دورياً. عند أي تغيير جوهري نُخطرك عبر إشعار داخل التطبيق. الاستمرار في الاستخدام بعد التحديث يعني قبولك للسياسة المُحدَّثة.</p>
+
+    <div class="contact-card">
+      <h3 style="color:var(--green);margin-bottom:12px">📬 تواصل معنا</h3>
+      <p>لأي استفسار حول خصوصيتك أو لطلب حذف بياناتك:</p>
+      <p><a href="mailto:almhbob.2024@gmail.com">almhbob.2024@gmail.com</a></p>
+      <p style="margin-top:8px;font-size:13px;color:var(--muted)">نرد خلال 72 ساعة عمل</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ENGLISH ═══════════════ -->
+  <div lang-section="en" style="direction:ltr;text-align:left">
+    <div class="meta-bar" style="direction:ltr">
+      <span>📅 Last updated: May 2026</span>
+      <span>🌐 Applies to: Android · iOS · Web</span>
+      <span><span class="badge">Active</span></span>
+    </div>
+
+    <p>Welcome to <strong>Hasahisawi</strong>. We respect your privacy and are committed to protecting your personal data. This policy explains what we collect, why, and how we use it, along with your full rights.</p>
+
+    <h2><span class="icon">📋</span>1. Who We Are</h2>
+    <p><strong>Hasahisawi</strong> is an independent community initiative serving residents of Hasahisa city and its villages in Gezira State, Sudan. The app is not affiliated with any government or official body.</p>
+    <ul>
+      <li><strong>Contact email:</strong> almhbob.2024@gmail.com</li>
+      <li><strong>Website:</strong> https://almhbob.github.io/hasahisawi</li>
+    </ul>
+
+    <h2><span class="icon">📦</span>2. Data We Collect</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="text-align:left">Data Type</th><th style="text-align:left">Purpose</th><th style="text-align:left">Required?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Full name</td><td>Display in profile and services</td><td>Yes</td></tr>
+          <tr><td>Phone or email</td><td>Login and identity verification</td><td>Yes (one of them)</td></tr>
+          <tr><td>Profile photo</td><td>Personalise your profile</td><td>Optional</td></tr>
+          <tr><td>Location (when reporting)</td><td>Attach incident location to reports</td><td>Optional</td></tr>
+          <tr><td>Push notification token</td><td>Deliver notifications to your device</td><td>Optional</td></tr>
+          <tr><td>Firebase UID</td><td>Identity via Google Sign-In</td><td>When using Google</td></tr>
+          <tr><td>App usage data</td><td>Service improvement and error diagnosis</td><td>Automatic</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2><span class="icon">🎯</span>3. How We Use Your Data</h2>
+    <ul>
+      <li>Provide app services (reporting, travel, medical, education, etc.)</li>
+      <li>Send service notifications, urgent alerts, and prayer time reminders</li>
+      <li>Respond to your queries and support requests</li>
+      <li>Improve user experience and fix bugs</li>
+      <li>Comply with legal requirements when applicable</li>
+    </ul>
+    <div class="highlight">
+      <strong>We never sell your data.</strong> We do not share it with third parties for marketing purposes.
+    </div>
+
+    <h2><span class="icon">🔔</span>4. Push Notifications</h2>
+    <p>The app sends the following notification types:</p>
+    <ul>
+      <li><strong>Service notifications:</strong> Updates on your personal requests and reports</li>
+      <li><strong>Community alerts:</strong> General news and events for city residents</li>
+      <li><strong>Urgent alerts:</strong> Emergencies requiring immediate attention</li>
+      <li><strong>Prayer times:</strong> Adhan reminders (optional)</li>
+    </ul>
+    <div class="warning">
+      ⚙️ <strong>Notification control:</strong> You can disable any notification type from within the app (Settings → Notifications) or from your phone's system settings at any time.
+    </div>
+
+    <h2><span class="icon">🤝</span>5. Third-Party Data Sharing</h2>
+    <p>We use the following services to operate the app:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="text-align:left">Service</th><th style="text-align:left">Purpose</th><th style="text-align:left">Privacy Policy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Firebase (Google)</td><td>Authentication and database</td><td>policies.google.com/privacy</td></tr>
+          <tr><td>Expo Push Notifications</td><td>Notification delivery</td><td>expo.dev/privacy</td></tr>
+          <tr><td>Cloudinary</td><td>Image storage</td><td>cloudinary.com/privacy</td></tr>
+          <tr><td>Vercel</td><td>Server hosting</td><td>vercel.com/legal/privacy-policy</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2><span class="icon">📍</span>6. Location Data</h2>
+    <p>The app requests location permission <strong>only when submitting a report</strong> and only with your explicit consent. We do not track your location in the background or continuously.</p>
+
+    <h2><span class="icon">🔒</span>7. Data Security</h2>
+    <ul>
+      <li>All communications are encrypted with HTTPS/TLS</li>
+      <li>Passwords are hashed with bcrypt</li>
+      <li>Sessions protected with random tokens</li>
+      <li>Databases secured with restricted permissions</li>
+    </ul>
+
+    <h2><span class="icon">👤</span>8. Your Rights</h2>
+    <p>You have the right at any time to:</p>
+    <ul>
+      <li><strong>Access</strong> your stored data</li>
+      <li><strong>Correct</strong> any inaccurate information</li>
+      <li><strong>Delete your account</strong> and all your data permanently — via our <a href="/hasahisawi/delete-account.html" style="color:var(--green)">deletion page</a> or by contacting us</li>
+      <li><strong>Opt out of notifications</strong> at any time</li>
+      <li><strong>Withdraw consent</strong> for any optional data processing</li>
+    </ul>
+
+    <h2><span class="icon">🧒</span>9. Children's Privacy</h2>
+    <p>The app is not directed at children under 13. If we become aware that a minor has submitted data without parental consent, we will delete it immediately.</p>
+
+    <h2><span class="icon">✏️</span>10. Policy Updates</h2>
+    <p>We may update this policy periodically. For any material change, we will notify you via an in-app notification. Continued use after an update constitutes acceptance of the updated policy.</p>
+
+    <div class="contact-card" style="direction:ltr;text-align:left">
+      <h3 style="color:var(--green);margin-bottom:12px">📬 Contact Us</h3>
+      <p>For any privacy inquiry or to request data deletion:</p>
+      <p><a href="mailto:almhbob.2024@gmail.com">almhbob.2024@gmail.com</a></p>
+      <p style="margin-top:8px;font-size:13px;color:var(--muted)">We respond within 72 business hours</p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  <p>© 2026 حصاحيصاوي · جميع الحقوق محفوظة</p>
+  <p style="margin-top:6px">
+    <a href="/hasahisawi/privacy.html" style="color:var(--muted);text-decoration:none;margin:0 8px">سياسة الخصوصية</a> ·
+    <a href="/hasahisawi/delete-account.html" style="color:var(--muted);text-decoration:none;margin:0 8px">حذف الحساب</a>
+  </p>
+</footer>
+
+<script>
+  function setLang(lang) {
+    document.querySelectorAll('[lang-section]').forEach(el => {
+      el.style.display = el.getAttribute('lang-section') === lang ? 'block' : 'none';
+    });
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.trim() === (lang === 'ar' ? 'العربية' : 'English'));
+    });
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }
+</script>
+</body>
+</html>

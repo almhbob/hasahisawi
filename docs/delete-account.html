@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>حذف الحساب — حصاحيصاوي</title>
+  <meta name="description" content="طلب حذف حساب تطبيق حصاحيصاوي وجميع البيانات الشخصية نهائياً" />
+  <style>
+    :root {
+      --green: #22C55E; --gold: #EAB308;
+      --bg: #07110A; --surface: #0D1F13;
+      --border: #1A3020; --text: #E8F5EC; --muted: #7FA98A;
+      --red: #EF4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI','Tahoma',Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.8; }
+    header { background:linear-gradient(135deg,#0D1F13,#071A0E); border-bottom:1px solid var(--border); padding:28px 24px; text-align:center; }
+    .logo-ring { width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#1a3a20,#07110A);border:2px solid var(--red);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;font-weight:900;color:var(--red);box-shadow:0 0 24px rgba(239,68,68,.25); }
+    header h1 { font-size:22px;font-weight:700;color:var(--red);margin-bottom:4px; }
+    header p  { font-size:13px;color:var(--muted); }
+    .container { max-width:680px;margin:0 auto;padding:32px 24px 64px; }
+    .warning-box { background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:20px 24px;margin:24px 0; }
+    .warning-box h3 { color:var(--red);margin-bottom:10px;font-size:16px; }
+    .warning-box ul { padding-right:18px; }
+    .warning-box li { margin-bottom:6px;color:#F5B8B8; }
+    .steps-card { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin:24px 0; }
+    .steps-card h3 { color:var(--green);margin-bottom:16px;font-size:16px; }
+    .step { display:flex;gap:14px;margin-bottom:16px;align-items:flex-start; }
+    .step-num { width:30px;height:30px;min-width:30px;border-radius:50%;background:var(--green);color:#000;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center; }
+    .step-text { color:#C8E6D0;font-size:14px;padding-top:4px; }
+    .divider { text-align:center;margin:24px 0;color:var(--muted);font-size:13px;position:relative; }
+    .divider::before,.divider::after { content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--border); }
+    .divider::before { right:0; } .divider::after { left:0; }
+    .email-btn { display:block;text-align:center;background:var(--red);color:#fff;border-radius:12px;padding:14px 24px;text-decoration:none;font-weight:700;font-size:15px;margin:16px 0;transition:.2s; }
+    .email-btn:hover { background:#DC2626; }
+    .info-section { background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.2);border-radius:12px;padding:16px 20px;margin:20px 0; }
+    .info-section h4 { color:var(--gold);margin-bottom:8px; }
+    .info-section p,.info-section li { color:#F5D76E;font-size:14px; }
+    .info-section ul { padding-right:18px; }
+    h2 { font-size:18px;font-weight:700;color:var(--green);margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border); }
+    p { margin-bottom:10px;color:#C8E6D0; }
+    footer { text-align:center;padding:20px;border-top:1px solid var(--border);font-size:12px;color:var(--muted); }
+    footer a { color:var(--muted);text-decoration:none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-ring">🗑</div>
+  <h1>حذف الحساب</h1>
+  <p>طلب حذف بياناتك من تطبيق حصاحيصاوي</p>
+</header>
+
+<div class="container">
+
+  <p style="margin-top:8px">نحترم حقك الكامل في حذف حسابك وجميع بياناتك الشخصية من منصة حصاحيصاوي. يمكنك تنفيذ ذلك بإحدى الطريقتين أدناه.</p>
+
+  <div class="warning-box">
+    <h3>⚠️ تحذير — هذا الإجراء لا يمكن التراجع عنه</h3>
+    <p style="color:#F5B8B8;margin-bottom:10px">عند تأكيد الحذف، سيتم إزالة ما يلي نهائياً:</p>
+    <ul>
+      <li>حسابك وملفك الشخصي (الاسم، الصورة، رقم الهاتف، البريد الإلكتروني)</li>
+      <li>جميع بلاغاتك ومشاركاتك وتعليقاتك</li>
+      <li>سجل رحلاتك وتذاكرك</li>
+      <li>محادثاتك ورسائلك</li>
+      <li>جهات الاتصال المحفوظة وإعداداتك</li>
+      <li>رمز الإشعارات (Push Token) المرتبط بجهازك</li>
+    </ul>
+  </div>
+
+  <!-- طريقة 1 -->
+  <div class="steps-card">
+    <h3>📱 الطريقة الأولى: الحذف من داخل التطبيق</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">افتح التطبيق وسجّل الدخول بحسابك</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">اذهب إلى <strong>الملف الشخصي</strong> (أيقونة الشخص أسفل الشاشة)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">اضغط على <strong>الإعدادات</strong> أو القائمة (⋮) في الأعلى</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">اختر <strong>"حذف الحساب"</strong> وأكّد الطلب</div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-text">سيُحذف حسابك فوراً وستُسجَّل الخروج تلقائياً</div>
+    </div>
+  </div>
+
+  <div class="divider">أو</div>
+
+  <!-- طريقة 2 -->
+  <div class="steps-card">
+    <h3>📧 الطريقة الثانية: طلب الحذف عبر البريد الإلكتروني</h3>
+    <p style="font-size:14px;margin-bottom:16px">إذا لم تستطع الوصول إلى التطبيق، أرسل بريداً إلكترونياً يتضمن:</p>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">رقم هاتفك أو بريدك الإلكتروني المسجَّل في التطبيق</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">اسمك الكامل كما هو مُسجَّل</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">العنوان: <strong>"طلب حذف حساب حصاحيصاوي"</strong></div>
+    </div>
+    <a href="mailto:almhbob.2024@gmail.com?subject=طلب حذف حساب حصاحيصاوي&body=السلام عليكم،%0A%0Aأطلب حذف حسابي من تطبيق حصاحيصاوي.%0A%0Aالبريد الإلكتروني المسجّل: %0Aرقم الهاتف: %0Aالاسم الكامل: %0A%0Aشكراً" class="email-btn">
+      ✉️ أرسل طلب الحذف الآن
+    </a>
+  </div>
+
+  <div class="info-section">
+    <h4>⏱ مدة تنفيذ الحذف</h4>
+    <ul>
+      <li>الحذف من داخل التطبيق: <strong>فوري</strong></li>
+      <li>الحذف عبر البريد الإلكتروني: خلال <strong>72 ساعة عمل</strong></li>
+      <li>قد تبقى نسخة احتياطية مشفرة لمدة لا تتجاوز <strong>30 يوماً</strong> ثم تُحذف نهائياً</li>
+    </ul>
+  </div>
+
+  <h2>📞 التواصل المباشر</h2>
+  <p>لأي استفسار إضافي حول خصوصيتك أو بياناتك:</p>
+  <p><strong>البريد الإلكتروني:</strong> <a href="mailto:almhbob.2024@gmail.com" style="color:var(--green)">almhbob.2024@gmail.com</a></p>
+  <p style="margin-top:16px">
+    <a href="/hasahisawi/privacy.html" style="color:var(--green)">← قراءة سياسة الخصوصية الكاملة</a>
+  </p>
+
+</div>
+
+<footer>
+  <p>© 2026 حصاحيصاوي · جميع الحقوق محفوظة</p>
+  <p style="margin-top:6px">
+    <a href="/hasahisawi/privacy.html">سياسة الخصوصية</a> ·
+    <a href="/hasahisawi/delete-account.html">حذف الحساب</a>
+  </p>
+</footer>
+
+</body>
+</html>
