@@ -27,14 +27,26 @@ export default function QRScannerScreen() {
     scanLock.current = true;
     setScanned(true);
 
-    // Extract token: may be a raw token or a URL with ?token=xxx
-    let token = data;
+    // Extract token from QR value.
+    // QR encodes full URL: https://api.../api/auth/qr/{TOKEN}/confirm
+    // Also support: raw token string or ?token= query param
+    let token = data.trim();
     try {
       const url = new URL(data);
-      token = url.searchParams.get("token") || data;
-    } catch {}
+      // Try path extraction: /api/auth/qr/{TOKEN}/confirm
+      const pathMatch = url.pathname.match(/\/api\/auth\/qr\/([^/]+)\//);
+      if (pathMatch?.[1]) {
+        token = pathMatch[1];
+      } else {
+        // Fallback: try query param
+        const qp = url.searchParams.get("token");
+        if (qp) token = qp;
+      }
+    } catch {
+      // data is not a URL — treat as raw token
+    }
 
-    if (!token || token.length < 20) {
+    if (!token || token.length < 20 || token.startsWith("http")) {
       Alert.alert("رمز غير صحيح", "هذا ليس رمز QR صالحاً لتسجيل الدخول.", [
         { text: "إعادة المسح", onPress: () => { scanLock.current = false; setScanned(false); } },
       ]);
@@ -45,22 +57,31 @@ export default function QRScannerScreen() {
     try {
       const authToken = await AsyncStorage.getItem(BACKEND_TOKEN_KEY);
       if (!authToken) {
-        Alert.alert("غير مسجل الدخول", "يجب أن تكون مسجلاً دخولك على الجوال أولاً.");
+        Alert.alert(
+          "غير مسجل الدخول",
+          "يجب أن تكون مسجلاً دخولك على الجوال أولاً.",
+          [{ text: "حسناً", onPress: () => { scanLock.current = false; setScanned(false); setLoading(false); } }]
+        );
         return;
       }
+
+      // Mark as scanned first so web sees the intermediate state
+      await fetchWithTimeout(`${getApiUrl()}/api/auth/qr/${token}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+
+      // Then confirm (creates web session)
       const res = await fetchWithTimeout(`${getApiUrl()}/api/auth/qr/${token}/confirm`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
       });
       const body = await res.json();
       if (body.ok) {
         Vibration.vibrate([0, 100, 80, 100]);
         setSuccess(true);
       } else {
-        Alert.alert("خطأ", body.error || "فشل تأكيد الرمز", [
+        Alert.alert("خطأ", body.error || "فشل تأكيد الرمز — الرمز منتهي أو استُخدم من قبل", [
           { text: "إعادة المسح", onPress: () => { scanLock.current = false; setScanned(false); setLoading(false); } },
         ]);
       }

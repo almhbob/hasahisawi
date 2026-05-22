@@ -1871,20 +1871,50 @@ export default function SettingsScreen() {
                   </View>
 
                   {/* ─── ربط بالكمبيوتر ─── */}
-                  <TouchableOpacity
-                    style={linkPcSty.btn}
-                    onPress={() => router.push("/qr-scanner" as any)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={linkPcSty.iconWrap}>
-                      <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
+                  <View style={linkPcSty.card}>
+                    <View style={linkPcSty.cardHeader}>
+                      <View style={linkPcSty.iconWrap}>
+                        <Ionicons name="desktop-outline" size={20} color={Colors.primary} />
+                      </View>
+                      <View style={linkPcSty.textWrap}>
+                        <Text style={linkPcSty.title}>ربط بالكمبيوتر</Text>
+                        <Text style={linkPcSty.sub}>سجّل دخولك على المتصفح بدون كلمة مرور</Text>
+                      </View>
                     </View>
-                    <View style={linkPcSty.textWrap}>
-                      <Text style={linkPcSty.title}>ربط بالكمبيوتر</Text>
-                      <Text style={linkPcSty.sub}>امسح رمز QR لتسجيل الدخول على المتصفح</Text>
+
+                    {/* Steps */}
+                    <View style={linkPcSty.steps}>
+                      <View style={linkPcSty.step}>
+                        <View style={linkPcSty.stepNum}><Text style={linkPcSty.stepNumTxt}>١</Text></View>
+                        <Text style={linkPcSty.stepTxt}>افتح على الكمبيوتر:</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={linkPcSty.urlBox}
+                        onPress={() => {
+                          const webUrl = "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/qr-web-login";
+                          Linking.openURL(webUrl).catch(() => {});
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="globe-outline" size={14} color={Colors.primary} />
+                        <Text style={linkPcSty.urlText} numberOfLines={1}>hasahisawi.vercel.app/qr-web-login</Text>
+                        <Ionicons name="open-outline" size={13} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                      <View style={linkPcSty.step}>
+                        <View style={linkPcSty.stepNum}><Text style={linkPcSty.stepNumTxt}>٢</Text></View>
+                        <Text style={linkPcSty.stepTxt}>امسح رمز QR بالكاميرا أدناه</Text>
+                      </View>
                     </View>
-                    <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
-                  </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={linkPcSty.btn}
+                      onPress={() => router.push("/qr-scanner" as any)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="qr-code-outline" size={18} color="#fff" />
+                      <Text style={linkPcSty.btnTxt}>فتح ماسح QR</Text>
+                    </TouchableOpacity>
+                  </View>
                 </>
               )}
             </View>
@@ -3948,13 +3978,12 @@ const profileCompleteSty = StyleSheet.create({
 });
 
 const linkPcSty = StyleSheet.create({
-  btn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(37,99,235,0.08)",
+  card: {
+    backgroundColor: "rgba(37,99,235,0.06)",
     borderWidth: 1, borderColor: "rgba(37,99,235,0.20)",
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    marginTop: 10,
+    borderRadius: 16, padding: 14, gap: 12, marginTop: 10,
   },
+  cardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 40, height: 40, borderRadius: 11,
     backgroundColor: "rgba(37,99,235,0.15)",
@@ -3963,6 +3992,27 @@ const linkPcSty = StyleSheet.create({
   textWrap: { flex: 1, gap: 2 },
   title: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right" },
   sub:   { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  steps: { gap: 8, paddingHorizontal: 4 },
+  step:  { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  stepNum: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary + "25",
+    borderWidth: 1, borderColor: Colors.primary + "60",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  stepNumTxt: { color: Colors.primary, fontSize: 11, fontFamily: "Cairo_700Bold" },
+  stepTxt:    { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", flex: 1 },
+  urlBox: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1,
+    borderColor: Colors.primary + "40", paddingHorizontal: 12, paddingVertical: 8,
+    marginRight: 32,
+  },
+  urlText: { flex: 1, color: Colors.primary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  btn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12,
+  },
+  btnTxt: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });
 
 // ─── زر بطاقة المطور ──────────────────────────────────────────────────────────

@@ -15,33 +15,27 @@ declare module "http" {
 
 function setupCors(app: express.Application) {
   app.use((req, res, next) => {
-    const origins = new Set<string>();
+    const origin = req.header("origin") || "";
 
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-    }
+    // Trusted origins: Replit, Vercel deployments, Expo web, localhost
+    const trusted =
+      !origin ||                                          // same-origin or server-to-server
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("http://127.0.0.1:") ||
+      origin.includes(".replit.dev") ||
+      origin.includes(".replit.app") ||
+      origin.includes(".vercel.app") ||
+      origin.includes("hasahisawi") ||                   // any hasahisawi subdomain
+      (process.env.ALLOWED_ORIGINS || "")
+        .split(",").some(o => o.trim() && origin.startsWith(o.trim()));
 
-    if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
-        origins.add(`https://${d.trim()}`);
-      });
-    }
+    const allowOrigin = trusted ? (origin || "*") : "";
 
-    const origin = req.header("origin");
-
-    // Allow localhost origins for Expo web development (any port)
-    const isLocalhost =
-      origin?.startsWith("http://localhost:") ||
-      origin?.startsWith("http://127.0.0.1:");
-
-    if (origin && (origins.has(origin) || isLocalhost)) {
-      res.header("Access-Control-Allow-Origin", origin);
-      res.header(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS",
-      );
-      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      res.header("Access-Control-Allow-Credentials", "true");
+    if (allowOrigin) {
+      res.header("Access-Control-Allow-Origin", allowOrigin);
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+      if (origin) res.header("Access-Control-Allow-Credentials", "true");
     }
 
     if (req.method === "OPTIONS") {

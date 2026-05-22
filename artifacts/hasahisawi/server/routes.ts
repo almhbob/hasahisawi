@@ -675,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       const r = await query(
-        "SELECT status, auth_token FROM qr_sessions WHERE token = $1",
+        "SELECT status, auth_token, expires_at FROM qr_sessions WHERE token = $1",
         [token]
       );
       if (!r.rows.length) return res.json({ status: "expired" });
@@ -691,6 +691,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/auth/qr/:token/scan — marks QR as scanned (mobile seen it) ─
+  app.post("/api/auth/qr/:token/scan", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
+      await query(
+        "UPDATE qr_sessions SET status = 'scanned' WHERE token = $1 AND status = 'pending' AND expires_at > NOW()",
+        [token]
+      );
+      res.json({ ok: true });
+    } catch {
+      res.json({ ok: true });
     }
   });
 
