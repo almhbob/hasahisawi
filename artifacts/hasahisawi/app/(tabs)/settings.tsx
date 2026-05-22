@@ -2072,6 +2072,28 @@ export default function SettingsScreen() {
 
             <View style={legalSty.divider} />
 
+            <TouchableOpacity
+              style={legalSty.btn}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Linking.openURL(PLATFORM.deleteAccountUrl).catch(() =>
+                  Alert.alert("تنبيه", "تعذّر فتح صفحة حذف الحساب")
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[legalSty.btnIcon, { backgroundColor: "rgba(239,68,68,0.12)" }]}>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </View>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={[legalSty.btnTitle, { color: "#EF4444" }]}>حذف الحساب</Text>
+                <Text style={legalSty.btnSub}>إزالة حسابك وجميع بياناتك نهائياً</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={legalSty.divider} />
+
             <View style={legalSty.infoRow}>
               <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
               <Text style={legalSty.infoTxt}>
