@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "6.3.1",
+    "version": "6.3.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "231",
+      "buildNumber": "232",
       "infoPlist": {
         "NSCameraUsageDescription": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية",
         "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
