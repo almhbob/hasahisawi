@@ -17,6 +17,7 @@ import {
   Image,
   Linking,
   Dimensions,
+  Share,
 } from "react-native";
 import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,9 +28,12 @@ import * as ImagePicker from "expo-image-picker";
 import Animated, {
   FadeInDown,
   FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  withSequence,
 } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useFocusEffect } from "expo-router";
@@ -37,9 +41,6 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
-import { useFsPosts, FsPost } from "@/lib/firebase/hooks";
-import { isFirestoreEnabled } from "@/lib/firebase/index";
-import { fsUpdateDoc, fsAddDoc, fsGetCollection, fsGetDoc, fsDeleteDoc, COLLECTIONS, orderBy as fsOrderBy } from "@/lib/firebase/firestore";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork } from "@/lib/network";
 import UserAvatar from "@/components/UserAvatar";
@@ -51,37 +52,21 @@ const IMG_MAX_H = SCREEN_W * 1.25;
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Post = {
-  id: string | number;
+  id: number;
   author_name: string;
   author_avatar?: string | null;
   content: string;
   category: string;
   likes_count: number;
   comments_count: number;
+  views_count: number;
   liked_by_me: boolean;
+  my_reaction?: string | null;
   created_at: string;
   image_url?: string | null;
   video_url?: string | null;
+  is_pinned?: boolean;
 };
-
-function fsPostToPost(fp: FsPost, likedIds?: Set<string>): Post {
-  const ts = fp.createdAt as any;
-  const created_at = ts?.seconds
-    ? new Date(ts.seconds * 1000).toISOString()
-    : new Date().toISOString();
-  return {
-    id: fp.id,
-    author_name: fp.authorName,
-    content: fp.content,
-    category: fp.category,
-    likes_count: fp.likes,
-    comments_count: fp.comments,
-    liked_by_me: likedIds ? likedIds.has(fp.id) : false,
-    created_at,
-    image_url: (fp as any).image_url ?? null,
-    video_url: (fp as any).video_url ?? null,
-  };
-}
 
 type Comment = {
   id: number;
@@ -89,6 +74,8 @@ type Comment = {
   author_name: string;
   content: string;
   created_at: string;
+  parent_id?: number | null;
+  replies?: Comment[];
 };
 
 type MediaAsset = {
@@ -102,15 +89,6 @@ const DEVICE_ID_KEY = "social_device_id";
 const USER_NAME_KEY = "social_user_name";
 
 const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر"];
-
-const CATEGORY_KEYS: Record<string, string> = {
-  عام: "general",
-  سؤال: "question",
-  خبر: "news",
-  إعلان: "announcement",
-  نقاش: "general",
-  شكر: "general",
-};
 
 const CATEGORY_COLORS: Record<string, string> = {
   عام: Colors.primary,
@@ -130,6 +108,15 @@ const CATEGORY_ICONS: Record<string, string> = {
   شكر: "heart-outline",
 };
 
+const REACTIONS: { key: string; emoji: string; label: string; color: string }[] = [
+  { key: "like",  emoji: "👍", label: "أعجبني",   color: "#2980B9" },
+  { key: "love",  emoji: "❤️", label: "أحببته",   color: "#E74C3C" },
+  { key: "haha",  emoji: "😂", label: "مضحك",     color: "#F39C12" },
+  { key: "wow",   emoji: "😮", label: "مدهش",     color: "#9B59B6" },
+  { key: "sad",   emoji: "😢", label: "محزن",     color: "#3498DB" },
+  { key: "angry", emoji: "😡", label: "مستاء",    color: "#E74C3C" },
+];
+
 const AVATAR_COLORS = [
   "#E74C3C", "#3498DB", "#9B59B6", "#1ABC9C",
   "#E67E22", "#27AE60", "#2980B9", "#D35400",
@@ -141,15 +128,16 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-function timeAgo(iso: string, t: any) {
+function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   const h = Math.floor(diff / 3600000);
   const d = Math.floor(diff / 86400000);
-  if (d >= 1) return `${t("social", "ago")} ${d} ${t("social", "daysAgo")}`;
-  if (h >= 1) return `${t("social", "ago")} ${h} ${t("social", "hoursAgo")}`;
-  if (m >= 1) return `${t("social", "ago")} ${m} ${t("social", "minutesAgo")}`;
-  return t("social", "justNow");
+  if (d >= 7) return new Date(iso).toLocaleDateString("ar-SA");
+  if (d >= 1) return `منذ ${d} يوم`;
+  if (h >= 1) return `منذ ${h} ساعة`;
+  if (m >= 1) return `منذ ${m} دقيقة`;
+  return "الآن";
 }
 
 async function getDeviceId(): Promise<string> {
@@ -167,10 +155,12 @@ function apiUrl(path: string) {
   return new URL(path, base).toString();
 }
 
-// ─── API calls ────────────────────────────────────────────────────────────────
+// ─── API ──────────────────────────────────────────────────────────────────────
 
-async function apiFetchPosts(deviceId: string): Promise<Post[]> {
-  const res = await fetchWithTimeout(apiUrl(`/api/posts?device_id=${encodeURIComponent(deviceId)}`));
+async function apiFetchPosts(deviceId: string, category?: string, page = 1): Promise<Post[]> {
+  const params = new URLSearchParams({ device_id: deviceId, page: String(page), limit: "30" });
+  if (category && category !== "الكل") params.set("category", category);
+  const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`));
   if (!res.ok) throw new Error("Failed to fetch posts");
   return res.json();
 }
@@ -195,52 +185,13 @@ async function apiCreatePost(data: {
   return json;
 }
 
-async function apiDeletePost(id: string | number, token?: string | null): Promise<void> {
+async function apiDeletePost(id: number, token?: string | null): Promise<void> {
   if (!token) throw new Error("غير مصرح");
   const res = await fetchWithTimeout(apiUrl(`/api/posts/${id}`), {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Failed to delete");
-}
-
-function isFsPost(post: Post): boolean {
-  return typeof post.id === "string" && isNaN(Number(post.id));
-}
-
-async function fsFetchComments(postId: string): Promise<Comment[]> {
-  const items = await fsGetCollection<{ postId: string; author_name: string; content: string; created_at: string }>(
-    COLLECTIONS.COMMENTS,
-    fsOrderBy("created_at", "asc"),
-  );
-  const filtered = items.filter((c) => c.postId === postId);
-  return filtered.map((c, i) => ({
-    id: i + 1,
-    post_id: 0,
-    author_name: c.author_name,
-    content: c.content,
-    created_at: c.created_at,
-    _fsId: (c as any).id,
-  })) as any[];
-}
-
-async function fsCreateComment(postId: string, data: { author_name: string; content: string }): Promise<void> {
-  await fsAddDoc(COLLECTIONS.COMMENTS, {
-    postId,
-    author_name: data.author_name,
-    content: data.content,
-    created_at: new Date().toISOString(),
-  });
-  try {
-    const post = await fsGetDoc<{ comments: number }>(COLLECTIONS.POSTS, postId);
-    if (post) {
-      await fsUpdateDoc(COLLECTIONS.POSTS, postId, { comments: (post.comments ?? 0) + 1 });
-    }
-  } catch { }
-}
-
-async function fsDeleteFsComment(fsId: string): Promise<void> {
-  await fsDeleteDoc(COLLECTIONS.COMMENTS, fsId);
 }
 
 async function apiFetchComments(postId: number): Promise<Comment[]> {
@@ -251,7 +202,7 @@ async function apiFetchComments(postId: number): Promise<Comment[]> {
 
 async function apiCreateComment(
   postId: number,
-  data: { author_name: string; content: string }
+  data: { author_name: string; content: string; parent_id?: number | null }
 ): Promise<Comment> {
   const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), {
     method: "POST",
@@ -260,9 +211,7 @@ async function apiCreateComment(
   });
   const text = await res.text();
   let json: any;
-  try {
-    json = JSON.parse(text);
-  } catch {
+  try { json = JSON.parse(text); } catch {
     throw new Error(res.ok ? "خطأ في معالجة البيانات" : `خطأ في الخادم (${res.status})`);
   }
   if (!res.ok) {
@@ -274,26 +223,29 @@ async function apiCreateComment(
 
 async function apiDeleteComment(id: number, token?: string | null): Promise<void> {
   if (!token) throw new Error("غير مصرح");
-  const res = await fetchWithTimeout(apiUrl(`/api/comments/${id}`), {
+  await fetchWithTimeout(apiUrl(`/api/comments/${id}`), {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error("Failed to delete");
 }
 
-async function apiToggleLike(
-  postId: number,
-  deviceId: string
-): Promise<{ liked: boolean }> {
-  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/like`), {
+async function apiReact(postId: number, deviceId: string, reaction: string): Promise<{ reacted: boolean; reaction: string | null }> {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/react`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device_id: deviceId }),
+    body: JSON.stringify({ device_id: deviceId, reaction }),
   });
+  if (!res.ok) return { reacted: false, reaction: null };
   return res.json();
 }
 
-// ─── Media Picker ─────────────────────────────────────────────────────────────
+async function apiTrackView(postId: number): Promise<void> {
+  try {
+    await fetch(apiUrl(`/api/posts/${postId}/view`), { method: "POST" });
+  } catch {}
+}
+
+// ─── Media Upload ─────────────────────────────────────────────────────────────
 
 async function pickMedia(type: "image" | "video"): Promise<MediaAsset | null> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -305,16 +257,14 @@ async function pickMedia(type: "image" | "video"): Promise<MediaAsset | null> {
     mediaTypes: type === "image"
       ? ImagePicker.MediaTypeOptions.Images
       : ImagePicker.MediaTypeOptions.Videos,
-    allowsEditing: false,
-    quality: 1.0,
-    videoMaxDuration: 60,
+    allowsEditing: type === "image",
+    quality: 0.85,
+    videoMaxDuration: 120,
     exif: false,
   });
   if (result.canceled || !result.assets[0]) return null;
   return { uri: result.assets[0].uri, type };
 }
-
-// ─── Media Upload ─────────────────────────────────────────────────────────────
 
 async function uploadMedia(
   media: MediaAsset,
@@ -329,12 +279,48 @@ async function uploadMedia(
       const url = await uploadPostVideo(userId, media.uri, (p) => onProgress?.(p.percent));
       return { video_url: url };
     }
-  } catch {
+  } catch (e) {
+    console.warn("Media upload failed:", e);
     return null;
   }
 }
 
-// ─── Media Preview Component ───────────────────────────────────────────────────
+// ─── Reaction Button ──────────────────────────────────────────────────────────
+
+function ReactionPicker({ onPick, onClose }: { onPick: (r: string) => void; onClose: () => void }) {
+  return (
+    <Animated.View entering={FadeIn.duration(150)} style={rp.wrap}>
+      {REACTIONS.map((r) => (
+        <TouchableOpacity key={r.key} style={rp.item} onPress={() => onPick(r.key)} activeOpacity={0.7}>
+          <Text style={rp.emoji}>{r.emoji}</Text>
+          <Text style={rp.label}>{r.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </Animated.View>
+  );
+}
+
+const rp = StyleSheet.create({
+  wrap: {
+    flexDirection: "row-reverse",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 30,
+    padding: 8,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  item: { alignItems: "center", paddingHorizontal: 6, paddingVertical: 4 },
+  emoji: { fontSize: 24 },
+  label: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, marginTop: 2 },
+});
+
+// ─── Media Preview ────────────────────────────────────────────────────────────
 
 function MediaPreview({ uri, type, onRemove }: { uri: string; type: "image" | "video"; onRemove: () => void }) {
   return (
@@ -356,7 +342,7 @@ function MediaPreview({ uri, type, onRemove }: { uri: string; type: "image" | "v
 }
 
 const mp = StyleSheet.create({
-  wrap: { borderRadius: 16, overflow: "hidden", height: 260, marginTop: 8, backgroundColor: "#000" },
+  wrap: { borderRadius: 16, overflow: "hidden", height: 240, marginTop: 8, backgroundColor: "#000" },
   img: { width: "100%", height: "100%" },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -366,14 +352,10 @@ const mp = StyleSheet.create({
     gap: 6,
   },
   playBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.5)",
   },
   videoLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
   removeBtn: { position: "absolute", top: 8, right: 8 },
@@ -384,26 +366,29 @@ const mp = StyleSheet.create({
 function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null; video_url?: string | null }) {
   const url = image_url || video_url;
   const isVideo = !!video_url && !image_url;
-  const [imgH, setImgH] = useState(IMG_MAX_W * 0.75);
+  const [imgH, setImgH] = useState(IMG_MAX_W * 0.65);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (image_url) {
-      Image.getSize(
-        image_url,
-        (w, h) => {
-          const ratio = h / w;
-          setImgH(Math.min(IMG_MAX_W * ratio, IMG_MAX_H));
-        },
-        () => {},
-      );
+      Image.getSize(image_url, (w, h) => {
+        const ratio = h / w;
+        setImgH(Math.min(IMG_MAX_W * ratio, IMG_MAX_H));
+      }, () => {});
     }
   }, [image_url]);
 
   if (!url) return null;
 
   return (
-    <View style={[pmd.wrap, { height: isVideo ? IMG_MAX_W * 0.65 : imgH }]}>
-      <Image source={{ uri: url }} style={pmd.img} resizeMode={isVideo ? "cover" : "contain"} />
+    <View style={[pmd.wrap, { height: isVideo ? IMG_MAX_W * 0.6 : imgH }]}>
+      {!loaded && <View style={pmd.skeleton} />}
+      <Image
+        source={{ uri: url }}
+        style={pmd.img}
+        resizeMode={isVideo ? "cover" : "contain"}
+        onLoad={() => setLoaded(true)}
+      />
       {isVideo && (
         <TouchableOpacity style={pmd.videoOverlay} onPress={() => Linking.openURL(url)} activeOpacity={0.8}>
           <View style={pmd.playCircle}>
@@ -418,30 +403,20 @@ function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null;
 
 const pmd = StyleSheet.create({
   wrap: {
-    borderRadius: 18,
-    overflow: "hidden",
-    marginVertical: 10,
-    width: IMG_MAX_W,
-    alignSelf: "center",
-    backgroundColor: Colors.divider,
+    borderRadius: 18, overflow: "hidden", marginVertical: 10,
+    width: IMG_MAX_W, alignSelf: "center", backgroundColor: Colors.surface1,
   },
+  skeleton: { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.divider },
   img: { width: "100%", height: "100%" },
   videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.42)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.42)",
+    alignItems: "center", justifyContent: "center", gap: 8,
   },
   playCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 70, height: 70, borderRadius: 35,
     backgroundColor: "rgba(255,255,255,0.22)",
-    borderWidth: 2.5,
-    borderColor: "rgba(255,255,255,0.6)",
-    alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.6)",
+    alignItems: "center", justifyContent: "center",
   },
   playLabel: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
 });
@@ -449,26 +424,15 @@ const pmd = StyleSheet.create({
 // ─── Add Post Modal ────────────────────────────────────────────────────────────
 
 function AddPostModal({
-  visible,
-  onClose,
-  onPost,
-  defaultName,
-  userId,
+  visible, onClose, onPost, defaultName, userId,
 }: {
   visible: boolean;
   onClose: () => void;
-  onPost: (
-    content: string,
-    category: string,
-    name: string,
-    image_url?: string | null,
-    video_url?: string | null
-  ) => Promise<void>;
+  onPost: (content: string, category: string, name: string, image_url?: string | null, video_url?: string | null) => Promise<void>;
   defaultName: string;
   userId: string;
 }) {
   const insets = useSafeAreaInsets();
-  const { t, isRTL, tr } = useLang();
   const [name, setName] = useState(defaultName);
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("عام");
@@ -477,31 +441,16 @@ function AddPostModal({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setName(defaultName);
-  }, [defaultName]);
+  useEffect(() => { if (visible) setName(defaultName); }, [visible, defaultName]);
 
   const resetForm = () => {
-    setContent("");
-    setCategory("عام");
-    setMedia(null);
-    setUploading(false);
-    setUploadProgress(0);
-  };
-
-  const handlePickImage = async () => {
-    const asset = await pickMedia("image");
-    if (asset) setMedia(asset);
-  };
-
-  const handlePickVideo = async () => {
-    const asset = await pickMedia("video");
-    if (asset) setMedia(asset);
+    setContent(""); setCategory("عام"); setMedia(null);
+    setUploading(false); setUploadProgress(0);
   };
 
   const handlePost = async () => {
     if (!content.trim() && !media) {
-      Alert.alert(t("common", "error"), "اكتب شيئاً أو أضف صورة/فيديو");
+      Alert.alert("تنبيه", "اكتب شيئاً أو أضف صورة/فيديو");
       return;
     }
     setLoading(true);
@@ -511,180 +460,122 @@ function AddPostModal({
 
       if (media) {
         setUploading(true);
-        const result = await uploadMedia(media, userId, setUploadProgress);
+        const result = await uploadMedia(media, userId, (p) => setUploadProgress(p));
         setUploading(false);
         if (result) {
           image_url = result.image_url || null;
           video_url = result.video_url || null;
-        } else if (!content.trim()) {
-          Alert.alert(
-            "تنبيه",
-            "تعذّر رفع الصورة/الفيديو. سيُنشر المنشور بدون وسائط.",
-            [{ text: "حسناً" }]
-          );
+        } else {
+          Alert.alert("تنبيه", "تعذّر رفع الوسائط. سيُنشر المنشور بدون صورة/فيديو.", [{ text: "حسناً" }]);
         }
       }
 
-      await onPost(
-        content.trim(),
-        category,
-        name.trim() || tr("مجهول", "Anonymous"),
-        image_url,
-        video_url
-      );
+      await onPost(content.trim(), category, name.trim() || "مجهول", image_url, video_url);
       resetForm();
       onClose();
     } catch (e: any) {
-      Alert.alert(t("common", "error"), e.message);
+      Alert.alert("خطأ", e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const textStyle = { textAlign: isRTL ? ("right" as const) : ("left" as const) };
   const catColor = CATEGORY_COLORS[category] || Colors.primary;
   const canPost = content.trim().length > 0 || !!media;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
-      >
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <Pressable style={ms.overlay} onPress={onClose}>
           <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]}>
-            <Animated.View entering={FadeIn.duration(250)}>
-              {/* Handle & Header */}
-              <View style={ms.handle} />
-              <View style={[ms.sheetHead, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                <TouchableOpacity onPress={onClose} style={ms.closeBtn}>
-                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                <Text style={ms.sheetTitle}>{t("social", "newPost")}</Text>
-                <TouchableOpacity
-                  style={[ms.publishBtn, !canPost && { opacity: 0.4 }, { backgroundColor: catColor }]}
-                  onPress={handlePost}
-                  disabled={!canPost || loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={ms.publishBtnText}>نشر</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ flexGrow: 1 }}
+            <View style={ms.handle} />
+            <View style={ms.sheetHead}>
+              <TouchableOpacity onPress={onClose} style={ms.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={ms.sheetTitle}>منشور جديد</Text>
+              <TouchableOpacity
+                style={[ms.publishBtn, !canPost && { opacity: 0.4 }, { backgroundColor: catColor }]}
+                onPress={handlePost}
+                disabled={!canPost || loading}
               >
-                <View style={ms.form}>
-                  {/* Author row */}
-                  <View style={[ms.authorRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                    <View style={[ms.authorAvatar, { backgroundColor: avatarColor(name || "م") }]}>
-                      <Text style={ms.authorAvatarLetter}>{(name || "م").charAt(0)}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <TextInput
-                        style={[ms.nameInput, textStyle]}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder={tr("اسمك (اختياري)", "Your name (optional)")}
-                        placeholderTextColor={Colors.textMuted}
-                        maxLength={50}
-                      />
-                      {/* Category selector inline */}
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={[ms.catRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-                      >
-                        {CATEGORIES.map((c) => (
-                          <TouchableOpacity
-                            key={c}
-                            style={[
-                              ms.catChip,
-                              category === c && {
-                                backgroundColor: CATEGORY_COLORS[c],
-                                borderColor: CATEGORY_COLORS[c],
-                              },
-                            ]}
-                            onPress={() => setCategory(c)}
-                          >
-                            <Ionicons
-                              name={CATEGORY_ICONS[c] as any}
-                              size={11}
-                              color={category === c ? "#fff" : Colors.textMuted}
-                            />
-                            <Text
-                              style={[
-                                ms.catChipText,
-                                category === c && { color: "#fff" },
-                              ]}
-                            >
-                              {c}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  </View>
+                {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={ms.publishBtnText}>نشر</Text>}
+              </TouchableOpacity>
+            </View>
 
-                  {/* Content input */}
-                  <TextInput
-                    style={[ms.contentInput, textStyle]}
-                    value={content}
-                    onChangeText={setContent}
-                    placeholder={tr(
-                      "شارك خبراً، سؤالاً، أو فكرة مع مجتمع الحصاحيصا...",
-                      "Share news, a question, or an idea with the community..."
-                    )}
-                    placeholderTextColor={Colors.textMuted}
-                    multiline
-                    numberOfLines={5}
-                    textAlignVertical="top"
-                    maxLength={1000}
-                  />
-                  <View style={[ms.charRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                    <Text style={ms.charCount}>{content.length}/1000</Text>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={ms.form}>
+                {/* Author */}
+                <View style={ms.authorRow}>
+                  <View style={[ms.authorAvatar, { backgroundColor: avatarColor(name || "م") }]}>
+                    <Text style={ms.authorAvatarLetter}>{(name || "م").charAt(0)}</Text>
                   </View>
-
-                  {/* Media preview */}
-                  {media && (
-                    <MediaPreview
-                      uri={media.uri}
-                      type={media.type}
-                      onRemove={() => setMedia(null)}
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={ms.nameInput}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="اسمك (اختياري)"
+                      placeholderTextColor={Colors.textMuted}
+                      maxLength={50}
                     />
-                  )}
-
-                  {/* Upload progress */}
-                  {uploading && (
-                    <View style={ms.progressWrap}>
-                      <View style={ms.progressBar}>
-                        <View style={[ms.progressFill, { width: `${uploadProgress}%` }]} />
-                      </View>
-                      <Text style={ms.progressText}>جارٍ رفع الوسائط... {uploadProgress}%</Text>
-                    </View>
-                  )}
-
-                  {/* Media actions */}
-                  <View style={[ms.mediaBar, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                    <TouchableOpacity style={ms.mediaBtn} onPress={handlePickImage} disabled={loading}>
-                      <Ionicons name="image-outline" size={22} color={Colors.primary} />
-                      <Text style={ms.mediaBtnText}>صورة</Text>
-                    </TouchableOpacity>
-                    <View style={ms.mediaDivider} />
-                    <TouchableOpacity style={ms.mediaBtn} onPress={handlePickVideo} disabled={loading}>
-                      <Ionicons name="videocam-outline" size={22} color="#8E44AD" />
-                      <Text style={[ms.mediaBtnText, { color: "#8E44AD" }]}>فيديو</Text>
-                    </TouchableOpacity>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
+                      {CATEGORIES.map((c) => (
+                        <TouchableOpacity
+                          key={c}
+                          style={[ms.catChip, category === c && { backgroundColor: CATEGORY_COLORS[c], borderColor: CATEGORY_COLORS[c] }]}
+                          onPress={() => setCategory(c)}
+                        >
+                          <Ionicons name={CATEGORY_ICONS[c] as any} size={11} color={category === c ? "#fff" : Colors.textMuted} />
+                          <Text style={[ms.catChipText, category === c && { color: "#fff" }]}>{c}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 </View>
-              </ScrollView>
-            </Animated.View>
+
+                {/* Content */}
+                <TextInput
+                  style={ms.contentInput}
+                  value={content}
+                  onChangeText={setContent}
+                  placeholder="شارك خبراً، سؤالاً، أو فكرة مع مجتمع الحصاحيصا..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                  maxLength={1000}
+                  textAlign="right"
+                />
+                <View style={{ alignItems: "flex-start" }}>
+                  <Text style={ms.charCount}>{content.length}/1000</Text>
+                </View>
+
+                {media && <MediaPreview uri={media.uri} type={media.type} onRemove={() => setMedia(null)} />}
+
+                {uploading && (
+                  <View style={ms.progressWrap}>
+                    <View style={ms.progressBar}>
+                      <View style={[ms.progressFill, { width: `${uploadProgress}%` }]} />
+                    </View>
+                    <Text style={ms.progressText}>جارٍ رفع الوسائط... {uploadProgress}%</Text>
+                  </View>
+                )}
+
+                {/* Media actions */}
+                <View style={ms.mediaBar}>
+                  <TouchableOpacity style={ms.mediaBtn} onPress={() => pickMedia("image").then(a => a && setMedia(a))} disabled={loading}>
+                    <Ionicons name="image-outline" size={22} color={Colors.primary} />
+                    <Text style={ms.mediaBtnText}>صورة</Text>
+                  </TouchableOpacity>
+                  <View style={ms.mediaDivider} />
+                  <TouchableOpacity style={ms.mediaBtn} onPress={() => pickMedia("video").then(a => a && setMedia(a))} disabled={loading}>
+                    <Ionicons name="videocam-outline" size={22} color="#8E44AD" />
+                    <Text style={[ms.mediaBtnText, { color: "#8E44AD" }]}>فيديو</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
@@ -692,16 +583,10 @@ function AddPostModal({
   );
 }
 
-// ─── Comments Sheet ────────────────────────────────────────────────────────────
+// ─── Comments Modal ────────────────────────────────────────────────────────────
 
 function CommentsModal({
-  post,
-  visible,
-  onClose,
-  isAdmin,
-  isGuest,
-  defaultName,
-  adminToken,
+  post, visible, onClose, isAdmin, isGuest, defaultName, adminToken, onCommentsLoaded,
 }: {
   post: Post | null;
   visible: boolean;
@@ -710,27 +595,37 @@ function CommentsModal({
   isGuest: boolean;
   defaultName: string;
   adminToken?: string | null;
+  onCommentsLoaded?: (count: number) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { t, isRTL, tr } = useLang();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(defaultName);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    setName(defaultName);
-  }, [defaultName]);
+  useEffect(() => { setName(defaultName); }, [defaultName]);
 
   const load = useCallback(async () => {
     if (!post) return;
     setLoading(true);
     try {
-      const data = isFsPost(post)
-        ? await fsFetchComments(String(post.id))
-        : await apiFetchComments(Number(post.id));
-      setComments(data);
+      const data = await apiFetchComments(post.id);
+      // Build thread structure
+      const roots: Comment[] = [];
+      const map: Record<number, Comment> = {};
+      data.forEach(c => { map[c.id] = { ...c, replies: [] }; });
+      data.forEach(c => {
+        if (c.parent_id && map[c.parent_id]) {
+          map[c.parent_id].replies!.push(map[c.id]);
+        } else {
+          roots.push(map[c.id]);
+        }
+      });
+      setComments(roots);
+      onCommentsLoaded?.(data.length);
     } catch {
       setComments([]);
     } finally {
@@ -745,163 +640,151 @@ function CommentsModal({
   const sendComment = async () => {
     if (!text.trim() || !post) return;
     if (isGuest) {
-      Alert.alert(
-        tr("تسجيل مطلوب", "Login Required"),
-        tr("يجب إنشاء حساب للتعليق.", "You need an account to comment."),
-        [{ text: tr("حسناً", "OK") }]
-      );
+      Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب للتعليق.", [{ text: "حسناً" }]);
       return;
     }
     setSending(true);
     try {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const commentData = {
-        author_name: name.trim() || tr("مجهول", "Anonymous"),
+      await apiCreateComment(post.id, {
+        author_name: name.trim() || "مجهول",
         content: text.trim(),
-      };
-      if (isFsPost(post)) {
-        await fsCreateComment(String(post.id), commentData);
-      } else {
-        await apiCreateComment(Number(post.id), commentData);
-      }
+        parent_id: replyTo?.id || null,
+      });
       setText("");
+      setReplyTo(null);
       await load();
     } catch (e: any) {
-      Alert.alert(t("common", "error"), e.message);
+      Alert.alert("خطأ", e.message);
     } finally {
       setSending(false);
     }
   };
 
-  const handleDeleteComment = (id: number, fsId?: string) => {
-    Alert.alert(t("common", "delete"), t("social", "deleteComment"), [
-      { text: t("common", "cancel"), style: "cancel" },
+  const handleReply = (comment: Comment) => {
+    setReplyTo(comment);
+    inputRef.current?.focus();
+  };
+
+  const handleDeleteComment = (id: number) => {
+    Alert.alert("حذف التعليق", "هل تريد حذف هذا التعليق؟", [
+      { text: "إلغاء", style: "cancel" },
       {
-        text: t("common", "delete"),
-        style: "destructive",
+        text: "حذف", style: "destructive",
         onPress: async () => {
           try {
-            if (post && isFsPost(post) && fsId) {
-              await fsDeleteFsComment(fsId);
-            } else {
-              await apiDeleteComment(id, adminToken);
-            }
-            setComments((prev) => prev.filter((c) => c.id !== id));
+            await apiDeleteComment(id, adminToken);
+            await load();
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (e: any) {
-            Alert.alert(t("common", "error"), e.message);
+            Alert.alert("خطأ", e.message);
           }
         },
       },
     ]);
   };
 
-  const textStyle = { textAlign: isRTL ? ("right" as const) : ("left" as const) };
+  const CommentItem = ({ item, depth = 0 }: { item: Comment; depth?: number }) => (
+    <View style={[cs.commentCard, depth > 0 && cs.replyCard]}>
+      <View style={cs.commentHeader}>
+        <View style={[cs.commentAvatar, { backgroundColor: avatarColor(item.author_name) }]}>
+          <Text style={cs.commentAvatarLetter}>{(item.author_name || "م").charAt(0)}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={cs.commentAuthor}>{item.author_name}</Text>
+          <Text style={cs.commentTime}>{timeAgo(item.created_at)}</Text>
+        </View>
+        {isAdmin && (
+          <TouchableOpacity onPress={() => handleDeleteComment(item.id)} style={{ padding: 4 }}>
+            <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <Text style={cs.commentText}>{item.content}</Text>
+      {depth === 0 && (
+        <TouchableOpacity style={cs.replyBtn} onPress={() => handleReply(item)}>
+          <Ionicons name="return-down-back-outline" size={13} color={Colors.textMuted} />
+          <Text style={cs.replyBtnText}>رد</Text>
+        </TouchableOpacity>
+      )}
+      {item.replies?.map(r => <CommentItem key={r.id} item={r} depth={depth + 1} />)}
+    </View>
+  );
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "padding"} keyboardVerticalOffset={0}>
         <Pressable style={[ms.overlay, { justifyContent: "flex-end" }]} onPress={onClose}>
           <Pressable style={[cs.sheet, { paddingBottom: insets.bottom + 8 }]} onPress={(e) => e.stopPropagation()}>
-            <Animated.View entering={FadeIn.duration(250)}>
-              <View style={ms.handle} />
-              <View style={[ms.sheetHead, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                <TouchableOpacity onPress={onClose} style={ms.closeBtn}>
-                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                <Text style={ms.sheetTitle}>
-                  {t("social", "comments")} ({comments.length})
-                </Text>
-                <View style={{ width: 36 }} />
+            <View style={ms.handle} />
+            <View style={ms.sheetHead}>
+              <TouchableOpacity onPress={onClose} style={ms.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={ms.sheetTitle}>التعليقات ({comments.reduce((a, c) => a + 1 + (c.replies?.length || 0), 0)})</Text>
+              <View style={{ width: 36 }} />
+            </View>
+
+            {post?.content ? (
+              <View style={cs.postSnippet}>
+                {post.image_url && <Image source={{ uri: post.image_url }} style={cs.snippetImg} />}
+                <Text style={cs.snippetText} numberOfLines={2}>{post.content}</Text>
               </View>
+            ) : null}
 
-              {post && (
-                <View style={cs.postSnippet}>
-                  {post.image_url && (
-                    <Image source={{ uri: post.image_url }} style={cs.snippetImg} />
-                  )}
-                  {post.content ? (
-                    <Text style={[cs.snippetText, textStyle]} numberOfLines={2}>
-                      {post.content}
-                    </Text>
-                  ) : null}
-                </View>
-              )}
+            {loading ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginTop: 24, marginBottom: 24 }} />
+            ) : (
+              <FlatList
+                data={comments}
+                keyExtractor={(c) => c.id.toString()}
+                style={{ flexGrow: 0, maxHeight: 340 }}
+                contentContainerStyle={{ gap: 4, padding: 14 }}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={{ alignItems: "center", paddingVertical: 36, gap: 8 }}>
+                    <Ionicons name="chatbubble-outline" size={44} color={Colors.textMuted} />
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted }}>كن أول من يعلق!</Text>
+                  </View>
+                }
+                renderItem={({ item }) => <CommentItem item={item} />}
+              />
+            )}
 
-              {loading ? (
-                <ActivityIndicator color={Colors.primary} style={{ marginTop: 24 }} />
-              ) : (
-                <FlatList
-                  data={comments}
-                  keyExtractor={(c) => c.id.toString()}
-                  style={{ flexGrow: 0, maxHeight: 320 }}
-                  contentContainerStyle={{ gap: 10, padding: 14 }}
-                  showsVerticalScrollIndicator={false}
-                  ListEmptyComponent={
-                    <View style={{ alignItems: "center", paddingVertical: 32, gap: 8 }}>
-                      <Ionicons name="chatbubble-outline" size={40} color={Colors.textMuted} />
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted }}>
-                        {t("social", "writeComment")}
-                      </Text>
-                    </View>
-                  }
-                  renderItem={({ item }) => (
-                    <View style={cs.commentCard}>
-                      <View style={[cs.commentHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                        <View style={[cs.commentLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                          <View style={[cs.commentAvatar, { backgroundColor: avatarColor(item.author_name) }]}>
-                            <Text style={cs.commentAvatarLetter}>{item.author_name.charAt(0) || "م"}</Text>
-                          </View>
-                          <View>
-                            <Text style={cs.commentAuthor}>{item.author_name}</Text>
-                            <Text style={cs.commentTime}>{timeAgo(item.created_at, t)}</Text>
-                          </View>
-                        </View>
-                        {isAdmin && (
-                          <TouchableOpacity onPress={() => handleDeleteComment(item.id, (item as any)._fsId)} style={{ padding: 4 }}>
-                            <Ionicons name="trash-outline" size={14} color={Colors.danger} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      <Text style={[cs.commentText, textStyle]}>{item.content}</Text>
-                    </View>
-                  )}
+            {replyTo && (
+              <View style={cs.replyingTo}>
+                <TouchableOpacity onPress={() => setReplyTo(null)}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={cs.replyingToText}>رد على: {replyTo.author_name}</Text>
+              </View>
+            )}
+
+            <View style={cs.replyBar}>
+              <View style={[cs.commentAvatar, { backgroundColor: avatarColor(name || "م"), flexShrink: 0 }]}>
+                <Text style={cs.commentAvatarLetter}>{(name || "م").charAt(0)}</Text>
+              </View>
+              <View style={cs.replyInputWrap}>
+                <TextInput
+                  ref={inputRef}
+                  style={cs.replyInput}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="اكتب تعليقاً..."
+                  placeholderTextColor={Colors.textMuted}
+                  maxLength={500}
+                  multiline
+                  textAlign="right"
                 />
-              )}
-
-              {/* Reply input */}
-              <View style={[cs.replyBar, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                <View style={[cs.commentAvatar, { backgroundColor: avatarColor(name || "م"), flexShrink: 0 }]}>
-                  <Text style={cs.commentAvatarLetter}>{(name || "م").charAt(0)}</Text>
-                </View>
-                <View style={cs.replyInputWrap}>
-                  <TextInput
-                    style={[cs.replyInput, textStyle]}
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={tr("اكتب تعليقاً...", "Write a comment...")}
-                    placeholderTextColor={Colors.textMuted}
-                    maxLength={500}
-                    multiline
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[cs.sendBtn, (!text.trim() || sending) && { opacity: 0.45 }]}
-                  onPress={sendComment}
-                  disabled={!text.trim() || sending}
-                >
-                  {sending ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Ionicons name={isRTL ? "send" : "send-outline"} size={18} color="#fff" />
-                  )}
-                </TouchableOpacity>
               </View>
-            </Animated.View>
+              <TouchableOpacity
+                style={[cs.sendBtn, (!text.trim() || sending) && { opacity: 0.45 }]}
+                onPress={sendComment}
+                disabled={!text.trim() || sending}
+              >
+                {sending ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
+              </TouchableOpacity>
+            </View>
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
@@ -912,44 +795,84 @@ function CommentsModal({
 // ─── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post,
-  index,
-  isAdmin,
-  onLike,
-  onComment,
-  onDelete,
+  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare,
 }: {
   post: Post;
   index: number;
   isAdmin: boolean;
-  onLike: (id: string | number) => void;
+  deviceId: string;
+  onReact: (id: number, reaction: string) => void;
   onComment: (post: Post) => void;
-  onDelete: (id: string | number) => void;
+  onDelete: (id: number) => void;
+  onShare: (post: Post) => void;
 }) {
-  const { t, isRTL } = useLang();
   const catColor = CATEGORY_COLORS[post.category] || Colors.primary;
   const catIcon = (CATEGORY_ICONS[post.category] || "globe-outline") as any;
-  const textStyle = { textAlign: isRTL ? ("right" as const) : ("left" as const) };
   const hasMedia = !!(post.image_url || post.video_url);
+  const [showReactions, setShowReactions] = useState(false);
+  const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const myReaction = REACTIONS.find(r => r.key === post.my_reaction);
+  const reactionEmoji = myReaction?.emoji || null;
+  const reactionColor = myReaction?.color || Colors.textMuted;
+
+  const handleLikeTap = () => {
+    if (post.my_reaction) {
+      onReact(post.id, post.my_reaction); // toggle off
+    } else {
+      onReact(post.id, "like");
+    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleLikeLongPress = () => {
+    setShowReactions(true);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const handlePickReaction = (r: string) => {
+    setShowReactions(false);
+    onReact(post.id, r);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // Auto-close reaction picker
+  useEffect(() => {
+    if (showReactions) {
+      reactionTimer.current = setTimeout(() => setShowReactions(false), 4000);
+    } else {
+      if (reactionTimer.current) clearTimeout(reactionTimer.current);
+    }
+    return () => { if (reactionTimer.current) clearTimeout(reactionTimer.current); };
+  }, [showReactions]);
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(20)}>
-      <View style={styles.card}>
-        {/* Top row: avatar + author + category + time + delete */}
-        <View style={[styles.cardHeader, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <UserAvatar
-            name={post.author_name}
-            avatarUrl={post.author_avatar}
-            size={44}
-            borderRadius={14}
-          />
-
-          <View style={{ flex: 1, marginHorizontal: 10 }}>
-            <Text style={[styles.authorName, textStyle]}>{post.author_name}</Text>
-            <Text style={styles.cardTime}>{timeAgo(post.created_at, t)}</Text>
+    <Animated.View entering={FadeInDown.delay(Math.min(index * 50, 400)).springify().damping(20)}>
+      <View style={[styles.card, post.is_pinned && styles.pinnedCard]}>
+        {post.is_pinned && (
+          <View style={styles.pinnedBadge}>
+            <Ionicons name="pin" size={11} color={Colors.accent} />
+            <Text style={styles.pinnedText}>مثبّت</Text>
           </View>
+        )}
 
-          <View style={[styles.cardRight, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        {/* Header */}
+        <View style={styles.cardHeader}>
+          <UserAvatar name={post.author_name} avatarUrl={post.author_avatar} size={44} borderRadius={14} />
+          <View style={{ flex: 1, marginHorizontal: 10 }}>
+            <Text style={styles.authorName}>{post.author_name}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.cardTime}>{timeAgo(post.created_at)}</Text>
+              {post.views_count > 0 && (
+                <>
+                  <Text style={styles.metaDot}>·</Text>
+                  <Ionicons name="eye-outline" size={12} color={Colors.textMuted} />
+                  <Text style={styles.cardTime}>{post.views_count}</Text>
+                </>
+              )}
+            </View>
+          </View>
+          <View style={styles.cardRight}>
             <View style={[styles.catBadge, { backgroundColor: catColor + "18", borderColor: catColor + "40" }]}>
               <Ionicons name={catIcon} size={10} color={catColor} />
               <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
@@ -962,41 +885,44 @@ function PostCard({
           </View>
         </View>
 
-        {/* Content */}
         {post.content ? (
-          <Text style={[styles.cardContent, textStyle]}>{post.content}</Text>
+          <Text style={styles.cardContent}>{post.content}</Text>
         ) : null}
 
-        {/* Media */}
-        {hasMedia && (
-          <PostMediaDisplay image_url={post.image_url} video_url={post.video_url} />
-        )}
+        {hasMedia && <PostMediaDisplay image_url={post.image_url} video_url={post.video_url} />}
 
-        {/* Divider */}
         <View style={styles.cardDivider} />
 
         {/* Actions */}
-        <View style={[styles.cardActions, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <AnimatedPress
-            style={[styles.actionBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-            onPress={() => onComment(post)}
-          >
+        <View style={styles.cardActions}>
+          {/* Like/React */}
+          <View style={{ position: "relative" }}>
+            {showReactions && (
+              <View style={styles.reactionPickerWrap}>
+                <ReactionPicker onPick={handlePickReaction} onClose={() => setShowReactions(false)} />
+              </View>
+            )}
+            <AnimatedPress
+              style={[styles.actionBtn, post.my_reaction && styles.actionBtnActive]}
+              onPress={handleLikeTap}
+              onLongPress={handleLikeLongPress}
+            >
+              <Text style={{ fontSize: 16 }}>{reactionEmoji || "👍"}</Text>
+              <Text style={[styles.actionCount, post.my_reaction && { color: reactionColor }]}>
+                {post.likes_count}
+              </Text>
+            </AnimatedPress>
+          </View>
+
+          {/* Comments */}
+          <AnimatedPress style={styles.actionBtn} onPress={() => onComment(post)}>
             <Ionicons name="chatbubble-outline" size={16} color={Colors.textMuted} />
             <Text style={styles.actionCount}>{post.comments_count}</Text>
           </AnimatedPress>
 
-          <AnimatedPress
-            style={[styles.actionBtn, post.liked_by_me && styles.actionBtnLiked, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-            onPress={() => onLike(post.id)}
-          >
-            <Ionicons
-              name={post.liked_by_me ? "heart" : "heart-outline"}
-              size={17}
-              color={post.liked_by_me ? "#E74C3C" : Colors.textMuted}
-            />
-            <Text style={[styles.actionCount, post.liked_by_me && { color: "#E74C3C" }]}>
-              {post.likes_count}
-            </Text>
+          {/* Share */}
+          <AnimatedPress style={styles.actionBtn} onPress={() => onShare(post)}>
+            <Ionicons name="share-social-outline" size={16} color={Colors.textMuted} />
           </AnimatedPress>
         </View>
       </View>
@@ -1004,313 +930,189 @@ function PostCard({
   );
 }
 
-// ─── Compose Bar (top of feed) ─────────────────────────────────────────────────
-
-function ComposeBar({
-  name,
-  onPress,
-  isRTL,
-}: {
-  name: string;
-  onPress: () => void;
-  isRTL: boolean;
-}) {
-  const ac = avatarColor(name || "م");
-  return (
-    <TouchableOpacity
-      style={[cb.wrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-      onPress={onPress}
-      activeOpacity={0.75}
-    >
-      <View style={[cb.avatar, { backgroundColor: ac + "22", borderColor: ac + "55" }]}>
-        <Text style={[cb.avatarLetter, { color: ac }]}>{(name || "م").charAt(0)}</Text>
-      </View>
-      <View style={cb.inputFake}>
-        <Text style={cb.inputFakePlaceholder}>
-          {isRTL ? "شارك شيئاً مع الحصاحيصا..." : "Share something with Hasahisa..."}
-        </Text>
-      </View>
-      <View style={cb.mediaIcons}>
-        <Ionicons name="image-outline" size={20} color={Colors.primary} />
-        <Ionicons name="videocam-outline" size={20} color="#8E44AD" />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const cb = StyleSheet.create({
-  wrap: {
-    backgroundColor: Colors.cardBg,
-    marginHorizontal: 14,
-    marginBottom: 10,
-    marginTop: 4,
-    borderRadius: 20,
-    padding: 12,
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-  },
-  avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 16 },
-  inputFake: {
-    flex: 1,
-    height: 38,
-    backgroundColor: Colors.bg,
-    borderRadius: 12,
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-  },
-  inputFakePlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
-  mediaIcons: { flexDirection: "row", gap: 10, paddingHorizontal: 4 },
-});
-
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function SocialScreen() {
   const insets = useSafeAreaInsets();
-  const { t, isRTL, tr } = useLang();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const auth = useAuth();
   const isAdmin = auth.user?.role === "admin";
   const userId = String(auth.user?.id ?? "anonymous");
 
-  const { posts: fsPosts, loading: fsLoading, addPost: fsAddPost, deletePost: fsDeletePost } = useFsPosts();
-  const [apiPosts, setApiPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(!isFirestoreEnabled);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState("");
   const [deviceId, setDeviceId] = useState("");
-  const [userName, setUserName] = useState(auth.user?.name || tr("مجهول", "Anonymous"));
+  const [userName, setUserName] = useState(auth.user?.name || "مجهول");
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
-  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
-
-  // تحميل الإعجابات المحفوظة من الذاكرة
-  useEffect(() => {
-    AsyncStorage.getItem("social_liked_posts").then((v) => {
-      if (v) { try { setLikedPostIds(new Set(JSON.parse(v))); } catch {} }
-    });
-  }, []);
-
-  // استخدام Firebase للمنشورات إن كان متاحاً، أو الـ API كبديل
-  const fsMapped = isFirestoreEnabled ? fsPosts.map((fp) => fsPostToPost(fp, likedPostIds)) : [];
-  const posts: Post[] = fsMapped.length > 0 ? fsMapped : apiPosts;
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
     setDeviceId(id);
     if (auth.user?.name) {
       setUserName(auth.user.name);
-    } else {
-      const savedName = await AsyncStorage.getItem(USER_NAME_KEY);
-      if (savedName) setUserName(savedName);
+      return;
     }
+    const saved = await AsyncStorage.getItem(USER_NAME_KEY);
+    if (saved) setUserName(saved);
   }, [auth.user]);
 
-  const loadFromApi = useCallback(
-    async (quiet = false) => {
-      if (!quiet) setLoading(true);
-      setError("");
-      try {
-        const id = await getDeviceId();
-        const data = await apiFetchPosts(id);
-        setApiPosts(data);
-      } catch {
-        setError(t("common", "error"));
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+  const loadPosts = useCallback(async (opts?: { quiet?: boolean; reset?: boolean; cat?: string }) => {
+    const cat = opts?.cat ?? catFilter;
+    const p = opts?.reset ? 1 : page;
+    if (!opts?.quiet) setLoading(true);
+    setError("");
+    try {
+      const id = deviceId || await getDeviceId();
+      const data = await apiFetchPosts(id, cat, p);
+      if (opts?.reset || p === 1) {
+        setPosts(data);
+        setPage(2);
+      } else {
+        setPosts(prev => [...prev, ...data]);
+        setPage(p + 1);
       }
-    },
-    [t]
-  );
+      setHasMore(data.length >= 30);
+    } catch {
+      setError("تعذّر تحميل المنشورات");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, [deviceId, catFilter, page]);
 
-  useEffect(() => {
+  useEffect(() => { init(); }, []);
+
+  useFocusEffect(useCallback(() => {
     init();
-  }, []);
+    if (deviceId) loadPosts({ quiet: true, reset: true });
+  }, [deviceId]));
 
-  useFocusEffect(
-    useCallback(() => {
-      init();
-      loadFromApi(true);
-    }, [init, loadFromApi])
-  );
-
-  // Auto-poll API posts every 60s when Firebase is not available
   useEffect(() => {
-    if (isFirestoreEnabled) return;
-    const iv = setInterval(() => loadFromApi(true), 60000);
+    if (deviceId) loadPosts({ reset: true, cat: catFilter });
+  }, [catFilter, deviceId]);
+
+  // Auto-poll every 60s
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (deviceId) loadPosts({ quiet: true, reset: true });
+    }, 60000);
     return () => clearInterval(iv);
-  }, [loadFromApi]);
-
-  useEffect(() => {
-    if (!isFirestoreEnabled) return;
-    if (!fsLoading) { setLoading(false); return; }
-    // إذا ظل Firestore يحمّل لمدة 5 ثوانٍ → اعتبره فاشلاً واستخدم API
-    const timer = setTimeout(() => setLoading(false), 5000);
-    return () => clearTimeout(timer);
-  }, [fsLoading]);
+  }, [deviceId, catFilter]);
 
   const handlePost = async (
-    content: string,
-    category: string,
-    name: string,
-    image_url?: string | null,
-    video_url?: string | null
+    content: string, category: string, name: string,
+    image_url?: string | null, video_url?: string | null
   ) => {
-    try {
-      await requireNetwork();
-    } catch (e: any) {
-      Alert.alert(tr("لا اتصال", "No Connection"), e.message);
+    try { await requireNetwork(); } catch (e: any) {
+      Alert.alert("لا اتصال", e.message);
       return;
     }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
-    if (isFirestoreEnabled) {
-      try {
-        await fsAddPost({
-          authorId: userId,
-          authorName: name,
-          content,
-          category,
-          likes: 0,
-          comments: 0,
-          ...(image_url ? { image_url } : {}),
-          ...(video_url ? { video_url } : {}),
-        });
-        return;
-      } catch {
-        // Firestore permission error — fall back to backend API
-      }
-    }
-    await apiCreatePost({ author_name: name, content, category, image_url, video_url });
-    await loadFromApi(true);
+
+    const newPost = await apiCreatePost({ author_name: name, content, category, image_url, video_url });
+    // Optimistically prepend
+    setPosts(prev => [newPost, ...prev]);
   };
 
-  const handleLike = async (postId: string | number) => {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isFirestoreEnabled) {
-      const postKey = String(postId);
-      const alreadyLiked = likedPostIds.has(postKey);
-      const newLiked = new Set(likedPostIds);
-      if (alreadyLiked) { newLiked.delete(postKey); } else { newLiked.add(postKey); }
-      setLikedPostIds(newLiked);
-      AsyncStorage.setItem("social_liked_posts", JSON.stringify([...newLiked]));
-      const post = fsPosts.find((p) => p.id === postId);
-      if (post) {
-        const newCount = alreadyLiked ? Math.max(0, post.likes - 1) : post.likes + 1;
-        try { await fsUpdateDoc(COLLECTIONS.POSTS, postKey, { likes: newCount }); } catch {}
-      }
-      return;
-    }
+  const handleReact = async (postId: number, reaction: string) => {
     if (!deviceId) return;
-    setApiPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              liked_by_me: !p.liked_by_me,
-              likes_count: p.liked_by_me ? p.likes_count - 1 : p.likes_count + 1,
-            }
-          : p
-      )
-    );
+    // Optimistic update
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const wasReacted = p.my_reaction === reaction;
+      return {
+        ...p,
+        my_reaction: wasReacted ? null : reaction,
+        liked_by_me: !wasReacted,
+        likes_count: wasReacted ? Math.max(0, p.likes_count - 1) : (p.my_reaction ? p.likes_count : p.likes_count + 1),
+      };
+    }));
     try {
-      await apiToggleLike(postId as number, deviceId);
+      await apiReact(postId, deviceId, reaction);
     } catch {}
   };
 
-  const handleDelete = (postId: string | number) => {
-    Alert.alert(t("common", "delete"), t("social", "deletePost"), [
-      { text: t("common", "cancel"), style: "cancel" },
+  const handleDelete = (postId: number) => {
+    Alert.alert("حذف المنشور", "هل تريد حذف هذا المنشور نهائياً؟", [
+      { text: "إلغاء", style: "cancel" },
       {
-        text: t("common", "delete"),
-        style: "destructive",
+        text: "حذف", style: "destructive",
         onPress: async () => {
           try {
-            if (isFirestoreEnabled) {
-              try {
-                await fsDeletePost(String(postId));
-              } catch {
-                await apiDeletePost(postId, auth.token);
-                setApiPosts((prev) => prev.filter((p) => p.id !== postId));
-              }
-            } else {
-              await apiDeletePost(postId, auth.token);
-              setApiPosts((prev) => prev.filter((p) => p.id !== postId));
-            }
+            await apiDeletePost(postId, auth.token);
+            setPosts(prev => prev.filter(p => p.id !== postId));
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (e: any) {
-            Alert.alert(t("common", "error"), e.message);
+            Alert.alert("خطأ", e.message);
           }
         },
       },
     ]);
   };
 
+  const handleShare = async (post: Post) => {
+    try {
+      await Share.share({
+        message: `${post.content}\n\n— من تطبيق حصاحيصاوي`,
+      });
+    } catch {}
+  };
+
   const openComments = (post: Post) => {
     setSelectedPost(post);
     setShowComments(true);
+    apiTrackView(post.id);
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views_count: p.views_count + 1 } : p));
   };
 
-  const FILTERS = ["الكل", ...CATEGORIES];
-  const getCatLabel = (c: string) => {
-    if (c === "الكل") return t("common", "all");
-    const key = CATEGORY_KEYS[c];
-    const categoriesT = t("social", "categories");
-    return key ? categoriesT[key] : c;
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    loadPosts();
   };
-
-  const filtered = catFilter === "الكل" ? posts : posts.filter((p) => p.category === catFilter);
 
   const handleComposePress = () => {
     if (auth.isGuest) {
-      Alert.alert(
-        tr("تسجيل مطلوب", "Login Required"),
-        tr("يجب إنشاء حساب للنشر في المجتمع.", "You need an account to post."),
-        [{ text: tr("حسناً", "OK") }]
-      );
+      Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب للنشر في المجتمع.", [{ text: "حسناً" }]);
       return;
     }
     setShowAdd(true);
   };
 
+  const FILTERS = ["الكل", ...CATEGORIES];
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <View style={[styles.headerInner, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={[styles.headerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={styles.headerInner}>
+          <View style={styles.headerLeft}>
             {isAdmin && (
-              <View style={[styles.adminBadge, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <View style={styles.adminBadge}>
                 <Ionicons name="shield-checkmark" size={12} color={Colors.accent} />
-                <Text style={styles.adminBadgeText}>{t("home", "adminBadge")}</Text>
+                <Text style={styles.adminBadgeText}>مدير</Text>
               </View>
             )}
-            <Text style={styles.headerTitle}>{t("social", "title")}</Text>
-            {isFirestoreEnabled && !loading && (
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>مباشر</Text>
-              </View>
-            )}
+            <Text style={styles.headerTitle}>المجتمع</Text>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>مباشر</Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.newPostFab} onPress={handleComposePress}>
             <Ionicons name="create-outline" size={19} color="#fff" />
-            <Text style={styles.newPostFabText}>{t("social", "post")}</Text>
+            <Text style={styles.newPostFabText}>نشر</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1319,7 +1121,7 @@ export default function SocialScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.filters, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+        contentContainerStyle={styles.filters}
       >
         {FILTERS.map((f) => {
           const active = catFilter === f;
@@ -1327,30 +1129,21 @@ export default function SocialScreen() {
           return (
             <AnimatedPress
               key={f}
-              style={[
-                styles.filterBtn,
-                active && { backgroundColor: color, borderColor: color },
-              ]}
+              style={[styles.filterBtn, active && { backgroundColor: color, borderColor: color }]}
               onPress={() => setCatFilter(f)}
               scaleDown={0.92}
             >
               {f !== "الكل" && (
-                <Ionicons
-                  name={CATEGORY_ICONS[f] as any || "globe-outline"}
-                  size={12}
-                  color={active ? "#fff" : Colors.textMuted}
-                />
+                <Ionicons name={CATEGORY_ICONS[f] as any || "globe-outline"} size={12} color={active ? "#fff" : Colors.textMuted} />
               )}
-              <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                {getCatLabel(f)}
-              </Text>
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{f}</Text>
             </AnimatedPress>
           );
         })}
       </ScrollView>
 
       <GuestGate
-        title={tr("ساحة المجتمع", "Community Feed")}
+        title="ساحة المجتمع"
         preview={
           <View style={{ padding: 16, gap: 12 }}>
             {[
@@ -1377,50 +1170,69 @@ export default function SocialScreen() {
           </View>
         }
         features={[
-          { icon: "newspaper-outline", text: tr("اطّلع على أخبار الحصاحيصا لحظةً بلحظة", "Follow Hasahisa news in real time") },
-          { icon: "image-outline", text: tr("شارك صوراً وفيديوهات مع المجتمع", "Share photos and videos with the community") },
-          { icon: "heart-outline", text: tr("أعجب بالمنشورات وعلّق عليها", "Like and comment on posts") },
-          { icon: "chatbubbles-outline", text: tr("شارك في نقاشات المجتمع الحية", "Join live community discussions") },
+          { icon: "newspaper-outline", text: "اطّلع على أخبار الحصاحيصا لحظةً بلحظة" },
+          { icon: "image-outline", text: "شارك صوراً وفيديوهات مع المجتمع" },
+          { icon: "heart-outline", text: "تفاعل مع ردود الفعل المتعددة" },
+          { icon: "chatbubbles-outline", text: "شارك في نقاشات المجتمع الحية" },
         ]}
       >
         <FlatList
-          data={filtered}
+          data={posts}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); loadFromApi(true); }}
+              onRefresh={() => { setRefreshing(true); loadPosts({ quiet: true, reset: true }); }}
               colors={[Colors.primary]}
+              tintColor={Colors.primary}
             />
           }
           ListHeaderComponent={
             !auth.isGuest ? (
-              <ComposeBar name={userName} onPress={handleComposePress} isRTL={isRTL} />
+              <ComposeBar name={userName} onPress={handleComposePress} />
             ) : null
           }
           ListEmptyComponent={
             loading ? (
-              <ActivityIndicator color={Colors.primary} style={{ marginTop: 50 }} />
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={Colors.primary} size="large" />
+                <Text style={styles.loadingText}>جارٍ تحميل المنشورات...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.empty}>
+                <Ionicons name="cloud-offline-outline" size={62} color={Colors.divider} />
+                <Text style={styles.emptyText}>{error}</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => loadPosts({ reset: true })}>
+                  <Text style={styles.emptyBtnText}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={styles.empty}>
                 <Ionicons name="newspaper-outline" size={62} color={Colors.divider} />
-                <Text style={styles.emptyText}>{t("social", "noPostsYet")}</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => loadFromApi()}>
-                  <Text style={styles.emptyBtnText}>{t("common", "refresh")}</Text>
+                <Text style={styles.emptyText}>لا توجد منشورات بعد</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={handleComposePress}>
+                  <Text style={styles.emptyBtnText}>كن أول من ينشر!</Text>
                 </TouchableOpacity>
               </View>
             )
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} /> : null
           }
           renderItem={({ item, index }) => (
             <PostCard
               post={item}
               index={index}
               isAdmin={isAdmin}
-              onLike={handleLike}
+              deviceId={deviceId}
+              onReact={handleReact}
               onComment={openComments}
               onDelete={handleDelete}
+              onShare={handleShare}
             />
           )}
         />
@@ -1442,10 +1254,51 @@ export default function SocialScreen() {
         isGuest={auth.isGuest}
         defaultName={userName}
         adminToken={auth.token}
+        onCommentsLoaded={(count) => {
+          if (selectedPost) {
+            setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, comments_count: count } : p));
+          }
+        }}
       />
     </View>
   );
 }
+
+// ─── Compose Bar ──────────────────────────────────────────────────────────────
+
+function ComposeBar({ name, onPress }: { name: string; onPress: () => void }) {
+  const ac = avatarColor(name || "م");
+  return (
+    <TouchableOpacity style={cb.wrap} onPress={onPress} activeOpacity={0.75}>
+      <View style={[cb.avatar, { backgroundColor: ac + "22", borderColor: ac + "55" }]}>
+        <Text style={[cb.avatarLetter, { color: ac }]}>{(name || "م").charAt(0)}</Text>
+      </View>
+      <View style={cb.inputFake}>
+        <Text style={cb.inputFakePlaceholder}>شارك شيئاً مع الحصاحيصا...</Text>
+      </View>
+      <View style={cb.mediaIcons}>
+        <Ionicons name="image-outline" size={20} color={Colors.primary} />
+        <Ionicons name="videocam-outline" size={20} color="#8E44AD" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const cb = StyleSheet.create({
+  wrap: {
+    backgroundColor: Colors.cardBg, marginHorizontal: 14, marginBottom: 10, marginTop: 4,
+    borderRadius: 20, padding: 12, alignItems: "center", gap: 10,
+    borderWidth: 1, borderColor: Colors.divider, flexDirection: "row-reverse",
+  },
+  avatar: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 16 },
+  inputFake: {
+    flex: 1, height: 38, backgroundColor: Colors.bg, borderRadius: 12,
+    justifyContent: "center", paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider,
+  },
+  inputFakePlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "right" },
+  mediaIcons: { flexDirection: "row", gap: 10, paddingHorizontal: 4 },
+});
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
@@ -1453,51 +1306,37 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
 
   header: {
-    backgroundColor: Colors.cardBg,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
+    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  headerInner: { alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { alignItems: "center", gap: 8 },
+  headerInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
+  headerLeft: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   adminBadge: {
-    backgroundColor: Colors.accent + "15",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    alignItems: "center",
-    gap: 4,
+    backgroundColor: Colors.accent + "15", paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, alignItems: "center", gap: 4, flexDirection: "row-reverse",
   },
   adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accent },
   newPostFab: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 22, flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
   },
   newPostFabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  liveBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    backgroundColor: "#27AE6015", paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, borderWidth: 1, borderColor: "#27AE6030",
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#27AE60" },
+  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#27AE60" },
 
-  filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7 },
+  filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
   filterBtn: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
   },
   filterText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   filterTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
@@ -1505,98 +1344,59 @@ const styles = StyleSheet.create({
   list: { paddingTop: 8, paddingHorizontal: 14, gap: 12 },
 
   card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: Colors.cardBg, borderRadius: 22, padding: 16,
+    borderWidth: 1, borderColor: Colors.divider,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
   },
-  cardHeader: { alignItems: "flex-start", gap: 0, marginBottom: 12 },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
+  pinnedCard: { borderColor: Colors.accent + "50", borderWidth: 1.5 },
+  pinnedBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    backgroundColor: Colors.accent + "15", paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: 8, alignSelf: "flex-end", marginBottom: 8,
   },
-  avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  authorName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1 },
-  cardRight: { alignItems: "center", gap: 8, marginLeft: "auto" },
+  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accent },
+
+  cardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 0, marginBottom: 12 },
+  metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
+  metaDot: { color: Colors.textMuted, fontSize: 10 },
+  authorName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  cardRight: { alignItems: "center", gap: 8 },
   catBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1,
   },
   catText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   deleteBtn: { padding: 5 },
 
   cardContent: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 15,
-    lineHeight: 25,
-    color: Colors.textPrimary,
-    marginBottom: 4,
+    fontFamily: "Cairo_400Regular", fontSize: 15, lineHeight: 26,
+    color: Colors.textPrimary, marginBottom: 4, textAlign: "right",
   },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginVertical: 12 },
-  cardActions: { gap: 10 },
+  cardActions: { flexDirection: "row-reverse", gap: 8, alignItems: "center" },
   actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.bg,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
-  actionBtnLiked: {
-    backgroundColor: "#E74C3C10",
-    borderColor: "#E74C3C40",
-  },
+  actionBtnActive: { backgroundColor: Colors.primary + "12", borderColor: Colors.primary + "40" },
   actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
+  reactionPickerWrap: {
+    position: "absolute", bottom: 48, right: 0, zIndex: 100,
+  },
+
+  loadingWrap: { alignItems: "center", paddingTop: 60, gap: 12 },
+  loadingText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", marginTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
   emptyBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: Colors.bg,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
   emptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
-
-  liveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#27AE6015",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#27AE6030",
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#27AE60",
-  },
-  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#27AE60" },
 });
 
 // ─── Modal Styles ──────────────────────────────────────────────────────────────
@@ -1604,210 +1404,95 @@ const styles = StyleSheet.create({
 const ms = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
   sheet: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: "92%",
-    overflow: "hidden",
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    maxHeight: "92%", overflow: "hidden",
   },
-  handle: {
-    width: 44,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.divider,
-    alignSelf: "center",
-    marginTop: 12,
-  },
+  handle: { width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginTop: 12 },
   sheetHead: {
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.bg,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.bg,
+    alignItems: "center", justifyContent: "center",
   },
-  publishBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 60,
-  },
+  publishBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, alignItems: "center", justifyContent: "center", minWidth: 60 },
   publishBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   form: { padding: 16, gap: 12 },
-  authorRow: { alignItems: "flex-start", gap: 12 },
+  authorRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   authorAvatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.15)",
-    flexShrink: 0,
+    width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", flexShrink: 0,
   },
   authorAvatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#fff" },
   nameInput: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    marginBottom: 8,
+    fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary,
+    paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: Colors.divider, marginBottom: 8,
+    textAlign: "right",
   },
-  catRow: { gap: 6, paddingBottom: 4 },
+  catRow: { gap: 6, paddingBottom: 4, flexDirection: "row-reverse" },
   catChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    backgroundColor: Colors.bg,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
   catChipText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
-
   contentInput: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 16,
-    color: Colors.textPrimary,
-    minHeight: 110,
-    paddingVertical: 8,
-    lineHeight: 26,
-    textAlignVertical: "top",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
+    fontFamily: "Cairo_400Regular", fontSize: 16, color: Colors.textPrimary,
+    minHeight: 110, paddingVertical: 8, lineHeight: 26, textAlignVertical: "top",
+    borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  charRow: { justifyContent: "flex-start" },
   charCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-
   progressWrap: { gap: 6 },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.divider,
-    overflow: "hidden",
-  },
+  progressBar: { height: 4, borderRadius: 2, backgroundColor: Colors.divider, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 2 },
   progressText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
-
-  mediaBar: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    paddingTop: 12,
-    gap: 0,
-    marginTop: 4,
-  },
-  mediaBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    paddingVertical: 10,
-  },
+  mediaBar: { borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 12, gap: 0, marginTop: 4, flexDirection: "row-reverse" },
+  mediaBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 10 },
   mediaBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
   mediaDivider: { width: 1, backgroundColor: Colors.divider, marginVertical: 6 },
 });
 
-// ─── Comments Styles ───────────────────────────────────────────────────────────
-
 const cs = StyleSheet.create({
-  sheet: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "88%", overflow: "hidden" },
   postSnippet: {
-    flexDirection: "row-reverse",
-    gap: 10,
-    padding: 14,
-    backgroundColor: Colors.bg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    alignItems: "center",
+    flexDirection: "row-reverse", gap: 10, padding: 14, backgroundColor: Colors.bg,
+    borderBottomWidth: 1, borderBottomColor: Colors.divider, alignItems: "center",
   },
   snippetImg: { width: 48, height: 48, borderRadius: 10 },
-  snippetText: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontStyle: "italic",
-  },
-  commentCard: {
-    gap: 6,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  commentHeader: { justifyContent: "space-between", alignItems: "center" },
-  commentLeft: { alignItems: "center", gap: 8 },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  snippetText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, fontStyle: "italic", textAlign: "right" },
+
+  commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider + "66" },
+  replyCard: { marginRight: 40, backgroundColor: Colors.bg, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: Colors.divider },
+  commentHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
+  commentAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   commentAvatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
-  commentAuthor: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
-  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  commentText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 22,
-    paddingLeft: 40,
+  commentAuthor: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  commentText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 22, textAlign: "right", paddingRight: 40 },
+  replyBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingRight: 40, marginTop: 2 },
+  replyBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+
+  replyingTo: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: Colors.primary + "12", paddingHorizontal: 14, paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: Colors.divider,
   },
+  replyingToText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.primary, flex: 1, textAlign: "right" },
+
   replyBar: {
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    alignItems: "center",
-    gap: 10,
+    padding: 12, borderTopWidth: 1, borderTopColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
   },
   replyInputWrap: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flex: 1, backgroundColor: Colors.bg, borderRadius: 20, borderWidth: 1,
+    borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 8,
   },
-  replyInput: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    maxHeight: 100,
-  },
+  replyInput: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, maxHeight: 100, textAlign: "right" },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
 });

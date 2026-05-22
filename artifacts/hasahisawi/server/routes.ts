@@ -143,7 +143,18 @@ async function initDb() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS video_url TEXT`);
+  await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS views_count INTEGER NOT NULL DEFAULT 0`);
   await query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`);
+  await query(`ALTER TABLE social_comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES social_comments(id) ON DELETE CASCADE`);
+  await query(`CREATE TABLE IF NOT EXISTS social_reactions (
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+    device_id VARCHAR(200) NOT NULL,
+    reaction VARCHAR(20) NOT NULL DEFAULT 'like',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(post_id, device_id)
+  )`);
   // Sessions table
   await query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -860,19 +871,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/posts", async (req: Request, res: Response) => {
     try {
       const deviceId = (req.query.device_id as string) || "";
+      const category = (req.query.category as string) || "";
+      const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+      const limit2 = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "30")));
+      const offset = (page - 1) * limit2;
+      const catFilter = category && category !== "الكل" ? "AND p.category = $2" : "";
+      const params: any[] = category && category !== "الكل" ? [deviceId, category] : [deviceId];
       const result = await query(
         `SELECT
-           p.*,
+           p.id, p.author_name, p.content, p.category,
+           p.image_url, p.video_url, p.is_pinned,
+           COALESCE(p.views_count, 0) AS views_count,
+           p.created_at,
            COUNT(DISTINCT c.id)::int AS comments_count,
            COUNT(DISTINCT sl.id)::int AS likes_count,
-           BOOL_OR(sl.device_id = $1) AS liked_by_me
+           BOOL_OR(sl.device_id = $1) AS liked_by_me,
+           (SELECT sr.reaction FROM social_reactions sr WHERE sr.post_id=p.id AND sr.device_id=$1 LIMIT 1) AS my_reaction
          FROM social_posts p
-         LEFT JOIN social_comments c ON c.post_id = p.id
+         LEFT JOIN social_comments c ON c.post_id = p.id AND c.parent_id IS NULL
          LEFT JOIN social_likes sl ON sl.post_id = p.id
+         WHERE 1=1 ${catFilter}
          GROUP BY p.id
-         ORDER BY p.created_at DESC
-         LIMIT 100`,
-        [deviceId]
+         ORDER BY p.is_pinned DESC, p.created_at DESC
+         LIMIT ${limit2} OFFSET ${offset}`,
+        params
       );
       res.json(result.rows);
     } catch (err) {
@@ -884,23 +906,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── POST /api/posts ────────────────────────────────────────────────────────
   app.post("/api/posts", async (req: Request, res: Response) => {
     try {
-      const { author_name, content, category } = req.body;
-      if (!content || content.trim().length === 0) {
+      const { author_name, content, category, image_url, video_url } = req.body;
+      if ((!content || content.trim().length === 0) && !image_url && !video_url) {
         return res.status(400).json({ error: "المحتوى مطلوب" });
       }
-      if (content.trim().length > 1000) {
+      if (content && content.trim().length > 1000) {
         return res.status(400).json({ error: "المحتوى طويل جداً (الحد الأقصى 1000 حرف)" });
       }
       const result = await query(
-        `INSERT INTO social_posts (author_name, content, category)
-         VALUES ($1, $2, $3) RETURNING *`,
+        `INSERT INTO social_posts (author_name, content, category, image_url, video_url)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *,
+           0::int AS comments_count,
+           0::int AS likes_count,
+           false AS liked_by_me`,
         [
           (author_name || "مجهول").substring(0, 100),
-          content.trim(),
+          (content || "").trim(),
           (category || "عام").substring(0, 50),
+          image_url || null,
+          video_url || null,
         ]
       );
       res.status(201).json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ── POST /api/posts/:id/view ───────────────────────────────────────────────
+  app.post("/api/posts/:id/view", async (req: Request, res: Response) => {
+    try {
+      await query("UPDATE social_posts SET views_count = views_count + 1 WHERE id = $1", [req.params.id]);
+      res.json({ ok: true });
+    } catch { res.json({ ok: true }); }
+  });
+
+  // ── POST /api/posts/:id/react ─────────────────────────────────────────────
+  app.post("/api/posts/:id/react", async (req: Request, res: Response) => {
+    try {
+      const { device_id, reaction } = req.body;
+      if (!device_id) return res.status(400).json({ error: "device_id مطلوب" });
+      const validReactions = ["like", "love", "haha", "wow", "sad", "angry"];
+      const r = validReactions.includes(reaction) ? reaction : "like";
+      const existing = await query(
+        "SELECT id, reaction FROM social_reactions WHERE post_id=$1 AND device_id=$2",
+        [req.params.id, device_id]
+      );
+      if (existing.rows.length > 0) {
+        if (existing.rows[0].reaction === r) {
+          await query("DELETE FROM social_reactions WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id]);
+          // keep social_likes in sync
+          await query("DELETE FROM social_likes WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id]);
+          return res.json({ reacted: false, reaction: null });
+        }
+        await query("UPDATE social_reactions SET reaction=$3 WHERE post_id=$1 AND device_id=$2", [req.params.id, device_id, r]);
+        return res.json({ reacted: true, reaction: r });
+      }
+      await query("INSERT INTO social_reactions (post_id, device_id, reaction) VALUES ($1,$2,$3) ON CONFLICT (post_id,device_id) DO UPDATE SET reaction=$3", [req.params.id, device_id, r]);
+      await query("INSERT INTO social_likes (post_id, device_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", [req.params.id, device_id]);
+      return res.json({ reacted: true, reaction: r });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
@@ -923,7 +988,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/posts/:id/comments", async (req: Request, res: Response) => {
     try {
       const result = await query(
-        `SELECT * FROM social_comments WHERE post_id = $1 ORDER BY created_at ASC`,
+        `SELECT *, COALESCE(parent_id::text, '') AS parent_id_str
+         FROM social_comments WHERE post_id = $1 ORDER BY created_at ASC`,
         [req.params.id]
       );
       res.json(result.rows);
@@ -936,7 +1002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── POST /api/posts/:id/comments ──────────────────────────────────────────
   app.post("/api/posts/:id/comments", async (req: Request, res: Response) => {
     try {
-      const { author_name, content } = req.body;
+      const { author_name, content, parent_id } = req.body;
       if (!content || content.trim().length === 0) {
         return res.status(400).json({ error: "التعليق مطلوب" });
       }
@@ -947,9 +1013,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (postCheck.rows.length === 0) return res.status(404).json({ error: "المنشور غير موجود" });
 
       const result = await query(
-        `INSERT INTO social_comments (post_id, author_name, content)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [req.params.id, (author_name || "مجهول").substring(0, 100), content.trim()]
+        `INSERT INTO social_comments (post_id, author_name, content, parent_id)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [req.params.id, (author_name || "مجهول").substring(0, 100), content.trim(), parent_id || null]
       );
       res.status(201).json(result.rows[0]);
     } catch (err) {
