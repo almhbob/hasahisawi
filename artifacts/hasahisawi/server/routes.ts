@@ -1335,6 +1335,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── التهنئات المجتمعية ────────────────────────────────────────────────────────
+  async function ensureGreetingsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS greeting_posts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      author_name VARCHAR(100) NOT NULL DEFAULT 'مجهول',
+      text TEXT NOT NULL,
+      occasion_name VARCHAR(100) NOT NULL DEFAULT 'تهنئة عامة',
+      occasion_key VARCHAR(50),
+      card_style VARCHAR(30),
+      likes_count INTEGER NOT NULL DEFAULT 0,
+      is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS greeting_likes (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER NOT NULL REFERENCES greeting_posts(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      device_id VARCHAR(200),
+      UNIQUE(post_id, COALESCE(user_id::text, device_id))
+    )`);
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS occasion_key VARCHAR(50)`);
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS card_style VARCHAR(30)`);
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0`);
+    await query(`ALTER TABLE greeting_posts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE`);
+    await query(`CREATE TABLE IF NOT EXISTS greeting_likes (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER NOT NULL REFERENCES greeting_posts(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      device_id VARCHAR(200),
+      UNIQUE NULLS NOT DISTINCT (post_id, user_id, device_id)
+    )`).catch(() => {});
+  }
+
+  app.get("/api/greetings", async (req: Request, res: Response) => {
+    try {
+      await ensureGreetingsTables();
+      const limit = Math.min(parseInt(String(req.query.limit || "40")), 100);
+      const occ = req.query.occasion as string | undefined;
+      let sql = `SELECT g.*, u.name as user_display_name FROM greeting_posts g
+                 LEFT JOIN users u ON u.id = g.user_id`;
+      const params: any[] = [];
+      if (occ) { sql += ` WHERE g.occasion_key = $1`; params.push(occ); }
+      sql += ` ORDER BY g.is_pinned DESC, g.created_at DESC LIMIT $${params.length + 1}`;
+      params.push(limit);
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/greetings", async (req: Request, res: Response) => {
+    try {
+      await ensureGreetingsTables();
+      const user = await getAuthUser(req);
+      const { text, occasion_name, occasion_key, card_style } = req.body;
+      if (!text?.trim()) return res.status(400).json({ error: "نص التهنئة مطلوب" });
+      if (text.length > 600) return res.status(400).json({ error: "النص طويل جداً (الحد 600 حرف)" });
+      const authorName = user?.name ?? "مجهول";
+      const r = await query(
+        `INSERT INTO greeting_posts (user_id, author_name, text, occasion_name, occasion_key, card_style)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [user?.id ?? null, authorName, text.trim(), occasion_name || "تهنئة عامة", occasion_key || null, card_style || null]
+      );
+      res.status(201).json(r.rows[0]);
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.post("/api/greetings/:id/like", async (req: Request, res: Response) => {
+    try {
+      await ensureGreetingsTables();
+      const user = await getAuthUser(req);
+      const { device_id } = req.body;
+      const postId = parseInt(req.params.id);
+      try {
+        await query(
+          `INSERT INTO greeting_likes (post_id, user_id, device_id) VALUES ($1, $2, $3)`,
+          [postId, user?.id ?? null, device_id || null]
+        );
+        await query(`UPDATE greeting_posts SET likes_count = likes_count + 1 WHERE id = $1`, [postId]);
+        res.json({ liked: true });
+      } catch {
+        // already liked — unlike
+        await query(`DELETE FROM greeting_likes WHERE post_id=$1 AND (user_id=$2 OR device_id=$3)`,
+          [postId, user?.id ?? null, device_id || null]);
+        await query(`UPDATE greeting_posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = $1`, [postId]);
+        res.json({ liked: false });
+      }
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/greetings/:id", async (req: Request, res: Response) => {
+    try {
+      const user = await getAuthUser(req);
+      if (!user) return res.status(401).json({ error: "غير مصرح" });
+      await query(`DELETE FROM greeting_posts WHERE id=$1 AND (user_id=$2 OR $3)`,
+        [req.params.id, user.id, user.role === "admin"]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
   // ── GET /api/news ──────────────────────────────────────────────────────────────────────────────────────────────────────────
   app.get("/api/news", async (req: Request, res: Response) => {
     try {
