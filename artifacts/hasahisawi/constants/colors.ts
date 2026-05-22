@@ -100,16 +100,17 @@ const overlay         = "rgba(0,0,0,0.70)";
 // ╔═══════════ 5. النصوص ═══════════╗
 const textPrimary    = "#F0FFF4";   // أبيض مائل للأخضر — للعناوين الرئيسية
 const textSecondary  = "#BBF7D0";   // ثانوي أخضر فاتح
-const textMuted      = "#86EFAC";   // باهت أخضر — للتفاصيل
-const textSubtle     = "#4ADE80";   // أكثر بهتاناً
+const textMuted      = "#A3C5AC";   // باهت — للتفاصيل (softer grey-green, more readable)
+const textSubtle     = "#7A9E84";   // أكثر بهتاناً (slightly more grey)
 const textDisabled   = "#14532D";   // غير فعّال
+const textOnDark     = "#E2F0E6";   // readable white-green for general body text on dark backgrounds
 
 // ╔═══════════ 6. الحدود والفواصل ═══════════╗
 const divider        = "#0F2A15";
 const dividerSoft    = "#081A0C";
 const borderGlow     = "rgba(34,197,94,0.20)";
 const borderGoldGlow = "rgba(234,179,8,0.22)";
-const borderSubtle   = "rgba(255,255,255,0.06)";
+const borderSubtle   = "rgba(255,255,255,0.08)";
 const borderStrong   = "rgba(34,197,94,0.38)";
 
 // ╔═══════════ 7. حالات النظام (Semantic) ═══════════╗
@@ -182,6 +183,7 @@ export default {
   textMuted,
   textSubtle,
   textDisabled,
+  textOnDark,
   text: textPrimary,
 
   // Borders

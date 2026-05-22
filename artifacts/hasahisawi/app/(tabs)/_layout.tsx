@@ -154,13 +154,13 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
 
         {/* تدرج الخلفية */}
         <LinearGradient
-          colors={["rgba(4,14,32,0.97)", "rgba(2,10,24,0.99)"]}
+          colors={[Colors.bg + "F8", Colors.bgDeep + "FC"]}
           style={StyleSheet.absoluteFill}
         />
 
         {/* خط علوي متدرج */}
         <LinearGradient
-          colors={["transparent", "rgba(37,99,235,0.45)", "transparent"]}
+          colors={["transparent", Colors.primary + "72", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.topGradientLine}
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(2,10,24,0.96)",
+    backgroundColor: Colors.bg,
     borderTopWidth: 0,
     paddingTop: 8,
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: "rgba(2,10,24,0.97)",
+    borderColor: Colors.bg,
   },
   tabBadgeText: {
     fontFamily: "Cairo_700Bold",

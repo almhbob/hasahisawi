@@ -1,3 +1,4 @@
+import Colors from "@/constants/colors";
 import {
   Cairo_400Regular,
   Cairo_500Medium,
@@ -161,8 +162,8 @@ function RootLayoutNav() {
     <>
       <StatusBar style="light" />
       <AuthGate />
-      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: "#0A0F0C" } }}>
-        <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
+        <Stack.Screen name="(tabs)"          options={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }} />
         <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="report"          options={{ headerShown: false }} />
@@ -175,6 +176,7 @@ function RootLayoutNav() {
         <Stack.Screen name="org-join"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="external-partnership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="inst-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="staff-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="lawyer-portal"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="client-case-chat"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -246,7 +248,7 @@ export default function RootLayout() {
               <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <View style={{ flex: 1, backgroundColor: "#0A1410", direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                  <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
                     <RootLayoutNav />
                     <NetworkBanner />
                     <UpdateBanner />

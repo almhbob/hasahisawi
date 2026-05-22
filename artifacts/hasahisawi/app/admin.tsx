@@ -1741,21 +1741,29 @@ export default function AdminDashboard() {
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
-    try {
-      const res = await apiFetch("/api/admin/users", token, {}, 30000);
-      if (res.ok) {
-        const d = await safeJson(res);
-        setUsers(Array.isArray(d) ? d : (d.users ?? []));
-      } else {
-        const d = await safeJson(res).catch(() => ({}));
-        Alert.alert("خطأ في التحميل", (d as any).error || `HTTP ${res.status}`);
-      }
-    } catch (e: any) {
-      if (e?.name !== "AbortError") {
-        Alert.alert("خطأ في التحميل", "تعذّر الاتصال بالخادم. تحقق من الإنترنت وأعد المحاولة.");
+    let lastErr: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 1500));
+        const res = await apiFetch("/api/admin/users", token, {}, 45000);
+        if (res.ok) {
+          const d = await safeJson(res);
+          setUsers(Array.isArray(d) ? d : (d.users ?? []));
+          setLoadingUsers(false);
+          return;
+        } else {
+          const d = await safeJson(res).catch(() => ({}));
+          lastErr = (d as any).error || `HTTP ${res.status}`;
+          break;
+        }
+      } catch (e: any) {
+        const isCanceled = e?.name === "AbortError" || e?.message?.includes("cancel") || e?.message?.includes("Cancel");
+        if (isCanceled && attempt < 2) continue;
+        if (!isCanceled) { lastErr = "تعذّر الاتصال بالخادم"; break; }
       }
     }
-    finally { setLoadingUsers(false); }
+    if (lastErr) Alert.alert("خطأ في التحميل", lastErr);
+    setLoadingUsers(false);
   }, [token]);
 
   const loadFirebaseHealth = useCallback(async () => {
@@ -2321,9 +2329,16 @@ export default function AdminDashboard() {
     finally { setSubmittingCommunity(false); }
   };
 
-  useEffect(() => { loadStats(); loadFirebaseHealth(); }, [loadStats, loadFirebaseHealth]);
   useEffect(() => {
-    if (tab === "members" || tab === "admins" || tab === "moderators") loadUsers();
+    loadStats();
+    const t = setTimeout(() => loadFirebaseHealth(), 1200);
+    return () => clearTimeout(t);
+  }, [loadStats, loadFirebaseHealth]);
+  useEffect(() => {
+    if (tab === "members" || tab === "admins" || tab === "moderators") {
+      const t = setTimeout(() => loadUsers(), 300);
+      return () => clearTimeout(t);
+    }
     if (tab === "landmarks")    loadLandmarks();
     if (tab === "honored")      loadHonoredFigures();
     if (tab === "ads")          { loadAds(); loadAdsSettings(); }
