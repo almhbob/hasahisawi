@@ -2,7 +2,7 @@
 export const PLATFORM = {
   name:      "حصاحيصاوي",
   nameEn:    "Hasahisawi",
-  version:   "6.3.0",
+  version:   "6.3.1",
 
   // روابط قانونية (مستضافة على GitHub Pages)
   privacyPolicyUrl:  "https://almhbob.github.io/hasahisawi/privacy.html",
@@ -37,7 +37,7 @@ ${user}• نوع المشكلة: [صف المشكلة باختصار]
 [اكتب ما حدث خطوة بخطوة]
 
 ─────────────────────
-📱 التطبيق: حصاحيصاوي v6.3.0
+📱 التطبيق: حصاحيصاوي v6.3.1
 شكراً لمساعدتنا في التحسين 🌟`;
     return `https://wa.me/966597083352?text=${encodeURIComponent(msg)}`;
   },
@@ -55,7 +55,7 @@ ${user}• القسم أو الخاصية: [مثال: قسم الوظائف]
 • لماذا سيكون مفيداً: [اختياري]
 
 ─────────────────────
-📱 التطبيق: حصاحيصاوي v6.3.0
+📱 التطبيق: حصاحيصاوي v6.3.1
 نقدّر رأيكم ونسعى دائماً للتطوير 💫`;
     return `https://wa.me/966597083352?text=${encodeURIComponent(msg)}`;
   },

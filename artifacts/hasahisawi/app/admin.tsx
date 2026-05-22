@@ -1534,7 +1534,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
-  const { user, token } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const [tab, setTab] = useState<Tab>("overview");
 
   // ── Overview ──
@@ -1714,8 +1714,9 @@ export default function AdminDashboard() {
   const modPerms = (user?.permissions ?? []) as string[];
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAdmin && !isMod) router.replace("/(tabs)/" as any);
-  }, [user]);
+  }, [user, authLoading, isAdmin, isMod]);
 
   // ── Data fetchers ────────────────────────────────────────────────────────
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -2880,6 +2881,14 @@ export default function AdminDashboard() {
   }
 
   // ─── Main render ──────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.bg }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <BrandPattern variant="diagonal" opacity={0.02} />
