@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "224",
+      "buildNumber": "225",
       "infoPlist": {
         "NSCameraUsageDescription": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية",
         "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
@@ -33,7 +33,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 224,
+      "versionCode": 225,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
