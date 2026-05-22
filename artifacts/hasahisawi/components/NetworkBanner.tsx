@@ -12,7 +12,10 @@ export default function NetworkBanner() {
   const { isConnected, isInternetReachable } = useNetworkStatus();
   const insets = useSafeAreaInsets();
 
-  const offline = isConnected === false || isInternetReachable === false;
+  // On web, NetInfo's isInternetReachable is unreliable — use only isConnected
+  const offline = Platform.OS === "web"
+    ? isConnected === false
+    : isConnected === false || isInternetReachable === false;
   const translateY = useSharedValue(-80);
   const opacity    = useSharedValue(0);
 

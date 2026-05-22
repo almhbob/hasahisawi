@@ -17,7 +17,7 @@ function setupCors(app: express.Application) {
   app.use((req, res, next) => {
     const origin = req.header("origin") || "";
 
-    // Trusted origins: Replit, Vercel deployments, Expo web, localhost
+    // Trusted origins: GitHub Pages, Vercel, Expo web, localhost
     const trusted =
       !origin ||                                          // same-origin or server-to-server
       origin.startsWith("http://localhost:") ||
@@ -25,6 +25,7 @@ function setupCors(app: express.Application) {
       origin.includes(".replit.dev") ||
       origin.includes(".replit.app") ||
       origin.includes(".vercel.app") ||
+      origin.includes("github.io") ||                    // GitHub Pages
       origin.includes("hasahisawi") ||                   // any hasahisawi subdomain
       (process.env.ALLOWED_ORIGINS || "")
         .split(",").some(o => o.trim() && origin.startsWith(o.trim()));
