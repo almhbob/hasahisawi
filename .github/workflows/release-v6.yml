@@ -66,6 +66,47 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Patch expo-camera — add missing BarCodeScannerResult stub
+        run: |
+          # expo-camera@16.0.18 references expo.modules.interfaces.barcodescanner.BarCodeScannerResult
+          # which was removed when expo-barcode-scanner was deprecated in Expo SDK 52.
+          # We inject a compatibility stub into expo-camera's own source tree so Kotlin can compile it.
+          EXPO_CAM_ROOT=$(node -e "
+            const path = require('path');
+            const pkg = require.resolve('expo-camera/package.json', {paths:['artifacts/hasahisawi/node_modules']});
+            console.log(path.dirname(pkg));
+          ")
+          STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
+          mkdir -p "$STUB_DIR"
+          cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
+          package expo.modules.interfaces.barcodescanner
+
+          class BarCodeScannerResult(
+              val type: Int,
+              private val _value: String?,
+              private val _raw: String?,
+              var cornerPoints: MutableList<Int>,
+              var referenceImageHeight: Int,
+              var referenceImageWidth: Int,
+          ) {
+              val value: String get() = _value ?: ""
+              val raw: String get() = _raw ?: ""
+
+              val boundingBox: BoundingBox
+                  get() {
+                      if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
+                      val xs = cornerPoints.indices.filter { it % 2 == 0 }.map { cornerPoints[it] }
+                      val ys = cornerPoints.indices.filter { it % 2 != 0 }.map { cornerPoints[it] }
+                      val minX = xs.min()
+                      val minY = ys.min()
+                      return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
+                  }
+
+              data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
+          }
+          KOTLIN
+          echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
+
       - name: Create .env
         working-directory: artifacts/hasahisawi
         run: |
