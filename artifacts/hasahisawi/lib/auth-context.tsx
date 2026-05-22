@@ -646,7 +646,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const backendTok = await exchangeForBackendToken(
       fbUser.uid, authUser.name, fbUser.email ?? null, authUser.role, idTok
     );
-    await saveSession(authUser, idTok, backendTok);
+    await saveSession(authUser, idTok, backendTok?.token ?? null);
   };
 
   const loginWithGoogle = async (idToken: string) => {

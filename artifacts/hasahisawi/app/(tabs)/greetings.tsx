@@ -219,7 +219,7 @@ function GreetingCardModal({ occ, onClose }: { occ: IslamicOccasion | null; onCl
     try {
       await Share.share({
         message: fullGreeting,
-        title: occ.name,
+        title: occ?.name ?? "",
       });
     } catch {}
   }
