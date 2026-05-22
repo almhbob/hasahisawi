@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
 
-// ── أنواع التنبيهات الصوتية ────────────────────────────────────────────────
 export type SoundType =
   | "message"    // رسالة جديدة
   | "alert"      // تنبيه عاجل
@@ -9,77 +8,41 @@ export type SoundType =
   | "transport"  // تحديث رحلة
   | "prayer";    // أذان / تنبيه ديني
 
+// خريطة: نوع الصوت → ملف الأصل
+const SOUND_ASSETS: Record<SoundType, () => unknown> = {
+  message:   () => require("../assets/sounds/hasahisawi_chat.wav"),
+  alert:     () => require("../assets/sounds/hasahisawi_urgent.wav"),
+  error:     () => require("../assets/sounds/hasahisawi_urgent.wav"),
+  success:   () => require("../assets/sounds/hasahisawi_notif.wav"),
+  transport: () => require("../assets/sounds/hasahisawi_notif.wav"),
+  prayer:    () => require("../assets/sounds/adhan.mp3"),
+};
+
 // ── تشغيل صوت في التطبيق (Foreground) ────────────────────────────────────
 export async function playSound(type: SoundType = "message"): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const { Audio } = await import("expo-av");
 
-    // ضبط الجلسة الصوتية
     await Audio.setAudioModeAsync({
-      allowsRecordingIOS:   false,
-      playsInSilentModeIOS: false,
-      shouldDuckAndroid:    true,
+      allowsRecordingIOS:         false,
+      playsInSilentModeIOS:       false,
+      shouldDuckAndroid:          true,
       playThroughEarpieceAndroid: false,
     });
 
-    let soundObj: InstanceType<typeof Audio.Sound> | null = null;
+    const { sound } = await Audio.Sound.createAsync(
+      SOUND_ASSETS[type]() as any,
+      { shouldPlay: true, volume: type === "prayer" ? 0.9 : 0.75 }
+    );
 
-    if (type === "prayer") {
-      // الأذان — ملف موجود في assets/sounds/
-      const { sound } = await Audio.Sound.createAsync(
-        require("../assets/sounds/adhan.mp3"),
-        { shouldPlay: true, volume: 0.9 }
-      );
-      soundObj = sound;
-    } else {
-      // أصوات قصيرة مُولَّدة عبر نبضات الاهتزاز + تدرّج الحجم
-      const { sound } = await Audio.Sound.createAsync(
-        require("../assets/sounds/adhan.mp3"),
-        { shouldPlay: false }
-      );
-      soundObj = sound;
-
-      switch (type) {
-        case "message":
-          await soundObj.setPositionAsync(0);
-          await soundObj.setVolumeAsync(0.3);
-          await soundObj.playAsync();
-          setTimeout(() => soundObj?.stopAsync().catch(() => {}), 700);
-          break;
-        case "alert":
-          await soundObj.setVolumeAsync(0.7);
-          await soundObj.playAsync();
-          setTimeout(() => soundObj?.stopAsync().catch(() => {}), 1200);
-          break;
-        case "transport":
-          await soundObj.setVolumeAsync(0.4);
-          await soundObj.playAsync();
-          setTimeout(() => soundObj?.stopAsync().catch(() => {}), 500);
-          break;
-        case "success":
-          await soundObj.setVolumeAsync(0.5);
-          await soundObj.playAsync();
-          setTimeout(() => soundObj?.stopAsync().catch(() => {}), 800);
-          break;
-        case "error":
-          await soundObj.setVolumeAsync(0.6);
-          await soundObj.playAsync();
-          setTimeout(() => soundObj?.stopAsync().catch(() => {}), 400);
-          break;
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if ("didJustFinish" in status && status.didJustFinish) {
+        sound.unloadAsync().catch(() => {});
       }
-    }
-
-    // تنظيف الذاكرة بعد الانتهاء
-    if (soundObj) {
-      soundObj.setOnPlaybackStatusUpdate((status) => {
-        if ("didJustFinish" in status && status.didJustFinish) {
-          soundObj?.unloadAsync().catch(() => {});
-        }
-      });
-    }
+    });
   } catch {
-    // الصوت اختياري — لا نوقف التطبيق عند الفشل
+    // الصوت اختياري
   }
 }
 

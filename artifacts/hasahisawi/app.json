@@ -96,19 +96,21 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#27AE68",
+          "color": "#22C55E",
           "defaultChannel": "hasahisawi-default",
+          "sounds": [
+            "./assets/sounds/hasahisawi_notif.wav",
+            "./assets/sounds/hasahisawi_chat.wav",
+            "./assets/sounds/hasahisawi_urgent.wav",
+            "./assets/sounds/hasahisawi_prayer.wav"
+          ],
           "androidChannels": [
             {
               "name": "حصاحيصاوي — تنبيهات عامة",
               "importance": 3,
-              "vibrationPattern": [
-                0,
-                200,
-                100,
-                200
-              ],
-              "lightColor": "#27AE68",
+              "sound": "hasahisawi_notif",
+              "vibrationPattern": [0, 200, 100, 200],
+              "lightColor": "#22C55E",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
@@ -118,14 +120,8 @@
             {
               "name": "حصاحيصاوي — رسائل",
               "importance": 4,
-              "vibrationPattern": [
-                0,
-                100,
-                80,
-                100,
-                80,
-                100
-              ],
+              "sound": "hasahisawi_chat",
+              "vibrationPattern": [0, 100, 80, 100, 80, 100],
               "lightColor": "#3B82F6",
               "enableLights": true,
               "enableVibrate": true,
@@ -136,14 +132,8 @@
             {
               "name": "حصاحيصاوي — تنبيهات عاجلة",
               "importance": 5,
-              "vibrationPattern": [
-                0,
-                600,
-                200,
-                600,
-                200,
-                600
-              ],
+              "sound": "hasahisawi_urgent",
+              "vibrationPattern": [0, 600, 200, 600, 200, 600],
               "lightColor": "#EF4444",
               "enableLights": true,
               "enableVibrate": true,
@@ -154,12 +144,8 @@
             {
               "name": "حصاحيصاوي — تحديثات السفر",
               "importance": 4,
-              "vibrationPattern": [
-                0,
-                300,
-                150,
-                300
-              ],
+              "sound": "hasahisawi_notif",
+              "vibrationPattern": [0, 300, 150, 300],
               "lightColor": "#0EA5E9",
               "enableLights": true,
               "enableVibrate": true,
@@ -170,12 +156,8 @@
             {
               "name": "حصاحيصاوي — أوقات الصلاة",
               "importance": 4,
-              "vibrationPattern": [
-                0,
-                400,
-                100,
-                400
-              ],
+              "sound": "hasahisawi_prayer",
+              "vibrationPattern": [0, 400, 100, 400],
               "lightColor": "#F59E0B",
               "enableLights": true,
               "enableVibrate": true,
