@@ -1,16 +1,21 @@
 import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 
+// ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
+// Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
+const CHANNEL_VERSION     = "3";
+const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
+
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
 export const CHANNELS = {
-  DEFAULT:   "hasahisawi-default",    // عام
-  CHAT:      "hasahisawi-chat",       // رسائل الدردشة
-  URGENT:    "hasahisawi-urgent",     // تنبيهات عاجلة
-  TRANSPORT: "hasahisawi-transport",  // تحديثات السفر
-  PRAYER:    "hasahisawi-prayer",     // أذان
+  DEFAULT:   "hasahisawi-default",
+  CHAT:      "hasahisawi-chat",
+  URGENT:    "hasahisawi-urgent",
+  TRANSPORT: "hasahisawi-transport",
+  PRAYER:    "hasahisawi-prayer",
 } as const;
 
-// نغمة مخصصة لكل قناة (اسم الملف بدون امتداد لـ Android، مع امتداد لـ iOS)
+// نغمة مخصصة لكل قناة (اسم الملف بدون امتداد)
 const CHANNEL_SOUNDS: Record<string, string> = {
   "hasahisawi-default":   "hasahisawi_notif",
   "hasahisawi-chat":      "hasahisawi_chat",
@@ -29,13 +34,23 @@ export type PushNotification = {
   channel?: keyof typeof CHANNELS;
 };
 
-// ── إنشاء قنوات Android المتعددة ─────────────────────────────────────────────
+// ── إنشاء قنوات Android (مع منطق إعادة البناء عند تغيير الإصدار) ───────────
 async function ensureAndroidChannels(
   Notifications: typeof import("expo-notifications")
 ): Promise<void> {
   if (Platform.OS !== "android") return;
   try {
-    // قناة عامة
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const stored = await AsyncStorage.getItem(CHANNEL_VERSION_KEY).catch(() => null);
+
+    if (stored !== CHANNEL_VERSION) {
+      // حذف القنوات القديمة — Android يجمّد صوت القناة عند الإنشاء الأول
+      // الحذف ثم الإنشاء من جديد يضمن تطبيق الصوت الجديد
+      for (const id of Object.values(CHANNELS)) {
+        await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
+      }
+    }
+
     await Notifications.setNotificationChannelAsync(CHANNELS.DEFAULT, {
       name: "حصاحيصاوي — تنبيهات عامة",
       importance: Notifications.AndroidImportance.DEFAULT,
@@ -48,7 +63,6 @@ async function ensureAndroidChannels(
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // قناة الدردشة — صوت ونبض مميّز
     await Notifications.setNotificationChannelAsync(CHANNELS.CHAT, {
       name: "حصاحيصاوي — رسائل",
       description: "رسائل الدردشة والمحادثات",
@@ -62,7 +76,6 @@ async function ensureAndroidChannels(
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });
 
-    // قناة عاجلة — MAX + اهتزاز طويل
     await Notifications.setNotificationChannelAsync(CHANNELS.URGENT, {
       name: "حصاحيصاوي — تنبيهات عاجلة",
       description: "تنبيهات تستلزم اهتماماً فورياً",
@@ -77,7 +90,6 @@ async function ensureAndroidChannels(
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // قناة المواصلات
     await Notifications.setNotificationChannelAsync(CHANNELS.TRANSPORT, {
       name: "حصاحيصاوي — تحديثات السفر",
       description: "حالة الرحلات والتذاكر",
@@ -91,7 +103,6 @@ async function ensureAndroidChannels(
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // قناة الأذان — HIGH + اهتزاز خاص
     await Notifications.setNotificationChannelAsync(CHANNELS.PRAYER, {
       name: "حصاحيصاوي — أوقات الصلاة",
       description: "تذكير بأوقات الصلاة والأذان",
@@ -104,6 +115,11 @@ async function ensureAndroidChannels(
       sound: CHANNEL_SOUNDS[CHANNELS.PRAYER],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
+
+    // احفظ الإصدار الجديد بعد نجاح الإنشاء
+    if (stored !== CHANNEL_VERSION) {
+      await AsyncStorage.setItem(CHANNEL_VERSION_KEY, CHANNEL_VERSION).catch(() => {});
+    }
   } catch {}
 }
 

@@ -51,6 +51,83 @@ function saveLocally(buffer: Buffer, originalName: string): string {
   return `/api/files/${fname}`;
 }
 
+// ── Expo Push Notifications ───────────────────────────────────────────────────
+const PUSH_CHANNEL_IDS: Record<string, string> = {
+  DEFAULT:   "hasahisawi-default",
+  CHAT:      "hasahisawi-chat",
+  URGENT:    "hasahisawi-urgent",
+  TRANSPORT: "hasahisawi-transport",
+  PRAYER:    "hasahisawi-prayer",
+};
+const PUSH_CHANNEL_SOUNDS: Record<string, string> = {
+  DEFAULT:   "hasahisawi_notif.wav",
+  CHAT:      "hasahisawi_chat.wav",
+  URGENT:    "hasahisawi_urgent.wav",
+  TRANSPORT: "hasahisawi_notif.wav",
+  PRAYER:    "hasahisawi_prayer.wav",
+};
+
+async function sendExpoPush(
+  tokens: string[],
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+  channel: keyof typeof PUSH_CHANNEL_IDS = "DEFAULT",
+): Promise<void> {
+  const validTokens = tokens.filter(t => t && t.startsWith("ExponentPushToken["));
+  if (!validTokens.length) return;
+  const channelId = PUSH_CHANNEL_IDS[channel] ?? PUSH_CHANNEL_IDS["DEFAULT"];
+  const sound     = PUSH_CHANNEL_SOUNDS[channel] ?? PUSH_CHANNEL_SOUNDS["DEFAULT"];
+  const priority  = channel === "URGENT" ? "high" : "normal";
+
+  const messages = validTokens.map(to => ({
+    to, title, body, data: { ...data, channelId },
+    sound,           // iOS: ملف الصوت بالامتداد
+    channelId,       // Android: يحدد القناة وصوتها
+    priority,
+    badge: 1,
+  }));
+
+  // Expo يقبل 100 رسالة كحد أقصى في كل طلب
+  for (let i = 0; i < messages.length; i += 100) {
+    const chunk = messages.slice(i, i + 100);
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(chunk),
+    }).catch(e => console.error("Expo Push error:", e));
+  }
+}
+
+// إرسال Push لكل مستخدمي التطبيق
+async function broadcastPush(
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+  channel: keyof typeof PUSH_CHANNEL_IDS = "DEFAULT",
+): Promise<void> {
+  try {
+    const r = await query("SELECT DISTINCT token FROM push_tokens WHERE token IS NOT NULL");
+    const tokens = r.rows.map((row: any) => row.token as string);
+    await sendExpoPush(tokens, title, body, data, channel);
+  } catch (e) { console.error("broadcastPush error:", e); }
+}
+
+// إرسال Push لمستخدم بعينه (بواسطة user_id)
+async function pushToUser(
+  userId: number,
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+  channel: keyof typeof PUSH_CHANNEL_IDS = "DEFAULT",
+): Promise<void> {
+  try {
+    const r = await query("SELECT token FROM push_tokens WHERE user_id = $1", [userId]);
+    const tokens = r.rows.map((row: any) => row.token as string);
+    await sendExpoPush(tokens, title, body, data, channel);
+  } catch (e) { console.error("pushToUser error:", e); }
+}
+
 async function sendAdminNotifEmail(subject: string, rows: Record<string, string>): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
@@ -180,6 +257,15 @@ async function initDb() {
     ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
   `);
+
+  // Push tokens table
+  await query(`CREATE TABLE IF NOT EXISTS push_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(300) NOT NULL UNIQUE,
+    platform VARCHAR(10) NOT NULL DEFAULT 'android',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
   // OTP tokens table — create + migrate
   await query(`
     CREATE TABLE IF NOT EXISTS otp_tokens (
@@ -647,6 +733,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const auth = req.headers["authorization"] || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
       if (token) await query("DELETE FROM user_sessions WHERE token = $1", [token]);
+      // احذف push token الجهاز إن أُرسل مع الطلب
+      const { pushToken } = req.body || {};
+      if (pushToken) await query("DELETE FROM push_tokens WHERE token = $1", [pushToken]).catch(() => {});
       res.json({ success: true });
     } catch (err) {
       console.error(err);
@@ -1143,6 +1232,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Push Tokens ────────────────────────────────────────────────────────────
+  app.post("/api/push-tokens", async (req: Request, res: Response) => {
+    try {
+      const user = await getAuthUser(req);
+      const { token, platform } = req.body;
+      if (!token || !token.startsWith("ExponentPushToken[")) {
+        return res.status(400).json({ error: "توكن غير صالح" });
+      }
+      if (user) {
+        await query(
+          `INSERT INTO push_tokens (user_id, token, platform, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (token) DO UPDATE SET user_id=$1, platform=$3, updated_at=NOW()`,
+          [user.id, token, platform || "android"]
+        );
+      } else {
+        // حفظ الرمز بدون مستخدم (حالة نادرة)
+        await query(
+          `INSERT INTO push_tokens (token, platform, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (token) DO UPDATE SET platform=$2, updated_at=NOW()`,
+          [token, platform || "android"]
+        );
+      }
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.delete("/api/push-tokens", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.body;
+      if (token) await query("DELETE FROM push_tokens WHERE token = $1", [token]);
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
   // ── GET /api/notifications ────────────────────────────────────────────────────────────────────────────────────
   app.get("/api/notifications", async (_req: Request, res: Response) => {
     try {
@@ -1160,12 +1285,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notifications", async (req: Request, res: Response) => {
     try {
       if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-      const { title, body, type } = req.body;
+      const { title, body, type, channel } = req.body;
       if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
       const result = await query(
         "INSERT INTO notifications (title, body, type) VALUES ($1, $2, $3) RETURNING *",
         [title.substring(0, 200), body.substring(0, 1000), (type || "general").substring(0, 50)]
       );
+      // إرسال Push Notification لجميع المستخدمين تلقائياً
+      const pushChannel = (channel?.toUpperCase() ?? "DEFAULT") as keyof typeof PUSH_CHANNEL_IDS;
+      broadcastPush(title, body, { notifId: result.rows[0].id, type: type || "general" }, pushChannel).catch(() => {});
       res.status(201).json(result.rows[0]);
     } catch (err) {
       console.error(err);
