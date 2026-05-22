@@ -1891,13 +1891,12 @@ export default function SettingsScreen() {
                       <TouchableOpacity
                         style={linkPcSty.urlBox}
                         onPress={() => {
-                          const webUrl = "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/qr-web-login";
-                          Linking.openURL(webUrl).catch(() => {});
+                          Linking.openURL("https://almhbob.github.io/hasahisawi/qr-web-login").catch(() => {});
                         }}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="globe-outline" size={14} color={Colors.primary} />
-                        <Text style={linkPcSty.urlText} numberOfLines={1}>hasahisawi.vercel.app/qr-web-login</Text>
+                        <Text style={linkPcSty.urlText} numberOfLines={1}>almhbob.github.io/hasahisawi/qr-web-login</Text>
                         <Ionicons name="open-outline" size={13} color={Colors.textMuted} />
                       </TouchableOpacity>
                       <View style={linkPcSty.step}>
