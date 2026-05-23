@@ -383,8 +383,8 @@ function GreetingCardModal({
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           text: fullGreeting,
-          occasion_name: occ.name,
-          occasion_key: occ.key,
+          occasion_name: occ?.name,
+          occasion_key: occ?.key,
           card_style: cs.id,
         }),
       });
@@ -631,7 +631,7 @@ function OccasionCard({ item, idx, onOpen }: {
 
           {/* CTA */}
           <View style={oc.cta}>
-            <MaterialCommunityIcons name="sparkles" size={12} color={occ.accent + "80"} />
+            <MaterialCommunityIcons name={"sparkles" as any} size={12} color={occ.accent + "80"} />
             <Text style={[oc.ctaText, { color: occ.accent + "90" }]}>اضغط لإنشاء بطاقة تهنئة فاخرة</Text>
             <Ionicons name="arrow-back" size={12} color={occ.accent + "50"} />
           </View>
@@ -944,7 +944,7 @@ export default function GreetingsScreen() {
           <View style={{gap:12}}>
             <Animated.View entering={FadeIn} style={s.hintCard}>
               <LinearGradient colors={[GOLD+"15","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
-              <MaterialCommunityIcons name="sparkles" size={15} color={GOLD}/>
+              <MaterialCommunityIcons name={"sparkles" as any} size={15} color={GOLD}/>
               <Text style={s.hintText}>اضغط على أي مناسبة لإنشاء بطاقة تهنئة ملكية فاخرة قابلة للمشاركة والنشر</Text>
             </Animated.View>
             {upcoming.map((item,i)=>(

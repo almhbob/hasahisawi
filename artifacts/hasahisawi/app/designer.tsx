@@ -220,7 +220,7 @@ export default function DesignerScreen() {
             <SecHeader icon="person-circle-outline" color={GREEN} title="نبذة شخصية" sub="مهندس برمجيات | محلّل بيانات | مطوّر مجتمعي" />
             <View style={s.aboutCard}>
               <View style={s.quoteDeco}>
-                <Ionicons name="quote" size={22} color={GOLD} />
+                <Ionicons name={"quote" as any} size={22} color={GOLD} />
               </View>
               <Text style={s.aboutLead}>
                 مهندس برمجيات ومحلّل بيانات سوداني، شغوف بتسخير التقنية الحديثة لخدمة الإنسان وبناء حلول رقمية تترك أثراً حقيقياً في المجتمع.
