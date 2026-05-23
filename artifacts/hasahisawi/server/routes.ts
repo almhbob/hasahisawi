@@ -3416,6 +3416,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
+  // ── Medical Staff Portal ──────────────────────────────────────────────────────
+  async function ensureMedicalStaffTables() {
+    await ensureMedicalTables();
+    await query(`CREATE TABLE IF NOT EXISTS medical_staff (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+      specialty VARCHAR(100),
+      license_no VARCHAR(100),
+      role VARCHAR(50) DEFAULT 'doctor',
+      facility VARCHAR(200),
+      shift VARCHAR(50),
+      is_verified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS medical_prescriptions (
+      id SERIAL PRIMARY KEY,
+      staff_id INTEGER REFERENCES medical_staff(id) ON DELETE CASCADE,
+      patient_name VARCHAR(200),
+      patient_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      medications JSONB DEFAULT '[]',
+      diagnosis TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS medical_lab_orders (
+      id SERIAL PRIMARY KEY,
+      staff_id INTEGER REFERENCES medical_staff(id) ON DELETE CASCADE,
+      patient_name VARCHAR(200),
+      patient_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      tests JSONB DEFAULT '[]',
+      priority VARCHAR(20) DEFAULT 'normal',
+      status VARCHAR(30) DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS medical_lab_results (
+      id SERIAL PRIMARY KEY,
+      lab_order_id INTEGER REFERENCES medical_lab_orders(id) ON DELETE CASCADE,
+      results JSONB DEFAULT '{}',
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`ALTER TABLE pharmacy_orders ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'pending'`);
+  }
+  app.post("/api/medical/staff/register", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const { specialty, license_no, role, facility, shift } = req.body;
+      const r = await query(
+        `INSERT INTO medical_staff (user_id, specialty, license_no, role, facility, shift) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (user_id) DO UPDATE SET specialty=$2, license_no=$3, role=$4, facility=$5, shift=$6 RETURNING *`,
+        [me.id, specialty||null, license_no||null, role||'doctor', facility||null, shift||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/medical/staff/profile", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const r = await query(`SELECT ms.*, u.name, u.email FROM medical_staff ms JOIN users u ON u.id=ms.user_id WHERE ms.user_id=$1`, [me.id]);
+      res.json(r.rows[0] || null);
+    } catch { res.json(null); }
+  });
+  app.get("/api/medical/staff/patients", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const q = req.query.q as string | undefined;
+      let sql = `SELECT u.id, u.name, u.phone FROM users u WHERE u.role='user'`;
+      const params: any[] = [];
+      if (q) { params.push(`%${q}%`); sql += ` AND (u.name ILIKE $1 OR u.phone ILIKE $1)`; }
+      sql += ` LIMIT 50`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/medical/staff/prescriptions", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const staff = (await query(`SELECT id FROM medical_staff WHERE user_id=$1`, [me.id])).rows[0];
+      if (!staff) return res.json([]);
+      const r = await query(`SELECT * FROM medical_prescriptions WHERE staff_id=$1 ORDER BY created_at DESC LIMIT 100`, [staff.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/medical/staff/prescriptions", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const staff = (await query(`SELECT id FROM medical_staff WHERE user_id=$1`, [me.id])).rows[0];
+      if (!staff) return res.status(403).json({ error: "لست مسجلاً كطاقم طبي" });
+      const { patient_name, patient_id, medications, diagnosis, notes } = req.body;
+      const r = await query(
+        `INSERT INTO medical_prescriptions (staff_id, patient_name, patient_id, medications, diagnosis, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [staff.id, patient_name, patient_id||null, JSON.stringify(medications||[]), diagnosis||null, notes||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/medical/staff/lab-orders", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const staff = (await query(`SELECT id FROM medical_staff WHERE user_id=$1`, [me.id])).rows[0];
+      if (!staff) return res.status(403).json({ error: "لست مسجلاً كطاقم طبي" });
+      const { patient_name, patient_id, tests, priority } = req.body;
+      const r = await query(
+        `INSERT INTO medical_lab_orders (staff_id, patient_name, patient_id, tests, priority) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [staff.id, patient_name, patient_id||null, JSON.stringify(tests||[]), priority||'normal']
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/medical/lab/orders", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const r = await query(`SELECT mlo.*, ms.role as staff_role, u.name as staff_name FROM medical_lab_orders mlo LEFT JOIN medical_staff ms ON ms.id=mlo.staff_id LEFT JOIN users u ON u.id=ms.user_id ORDER BY mlo.created_at DESC LIMIT 100`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/medical/lab/results", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const { lab_order_id, results, notes } = req.body;
+      await query(`UPDATE medical_lab_orders SET status='completed' WHERE id=$1`, [lab_order_id]);
+      const r = await query(`INSERT INTO medical_lab_results (lab_order_id, results, notes, created_by) VALUES ($1,$2,$3,$4) RETURNING *`, [lab_order_id, JSON.stringify(results||{}), notes||null, me.id]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/medical/pharmacy/orders", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalStaffTables();
+      const q = req.query.q as string | undefined;
+      const status = req.query.status as string | undefined;
+      let sql = `SELECT po.*, u.name as patient_name FROM pharmacy_orders po LEFT JOIN users u ON u.id=po.user_id WHERE 1=1`;
+      const params: any[] = [];
+      if (status) { params.push(status); sql += ` AND po.status=$${params.length}`; }
+      if (q) { params.push(`%${q}%`); sql += ` AND (u.name ILIKE $${params.length} OR po.phone ILIKE $${params.length})`; }
+      sql += ` ORDER BY po.created_at DESC LIMIT 100`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.patch("/api/medical/pharmacy/orders/:id/status", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE pharmacy_orders SET status=$1 WHERE id=$2`, [req.body.status||'pending', parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ── قبول المرضى في المستشفى ───────────────────────────────────────────────
   app.get("/api/medical/admissions/mine", async (req: Request, res: Response) => {
     const user = await getSessionUser(req);
@@ -5334,6 +5500,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO communities (name,description,category,leader_id) VALUES ($1,$2,$3,$4) RETURNING *`,
         [name, description||null, category||null, me.id]
       );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/communities/:id/services", async (req, res) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS community_services (id SERIAL PRIMARY KEY, community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE, title VARCHAR(200) NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(`SELECT * FROM community_services WHERE community_id=$1 AND is_active=TRUE ORDER BY created_at DESC`, [parseInt(req.params.id)]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/communities/:id/service-requests", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS community_service_requests (id SERIAL PRIMARY KEY, community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), service_type VARCHAR(200), description TEXT, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const { service_type, description } = req.body;
+      const r = await query(`INSERT INTO community_service_requests (community_id, user_id, service_type, description) VALUES ($1,$2,$3,$4) RETURNING *`, [parseInt(req.params.id), me.id, service_type||null, description||null]);
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
