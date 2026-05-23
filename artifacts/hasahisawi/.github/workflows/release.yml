@@ -168,6 +168,7 @@ jobs:
     name: Build Web PWA
     needs: setup
     runs-on: ubuntu-latest
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.pages.outputs.page_url }}
@@ -222,7 +223,8 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [setup, build-apk, build-aab, build-web]
+    # Don't block release on web build — Pages deployments can fail when concurrent runs compete
+    needs: [setup, build-apk, build-aab]
     env:
       RELEASE_VERSION: ${{ needs.setup.outputs.version }}
     steps:
