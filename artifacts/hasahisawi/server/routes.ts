@@ -6807,6 +6807,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch { res.json([]); }
   });
 
+  // ── Institution Applications (Org Join) ──────────────────────────────────────
+  async function ensureInstitutionApplicationsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS institution_applications (
+      id SERIAL PRIMARY KEY,
+      applicant_name VARCHAR(200) NOT NULL,
+      applicant_email VARCHAR(200),
+      applicant_phone VARCHAR(50),
+      institution_name VARCHAR(300),
+      institution_type VARCHAR(100),
+      application_data JSONB DEFAULT '{}',
+      status VARCHAR(30) DEFAULT 'pending',
+      signed_contract_url TEXT,
+      pdf_url TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  }
+
+  app.get("/api/institution-applications/contract-settings", async (_req, res) => {
+    // Returns contract template settings
+    res.json({
+      contract_version: "2.0",
+      effective_date: "2026-01-01",
+      terms: [
+        "تلتزم المؤسسة بتوفير خدماتها بأعلى معايير الجودة",
+        "يُعدّ هذا العقد ملزماً لكلا الطرفين وفق أحكام القانون السوداني",
+        "تتولى حصاحيصاوي نشر خدمات المؤسسة على منصتها الرقمية",
+        "يحق لكلا الطرفين إنهاء العقد بإشعار مسبق مدته 30 يوماً",
+      ],
+      platform_commission: "5%",
+      support_email: "Hasahisawi@hotmail.com",
+    });
+  });
+
+  app.get("/api/institution-applications/contract-pdf", async (_req, res) => {
+    // Returns a placeholder PDF URL or redirect
+    res.json({ pdf_url: null, message: "PDF generation not available on this plan" });
+  });
+
+  app.post("/api/institution-applications", async (req, res) => {
+    try {
+      await ensureInstitutionApplicationsTables();
+      const { applicant_name, applicant_email, applicant_phone, institution_name, institution_type, ...rest } = req.body;
+      if (!applicant_name || !institution_name) return res.status(400).json({ error: "الاسم ومعلومات المؤسسة مطلوبة" });
+      const r = await query(
+        `INSERT INTO institution_applications (applicant_name, applicant_email, applicant_phone, institution_name, institution_type, application_data) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [applicant_name, applicant_email||null, applicant_phone||null, institution_name, institution_type||null, JSON.stringify(rest)]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/institution-applications/:id", async (req, res) => {
+    try {
+      await ensureInstitutionApplicationsTables();
+      const r = await query(`SELECT * FROM institution_applications WHERE id=$1`, [parseInt(req.params.id)]);
+      if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/institution-applications/:id/signed-contract", async (req, res) => {
+    try {
+      await ensureInstitutionApplicationsTables();
+      const { signed_contract_url, pdf_url } = req.body;
+      const r = await query(
+        `UPDATE institution_applications SET signed_contract_url=$1, pdf_url=$2, status='signed', updated_at=NOW() WHERE id=$3 RETURNING *`,
+        [signed_contract_url||null, pdf_url||null, parseInt(req.params.id)]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/admin/institution-applications", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureInstitutionApplicationsTables();
+      const r = await query(`SELECT * FROM institution_applications ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.patch("/api/admin/institution-applications/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, notes } = req.body;
+      const r = await query(`UPDATE institution_applications SET status=COALESCE($1,status), notes=COALESCE($2,notes), updated_at=NOW() WHERE id=$3 RETURNING *`, [status||null, notes||null, parseInt(req.params.id)]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ════════════════════════════════════════════════════════════════════════════
   const httpServer = createServer(app);
   return httpServer;
