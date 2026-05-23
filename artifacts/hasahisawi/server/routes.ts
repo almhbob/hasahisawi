@@ -760,6 +760,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── PATCH /api/auth/me/gender ─────────────────────────────────────────────
+  app.patch("/api/auth/me/gender", async (req: Request, res: Response) => {
+    try {
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "غير مسجل الدخول" });
+      const { gender } = req.body;
+      if (gender !== "male" && gender !== "female") return res.status(400).json({ error: "الجنس غير صالح" });
+      // Gender can only be set once — never overwritten
+      const existing = await query(`SELECT gender FROM users WHERE id=$1`, [user.id]);
+      if (existing.rows[0]?.gender) return res.status(400).json({ error: "الجنس محدد مسبقاً ولا يمكن تغييره" });
+      await query(`UPDATE users SET gender=$1 WHERE id=$2`, [gender, user.id]);
+      const updated = await query(`SELECT id, name, email, phone, role, bio, neighborhood, gender, avatar_url FROM users WHERE id=$1`, [user.id]);
+      res.json({ user: updated.rows[0] });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
   // ── POST /api/auth/qr/generate ────────────────────────────────────────────
   app.post("/api/auth/qr/generate", async (req: Request, res: Response) => {
     try {
@@ -5129,6 +5145,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // ── Admin Transport — Extended Routes ─────────────────────────────────────────
+  async function ensureTransportOperatorsTables() {
+    await ensureTransportTables();
+    await query(`CREATE TABLE IF NOT EXISTS transport_operators (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      phone VARCHAR(30),
+      license_no VARCHAR(100),
+      vehicle_type VARCHAR(100),
+      capacity INTEGER DEFAULT 0,
+      route VARCHAR(200),
+      status VARCHAR(20) DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS transport_operator_supervisors (
+      operator_id INTEGER REFERENCES transport_operators(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY (operator_id, user_id)
+    )`);
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES transport_drivers(id) ON DELETE SET NULL`);
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+  }
+
+  app.get("/api/admin/transport/settings", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`SELECT * FROM transport_neighborhoods ORDER BY name`).catch(() => ({ rows: [] }));
+      res.json({ neighborhoods: r.rows, max_riders: 4, booking_window_hours: 24 });
+    } catch { res.json({ neighborhoods: [], max_riders: 4, booking_window_hours: 24 }); }
+  });
+  app.post("/api/admin/transport/settings", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { neighborhoods } = req.body;
+      if (Array.isArray(neighborhoods)) {
+        for (const n of neighborhoods) {
+          await query(`INSERT INTO transport_neighborhoods (name, fare) VALUES ($1,$2) ON CONFLICT(name) DO UPDATE SET fare=$2`, [n.name, n.fare||0]);
+        }
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/transport/reports", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const [byNeighborhood, byDay, recent] = await Promise.all([
+        query(`SELECT from_neighborhood, COUNT(*) as count FROM transport_trips GROUP BY from_neighborhood ORDER BY count DESC LIMIT 20`).catch(() => ({ rows: [] })),
+        query(`SELECT DATE(created_at) as date, COUNT(*) as count FROM transport_trips GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30`).catch(() => ({ rows: [] })),
+        query(`SELECT t.*, u.name as user_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id ORDER BY t.created_at DESC LIMIT 50`).catch(() => ({ rows: [] })),
+      ]);
+      res.json({ by_neighborhood: byNeighborhood.rows, by_day: byDay.rows, recent: recent.rows });
+    } catch { res.json({ by_neighborhood: [], by_day: [], recent: [] }); }
+  });
+  app.get("/api/admin/transport/operators", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureTransportOperatorsTables(); const r = await query(`SELECT * FROM transport_operators ORDER BY created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/admin/transport/operators", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportOperatorsTables();
+      const { name, phone, license_no, vehicle_type, capacity, route, notes } = req.body;
+      const r = await query(`INSERT INTO transport_operators (name,phone,license_no,vehicle_type,capacity,route,notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [name,phone||null,license_no||null,vehicle_type||null,capacity||0,route||null,notes||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/admin/transport/operators/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { name, phone, license_no, vehicle_type, capacity, route, status, notes } = req.body;
+      const r = await query(`UPDATE transport_operators SET name=COALESCE($1,name),phone=COALESCE($2,phone),license_no=COALESCE($3,license_no),vehicle_type=COALESCE($4,vehicle_type),capacity=COALESCE($5,capacity),route=COALESCE($6,route),status=COALESCE($7,status),notes=COALESCE($8,notes) WHERE id=$9 RETURNING *`, [name||null,phone||null,license_no||null,vehicle_type||null,capacity||null,route||null,status||null,notes||null,parseInt(req.params.id)]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/transport/operators/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM transport_operators WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/transport/operators/:id/supervisors", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportOperatorsTables();
+      const r = await query(`SELECT u.id, u.name, u.email FROM transport_operator_supervisors ts JOIN users u ON u.id=ts.user_id WHERE ts.operator_id=$1`, [parseInt(req.params.id)]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/admin/transport/operators/:id/supervisor", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportOperatorsTables();
+      const { user_id } = req.body;
+      await query(`INSERT INTO transport_operator_supervisors (operator_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [parseInt(req.params.id), user_id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/transport/operators/:id/supervisor/:uid", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM transport_operator_supervisors WHERE operator_id=$1 AND user_id=$2`, [parseInt(req.params.id), parseInt(req.params.uid)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/transport/drivers/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM transport_drivers WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/transport/trips/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM transport_trips WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/admin/transport/trips/:id/assign", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { driver_id } = req.body;
+      await query(`UPDATE transport_trips SET driver_id=$1, status='assigned' WHERE id=$2`, [driver_id, parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/admin/transport/trips/:id/complete", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE transport_trips SET status='completed', completed_at=NOW() WHERE id=$1`, [parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/admin/transport/fares/bulk", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { fares } = req.body; // array of {name, fare}
+      if (Array.isArray(fares)) {
+        for (const f of fares) {
+          await query(`INSERT INTO transport_neighborhoods (name, fare) VALUES ($1,$2) ON CONFLICT(name) DO UPDATE SET fare=$2`, [f.name, f.fare||0]);
+        }
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/transport/trips/:id/cancel", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE transport_trips SET status='cancelled' WHERE id=$1 AND user_id=$2`, [parseInt(req.params.id), me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ── Communities ───────────────────────────────────────────────────────────────
   async function ensureCommunitiesTable() {
     await query(`CREATE TABLE IF NOT EXISTS communities (
@@ -5264,6 +5430,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { await ensureSportsTables(); const r = await query(`SELECT * FROM sports_matches ORDER BY match_date DESC LIMIT 50`); res.json(r.rows); }
     catch { res.json([]); }
   });
+  app.patch("/api/sports/posts/:id/like", async (req, res) => {
+    try {
+      await ensureSportsTables();
+      await query(`UPDATE sports_posts SET likes = COALESCE(likes,0)+1 WHERE id=$1`, [parseInt(req.params.id)]);
+      res.json({ success: true });
+    } catch { res.json({ success: false }); }
+  });
+  app.delete("/api/sports/posts/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM sports_posts WHERE id=$1`, [parseInt(req.params.id)]); res.json({ success: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/sports/players", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureSportsTables();
+      const { name, sport_type, position, birth_date, phone, bio, image_url } = req.body;
+      const r = await query(`INSERT INTO sports_players (name,sport_type,position,birth_date,phone,bio,image_url,user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [name,sport_type||null,position||null,birth_date||null,phone||null,bio||null,image_url||null,me.id]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/sports/players/:id", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { name, sport_type, position, birth_date, phone, bio, image_url } = req.body;
+      const r = await query(`UPDATE sports_players SET name=COALESCE($1,name), sport_type=COALESCE($2,sport_type), position=COALESCE($3,position), bio=COALESCE($4,bio), image_url=COALESCE($5,image_url) WHERE id=$6 RETURNING *`, [name||null,sport_type||null,position||null,bio||null,image_url||null,parseInt(req.params.id)]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/sports/players/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM sports_players WHERE id=$1`, [parseInt(req.params.id)]); res.json({ success: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/sports/matches", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureSportsTables();
+      const { team_a, team_b, match_date, location, sport_type, score_a, score_b, notes } = req.body;
+      const r = await query(`INSERT INTO sports_matches (team_a,team_b,match_date,location,sport_type,score_a,score_b,notes,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [team_a,team_b,match_date||null,location||null,sport_type||null,score_a||null,score_b||null,notes||null,me.id]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/sports/matches/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM sports_matches WHERE id=$1`, [parseInt(req.params.id)]); res.json({ success: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   // ── Prayer Times ──────────────────────────────────────────────────────────────
   app.get("/api/prayer-times", async (_req, res) => {
@@ -5353,6 +5570,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await ensureMedicalExtTables();
       const { question, specialty } = req.body;
       const r = await query(`INSERT INTO medical_consultations (user_id,question,specialty) VALUES ($1,$2,$3) RETURNING *`, [me.id, question, specialty||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/medical-consultations/:id/replies", async (req, res) => {
+    try {
+      await ensureMedicalExtTables();
+      await query(`CREATE TABLE IF NOT EXISTS consultation_replies (id SERIAL PRIMARY KEY, consultation_id INTEGER REFERENCES medical_consultations(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), reply TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(
+        `SELECT cr.*, u.name as author_name, u.role as author_role FROM consultation_replies cr LEFT JOIN users u ON u.id=cr.user_id WHERE cr.consultation_id=$1 ORDER BY cr.created_at ASC`,
+        [parseInt(req.params.id)]
+      );
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/medical-consultations/:id/reply", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS consultation_replies (id SERIAL PRIMARY KEY, consultation_id INTEGER REFERENCES medical_consultations(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), reply TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const { reply } = req.body;
+      if (!reply?.trim()) return res.status(400).json({ error: "الرد مطلوب" });
+      const r = await query(`INSERT INTO consultation_replies (consultation_id, user_id, reply) VALUES ($1,$2,$3) RETURNING *`, [parseInt(req.params.id), me.id, reply.trim()]);
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -5572,12 +5811,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Ratings Entities ──────────────────────────────────────────────────────────
+  async function ensureRatedEntitiesTables() {
+    await query(`
+      CREATE TABLE IF NOT EXISTS rated_entities (
+        id            SERIAL PRIMARY KEY,
+        type          VARCHAR(30) NOT NULL,
+        name          VARCHAR(200) NOT NULL,
+        subtitle      TEXT,
+        category      VARCHAR(100),
+        phone         VARCHAR(30),
+        district      VARCHAR(100),
+        notes         TEXT,
+        is_verified   BOOLEAN DEFAULT FALSE,
+        avg_rating    NUMERIC(3,1) DEFAULT 0,
+        review_count  INTEGER DEFAULT 0,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS entity_reviews (
+        id         SERIAL PRIMARY KEY,
+        entity_id  INTEGER REFERENCES rated_entities(id) ON DELETE CASCADE,
+        user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        device_id  VARCHAR(100),
+        rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment    TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS entity_reviews_device_entity_idx ON entity_reviews(entity_id, device_id) WHERE device_id IS NOT NULL`);
+  }
+
   app.get("/api/ratings/entities", async (req, res) => {
     try {
-      const type = req.query.type as string | undefined;
-      const r = await query(`SELECT id, title, entity_type, rating, reviews_count FROM ratings WHERE ($1::text IS NULL OR entity_type=$1) ORDER BY rating DESC LIMIT 50`, [type||null]).catch(() => ({ rows: [] }));
+      await ensureRatedEntitiesTables();
+      const type   = req.query.type   as string | undefined;
+      const search = req.query.search as string | undefined;
+      let sql = `SELECT * FROM rated_entities WHERE ($1::text IS NULL OR type=$1)`;
+      const params: any[] = [type || null];
+      if (search) { sql += ` AND name ILIKE $2`; params.push(`%${search}%`); }
+      sql += ` ORDER BY avg_rating DESC, review_count DESC LIMIT 100`;
+      const r = await query(sql, params);
       res.json(r.rows);
     } catch { res.json([]); }
+  });
+
+  app.get("/api/ratings/entities/:id", async (req, res) => {
+    try {
+      await ensureRatedEntitiesTables();
+      const id = parseInt(req.params.id);
+      const entity = await query(`SELECT * FROM rated_entities WHERE id=$1`, [id]);
+      if (!entity.rows[0]) return res.status(404).json({ error: "غير موجود" });
+      const ratings = await query(
+        `SELECT er.id, er.rating, er.comment, u.name as user_name, er.created_at
+         FROM entity_reviews er LEFT JOIN users u ON u.id=er.user_id
+         WHERE er.entity_id=$1 ORDER BY er.created_at DESC LIMIT 50`, [id]
+      );
+      res.json({ entity: entity.rows[0], ratings: ratings.rows });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/ratings/entities/:id/rate", async (req, res) => {
+    try {
+      await ensureRatedEntitiesTables();
+      const id        = parseInt(req.params.id);
+      const user      = await getSessionUser(req);
+      const { rating, comment, device_id } = req.body;
+      if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: "تقييم غير صالح" });
+      // Upsert review (one per device or user)
+      await query(
+        `INSERT INTO entity_reviews (entity_id, user_id, device_id, rating, comment)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (entity_id, device_id) WHERE device_id IS NOT NULL
+         DO UPDATE SET rating=$4, comment=$5, created_at=NOW()`,
+        [id, user?.id || null, device_id || null, rating, comment || null]
+      );
+      // Update aggregates
+      await query(
+        `UPDATE rated_entities SET
+           avg_rating   = (SELECT ROUND(AVG(rating)::numeric,1) FROM entity_reviews WHERE entity_id=$1),
+           review_count = (SELECT COUNT(*) FROM entity_reviews WHERE entity_id=$1)
+         WHERE id=$1`, [id]
+      );
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/ratings/entities", async (req, res) => {
+    try {
+      await ensureRatedEntitiesTables();
+      const { type, name, subtitle, category, phone, district, notes } = req.body;
+      if (!name?.trim() || !type) return res.status(400).json({ error: "الاسم والنوع مطلوبان" });
+      const r = await query(
+        `INSERT INTO rated_entities (type, name, subtitle, category, phone, district, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [type, name.trim(), subtitle||null, category||null, phone||null, district||null, notes||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Admin Dashboard Stats ─────────────────────────────────────────────────────
