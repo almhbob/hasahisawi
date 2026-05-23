@@ -4955,6 +4955,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+  app.put("/api/admin/landmarks/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureLandmarksTable();
+      const { name, description, category, lat, lng, image_url, is_featured } = req.body;
+      const r = await query(
+        `UPDATE landmarks SET name=COALESCE($1,name), description=COALESCE($2,description), category=COALESCE($3,category), lat=COALESCE($4,lat), lng=COALESCE($5,lng), image_url=COALESCE($6,image_url), is_featured=COALESCE($7,is_featured) WHERE id=$8 RETURNING *`,
+        [name||null, description||null, category||null, lat||null, lng||null, image_url||null, is_featured!=null?!!is_featured:null, parseInt(req.params.id)]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
   app.delete("/api/admin/landmarks/:id", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await query(`DELETE FROM landmarks WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
