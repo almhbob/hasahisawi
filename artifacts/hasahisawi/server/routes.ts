@@ -2539,6 +2539,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
+  app.get("/api/unions/programs", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      await query(`CREATE TABLE IF NOT EXISTS union_programs (id SERIAL PRIMARY KEY, union_id INTEGER REFERENCES unions(id) ON DELETE CASCADE, title VARCHAR(300) NOT NULL, description TEXT, start_date DATE, end_date DATE, status VARCHAR(30) DEFAULT 'upcoming', created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const union_id = req.query.union_id;
+      const r = union_id
+        ? await query(`SELECT * FROM union_programs WHERE union_id=$1 ORDER BY start_date DESC LIMIT 50`, [union_id])
+        : await query(`SELECT * FROM union_programs ORDER BY start_date DESC LIMIT 100`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/unions/laws", async (req: Request, res: Response) => {
+    try {
+      await ensureUnionsTables();
+      await query(`CREATE TABLE IF NOT EXISTS union_laws (id SERIAL PRIMARY KEY, union_id INTEGER REFERENCES unions(id) ON DELETE CASCADE, title VARCHAR(300) NOT NULL, content TEXT, category VARCHAR(100), effective_date DATE, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const union_id = req.query.union_id;
+      const r = union_id
+        ? await query(`SELECT * FROM union_laws WHERE union_id=$1 ORDER BY created_at DESC LIMIT 50`, [union_id])
+        : await query(`SELECT * FROM union_laws ORDER BY created_at DESC LIMIT 100`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
   app.post("/api/unions/apply", async (req: Request, res: Response) => {
     try {
       await ensureUnionsTables();
