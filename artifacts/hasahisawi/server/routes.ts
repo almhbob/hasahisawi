@@ -5539,6 +5539,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+  app.get("/api/lost-items/:id", async (req, res) => {
+    try {
+      await ensureLostItemsTable();
+      const r = await query(`SELECT l.*, u.name as user_name FROM lost_items l LEFT JOIN users u ON u.id=l.user_id WHERE l.id=$1`, [parseInt(req.params.id)]);
+      if (!r.rows[0]) return res.status(404).json({ error: "غير موجود" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/lost-items/:id/status", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { status } = req.body;
+      const resolved = status === "resolved" || status === "found";
+      await query(`UPDATE lost_items SET is_resolved=$1, status=$2 WHERE id=$3 AND user_id=$4`, [resolved, status||'pending', parseInt(req.params.id), me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/lost-items/:id", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM lost_items WHERE id=$1 AND (user_id=$2 OR $3=TRUE)`, [parseInt(req.params.id), me.id, me.role === "admin"]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   // ── Medical Consultations & Specialists ───────────────────────────────────────
   async function ensureMedicalExtTables() {
@@ -5642,6 +5668,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get("/api/rentals/settings", async (_req, res) => {
     res.json({ commission_rate: 0.05, min_days: 1, max_days: 90, currency: "SDG" });
+  });
+  app.post("/api/rentals", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureRentalsTable();
+      const { title, description, category, price_per_day, location, images } = req.body;
+      const r = await query(
+        `INSERT INTO rentals (user_id, title, description, category, price_per_day, location, images) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [me.id, title, description||null, category||null, price_per_day||0, location||null, JSON.stringify(images||[])]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/rentals/:id/contract", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureRentalsTable();
+      const rental = await query(`SELECT * FROM rentals WHERE id=$1`, [parseInt(req.params.id)]);
+      if (!rental.rows[0]) return res.status(404).json({ error: "العقار غير موجود" });
+      const { start_date, end_date, terms } = req.body;
+      const r = await query(
+        `INSERT INTO rental_contracts (rental_id, renter_id, owner_id, start_date, end_date, terms, status) VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
+        [parseInt(req.params.id), me.id, rental.rows[0].user_id, start_date, end_date, terms||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/rentals/contracts/:id/sign", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE rental_contracts SET status='signed', signed_at=NOW() WHERE id=$1 AND (renter_id=$2 OR owner_id=$2)`, [parseInt(req.params.id), me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Reports & Feedback ────────────────────────────────────────────────────────
@@ -6470,6 +6532,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cases = lawyer ? (await query(`SELECT * FROM lawyer_contracts WHERE lawyer_id=$1 AND status='active'`, [lawyer.id])).rows : [];
       res.json({ lawyer, cases });
     } catch { res.json({ lawyer: null, cases: [] }); }
+  });
+
+  app.get("/api/my-lawyer-cases/:id", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const r = await query(`SELECT lc.*, u.name as client_name FROM lawyer_contracts lc LEFT JOIN users u ON u.id=lc.client_id WHERE lc.id=$1`, [parseInt(req.params.id)]);
+      if (!r.rows[0]) return res.status(404).json({ error: "غير موجود" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/my-lawyer-cases/:id/messages", async (req, res) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_messages (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(`SELECT cm.*, u.name as sender_name FROM case_messages cm LEFT JOIN users u ON u.id=cm.user_id WHERE cm.contract_id=$1 ORDER BY cm.created_at ASC`, [parseInt(req.params.id)]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/my-lawyer-cases/:id/messages", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_messages (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(`INSERT INTO case_messages (contract_id, user_id, content) VALUES ($1,$2,$3) RETURNING *`, [parseInt(req.params.id), me.id, req.body.content]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/my-lawyer-cases/:id/status", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { status } = req.body;
+      await query(`UPDATE lawyer_contracts SET status=$1 WHERE id=$2`, [status, parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/my-lawyer-cases/:id/documents", async (req, res) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_documents (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER, name VARCHAR(200), url TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(`SELECT * FROM case_documents WHERE contract_id=$1 ORDER BY created_at DESC`, [parseInt(req.params.id)]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/my-lawyer-cases/:id/documents", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_documents (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER, name VARCHAR(200), url TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const { name, url } = req.body;
+      const r = await query(`INSERT INTO case_documents (contract_id, user_id, name, url) VALUES ($1,$2,$3,$4) RETURNING *`, [parseInt(req.params.id), me.id, name, url]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/my-lawyer-cases/:id/documents/:docId", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`DELETE FROM case_documents WHERE id=$1 AND contract_id=$2`, [parseInt(req.params.docId), parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/my-lawyer-profile", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const { name, specialty, bio, address, phone, experience_years, hourly_rate } = req.body;
+      const r = await query(
+        `UPDATE lawyers SET name=COALESCE($1,name), specialty=COALESCE($2,specialty), bio=COALESCE($3,bio), address=COALESCE($4,address), phone=COALESCE($5,phone), experience_years=COALESCE($6,experience_years), hourly_rate=COALESCE($7,hourly_rate) WHERE user_id=$8 RETURNING *`,
+        [name||null, specialty||null, bio||null, address||null, phone||null, experience_years||null, hourly_rate||null, me.id]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Client Cases ──────────────────────────────────────────────────────────────
