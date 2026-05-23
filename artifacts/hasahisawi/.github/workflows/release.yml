@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v6.2.0)'
-        required: true
-        default: 'v6.2.0'
+        description: 'Version tag (e.g. v6.3.2)'
+        required: false
+        default: ''
   push:
     tags:
       - 'v*'
@@ -18,16 +18,36 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  RELEASE_VERSION: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'v6.2.0' }}
-
 jobs:
+  # ─── 0. Resolve version from app.json or input/tag ─────────────────────────
+  setup:
+    name: Resolve Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            VER=$(node -e "process.stdout.write('v'+require('./app.json').expo.version)")
+            echo "version=$VER" >> $GITHUB_OUTPUT
+          fi
+      - run: echo "Building release ${{ steps.ver.outputs.version }}"
+
   # ─── 1. Build Android APK ───────────────────────────────────────────────────
   build-apk:
     name: Build APK
+    needs: setup
     runs-on: ubuntu-latest
     outputs:
       apk-path: ${{ steps.find.outputs.path }}
+    env:
+      RELEASE_VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +105,10 @@ jobs:
   # ─── 2. Build Android AAB ───────────────────────────────────────────────────
   build-aab:
     name: Build AAB
+    needs: setup
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -143,10 +166,13 @@ jobs:
   # ─── 3. Build & Deploy Web PWA → GitHub Pages ───────────────────────────────
   build-web:
     name: Build Web PWA
+    needs: setup
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.pages.outputs.page_url }}
+    env:
+      RELEASE_VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -196,7 +222,9 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-apk, build-aab, build-web]
+    needs: [setup, build-apk, build-aab, build-web]
+    env:
+      RELEASE_VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -212,25 +240,25 @@ jobs:
           tag_name: ${{ env.RELEASE_VERSION }}
           name: "حصاحيصاوي ${{ env.RELEASE_VERSION }}"
           body: |
-            ## حصاحيصاوي — الإصدار ${{ env.RELEASE_VERSION }}
+            ## حصاحيصاوي — ${{ env.RELEASE_VERSION }} (versionCode ${{ env.RELEASE_VERSION }})
 
-            ### روابط التحميل المباشر
-            | النسخة | الملف | الاستخدام |
-            |--------|-------|-----------|
-            | **Android APK** | انقر "Assets" أدناه | تثبيت مباشر على أي Android |
-            | **Android AAB** | انقر "Assets" أدناه | رفع على Google Play Store |
-            | **Web / iPhone PWA** | https://almhbob.github.io/hasahisawi/ | Safari → إضافة للشاشة الرئيسية |
+            | المنصة | النسخة | الاستخدام |
+            |--------|--------|---------|
+            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
+            | **Android** | AAB ↓ | رفع على Google Play Store |
+            | **iPhone / iPad** | PWA | افتح في Safari ← ↑ ← "إضافة للشاشة الرئيسية" |
 
-            ### الميزات الجديدة في هذا الإصدار
-            - ✅ رفع الصور والفيديو يعمل عبر Cloudinary
-            - ✅ نظام إدارة اتحاد الطلاب المستقل (بوابة مدير + استمارة 7 أقسام)
-            - ✅ الملف الطبي الشخصي (فصيلة الدم، حساسيات، جهة طارئ)
-            - ✅ إصلاح شامل لجميع endpoints الطبية وقسم التنويم والمرافق
-            - ✅ إصلاح رسالة "Missing or insufficient permissions" في المجتمع
-            - ✅ حذف قسم المسابقات
-            - ✅ إصلاح مسارات API المفقودة في 15 خدمة مختلفة
-            - ✅ دعم OTP لاسترداد كلمة المرور
-            - ✅ نظام الشراكات الخارجية والتواصل والمواعيد
+            ### رابط iPhone / iPad
+            **https://almhbob.github.io/hasahisawi/**
+
+            ### ميزات ${{ env.RELEASE_VERSION }}
+            - ✅ إصلاح QR ربط الهاتف بالكمبيوتر (تسجيل الشاشات + إصلاح confirm route)
+            - ✅ إصلاح أعضاء Firebase في لوح التحكم
+            - ✅ إصلاح نغمات الإشعارات (إعادة بناء قنوات Android)
+            - ✅ قسم وكالات السفر والسياحة
+            - ✅ قسم التهنئة الفاخر (6 أنماط ملكية + مشاركة + نشر)
+            - ✅ إصلاح رفع الصور عبر Cloudinary
+            - ✅ إصلاح أخطاء runtime حرجة (getAuthUser + Clipboard + greeting_likes)
           files: |
             hasahisawi-${{ env.RELEASE_VERSION }}.apk
             hasahisawi-${{ env.RELEASE_VERSION }}.aab
