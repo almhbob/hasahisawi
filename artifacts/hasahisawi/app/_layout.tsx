@@ -148,7 +148,13 @@ function AuthGate() {
       return;
     }
 
-    // complete-profile اختيارية الآن — لا نُجبر المستخدم على إكمالها
+    // إذا لم يُحدَّد الجنس (مستخدم Google جديد) → أجبره على إكمال الملف
+    const needsGender = !isGuest && user && !user.gender;
+    if (needsGender && !inCompleteProfile) {
+      router.replace("/complete-profile" as any);
+      return;
+    }
+
     if (inLogin || inOnboarding || inCompleteProfile) {
       router.replace("/(tabs)/" as any);
     }

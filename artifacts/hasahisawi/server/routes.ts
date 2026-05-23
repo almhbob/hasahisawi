@@ -520,6 +520,11 @@ async function isAdminRequest(req: Request): Promise<boolean> {
   return user?.role === "admin" || false;
 }
 
+async function isAdminOrModRequest(req: Request): Promise<boolean> {
+  const user = await getSessionUser(req);
+  return user?.role === "admin" || user?.role === "moderator" || false;
+}
+
 async function isAdminOrModeratorForSection(req: Request, section: string): Promise<boolean> {
   const user = await getSessionUser(req);
   if (!user) return false;
@@ -1703,7 +1708,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO user_sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days')`,
         [userRow.id, token]
       );
-      res.json({ user: safeUser(userRow), token });
+      // needs_profile=true إذا لم يُحدَّد الجنس بعد (مستخدم Google جديد)
+      const needs_profile = !userRow.gender;
+      res.json({ user: safeUser(userRow), token, needs_profile });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Server error" });
@@ -4698,6 +4705,1454 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ── MISSING ROUTES — added to fix broken API calls across all screens ──────
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Landmarks ────────────────────────────────────────────────────────────────
+  async function ensureLandmarksTable() {
+    await query(`CREATE TABLE IF NOT EXISTS landmarks (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      description TEXT,
+      category VARCHAR(50),
+      lat DOUBLE PRECISION,
+      lng DOUBLE PRECISION,
+      image_url TEXT,
+      is_featured BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/landmarks", async (_req, res) => {
+    try {
+      await ensureLandmarksTable();
+      const r = await query(`SELECT * FROM landmarks ORDER BY is_featured DESC, created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/admin/landmarks", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureLandmarksTable();
+      const r = await query(`SELECT * FROM landmarks ORDER BY created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/admin/landmarks", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureLandmarksTable();
+      const { name, description, category, lat, lng, image_url, is_featured } = req.body;
+      const r = await query(
+        `INSERT INTO landmarks (name,description,category,lat,lng,image_url,is_featured) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [name, description||null, category||null, lat||null, lng||null, image_url||null, !!is_featured]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/landmarks/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM landmarks WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Ads ───────────────────────────────────────────────────────────────────────
+  async function ensureAdsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS ads (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      image_url TEXT,
+      contact_phone VARCHAR(30),
+      category VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'pending',
+      is_featured BOOLEAN DEFAULT FALSE,
+      price NUMERIC(12,2),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS ads_settings (
+      key VARCHAR(50) PRIMARY KEY,
+      value TEXT
+    )`).catch(() => {});
+  }
+  app.get("/api/ads", async (_req, res) => {
+    try {
+      await ensureAdsTable();
+      const r = await query(`SELECT * FROM ads WHERE status='approved' ORDER BY is_featured DESC, created_at DESC LIMIT 100`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/ads/my-requests", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureAdsTable();
+      const r = await query(`SELECT * FROM ads WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/ads/settings", async (_req, res) => {
+    try {
+      await ensureAdsTable();
+      const r = await query(`SELECT key, value FROM ads_settings`);
+      const s: Record<string,string> = {};
+      for (const row of r.rows) s[row.key] = row.value;
+      res.json(s);
+    } catch { res.json({}); }
+  });
+  app.post("/api/ads/request", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureAdsTable();
+      const { title, description, image_url, contact_phone, category, price } = req.body;
+      const r = await query(
+        `INSERT INTO ads (user_id,title,description,image_url,contact_phone,category,price,status) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
+        [me.id, title, description||null, image_url||null, contact_phone||null, category||null, price||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/ads", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAdsTable();
+      const r = await query(`SELECT a.*, u.name as user_name FROM ads a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.put("/api/admin/ads/:id/status", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, is_featured } = req.body;
+      await query(`UPDATE ads SET status=COALESCE($1,status), is_featured=COALESCE($2,is_featured) WHERE id=$3`,
+        [status||null, is_featured!=null?is_featured:null, req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/ads/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM ads WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/admin/ads-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAdsTable();
+      for (const [k, v] of Object.entries(req.body)) {
+        await query(`INSERT INTO ads_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2`, [k, String(v)]);
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Jobs ──────────────────────────────────────────────────────────────────────
+  async function ensureJobsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS jobs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(200) NOT NULL,
+      company VARCHAR(200),
+      description TEXT,
+      requirements TEXT,
+      location VARCHAR(100),
+      salary_range VARCHAR(100),
+      job_type VARCHAR(50) DEFAULT 'full_time',
+      category VARCHAR(100),
+      contact_phone VARCHAR(30),
+      contact_email VARCHAR(150),
+      status VARCHAR(20) DEFAULT 'active',
+      deadline DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/jobs", async (req, res) => {
+    try {
+      await ensureJobsTable();
+      const q = req.query.q as string | undefined;
+      const cat = req.query.category as string | undefined;
+      let sql = `SELECT * FROM jobs WHERE status='active'`;
+      const params: any[] = [];
+      if (q) { params.push(`%${q}%`); sql += ` AND (title ILIKE $${params.length} OR company ILIKE $${params.length} OR description ILIKE $${params.length})`; }
+      if (cat) { params.push(cat); sql += ` AND category=$${params.length}`; }
+      sql += ` ORDER BY created_at DESC LIMIT 100`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/jobs", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureJobsTable();
+      const { title, company, description, requirements, location, salary_range, job_type, category, contact_phone, contact_email, deadline } = req.body;
+      const r = await query(
+        `INSERT INTO jobs (user_id,title,company,description,requirements,location,salary_range,job_type,category,contact_phone,contact_email,deadline)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        [me.id, title, company||null, description||null, requirements||null, location||null, salary_range||null, job_type||'full_time', category||null, contact_phone||null, contact_email||null, deadline||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/jobs", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureJobsTable();
+      const r = await query(`SELECT j.*, u.name as poster_name FROM jobs j LEFT JOIN users u ON u.id=j.user_id ORDER BY j.created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.patch("/api/admin/jobs/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`UPDATE jobs SET status=$1 WHERE id=$2`, [req.body.status||'active', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/jobs/:id", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const r = await query(`SELECT user_id FROM jobs WHERE id=$1`, [req.params.id]);
+      if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+      if (r.rows[0].user_id !== me.id && me.role !== "admin" && me.role !== "moderator") return res.status(403).json({ error: "غير مصرح" });
+      await query(`DELETE FROM jobs WHERE id=$1`, [req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Search ────────────────────────────────────────────────────────────────────
+  app.get("/api/search", async (req, res) => {
+    try {
+      const q = ((req.query.q as string) || "").trim();
+      if (!q || q.length < 2) return res.json({ users: [], posts: [], news: [], jobs: [] });
+      const like = `%${q}%`;
+      const [users, posts, news, jobs] = await Promise.all([
+        query(`SELECT id, name, neighborhood, avatar_url, role FROM users WHERE name ILIKE $1 LIMIT 10`, [like]),
+        query(`SELECT id, content, created_at FROM posts WHERE content ILIKE $1 ORDER BY created_at DESC LIMIT 10`, [like]),
+        query(`SELECT id, title, summary, image_url, created_at FROM news WHERE title ILIKE $1 OR summary ILIKE $1 ORDER BY created_at DESC LIMIT 10`, [like]).catch(() => ({ rows: [] })),
+        query(`SELECT id, title, company, location, created_at FROM jobs WHERE (title ILIKE $1 OR company ILIKE $1) AND status='active' LIMIT 10`, [like]).catch(() => ({ rows: [] })),
+      ]);
+      res.json({ users: users.rows, posts: posts.rows, news: news.rows, jobs: jobs.rows });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Emergency Numbers ─────────────────────────────────────────────────────────
+  async function ensureEmergencyNumbersTable() {
+    await query(`CREATE TABLE IF NOT EXISTS emergency_numbers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      number VARCHAR(50) NOT NULL,
+      category VARCHAR(50) DEFAULT 'general',
+      icon VARCHAR(50),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`INSERT INTO emergency_numbers (name,number,category,icon) VALUES
+      ('الشرطة','999','police','shield'),
+      ('الإسعاف','998','medical','medical'),
+      ('الإطفاء','998','fire','flame'),
+      ('الدفاع المدني','1030','civil','warning'),
+      ('مستشفى الحصاحيصا','0511844211','hospital','hospital'),
+      ('السلطة المحلية','0511844200','government','business')
+      ON CONFLICT DO NOTHING`).catch(() => {});
+  }
+  app.get("/api/emergency-numbers", async (_req, res) => {
+    try {
+      await ensureEmergencyNumbersTable();
+      const r = await query(`SELECT * FROM emergency_numbers ORDER BY category, name`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/admin/emergency-numbers", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureEmergencyNumbersTable(); const r = await query(`SELECT * FROM emergency_numbers ORDER BY category, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/admin/emergency-numbers", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureEmergencyNumbersTable();
+      const { name, number, category, icon } = req.body;
+      const r = await query(`INSERT INTO emergency_numbers (name,number,category,icon) VALUES ($1,$2,$3,$4) RETURNING *`, [name,number,category||'general',icon||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/admin/emergency-numbers/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { name, number, category, icon } = req.body;
+      await query(`UPDATE emergency_numbers SET name=COALESCE($1,name),number=COALESCE($2,number),category=COALESCE($3,category),icon=COALESCE($4,icon) WHERE id=$5`,
+        [name||null, number||null, category||null, icon||null, req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/emergency-numbers/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM emergency_numbers WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Transport ─────────────────────────────────────────────────────────────────
+  async function ensureTransportTables() {
+    await query(`CREATE TABLE IF NOT EXISTS transport_neighborhoods (
+      id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE,
+      fare NUMERIC(8,2) DEFAULT 0, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS transport_trips (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      from_neighborhood VARCHAR(100), to_neighborhood VARCHAR(100),
+      seats INTEGER DEFAULT 1, status VARCHAR(20) DEFAULT 'active',
+      notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS transport_drivers (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      vehicle_type VARCHAR(50), plate_number VARCHAR(30),
+      phone VARCHAR(30), neighborhood VARCHAR(100),
+      status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/transport/neighborhoods", async (_req, res) => {
+    try { await ensureTransportTables(); const r = await query(`SELECT * FROM transport_neighborhoods WHERE is_active=TRUE ORDER BY sort_order, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/transport/fares", async (_req, res) => {
+    try { await ensureTransportTables(); const r = await query(`SELECT name, fare FROM transport_neighborhoods WHERE is_active=TRUE ORDER BY sort_order, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/transport/trips", async (_req, res) => {
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT t.*, u.name as user_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id WHERE t.status='active' ORDER BY t.created_at DESC LIMIT 50`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/transport/my-trips", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureTransportTables(); const r = await query(`SELECT * FROM transport_trips WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/transport/trips", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const { from_neighborhood, to_neighborhood, seats, notes } = req.body;
+      const r = await query(
+        `INSERT INTO transport_trips (user_id,from_neighborhood,to_neighborhood,seats,notes) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [me.id, from_neighborhood||null, to_neighborhood||null, seats||1, notes||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/transport/drivers", async (_req, res) => {
+    try { await ensureTransportTables(); const r = await query(`SELECT d.*, u.name as user_name FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id WHERE d.status='approved' ORDER BY d.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/transport/drivers/register", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const { vehicle_type, plate_number, phone, neighborhood } = req.body;
+      const r = await query(
+        `INSERT INTO transport_drivers (user_id,vehicle_type,plate_number,phone,neighborhood) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [me.id, vehicle_type||null, plate_number||null, phone||null, neighborhood||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/transport/status", async (_req, res) => { res.json({ active: true, message: "خدمة النقل متاحة" }); });
+  app.get("/api/transport/neighborhoods/suggest", async (req, res) => {
+    try {
+      await ensureTransportTables();
+      const q = ((req.query.q as string)||"").trim();
+      const r = await query(`SELECT name, fare FROM transport_neighborhoods WHERE name ILIKE $1 AND is_active=TRUE LIMIT 10`, [`%${q}%`]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/transport/neighborhoods/community-stats", async (_req, res) => {
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT from_neighborhood as neighborhood, COUNT(*) as trip_count FROM transport_trips GROUP BY from_neighborhood ORDER BY trip_count DESC LIMIT 10`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/admin/transport/stats", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const [trips, drivers] = await Promise.all([
+        query(`SELECT COUNT(*) as total FROM transport_trips`),
+        query(`SELECT COUNT(*) as total FROM transport_drivers`),
+      ]);
+      res.json({ trips: Number(trips.rows[0].total), drivers: Number(drivers.rows[0].total) });
+    } catch { res.json({ trips: 0, drivers: 0 }); }
+  });
+  app.get("/api/admin/transport/trips", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureTransportTables(); const r = await query(`SELECT t.*, u.name as user_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id ORDER BY t.created_at DESC LIMIT 200`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/transport/drivers", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureTransportTables(); const r = await query(`SELECT d.*, u.name as user_name FROM transport_drivers d LEFT JOIN users u ON u.id=d.user_id ORDER BY d.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.patch("/api/admin/transport/drivers/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`UPDATE transport_drivers SET status=$1 WHERE id=$2`, [req.body.status||'pending', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/admin/neighborhoods", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const { neighborhoods } = req.body; // array of {name, fare}
+      if (Array.isArray(neighborhoods)) {
+        for (const n of neighborhoods) {
+          await query(`INSERT INTO transport_neighborhoods (name, fare) VALUES ($1,$2) ON CONFLICT(name) DO UPDATE SET fare=$2`, [n.name, n.fare||0]);
+        }
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/admin/neighborhoods/seed", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const defaultNeighborhoods = ["الحصاحيصا وسط","حلة سيد","حلة كاكوما","ود النيل","الخوض","البساتين","المزاد","القروض","حلة الصافية","الإمتداد"];
+      for (const name of defaultNeighborhoods) {
+        await query(`INSERT INTO transport_neighborhoods (name) VALUES ($1) ON CONFLICT DO NOTHING`, [name]);
+      }
+      res.json({ ok: true, count: defaultNeighborhoods.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Communities ───────────────────────────────────────────────────────────────
+  async function ensureCommunitiesTable() {
+    await query(`CREATE TABLE IF NOT EXISTS communities (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      description TEXT,
+      category VARCHAR(100),
+      leader_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      member_count INTEGER DEFAULT 0,
+      is_approved BOOLEAN DEFAULT FALSE,
+      image_url TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS community_members (
+      id SERIAL PRIMARY KEY,
+      community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      role VARCHAR(20) DEFAULT 'member',
+      joined_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(community_id, user_id)
+    )`).catch(() => {});
+  }
+  app.get("/api/communities", async (_req, res) => {
+    try {
+      await ensureCommunitiesTable();
+      const r = await query(`SELECT c.*, u.name as leader_name FROM communities c LEFT JOIN users u ON u.id=c.leader_id WHERE c.is_approved=TRUE ORDER BY c.member_count DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/communities/register", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureCommunitiesTable();
+      const { name, description, category } = req.body;
+      const r = await query(
+        `INSERT INTO communities (name,description,category,leader_id) VALUES ($1,$2,$3,$4) RETURNING *`,
+        [name, description||null, category||null, me.id]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/communities", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureCommunitiesTable(); const r = await query(`SELECT c.*, u.name as leader_name FROM communities c LEFT JOIN users u ON u.id=c.leader_id ORDER BY c.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.patch("/api/admin/communities/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`UPDATE communities SET is_approved=$1 WHERE id=$2`, [!!req.body.is_approved, req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Events ────────────────────────────────────────────────────────────────────
+  async function ensureEventsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS events (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(200) NOT NULL, description TEXT, category VARCHAR(100),
+      event_date TIMESTAMPTZ, location VARCHAR(200), image_url TEXT,
+      is_approved BOOLEAN DEFAULT FALSE, max_attendees INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS event_rentals (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, description TEXT,
+      category VARCHAR(100), phone VARCHAR(30), price_per_day NUMERIC(12,2),
+      image_url TEXT, is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/events", async (_req, res) => {
+    try {
+      await ensureEventsTables();
+      const r = await query(`SELECT e.*, u.name as organizer_name FROM events e LEFT JOIN users u ON u.id=e.user_id WHERE e.is_approved=TRUE ORDER BY e.event_date DESC LIMIT 50`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/events", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureEventsTables();
+      const { title, description, category, event_date, location, image_url, max_attendees } = req.body;
+      const r = await query(
+        `INSERT INTO events (user_id,title,description,category,event_date,location,image_url,max_attendees) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [me.id, title, description||null, category||null, event_date||null, location||null, image_url||null, max_attendees||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/event-rentals", async (_req, res) => {
+    try { await ensureEventsTables(); const r = await query(`SELECT * FROM event_rentals WHERE is_available=TRUE ORDER BY created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── Sports ────────────────────────────────────────────────────────────────────
+  async function ensureSportsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS sports_posts (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      content TEXT NOT NULL, image_url TEXT, sport_type VARCHAR(50),
+      likes_count INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS sports_players (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name VARCHAR(200) NOT NULL, sport_type VARCHAR(50), position VARCHAR(100),
+      neighborhood VARCHAR(100), phone VARCHAR(30), image_url TEXT,
+      is_verified BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS sports_matches (
+      id SERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, description TEXT,
+      sport_type VARCHAR(50), team_a VARCHAR(100), team_b VARCHAR(100),
+      match_date TIMESTAMPTZ, location VARCHAR(200), result VARCHAR(50),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/sports/posts", async (_req, res) => {
+    try { await ensureSportsTables(); const r = await query(`SELECT p.*, u.name as user_name, u.avatar_url FROM sports_posts p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/sports/posts", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureSportsTables();
+      const { content, image_url, sport_type } = req.body;
+      const r = await query(`INSERT INTO sports_posts (user_id,content,image_url,sport_type) VALUES ($1,$2,$3,$4) RETURNING *`, [me.id, content, image_url||null, sport_type||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/sports/players", async (_req, res) => {
+    try { await ensureSportsTables(); const r = await query(`SELECT * FROM sports_players ORDER BY is_verified DESC, created_at DESC LIMIT 100`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/sports/matches", async (_req, res) => {
+    try { await ensureSportsTables(); const r = await query(`SELECT * FROM sports_matches ORDER BY match_date DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── Prayer Times ──────────────────────────────────────────────────────────────
+  app.get("/api/prayer-times", async (_req, res) => {
+    // توقيت تقريبي لمدينة الحصاحيصا — يُحدَّث بالـ admin أو يُحسب من الـ latitude/longitude
+    res.json({
+      city: "الحصاحيصا", date: new Date().toLocaleDateString("ar-SA"),
+      fajr: "04:30", dhuhr: "12:15", asr: "15:45", maghrib: "18:30", isha: "19:45",
+      note: "أوقات تقريبية — يُرجى التحقق من التقويم المحلي"
+    });
+  });
+  app.get("/api/prayer-settings", async (_req, res) => {
+    res.json({ adhan_enabled: true, notification_before: 15, city: "الحصاحيصا", method: "MWL" });
+  });
+
+  // ── Map Places ────────────────────────────────────────────────────────────────
+  app.get("/api/map/places", async (req, res) => {
+    try {
+      await ensureLandmarksTable();
+      const r = await query(`SELECT id, name, description, category, lat, lng, image_url FROM landmarks WHERE lat IS NOT NULL AND lng IS NOT NULL`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Lost Items ────────────────────────────────────────────────────────────────
+  async function ensureLostItemsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS lost_items (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(200) NOT NULL, description TEXT, category VARCHAR(50),
+      item_type VARCHAR(20) DEFAULT 'lost', location VARCHAR(200),
+      contact_phone VARCHAR(30), image_url TEXT, is_resolved BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/lost-items", async (req, res) => {
+    try {
+      await ensureLostItemsTable();
+      const type = req.query.type as string | undefined;
+      let sql = `SELECT l.*, u.name as user_name FROM lost_items l LEFT JOIN users u ON u.id=l.user_id WHERE l.is_resolved=FALSE`;
+      const params: any[] = [];
+      if (type) { params.push(type); sql += ` AND l.item_type=$${params.length}`; }
+      sql += ` ORDER BY l.created_at DESC LIMIT 100`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/lost-items", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLostItemsTable();
+      const { title, description, category, item_type, location, contact_phone, image_url } = req.body;
+      const r = await query(
+        `INSERT INTO lost_items (user_id,title,description,category,item_type,location,contact_phone,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [me.id, title, description||null, category||null, item_type||'lost', location||null, contact_phone||null, image_url||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Medical Consultations & Specialists ───────────────────────────────────────
+  async function ensureMedicalExtTables() {
+    await query(`CREATE TABLE IF NOT EXISTS medical_consultations (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      question TEXT NOT NULL, specialty VARCHAR(100), status VARCHAR(20) DEFAULT 'pending',
+      answer TEXT, answered_by INTEGER REFERENCES users(id), created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS medical_specialists (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, specialty VARCHAR(100) NOT NULL,
+      qualifications TEXT, clinic_name VARCHAR(200), phone VARCHAR(30),
+      neighborhood VARCHAR(100), available_days TEXT, image_url TEXT,
+      is_verified BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/medical-consultations", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalExtTables();
+      const r = await query(`SELECT * FROM medical_consultations WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/medical-consultations", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureMedicalExtTables();
+      const { question, specialty } = req.body;
+      const r = await query(`INSERT INTO medical_consultations (user_id,question,specialty) VALUES ($1,$2,$3) RETURNING *`, [me.id, question, specialty||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/specialists", async (req, res) => {
+    try {
+      await ensureMedicalExtTables();
+      const spec = req.query.specialty as string | undefined;
+      let sql = `SELECT * FROM medical_specialists WHERE is_verified=TRUE`;
+      const params: any[] = [];
+      if (spec) { params.push(spec); sql += ` AND specialty ILIKE $${params.length}`; }
+      sql += ` ORDER BY name`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Rentals ───────────────────────────────────────────────────────────────────
+  async function ensureRentalsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS rentals (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(200) NOT NULL, description TEXT, category VARCHAR(100),
+      price_per_day NUMERIC(12,2), location VARCHAR(200), phone VARCHAR(30),
+      image_url TEXT, status VARCHAR(20) DEFAULT 'available', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS rental_contracts (
+      id SERIAL PRIMARY KEY, rental_id INTEGER REFERENCES rentals(id) ON DELETE SET NULL,
+      renter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      start_date DATE, end_date DATE, total_price NUMERIC(12,2),
+      status VARCHAR(20) DEFAULT 'active', notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/rentals", async (req, res) => {
+    try {
+      await ensureRentalsTable();
+      const r = await query(`SELECT r.*, u.name as owner_name FROM rentals r LEFT JOIN users u ON u.id=r.user_id WHERE r.status='available' ORDER BY r.created_at DESC LIMIT 100`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/rentals/contracts/my", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureRentalsTable();
+      const r = await query(`SELECT rc.*, r.title as rental_title FROM rental_contracts rc LEFT JOIN rentals r ON r.id=rc.rental_id WHERE rc.renter_id=$1 OR rc.owner_id=$1 ORDER BY rc.created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/rentals/settings", async (_req, res) => {
+    res.json({ commission_rate: 0.05, min_days: 1, max_days: 90, currency: "SDG" });
+  });
+
+  // ── Reports & Feedback ────────────────────────────────────────────────────────
+  async function ensureReportsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type VARCHAR(50) DEFAULT 'general', message TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS reports (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      target_type VARCHAR(50), target_id INTEGER, reason TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/feedback/mine", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureReportsTables(); const r = await query(`SELECT * FROM feedback WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/feedback", async (req, res) => {
+    const me = await getSessionUser(req);
+    try {
+      await ensureReportsTables();
+      const { type, message } = req.body;
+      const r = await query(`INSERT INTO feedback (user_id,type,message) VALUES ($1,$2,$3) RETURNING *`, [me?.id||null, type||'general', message]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/reports", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureReportsTables();
+      const r = await query(`SELECT * FROM reports WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/reports", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureReportsTables();
+      const { target_type, target_id, reason } = req.body;
+      const r = await query(`INSERT INTO reports (user_id,target_type,target_id,reason) VALUES ($1,$2,$3,$4) RETURNING *`, [me.id, target_type||null, target_id||null, reason]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Farmers ───────────────────────────────────────────────────────────────────
+  async function ensureFarmersTables() {
+    await query(`CREATE TABLE IF NOT EXISTS farmers_items (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      item_type VARCHAR(20) NOT NULL, title VARCHAR(200) NOT NULL,
+      description TEXT, quantity VARCHAR(100), unit VARCHAR(50),
+      price NUMERIC(12,2), location VARCHAR(200), image_url TEXT,
+      contact_phone VARCHAR(30), status VARCHAR(20) DEFAULT 'available',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/farmers/crops", async (_req, res) => {
+    try { await ensureFarmersTables(); const r = await query(`SELECT * FROM farmers_items WHERE item_type='crop' AND status='available' ORDER BY created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/farmers/lands", async (_req, res) => {
+    try { await ensureFarmersTables(); const r = await query(`SELECT * FROM farmers_items WHERE item_type='land' AND status='available' ORDER BY created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/farmers/tools", async (_req, res) => {
+    try { await ensureFarmersTables(); const r = await query(`SELECT * FROM farmers_items WHERE item_type='tool' AND status='available' ORDER BY created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/farmers/workers", async (_req, res) => {
+    try { await ensureFarmersTables(); const r = await query(`SELECT * FROM farmers_items WHERE item_type='worker' AND status='available' ORDER BY created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/farmers/:type", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const allowedTypes = ["crops","lands","tools","workers"];
+    const typeMap: Record<string,string> = { crops:"crop", lands:"land", tools:"tool", workers:"worker" };
+    const paramType = req.params.type;
+    if (!allowedTypes.includes(paramType)) return res.status(400).json({ error: "نوع غير صحيح" });
+    try {
+      await ensureFarmersTables();
+      const { title, description, quantity, unit, price, location, image_url, contact_phone } = req.body;
+      const r = await query(
+        `INSERT INTO farmers_items (user_id,item_type,title,description,quantity,unit,price,location,image_url,contact_phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [me.id, typeMap[paramType], title, description||null, quantity||null, unit||null, price||null, location||null, image_url||null, contact_phone||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Market (Merchants & Phone Shops) ─────────────────────────────────────────
+  async function ensureMarketTables() {
+    await query(`CREATE TABLE IF NOT EXISTS merchants (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      shop_name VARCHAR(200) NOT NULL, description TEXT, category VARCHAR(100),
+      phone VARCHAR(30), whatsapp VARCHAR(30), location VARCHAR(200),
+      image_url TEXT, logo_url TEXT, is_featured BOOLEAN DEFAULT FALSE,
+      status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS phone_shops (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      shop_name VARCHAR(200) NOT NULL, brands TEXT[], services TEXT[],
+      phone VARCHAR(30), location VARCHAR(200), image_url TEXT,
+      status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/merchants", async (req, res) => {
+    try {
+      await ensureMarketTables();
+      const cat = req.query.category as string | undefined;
+      let sql = `SELECT m.*, u.name as owner_name FROM merchants m LEFT JOIN users u ON u.id=m.user_id WHERE m.status='active'`;
+      const params: any[] = [];
+      if (cat) { params.push(cat); sql += ` AND m.category=$${params.length}`; }
+      sql += ` ORDER BY m.is_featured DESC, m.created_at DESC LIMIT 100`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/phone-shops", async (_req, res) => {
+    try { await ensureMarketTables(); const r = await query(`SELECT * FROM phone_shops WHERE status='active' ORDER BY created_at DESC LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/my-phone-shop", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureMarketTables(); const r = await query(`SELECT * FROM phone_shops WHERE user_id=$1 LIMIT 1`, [me.id]); res.json(r.rows[0] || null); }
+    catch { res.json(null); }
+  });
+  app.get("/api/admin/merchants", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureMarketTables(); const r = await query(`SELECT m.*, u.name as owner_name FROM merchants m LEFT JOIN users u ON u.id=m.user_id ORDER BY m.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/phone-shops", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureMarketTables(); const r = await query(`SELECT ps.*, u.name as owner_name FROM phone_shops ps LEFT JOIN users u ON u.id=ps.user_id ORDER BY ps.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── AI Support ────────────────────────────────────────────────────────────────
+  app.get("/api/ai/status", async (_req, res) => {
+    res.json({ available: true, model: "hasahisawi-assistant", message: "المساعد الذكي جاهز للمساعدة" });
+  });
+  app.post("/api/ai/chat", async (req, res) => {
+    const me = await getSessionUser(req);
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
+    // ردود ذكية محددة مسبقاً — يمكن ربطها بـ LLM API لاحقاً
+    const responses: Record<string, string> = {
+      default: "أهلاً بك في حصاحيصاوي! كيف يمكنني مساعدتك اليوم؟",
+      help: "يمكنني مساعدتك في: الأخبار، الوظائف، النقل، الخدمات الطبية، ومعلومات المدينة.",
+      مرحبا: "أهلاً وسهلاً! أنا المساعد الذكي لتطبيق حصاحيصاوي. كيف أخدمك؟",
+      وظائف: "يمكنك الاطلاع على آخر الوظائف المتاحة في قسم الوظائف بالتطبيق.",
+      نقل: "خدمة النقل متاحة في قسم التنقل. يمكنك حجز رحلة أو تقديم رحلة مشتركة.",
+    };
+    const lower = message.toLowerCase().trim();
+    let reply = responses.default;
+    for (const [key, val] of Object.entries(responses)) {
+      if (lower.includes(key)) { reply = val; break; }
+    }
+    res.json({ reply, timestamp: new Date().toISOString(), user: me?.name });
+  });
+
+  // ── Ratings Entities ──────────────────────────────────────────────────────────
+  app.get("/api/ratings/entities", async (req, res) => {
+    try {
+      const type = req.query.type as string | undefined;
+      const r = await query(`SELECT id, title, entity_type, rating, reviews_count FROM ratings WHERE ($1::text IS NULL OR entity_type=$1) ORDER BY rating DESC LIMIT 50`, [type||null]).catch(() => ({ rows: [] }));
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Admin Dashboard Stats ─────────────────────────────────────────────────────
+  app.get("/api/admin/dashboard-stats", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const [users, posts, news, notifications] = await Promise.all([
+        query(`SELECT COUNT(*) FROM users`),
+        query(`SELECT COUNT(*) FROM posts`).catch(() => ({ rows: [{ count: 0 }] })),
+        query(`SELECT COUNT(*) FROM news`).catch(() => ({ rows: [{ count: 0 }] })),
+        query(`SELECT COUNT(*) FROM notifications`).catch(() => ({ rows: [{ count: 0 }] })),
+      ]);
+      res.json({
+        users: Number(users.rows[0].count),
+        posts: Number(posts.rows[0].count),
+        news: Number(news.rows[0].count),
+        notifications: Number(notifications.rows[0].count),
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── App Version ───────────────────────────────────────────────────────────────
+  app.get("/api/app/version", async (_req, res) => {
+    res.json({ version: "6.3.2", versionCode: 232, forceUpdate: false, message: null });
+  });
+  app.get("/api/admin/app/version", async (_req, res) => {
+    res.json({ version: "6.3.2", versionCode: 232, forceUpdate: false, message: null });
+  });
+
+  // ── Feature Flags ─────────────────────────────────────────────────────────────
+  async function ensureFeatureFlagsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS feature_flags (
+      key VARCHAR(100) PRIMARY KEY, value BOOLEAN DEFAULT TRUE,
+      description TEXT, updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/app/feature-flags", async (_req, res) => {
+    try {
+      await ensureFeatureFlagsTable();
+      const r = await query(`SELECT key, value FROM feature_flags WHERE value=TRUE`);
+      const flags: Record<string,boolean> = {};
+      for (const row of r.rows) flags[row.key] = row.value;
+      res.json(flags);
+    } catch { res.json({}); }
+  });
+  app.get("/api/admin/feature-flags", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureFeatureFlagsTable();
+      const r = await query(`SELECT * FROM feature_flags ORDER BY key`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.put("/api/admin/feature-flags", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureFeatureFlagsTable();
+      const { key, value, description } = req.body;
+      await query(`INSERT INTO feature_flags(key,value,description) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=$2,description=COALESCE($3,feature_flags.description),updated_at=NOW()`,
+        [key, !!value, description||null]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Women Join Request ────────────────────────────────────────────────────────
+  async function ensureWomenTable() {
+    await query(`CREATE TABLE IF NOT EXISTS women_join_requests (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name VARCHAR(200) NOT NULL, phone VARCHAR(30), neighborhood VARCHAR(100),
+      interest TEXT, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.post("/api/women/join-request", async (req, res) => {
+    const me = await getSessionUser(req);
+    try {
+      await ensureWomenTable();
+      const { name, phone, neighborhood, interest } = req.body;
+      const r = await query(`INSERT INTO women_join_requests (user_id,name,phone,neighborhood,interest) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [me?.id||null, name, phone||null, neighborhood||null, interest||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Zawajil Apply ─────────────────────────────────────────────────────────────
+  async function ensureZawajilApplyTable() {
+    await query(`CREATE TABLE IF NOT EXISTS zawajil_applications (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      full_name VARCHAR(200) NOT NULL, age INTEGER, gender VARCHAR(10),
+      neighborhood VARCHAR(100), phone VARCHAR(30), occupation VARCHAR(100),
+      notes TEXT, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.post("/api/zawajil/apply", async (req, res) => {
+    const me = await getSessionUser(req);
+    try {
+      await ensureZawajilApplyTable();
+      const { full_name, age, gender, neighborhood, phone, occupation, notes } = req.body;
+      const r = await query(`INSERT INTO zawajil_applications (user_id,full_name,age,gender,neighborhood,phone,occupation,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [me?.id||null, full_name, age||null, gender||null, neighborhood||null, phone||null, occupation||null, notes||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Auth: upload avatar & update profile ──────────────────────────────────────
+  app.post("/api/auth/upload-avatar", async (req, res) => {
+    // Redirect to the main upload endpoint
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    // The actual upload is handled by /api/upload — this just updates avatar_url from body
+    try {
+      const { avatar_url } = req.body;
+      if (!avatar_url) return res.status(400).json({ error: "avatar_url مطلوب" });
+      await query(`UPDATE users SET avatar_url=$1 WHERE id=$2`, [avatar_url, me.id]);
+      const r = await query(`SELECT * FROM users WHERE id=$1`, [me.id]);
+      res.json({ user: r.rows[0] ? safeUser(r.rows[0]) : null });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/auth/profile", async (req, res) => {
+    // Alias for PUT /api/users/me
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { name, bio, neighborhood, gender, birth_date, avatar_url } = req.body;
+      await query(
+        `UPDATE users SET name=COALESCE($1,name), bio=COALESCE($2,bio), neighborhood=COALESCE($3,neighborhood), gender=COALESCE($4,gender), birth_date=COALESCE($5,birth_date), avatar_url=COALESCE($6,avatar_url) WHERE id=$7`,
+        [name||null, bio||null, neighborhood||null, gender||null, birth_date||null, avatar_url||null, me.id]
+      );
+      const r = await query(`SELECT * FROM users WHERE id=$1`, [me.id]);
+      res.json({ user: r.rows[0] ? safeUser(r.rows[0]) : null });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/users/me/bio", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE users SET bio=$1 WHERE id=$2`, [req.body.bio||null, me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Admin Honored Figures ────────────────────────────────────────────────────
+  async function ensureHonoredFiguresTable() {
+    await query(`CREATE TABLE IF NOT EXISTS honored_figures (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, title VARCHAR(200),
+      description TEXT, image_url TEXT, category VARCHAR(100),
+      birth_year INTEGER, neighborhood VARCHAR(100),
+      is_featured BOOLEAN DEFAULT FALSE, sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/honored-figures", async (_req, res) => {
+    try { await ensureHonoredFiguresTable(); const r = await query(`SELECT * FROM honored_figures ORDER BY is_featured DESC, sort_order, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/honored-figures", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureHonoredFiguresTable(); const r = await query(`SELECT * FROM honored_figures ORDER BY sort_order, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/admin/honored-figures", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureHonoredFiguresTable();
+      const { name, title, description, image_url, category, birth_year, neighborhood, is_featured, sort_order } = req.body;
+      const r = await query(
+        `INSERT INTO honored_figures (name,title,description,image_url,category,birth_year,neighborhood,is_featured,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [name, title||null, description||null, image_url||null, category||null, birth_year||null, neighborhood||null, !!is_featured, sort_order||0]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/admin/honored-figures/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { name, title, description, image_url, category, birth_year, neighborhood, is_featured, sort_order } = req.body;
+      await query(
+        `UPDATE honored_figures SET name=COALESCE($1,name),title=COALESCE($2,title),description=COALESCE($3,description),image_url=COALESCE($4,image_url),category=COALESCE($5,category),birth_year=COALESCE($6,birth_year),neighborhood=COALESCE($7,neighborhood),is_featured=COALESCE($8,is_featured),sort_order=COALESCE($9,sort_order) WHERE id=$10`,
+        [name||null, title||null, description||null, image_url||null, category||null, birth_year||null, neighborhood||null, is_featured!=null?is_featured:null, sort_order||null, req.params.id]
+      );
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/honored-figures/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM honored_figures WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── AI Settings (admin) ───────────────────────────────────────────────────────
+  async function ensureAiSettingsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS ai_settings (key VARCHAR(100) PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT NOW())`).catch(() => {});
+  }
+  app.put("/api/admin/ai-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAiSettingsTable();
+      for (const [k, v] of Object.entries(req.body)) {
+        await query(`INSERT INTO ai_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()`, [k, String(v)]);
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/ai-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAiSettingsTable();
+      const r = await query(`SELECT key, value FROM ai_settings`);
+      const s: Record<string,string> = {};
+      for (const row of r.rows) s[row.key] = row.value;
+      res.json(s);
+    } catch { res.json({}); }
+  });
+
+  // ── Admin Student Libraries ───────────────────────────────────────────────────
+  async function ensureStudentLibrariesTable() {
+    await query(`CREATE TABLE IF NOT EXISTS student_libraries (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, location VARCHAR(200),
+      phone VARCHAR(30), open_hours VARCHAR(100), description TEXT,
+      image_url TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/admin/student-libraries", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureStudentLibrariesTable(); const r = await query(`SELECT * FROM student_libraries ORDER BY name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/admin/student-libraries", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureStudentLibrariesTable();
+      const { name, location, phone, open_hours, description, image_url } = req.body;
+      const r = await query(`INSERT INTO student_libraries (name,location,phone,open_hours,description,image_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [name, location||null, phone||null, open_hours||null, description||null, image_url||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Educational Institutions ──────────────────────────────────────────────────
+  async function ensureEducationTables() {
+    await query(`CREATE TABLE IF NOT EXISTS educational_institutions (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, type VARCHAR(50),
+      level VARCHAR(50), location VARCHAR(200), phone VARCHAR(30),
+      principal VARCHAR(200), student_capacity INTEGER,
+      image_url TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS education_registrations (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      institution_id INTEGER REFERENCES educational_institutions(id) ON DELETE SET NULL,
+      student_name VARCHAR(200) NOT NULL, grade VARCHAR(50),
+      parent_name VARCHAR(200), parent_phone VARCHAR(30),
+      status VARCHAR(20) DEFAULT 'pending', notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS education_transfer_requests (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      from_school VARCHAR(200), to_school_id INTEGER REFERENCES educational_institutions(id),
+      student_name VARCHAR(200) NOT NULL, grade VARCHAR(50),
+      reason TEXT, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/educational-institutions", async (_req, res) => {
+    try { await ensureEducationTables(); const r = await query(`SELECT * FROM educational_institutions WHERE is_active=TRUE ORDER BY type, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/education/register-student", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureEducationTables();
+      const { institution_id, student_name, grade, parent_name, parent_phone } = req.body;
+      const r = await query(`INSERT INTO education_registrations (user_id,institution_id,student_name,grade,parent_name,parent_phone) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [me.id, institution_id||null, student_name, grade||null, parent_name||null, parent_phone||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/education/my-registrations", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureEducationTables(); const r = await query(`SELECT er.*, ei.name as school_name FROM education_registrations er LEFT JOIN educational_institutions ei ON ei.id=er.institution_id WHERE er.user_id=$1 ORDER BY er.created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/education/transfer-request", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureEducationTables();
+      const { from_school, to_school_id, student_name, grade, reason } = req.body;
+      const r = await query(`INSERT INTO education_transfer_requests (user_id,from_school,to_school_id,student_name,grade,reason) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [me.id, from_school||null, to_school_id||null, student_name, grade||null, reason||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/education/my-transfers", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureEducationTables(); const r = await query(`SELECT * FROM education_transfer_requests WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/educational-institutions", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureEducationTables(); const r = await query(`SELECT * FROM educational_institutions ORDER BY type, name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/education/registrations", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureEducationTables(); const r = await query(`SELECT er.*, ei.name as school_name, u.name as parent FROM education_registrations er LEFT JOIN educational_institutions ei ON ei.id=er.institution_id LEFT JOIN users u ON u.id=er.user_id ORDER BY er.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/education/transfers", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureEducationTables(); const r = await query(`SELECT etr.*, u.name as requester_name FROM education_transfer_requests etr LEFT JOIN users u ON u.id=etr.user_id ORDER BY etr.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── Moderator Service Requests ────────────────────────────────────────────────
+  app.get("/api/moderator/service-requests", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      // Returns recent contact messages + feedback as service requests
+      const r = await query(`SELECT id, message as content, 'contact' as type, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 50`).catch(() => ({ rows: [] }));
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/moderator/communities", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureCommunitiesTable(); const r = await query(`SELECT * FROM communities WHERE is_approved=FALSE ORDER BY created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── Design Gallery ────────────────────────────────────────────────────────────
+  async function ensureDesignGalleryTables() {
+    await query(`CREATE TABLE IF NOT EXISTS design_gallery_members (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      shop_name VARCHAR(200) NOT NULL, specialty TEXT[], portfolio_url TEXT,
+      instagram VARCHAR(100), phone VARCHAR(30), description TEXT,
+      package_id INTEGER, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS design_gallery_packages (
+      id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, description TEXT,
+      price NUMERIC(10,2), duration_days INTEGER, features JSONB, is_active BOOLEAN DEFAULT TRUE
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS design_gallery_orders (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      member_id INTEGER REFERENCES design_gallery_members(id) ON DELETE SET NULL,
+      description TEXT NOT NULL, budget NUMERIC(12,2), status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/design-gallery/members", async (_req, res) => {
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT dgm.*, u.name as user_name, u.avatar_url FROM design_gallery_members dgm LEFT JOIN users u ON u.id=dgm.user_id WHERE dgm.status='active' ORDER BY dgm.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/design-gallery/packages", async (_req, res) => {
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT * FROM design_gallery_packages WHERE is_active=TRUE ORDER BY price`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/design-gallery/products", async (_req, res) => {
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT dgm.id, dgm.shop_name as name, dgm.specialty, dgm.description, u.avatar_url as image_url FROM design_gallery_members dgm LEFT JOIN users u ON u.id=dgm.user_id WHERE dgm.status='active' LIMIT 50`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/design-gallery/orders", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT * FROM design_gallery_orders WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.post("/api/design-gallery/subscribe", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureDesignGalleryTables();
+      const { shop_name, specialty, portfolio_url, instagram, phone, description, package_id } = req.body;
+      const r = await query(
+        `INSERT INTO design_gallery_members (user_id,shop_name,specialty,portfolio_url,instagram,phone,description,package_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [me.id, shop_name, specialty||[], portfolio_url||null, instagram||null, phone||null, description||null, package_id||null]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/admin/design-gallery/members", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT dgm.*, u.name as user_name FROM design_gallery_members dgm LEFT JOIN users u ON u.id=dgm.user_id ORDER BY dgm.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/design-gallery/orders", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureDesignGalleryTables(); const r = await query(`SELECT dgo.*, u.name as client_name FROM design_gallery_orders dgo LEFT JOIN users u ON u.id=dgo.user_id ORDER BY dgo.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.patch("/api/admin/design-gallery/members/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`UPDATE design_gallery_members SET status=$1 WHERE id=$2`, [req.body.status||'pending', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/design-gallery/members/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM design_gallery_members WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Occasions Join & Shops ────────────────────────────────────────────────────
+  async function ensureOccasionsTables() {
+    await query(`CREATE TABLE IF NOT EXISTS occasion_join_requests (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      occasion_type VARCHAR(100) NOT NULL, message TEXT,
+      contact_phone VARCHAR(30), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS occasion_shops (
+      id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, category VARCHAR(100),
+      phone VARCHAR(30), location VARCHAR(200), image_url TEXT,
+      is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.post("/api/occasions/join-request", async (req, res) => {
+    const me = await getSessionUser(req);
+    try {
+      await ensureOccasionsTables();
+      const { occasion_type, message, contact_phone } = req.body;
+      const r = await query(`INSERT INTO occasion_join_requests (user_id,occasion_type,message,contact_phone) VALUES ($1,$2,$3,$4) RETURNING *`,
+        [me?.id||null, occasion_type, message||null, contact_phone||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/occasions/shops", async (_req, res) => {
+    try { await ensureOccasionsTables(); const r = await query(`SELECT * FROM occasion_shops WHERE is_active=TRUE ORDER BY name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/occasions/transport", async (_req, res) => {
+    try { await ensureTransportTables(); const r = await query(`SELECT * FROM transport_trips WHERE status='active' ORDER BY created_at DESC LIMIT 20`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+
+  // ── Lawyers ───────────────────────────────────────────────────────────────────
+  async function ensureLawyersTables() {
+    await query(`CREATE TABLE IF NOT EXISTS lawyers (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name VARCHAR(200) NOT NULL, specialties TEXT[], license_number VARCHAR(100),
+      phone VARCHAR(30), email VARCHAR(150), bio TEXT, image_url TEXT,
+      years_experience INTEGER, is_verified BOOLEAN DEFAULT FALSE,
+      status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS lawyer_ads (
+      id SERIAL PRIMARY KEY, lawyer_id INTEGER REFERENCES lawyers(id) ON DELETE CASCADE,
+      title VARCHAR(200) NOT NULL, description TEXT, image_url TEXT,
+      is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS lawyer_contracts (
+      id SERIAL PRIMARY KEY, lawyer_id INTEGER REFERENCES lawyers(id) ON DELETE SET NULL,
+      client_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      case_title VARCHAR(200), case_type VARCHAR(100), contract_date DATE,
+      fee NUMERIC(12,2), status VARCHAR(20) DEFAULT 'active',
+      notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS legal_forms (
+      id SERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, category VARCHAR(100),
+      description TEXT, file_url TEXT, is_free BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS lawyer_applications (
+      id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name VARCHAR(200) NOT NULL, specialties TEXT[], license_number VARCHAR(100),
+      phone VARCHAR(30), email VARCHAR(150), bio TEXT, image_url TEXT,
+      years_experience INTEGER, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+  app.get("/api/lawyers", async (req, res) => {
+    try {
+      await ensureLawyersTables();
+      const spec = req.query.specialty as string | undefined;
+      let sql = `SELECT l.*, u.name as user_name FROM lawyers l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='approved'`;
+      const params: any[] = [];
+      if (spec) { params.push(`%${spec}%`); sql += ` AND l.specialties::text ILIKE $${params.length}`; }
+      sql += ` ORDER BY l.is_verified DESC, l.created_at DESC`;
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/lawyer-ads", async (_req, res) => {
+    try { await ensureLawyersTables(); const r = await query(`SELECT la.*, l.name as lawyer_name FROM lawyer_ads la LEFT JOIN lawyers l ON l.id=la.lawyer_id WHERE la.is_active=TRUE ORDER BY la.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/my-lawyer-contracts", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureLawyersTables(); const r = await query(`SELECT lc.*, l.name as lawyer_name FROM lawyer_contracts lc LEFT JOIN lawyers l ON l.id=lc.lawyer_id WHERE lc.client_id=$1 ORDER BY lc.created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/legal-forms", async (_req, res) => {
+    try { await ensureLawyersTables(); const r = await query(`SELECT * FROM legal_forms WHERE is_free=TRUE ORDER BY category, title`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/lawyer-applications/mine", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try { await ensureLawyersTables(); const r = await query(`SELECT * FROM lawyer_applications WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/lawyer-applications/verify", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureLawyersTables(); const r = await query(`SELECT la.*, u.name as user_name FROM lawyer_applications la LEFT JOIN users u ON u.id=la.user_id WHERE la.status='pending' ORDER BY la.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/lawyer-applications", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureLawyersTables(); const r = await query(`SELECT la.*, u.name as user_name FROM lawyer_applications la LEFT JOIN users u ON u.id=la.user_id ORDER BY la.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.get("/api/admin/lawyers", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await ensureLawyersTables(); const r = await query(`SELECT l.*, u.name as user_name FROM lawyers l LEFT JOIN users u ON u.id=l.user_id ORDER BY l.created_at DESC`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
+  app.patch("/api/admin/lawyer-applications/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`UPDATE lawyer_applications SET status=$1 WHERE id=$2`, [req.body.status||'pending', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Lawyer Portal ─────────────────────────────────────────────────────────────
+  app.get("/api/my-lawyer-stats", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const lawyer = (await query(`SELECT id FROM lawyers WHERE user_id=$1 LIMIT 1`, [me.id])).rows[0];
+      if (!lawyer) return res.json({ cases: 0, active: 0, revenue: 0 });
+      const [cases, active] = await Promise.all([
+        query(`SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=$1`, [lawyer.id]),
+        query(`SELECT COUNT(*) FROM lawyer_contracts WHERE lawyer_id=$1 AND status='active'`, [lawyer.id]),
+      ]);
+      res.json({ cases: Number(cases.rows[0].count), active: Number(active.rows[0].count) });
+    } catch { res.json({ cases: 0, active: 0 }); }
+  });
+  app.get("/api/my-lawyer-cases", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const lawyer = (await query(`SELECT id FROM lawyers WHERE user_id=$1 LIMIT 1`, [me.id])).rows[0];
+      if (!lawyer) return res.json([]);
+      const r = await query(`SELECT lc.*, u.name as client_name FROM lawyer_contracts lc LEFT JOIN users u ON u.id=lc.client_id WHERE lc.lawyer_id=$1 ORDER BY lc.created_at DESC`, [lawyer.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.get("/api/my-lawyer-profile", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const r = await query(`SELECT * FROM lawyers WHERE user_id=$1 LIMIT 1`, [me.id]);
+      res.json(r.rows[0] || null);
+    } catch { res.json(null); }
+  });
+  app.get("/api/my-lawyer-pdf-data", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const lawyer = (await query(`SELECT * FROM lawyers WHERE user_id=$1 LIMIT 1`, [me.id])).rows[0];
+      const cases = lawyer ? (await query(`SELECT * FROM lawyer_contracts WHERE lawyer_id=$1 AND status='active'`, [lawyer.id])).rows : [];
+      res.json({ lawyer, cases });
+    } catch { res.json({ lawyer: null, cases: [] }); }
+  });
+
+  // ── Client Cases ──────────────────────────────────────────────────────────────
+  app.get("/api/client/cases", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const r = await query(`SELECT lc.*, l.name as lawyer_name FROM lawyer_contracts lc LEFT JOIN lawyers l ON l.id=lc.lawyer_id WHERE lc.client_id=$1 ORDER BY lc.created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
   const httpServer = createServer(app);
   return httpServer;
 }
