@@ -4,26 +4,33 @@ const file = new URL('../app/(tabs)/index.tsx', import.meta.url);
 let src = readFileSync(file, 'utf8');
 const before = src;
 
-const replaceAll = (from, to) => {
+function replaceOnce(from, to, label) {
+  if (src.includes(to)) return;
   if (!src.includes(from)) {
-    console.warn(`[patch-home-services-ui] block not found, skipping: ${from.slice(0, 80).replace(/\n/g, ' ')}`);
+    console.warn(`[patch-home-services-ui] skipped ${label}: source block not found`);
     return;
   }
   src = src.replace(from, to);
-};
+}
+
+function replaceEvery(from, to) {
+  src = src.split(from).join(to);
+}
 
 // 1) Arabic labels should not be truncated after one line.
-replaceAll(
+replaceOnce(
   '<Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>',
   '<Text style={styles.gridLabel} numberOfLines={2}>{item.label}</Text>',
+  'grid label lines',
 );
-replaceAll(
+replaceOnce(
   '<Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>',
   '<Text style={styles.gridSub} numberOfLines={2}>{item.sub}</Text>',
+  'grid sub lines',
 );
 
 // 2) Keep icons, but reduce their visual weight inside the card.
-replaceAll(
+replaceOnce(
 `          <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
             {item.iconType === "ionicons"
               ? <Ionicons name={item.icon} size={22} color={item.color} />
@@ -34,6 +41,7 @@ replaceAll(
               ? <Ionicons name={item.icon} size={19} color={item.color} />
               : <MaterialCommunityIcons name={item.icon} size={19} color={item.color} />}
           </View>`,
+  'icon visual weight',
 );
 
 // 3) Make long service names suitable for a compact card. The description keeps the meaning.
@@ -46,12 +54,10 @@ const labelReplacements = new Map([
   ['label: "شركات الاتصالات"', 'label: "الاتصالات"'],
   ['label: "النقابات المهنية"', 'label: "النقابات"'],
 ]);
-for (const [from, to] of labelReplacements) {
-  src = src.split(from).join(to);
-}
+for (const [from, to] of labelReplacements) replaceEvery(from, to);
 
 // 4) Give Arabic text breathing room without changing the 3-column layout.
-replaceAll(
+replaceOnce(
 `  gridItem: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderRadius: 20, padding: 14,
@@ -72,9 +78,10 @@ replaceAll(
     borderColor: "rgba(255,255,255,0.09)",
     overflow: "hidden",
   },`,
+  'grid item layout',
 );
 
-replaceAll(
+replaceOnce(
 `  gridGlow: {
     position: "absolute", bottom: 0, left: 0, right: 0, height: 55, borderRadius: 20,
   },`,
@@ -86,9 +93,10 @@ replaceAll(
     height: 42,
     borderRadius: 20,
   },`,
+  'grid glow',
 );
 
-replaceAll(
+replaceOnce(
 `  gridIconWrap: {
     width: 48, height: 48, borderRadius: 15,
     justifyContent: "center", alignItems: "center",
@@ -103,9 +111,10 @@ replaceAll(
     marginBottom: 7,
     borderWidth: 0.5,
   },`,
+  'icon box style',
 );
 
-replaceAll(
+replaceOnce(
 `  gridLabel: {
     fontFamily: "Cairo_700Bold", fontSize: 12,
     color: "rgba(240,253,244,0.92)", textAlign: "center",
@@ -120,9 +129,10 @@ replaceAll(
     lineHeight: 18,
     minHeight: 36,
   },`,
+  'grid label style',
 );
 
-replaceAll(
+replaceOnce(
 `  gridSub: {
     fontFamily: "Cairo_400Regular", fontSize: 9,
     color: "rgba(167,243,208,0.60)", textAlign: "center", marginTop: 2,
@@ -137,11 +147,12 @@ replaceAll(
     lineHeight: 13,
     minHeight: 26,
   },`,
+  'grid sub style',
 );
 
 if (src !== before) {
   writeFileSync(file, src);
   console.log('[patch-home-services-ui] Home service cards patched.');
 } else {
-  console.log('[patch-home-services-ui] Nothing changed.');
+  console.log('[patch-home-services-ui] Home service cards already clean.');
 }
