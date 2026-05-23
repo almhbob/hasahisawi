@@ -33,7 +33,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 231,
+      "versionCode": 232,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {

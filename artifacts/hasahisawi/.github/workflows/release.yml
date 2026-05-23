@@ -253,12 +253,13 @@ jobs:
 
             ### ميزات ${{ env.RELEASE_VERSION }}
             - ✅ إصلاح QR ربط الهاتف بالكمبيوتر (تسجيل الشاشات + إصلاح confirm route)
-            - ✅ إصلاح أعضاء Firebase في لوح التحكم
-            - ✅ إصلاح نغمات الإشعارات (إعادة بناء قنوات Android)
+            - ✅ إصلاح أعضاء Firebase في لوح التحكم (health + sync routes)
+            - ✅ إجبار المستخدمين الجدد على تحديد الجنس (Google + كل الحسابات)
             - ✅ قسم وكالات السفر والسياحة
             - ✅ قسم التهنئة الفاخر (6 أنماط ملكية + مشاركة + نشر)
-            - ✅ إصلاح رفع الصور عبر Cloudinary
+            - ✅ إضافة 80+ مسار API ناقص لجميع أقسام التطبيق
             - ✅ إصلاح أخطاء runtime حرجة (getAuthUser + Clipboard + greeting_likes)
+            - ✅ إشعارات Push مع نغمات مخصصة لكل قسم
           files: |
             hasahisawi-${{ env.RELEASE_VERSION }}.apk
             hasahisawi-${{ env.RELEASE_VERSION }}.aab
