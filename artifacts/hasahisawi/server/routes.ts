@@ -6043,6 +6043,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(() => {});
   }
+  app.get("/api/feedback", async (req, res) => {
+    try { await ensureReportsTables(); const r = await query(`SELECT * FROM feedback ORDER BY created_at DESC LIMIT 100`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
   app.get("/api/feedback/mine", async (req, res) => {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
@@ -6521,6 +6525,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       image_url TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(() => {});
   }
+  app.get("/api/student-libraries", async (_req, res) => {
+    try { await ensureStudentLibrariesTable(); const r = await query(`SELECT * FROM student_libraries WHERE is_active=TRUE ORDER BY name`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
   app.get("/api/admin/student-libraries", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await ensureStudentLibrariesTable(); const r = await query(`SELECT * FROM student_libraries ORDER BY name`); res.json(r.rows); }
@@ -6602,15 +6610,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { await ensureEducationTables(); const r = await query(`SELECT * FROM educational_institutions ORDER BY type, name`); res.json(r.rows); }
     catch { res.json([]); }
   });
+  app.post("/api/admin/educational-institutions", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureEducationTables();
+      const { name, type, level, location, phone, principal, student_capacity, image_url } = req.body;
+      const r = await query(`INSERT INTO educational_institutions (name,type,level,location,phone,principal,student_capacity,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [name, type||null, level||null, location||null, phone||null, principal||null, student_capacity||null, image_url||null]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.patch("/api/admin/educational-institutions/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { const { is_active } = req.body; await query(`UPDATE educational_institutions SET is_active=COALESCE($1,is_active) WHERE id=$2`, [is_active!=null?is_active:null, req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/educational-institutions/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM educational_institutions WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
   app.get("/api/admin/education/registrations", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await ensureEducationTables(); const r = await query(`SELECT er.*, ei.name as school_name, u.name as parent FROM education_registrations er LEFT JOIN educational_institutions ei ON ei.id=er.institution_id LEFT JOIN users u ON u.id=er.user_id ORDER BY er.created_at DESC`); res.json(r.rows); }
     catch { res.json([]); }
   });
+  app.patch("/api/admin/education/registrations/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { const { status } = req.body; await query(`UPDATE education_registrations SET status=$1 WHERE id=$2`, [status||'pending', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
   app.get("/api/admin/education/transfers", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await ensureEducationTables(); const r = await query(`SELECT etr.*, u.name as requester_name FROM education_transfer_requests etr LEFT JOIN users u ON u.id=etr.user_id ORDER BY etr.created_at DESC`); res.json(r.rows); }
     catch { res.json([]); }
+  });
+  app.patch("/api/admin/education/transfers/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { const { status } = req.body; await query(`UPDATE education_transfer_requests SET status=$1 WHERE id=$2`, [status||'pending', req.params.id]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Moderator Service Requests ────────────────────────────────────────────────
