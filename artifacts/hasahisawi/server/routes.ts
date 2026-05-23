@@ -6807,6 +6807,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch { res.json([]); }
   });
 
+  // ── Client Case Chat ─────────────────────────────────────────────────────────
+  app.get("/api/client/cases/:id/messages", async (req, res) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_messages (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const page  = parseInt(String(req.query.page  || 1));
+      const limit = parseInt(String(req.query.limit || 50));
+      const offset = (page - 1) * limit;
+      const r = await query(`SELECT cm.*, u.name as sender_name FROM case_messages cm LEFT JOIN users u ON u.id=cm.user_id WHERE cm.contract_id=$1 ORDER BY cm.created_at DESC LIMIT $2 OFFSET $3`, [parseInt(req.params.id), limit, offset]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/client/cases/:id/messages", async (req, res) => {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_messages (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const r = await query(`INSERT INTO case_messages (contract_id, user_id, content) VALUES ($1,$2,$3) RETURNING *`, [parseInt(req.params.id), me.id, req.body.content]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.get("/api/client/cases/:id/documents", async (req, res) => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS case_documents (id SERIAL PRIMARY KEY, contract_id INTEGER REFERENCES lawyer_contracts(id) ON DELETE CASCADE, user_id INTEGER, name VARCHAR(200), url TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      const page  = parseInt(String(req.query.page  || 1));
+      const limit = parseInt(String(req.query.limit || 50));
+      const offset = (page - 1) * limit;
+      const r = await query(`SELECT * FROM case_documents WHERE contract_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [parseInt(req.params.id), limit, offset]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
   // ── Institution Applications (Org Join) ──────────────────────────────────────
   async function ensureInstitutionApplicationsTables() {
     await query(`CREATE TABLE IF NOT EXISTS institution_applications (
