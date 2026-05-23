@@ -6308,6 +6308,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { await ensureHonoredFiguresTable(); const r = await query(`SELECT * FROM honored_figures ORDER BY is_featured DESC, sort_order, name`); res.json(r.rows); }
     catch { res.json([]); }
   });
+  // alias for singular form used in index screen
+  app.get("/api/honored-figure", async (_req, res) => {
+    try { await ensureHonoredFiguresTable(); const r = await query(`SELECT * FROM honored_figures WHERE is_featured=TRUE ORDER BY sort_order, name LIMIT 10`); res.json(r.rows); }
+    catch { res.json([]); }
+  });
   app.get("/api/admin/honored-figures", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await ensureHonoredFiguresTable(); const r = await query(`SELECT * FROM honored_figures ORDER BY sort_order, name`); res.json(r.rows); }
