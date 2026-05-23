@@ -5053,6 +5053,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try { await query(`DELETE FROM ads WHERE id=$1`, [req.params.id]); res.json({ ok: true }); }
     catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+  app.get("/api/admin/ads-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAdsTable();
+      const r = await query(`SELECT key, value FROM ads_settings`).catch(() => ({ rows: [] }));
+      const settings: Record<string, any> = {};
+      for (const row of r.rows) settings[row.key] = row.value;
+      res.json(settings);
+    } catch { res.json({}); }
+  });
   app.put("/api/admin/ads-settings", async (req, res) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
@@ -5062,6 +5072,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Admin Contract Settings ───────────────────────────────────────────────────
+  app.get("/api/admin/contract-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS contract_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)`);
+      const r = await query(`SELECT key, value FROM contract_settings`);
+      const s: Record<string, any> = {};
+      for (const row of r.rows) s[row.key] = row.value;
+      res.json(s);
+    } catch { res.json({}); }
+  });
+  app.put("/api/admin/contract-settings", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS contract_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)`);
+      for (const [k, v] of Object.entries(req.body)) {
+        await query(`INSERT INTO contract_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2`, [k, String(v)]);
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Admin Neighborhoods GET ───────────────────────────────────────────────────
+  app.get("/api/admin/neighborhoods", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT * FROM transport_neighborhoods ORDER BY name`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Admin External Partnerships ───────────────────────────────────────────────
+  app.get("/api/admin/external-partnerships", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const status = req.query.status as string | undefined;
+      let sql = `SELECT ep.*, u.name as user_name FROM external_partnership_applications ep LEFT JOIN users u ON u.id=ep.user_id WHERE 1=1`;
+      const params: any[] = [];
+      if (status && status !== "all") { params.push(status); sql += ` AND ep.status=$${params.length}`; }
+      sql += ` ORDER BY ep.created_at DESC`;
+      const r = await query(sql, params).catch(() => ({ rows: [] }));
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.put("/api/admin/external-partnerships/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_note } = req.body;
+      await query(`UPDATE external_partnership_applications SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note) WHERE id=$3`, [status||null, admin_note||null, parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/external-partnerships/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM external_partnership_applications WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Admin Lawyer Applications Approve/Reject ──────────────────────────────────
+  app.post("/api/admin/lawyer-applications/:id/approve", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureLawyersTables();
+      const app_row = (await query(`SELECT * FROM lawyer_applications WHERE id=$1`, [parseInt(req.params.id)])).rows[0];
+      if (!app_row) return res.status(404).json({ error: "غير موجود" });
+      await query(`UPDATE lawyer_applications SET status='approved' WHERE id=$1`, [parseInt(req.params.id)]);
+      // Create lawyer record
+      await query(`INSERT INTO lawyers (user_id, name, phone, specialty, status) VALUES ($1,$2,$3,$4,'approved') ON CONFLICT DO NOTHING`, [app_row.user_id, app_row.full_name||'', app_row.phone||null, app_row.specialty||null]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/admin/lawyer-applications/:id/reject", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { admin_note } = req.body;
+      await query(`UPDATE lawyer_applications SET status='rejected', admin_note=$1 WHERE id=$2`, [admin_note||null, parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Admin Phone Shops PUT/DELETE ──────────────────────────────────────────────
+  app.put("/api/admin/phone-shops/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { is_approved, is_verified, is_featured } = req.body;
+      await query(`UPDATE phone_shops SET is_approved=COALESCE($1,is_approved), is_verified=COALESCE($2,is_verified), is_featured=COALESCE($3,is_featured) WHERE id=$4`, [is_approved??null, is_verified??null, is_featured??null, parseInt(req.params.id)]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/admin/phone-shops/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try { await query(`DELETE FROM phone_shops WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Jobs ──────────────────────────────────────────────────────────────────────
