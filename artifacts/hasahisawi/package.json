@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "node scripts/patch-home-services-ui.mjs && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "dev": "node scripts/patch-home-services-ui.mjs && pnpm exec expo start --localhost --port 8081",
     "prebuild": "node scripts/patch-home-services-ui.mjs && node scripts/apply-admin-attention-alerts.mjs && node scripts/apply-partner-zone.mjs && node scripts/apply-service-links-tab.mjs && node scripts/apply-settings-layout-fix.mjs && node scripts/apply-travel-bus-identity.mjs",
     "build": "node scripts/patch-home-services-ui.mjs && node scripts/build.js",
     "serve": "node server/serve.js",
