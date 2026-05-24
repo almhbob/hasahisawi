@@ -4,9 +4,9 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "node scripts/patch-home-services-ui.mjs && pnpm exec expo start --localhost --port 8081",
-    "prebuild": "node scripts/patch-home-services-ui.mjs && node scripts/apply-admin-attention-alerts.mjs && node scripts/apply-partner-zone.mjs && node scripts/apply-service-links-tab.mjs && node scripts/apply-settings-layout-fix.mjs && node scripts/apply-travel-bus-identity.mjs",
-    "build": "node scripts/patch-home-services-ui.mjs && node scripts/build.js",
+    "dev": "node scripts/patch-travel-agency-workspace.mjs && node scripts/patch-home-services-ui.mjs && pnpm exec expo start --localhost --port 8081",
+    "prebuild": "node scripts/patch-travel-agency-workspace.mjs && node scripts/patch-home-services-ui.mjs && node scripts/apply-admin-attention-alerts.mjs && node scripts/apply-partner-zone.mjs && node scripts/apply-service-links-tab.mjs && node scripts/apply-settings-layout-fix.mjs && node scripts/apply-travel-bus-identity.mjs",
+    "build": "node scripts/patch-travel-agency-workspace.mjs && node scripts/patch-home-services-ui.mjs && node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
