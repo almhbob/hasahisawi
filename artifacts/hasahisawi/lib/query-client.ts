@@ -3,9 +3,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const USER_TOKEN_KEY = "auth_backend_token";
+
+const DEFAULT_PRODUCTION_API_URL = "https://hasahisawi.onrender.com";
+
+function cleanBaseUrl(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\/$/, "");
+}
+
 const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
+  cleanBaseUrl(process.env.EXPO_PUBLIC_API_URL) ||
+  cleanBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL) ||
+  cleanBaseUrl(process.env.VITE_API_BASE_URL) ||
+  DEFAULT_PRODUCTION_API_URL;
 
 export function getApiUrl(): string {
   return API_URL;
@@ -14,20 +25,27 @@ export function getApiUrl(): string {
 export const LEGACY_API_URL = API_URL;
 
 export function isApiConfigured(): boolean {
-  return !!API_URL;
+  return !!API_URL && /^https?:\/\//.test(API_URL);
+}
+
+async function tryHealthEndpoint(path: string, timeoutMs = 10000): Promise<boolean> {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_URL}${path}`, { signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(tid);
+  }
 }
 
 export async function wakeUpServer(): Promise<void> {
-  const url = `${API_URL}/api/healthz`;
+  const healthPaths = ["/api/readyz", "/api/healthz"];
   for (let i = 0; i < 3; i++) {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 10000);
-    try {
-      const res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(tid);
-      if (res.ok) return;
-    } catch {
-      clearTimeout(tid);
+    for (const path of healthPaths) {
+      if (await tryHealthEndpoint(path)) return;
     }
     if (i < 2) await new Promise((resolve) => setTimeout(resolve, 3000));
   }
@@ -38,7 +56,6 @@ export async function fetchWithTimeout(
   init: RequestInit & { timeout?: number } = {},
   ms = 15000,
 ): Promise<Response> {
-  // Support timeout either as 3rd arg or as init.timeout property
   const timeout = (init as any).timeout ?? ms;
   const { timeout: _ignored, ...cleanInit } = init as any;
   const ctrl = new AbortController();
@@ -102,7 +119,8 @@ export async function apiRequest(
   data?: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<Response> {
-  const url = API_URL + route;
+  const path = route.startsWith("/") ? route : `/${route}`;
+  const url = API_URL + path;
   const authHeaders = await getAuthHeaders();
 
   const res = await fetchWithRetry(url, {
@@ -126,7 +144,8 @@ export function getQueryFn<T>(options: { on401: UnauthorizedBehavior }): QueryFu
 
   return async ({ queryKey }) => {
     const path = queryKey.join("/") as string;
-    const url = path.startsWith("http") ? path : API_URL + path;
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const url = normalizedPath.startsWith("http") ? normalizedPath : API_URL + normalizedPath;
     const authHeaders = await getAuthHeaders();
 
     const res = await fetchWithRetry(url, {
