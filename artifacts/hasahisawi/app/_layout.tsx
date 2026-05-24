@@ -148,17 +148,19 @@ function AuthGate() {
       return;
     }
 
-    // إذا لم يُحدَّد الجنس (مستخدم Google جديد) → أجبره على إكمال الملف
-    const needsGender = !isGuest && user && !user.gender;
-    if (needsGender && !inCompleteProfile) {
-      router.replace("/complete-profile" as any);
+    // إذا لم يُحدَّد الجنس → أبقه في شاشة إكمال الملف حتى يحفظ.
+    // كان الشرط القديم يعيد المستخدم من complete-profile إلى الرئيسية مباشرةً،
+    // ثم يرجعه مرة أخرى إلى complete-profile، وهذا يسبب Maximum update depth exceeded.
+    const needsGender = !isGuest && !!user && !user.gender;
+    if (needsGender) {
+      if (!inCompleteProfile) router.replace("/complete-profile" as any);
       return;
     }
 
     if (inLogin || inOnboarding || inCompleteProfile) {
       router.replace("/(tabs)/" as any);
     }
-  }, [user, isLoading, segments, isGuest]);
+  }, [user?.id, user?.gender, isLoading, isGuest, segments.join("/")]);
 
   return null;
 }

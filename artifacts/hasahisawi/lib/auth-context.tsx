@@ -896,14 +896,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       15000,
     );
     if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث البيانات");
-    setUser(prev => prev ? { ...prev, gender, ...(neighborhood ? { neighborhood } : {}) } : prev);
-    try {
-      const saved = await AsyncStorage.getItem(USER_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        await AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, user: { ...(parsed.user ?? {}), gender, ...(neighborhood ? { neighborhood } : {}) } }));
-      }
-    } catch {}
+    const updatedUser = user ? { ...user, gender, ...(neighborhood ? { neighborhood } : {}) } : null;
+    if (updatedUser) {
+      setUser(updatedUser);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    } else {
+      setUser(prev => prev ? { ...prev, gender, ...(neighborhood ? { neighborhood } : {}) } : prev);
+      try {
+        const saved = await AsyncStorage.getItem(USER_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, gender, ...(neighborhood ? { neighborhood } : {}) }));
+        }
+      } catch {}
+    }
+
+    // Keep Firestore profile aligned for Firebase/Google accounts. This is best-effort
+    // and does not block the user from completing the profile.
+    if (user?.uid) {
+      fsSetDoc(
+        COLLECTIONS.USERS,
+        user.uid,
+        { uid: user.uid, name: user.name, email: user.email ?? undefined, phone: user.phone ?? undefined, role: user.role === "guest" ? "user" : user.role, permissions: user.permissions ?? [], gender, ...(neighborhood ? { neighborhood } : {}) },
+        true,
+      ).catch(() => {});
+    }
   };
 
   const register = async (
