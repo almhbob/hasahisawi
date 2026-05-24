@@ -1,0 +1,46 @@
+name: Repair complete profile flow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'artifacts/hasahisawi/app/_layout.tsx'
+      - 'artifacts/hasahisawi/lib/auth-context.tsx'
+      - 'artifacts/hasahisawi/scripts/patch-complete-profile-flow.mjs'
+      - '.github/workflows/repair-complete-profile.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run complete profile repair
+        working-directory: artifacts/hasahisawi
+        run: node scripts/patch-complete-profile-flow.mjs
+
+      - name: Check for complete profile redirect loop
+        run: |
+          if grep -q 'if (inLogin || inOnboarding || inCompleteProfile)' artifacts/hasahisawi/app/_layout.tsx && grep -q 'needsGender && !inCompleteProfile' artifacts/hasahisawi/app/_layout.tsx; then
+            echo 'Potential complete-profile redirect loop still exists.'
+            exit 1
+          fi
+
+      - name: Commit repaired files
+        run: |
+          if git diff --quiet; then
+            echo 'No repair changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add artifacts/hasahisawi/app/_layout.tsx artifacts/hasahisawi/lib/auth-context.tsx
+          git commit -m 'Apply complete profile flow repair'
+          git push
