@@ -1,0 +1,50 @@
+{
+  "sentAt": "2026-05-25T16:30:51.970Z",
+  "results": [
+    {
+      "org": {
+        "name": "جامعة الجزيرة",
+        "email": "info@uofg.edu.sd",
+        "type": "university"
+      },
+      "ok": false,
+      "status": 403
+    },
+    {
+      "org": {
+        "name": "أكاديمية العلوم الصحية - الحصاحيصا",
+        "email": "info@ahshs.org",
+        "type": "university"
+      },
+      "ok": false,
+      "status": 403
+    },
+    {
+      "org": {
+        "name": "جامعة المناقل للعلوم والتكنولوجيا",
+        "email": "info@must.edu.sd",
+        "type": "university"
+      },
+      "ok": false,
+      "status": 403
+    },
+    {
+      "org": {
+        "name": "جامعة البطانة",
+        "email": "info@albutana.edu.sd",
+        "type": "university"
+      },
+      "ok": false,
+      "status": 403
+    },
+    {
+      "org": {
+        "name": "كلية الجزيرة للعلوم الطبية",
+        "email": "info@geziracollegesudan.com",
+        "type": "university"
+      },
+      "ok": false,
+      "status": 403
+    }
+  ]
+}

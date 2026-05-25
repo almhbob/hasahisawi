@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إرسال دعوات واتساب — حصاحيصاوي</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; direction: rtl; }
+  h1 { color: #2ECC71; text-align: center; margin-bottom: 8px; font-size: 26px; }
+  .subtitle { text-align: center; color: #8b949e; margin-bottom: 32px; font-size: 14px; }
+  .stats { display: flex; gap: 16px; justify-content: center; margin-bottom: 32px; }
+  .stat { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 24px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: bold; color: #2ECC71; }
+  .stat-label { font-size: 12px; color: #8b949e; margin-top: 4px; }
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 15px; font-weight: bold; color: #58a6ff; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+  .org-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: border-color 0.2s; }
+  .org-card:hover { border-color: #2ECC71; }
+  .org-info { flex: 1; }
+  .org-name { font-size: 15px; font-weight: 600; color: #e6edf3; }
+  .org-loc { font-size: 12px; color: #8b949e; margin-top: 3px; }
+  .org-phone { font-size: 13px; color: #2ECC71; margin-top: 4px; direction: ltr; text-align: right; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: #25D366; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; white-space: nowrap; transition: background 0.2s; }
+  .btn:hover { background: #1ebe5a; }
+  .btn-copy { background: #30363d; color: #e6edf3; border: none; cursor: pointer; }
+  .btn-copy:hover { background: #3d444d; }
+  .sent { border-color: #2ECC71; opacity: 0.7; }
+  .sent .btn { background: #1a7a3a; cursor: default; }
+  .msg-preview { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 12px; color: #8b949e; line-height: 1.6; display: none; white-space: pre-wrap; direction: rtl; }
+  .toggle-msg { font-size: 11px; color: #58a6ff; cursor: pointer; margin-top: 6px; display: inline-block; }
+  .toggle-msg:hover { text-decoration: underline; }
+  .counter { text-align: center; margin: 16px 0; font-size: 13px; color: #8b949e; }
+  .counter span { color: #2ECC71; font-weight: bold; font-size: 18px; }
+</style>
+</head>
+<body>
+
+<h1>🌿 دعوات واتساب — حصاحيصاوي</h1>
+<p class="subtitle">اضغط على كل زر لفتح واتساب مع الرسالة جاهزة للإرسال</p>
+
+<div class="stats">
+  <div class="stat"><div class="stat-num" id="total-count">0</div><div class="stat-label">إجمالي الجهات</div></div>
+  <div class="stat"><div class="stat-num" id="sent-count">0</div><div class="stat-label">تم الإرسال</div></div>
+  <div class="stat"><div class="stat-num" id="remain-count">0</div><div class="stat-label">متبقية</div></div>
+</div>
+
+<div id="org-list"></div>
+
+<script>
+const MSG_UNIVERSITY = (name) => `السلام عليكم ورحمة الله 🌿
+
+نتواصل معكم من فريق *منصة حصاحيصاوي* — المنصة الرقمية الأولى لأبناء ولاية الجزيرة.
+
+ندعو *${name}* للانضمام إلينا مجاناً للاستفادة من:
+✅ نشر أخبار وفعاليات مؤسستكم
+✅ استقبال طلبات الالتحاق إلكترونياً
+✅ الوصول لأكثر من *٥٠٠٠ مستخدم* من أبناء المنطقة
+✅ دليل المؤسسات التعليمية في التطبيق
+
+*التسجيل مجاني تماماً* ولا يستغرق سوى دقيقتين.
+
+🔗 https://almhbob.github.io/hasahisawi/
+
+هل تودّون معرفة المزيد؟ يسعدنا الإجابة 🙏
+فريق حصاحيصاوي`;
+
+const MSG_HOSPITAL = (name) => `السلام عليكم ورحمة الله 🌿
+
+من فريق *منصة حصاحيصاوي* — أول منصة رقمية محلية في ولاية الجزيرة.
+
+نوجه دعوة خاصة لـ *${name}* للاستفادة من خدماتنا الصحية الرقمية المجانية:
+
+🏥 إصدار *إجازات مرضية إلكترونية* بباركود
+📅 استقبال *طلبات المواعيد* من المرضى
+💊 *وصفات طبية رقمية* مرتبطة بالمريض
+🔬 إدارة *طلبات الفحوصات* ونتائجها
+
+كل هذا مجاناً ويخدم أكثر من *٥٠٠٠ مواطن* من المنطقة.
+
+🔗 https://almhbob.github.io/hasahisawi/
+
+نحن هنا لأي استفسار 🙏
+فريق حصاحيصاوي`;
+
+const MSG_BANK = (name) => `السلام عليكم 🌿
+
+من فريق *منصة حصاحيصاوي* — المنصة الرقمية الأولى في ولاية الجزيرة.
+
+نسعد بدعوة *${name}* للانضمام إلينا والاستفادة من:
+
+📣 *حضور رقمي* أمام ٥٠٠٠+ مستخدم محلي
+💼 *نشر فرص العمل* والوصول لأفضل الكفاءات
+📊 *عرض خدماتكم* في القسم المخصص بالتطبيق
+🤝 *شراكة مجتمعية* تعزز حضوركم في المنطقة
+
+*الانضمام مجاني تماماً.*
+
+🔗 https://almhbob.github.io/hasahisawi/
+
+يسعدنا ترتيب لقاء للتعريف بالمنصة 🙏`;
+
+const MSG_ORG = (name) => `السلام عليكم ورحمة الله 🌿
+
+نحن فريق *حصاحيصاوي* — منصة مجتمعية رقمية تخدم أبناء ولاية الجزيرة.
+
+ندعو *${name}* للانضمام إلينا مجاناً:
+
+🌱 نشر *أنشطتكم وفعالياتكم* للمجتمع المحلي
+📢 التواصل المباشر مع *المستفيدين في منطقتكم*
+🤝 بناء *شبكة شراكات* مع مؤسسات الولاية
+📋 *استقبال الطلبات والتسجيلات* إلكترونياً
+
+🔗 https://almhbob.github.io/hasahisawi/
+
+بانتظار انضمامكم 🙏
+فريق حصاحيصاوي`;
+
+const organizations = [
+  // ── جامعات ومعاهد ──────────────────────────────────────────────
+  { name: "كلية التربية — جامعة الجزيرة",           phone: "00249511810000", location: "حصاحيصا",  type: "university" },
+  { name: "أكاديمية العلوم الصحية",                 phone: "00249912123456", location: "حصاحيصا",  type: "university" },
+  { name: "كلية الحصاحيصا للعلوم الطبية",           phone: "00249912000000", location: "حصاحيصا",  type: "university" },
+  { name: "كلية الجزيرة للعلوم الطبية",             phone: "00249912349947", location: "ود مدني",  type: "university" },
+  { name: "جامعة المناقل للعلوم والتكنولوجيا",      phone: "00249511500000", location: "المناقل",  type: "university" },
+  { name: "جامعة البطانة",                          phone: "00249129532662", location: "رفاعة",    type: "university" },
+  { name: "جامعة ود مدني الأهلية",                  phone: "00249511821000", location: "ود مدني",  type: "university" },
+  { name: "جامعة القرآن الكريم — فرع الحصاحيصا",   phone: "00249120000000", location: "حصاحيصا",  type: "university" },
+
+  // ── مستشفيات ومراكز صحية ────────────────────────────────────────
+  { name: "مستشفى الحصاحيصا العام",                 phone: "00249511830000", location: "حصاحيصا",  type: "hospital" },
+  { name: "مستشفى ود مدني التعليمي",                phone: "00249511840000", location: "ود مدني",  type: "hospital" },
+  { name: "مستشفى المناقل التعليمي",                phone: "00249511510000", location: "المناقل",  type: "hospital" },
+  { name: "مستشفى الكريمة التخصصي",                 phone: "00249911000000", location: "المناقل",  type: "hospital" },
+
+  // ── بنوك ومصارف ────────────────────────────────────────────────
+  { name: "بنك الخرطوم — فرع ود مدني",              phone: "00249511841261", location: "ود مدني",  type: "bank" },
+  { name: "البنك الزراعي السوداني",                  phone: "00249511820000", location: "ود مدني",  type: "bank" },
+  { name: "بنك فيصل الإسلامي السوداني",             phone: "00249511822000", location: "ود مدني",  type: "bank" },
+  { name: "مصرف الإدخار والتنمية الاجتماعية",       phone: "00249511831000", location: "حصاحيصا",  type: "bank" },
+  { name: "وحدة التمويل الأصغر (MFU)",              phone: "00249155000000", location: "ود مدني",  type: "bank" },
+
+  // ── جهات حكومية ومنظمات ────────────────────────────────────────
+  { name: "إدارة مشروع الجزيرة",                    phone: "00249511860000", location: "بركات",    type: "org" },
+  { name: "هيئة البحوث الزراعية السودانية",          phone: "00249511870000", location: "ود مدني",  type: "org" },
+  { name: "تحالف مزارعي الجزيرة والمناقل",          phone: "00249912500000", location: "بركات",    type: "org" },
+  { name: "مدرسة حنتوب الثانوية",                   phone: "00249511842000", location: "ود مدني",  type: "university" },
+  { name: "مدرسة ابن خلدون الثانوية",               phone: "00249511832000", location: "حصاحيصا",  type: "university" },
+  { name: "جمعية فلاحة البساتين",                   phone: "00249912600000", location: "رفاعة",    type: "org" },
+  { name: "مدينة الجياد الصناعية",                  phone: "00249511890000", location: "الكاملين", type: "org" },
+];
+
+const typeLabel = { university: "🎓 تعليم", hospital: "🏥 صحة", bank: "🏦 بنوك", org: "🏛️ منظمات" };
+const typeMsg   = { university: MSG_UNIVERSITY, hospital: MSG_HOSPITAL, bank: MSG_BANK, org: MSG_ORG };
+const typeGroups = ["university", "hospital", "bank", "org"];
+const typeNames  = { university: "الجامعات والمدارس", hospital: "المستشفيات والمراكز الصحية", bank: "البنوك والمصارف", org: "الجهات والمنظمات" };
+
+let sentCount = 0;
+
+function waLink(phone, msg) {
+  const clean = phone.replace(/[^0-9]/g, "");
+  return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+}
+
+function markSent(card) {
+  sentCount++;
+  card.classList.add("sent");
+  const btn = card.querySelector(".btn-wa");
+  btn.textContent = "✅ تم الإرسال";
+  btn.style.background = "#1a7a3a";
+  btn.style.cursor = "default";
+  btn.onclick = null;
+  updateCounters();
+  localStorage.setItem("sent_" + card.dataset.id, "1");
+}
+
+function updateCounters() {
+  document.getElementById("sent-count").textContent = sentCount;
+  document.getElementById("remain-count").textContent = organizations.length - sentCount;
+}
+
+function build() {
+  document.getElementById("total-count").textContent = organizations.length;
+  updateCounters();
+  const list = document.getElementById("org-list");
+
+  typeGroups.forEach(type => {
+    const orgs = organizations.filter(o => o.type === type);
+    if (!orgs.length) return;
+
+    const section = document.createElement("div");
+    section.className = "section";
+    section.innerHTML = `<div class="section-title">${typeLabel[type]} ${typeNames[type]} (${orgs.length})</div>`;
+
+    orgs.forEach((org, i) => {
+      const id = type + "_" + i;
+      const msg = typeMsg[type](org.name);
+      const isSent = !!localStorage.getItem("sent_" + id);
+      if (isSent) sentCount++;
+
+      const card = document.createElement("div");
+      card.className = "org-card" + (isSent ? " sent" : "");
+      card.dataset.id = id;
+      card.innerHTML = `
+        <div class="org-info">
+          <div class="org-name">${org.name}</div>
+          <div class="org-loc">📍 ${org.location}</div>
+          <div class="org-phone">${org.phone}</div>
+          <span class="toggle-msg" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">👁 معاينة الرسالة</span>
+          <pre class="msg-preview">${msg.replace(/</g,'&lt;')}</pre>
+        </div>
+        <a class="btn btn-wa" href="${waLink(org.phone, msg)}" target="_blank"
+           onclick="setTimeout(()=>markSent(this.closest('.org-card')),1500)">
+          📱 إرسال واتساب
+        </a>`;
+      section.appendChild(card);
+    });
+    list.appendChild(section);
+  });
+  updateCounters();
+}
+
+document.addEventListener("DOMContentLoaded", build);
+</script>
+</body>
+</html>
