@@ -16821,3 +16821,105 @@ router.post("/admin/seed-union-manager", async (req: Request, res: Response) => 
     return res.status(201).json({ message: "تم إنشاء الحساب بنجاح", username, password });
   } catch (e: any) { logger.error({ err: e }, "seed-union-manager"); return res.status(500).json({ error: "Server error" }); }
 });
+
+// ─── POST /api/admin/send-invitations ─────────────────────────────────────
+// يرسل دعوات انضمام بالبريد الإلكتروني لقائمة مؤسسات ولاية الجزيرة
+const INVITATION_HTML = (orgName: string) => `<!DOCTYPE html>
+<html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">
+<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+  <div style="background:linear-gradient(135deg,#0B2E1A,#0F4228);padding:36px;text-align:center">
+    <div style="font-size:44px">🌿</div>
+    <h1 style="color:#2ECC71;margin:8px 0 0;font-size:28px">حصاحيصاوي</h1>
+    <p style="color:#a7f3d0;margin:8px 0 0;font-size:14px">المنصة الرقمية الأولى لأبناء ولاية الجزيرة</p>
+  </div>
+  <div style="padding:32px">
+    <p style="font-size:17px;color:#1e293b">السلام عليكم ورحمة الله وبركاته،</p>
+    <p style="font-size:16px;color:#334155;line-height:1.9">
+      يسرّنا توجيه هذه الدعوة الخاصة لـ <strong style="color:#16a34a">${orgName}</strong>
+      للانضمام إلى <strong>منصة حصاحيصاوي</strong> — المنصة الرقمية المجتمعية الأولى لأبناء ولاية الجزيرة.
+    </p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:20px 0">
+      <h3 style="color:#16a34a;margin:0 0 14px">ما نقدمه لمؤسستكم — مجاناً:</h3>
+      <div style="color:#374151;line-height:2.2;font-size:15px">
+        ✅ حضور رقمي أمام أكثر من <strong>٥٠٠٠ مستخدم</strong> من أبناء المنطقة<br>
+        ✅ نشر الأخبار والفعاليات والإعلانات للمجتمع<br>
+        ✅ استقبال الطلبات والتسجيلات إلكترونياً<br>
+        ✅ دليل المؤسسات وخريطة الخدمات المحلية<br>
+        ✅ قناة تواصل مباشرة مع مستخدمي المنطقة
+      </div>
+    </div>
+    <div style="text-align:center;margin:28px 0">
+      <a href="https://almhbob.github.io/hasahisawi/"
+         style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;text-decoration:none;padding:15px 36px;border-radius:12px;font-size:17px;font-weight:bold;display:inline-block">
+        سجّل مؤسستك الآن ←
+      </a>
+    </div>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px">
+      <p style="margin:0;font-size:14px;color:#92400e">
+        💡 التسجيل لا يستغرق سوى دقيقتين — يتواصل فريقنا معكم خلال ٤٨ ساعة.
+      </p>
+    </div>
+  </div>
+  <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;text-align:center">
+    <p style="margin:0;font-size:14px;color:#64748b">للاستفسار: <strong style="color:#16a34a">almhbob.2024@gmail.com</strong></p>
+    <p style="margin:8px 0 0;font-size:12px;color:#94a3b8">فريق منصة حصاحيصاوي · ولاية الجزيرة، السودان · 2026</p>
+  </div>
+</div></body></html>`;
+
+const INVITATION_TARGETS = [
+  { name: "جامعة الجزيرة",                      email: "info@uofg.edu.sd" },
+  { name: "كلية الحصاحيصا للعلوم الطبية HCMST",  email: "info@el-majd.com" },
+  { name: "كلية الجزيرة للعلوم الطبية",          email: "hashimtree@gmail.com" },
+  { name: "جامعة البطانة",                       email: "info@albutana.edu.sd" },
+  { name: "بنك الخرطوم",                         email: "info@bok.sd" },
+  { name: "هيئة البحوث الزراعية السودانية",       email: "info@arc.gov.sd" },
+  { name: "وحدة التمويل الأصغر (MFU)",            email: "info.mfu@cbos.gov.sd" },
+];
+
+router.post("/admin/send-invitations", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+
+    const resendKey = process.env.RESEND_API_KEY;
+    const emailFrom = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
+    const targets: { name: string; email: string }[] = req.body?.targets ?? INVITATION_TARGETS;
+
+    if (!resendKey) return res.status(503).json({ error: "RESEND_API_KEY غير مُعيَّن" });
+
+    const results: { name: string; email: string; ok: boolean; id?: string; error?: string }[] = [];
+
+    for (const target of targets) {
+      try {
+        const resp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: `حصاحيصاوي <${emailFrom}>`,
+            to: [target.email],
+            subject: "دعوة انضمام — منصة حصاحيصاوي",
+            html: INVITATION_HTML(target.name),
+            reply_to: "almhbob.2024@gmail.com",
+          }),
+        });
+        const json = await resp.json() as { id?: string; statusCode?: number; message?: string };
+        const ok = resp.ok;
+        results.push({ name: target.name, email: target.email, ok, id: json.id, error: ok ? undefined : json.message });
+        logger.info({ ok, name: target.name, email: target.email }, "[send-invitations]");
+        await new Promise(r => setTimeout(r, 600));
+      } catch (err: any) {
+        results.push({ name: target.name, email: target.email, ok: false, error: err?.message });
+      }
+    }
+
+    const succeeded = results.filter(r => r.ok).length;
+    return res.json({
+      summary: { total: results.length, succeeded, failed: results.length - succeeded },
+      results,
+    });
+  } catch (err) {
+    logger.error({ err }, "admin/send-invitations");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
