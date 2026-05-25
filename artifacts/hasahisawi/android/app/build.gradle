@@ -92,8 +92,8 @@ android {
         applicationId 'com.almhbob.hasahisawi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 235
-        versionName "6.3.5"
+        versionCode 236
+        versionName "6.3.6"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
@@ -159,6 +159,14 @@ android {
         options.each {
             android.packagingOptions[prop] += it
         }
+    }
+}
+
+// Force ML Kit barcode-scanning 17.3.0 which ships libbarhopper_v3.so
+// with 16KB ELF alignment (17.2.0 used by expo-camera ships 4KB-aligned binary)
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.mlkit:barcode-scanning:17.3.0'
     }
 }
 
