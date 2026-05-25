@@ -23,6 +23,7 @@ import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
+import { ActivityIndicator } from "react-native";
 import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -219,12 +220,14 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
+  // على الويب: ننتظر صحوة الخادم قبل تشغيل AuthProvider — على الموبايل لا حاجة
+  const [serverReady, setServerReady] = useState(Platform.OS !== "web");
 
   useEffect(() => {
-    // إيقاظ السيرفر مبكراً عند فتح التطبيق لتقليل وقت الانتظار
-    wakeUpServer();
-    // تهيئة Firebase App Check (الويب فقط — تخطّي صامت على الموبايل)
     initAppCheck().catch(() => {});
+    if (Platform.OS === "web") {
+      wakeUpServer().finally(() => setServerReady(true));
+    }
   }, []);
 
   useEffect(() => {
@@ -249,6 +252,19 @@ export default function RootLayout() {
   // على الويب: الخطوط تُحمَّل عبر CSS — لا نحتاج لانتظارها
   const fontReady = Platform.OS === "web" ? true : (fontsLoaded || !!fontError);
   if (!fontReady || initialLang === null) return null;
+
+  // شاشة الانتظار أثناء صحوة الخادم (ثوانٍ فقط)
+  if (!serverReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#070D0A", alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <Text style={{ fontSize: 32 }}>🌿</Text>
+        <ActivityIndicator color="#2ECC71" size="large" />
+        <Text style={{ color: "#2ECC71", fontFamily: "Cairo_600SemiBold", fontSize: 15 }}>
+          جارٍ تحميل التطبيق...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ErrorBoundary>
