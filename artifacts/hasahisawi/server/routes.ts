@@ -128,6 +128,24 @@ async function pushToUser(
   } catch (e) { console.error("pushToUser error:", e); }
 }
 
+// إرسال Push لكل المشرفين والمدراء عند ورود طلب جديد
+async function pushToAdmins(
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+  channel: keyof typeof PUSH_CHANNEL_IDS = "DEFAULT",
+): Promise<void> {
+  try {
+    const r = await query(
+      `SELECT DISTINCT pt.token FROM push_tokens pt
+       JOIN users u ON u.id = pt.user_id
+       WHERE u.role IN ('admin','moderator') AND pt.token IS NOT NULL`,
+    );
+    const tokens = r.rows.map((row: any) => row.token as string);
+    await sendExpoPush(tokens, title, body, data, channel);
+  } catch (e) { console.error("pushToAdmins error:", e); }
+}
+
 async function sendAdminNotifEmail(subject: string, rows: Record<string, string>): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
@@ -2762,6 +2780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const r = await query(`INSERT INTO zawajil_orders (order_number,sender_id,sender_name,sender_phone,recipient_name,recipient_phone,recipient_address,delivery_location,service_type,occasion_type,message_text,message_by_us,voice_presentation,gift_type,gift_product_id,gift_product_name,gift_external_desc,gift_money_amount,pledge_accepted) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
         [orderNumber,senderId,sender_name||null,sender_phone||null,recipient_name,recipient_phone||null,recipient_address||null,delivery_location||"inside_city",service_type,occasion_type||null,message_text||null,Boolean(message_by_us),Boolean(voice_presentation),gift_type||"none",gift_product_id||null,gift_product_name||null,gift_external_desc||null,gift_money_amount||0,true]);
+      void pushToAdmins("🎁 طلب زواجل جديد", `طلب ${orderNumber} — المستلم: ${recipient_name}`, { screen: "zawajil", orderId: r.rows[0].id });
       res.status(201).json(r.rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
@@ -3243,6 +3262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
         [user.id, target_type||'general', target_id||'0', date, time, notes||null]
       );
+      void pushToAdmins("🏥 موعد طبي جديد", `${user.name} — ${target_name||target_type||"موعد"} ${date} ${time}`, { screen: "medical", appointmentId: r.rows[0].id });
       res.status(201).json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
@@ -5215,6 +5235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         [me.id, title, company||null, description||null, requirements||null, location||null, salary_range||null, job_type||'full_time', category||null, contact_phone||null, contact_email||null, deadline||null]
       );
+      void pushToAdmins("💼 وظيفة جديدة", `${title}${company ? " — "+company : ""}`, { screen: "jobs", jobId: r.rows[0].id });
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -5365,6 +5386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO transport_trips (user_id,from_neighborhood,to_neighborhood,seats,notes) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
         [me.id, from_neighborhood||null, to_neighborhood||null, seats||1, notes||null]
       );
+      void pushToAdmins("🚗 طلب مشوار جديد", `${me.name}: ${from_neighborhood||"?"} ← ${to_neighborhood||"?"}`, { screen: "transport", tripId: r.rows[0].id }, "TRANSPORT");
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -5860,6 +5882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO lost_items (user_id,title,description,category,item_type,location,contact_phone,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
         [me.id, title, description||null, category||null, item_type||'lost', location||null, contact_phone||null, image_url||null]
       );
+      const typeLabel = item_type === 'found' ? 'عثر على' : 'مفقود';
+      void pushToAdmins(`🔍 ${typeLabel}: ${title}`, `${me.name}${location ? " — "+location : ""}`, { screen: "missing", itemId: r.rows[0].id }, "URGENT");
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -6078,6 +6102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await ensureReportsTables();
       const { target_type, target_id, reason } = req.body;
       const r = await query(`INSERT INTO reports (user_id,target_type,target_id,reason) VALUES ($1,$2,$3,$4) RETURNING *`, [me.id, target_type||null, target_id||null, reason]);
+      void pushToAdmins("🚨 بلاغ جديد", `${me.name} أرسل بلاغاً: ${reason||""}`, { screen: "reports", reportId: r.rows[0].id }, "URGENT");
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -6398,6 +6423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { full_name, age, gender, neighborhood, phone, occupation, notes } = req.body;
       const r = await query(`INSERT INTO zawajil_applications (user_id,full_name,age,gender,neighborhood,phone,occupation,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
         [me?.id||null, full_name, age||null, gender||null, neighborhood||null, phone||null, occupation||null, notes||null]);
+      void pushToAdmins("🎁 طلب انضمام زواجل", `${full_name}${neighborhood ? " — "+neighborhood : ""}`, { screen: "zawajil", applicationId: r.rows[0].id });
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -6840,6 +6866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO lawyer_applications (user_id,name,specialties,license_number,phone,email,bio,image_url,years_experience) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
         [me.id, name, specialties||[], license_number||null, phone||null, email||null, bio||null, image_url||null, years_experience||null]
       );
+      void pushToAdmins("⚖️ طلب محامٍ جديد", `${name} — رقم الترخيص: ${license_number||"غير محدد"}`, { screen: "lawyers", applicationId: r.rows[0].id }, "URGENT");
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
