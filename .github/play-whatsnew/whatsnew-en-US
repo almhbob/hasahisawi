@@ -1,0 +1,5 @@
+What's new in Hasahisawi:
+- Performance and stability improvements
+- Fixed 16KB memory page compatibility
+- Faster page loading
+- General bug fixes

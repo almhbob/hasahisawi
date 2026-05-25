@@ -1,4 +1,4 @@
-name: حصاحيصاوي v6.2.0 — Release
+name: حصاحيصاوي — Release + Auto-Publish
 
 on:
   workflow_dispatch:
@@ -319,3 +319,27 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Publish to Google Play (Internal Track) ─────────────────────
+  publish-play-store:
+    name: Publish to Google Play — Internal Track
+    needs: [build-android, create-release]
+    runs-on: ubuntu-latest
+    # Only runs if the service account secret is configured
+    if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aab
+
+      - name: Upload AAB to Google Play Internal Track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.almhbob.hasahisawi
+          releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
+          track: internal
+          status: completed
+          changesNotSentForReview: false
+          releaseName: "v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})"
+          whatsNewDirectory: .github/play-whatsnew
