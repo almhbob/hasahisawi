@@ -891,6 +891,7 @@ export default function SportsScreen() {
   const [players, setPlayers] = useState<KouraPlayer[]>([]);
   const [matches, setMatches] = useState<KouraMatch[]>([]);
   const [clubs,   setClubs]   = useState<SportClub[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [tab,     setTab]     = useState<KouraTab>("news");
   const [search,  setSearch]  = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -953,11 +954,13 @@ export default function SportsScreen() {
   }, [auth.token, validatedPin]);
 
   const load = useCallback(async () => {
+    setLoadFailed(false);
     const [postsData, playersData, matchesData] = await Promise.all([
       apiGet("/api/sports/posts"),
       apiGet("/api/sports/players"),
       apiGet("/api/sports/matches"),
     ]);
+    if (!postsData && !playersData && !matchesData) setLoadFailed(true);
     if (postsData?.posts) {
       setPosts(postsData.posts.map((p: any) => ({
         id: String(p.id), title: p.title, body: p.content,
@@ -1257,9 +1260,13 @@ export default function SportsScreen() {
           )}
           {filteredPosts.length===0 && (
             <View style={s.empty}>
-              <Ionicons name="newspaper-outline" size={52} color={Colors.textMuted} />
-              <Text style={s.emptyTitle}>لا توجد أخبار بعد</Text>
-              {isAdmin && <Text style={s.emptySub}>اضغط + لنشر أول خبر</Text>}
+              <Ionicons name={loadFailed ? "cloud-offline-outline" : "newspaper-outline"} size={52} color={Colors.textMuted} />
+              <Text style={s.emptyTitle}>{loadFailed ? "تعذّر تحميل الأخبار" : "لا توجد أخبار بعد"}</Text>
+              {loadFailed ? (
+                <TouchableOpacity onPress={load} style={{marginTop:12,paddingHorizontal:24,paddingVertical:10,backgroundColor:Colors.primary,borderRadius:20}}>
+                  <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#000"}}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              ) : isAdmin && <Text style={s.emptySub}>اضغط + لنشر أول خبر</Text>}
             </View>
           )}
           {filteredPosts.map((p,i)=>(

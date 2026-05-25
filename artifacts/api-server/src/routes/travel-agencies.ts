@@ -188,10 +188,10 @@ router.post("/travel-agencies/apply", heavyWriteLimiter, async (req, res) => {
         arr(b.specialties), arr(b.destinations), arr(b.services_offered), bookingProducts, str(b.target_routes, 800),
         str(b.description, 1600), workspaceSettings,
       ]);
-    res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلب انضمام الوكالة. سنراجع البيانات ونجهّز مساحة الوكالة ولوحة إدارتها خلال 48 ساعة." });
+    return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلب انضمام الوكالة. سنراجع البيانات ونجهّز مساحة الوكالة ولوحة إدارتها خلال 48 ساعة." });
   } catch (err) {
     logger.error({ err }, "travel agency application failed");
-    res.status(500).json({ error: "تعذّر إرسال طلب الانضمام" });
+    return res.status(500).json({ error: "تعذّر إرسال طلب الانضمام" });
   }
 });
 
@@ -199,7 +199,7 @@ router.get("/admin/travel-agencies/applications", async (req, res) => {
   if (!await isAdmin(req)) return res.status(403).json({ error: "غير مصرح" });
   await initTravelAgenciesDb();
   const { rows } = await q(`SELECT * FROM travel_agency_applications ORDER BY created_at DESC LIMIT 200`);
-  res.json({ applications: rows });
+  return res.json({ applications: rows });
 });
 
 router.patch("/admin/travel-agencies/applications/:id/status", async (req, res) => {
@@ -211,7 +211,7 @@ router.patch("/admin/travel-agencies/applications/:id/status", async (req, res) 
   const notes = str(req.body?.review_notes, 800);
   const { rows } = await q(`UPDATE travel_agency_applications SET status=$1, review_notes=$2, reviewed_at=NOW() WHERE id=$3 RETURNING *`, [status, notes, id]);
   if (!rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
-  res.json({ application: rows[0] });
+  return res.json({ application: rows[0] });
 });
 
 router.post("/admin/travel-agencies/applications/:id/approve", async (req, res) => {
@@ -230,7 +230,7 @@ router.post("/admin/travel-agencies/applications/:id/approve", async (req, res) 
       app.services_offered, app.booking_products, app.description, app.website, app.phone, app.whatsapp,
       app.email, app.city, app.country, app.license_number, app.founded_year, app.workspace_settings]);
   await q(`UPDATE travel_agency_applications SET status='approved', reviewed_at=NOW(), created_agency_id=$1 WHERE id=$2`, [inserted.rows[0].id, id]);
-  res.json({ agency: inserted.rows[0], message: "تم اعتماد الوكالة وإنشاء مساحتها" });
+  return res.json({ agency: inserted.rows[0], message: "تم اعتماد الوكالة وإنشاء مساحتها" });
 });
 
 export default router;

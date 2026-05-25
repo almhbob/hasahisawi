@@ -3605,7 +3605,7 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     // ── إرسال إشعار Push للمستقبِل ──
     const recipientId = isUser1 ? c.user2_id : c.user1_id;
     const notifBody = image_url ? "📷 أرسل لك صورة" : (msgContent.length > 60 ? msgContent.slice(0, 60) + "…" : msgContent);
-    sendPushToUser(
+    void sendPushToUser(
       recipientId,
       `رسالة من ${me.name as string}`,
       notifBody,
@@ -10058,8 +10058,9 @@ async function getClientContract(req: Request, contractId: number): Promise<any 
     if (sess.rows[0]) userId = sess.rows[0].user_id;
   }
   if (!userId && !deviceId) return null;
-  const where = userId ? `c.user_id = ${userId}` : `c.device_id = '${deviceId.replace(/'/g,"''")}'`;
-  const { rows } = await query(`SELECT c.*, l.full_name AS lawyer_name, l.title AS lawyer_title FROM lawyer_contracts c JOIN lawyers l ON l.id=c.lawyer_id WHERE c.id=$1 AND ${where}`, [contractId]);
+  const { rows } = userId
+    ? await query(`SELECT c.*, l.full_name AS lawyer_name, l.title AS lawyer_title FROM lawyer_contracts c JOIN lawyers l ON l.id=c.lawyer_id WHERE c.id=$1 AND c.user_id=$2`, [contractId, userId])
+    : await query(`SELECT c.*, l.full_name AS lawyer_name, l.title AS lawyer_title FROM lawyer_contracts c JOIN lawyers l ON l.id=c.lawyer_id WHERE c.id=$1 AND c.device_id=$2`, [contractId, deviceId]);
   return rows[0] || null;
 }
 
