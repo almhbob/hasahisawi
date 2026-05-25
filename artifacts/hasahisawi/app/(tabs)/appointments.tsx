@@ -15,6 +15,8 @@ import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ══════════════════════════════════════════════════════════
 // TYPES
@@ -731,7 +733,8 @@ export default function AppointmentsScreen() {
                 </Animated.View>
               );
             })}
-          </ScrollView>
+                  <OrgInviteCard />
+</ScrollView>
         </View>
       )}
     </View>

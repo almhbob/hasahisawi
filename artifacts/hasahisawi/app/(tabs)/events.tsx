@@ -13,6 +13,8 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─────────────────────────────────────────────
 const PRIMARY  = "#27AE68";
@@ -619,7 +621,8 @@ function RentalDetailSheet({ item, onClose }: { item: RentalItem; onClose: () =>
         <Text style={styles.closeBtnText}>إغلاق</Text>
       </TouchableOpacity>
       <View style={{ height: 20 }} />
-    </ScrollView>
+            <OrgInviteCard />
+</ScrollView>
   );
 }
 

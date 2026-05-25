@@ -11,6 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const PINK = "#EC4899";
 const PINK2 = "#F472B6";
@@ -614,7 +616,8 @@ function ProductsTab({ token }: { token: string }) {
               </View>
             </Animated.View>
           ))}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
 
       {/* مودال إضافة/تعديل */}

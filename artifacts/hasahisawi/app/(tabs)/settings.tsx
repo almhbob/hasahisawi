@@ -31,6 +31,8 @@ import { useLang } from "@/lib/lang-context";
 import UserAvatar from "@/components/UserAvatar";
 import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const DEFAULT_ADMIN_PIN = "4444";
 const ADMIN_PIN_KEY = "admin_pin";
@@ -3264,7 +3266,8 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+              <OrgInviteCard />
+</ScrollView>
 
       <AddJobModal visible={showAddJob} onClose={() => setShowAddJob(false)} onSave={addJob} />
       <AddFacilityModal visible={showAddFacility} onClose={() => setShowAddFacility(false)} onSave={addFacility} />

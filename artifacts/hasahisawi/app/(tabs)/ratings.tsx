@@ -16,6 +16,8 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EntityType = "institution" | "employee" | "service_seeker";
@@ -437,6 +439,7 @@ export default function RatingsScreen() {
           keyExtractor={(e) => String(e.id)}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <EntityCard entity={item} index={index} onPress={() => openDetail(item)} />
           )}

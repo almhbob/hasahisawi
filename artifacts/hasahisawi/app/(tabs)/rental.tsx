@@ -10,6 +10,8 @@ import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const API = () => getApiUrl() || "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
 
@@ -818,7 +820,8 @@ export default function RentalScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-            </ScrollView>
+                    <OrgInviteCard />
+</ScrollView>
           </SafeAreaView>
         )}
       </Modal>

@@ -26,6 +26,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 export type Job = {
   id: string;
@@ -500,7 +502,8 @@ export default function JobsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="briefcase-outline" size={56} color={Colors.textMuted} />
+            <MaterialCommunityIcons name="briefcase-outline" size={56} color={Colors.textMuted} 
+          ListFooterComponent={<OrgInviteCard />}/>
             <Text style={styles.emptyTitle}>{t("jobs", "noJobs")}</Text>
             <Text style={styles.emptySubtitle}>{t("jobs", "noJobsSub")}</Text>
           </View>

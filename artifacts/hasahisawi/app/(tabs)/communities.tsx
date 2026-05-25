@@ -14,6 +14,8 @@ import { useLang } from "@/lib/lang-context";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -801,12 +803,12 @@ export default function CommunitiesScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
-            <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.footerCard}>
+            <><Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.footerCard}>
               <Ionicons name="information-circle-outline" size={20} color={Colors.textMuted} />
               <Text style={styles.footerText}>
                 هل جاليتك غير مسجّلة؟ اضغط "سجّل جاليتك" لإرسال طلب التسجيل وستتم مراجعته من قِبل الإدارة.
               </Text>
-            </Animated.View>
+            </Animated.View><OrgInviteCard /></>
           }
           renderItem={({ item, index }) => (
             <CommunityCard c={item} index={index} onPress={() => setSelected(item)} />

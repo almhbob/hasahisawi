@@ -18,6 +18,8 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: SW } = Dimensions.get("window");
 const CARD_W = SW - 32;
@@ -956,7 +958,8 @@ export default function GreetingsScreen() {
         {tab==="board"&&(
           <GreetingsBoard token={token} refreshKey={boardRefresh}/>
         )}
-      </ScrollView>
+              <OrgInviteCard />
+</ScrollView>
 
       <GreetingCardModal
         occ={selectedOcc}

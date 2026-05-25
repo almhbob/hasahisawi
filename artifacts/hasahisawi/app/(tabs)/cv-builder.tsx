@@ -11,6 +11,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const PREMIUM_PRICE = 5000;
 const PREMIUM_FEATURES = [
@@ -1213,7 +1215,8 @@ function CVBuilderWorkspace() {
               </View>
             </Animated.View>
           )}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       </KeyboardAvoidingView>
 
       {/* أزرار التنقل بين الخطوات */}

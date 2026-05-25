@@ -19,6 +19,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -421,7 +423,8 @@ export default function CultureScreen() {
               <EventCard event={event} onCall={handleCall} />
             </Animated.View>
           ))}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
     </View>
   );

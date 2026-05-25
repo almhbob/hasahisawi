@@ -11,6 +11,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: W } = Dimensions.get("window");
 
@@ -574,7 +576,8 @@ export default function FactoriesScreen() {
           )}
 
           <View style={{ height: 30 }} />
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
 
       <FactoryModal

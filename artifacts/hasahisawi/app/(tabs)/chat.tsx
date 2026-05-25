@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 import {
   useApiChats, apiGetUsers, apiGetOrCreateChat,
   getOtherUser, getMyUnread, ApiChat, ApiUser,
@@ -227,6 +229,7 @@ export default function ChatScreen() {
           data={chats}
           keyExtractor={(c) => String(c.id)}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16, paddingTop: 8 }}
+          ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
               <ChatCard chat={item} myId={myId} onPress={() => openConversation(item)} />

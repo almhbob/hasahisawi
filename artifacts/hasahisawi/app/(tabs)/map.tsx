@@ -12,6 +12,8 @@ import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
 const BG     = Colors.bg   ?? "#0A1A10";
@@ -325,7 +327,8 @@ export default function MapScreen() {
               <Text style={s.legendTxt}>{cat.label}</Text>
             </View>
           ))}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       </Animated.View>
     </View>
   );

@@ -29,6 +29,8 @@ import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 export type LostItem = {
   id: string;
@@ -531,7 +533,8 @@ export default function LostItemsScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="search-outline" size={52} color={Colors.textMuted} />
+                <Ionicons name="search-outline" size={52} color={Colors.textMuted} 
+          ListFooterComponent={<OrgInviteCard />}/>
                 <Text style={styles.emptyTitle}>لا توجد بلاغات</Text>
                 <Text style={styles.emptyText}>كن أول من يُبلّغ عن مفقود في مدينتنا</Text>
               </View>

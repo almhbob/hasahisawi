@@ -12,6 +12,8 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: W } = Dimensions.get("window");
 const BASE = getApiUrl() ?? "";
@@ -687,6 +689,7 @@ export default function FarmersScreen() {
           keyExtractor={i => String(i.id)}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tab.color} />}
+          ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item }) =>
             activeTab === "crops"   ? <CropCard   item={item} /> :
             activeTab === "lands"   ? <LandCard   item={item} /> :

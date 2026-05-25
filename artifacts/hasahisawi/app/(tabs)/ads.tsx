@@ -17,6 +17,8 @@ import { useLang } from "@/lib/lang-context";
 import { getApiUrl } from "@/lib/query-client";
 import AnimatedPress from "@/components/AnimatedPress";
 import { uploadAdImage } from "@/lib/firebase/storage";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Constants ───────────────────────────────────────────────────
 
@@ -930,7 +932,8 @@ export default function AdsScreen() {
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               <Animated.View entering={FadeIn.duration(400)} style={s.trustBanner}>
-                <Ionicons name="shield-checkmark" size={15} color={EMERALD} />
+                <Ionicons name="shield-checkmark" size={15} color={EMERALD} 
+          ListFooterComponent={<OrgInviteCard />}/>
                 <Text style={s.trustBannerText}>
                   جميع الإعلانات مراجعة ومعتمدة من إدارة التطبيق قبل نشرها
                 </Text>

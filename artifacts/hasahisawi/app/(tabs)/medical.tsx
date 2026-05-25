@@ -19,6 +19,8 @@ import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ══════════════════════════════════════════════════════
 // الأنواع
@@ -1120,7 +1122,8 @@ export default function MedicalScreen() {
               <Text style={[tabSty.tabLabel, activeTab === tab.key && tabSty.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       </View>
 
       {/* المحتوى */}

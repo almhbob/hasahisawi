@@ -15,6 +15,8 @@ import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 export const SPORT_CLUBS_KEY  = "sport_clubs_v1";
@@ -1388,7 +1390,8 @@ export default function SportsScreen() {
               {isAdmin && <TouchableOpacity style={s.delChip} onPress={()=>deleteClub(c.id)}><Ionicons name="trash-outline" size={12} color={Colors.danger}/><Text style={s.delChipTxt}>حذف النادي</Text></TouchableOpacity>}
             </Animated.View>
           ))}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
     </View>
   );

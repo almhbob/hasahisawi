@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ── ثوابت ───────────────────────────────────────────────────────────────────
 const GOLD   = "#D97706";
@@ -685,7 +687,8 @@ export default function OccasionsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <JoinTab />
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
     </View>
   );

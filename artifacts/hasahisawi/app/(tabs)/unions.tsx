@@ -16,6 +16,8 @@ import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: W } = Dimensions.get("window");
 
@@ -1096,7 +1098,8 @@ export default function UnionsScreen() {
                 <Text style={styles.emptyText}>لا توجد قوانين ولوائح مضافة بعد</Text>
               </View>
             )}
-          </ScrollView>
+                  <OrgInviteCard />
+</ScrollView>
         )
       )}
 

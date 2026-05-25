@@ -13,6 +13,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Keys ────────────────────────────────────────────────────────────────────
 export const SCHOOLS_KEY = "edu_institutions_v2";
@@ -3019,7 +3021,8 @@ export default function StudentScreen() {
                   </Animated.View>
                 ))}
               </View>
-            </ScrollView>
+                    <OrgInviteCard />
+</ScrollView>
           )}
         </View>
       )}

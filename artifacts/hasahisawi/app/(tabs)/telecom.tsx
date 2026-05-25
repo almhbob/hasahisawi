@@ -11,6 +11,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: W } = Dimensions.get("window");
 
@@ -595,7 +597,8 @@ export default function TelecomScreen() {
           )}
 
           <View style={{ height: Platform.OS === "web" ? 60 : 100 }} />
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
 
       <CompanyModal company={selectedCompany} visible={modalVisible} onClose={() => setModalVisible(false)} offers={offers} services={services} />

@@ -21,6 +21,8 @@ import GuestGate from "@/components/GuestGate";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { scheduleOccasionReminder } from "@/lib/firebase/notifications";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ═══════════════════════════════════════════════════════════════
 // الثوابت والأنواع
@@ -1032,7 +1034,8 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
             <Ionicons name="share-outline" size={18} color="#fff" />
             <Text style={styles.shareContractBtnTxt}>مشاركة العقد</Text>
           </AnimatedPress>
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       </View>
     </Modal>
   );

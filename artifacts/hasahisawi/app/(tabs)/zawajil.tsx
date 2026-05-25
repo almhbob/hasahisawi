@@ -13,6 +13,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: W } = Dimensions.get("window");
 
@@ -955,7 +957,8 @@ export default function ZawajilScreen() {
             <ScrollView style={{ maxHeight: 300 }}>
               <Text style={styles.pledgeModalText}>{PLEDGE_TEXT}</Text>
               <Text style={[styles.pledgeModalText, { marginTop: 12, color: "#FDE68A" }]}>ملاحظة: تحتفظ إدارة زواجل بحق رفض أي طلب لا يتوافق مع قيم وأخلاقيات المجتمع.</Text>
-            </ScrollView>
+                    <OrgInviteCard />
+</ScrollView>
             <TouchableOpacity style={styles.pledgeAcceptBtn} onPress={() => { setForm(p=>({...p,pledge_accepted:true})); setShowPledge(false); }}>
               <LinearGradient colors={["#F97316","#EA580C"]} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
               <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />

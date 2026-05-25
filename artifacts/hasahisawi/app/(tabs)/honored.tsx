@@ -18,6 +18,8 @@ import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import HonorCard, { HonoredFigure } from "@/components/HonorCard";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ── ثوابت الألوان الذهبية ───────────────────────────────────────
 const GOLD      = "#D4AF37";
@@ -417,7 +419,8 @@ export default function HonoredScreen() {
               <Text style={s.emptySub}>لم يُضف المشرفون أي شخصية مكرَّمة بعد</Text>
             </Animated.View>
           )}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
 
       {/* مودال التفاصيل */}

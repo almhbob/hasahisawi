@@ -15,6 +15,8 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 import {
   TRANSPORT_ZONES, DEFAULT_FARE_MATRIX,
   type ZoneId, type FareMatrix,
@@ -1821,7 +1823,8 @@ export default function TransportScreen() {
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
+                          <OrgInviteCard />
+</ScrollView>
 
                   {/* اسم الحي */}
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>

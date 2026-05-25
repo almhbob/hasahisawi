@@ -23,6 +23,8 @@ import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 export type NumberEntry = {
   id: string;
@@ -461,7 +463,8 @@ export default function NumbersScreen() {
               <Text style={styles.addRowText}>إضافة رقم جديد</Text>
             </TouchableOpacity>
           )}
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
 
       <AddNumberModal

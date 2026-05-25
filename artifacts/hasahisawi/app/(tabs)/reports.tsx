@@ -20,6 +20,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -1247,7 +1249,8 @@ export default function ReportsScreen() {
               </View>
             )}
           </Animated.View>
-        </ScrollView>
+                <OrgInviteCard />
+</ScrollView>
       )}
     </View>
   );

@@ -12,6 +12,8 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import AnimatedPress from "@/components/AnimatedPress";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width } = Dimensions.get("window");
 const BASE = getApiUrl() ?? "";
@@ -491,6 +493,7 @@ export default function DesignGalleryScreen() {
               columnWrapperStyle={{ gap: 10, paddingHorizontal: 16 }}
               contentContainerStyle={{ paddingTop: 4, paddingBottom: 100, gap: 10 }}
               showsVerticalScrollIndicator={false}
+              ListFooterComponent={<OrgInviteCard />}
               renderItem={({ item, index }) => (
                 <ProductCard item={item} index={index} onOrder={openOrder} />
               )}

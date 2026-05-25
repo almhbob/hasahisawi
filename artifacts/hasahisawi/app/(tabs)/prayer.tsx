@@ -15,6 +15,8 @@ import { getApiUrl } from "@/lib/query-client";
 // الأذان الآن يعمل عبر إشعارات النظام المحلية فقط (تؤذن في وقتها حتى لو كان التطبيق مغلقاً)
 // ولا يُشغّل أي صوت من داخل التطبيق نفسه.
 import * as Notifications from "expo-notifications";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
 const PRAYER_CACHE_KEY  = "prayer_cache_v1";
@@ -1043,7 +1045,8 @@ export default function PrayerScreen() {
                   <Text style={ms.saveBtnText}>حفظ التغييرات</Text>
                 </AnimatedPress>
               </View>
-            </ScrollView>
+                    <OrgInviteCard />
+</ScrollView>
           </View>
         </View>
       </Modal>

@@ -17,6 +17,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Lawyer = {
@@ -950,7 +952,8 @@ export default function LawyersScreen() {
           contentContainerStyle={{ padding: 14, paddingBottom: 30 }}
           ListHeaderComponent={
             <View style={s.formsHeader}>
-              <MaterialCommunityIcons name="information-outline" size={16} color="#C4B5FD" />
+              <MaterialCommunityIcons name="information-outline" size={16} color="#C4B5FD" 
+          ListFooterComponent={<OrgInviteCard />}/>
               <Text style={s.formsHeaderText}>اختر استمارة لطباعتها أو حفظها كملف PDF — جاهزة للتعبئة بخط اليد أو رقمياً.</Text>
             </View>
           }

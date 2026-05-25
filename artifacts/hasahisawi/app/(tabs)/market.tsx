@@ -27,6 +27,8 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1777,6 +1779,7 @@ export default function MarketScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyState icon="storefront-outline" text={t("market", "noItems")} />}
+          ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
               <FamilyCard item={item} onSold={markFamilySold} onDelete={deleteFamilyItem} />

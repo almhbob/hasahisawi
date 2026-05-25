@@ -44,6 +44,8 @@ import Colors from "@/constants/colors";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork } from "@/lib/network";
 import UserAvatar from "@/components/UserAvatar";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const IMG_MAX_W = SCREEN_W - 28;
@@ -1221,7 +1223,7 @@ export default function SocialScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            loadingMore ? <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} /> : null
+            <>{loadingMore ? <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} /> : null}<OrgInviteCard /></>
           }
           renderItem={({ item, index }) => (
             <PostCard

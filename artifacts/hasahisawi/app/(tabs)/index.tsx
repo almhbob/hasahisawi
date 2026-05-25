@@ -32,6 +32,8 @@ import BrandPattern from "@/components/BrandPattern";
 import HonorCard, { HonoredFigure } from "@/components/HonorCard";
 import { useLang } from "@/lib/lang-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width } = Dimensions.get("window");
 const LOGO         = require("@/assets/images/logo.png");
@@ -823,6 +825,7 @@ export default function HomeScreen() {
           </LinearGradient>
         </Animated.View>
 
+        <OrgInviteCard />
         <View style={{ height: 40 }} />
       </View>
 

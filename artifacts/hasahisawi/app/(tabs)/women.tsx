@@ -15,6 +15,8 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "expo-router";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 const { width } = Dimensions.get("window");
 
@@ -875,7 +877,8 @@ export default function WomenScreen() {
                   </TouchableOpacity>
 
                   <View style={{ height: 24 }} />
-                </ScrollView>
+                        <OrgInviteCard />
+</ScrollView>
               )}
             </LinearGradient>
           </KeyboardAvoidingView>

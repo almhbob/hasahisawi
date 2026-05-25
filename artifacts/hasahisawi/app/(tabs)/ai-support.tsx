@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import BrandPattern from "@/components/BrandPattern";
 
+
 const isRTL = I18nManager.isRTL;
 
 type Message = {

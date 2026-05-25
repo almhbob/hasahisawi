@@ -9,6 +9,8 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
+import OrgInviteCard from "@/components/OrgInviteCard";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HolidayType = "national" | "islamic" | "local";
@@ -323,7 +325,8 @@ export default function CalendarScreen() {
         <Text style={s.disclaimer}>
           {t('calendar', 'holidayDisclaimer')}
         </Text>
-      </ScrollView>
+              <OrgInviteCard />
+</ScrollView>
     </View>
   );
 }
