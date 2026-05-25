@@ -42,13 +42,21 @@ async function tryHealthEndpoint(path: string, timeoutMs = 10000): Promise<boole
 }
 
 export async function wakeUpServer(): Promise<void> {
-  const healthPaths = ["/api/readyz", "/api/healthz"];
-  for (let i = 0; i < 3; i++) {
-    for (const path of healthPaths) {
-      if (await tryHealthEndpoint(path)) return;
-    }
-    if (i < 2) await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
+  // نُنبّه عدة endpoints لأن كل مسار في Vercel instance منفصل
+  const paths = [
+    "/api/readyz",
+    "/api/healthz",
+    "/api/auth/firebase-exchange",  // ينبّه instance المصادقة مسبقاً
+    "/api/posts",
+  ];
+  // أرسل كل الطلبات دفعة واحدة — أي واحد يرد = الخادم صاحٍ
+  const raceResult = await Promise.race(
+    paths.map(p => tryHealthEndpoint(p, 15000)),
+  );
+  if (raceResult) return;
+  // محاولة ثانية بعد 4 ثوانٍ
+  await new Promise(r => setTimeout(r, 4000));
+  await Promise.allSettled(paths.map(p => tryHealthEndpoint(p, 10000)));
 }
 
 export async function fetchWithTimeout(

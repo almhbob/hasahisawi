@@ -121,14 +121,16 @@ function maskNationalId(id?: string): string | null {
 async function safeFetchJson(
   url: string,
   options: RequestInit,
-  retries = 2,
-  timeoutMs = 12000,
+  retries = 4,
+  timeoutMs = 15000,
 ): Promise<{ res: Response; json: Record<string, unknown> }> {
   let lastError: Error = new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 4000));
+      // تصاعد تدريجي: 5s، 8s، 12s
+      const delay = attempt === 1 ? 5000 : attempt === 2 ? 8000 : 12000;
+      await new Promise(r => setTimeout(r, delay));
     }
 
     const ctrl = new AbortController();
