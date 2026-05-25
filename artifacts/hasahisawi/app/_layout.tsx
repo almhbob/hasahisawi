@@ -132,8 +132,9 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading) return;
-    const inLogin      = segments[0] === "login";
-    const inOnboarding = segments[0] === "onboarding";
+    const inLogin           = segments[0] === "login";
+    const inOnboarding      = segments[0] === "onboarding";
+    const inCompleteProfile = segments[0] === "complete-profile";
 
     if (!user) {
       if (!inLogin && !inOnboarding) {
@@ -148,10 +149,17 @@ function AuthGate() {
       return;
     }
 
-    if (inLogin || inOnboarding) {
+    // بعد حفظ الجنس في Firestore يُحدَّث user.gender مباشرةً → هذا الشرط يصبح false
+    const needsGender = !isGuest && !!user && !user.gender;
+    if (needsGender) {
+      if (!inCompleteProfile) router.replace("/complete-profile" as any);
+      return;
+    }
+
+    if (inLogin || inOnboarding || inCompleteProfile) {
       router.replace("/(tabs)/" as any);
     }
-  }, [user?.id, isLoading, isGuest, segments.join("/")]);
+  }, [user?.id, user?.gender, isLoading, isGuest, segments.join("/")]);
 
   return null;
 }
@@ -165,6 +173,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)"          options={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }} />
         <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="complete-profile"   options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />

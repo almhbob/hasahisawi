@@ -863,41 +863,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const completeProfile = async (gender: "male" | "female", neighborhood?: string) => {
-    const base = getApiUrl();
-    if (!base) throw new Error("تعذّر الاتصال بالخادم");
-    if (!token) throw new Error("يجب تسجيل الدخول أولاً");
+    if (!token && !user?.uid) throw new Error("يجب تسجيل الدخول أولاً");
 
-    // إذا كان التوكن هو Firebase ID Token (JWT)، جدّده ببكند توكن أولاً
-    let activeToken = token;
-    const isFirebaseJwt = token.split(".").length === 3 && token.startsWith("eyJ");
-    if (isFirebaseJwt && user?.uid) {
-      const result = await exchangeForBackendToken(
-        user.uid, user.name, user.email ?? null, user.role ?? "user", token
+    // ── الخطوة ١: Firestore أولاً (فوري — بدون انتظار الخادم) ─────────
+    if (user?.uid) {
+      await fsSetDoc(
+        COLLECTIONS.USERS,
+        user.uid,
+        {
+          uid: user.uid,
+          name: user.name,
+          email: user.email ?? undefined,
+          phone: user.phone ?? undefined,
+          role: user.role === "guest" ? "user" : user.role,
+          permissions: user.permissions ?? [],
+          gender,
+          ...(neighborhood ? { neighborhood } : {}),
+        },
+        true,
       );
-      if (result) {
-        activeToken = result.token;
-        setToken(result.token);
-        await AsyncStorage.setItem(TOKEN_KEY, result.token);
-      }
     }
 
-    const body: Record<string, unknown> = {
-      gender,
-      ...(neighborhood ? { neighborhood } : {}),
-    };
-
-    // استخدام PUT /api/users/me (الـ endpoint الصحيح الموجود في الخادم)
-    const { res, json } = await safeFetchJson(
-      `${base}/api/users/me`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
-        body: JSON.stringify(body),
-      },
-      3,
-      15000,
-    );
-    if (!res.ok) throw new Error((json.error as string) || "تعذّر تحديث البيانات");
+    // ── الخطوة ٢: تحديث الحالة المحلية فوراً (المستخدم يدخل التطبيق مباشرة) ─
     const updatedUser = user ? { ...user, gender, ...(neighborhood ? { neighborhood } : {}) } : null;
     if (updatedUser) {
       setUser(updatedUser);
@@ -913,15 +900,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
 
-    // Keep Firestore profile aligned for Firebase/Google accounts. This is best-effort
-    // and does not block the user from completing the profile.
-    if (user?.uid) {
-      fsSetDoc(
-        COLLECTIONS.USERS,
-        user.uid,
-        { uid: user.uid, name: user.name, email: user.email ?? undefined, phone: user.phone ?? undefined, role: user.role === "guest" ? "user" : user.role, permissions: user.permissions ?? [], gender, ...(neighborhood ? { neighborhood } : {}) },
-        true,
-      ).catch(() => {});
+    // ── الخطوة ٣: مزامنة الخادم في الخلفية (لا تمنع المستخدم إن فشلت) ──
+    const base = getApiUrl();
+    if (base && token) {
+      const syncToBackend = async () => {
+        try {
+          let activeToken = token;
+          const isFirebaseJwt = activeToken.split(".").length === 3 && activeToken.startsWith("eyJ");
+          if (isFirebaseJwt && user?.uid) {
+            const result = await exchangeForBackendToken(
+              user.uid, user.name, user.email ?? null, user.role ?? "user", activeToken
+            );
+            if (result) {
+              activeToken = result.token;
+              setToken(result.token);
+              await AsyncStorage.setItem(TOKEN_KEY, result.token);
+            }
+          }
+          await fetch(`${base}/api/users/me`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
+            body: JSON.stringify({ gender, ...(neighborhood ? { neighborhood } : {}) }),
+            signal: AbortSignal.timeout?.(20000),
+          });
+        } catch { /* silent — Firestore is the source of truth */ }
+      };
+      void syncToBackend();
     }
   };
 
