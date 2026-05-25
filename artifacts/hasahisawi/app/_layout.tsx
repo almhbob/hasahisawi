@@ -132,9 +132,8 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading) return;
-    const inLogin           = segments[0] === "login";
-    const inOnboarding      = segments[0] === "onboarding";
-    const inCompleteProfile = segments[0] === "complete-profile";
+    const inLogin      = segments[0] === "login";
+    const inOnboarding = segments[0] === "onboarding";
 
     if (!user) {
       if (!inLogin && !inOnboarding) {
@@ -149,19 +148,10 @@ function AuthGate() {
       return;
     }
 
-    // إذا لم يُحدَّد الجنس → أبقه في شاشة إكمال الملف حتى يحفظ.
-    // كان الشرط القديم يعيد المستخدم من complete-profile إلى الرئيسية مباشرةً،
-    // ثم يرجعه مرة أخرى إلى complete-profile، وهذا يسبب Maximum update depth exceeded.
-    const needsGender = !isGuest && !!user && !user.gender;
-    if (needsGender) {
-      if (!inCompleteProfile) router.replace("/complete-profile" as any);
-      return;
-    }
-
-    if (inLogin || inOnboarding || inCompleteProfile) {
+    if (inLogin || inOnboarding) {
       router.replace("/(tabs)/" as any);
     }
-  }, [user?.id, user?.gender, isLoading, isGuest, segments.join("/")]);
+  }, [user?.id, isLoading, isGuest, segments.join("/")]);
 
   return null;
 }
@@ -178,7 +168,6 @@ function RootLayoutNav() {
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
-        <Stack.Screen name="complete-profile"   options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="admin"            options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="admin-transport" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />

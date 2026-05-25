@@ -1,4 +1,4 @@
-const CACHE = "hasahisawi-v6.3.3";
+const CACHE = "hasahisawi-v6.3.4";
 const OFFLINE = ["/", "/index.html"];
 
 self.addEventListener("install", e => {
