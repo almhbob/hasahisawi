@@ -70,14 +70,18 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(globalLimiter);
 
-app.get("/", (_req: Request, res: Response) => {
+function sendLiveness(_req: Request, res: Response) {
   res.status(200).json({
     status: "ok",
     service: "api-server",
     health: "/api/healthz",
     readiness: "/api/readyz",
   });
-});
+}
+
+app.get("/", sendLiveness);
+app.get("/healthz", sendLiveness);
+app.get("/readyz", sendLiveness);
 
 const publicDir = path.join(__dirname, "..", "public");
 const uploadsDir = path.join(publicDir, "uploads");
