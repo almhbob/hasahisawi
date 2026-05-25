@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { timingSafeEqual } from "node:crypto";
-import { listAllFirebaseUsers, type FirebaseUserRecord } from "../lib/firebase-admin";
+import { listAllFirebaseUsers, verifyIdToken, type FirebaseUserRecord } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -146,16 +146,34 @@ function parseOffset(value: unknown): number {
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
-  const token = auth.slice(7);
+  const tok = auth.slice(7);
+
+  // 1. Backend session token
   const { rows } = await query(
     `SELECT u.*
      FROM users u
      JOIN user_sessions s ON s.user_id = u.id
      WHERE s.token = $1 AND (s.expires_at IS NULL OR s.expires_at > NOW())
      LIMIT 1`,
-    [token],
+    [tok],
   );
-  return rows[0] ?? null;
+  if (rows[0]) return rows[0];
+
+  // 2. Firebase JWT fallback (handles cold-start and direct Firebase auth)
+  if (tok.split(".").length === 3 && tok.startsWith("eyJ")) {
+    try {
+      const decoded = await verifyIdToken(tok);
+      if (decoded?.uid) {
+        const { rows: fbRows } = await query(
+          `SELECT * FROM users WHERE firebase_uid = $1 LIMIT 1`,
+          [decoded.uid],
+        );
+        if (fbRows[0]) return fbRows[0];
+      }
+    } catch { /* رمز Firebase غير صالح */ }
+  }
+
+  return null;
 }
 
 async function isAdminRequest(req: Request): Promise<boolean> {

@@ -87,6 +87,22 @@ async function sendPushToUser(
 
 const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 
+// إشعار فوري لجميع المشرفين عند ورود طلب جديد
+async function sendPushToAdmins(title: string, body: string, data: Record<string, unknown> = {}): Promise<void> {
+  try {
+    const { rows } = await query(
+      `SELECT DISTINCT pt.token FROM push_tokens pt JOIN users u ON u.id = pt.user_id WHERE u.role IN ('admin','moderator') AND pt.token LIKE 'ExponentPushToken[%'`
+    );
+    if (!rows.length) return;
+    const messages = rows.map(r => ({ to: r.token as string, title, body, data, sound: "hasahisawi_notif", badge: 1 }));
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(messages),
+    }).catch(() => {});
+  } catch {}
+}
+
 // ── reCAPTCHA v2 verification ────────────────────────────────────────────────
 async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
   const secret = process.env.RECAPTCHA_SECRET;
@@ -5105,6 +5121,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
       ]
     );
 
+    void sendPushToAdmins("🏢 طلب انضمام مؤسسة جديد", `${inst_name} — ${inst_type}`, { type: "institution_application", id: result.rows[0].id });
     return res.json({ application: result.rows[0] });
   } catch (err) {
     logger.error({ err: err }, "POST /institution-applications error");
@@ -8523,6 +8540,7 @@ router.post("/external-partnerships/apply", async (req: Request, res: Response) 
         services, (target_audience || "").trim(),
       ]
     );
+    void sendPushToAdmins("🤝 طلب شراكة خارجية جديد", `${org_name.trim()} — ${(sector || "").trim() || org_type || ""}`, { type: "external_partnership", id: rows[0].id });
     return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
   } catch (e) { logger.error({ err: e }, "external-partnerships/apply"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -9350,15 +9368,8 @@ router.post("/lawyer-applications", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "الاسم والهاتف ورقم النقابة والتخصصات مطلوبة" });
     if (!b.agree_terms)
       return res.status(400).json({ error: "يجب الموافقة على شروط التعاقد" });
-    let userId: number | null = null;
-    const auth = req.headers.authorization;
-    if (auth?.startsWith("Bearer ")) {
-      try {
-        const t = auth.slice(7);
-        const sess = await query(`SELECT user_id FROM user_sessions WHERE token = $1 AND expires_at > NOW()`, [t]);
-        if (sess.rows[0]) userId = sess.rows[0].user_id;
-      } catch {}
-    }
+    const sessionUser = await getSessionUser(req);
+    let userId: number | null = sessionUser ? (sessionUser.id as number) : null;
     // منع التكرار من نفس الهاتف خلال 24 ساعة
     const dup = await query(
       `SELECT id, status FROM lawyer_applications WHERE phone = $1 AND created_at > NOW() - INTERVAL '24 hours' ORDER BY id DESC LIMIT 1`,
@@ -9391,6 +9402,7 @@ router.post("/lawyer-applications", async (req: Request, res: Response) => {
         userId,
       ]
     );
+    void sendPushToAdmins("⚖️ طلب انضمام محامٍ جديد", `${String(b.full_name).slice(0,60)} — ${String(b.specialties).slice(0,60)}`, { type: "lawyer_application", id: ins.rows[0].id });
     return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -14891,6 +14903,7 @@ router.post("/student-union/apply", writeLimiter, async (req: Request, res: Resp
         b.pledge_name.trim(), b.pledge_date?.trim()||null,
       ]
     );
+    void sendPushToAdmins("🎓 طلب عضوية اتحاد طلاب جديد", `${b.full_name.trim()} — ${b.institution.trim()}`, { type: "student_union_application", id: result.rows[0].id });
     return res.status(201).json({ application: result.rows[0] });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[student-union/apply]");
@@ -14964,6 +14977,7 @@ router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: 
         b.requested_tier?.trim()||"basic", true,
       ]
     );
+    void sendPushToAdmins("🤝 طلب شراكة اتحاد جديد", `${b.union_name.trim()} — ${b.contact_person.trim()}`, { type: "union_partnership_application", id: result.rows[0].id });
     return res.status(201).json({ application: result.rows[0] });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[union-partnership/apply]");
@@ -16552,6 +16566,7 @@ router.post("/union-manager/apply", writeLimiter, async (req: Request, res: Resp
        can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
        other_commits||null,pledge_name||null]
     );
+    void sendPushToAdmins("🎓 طلب تولي إدارة اتحاد جديد", `${full_name} — ${institution||""}`.trim().replace(/\s*—\s*$/, ""), { type: "union_manager_application", id: r.rows[0].id });
     return res.status(201).json({ success: true, application: r.rows[0] });
   } catch (e: any) { logger.error({ err: e }, "union-manager/apply"); return res.status(500).json({ error: "Server error" }); }
 });
