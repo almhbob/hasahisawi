@@ -306,12 +306,11 @@ jobs:
             **https://almhbob.github.io/hasahisawi/**
 
             ### ميزات v${{ needs.build-android.outputs.version }}
+            - ✅ إكمال الملف الشخصي يعمل عبر Firebase مباشرة — بدون انتظار الخادم
+            - ✅ دعوة المؤسسات والجهات في جميع أقسام التطبيق (٣٧ قسماً)
+            - ✅ نظام إدارة اتحاد الطلاب كامل في الخادم الرئيسي
+            - ✅ إصلاح مسار PUT /api/users/me في Vercel
             - ✅ إصلاح ثغرة SQL Injection في نظام العقود القانونية
-            - ✅ ربط صفحة طلبات وكالات السفر في لوحة التحكم الإدارية
-            - ✅ إضافة زر "إعادة المحاولة" عند فشل تحميل بيانات الرياضة
-            - ✅ صفر أخطاء TypeScript في خادم Railway وخادم Vercel والتطبيق
-            - ✅ تحديث healthcheck إلى /api/readyz (يفحص قاعدة البيانات وFirebase)
-            - ✅ إضافة scripts النشر الرسمية (release:android:apk / aab / ios)
             - ✅ حماية 699 مستخدم — لا عمليات حذف على قاعدة البيانات
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
