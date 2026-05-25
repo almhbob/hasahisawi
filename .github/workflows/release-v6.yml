@@ -306,15 +306,13 @@ jobs:
             **https://almhbob.github.io/hasahisawi/**
 
             ### ميزات v${{ needs.build-android.outputs.version }}
-            - ✅ إصلاح QR ربط الهاتف بالكمبيوتر (تسجيل الشاشات + إصلاح confirm route)
-            - ✅ إصلاح أعضاء Firebase في لوح التحكم (health + sync routes)
-            - ✅ إجبار المستخدمين الجدد على تحديد الجنس (Google + كل الحسابات)
-            - ✅ قسم وكالات السفر والسياحة
-            - ✅ قسم التهنئة الفاخر (6 أنماط ملكية + مشاركة + نشر)
-            - ✅ إضافة 100+ مسار API لجميع أقسام التطبيق
-            - ✅ إصلاح أخطاء runtime حرجة (getAuthUser + Clipboard + greeting_likes)
-            - ✅ إشعارات Push مع نغمات مخصصة لكل قسم
-            - ✅ صفر أخطاء TypeScript في كامل المشروع
+            - ✅ إصلاح ثغرة SQL Injection في نظام العقود القانونية
+            - ✅ ربط صفحة طلبات وكالات السفر في لوحة التحكم الإدارية
+            - ✅ إضافة زر "إعادة المحاولة" عند فشل تحميل بيانات الرياضة
+            - ✅ صفر أخطاء TypeScript في خادم Railway وخادم Vercel والتطبيق
+            - ✅ تحديث healthcheck إلى /api/readyz (يفحص قاعدة البيانات وFirebase)
+            - ✅ إضافة scripts النشر الرسمية (release:android:apk / aab / ios)
+            - ✅ حماية 699 مستخدم — لا عمليات حذف على قاعدة البيانات
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab

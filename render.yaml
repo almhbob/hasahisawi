@@ -13,7 +13,7 @@ services:
       npm install firebase-admin@^13.4.0 --no-save --no-package-lock &&
       node build.mjs
     startCommand: node artifacts/api-server/dist/index.mjs
-    healthCheckPath: /api/healthz
+    healthCheckPath: /api/readyz
     envVars:
       - key: NODE_ENV
         value: production

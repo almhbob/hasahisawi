@@ -41,7 +41,8 @@ import Zawajil          from "@/pages/Zawajil";
 import MerchantPortal  from "@/pages/MerchantPortal";
 import GovEntities     from "@/pages/GovEntities";
 import DesignGallery   from "@/pages/DesignGallery";
-import TravelAdmin     from "@/pages/Travel";
+import TravelAdmin              from "@/pages/Travel";
+import TravelAgencyApplications from "@/pages/TravelAgencyApplications";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -124,8 +125,9 @@ function AppRoutes() {
         <Route path="/gov-entities"  component={GovEntities} />
         <Route path="/zawajil"        component={Zawajil} />
         <Route path="/design-gallery" component={DesignGallery} />
-        <Route path="/travel"         component={TravelAdmin} />
-        <Route path="/settings"       component={Settings} />
+        <Route path="/travel"                  component={TravelAdmin} />
+        <Route path="/travel-agency-requests" component={TravelAgencyApplications} />
+        <Route path="/settings"               component={Settings} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "hsl(215 20% 50%)" }}>
             الصفحة غير موجودة

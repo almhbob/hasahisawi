@@ -1,6 +1,6 @@
 {
   "name": "@workspace/hasahisawi",
-  "version": "6.2.0",
+  "version": "6.3.3",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -13,7 +13,12 @@
     "ios": "expo run:ios",
     "apk:prepare": "expo prebuild --platform android --clean --no-install",
     "apk:debug": "pnpm run apk:prepare && cd android && ./gradlew assembleDebug --no-daemon --stacktrace",
-    "apk:path": "node -e \"console.log('artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk')\""
+    "apk:path": "node -e \"console.log('artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk')\"",
+    "release:check": "pnpm run typecheck",
+    "release:android:apk": "pnpm run release:check && pnpm exec eas build --platform android --profile preview --non-interactive --no-wait",
+    "release:android:aab": "pnpm run release:check && pnpm exec eas build --platform android --profile production --non-interactive --no-wait",
+    "release:ios": "pnpm run release:check && pnpm exec eas build --platform ios --profile production-ios --non-interactive --no-wait",
+    "release:all": "pnpm run release:android:apk && pnpm run release:android:aab && pnpm run release:ios"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
