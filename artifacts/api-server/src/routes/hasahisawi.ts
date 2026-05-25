@@ -2128,16 +2128,20 @@ router.post("/auth/register-admin", async (req: Request, res: Response) => {
   }
 });
 
-// تحديث الملف الشخصي (الاسم + الصورة الشخصية)
-router.put("/auth/profile", async (req: Request, res: Response) => {
+// تحديث الملف الشخصي (الاسم + الصورة + الجنس + الحي + التاريخ + النبذة)
+async function handleUpdateProfile(req: Request, res: Response): Promise<Response> {
   try {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
-    const { name, avatar_url } = req.body;
+    const { name, avatar_url, gender, neighborhood, birth_date, bio } = req.body;
     const updates: string[] = [];
     const params: unknown[] = [];
     if (name?.trim()) { updates.push(`name=$${params.length + 1}`); params.push(name.trim()); }
     if (avatar_url !== undefined) { updates.push(`avatar_url=$${params.length + 1}`); params.push(avatar_url || null); }
+    if (gender) { updates.push(`gender=$${params.length + 1}`); params.push(gender); }
+    if (neighborhood !== undefined) { updates.push(`neighborhood=$${params.length + 1}`); params.push(neighborhood || null); }
+    if (birth_date !== undefined) { updates.push(`birth_date=$${params.length + 1}`); params.push(birth_date || null); }
+    if (bio !== undefined) { updates.push(`bio=$${params.length + 1}`); params.push(bio || null); }
     if (updates.length === 0) return res.status(400).json({ error: "لا توجد تحديثات" });
     params.push(me.id);
     const result = await query(
@@ -2149,7 +2153,10 @@ router.put("/auth/profile", async (req: Request, res: Response) => {
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
-});
+}
+
+router.put("/auth/profile", handleUpdateProfile);
+router.put("/users/me", handleUpdateProfile);
 
 router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   try {
