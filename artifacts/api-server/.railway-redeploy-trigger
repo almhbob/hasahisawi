@@ -1,0 +1,3 @@
+Redeploy api-server after Railway PostgreSQL recovery.
+
+This file intentionally triggers Railway to rebuild and deploy the latest API server routes, including /api/readyz.
