@@ -1,0 +1,34 @@
+name: Keep-Alive — Ping Servers
+
+on:
+  schedule:
+    # كل 10 دقائق — يمنع نوم Render وVercel cold-start
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping API servers
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping Vercel API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/api/healthz")
+          echo "Vercel → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Vercel OK" || echo "⚠️ Vercel returned $STATUS"
+
+      - name: Ping Render API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            "https://hasahisawi.onrender.com/api/healthz")
+          echo "Render → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Render OK" || echo "⚠️ Render returned $STATUS (may be waking up)"
+
+      - name: Ping PWA (GitHub Pages)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "https://almhbob.github.io/hasahisawi/")
+          echo "PWA → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ PWA OK" || echo "⚠️ PWA returned $STATUS"
