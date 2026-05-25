@@ -3207,7 +3207,8 @@ router.get("/admin/users", async (req: Request, res: Response) => {
 
 // ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
 // يُرسل استجابة سريعة ثم يُكمل العملية في الخلفية (لتجاوز حد Vercel 10s)
-router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request, res: Response) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request, res: Response): Promise<any> => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
 
@@ -3223,6 +3224,7 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
       status: "processing",
       message: `جارٍ مزامنة ${firebaseUsers.length} مستخدم في الخلفية…`,
     });
+    return;
 
     // معالجة دُفعية في الخلفية بعد إرسال الرد
     setImmediate(async () => {
@@ -16216,7 +16218,7 @@ router.patch("/medical/admissions/:id/companions/:cid/approve", async (req: Requ
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
     const admId = parseInt(String(req.params.id), 10);
-    const cmpId = parseInt(req.params.cid, 10);
+    const cmpId = parseInt(String(req.params.cid), 10);
     const admR = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
     if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
     const adm = admR.rows[0];
@@ -16246,7 +16248,7 @@ router.patch("/medical/admissions/:id/companions/:cid/exit-pass", async (req: Re
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
     const admId = parseInt(String(req.params.id), 10);
-    const cmpId = parseInt(req.params.cid, 10);
+    const cmpId = parseInt(String(req.params.cid), 10);
     const admR  = await query(`SELECT * FROM hospital_admissions WHERE id=$1`, [admId]);
     if (!admR.rows.length) return res.status(404).json({ error: "التنويم غير موجود" });
     const adm = admR.rows[0];
