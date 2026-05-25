@@ -16879,8 +16879,7 @@ const INVITATION_TARGETS = [
 
 router.post("/admin/send-invitations", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "مديرون فقط" });
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "مديرون فقط" });
 
     const resendKey = process.env.RESEND_API_KEY;
     const emailFrom = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
