@@ -1,0 +1,74 @@
+name: Deploy Web PWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'artifacts/hasahisawi/app/**'
+      - 'artifacts/hasahisawi/lib/**'
+      - 'artifacts/hasahisawi/components/**'
+      - 'artifacts/hasahisawi/app.json'
+      - '.web-deploy-trigger'
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  deploy:
+    name: Build + Deploy Web PWA
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - name: Export web
+        working-directory: artifacts/hasahisawi
+        run: pnpm exec expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app
+          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_DISABLE_OTP: 'true'
+
+      - name: Add PWA files
+        working-directory: artifacts/hasahisawi
+        run: |
+          cp -r public/splash dist/splash 2>/dev/null || true
+          cp public/sw.js dist/sw.js 2>/dev/null || true
+          cp public/manifest.json dist/manifest.json 2>/dev/null || true
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - name: Deploy to docs/ on master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git reset --hard origin/master
+          rm -rf docs/
+          mkdir -p docs
+          cp -r artifacts/hasahisawi/dist/. docs/
+          git add -f docs/
+          git diff --cached --quiet && echo "No changes" || \
+            git commit -m "deploy: web PWA → docs/ [auto]"
+          git push origin master
+
+      - run: echo "✅ PWA live at https://almhbob.github.io/hasahisawi/"
