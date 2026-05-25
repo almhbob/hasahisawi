@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, ActivityIndicator,
@@ -24,18 +24,45 @@ export default function CompleteProfileScreen() {
   const [neighborhood, setNeighborhood] = useState<string>(user?.neighborhood ?? "");
   const [saving, setSaving]             = useState(false);
   const [error, setError]               = useState("");
+  const [countdown, setCountdown]       = useState(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const canSave = !!gender;
+
+  // تنظيف المؤقتات عند مغادرة الشاشة
+  useEffect(() => () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    if (countdownInterval.current) clearInterval(countdownInterval.current);
+  }, []);
 
   const handleSave = async () => {
     if (!canSave) return;
     setError("");
+    setCountdown(0);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    if (countdownInterval.current) clearInterval(countdownInterval.current);
     setSaving(true);
     try {
       await completeProfile(gender!, neighborhood.trim() || undefined);
       router.replace("/(tabs)/" as any);
     } catch (e: any) {
-      setError(e?.message || "تعذّر الحفظ، حاول مرة أخرى");
+      const msg: string = e?.message || "تعذّر الحفظ، حاول مرة أخرى";
+      setError(msg);
+      // إعادة المحاولة تلقائياً بعد 12 ثانية إذا كان الخطأ من الخادم
+      if (msg.includes("يستيقظ") || msg.includes("مهلة") || msg.includes("اتصال")) {
+        let secs = 12;
+        setCountdown(secs);
+        countdownInterval.current = setInterval(() => {
+          secs -= 1;
+          setCountdown(secs);
+          if (secs <= 0) clearInterval(countdownInterval.current!);
+        }, 1000);
+        retryTimer.current = setTimeout(() => {
+          setCountdown(0);
+          handleSave();
+        }, 12000);
+      }
     } finally {
       setSaving(false);
     }
@@ -176,7 +203,19 @@ export default function CompleteProfileScreen() {
         {error ? (
           <Animated.View entering={FadeIn} style={s.errorBox}>
             <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
-            <Text style={s.errorTxt}>{error}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.errorTxt}>{error}</Text>
+              {countdown > 0 && (
+                <Text style={[s.errorTxt, { fontSize: 11, opacity: 0.7, marginTop: 2 }]}>
+                  إعادة المحاولة خلال {countdown}ث...
+                </Text>
+              )}
+            </View>
+            {countdown > 0 && (
+              <TouchableOpacity onPress={handleSave} hitSlop={8}>
+                <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 13 }}>الآن</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         ) : null}
 
