@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عيد الأضحى المبارك — حصاحيصاوي</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 2160px;
+    height: 2160px;
+    overflow: hidden;
+    background: #08060E;
+    font-family: 'Cairo', 'Amiri', serif;
+  }
+
+  .canvas {
+    width: 2160px;
+    height: 2160px;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 20%, #1a1228 0%, #0d0918 45%, #06040F 100%);
+  }
+
+  /* ─── Geometric pattern layer ─── */
+  .geo-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0.10;
+  }
+
+  /* ─── Sky glow ─── */
+  .glow-top {
+    position: absolute;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 2000px; height: 1400px;
+    background: radial-gradient(ellipse, rgba(120,80,210,0.28) 0%, rgba(200,140,30,0.14) 40%, transparent 70%);
+    pointer-events: none;
+  }
+  .glow-center {
+    position: absolute;
+    top: 600px; left: 50%;
+    transform: translateX(-50%);
+    width: 1600px; height: 900px;
+    background: radial-gradient(ellipse, rgba(212,175,55,0.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .glow-bottom {
+    position: absolute;
+    bottom: -300px; left: 50%;
+    transform: translateX(-50%);
+    width: 2000px; height: 1100px;
+    background: radial-gradient(ellipse, rgba(180,120,20,0.20) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  /* ─── Stars ─── */
+  .stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* ─── Horizontal gold divider ─── */
+  .divider {
+    width: 700px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #D4AF37, #FFD700, #D4AF37, transparent);
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+  .divider-sm {
+    width: 400px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #D4AF37, #FFD700, #D4AF37, transparent);
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+
+  /* ─── Corner ornaments ─── */
+  .corner {
+    position: absolute;
+    width: 280px; height: 280px;
+    opacity: 0.55;
+  }
+  .corner-tl { top: 40px; right: 40px; transform: scaleX(-1); }
+  .corner-tr { top: 40px; left: 40px; }
+  .corner-bl { bottom: 40px; right: 40px; transform: scaleY(-1) scaleX(-1); }
+  .corner-br { bottom: 40px; left: 40px; transform: scaleY(-1); }
+
+  /* ─── Content wrapper ─── */
+  .content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 110px 160px 90px;
+    gap: 0;
+  }
+
+  /* ─── App logo ─── */
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 48px;
+  }
+  .app-logo-icon {
+    width: 100px; height: 100px;
+    background: linear-gradient(135deg, #2ecc71, #1a8a45);
+    border-radius: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 54px;
+    box-shadow: 0 0 40px rgba(46,204,113,0.5), 0 0 80px rgba(46,204,113,0.2);
+  }
+  .app-logo-text {
+    font-family: 'Cairo', sans-serif;
+    font-size: 58px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #2ecc71, #a8f5c8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 2px;
+  }
+
+  /* ─── Kaaba SVG section ─── */
+  .kaaba-section {
+    margin: 10px 0 24px;
+    position: relative;
+  }
+
+  /* ─── Moon + Star ─── */
+  .moon-star-wrap {
+    position: relative;
+    width: 360px;
+    height: 260px;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── Main heading ─── */
+  .eid-heading {
+    font-family: 'Amiri', serif;
+    font-size: 210px;
+    font-weight: 700;
+    line-height: 1.0;
+    text-align: center;
+    background: linear-gradient(180deg, #FFE566 0%, #D4AF37 40%, #B8860B 80%, #FFD700 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 60px rgba(212,175,55,0.6));
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+  }
+  .eid-sub {
+    font-family: 'Amiri', serif;
+    font-size: 110px;
+    font-weight: 700;
+    text-align: center;
+    background: linear-gradient(180deg, #FFE566 0%, #D4AF37 60%, #FFD700 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(212,175,55,0.5));
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+
+  /* ─── Blessing text ─── */
+  .blessing {
+    font-family: 'Amiri', serif;
+    font-size: 58px;
+    font-weight: 400;
+    font-style: italic;
+    color: rgba(255,235,160,0.88);
+    text-align: center;
+    line-height: 1.7;
+    margin: 16px 0 32px;
+    max-width: 1500px;
+  }
+
+  /* ─── Hajj verse ─── */
+  .quran-verse {
+    font-family: 'Amiri', serif;
+    font-size: 52px;
+    font-weight: 700;
+    color: rgba(212,175,55,0.90);
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 18px;
+    max-width: 1600px;
+    letter-spacing: 1px;
+  }
+  .verse-source {
+    font-family: 'Cairo', sans-serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: rgba(212,175,55,0.55);
+    text-align: center;
+    margin-bottom: 44px;
+  }
+
+  /* ─── Invitation section ─── */
+  .invite-header {
+    font-family: 'Cairo', sans-serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.92);
+    text-align: center;
+    margin-bottom: 32px;
+    letter-spacing: 1px;
+  }
+  .invite-header span {
+    background: linear-gradient(90deg, #D4AF37, #FFD700, #D4AF37);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─── Grid ─── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+    width: 100%;
+    margin-bottom: 44px;
+  }
+  .card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+    border: 1.5px solid rgba(212,175,55,0.28);
+    border-radius: 28px;
+    padding: 44px 28px 38px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 80%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent);
+  }
+  .card-icon {
+    font-size: 70px;
+    margin-bottom: 20px;
+    display: block;
+    filter: drop-shadow(0 4px 12px rgba(212,175,55,0.4));
+  }
+  .card-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 46px;
+    font-weight: 700;
+    color: #FFE566;
+    margin-bottom: 12px;
+  }
+  .card-desc {
+    font-family: 'Cairo', sans-serif;
+    font-size: 33px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.62);
+    line-height: 1.5;
+  }
+
+  /* ─── CTA button ─── */
+  .cta-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    margin-top: 6px;
+  }
+  .cta-btn {
+    display: inline-block;
+    padding: 38px 120px;
+    background: linear-gradient(135deg, #D4AF37, #FFD700, #B8860B);
+    color: #0d0918;
+    font-family: 'Cairo', sans-serif;
+    font-size: 54px;
+    font-weight: 900;
+    border-radius: 80px;
+    letter-spacing: 2px;
+    box-shadow: 0 0 60px rgba(212,175,55,0.5), 0 8px 40px rgba(0,0,0,0.5);
+    text-decoration: none;
+  }
+  .cta-url {
+    font-family: 'Cairo', sans-serif;
+    font-size: 40px;
+    font-weight: 400;
+    color: rgba(212,175,55,0.70);
+    letter-spacing: 2px;
+  }
+
+  /* ─── Footer tagline ─── */
+  .footer {
+    position: absolute;
+    bottom: 54px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 3px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <!-- ─── Geometric SVG pattern ─── -->
+  <svg class="geo-layer" viewBox="0 0 2160 2160" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <pattern id="star8" x="0" y="0" width="216" height="216" patternUnits="userSpaceOnUse">
+        <!-- 8-point star tile (Islamic geometric) -->
+        <g fill="none" stroke="#D4AF37" stroke-width="1.2">
+          <polygon points="108,10 125,60 175,60 135,90 150,140 108,110 66,140 81,90 41,60 91,60" opacity="0.9"/>
+          <polygon points="108,30 118,62 152,62 126,80 136,112 108,92 80,112 90,80 64,62 98,62" opacity="0.5"/>
+          <line x1="108" y1="10" x2="108" y2="206"/>
+          <line x1="10" y1="108" x2="206" y2="108"/>
+          <line x1="40" y1="40" x2="176" y2="176"/>
+          <line x1="176" y1="40" x2="40" y2="176"/>
+          <!-- decorative dots -->
+          <circle cx="108" cy="10" r="3" fill="#D4AF37"/>
+          <circle cx="206" cy="108" r="3" fill="#D4AF37"/>
+          <circle cx="108" cy="206" r="3" fill="#D4AF37"/>
+          <circle cx="10" cy="108" r="3" fill="#D4AF37"/>
+        </g>
+      </pattern>
+      <!-- Subtle vignette -->
+      <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+        <stop offset="0%" stop-color="transparent"/>
+        <stop offset="100%" stop-color="#06040F" stop-opacity="0.85"/>
+      </radialGradient>
+    </defs>
+    <rect width="2160" height="2160" fill="url(#star8)"/>
+    <rect width="2160" height="2160" fill="url(#vignette)"/>
+  </svg>
+
+  <!-- ─── Glow layers ─── -->
+  <div class="glow-top"></div>
+  <div class="glow-center"></div>
+  <div class="glow-bottom"></div>
+
+  <!-- ─── Stars SVG ─── -->
+  <svg class="stars" viewBox="0 0 2160 2160" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="starGlow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <g filter="url(#starGlow)" opacity="0.85">
+      <!-- scattered stars -->
+      <circle cx="200" cy="120" r="3" fill="white" opacity="0.9"/>
+      <circle cx="380" cy="80" r="2" fill="white" opacity="0.7"/>
+      <circle cx="560" cy="160" r="2.5" fill="white" opacity="0.8"/>
+      <circle cx="750" cy="60" r="2" fill="white" opacity="0.6"/>
+      <circle cx="920" cy="140" r="3" fill="white" opacity="0.85"/>
+      <circle cx="1100" cy="55" r="2" fill="white" opacity="0.7"/>
+      <circle cx="1300" cy="130" r="2.5" fill="white" opacity="0.9"/>
+      <circle cx="1480" cy="70" r="2" fill="white" opacity="0.65"/>
+      <circle cx="1660" cy="155" r="3" fill="white" opacity="0.8"/>
+      <circle cx="1840" cy="90" r="2" fill="white" opacity="0.75"/>
+      <circle cx="2020" cy="130" r="2.5" fill="white" opacity="0.7"/>
+      <circle cx="140" cy="280" r="2" fill="white" opacity="0.55"/>
+      <circle cx="450" cy="310" r="2.5" fill="white" opacity="0.65"/>
+      <circle cx="700" cy="240" r="2" fill="white" opacity="0.6"/>
+      <circle cx="1050" cy="270" r="2" fill="white" opacity="0.5"/>
+      <circle cx="1400" cy="300" r="2.5" fill="white" opacity="0.6"/>
+      <circle cx="1750" cy="250" r="2" fill="white" opacity="0.55"/>
+      <circle cx="2000" cy="290" r="2" fill="white" opacity="0.5"/>
+      <!-- gold-tinted accent stars -->
+      <circle cx="310" cy="200" r="2.5" fill="#FFE566" opacity="0.6"/>
+      <circle cx="860" cy="190" r="2" fill="#FFE566" opacity="0.55"/>
+      <circle cx="1220" cy="210" r="2.5" fill="#FFE566" opacity="0.5"/>
+      <circle cx="1580" cy="185" r="2" fill="#FFE566" opacity="0.6"/>
+      <circle cx="1950" cy="215" r="2.5" fill="#FFE566" opacity="0.55"/>
+    </g>
+  </svg>
+
+  <!-- ─── Corner ornaments ─── -->
+  <svg class="corner corner-tr" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="cg1" cx="0%" cy="0%" r="100%"><stop offset="0%" stop-color="#FFD700" stop-opacity="0.9"/><stop offset="100%" stop-color="#8B6914" stop-opacity="0.3"/></radialGradient></defs>
+    <g fill="none" stroke="url(#cg1)" stroke-width="2">
+      <path d="M10,10 Q140,10 270,10 Q270,140 270,270" stroke-width="3"/>
+      <path d="M30,10 Q140,30 270,30"/>
+      <path d="M10,30 Q30,140 10,270"/>
+      <path d="M50,10 C50,50 120,60 150,10"/>
+      <path d="M10,50 C50,50 60,120 10,150"/>
+      <circle cx="30" cy="30" r="12" fill="url(#cg1)" opacity="0.5"/>
+      <circle cx="30" cy="30" r="5" fill="#FFD700" opacity="0.8"/>
+      <!-- lotus petal motif -->
+      <ellipse cx="80" cy="40" rx="25" ry="12" transform="rotate(-45 80 40)" opacity="0.6"/>
+      <ellipse cx="40" cy="80" rx="25" ry="12" transform="rotate(-135 40 80)" opacity="0.6"/>
+      <ellipse cx="110" cy="20" rx="20" ry="8" transform="rotate(-30 110 20)" opacity="0.4"/>
+      <ellipse cx="20" cy="110" rx="20" ry="8" transform="rotate(-150 20 110)" opacity="0.4"/>
+    </g>
+  </svg>
+  <svg class="corner corner-tl" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="cg2" cx="100%" cy="0%" r="100%"><stop offset="0%" stop-color="#FFD700" stop-opacity="0.9"/><stop offset="100%" stop-color="#8B6914" stop-opacity="0.3"/></radialGradient></defs>
+    <g fill="none" stroke="url(#cg2)" stroke-width="2">
+      <path d="M270,10 Q140,10 10,10 Q10,140 10,270" stroke-width="3"/>
+      <path d="M250,10 Q140,30 10,30"/>
+      <path d="M270,30 Q250,140 270,270"/>
+      <path d="M230,10 C230,50 160,60 130,10"/>
+      <path d="M270,50 C230,50 220,120 270,150"/>
+      <circle cx="250" cy="30" r="12" fill="url(#cg2)" opacity="0.5"/>
+      <circle cx="250" cy="30" r="5" fill="#FFD700" opacity="0.8"/>
+      <ellipse cx="200" cy="40" rx="25" ry="12" transform="rotate(45 200 40)" opacity="0.6"/>
+      <ellipse cx="240" cy="80" rx="25" ry="12" transform="rotate(135 240 80)" opacity="0.6"/>
+    </g>
+  </svg>
+  <svg class="corner corner-br" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="cg3" cx="0%" cy="100%" r="100%"><stop offset="0%" stop-color="#FFD700" stop-opacity="0.9"/><stop offset="100%" stop-color="#8B6914" stop-opacity="0.3"/></radialGradient></defs>
+    <g fill="none" stroke="url(#cg3)" stroke-width="2">
+      <path d="M10,270 Q140,270 270,270 Q270,140 270,10" stroke-width="3"/>
+      <path d="M30,270 Q140,250 270,250"/>
+      <path d="M10,250 Q30,140 10,10"/>
+      <circle cx="30" cy="250" r="12" fill="url(#cg3)" opacity="0.5"/>
+      <circle cx="30" cy="250" r="5" fill="#FFD700" opacity="0.8"/>
+      <ellipse cx="80" cy="240" rx="25" ry="12" transform="rotate(45 80 240)" opacity="0.6"/>
+      <ellipse cx="40" cy="200" rx="25" ry="12" transform="rotate(135 40 200)" opacity="0.6"/>
+    </g>
+  </svg>
+  <svg class="corner corner-bl" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="cg4" cx="100%" cy="100%" r="100%"><stop offset="0%" stop-color="#FFD700" stop-opacity="0.9"/><stop offset="100%" stop-color="#8B6914" stop-opacity="0.3"/></radialGradient></defs>
+    <g fill="none" stroke="url(#cg4)" stroke-width="2">
+      <path d="M270,270 Q140,270 10,270 Q10,140 10,10" stroke-width="3"/>
+      <path d="M250,270 Q140,250 10,250"/>
+      <path d="M270,250 Q250,140 270,10"/>
+      <circle cx="250" cy="250" r="12" fill="url(#cg4)" opacity="0.5"/>
+      <circle cx="250" cy="250" r="5" fill="#FFD700" opacity="0.8"/>
+      <ellipse cx="200" cy="240" rx="25" ry="12" transform="rotate(-45 200 240)" opacity="0.6"/>
+      <ellipse cx="240" cy="200" rx="25" ry="12" transform="rotate(-135 240 200)" opacity="0.6"/>
+    </g>
+  </svg>
+
+  <!-- ─── Main content ─── -->
+  <div class="content">
+
+    <!-- App logo -->
+    <div class="app-logo">
+      <div class="app-logo-icon">🌿</div>
+      <div class="app-logo-text">حصاحيصاوي</div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="height:42px"></div>
+
+    <!-- Moon, star & Kaaba -->
+    <svg width="900" height="360" viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:10px; overflow:visible">
+      <defs>
+        <!-- Moon glow -->
+        <filter id="moonGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="18" result="blur1"/>
+          <feGaussianBlur stdDeviation="40" result="blur2"/>
+          <feMerge><feMergeNode in="blur2"/><feMergeNode in="blur1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <!-- Kaaba glow -->
+        <filter id="kaabaGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="12" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <!-- Gold gradient -->
+        <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FFE566"/>
+          <stop offset="40%" stop-color="#FFD700"/>
+          <stop offset="100%" stop-color="#B8860B"/>
+        </linearGradient>
+        <!-- Purple-gold sky gradient for kaaba bg -->
+        <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#1a0e35" stop-opacity="0"/>
+          <stop offset="60%" stop-color="#0d0918" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#06040F" stop-opacity="0"/>
+        </linearGradient>
+        <!-- Kaaba gradient -->
+        <linearGradient id="kaabaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2a2040"/>
+          <stop offset="50%" stop-color="#1a1030"/>
+          <stop offset="100%" stop-color="#0d0820"/>
+        </linearGradient>
+        <!-- Kiswah gold border gradient -->
+        <linearGradient id="kiswahGold" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#FFD700"/>
+          <stop offset="50%" stop-color="#D4AF37"/>
+          <stop offset="100%" stop-color="#8B6914"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ─── Crescent moon (right side) ─── -->
+      <g filter="url(#moonGlow)" transform="translate(620, 30)">
+        <!-- outer circle -->
+        <circle cx="110" cy="120" r="110" fill="url(#moonGrad)" opacity="0.95"/>
+        <!-- bite circle to create crescent -->
+        <circle cx="158" cy="100" r="108" fill="#0d0918"/>
+        <!-- glow ring -->
+        <circle cx="110" cy="120" r="112" fill="none" stroke="#FFD700" stroke-width="3" opacity="0.4"/>
+      </g>
+
+      <!-- ─── 5-point star (next to crescent) ─── -->
+      <g filter="url(#moonGlow)" transform="translate(790, 20) scale(0.9)">
+        <polygon points="40,0 49,30 80,30 55,48 64,78 40,60 16,78 25,48 0,30 31,30"
+                 fill="url(#moonGrad)" opacity="0.95"/>
+        <polygon points="40,8 47,28 68,28 52,40 58,60 40,48 22,60 28,40 12,28 33,28"
+                 fill="none" stroke="#FFE566" stroke-width="1.5" opacity="0.5"/>
+      </g>
+
+      <!-- ─── Kaaba silhouette (center-left) ─── -->
+      <g filter="url(#kaabaGlow)" transform="translate(60, 30)">
+        <!-- ground/floor shadow -->
+        <ellipse cx="240" cy="310" rx="180" ry="22" fill="#1a0e35" opacity="0.6"/>
+
+        <!-- Main Kaaba cube body -->
+        <rect x="80" y="80" width="320" height="220" rx="4" fill="url(#kaabaGrad)"/>
+        <!-- Right face (3D illusion) -->
+        <polygon points="400,80 460,40 460,260 400,300" fill="#150c28" opacity="0.9"/>
+        <!-- Top face -->
+        <polygon points="80,80 400,80 460,40 140,40" fill="#221540" opacity="0.9"/>
+
+        <!-- Kiswah (black cloth) main body -->
+        <rect x="82" y="82" width="316" height="216" rx="2" fill="#0a0614"/>
+        <!-- Kiswah side face -->
+        <polygon points="398,82 458,42 458,258 398,298" fill="#07040f"/>
+
+        <!-- Gold Kiswah band (الحزام الذهبي) — horizontal stripe -->
+        <rect x="82" y="175" width="316" height="32" fill="none" stroke="url(#kiswahGold)" stroke-width="3" opacity="0.9"/>
+        <!-- Kiswah band right face -->
+        <polygon points="398,175 458,135 458,167 398,207" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.7"/>
+
+        <!-- Calligraphy impression on band (decorative lines) -->
+        <line x1="110" y1="186" x2="180" y2="186" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+        <line x1="110" y1="196" x2="200" y2="196" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+        <line x1="220" y1="186" x2="290" y2="186" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+        <line x1="310" y1="188" x2="370" y2="188" stroke="#FFD700" stroke-width="1.5" opacity="0.5"/>
+
+        <!-- Door (باب الكعبة) -->
+        <rect x="190" y="210" width="90" height="88" rx="6" fill="#1a0e30"/>
+        <rect x="194" y="214" width="82" height="80" rx="4" fill="none" stroke="#D4AF37" stroke-width="2.5" opacity="0.8"/>
+        <!-- Door arch top -->
+        <path d="M190,218 Q235,195 280,218" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.6"/>
+        <!-- Door center split -->
+        <line x1="235" y1="214" x2="235" y2="294" stroke="#D4AF37" stroke-width="1.5" opacity="0.5"/>
+        <!-- Door lock motif -->
+        <rect x="225" y="248" width="20" height="16" rx="3" fill="none" stroke="#FFD700" stroke-width="2" opacity="0.7"/>
+
+        <!-- Gold top edge trim -->
+        <rect x="80" y="78" width="322" height="6" rx="2" fill="url(#kiswahGold)" opacity="0.7"/>
+        <!-- Top face trim -->
+        <polygon points="80,80 140,38 462,38 400,80" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.5"/>
+
+        <!-- Corner pillars / edge highlights -->
+        <line x1="80" y1="80" x2="80" y2="298" stroke="#D4AF37" stroke-width="3" opacity="0.4"/>
+        <line x1="400" y1="80" x2="400" y2="298" stroke="#D4AF37" stroke-width="2" opacity="0.3"/>
+
+        <!-- Ground line -->
+        <line x1="40" y1="298" x2="460" y2="298" stroke="#D4AF37" stroke-width="2" opacity="0.35"/>
+
+        <!-- Tawaf circles (pilgrims circling) — top view suggestion -->
+        <ellipse cx="240" cy="322" rx="150" ry="18" fill="none" stroke="#D4AF37" stroke-width="1.5" opacity="0.25" stroke-dasharray="8 6"/>
+        <ellipse cx="240" cy="322" rx="180" ry="22" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.15" stroke-dasharray="6 8"/>
+
+        <!-- Small pilgrim dots suggestion -->
+        <circle cx="100" cy="322" r="5" fill="#D4AF37" opacity="0.35"/>
+        <circle cx="160" cy="328" r="4" fill="#D4AF37" opacity="0.3"/>
+        <circle cx="330" cy="320" r="5" fill="#D4AF37" opacity="0.35"/>
+        <circle cx="390" cy="326" r="4" fill="#D4AF37" opacity="0.3"/>
+        <circle cx="245" cy="338" r="4" fill="#D4AF37" opacity="0.28"/>
+      </g>
+    </svg>
+
+    <!-- Main heading -->
+    <div class="eid-heading">عيد الأضحى</div>
+    <div class="eid-sub">المبارك</div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+    <div style="height:30px"></div>
+
+    <!-- Blessing -->
+    <div class="blessing">
+      تقبَّل الله منَّا ومنكم صالح الأعمال<br>
+      وكلَّ عام وأبناء ولاية الجزيرة الكرام بخير وعافية
+    </div>
+
+    <!-- Quran verse -->
+    <div class="quran-verse">﴿ وَلِكُلِّ أُمَّةٍ جَعَلْنَا مَنسَكًا لِّيَذْكُرُوا اسْمَ اللَّهِ ﴾</div>
+    <div class="verse-source">سورة الحج — الآية 34</div>
+
+    <div class="divider-sm"></div>
+    <div style="height:40px"></div>
+
+    <!-- Invitation -->
+    <div class="invite-header">
+      ندعو <span>المؤسسات والشركات</span> للانضمام إلى حصاحيصاوي
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <span class="card-icon">🏛️</span>
+        <div class="card-title">الجهات الحكومية</div>
+        <div class="card-desc">وزارات · مجالس محلية · هيئات</div>
+      </div>
+      <div class="card">
+        <span class="card-icon">🏥</span>
+        <div class="card-title">المستشفيات والعيادات</div>
+        <div class="card-desc">خدمات طبية · مراكز صحية</div>
+      </div>
+      <div class="card">
+        <span class="card-icon">🎓</span>
+        <div class="card-title">الجامعات والمعاهد</div>
+        <div class="card-desc">تعليم عالٍ · تدريب · بحث علمي</div>
+      </div>
+      <div class="card">
+        <span class="card-icon">🏦</span>
+        <div class="card-title">البنوك والمصارف</div>
+        <div class="card-desc">خدمات مالية · تمويل · استثمار</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-wrap">
+      <div class="divider-sm"></div>
+      <div style="height:8px"></div>
+      <span class="cta-btn">سجّل مؤسستك الآن — مجاناً</span>
+      <div class="cta-url">almhbob.github.io/hasahisawi</div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">المنصة الرقمية الأولى لأبناء ولاية الجزيرة — السودان · 2026</div>
+
+</div>
+</body>
+</html>
