@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عيد مبارك — حصاحيصاوي</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 2160px;
+    height: 2160px;
+    overflow: hidden;
+    background: #050E08;
+    font-family: 'Cairo', 'Amiri', serif;
+  }
+
+  .canvas {
+    width: 2160px;
+    height: 2160px;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 30%, #0d2e18 0%, #071409 45%, #020905 100%);
+  }
+
+  /* ─── Geometric SVG Pattern Layer ─── */
+  .geo-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0.12;
+  }
+
+  /* ─── Radial glow spots ─── */
+  .glow-top {
+    position: absolute;
+    top: -300px; left: 50%;
+    transform: translateX(-50%);
+    width: 1800px; height: 1200px;
+    background: radial-gradient(ellipse, rgba(39,174,96,0.35) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .glow-bottom {
+    position: absolute;
+    bottom: -400px; left: 50%;
+    transform: translateX(-50%);
+    width: 2000px; height: 1200px;
+    background: radial-gradient(ellipse, rgba(212,175,55,0.18) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .glow-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 1400px; height: 1400px;
+    background: radial-gradient(ellipse, rgba(39,174,96,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ─── Top border band ─── */
+  .top-band {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, transparent, #1a7a3a, #2ECC71, #D4AF37, #2ECC71, #1a7a3a, transparent);
+  }
+  .bottom-band {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, transparent, #1a7a3a, #2ECC71, #D4AF37, #2ECC71, #1a7a3a, transparent);
+  }
+
+  /* ─── Corner ornaments ─── */
+  .corner {
+    position: absolute;
+    width: 280px; height: 280px;
+    opacity: 0.5;
+  }
+  .corner svg { width: 100%; height: 100%; }
+  .corner-tl { top: 30px; right: 30px; }
+  .corner-tr { top: 30px; left: 30px; transform: scaleX(-1); }
+  .corner-bl { bottom: 30px; right: 30px; transform: scaleY(-1); }
+  .corner-br { bottom: 30px; left: 30px; transform: scale(-1); }
+
+  /* ─── Main content ─── */
+  .content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 120px 200px;
+  }
+
+  /* ─── Logo row ─── */
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    margin-bottom: 60px;
+  }
+  .app-icon {
+    width: 130px; height: 130px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, #0d3320, #1a5c36);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 72px;
+    box-shadow: 0 0 60px rgba(46,204,113,0.4), 0 0 120px rgba(46,204,113,0.15);
+    border: 2px solid rgba(46,204,113,0.4);
+  }
+  .app-name {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 900;
+    font-size: 80px;
+    color: #2ECC71;
+    letter-spacing: 4px;
+    text-shadow: 0 0 40px rgba(46,204,113,0.5);
+  }
+
+  /* ─── Crescent ─── */
+  .crescent-wrap {
+    position: relative;
+    margin-bottom: 40px;
+  }
+  .crescent-svg {
+    width: 220px; height: 220px;
+    filter: drop-shadow(0 0 30px rgba(212,175,55,0.8)) drop-shadow(0 0 80px rgba(212,175,55,0.4));
+  }
+  .stars-row {
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    margin-top: 16px;
+    font-size: 44px;
+    filter: drop-shadow(0 0 12px rgba(212,175,55,0.9));
+  }
+
+  /* ─── Eid heading ─── */
+  .eid-label {
+    font-family: 'Amiri', serif;
+    font-size: 52px;
+    color: rgba(212,175,55,0.8);
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+  .eid-main {
+    font-family: 'Amiri', serif;
+    font-size: 200px;
+    font-weight: 700;
+    line-height: 1;
+    background: linear-gradient(180deg, #F8E97A 0%, #D4AF37 40%, #B8860B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    filter: drop-shadow(0 8px 40px rgba(212,175,55,0.6));
+    margin-bottom: 10px;
+  }
+  .eid-sub {
+    font-family: 'Amiri', serif;
+    font-size: 110px;
+    font-weight: 700;
+    background: linear-gradient(180deg, #F8E97A 0%, #D4AF37 50%, #B8860B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    filter: drop-shadow(0 4px 30px rgba(212,175,55,0.5));
+    margin-bottom: 30px;
+  }
+
+  /* ─── Divider ─── */
+  .divider {
+    width: 900px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), rgba(46,204,113,0.8), rgba(212,175,55,0.3), transparent);
+    margin: 40px 0;
+  }
+
+  /* ─── Blessing text ─── */
+  .blessing {
+    font-family: 'Cairo', sans-serif;
+    font-size: 58px;
+    color: rgba(255,255,255,0.92);
+    text-align: center;
+    line-height: 1.6;
+    font-weight: 300;
+    max-width: 1600px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+  .blessing strong {
+    color: #2ECC71;
+    font-weight: 700;
+  }
+
+  /* ─── Invitation card ─── */
+  .invite-card {
+    margin-top: 60px;
+    background: linear-gradient(135deg,
+      rgba(10,46,26,0.85) 0%,
+      rgba(15,66,40,0.9) 50%,
+      rgba(10,46,26,0.85) 100%
+    );
+    border: 1px solid rgba(46,204,113,0.35);
+    border-radius: 40px;
+    padding: 60px 100px;
+    max-width: 1700px;
+    width: 100%;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 80px rgba(46,204,113,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .invite-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #2ECC71, #D4AF37, #2ECC71, transparent);
+  }
+  .invite-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 62px;
+    font-weight: 900;
+    color: #2ECC71;
+    text-align: center;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(46,204,113,0.4);
+  }
+  .invite-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-bottom: 44px;
+  }
+  .invite-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 20px;
+    padding: 28px 32px;
+    border: 1px solid rgba(46,204,113,0.15);
+  }
+  .invite-icon {
+    font-size: 52px;
+    flex-shrink: 0;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px rgba(46,204,113,0.5));
+  }
+  .invite-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .invite-text strong {
+    font-size: 42px;
+    font-weight: 700;
+    color: #e8f5ec;
+    line-height: 1.2;
+  }
+  .invite-text span {
+    font-size: 34px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 300;
+    line-height: 1.3;
+  }
+
+  /* ─── CTA row ─── */
+  .cta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    flex-wrap: wrap;
+  }
+  .cta-badge {
+    background: linear-gradient(135deg, #1a5c36, #27AE60);
+    border-radius: 60px;
+    padding: 28px 70px;
+    font-size: 48px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    box-shadow: 0 8px 40px rgba(39,174,96,0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .cta-link {
+    font-size: 42px;
+    color: rgba(212,175,55,0.9);
+    font-weight: 400;
+    font-family: 'Cairo', monospace;
+    letter-spacing: 1px;
+    direction: ltr;
+    text-shadow: 0 0 20px rgba(212,175,55,0.4);
+  }
+
+  /* ─── Bottom tagline ─── */
+  .tagline {
+    margin-top: 50px;
+    font-size: 42px;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+    font-weight: 300;
+    letter-spacing: 3px;
+  }
+  .tagline strong {
+    color: rgba(46,204,113,0.6);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <!-- Glows -->
+  <div class="glow-top"></div>
+  <div class="glow-bottom"></div>
+  <div class="glow-center"></div>
+
+  <!-- Bands -->
+  <div class="top-band"></div>
+  <div class="bottom-band"></div>
+
+  <!-- Geometric background pattern -->
+  <div class="geo-layer">
+    <svg width="2160" height="2160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="geo" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+          <!-- 8-pointed star motif -->
+          <polygon points="60,5 68,45 105,30 80,60 105,90 68,75 60,115 52,75 15,90 40,60 15,30 52,45"
+            fill="none" stroke="#2ECC71" stroke-width="0.6"/>
+          <circle cx="60" cy="60" r="20" fill="none" stroke="#D4AF37" stroke-width="0.4"/>
+          <circle cx="60" cy="60" r="8" fill="none" stroke="#2ECC71" stroke-width="0.5"/>
+          <line x1="0" y1="60" x2="120" y2="60" stroke="#2ECC71" stroke-width="0.3"/>
+          <line x1="60" y1="0" x2="60" y2="120" stroke="#2ECC71" stroke-width="0.3"/>
+          <line x1="0" y1="0" x2="120" y2="120" stroke="#D4AF37" stroke-width="0.2"/>
+          <line x1="120" y1="0" x2="0" y2="120" stroke="#D4AF37" stroke-width="0.2"/>
+        </pattern>
+      </defs>
+      <rect width="2160" height="2160" fill="url(#geo)"/>
+    </svg>
+  </div>
+
+  <!-- Corner ornaments -->
+  <div class="corner corner-tl">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <path d="M200,0 L200,200 L0,200" fill="none" stroke="none"/>
+      <path d="M10,10 Q100,10 190,10 L190,20 Q110,20 20,20 L20,190 L10,190 Z" fill="none" stroke="#D4AF37" stroke-width="1.5"/>
+      <path d="M30,30 Q90,30 150,30 L150,40 Q100,40 40,40 L40,150 L30,150 Z" fill="none" stroke="#2ECC71" stroke-width="1"/>
+      <circle cx="10" cy="10" r="6" fill="#D4AF37" opacity="0.8"/>
+      <circle cx="190" cy="10" r="4" fill="#D4AF37" opacity="0.5"/>
+      <circle cx="10" cy="190" r="4" fill="#D4AF37" opacity="0.5"/>
+      <!-- Arabesque motif -->
+      <path d="M60,10 C60,40 90,50 100,80 C110,50 140,40 140,10" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <path d="M10,60 C40,60 50,90 80,100 C50,110 40,140 10,140" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <polygon points="100,55 108,80 135,80 114,95 122,120 100,105 78,120 86,95 65,80 92,80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.6"/>
+    </svg>
+  </div>
+  <div class="corner corner-tr">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,10 Q100,10 190,10 L190,20 Q110,20 20,20 L20,190 L10,190 Z" fill="none" stroke="#D4AF37" stroke-width="1.5"/>
+      <path d="M30,30 Q90,30 150,30 L150,40 Q100,40 40,40 L40,150 L30,150 Z" fill="none" stroke="#2ECC71" stroke-width="1"/>
+      <circle cx="10" cy="10" r="6" fill="#D4AF37" opacity="0.8"/>
+      <path d="M60,10 C60,40 90,50 100,80 C110,50 140,40 140,10" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <path d="M10,60 C40,60 50,90 80,100 C50,110 40,140 10,140" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <polygon points="100,55 108,80 135,80 114,95 122,120 100,105 78,120 86,95 65,80 92,80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.6"/>
+    </svg>
+  </div>
+  <div class="corner corner-bl">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,10 Q100,10 190,10 L190,20 Q110,20 20,20 L20,190 L10,190 Z" fill="none" stroke="#D4AF37" stroke-width="1.5"/>
+      <path d="M30,30 Q90,30 150,30 L150,40 Q100,40 40,40 L40,150 L30,150 Z" fill="none" stroke="#2ECC71" stroke-width="1"/>
+      <circle cx="10" cy="10" r="6" fill="#D4AF37" opacity="0.8"/>
+      <path d="M60,10 C60,40 90,50 100,80 C110,50 140,40 140,10" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <path d="M10,60 C40,60 50,90 80,100 C50,110 40,140 10,140" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <polygon points="100,55 108,80 135,80 114,95 122,120 100,105 78,120 86,95 65,80 92,80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.6"/>
+    </svg>
+  </div>
+  <div class="corner corner-br">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,10 Q100,10 190,10 L190,20 Q110,20 20,20 L20,190 L10,190 Z" fill="none" stroke="#D4AF37" stroke-width="1.5"/>
+      <path d="M30,30 Q90,30 150,30 L150,40 Q100,40 40,40 L40,150 L30,150 Z" fill="none" stroke="#2ECC71" stroke-width="1"/>
+      <circle cx="10" cy="10" r="6" fill="#D4AF37" opacity="0.8"/>
+      <path d="M60,10 C60,40 90,50 100,80 C110,50 140,40 140,10" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <path d="M10,60 C40,60 50,90 80,100 C50,110 40,140 10,140" fill="none" stroke="#2ECC71" stroke-width="1" opacity="0.7"/>
+      <polygon points="100,55 108,80 135,80 114,95 122,120 100,105 78,120 86,95 65,80 92,80" fill="none" stroke="#D4AF37" stroke-width="1" opacity="0.6"/>
+    </svg>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+
+    <!-- Logo -->
+    <div class="logo-row">
+      <div class="app-icon">🌿</div>
+      <div class="app-name">حصاحيصاوي</div>
+    </div>
+
+    <!-- Crescent & stars -->
+    <div class="crescent-wrap">
+      <svg class="crescent-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="moonGrad" cx="40%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#FFF176"/>
+            <stop offset="40%" stop-color="#F9D71C"/>
+            <stop offset="100%" stop-color="#B8860B"/>
+          </radialGradient>
+          <filter id="moonGlow">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <circle cx="95" cy="100" r="75" fill="url(#moonGrad)" filter="url(#moonGlow)"/>
+        <circle cx="125" cy="85" r="62" fill="#050E08"/>
+        <circle cx="125" cy="85" r="60" fill="radial-gradient(circle, #071409, #020905)"/>
+        <!-- Star beside crescent -->
+        <polygon points="162,55 166,68 180,68 169,76 173,89 162,81 151,89 155,76 144,68 158,68"
+          fill="#F9D71C" opacity="0.95"/>
+      </svg>
+      <div class="stars-row">✦ ✦ ✦ ✦ ✦</div>
+    </div>
+
+    <!-- Eid text -->
+    <div class="eid-label">— تُهنّئكم إدارة تطبيق حصاحيصاوي بـ —</div>
+    <div class="eid-main">عيد الفطر</div>
+    <div class="eid-sub">المبارك</div>
+
+    <div class="divider"></div>
+
+    <!-- Blessing -->
+    <div class="blessing">
+      تقبّل الله منّا ومنكم صالح الأعمال<br>
+      وكل عام وأنتم وأهل <strong>ولاية الجزيرة</strong> بألف خير وعافية 🌿
+    </div>
+
+    <!-- Invitation card -->
+    <div class="invite-card">
+      <div class="invite-title">🤝 ندعو مؤسستك للانضمام إلينا — مجاناً</div>
+      <div class="invite-grid">
+        <div class="invite-item">
+          <div class="invite-icon">🎓</div>
+          <div class="invite-text">
+            <strong>الجامعات والمدارس</strong>
+            <span>نشر الأخبار والفعاليات التعليمية</span>
+          </div>
+        </div>
+        <div class="invite-item">
+          <div class="invite-icon">🏥</div>
+          <div class="invite-text">
+            <strong>المستشفيات والمراكز الصحية</strong>
+            <span>مواعيد إلكترونية ووصفات رقمية</span>
+          </div>
+        </div>
+        <div class="invite-item">
+          <div class="invite-icon">🏦</div>
+          <div class="invite-text">
+            <strong>البنوك والمصارف</strong>
+            <span>حضور رقمي أمام +١٦٨٠ مستخدم</span>
+          </div>
+        </div>
+        <div class="invite-item">
+          <div class="invite-icon">🏛️</div>
+          <div class="invite-text">
+            <strong>الجهات الحكومية والمنظمات</strong>
+            <span>التواصل المباشر مع أبناء المنطقة</span>
+          </div>
+        </div>
+      </div>
+      <div class="cta-row">
+        <div class="cta-badge">سجّل مؤسستك الآن — مجاناً</div>
+        <div class="cta-link">almhbob.github.io/hasahisawi</div>
+      </div>
+    </div>
+
+    <!-- Tagline -->
+    <div class="tagline">المنصة الرقمية الأولى لأبناء <strong>ولاية الجزيرة — السودان</strong> · 2026</div>
+
+  </div><!-- /content -->
+</div><!-- /canvas -->
+</body>
+</html>
