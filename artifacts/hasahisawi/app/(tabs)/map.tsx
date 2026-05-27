@@ -297,7 +297,7 @@ export default function MapScreen() {
         ) : (
           <WebView
             ref={webRef}
-            source={{ html: mapHtml, baseUrl: "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app" }}
+            source={{ html: mapHtml, baseUrl: getApiUrl() }}
             style={s.webview}
             originWhitelist={["*"]}
             javaScriptEnabled

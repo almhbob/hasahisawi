@@ -112,9 +112,9 @@ android {
         }
         release {
             storeFile file('release.keystore')
-            storePassword 'Hasahisawi@2026#Secure'
-            keyAlias 'hasahisawi'
-            keyPassword 'Hasahisawi@2026#Secure'
+            storePassword findProperty('storePassword') ?: System.getenv('KEYSTORE_PASSWORD') ?: ''
+            keyAlias findProperty('keyAlias') ?: System.getenv('KEY_ALIAS') ?: 'hasahisawi'
+            keyPassword findProperty('keyPassword') ?: System.getenv('KEY_PASSWORD') ?: ''
         }
     }
     buildTypes {

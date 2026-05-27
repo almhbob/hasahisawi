@@ -255,6 +255,10 @@ jobs:
           cp -r public/splash dist/splash 2>/dev/null || true
           cp public/sw.js dist/sw.js 2>/dev/null || true
           cp public/manifest.json dist/manifest.json 2>/dev/null || true
+          # Copy PWA icons to dist root so manifest.json /icon.png path resolves
+          cp public/icon.png   dist/icon.png   2>/dev/null || true
+          cp public/favicon.png dist/favicon.png 2>/dev/null || true
+          cp public/logo.png   dist/logo.png   2>/dev/null || true
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
@@ -268,8 +272,9 @@ jobs:
           mkdir -p docs
           cp -r artifacts/hasahisawi/dist/. docs/
           git add -f docs/
+          VER=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)" 2>/dev/null || echo "latest")
           git diff --cached --quiet && echo "No changes to deploy" || \
-            git commit -m "deploy: web PWA v6.2.0 → docs/"
+            git commit -m "deploy: web PWA v${VER} → docs/"
           git push origin master
 
       - run: echo "✅ PWA live at https://almhbob.github.io/hasahisawi/"

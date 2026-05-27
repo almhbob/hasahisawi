@@ -1,6 +1,6 @@
 {
   "name": "@workspace/hasahisawi",
-  "version": "6.3.3",
+  "version": "6.3.6",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {

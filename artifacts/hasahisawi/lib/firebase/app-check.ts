@@ -33,12 +33,6 @@ export async function initAppCheck(): Promise<void> {
       "firebase/app-check"
     );
 
-    // وضع التطوير: يسمح بـ Debug Token تلقائياً
-    if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-      (window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean })
-        .FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    }
-
     initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
