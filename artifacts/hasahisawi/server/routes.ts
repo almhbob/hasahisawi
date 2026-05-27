@@ -1026,8 +1026,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const deviceId = (req.query.device_id as string) || "";
       const category = (req.query.category as string) || "";
-      const page = Math.max(1, parseInt((req.query.page as string) || "1"));
-      const limit2 = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "30")));
+      const page = Math.max(1, parseInt((req.query.page as string) || "1") || 1);
+      const limit2 = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "30") || 30));
       const offset = (page - 1) * limit2;
       const catFilter = category && category !== "الكل" ? "AND p.category = $2" : "";
       const params: any[] = category && category !== "الكل" ? [deviceId, category] : [deviceId];
@@ -1461,7 +1461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/greetings", async (req: Request, res: Response) => {
     try {
       await ensureGreetingsTables();
-      const limit = Math.min(parseInt(String(req.query.limit || "40")), 100);
+      const limit = Math.min(parseInt(String(req.query.limit || "40")) || 40, 100);
       const occ = req.query.occasion as string | undefined;
       let sql = `SELECT g.*, u.name as user_display_name FROM greeting_posts g
                  LEFT JOIN users u ON u.id = g.user_id`;
@@ -2008,7 +2008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          FROM telecom_offers o
          LEFT JOIN telecom_companies c ON c.id = o.company_id
          WHERE o.is_active=TRUE
-           ${company_id ? `AND o.company_id=${parseInt(company_id)}` : ""}
+           ${company_id && !isNaN(parseInt(company_id)) ? `AND o.company_id=${parseInt(company_id)}` : ""}
            ${category ? `AND o.category=$1` : ""}
          ORDER BY o.sort_order, o.created_at DESC`,
         category ? [category] : []
