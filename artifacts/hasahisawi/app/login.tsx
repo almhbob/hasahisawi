@@ -863,22 +863,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
-          {/* زر QR — تسجيل دخول عبر الجوال (يظهر على الويب/كمبيوتر) */}
-          {mode === "login" && (
-            <TouchableOpacity
-              style={styles.qrLoginBtn}
-              onPress={() => router.push("/qr-web-login" as any)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.qrLoginTitle}>تسجيل الدخول عبر الجوال</Text>
-                <Text style={styles.qrLoginSub}>امسح رمز QR بتطبيق الجوال</Text>
-              </View>
-              <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
-            </TouchableOpacity>
-          )}
-
           {/* فاصل */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -1296,22 +1280,6 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
-  /* Guest */
-  qrLoginBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(37,99,235,0.08)", borderRadius: 16,
-    paddingVertical: 14, paddingHorizontal: 16,
-    borderWidth: 1.5, borderColor: "rgba(37,99,235,0.25)",
-    marginBottom: 10,
-  },
-  qrLoginTitle: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary,
-    textAlign: "right",
-  },
-  qrLoginSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary,
-    marginTop: 2, textAlign: "right",
-  },
   guestBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
     backgroundColor: Colors.bg, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16,
