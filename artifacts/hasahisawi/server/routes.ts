@@ -6346,11 +6346,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── App Version ───────────────────────────────────────────────────────────────
+  async function ensureAppVersionTable() {
+    await query(`CREATE TABLE IF NOT EXISTS app_version_config (
+      id SERIAL PRIMARY KEY,
+      version VARCHAR(20) NOT NULL DEFAULT '6.3.7',
+      version_code INTEGER NOT NULL DEFAULT 237,
+      force_update BOOLEAN NOT NULL DEFAULT FALSE,
+      message TEXT,
+      notes TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`).catch(() => {});
+    // seed initial row if empty
+    await query(`INSERT INTO app_version_config (id, version, version_code, force_update)
+      VALUES (1, '6.3.7', 237, FALSE)
+      ON CONFLICT (id) DO NOTHING`).catch(() => {});
+  }
+
   app.get("/api/app/version", async (_req, res) => {
-    res.json({ version: "6.3.2", versionCode: 232, forceUpdate: false, message: null });
+    try {
+      await ensureAppVersionTable();
+      const r = await query("SELECT version, version_code, force_update, message FROM app_version_config WHERE id=1");
+      const row = r.rows[0];
+      if (!row) return res.json({ version: "6.3.7", versionCode: 237, forceUpdate: false, message: null });
+      res.json({ version: row.version, versionCode: row.version_code, forceUpdate: row.force_update, message: row.message });
+    } catch { res.json({ version: "6.3.7", versionCode: 237, forceUpdate: false, message: null }); }
   });
-  app.get("/api/admin/app/version", async (_req, res) => {
-    res.json({ version: "6.3.2", versionCode: 232, forceUpdate: false, message: null });
+
+  app.get("/api/admin/app/version", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAppVersionTable();
+      const r = await query("SELECT * FROM app_version_config WHERE id=1");
+      const row = r.rows[0];
+      if (!row) return res.json({ version: "6.3.7", versionCode: 237, forceUpdate: false, message: null, notes: null });
+      res.json({ version: row.version, versionCode: row.version_code, forceUpdate: row.force_update, message: row.message, notes: row.notes });
+    } catch { res.json({ version: "6.3.7", versionCode: 237, forceUpdate: false, message: null }); }
+  });
+
+  app.patch("/api/admin/app/version", async (req, res) => {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureAppVersionTable();
+      const { version, notes, force } = req.body;
+      if (!version) return res.status(400).json({ error: "رقم الإصدار مطلوب" });
+      const versionStr = String(version).substring(0, 20);
+      await query(
+        `UPDATE app_version_config SET version=$1, force_update=$2, notes=$3, updated_at=NOW() WHERE id=1`,
+        [versionStr, !!force, notes ? String(notes).substring(0, 500) : null]
+      );
+      res.json({ ok: true, version: versionStr, forceUpdate: !!force });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ── Feature Flags ─────────────────────────────────────────────────────────────
