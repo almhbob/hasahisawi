@@ -107,12 +107,21 @@ jobs:
           KOTLIN
           echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
 
-      - name: Add custom notification sound
+      - name: Add custom notification sounds
         run: |
           mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
-          cp artifacts/hasahisawi/assets/sounds/adhan.mp3 \
-             artifacts/hasahisawi/android/app/src/main/res/raw/hasahisawi_notif.mp3
-          echo "✅ hasahisawi_notif.mp3 added to res/raw"
+          SRC=artifacts/hasahisawi/assets/sounds
+          DEST=artifacts/hasahisawi/android/app/src/main/res/raw
+          # Default / transport channel — أذان
+          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_notif.mp3"
+          # Chat channel
+          cp "$SRC/hasahisawi_chat.wav"      "$DEST/hasahisawi_chat.wav"
+          # Urgent / alert channel
+          cp "$SRC/hasahisawi_urgent.wav"    "$DEST/hasahisawi_urgent.wav"
+          # Prayer channel — أذان بصيغة mp3
+          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_prayer.mp3"
+          echo "✅ Notification sounds added to res/raw:"
+          ls -lh "$DEST/"
 
       - name: Create .env
         working-directory: artifacts/hasahisawi
