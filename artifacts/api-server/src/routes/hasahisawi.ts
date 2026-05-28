@@ -768,9 +768,38 @@ export async function initHasahisawiDb() {
   `);
 
   // ── ترقيات جدول طلبات المؤسسات ──
-  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_photo_url TEXT`);
-  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_url TEXT`);
-  await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_at TIMESTAMPTZ`);
+  // These ALTERs ensure the table works whether it was created now or existed
+  // from an earlier schema that used different column names (applicant_name, etc.)
+  const iaAlters = [
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_name VARCHAR(300)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_type VARCHAR(100)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_category VARCHAR(100)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_description TEXT`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_address VARCHAR(400)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_neighborhood VARCHAR(200)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_phone VARCHAR(80)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_email VARCHAR(200)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_website VARCHAR(300)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_registration_no VARCHAR(100)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS inst_founded_year VARCHAR(10)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS selected_services TEXT DEFAULT '[]'`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS custom_services TEXT`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_name VARCHAR(300)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_title VARCHAR(200)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_national_id VARCHAR(100)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_phone VARCHAR(80)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_email VARCHAR(200)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS rep_photo_url TEXT`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_url TEXT`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_contract_at TIMESTAMPTZ`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS signed_ip VARCHAR(80)`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS commitment_version VARCHAR(20) DEFAULT 'v1.0'`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS admin_note TEXT`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`,
+    `ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`,
+  ];
+  for (const sql of iaAlters) { await query(sql).catch(() => {}); }
 
   // ── جدول بلاغات المواطنين ──
   await query(`
@@ -5156,7 +5185,9 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
     if (!rep_name || !rep_title || !rep_national_id || !rep_phone) {
       return res.status(400).json({ error: "بيانات الممثل ناقصة" });
     }
-    const parsedServices = JSON.parse(selected_services || "[]");
+    const parsedServices: unknown[] = (() => {
+      try { return JSON.parse(selected_services || "[]"); } catch { return []; }
+    })();
     if (!Array.isArray(parsedServices) || parsedServices.length === 0) {
       return res.status(400).json({ error: "يرجى تحديد خدمة واحدة على الأقل" });
     }
