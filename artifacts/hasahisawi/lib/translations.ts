@@ -294,6 +294,11 @@ export const translations = {
       markAllRead: "تعيين الكل كمقروء",
       noNotifications: "لا توجد إشعارات",
       noNotificationsSub: "ستظهر إشعاراتك هنا",
+      "types.general": "عام",
+      "types.medical": "طبي وصحي",
+      "types.news": "أخبار",
+      "types.alert": "تنبيه",
+      "types.event": "فعالية",
     },
     news: {
       title: "الأخبار",
@@ -592,6 +597,11 @@ export const translations = {
       markAllRead: "Mark all as read",
       noNotifications: "No notifications",
       noNotificationsSub: "Your notifications will appear here",
+      "types.general": "General",
+      "types.medical": "Medical",
+      "types.news": "News",
+      "types.alert": "Alert",
+      "types.event": "Event",
     },
     news: {
       title: "News",
