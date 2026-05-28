@@ -1899,6 +1899,70 @@ export async function initHasahisawiDb() {
     }
   }
 
+  // ── إدارة أقسام التطبيق ─────────────────────────────────────────
+  await query(`
+    CREATE TABLE IF NOT EXISTS section_configurations (
+      section_key        VARCHAR(100) PRIMARY KEY,
+      section_name       VARCHAR(200) NOT NULL,
+      section_name_en    VARCHAR(200),
+      section_description TEXT,
+      is_visible         BOOLEAN     NOT NULL DEFAULT TRUE,
+      requires_contract  BOOLEAN     NOT NULL DEFAULT FALSE,
+      contract_status    VARCHAR(20) NOT NULL DEFAULT 'none',
+      contract_signed_at TIMESTAMPTZ,
+      contract_expiry_at TIMESTAMPTZ,
+      contract_notes     TEXT,
+      authorized_entity  VARCHAR(300),
+      authorized_contact VARCHAR(200),
+      sort_order         INTEGER     NOT NULL DEFAULT 0,
+      updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by         INTEGER REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+  const sectionDefaults: [string, string, string, boolean, boolean, number][] = [
+    ["gov_services",      "الخدمات الحكومية",          "Government Services",     true, true,  0],
+    ["gov_appointments",  "المواعيد الحكومية",          "Gov Appointments",        true, true,  1],
+    ["gov_reports",       "البلاغات والشكاوى",          "Reports & Complaints",    true, true,  2],
+    ["medical",           "الخدمات الصحية",             "Medical Services",        true, true,  3],
+    ["lawyers",           "المحامون",                    "Lawyers",                 true, true,  4],
+    ["transport",         "النقل والمواصلات",            "Transport",               true, true,  5],
+    ["orgs",              "المنظمات والهيئات",           "Organizations",           true, true,  6],
+    ["women",             "قسم المرأة",                 "Women",                   true, true,  7],
+    ["farmers",           "قطاع الزراعة والمزارعين",    "Farmers",                 true, true,  8],
+    ["factories",         "المصانع والصناعة",            "Industry",                true, true,  9],
+    ["telecom",           "الاتصالات",                  "Telecom",                 true, true,  10],
+    ["jobs",              "سوق العمل",                  "Job Market",              true, false, 20],
+    ["market",            "السوق المحلي",               "Local Market",            true, false, 21],
+    ["sports",            "الرياضة والأنشطة",           "Sports & Activities",     true, false, 22],
+    ["culture",           "الثقافة والتراث",             "Culture",                 true, false, 23],
+    ["social",            "الشأن الاجتماعي",             "Social",                  true, false, 24],
+    ["communities",       "المجتمعات",                  "Communities",             true, false, 25],
+    ["student",           "الطلاب",                     "Students",                true, false, 26],
+    ["student_union",     "اتحاد الطلاب",               "Student Union",           true, false, 27],
+    ["unions",            "الاتحادات",                  "Unions",                  true, false, 28],
+    ["union_partnership", "شراكة الاتحادات",            "Union Partnerships",      true, false, 29],
+    ["occasions",         "المناسبات",                  "Occasions",               true, false, 30],
+    ["zawajil",           "التعارف والزواج",             "Zawajil",                 true, false, 31],
+    ["rental",            "الإيجارات",                  "Rentals",                 true, false, 32],
+    ["real_estate",       "العقارات والإيجارات",         "Real Estate",             true, false, 33],
+    ["map",               "خريطة المدينة",               "City Map",                true, false, 34],
+    ["missing",           "المفقودون",                  "Missing Persons",         true, false, 35],
+    ["reports",           "البلاغات",                   "Reports",                 true, false, 36],
+    ["honored",           "الشخصيات المكرَّمة",          "Honored",                 true, false, 37],
+    ["greetings",         "التهاني والتبريكات",          "Greetings",               true, false, 38],
+    ["events",            "الفعاليات",                  "Events",                  true, false, 39],
+    ["ads",               "الإعلانات",                  "Ads",                     true, false, 40],
+    ["cultural_centers",  "المراكز الثقافية",            "Cultural Centers",        true, false, 41],
+    ["unions_orgs",       "النقابات والجمعيات",          "Unions & Organizations",  true, false, 42],
+  ];
+  for (const [key, name, name_en, visible, requires, order] of sectionDefaults) {
+    await query(
+      `INSERT INTO section_configurations (section_key, section_name, section_name_en, is_visible, requires_contract, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (section_key) DO NOTHING`,
+      [key, name, name_en, visible, requires, order]
+    );
+  }
+
   logger.info("Hasahisawi DB initialized");
 }
 
@@ -2057,8 +2121,7 @@ router.get("/app/version", async (_req: Request, res: Response) => {
 
 router.patch("/admin/app/version", async (req: Request, res: Response) => {
   try {
-    const me = await getSessionUser(req);
-    if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
     const { version, notes, force } = req.body;
     if (version !== undefined) {
       await query(`UPDATE admin_settings SET value=$1 WHERE key='app_version'`, [String(Number(version))]);
@@ -15273,57 +15336,7 @@ router.patch("/admin/contact-messages/:id/read", async (req: Request, res: Respo
 // ══════════════════════════════════════════════════════════════════
 // إدارة أقسام التطبيق — Section Configurations (إخفاء/إظهار + العقود)
 // ══════════════════════════════════════════════════════════════════
-(async () => {
-  try {
-    await query(`
-      CREATE TABLE IF NOT EXISTS section_configurations (
-        section_key        VARCHAR(100) PRIMARY KEY,
-        section_name       VARCHAR(200) NOT NULL,
-        section_name_en    VARCHAR(200),
-        section_description TEXT,
-        is_visible         BOOLEAN     NOT NULL DEFAULT TRUE,
-        requires_contract  BOOLEAN     NOT NULL DEFAULT FALSE,
-        contract_status    VARCHAR(20) NOT NULL DEFAULT 'none',
-        contract_signed_at TIMESTAMPTZ,
-        contract_expiry_at TIMESTAMPTZ,
-        contract_notes     TEXT,
-        authorized_entity  VARCHAR(300),
-        authorized_contact VARCHAR(200),
-        sort_order         INTEGER     NOT NULL DEFAULT 0,
-        updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_by         INTEGER REFERENCES users(id) ON DELETE SET NULL
-      )
-    `);
-
-    // إدراج الأقسام الافتراضية
-    const defaults = [
-      ["gov_services",       "الخدمات الحكومية",           "Government Services",      true,  true,  0],
-      ["gov_appointments",   "المواعيد الحكومية",           "Gov Appointments",         true,  true,  1],
-      ["gov_reports",        "البلاغات والشكاوى",           "Reports & Complaints",     true,  true,  2],
-      ["medical",            "الخدمات الصحية",              "Medical Services",         true,  true,  3],
-      ["student_union",      "اتحاد الطلاب",               "Student Union",            true,  false, 4],
-      ["cultural_centers",   "المراكز الثقافية",            "Cultural Centers",         true,  false, 5],
-      ["unions_orgs",        "النقابات والجمعيات",          "Unions & Organizations",   true,  false, 6],
-      ["jobs",               "سوق العمل",                  "Job Market",               true,  false, 7],
-      ["transport",          "النقل والمواصلات",            "Transport",                true,  false, 8],
-      ["market",             "السوق المحلي",               "Local Market",             true,  false, 9],
-      ["real_estate",        "العقارات والإيجارات",          "Real Estate",              true,  false, 10],
-      ["farmers",            "المزارعون",                   "Farmers",                  true,  false, 11],
-      ["factories",          "المصانع والصناعة",            "Factories & Industry",     true,  false, 12],
-      ["sports",             "الرياضة والأنشطة",            "Sports & Activities",      true,  false, 13],
-      ["union_partnership",  "شراكة الاتحادات",             "Union Partnerships",       true,  false, 14],
-    ];
-
-    for (const [key, name, name_en, visible, requires, order] of defaults) {
-      await query(
-        `INSERT INTO section_configurations (section_key, section_name, section_name_en, is_visible, requires_contract, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6)
-         ON CONFLICT (section_key) DO NOTHING`,
-        [key, name, name_en, visible, requires, order]
-      );
-    }
-  } catch (e: any) { logger.warn({ err: e?.message }, "[section-configs] table init failed"); }
-})();
+// (initialization moved into initHasahisawiDb for reliable DB sequencing)
 
 // GET /api/app/section-configs — public: returns visibility map
 router.get("/app/section-configs", async (_req: Request, res: Response) => {
