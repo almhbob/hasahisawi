@@ -3164,24 +3164,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/external-partnerships/apply", async (req: Request, res: Response) => {
     try {
       await query(`CREATE TABLE IF NOT EXISTS external_partnership_applications (
-        id SERIAL PRIMARY KEY, org_name VARCHAR(200) NOT NULL, org_type VARCHAR(50),
-        contact_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL,
-        email VARCHAR(100), description TEXT, website VARCHAR(200),
-        requested_level VARCHAR(30), status VARCHAR(20) DEFAULT 'pending',
-        admin_note TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+        id SERIAL PRIMARY KEY,
+        org_name VARCHAR(200) NOT NULL, org_type VARCHAR(50), sector VARCHAR(100),
+        city VARCHAR(100), country VARCHAR(100), website VARCHAR(200),
+        contact_person VARCHAR(100), contact_name VARCHAR(100), contact_role VARCHAR(100),
+        phone VARCHAR(20) NOT NULL, email VARCHAR(100), whatsapp VARCHAR(20),
+        cooperation_scope TEXT, description TEXT, services_offered JSONB DEFAULT '[]',
+        target_audience TEXT, requested_level VARCHAR(30) DEFAULT 'standard',
+        status VARCHAR(20) DEFAULT 'pending', admin_note TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )`);
-      const { org_name, org_type, contact_name, phone, email, description, website, requested_level } = req.body;
-      if (!org_name || !contact_name || !phone) return res.status(400).json({ error: "البيانات الأساسية مطلوبة" });
+      // support both contact_person (new form) and contact_name (old form)
+      const {
+        org_name, org_type, sector, city, country, website,
+        contact_person, contact_name, contact_role, phone, email, whatsapp,
+        cooperation_scope, description, services_offered, target_audience, requested_level,
+      } = req.body;
+      const contactDisplay = contact_person || contact_name || "";
+      if (!org_name || !contactDisplay || !phone) return res.status(400).json({ error: "البيانات الأساسية مطلوبة" });
       const r = await query(
-        `INSERT INTO external_partnership_applications(org_name,org_type,contact_name,phone,email,description,website,requested_level)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
-        [org_name,org_type||null,contact_name,phone,email||null,description||null,website||null,requested_level||'standard']
+        `INSERT INTO external_partnership_applications(
+           org_name,org_type,sector,city,country,website,
+           contact_person,contact_name,contact_role,phone,email,whatsapp,
+           cooperation_scope,description,services_offered,target_audience,requested_level)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         RETURNING id,status`,
+        [
+          org_name, org_type||null, sector||null, city||null, country||null, website||null,
+          contactDisplay, contactDisplay, contact_role||null, phone, email||null, whatsapp||null,
+          cooperation_scope||null, description||null,
+          JSON.stringify(services_offered||[]), target_audience||null, requested_level||'standard',
+        ]
       );
       sendAdminNotifEmail("🤝 طلب شراكة خارجية جديد", {
-        "اسم المنظمة": org_name, "نوعها": org_type||"",
-        "جهة الاتصال": contact_name, "الهاتف": phone,
-        "البريد الإلكتروني": email||"", "مستوى الشراكة": requested_level||"standard",
-        "الموقع الإلكتروني": website||"",
+        "اسم المنظمة": org_name, "نوعها": org_type||"", "القطاع": sector||"",
+        "جهة الاتصال": contactDisplay, "الهاتف": phone,
+        "البريد الإلكتروني": email||"", "المدينة": city||"", "الدولة": country||"",
       });
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
@@ -3841,64 +3859,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
-  // ── ضبط الأقسام (admin) ──────────────────────────────────────────────────
+  // ── ضبط الأقسام ──────────────────────────────────────────────────────────
+  const APP_SECTIONS_SEED = [
+    // الأقسام الحكومية (تتطلب تصاريح وعقوداً)
+    { key: "medical",    name: "الصحة والطب",          name_en: "Medical",            requires_contract: true,  order: 1  },
+    { key: "transport",  name: "المواصلات والسفر",      name_en: "Transport & Travel", requires_contract: true,  order: 2  },
+    { key: "lawyers",    name: "المحامون",               name_en: "Lawyers",            requires_contract: true,  order: 3  },
+    { key: "orgs",       name: "المنظمات والهيئات",     name_en: "Organizations",      requires_contract: true,  order: 4  },
+    { key: "women",      name: "قسم المرأة",            name_en: "Women",              requires_contract: true,  order: 5  },
+    { key: "farmers",    name: "قطاع الزراعة والمزارعين", name_en: "Farmers",          requires_contract: true,  order: 6  },
+    { key: "factories",  name: "المصانع والصناعة",      name_en: "Industry",           requires_contract: true,  order: 7  },
+    { key: "telecom",    name: "الاتصالات",             name_en: "Telecom",            requires_contract: true,  order: 8  },
+    // الأقسام العامة
+    { key: "jobs",       name: "الوظائف والتوظيف",      name_en: "Jobs",               requires_contract: false, order: 20 },
+    { key: "market",     name: "السوق والتجارة",         name_en: "Market",             requires_contract: false, order: 21 },
+    { key: "sports",     name: "الرياضة",               name_en: "Sports",             requires_contract: false, order: 22 },
+    { key: "culture",    name: "الثقافة والتراث",        name_en: "Culture",            requires_contract: false, order: 23 },
+    { key: "social",     name: "الشأن الاجتماعي",        name_en: "Social",             requires_contract: false, order: 24 },
+    { key: "communities",name: "المجتمعات",             name_en: "Communities",        requires_contract: false, order: 25 },
+    { key: "student",    name: "الطلاب",                name_en: "Students",           requires_contract: false, order: 26 },
+    { key: "unions",     name: "الاتحادات",             name_en: "Unions",             requires_contract: false, order: 27 },
+    { key: "occasions",  name: "المناسبات",             name_en: "Occasions",          requires_contract: false, order: 28 },
+    { key: "zawajil",    name: "التعارف والزواج",        name_en: "Zawajil",            requires_contract: false, order: 29 },
+    { key: "rental",     name: "الإيجارات",             name_en: "Rentals",            requires_contract: false, order: 30 },
+    { key: "map",        name: "خريطة المدينة",          name_en: "City Map",           requires_contract: false, order: 31 },
+    { key: "missing",    name: "المفقودون",             name_en: "Missing Persons",    requires_contract: false, order: 32 },
+    { key: "reports",    name: "البلاغات",              name_en: "Reports",            requires_contract: false, order: 33 },
+    { key: "honored",    name: "الشخصيات المكرَّمة",    name_en: "Honored",            requires_contract: false, order: 34 },
+    { key: "greetings",  name: "التهاني والتبريكات",     name_en: "Greetings",          requires_contract: false, order: 35 },
+    { key: "events",     name: "الفعاليات",             name_en: "Events",             requires_contract: false, order: 36 },
+    { key: "ads",        name: "الإعلانات",             name_en: "Ads",                requires_contract: false, order: 37 },
+  ];
+
+  async function ensureSectionConfigsTable() {
+    await query(`CREATE TABLE IF NOT EXISTS app_section_configs (
+      id SERIAL PRIMARY KEY,
+      section_key VARCHAR(50) UNIQUE NOT NULL,
+      section_name VARCHAR(100) NOT NULL,
+      section_name_en VARCHAR(100),
+      section_description TEXT,
+      is_visible BOOLEAN DEFAULT TRUE,
+      requires_contract BOOLEAN DEFAULT FALSE,
+      contract_status VARCHAR(20) DEFAULT 'none',
+      contract_signed_at DATE,
+      contract_expiry_at DATE,
+      contract_notes TEXT,
+      authorized_entity VARCHAR(200),
+      authorized_contact VARCHAR(200),
+      sort_order INTEGER DEFAULT 0,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    // seed missing rows
+    for (const sec of APP_SECTIONS_SEED) {
+      await query(
+        `INSERT INTO app_section_configs(section_key,section_name,section_name_en,requires_contract,sort_order)
+         VALUES($1,$2,$3,$4,$5) ON CONFLICT(section_key) DO NOTHING`,
+        [sec.key, sec.name, sec.name_en, sec.requires_contract, sec.order]
+      );
+    }
+  }
+
+  // Public: section visibility map used by FeatureFlagsProvider
+  app.get("/api/app/section-configs", async (_req: Request, res: Response) => {
+    try {
+      await ensureSectionConfigsTable();
+      const r = await query("SELECT section_key, is_visible, contract_status FROM app_section_configs");
+      const map: Record<string, { visible: boolean; contract_status: string }> = {};
+      for (const row of r.rows) {
+        map[row.section_key] = { visible: row.is_visible, contract_status: row.contract_status };
+      }
+      res.json(map);
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+
+  // Admin: full section list with contract details
   app.get("/api/admin/section-configs", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
-      await query(`CREATE TABLE IF NOT EXISTS section_configs (
-        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
-        section_name VARCHAR(100), is_enabled BOOLEAN DEFAULT TRUE,
-        display_order INTEGER DEFAULT 0, config JSONB DEFAULT '{}',
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      )`);
-      const r = await query("SELECT * FROM section_configs ORDER BY display_order, section_key");
-      res.json(r.rows);
+      await ensureSectionConfigsTable();
+      const r = await query("SELECT * FROM app_section_configs ORDER BY sort_order, section_key");
+      res.json({ sections: r.rows });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
-  app.post("/api/admin/section-configs", async (req: Request, res: Response) => {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    try {
-      await query(`CREATE TABLE IF NOT EXISTS section_configs (
-        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
-        section_name VARCHAR(100), is_enabled BOOLEAN DEFAULT TRUE,
-        display_order INTEGER DEFAULT 0, config JSONB DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW()
-      )`);
-      const { section_key, section_name, is_enabled, display_order, config } = req.body;
-      if (!section_key) return res.status(400).json({ error: "المفتاح مطلوب" });
-      const r = await query(
-        `INSERT INTO section_configs(section_key,section_name,is_enabled,display_order,config)
-         VALUES($1,$2,$3,$4,$5)
-         ON CONFLICT(section_key) DO UPDATE SET section_name=EXCLUDED.section_name,
-           is_enabled=EXCLUDED.is_enabled, display_order=EXCLUDED.display_order,
-           config=EXCLUDED.config, updated_at=NOW() RETURNING *`,
-        [section_key, section_name||section_key, is_enabled!==false, display_order||0, JSON.stringify(config||{})]
-      );
-      res.json(r.rows[0]);
-    } catch (err) { res.status(500).json({ error: "Server error" }); }
-  });
-
+  // Admin: update section visibility + contract info
   app.patch("/api/admin/section-configs/:key", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
-      await query(`CREATE TABLE IF NOT EXISTS section_configs (
-        id SERIAL PRIMARY KEY, section_key VARCHAR(50) UNIQUE NOT NULL,
-        is_enabled BOOLEAN DEFAULT TRUE, display_order INTEGER DEFAULT 0,
-        config JSONB DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW()
-      )`);
-      const { is_enabled, display_order, config, section_name } = req.body;
-      await query(
-        `INSERT INTO section_configs(section_key,section_name,is_enabled,display_order,config)
-         VALUES($1,$2,$3,$4,$5)
-         ON CONFLICT(section_key) DO UPDATE SET
-           section_name=COALESCE($2,section_configs.section_name),
-           is_enabled=COALESCE($3,section_configs.is_enabled),
-           display_order=COALESCE($4,section_configs.display_order),
-           config=COALESCE($5,section_configs.config), updated_at=NOW()`,
-        [req.params.key, section_name||null, is_enabled!=null?Boolean(is_enabled):null,
-         display_order!=null?Number(display_order):null, config?JSON.stringify(config):null]
+      await ensureSectionConfigsTable();
+      const k = req.params.key;
+      const {
+        is_visible, contract_status, contract_signed_at, contract_expiry_at,
+        contract_notes, authorized_entity, authorized_contact, section_description,
+      } = req.body;
+      const r = await query(
+        `UPDATE app_section_configs SET
+          is_visible          = COALESCE($1, is_visible),
+          contract_status     = COALESCE($2, contract_status),
+          contract_signed_at  = COALESCE($3::DATE, contract_signed_at),
+          contract_expiry_at  = COALESCE($4::DATE, contract_expiry_at),
+          contract_notes      = COALESCE($5, contract_notes),
+          authorized_entity   = COALESCE($6, authorized_entity),
+          authorized_contact  = COALESCE($7, authorized_contact),
+          section_description = COALESCE($8, section_description),
+          updated_at          = NOW()
+         WHERE section_key=$9 RETURNING *`,
+        [
+          is_visible != null ? Boolean(is_visible) : null,
+          contract_status || null,
+          contract_signed_at || null,
+          contract_expiry_at || null,
+          contract_notes != null ? String(contract_notes) : null,
+          authorized_entity != null ? String(authorized_entity) : null,
+          authorized_contact != null ? String(authorized_contact) : null,
+          section_description != null ? String(section_description) : null,
+          k,
+        ]
       );
-      res.json({ success: true });
+      if (!r.rows[0]) return res.status(404).json({ error: "القسم غير موجود" });
+      res.json({ section: r.rows[0] });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
   });
 
@@ -5136,17 +5215,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status && status !== "all") { params.push(status); sql += ` AND ep.status=$${params.length}`; }
       sql += ` ORDER BY ep.created_at DESC`;
       const r = await query(sql, params).catch(() => ({ rows: [] }));
-      res.json(r.rows);
-    } catch { res.json([]); }
+      res.json({ partnerships: r.rows });
+    } catch { res.json({ partnerships: [] }); }
   });
-  app.put("/api/admin/external-partnerships/:id", async (req, res) => {
+  // support both PATCH and PUT for compatibility
+  const patchExtPartner = async (req: Request, res: Response) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
       const { status, admin_note } = req.body;
-      await query(`UPDATE external_partnership_applications SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note) WHERE id=$3`, [status||null, admin_note||null, parseInt(req.params.id)]);
+      await query(`UPDATE external_partnership_applications SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note), updated_at=NOW() WHERE id=$3`,
+        [status||null, admin_note||null, parseInt(req.params.id)]);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
+  };
+  app.put("/api/admin/external-partnerships/:id", patchExtPartner);
+  app.patch("/api/admin/external-partnerships/:id", patchExtPartner);
   app.delete("/api/admin/external-partnerships/:id", async (req, res) => {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try { await query(`DELETE FROM external_partnership_applications WHERE id=$1`, [parseInt(req.params.id)]); res.json({ ok: true }); }
