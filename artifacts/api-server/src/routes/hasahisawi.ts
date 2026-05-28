@@ -299,6 +299,9 @@ export async function initHasahisawiDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // ترحيل: أعمدة أضيفت بعد الإنشاء الأولي لجدول الإشعارات
+  await query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+  await query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS data TEXT`);
   await query(`
     CREATE TABLE IF NOT EXISTS city_news (
       id SERIAL PRIMARY KEY,
@@ -1534,16 +1537,17 @@ export async function initHasahisawiDb() {
   }
 
   // ══ جدول المنظمات المجتمعية ══
-  // ترحيل: إذا الجدول القديم يفتقر لعمود contact_phone — أعد الإنشاء
-  {
-    const { rows: orgCols } = await query(`
-      SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'organizations' AND column_name = 'contact_phone'
-    `);
-    if (orgCols.length === 0) {
-      await query(`DROP TABLE IF EXISTS organizations CASCADE`);
-    }
-  }
+  // ترحيل: أضف الأعمدة الجديدة بدلاً من حذف الجدول (يحفظ البيانات الموجودة)
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS full_description TEXT NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS email VARCHAR(200)`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS members_count INTEGER NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS founded_year VARCHAR(20) NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS goals TEXT[] NOT NULL DEFAULT '{}'`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS needs TEXT[] NOT NULL DEFAULT '{}'`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) NOT NULL DEFAULT 5.0`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE`);
+  await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
   await query(`
     CREATE TABLE IF NOT EXISTS organizations (
       id SERIAL PRIMARY KEY,
@@ -1740,16 +1744,10 @@ export async function initHasahisawiDb() {
   `);
 
   // ══ جدول خدمات المرأة ══
-  // ترحيل: إذا الجدول القديم يفتقر لعمود rating — أعد الإنشاء
-  {
-    const { rows: wsCols } = await query(`
-      SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'women_services' AND column_name = 'rating'
-    `);
-    if (wsCols.length === 0) {
-      await query(`DROP TABLE IF EXISTS women_services CASCADE`);
-    }
-  }
+  // ترحيل: أضف الأعمدة الجديدة بدلاً من حذف الجدول (يحفظ البيانات الموجودة)
+  await query(`ALTER TABLE women_services ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) NOT NULL DEFAULT 5.0`);
+  await query(`ALTER TABLE women_services ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'`);
+  await query(`ALTER TABLE women_services ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
   await query(`
     CREATE TABLE IF NOT EXISTS women_services (
       id SERIAL PRIMARY KEY,
@@ -2625,7 +2623,7 @@ router.post("/appointments", async (req: Request, res: Response) => {
 router.get("/women-services", async (_req: Request, res: Response) => {
   try {
     const result = await query(`SELECT * FROM women_services ORDER BY name`);
-    return res.json(result.rows);
+    return res.json({ services: result.rows });
   } catch (err) {
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
@@ -2635,7 +2633,7 @@ router.get("/women-services", async (_req: Request, res: Response) => {
 router.get("/organizations", async (_req: Request, res: Response) => {
   try {
     const result = await query(`SELECT * FROM organizations ORDER BY name`);
-    return res.json(result.rows);
+    return res.json({ organizations: result.rows });
   } catch (err) {
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
@@ -12402,7 +12400,7 @@ router.get("/admin/zawajil/orders", async (req: Request, res: Response) => {
     let where = "WHERE 1=1";
     if (status && status !== "all") { params.push(status); where += ` AND status=$${params.length}`; }
     const r = await query(`SELECT o.*, (SELECT json_agg(g) FROM zawajil_shoubash_guests g WHERE g.order_id=o.id) AS shoubash_guests FROM zawajil_orders o ${where} ORDER BY o.created_at DESC`, params);
-    return res.json(r.rows);
+    return res.json({ orders: r.rows });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
