@@ -19,7 +19,7 @@ jobs:
   build-android:
     name: Build APK + AAB (Android)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 160
     outputs:
       version: ${{ steps.ver.outputs.version }}
       code: ${{ steps.ver.outputs.code }}
@@ -170,7 +170,7 @@ jobs:
           sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
           # Build arm64-v8a only — covers all modern Android phones, reduces C++ compilation by 75%
           echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
-          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> $PROPS
+          echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $PROPS
           # parallel=false is the KEY: Metro (Node.js 4GB) and C++ compilation never run simultaneously
           # Without this, both overlap → 4GB JVM + 4GB Metro + 4GB C++ = 12GB → OOM on 7GB runner
           echo "org.gradle.parallel=false" >> $PROPS
@@ -195,6 +195,7 @@ jobs:
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
+            --build-cache \
             --stacktrace \
             -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
@@ -320,12 +321,12 @@ jobs:
             **https://almhbob.github.io/hasahisawi/**
 
             ### ميزات v${{ needs.build-android.outputs.version }}
-            - ✅ إكمال الملف الشخصي يعمل عبر Firebase مباشرة — بدون انتظار الخادم
-            - ✅ دعوة المؤسسات والجهات في جميع أقسام التطبيق (٣٧ قسماً)
-            - ✅ نظام إدارة اتحاد الطلاب كامل في الخادم الرئيسي
-            - ✅ إصلاح مسار PUT /api/users/me في Vercel
-            - ✅ إصلاح ثغرة SQL Injection في نظام العقود القانونية
-            - ✅ حماية 699 مستخدم — لا عمليات حذف على قاعدة البيانات
+            - ✅ إصلاح جميع طلبات الانضمام (مؤسسات، محامون، نقابات، شراكات خارجية)
+            - ✅ إصلاح شاشة إدارة أقسام التطبيق (لم تكن تظهر)
+            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية (قوائم فارغة)
+            - ✅ ترحيل آمن لقاعدة البيانات — لا حذف للجداول
+            - ✅ إشعارات مخصصة مع نغمات لكل قسم
+            - ✅ حماية 700+ مستخدم — لا عمليات حذف على قاعدة البيانات
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
