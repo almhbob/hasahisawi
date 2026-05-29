@@ -884,18 +884,18 @@ export default function UnionsScreen() {
       {/* Tabs — scrollable row */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, paddingVertical: 6 }}>
         {[
-          { key: "unions",   label: "النقابات",    icon: "business-outline",      activeColor: UC  },
-          { key: "student",  label: "اتحاد الطلاب", icon: "school-outline",        activeColor: SU  },
-          { key: "programs", label: "البرامج",      icon: "clipboard-outline",     activeColor: UC  },
-          { key: "laws",     label: "القوانين",     icon: "document-lock-outline", activeColor: UC  },
-          { key: "apply",    label: "انضم",         icon: "person-add-outline",    activeColor: UC  },
-          { key: "my",       label: "طلباتي",       icon: "document-text-outline", activeColor: UC  },
+          { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
+          { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
+          { key: "programs", label: "البرامج",       icon: "clipboard-outline",     activeColor: UC  },
+          { key: "laws",     label: "القوانين",      icon: "document-lock-outline", activeColor: UC  },
+          { key: "apply",    label: "انضم",          icon: "person-add-outline",    activeColor: UC  },
+          { key: "my",       label: "طلباتي",        icon: "document-text-outline", activeColor: UC  },
         ].map(t => (
           <Pressable key={t.key}
-            style={[styles.tabBtn, { flex: 0, paddingHorizontal: 14 },
+            style={[styles.tabBtn, { flexShrink: 0, paddingHorizontal: 12 },
               tab === t.key && { backgroundColor: t.activeColor, borderColor: t.activeColor }]}
             onPress={() => { setTab(t.key as any); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <Ionicons name={t.icon as any} size={15} color={tab === t.key ? "#fff" : UC + "99"} />
+            <Ionicons name={t.icon as any} size={14} color={tab === t.key ? "#fff" : UC + "99"} />
             <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
           </Pressable>
         ))}
@@ -1235,7 +1235,7 @@ const styles = StyleSheet.create({
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890" },
 
   tabRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, marginBottom: 12 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: UC + "12", borderWidth: 1, borderColor: UC + "30" },
+  tabBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10, backgroundColor: UC + "12", borderWidth: 1, borderColor: UC + "30" },
   tabBtnActive: { backgroundColor: UC, borderColor: UC },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC + "99" },
   tabLabelActive: { color: "#fff" },

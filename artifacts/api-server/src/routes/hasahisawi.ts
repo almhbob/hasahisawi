@@ -10984,6 +10984,28 @@ async function ensureUnionsTables() {
 
   await query(`CREATE INDEX IF NOT EXISTS idx_union_programs_union ON union_programs(union_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_union_laws_union ON union_laws(union_id)`);
+
+  // بيانات أولية — تُضاف مرة واحدة فقط إذا كانت الجداول فارغة
+  const cnt = await query(`SELECT COUNT(*) FROM unions`);
+  if (parseInt(cnt.rows[0].count, 10) === 0) {
+    const seedUnions = [
+      { name: "نقابة المعلمين السودانيين",       short: "نقابة المعلمين",  field: "التعليم",          phone: "0912345601", founded: "1958", members: "450+ عضو",  desc: "تمثل المعلمين وتدافع عن حقوقهم المهنية والمادية في الحصاحيصا والجزيرة" },
+      { name: "نقابة الأطباء السودانيين",         short: "نقابة الأطباء",   field: "الصحة والطب",       phone: "0912345602", founded: "1946", members: "120+ عضو",  desc: "تنظيم مهني يضم أطباء الحصاحيصا ويضمن الالتزام بأخلاقيات المهنة" },
+      { name: "نقابة المهندسين السودانيين",        short: "نقابة المهندسين", field: "الهندسة والبناء",   phone: "0912345603", founded: "1953", members: "200+ عضو",  desc: "تجمع المهندسين في مختلف التخصصات وتشرف على ضبط جودة المشاريع" },
+      { name: "نقابة الصيادلة السودانيين",         short: "نقابة الصيادلة",  field: "الصيدلة والدواء",   phone: "0912345604", founded: "1960", members: "80+ عضو",   desc: "تنظيم مهنة الصيدلة وضبط ممارسة الدواء في الحصاحيصا" },
+      { name: "نقابة الممرضين والقابلات",          short: "نقابة التمريض",   field: "الصحة والتمريض",   phone: "0912345605", founded: "1962", members: "300+ عضو",  desc: "تمثل الكوادر التمريضية وتدافع عن ظروف العمل اللائقة" },
+      { name: "رابطة المحاسبين والماليين",         short: "رابطة المحاسبين", field: "المال والمحاسبة",   phone: "0912345606", founded: "1970", members: "150+ عضو",  desc: "تنظيم مهنيي المال والمحاسبة وتطوير الكفاءات المالية في المنطقة" },
+      { name: "جمعية المزارعين والمنتجين",         short: "جمعية المزارعين", field: "الزراعة والإنتاج",  phone: "0912345607", founded: "1945", members: "600+ عضو",  desc: "تدعم المزارعين وتوفر الإرشاد الزراعي وتنظيم التسويق الزراعي" },
+    ];
+    for (let i = 0; i < seedUnions.length; i++) {
+      const u = seedUnions[i];
+      await query(
+        `INSERT INTO unions (name,short_name,field,phone,founded,members_count,description,sort_order,is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE)`,
+        [u.name, u.short, u.field, u.phone, u.founded, u.members, u.desc, i + 1]
+      ).catch(() => {});
+    }
+  }
 }
 
 // GET /api/unions
