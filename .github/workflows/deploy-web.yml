@@ -108,7 +108,12 @@ HEADERS_EOF
               -H "Content-Type: application/json" \
               -d '{"name":"hasahisawi","production_branch":"master"}' \
               | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project OK:', d.get('result',{}).get('subdomain','already exists'))" || true
-            npx wrangler@3 pages deploy docs \
+
+            # إنشاء نسخة Cloudflare: إزالة prefix /hasahisawi/ من HTML
+            cp -r docs cf-dist
+            find cf-dist -name "*.html" -exec sed -i 's|"/hasahisawi/|"/|g' {} \;
+
+            npx wrangler@3 pages deploy cf-dist \
               --project-name=hasahisawi \
               --branch=master
             echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
