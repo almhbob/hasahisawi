@@ -257,10 +257,10 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
+          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_DISABLE_OTP: 'true'
 
-      - name: Add PWA + Cloudflare files
+      - name: Add PWA files
         working-directory: artifacts/hasahisawi
         run: |
           cp -r public/splash dist/splash 2>/dev/null || true
@@ -268,24 +268,25 @@ jobs:
           cp public/manifest.json dist/manifest.json 2>/dev/null || true
           cp public/icon.png   dist/icon.png   2>/dev/null || true
           cp public/favicon.png dist/favicon.png 2>/dev/null || true
-          cp public/logo.png   dist/logo.png   2>/dev/null || true
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
-          # SPA fallback for Cloudflare Pages
           echo '/* /index.html 200' > dist/_redirects
-          # Security + caching headers
           cat > dist/_headers << 'HEADERS_EOF'
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-XSS-Protection: 1; mode=block
 
 /_expo/*
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/splash/*
+  Cache-Control: public, max-age=86400
 HEADERS_EOF
 
       - name: Deploy to GitHub Pages (docs/)
@@ -300,7 +301,7 @@ HEADERS_EOF
           git add -f docs/
           VER=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)" 2>/dev/null || echo "latest")
           git diff --cached --quiet && echo "No changes to deploy" || \
-            git commit -m "deploy: web PWA v${VER} → docs/"
+            git commit -m "deploy: web PWA v${VER} → docs/ [auto]"
           git push origin master
 
       - name: Deploy to Cloudflare Pages
@@ -311,15 +312,51 @@ HEADERS_EOF
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "⚠️  Cloudflare secrets not set — skipping"
           else
-            VER=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)" 2>/dev/null || echo "latest")
-            npx wrangler@latest pages deploy docs \
+            # إنشاء المشروع إذا لم يكن موجوداً
+            curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"hasahisawi","production_branch":"master"}' \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project OK:', d.get('result',{}).get('subdomain','already exists'))" || true
+
+            # نسخة Cloudflare: إزالة prefix /hasahisawi/ من HTML
+            cp -r docs cf-dist
+
+            # إصلاح مسارات HTML
+            find cf-dist -name "*.html" -exec sed -i 's|"/hasahisawi/|"/|g' {} \;
+
+            # نسخ الخطوط لمسار /fonts/ (تجنب %40 encoding لـ @ في المسارات)
+            mkdir -p cf-dist/fonts
+            find cf-dist/assets/__node_modules -name "*.ttf" -exec cp {} cf-dist/fonts/ \; 2>/dev/null || true
+
+            # CSS لإعادة توجيه @font-face
+            for f in cf-dist/fonts/*.ttf; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fontname=$(echo "$fname" | sed 's/\.[a-f0-9]\{32\}\.ttf$//')
+              echo "@font-face { font-family: '${fontname}'; src: url('/fonts/${fname}') format('truetype'); }"
+            done > /tmp/fonts-override.css
+
+            # حقن CSS في index.html و 404.html
+            python3 -c "
+import sys
+with open('cf-dist/index.html','r') as f: c=f.read()
+with open('/tmp/fonts-override.css','r') as f: css=f.read()
+c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1)
+with open('cf-dist/index.html','w') as f: f.write(c)
+with open('cf-dist/404.html','w') as f: f.write(c)
+print('Fonts CSS injected')
+"
+
+            npx wrangler@3 pages deploy cf-dist \
               --project-name=hasahisawi \
-              --commit-dirty=true \
-              --commit-message="PWA v${VER}"
+              --branch=master
             echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
           fi
 
-      - run: echo "✅ GitHub Pages → https://almhbob.github.io/hasahisawi/"
+      - run: |
+          echo "✅ GitHub Pages → https://almhbob.github.io/hasahisawi/"
+          echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
