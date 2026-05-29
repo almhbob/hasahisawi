@@ -102,6 +102,12 @@ HEADERS_EOF
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "⚠️  CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping"
           else
+            # إنشاء المشروع إذا لم يكن موجوداً
+            curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"hasahisawi","production_branch":"master"}' \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project OK:', d.get('result',{}).get('subdomain','already exists'))" || true
             npx wrangler@3 pages deploy docs \
               --project-name=hasahisawi \
               --branch=master
