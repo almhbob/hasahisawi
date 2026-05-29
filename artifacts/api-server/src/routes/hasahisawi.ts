@@ -3408,6 +3408,58 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
   }
 });
 
+// ── GET /api/admin/users-source-health ──────────────────────────────────────
+router.get("/admin/users-source-health", async (req: Request, res: Response): Promise<any> => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+
+    const pgResult = await query(`SELECT COUNT(*)::int AS total FROM users`);
+    const postgresUsers: number = pgResult.rows[0]?.total ?? 0;
+
+    let firebaseUsers = 0;
+    let firebaseMissingInPostgres = 0;
+    let status = "configured";
+
+    try {
+      const fbUsers = await listAllFirebaseUsers();
+      firebaseUsers = fbUsers.length;
+
+      // Count Firebase UIDs not yet in Postgres
+      if (fbUsers.length > 0) {
+        const uids = fbUsers.map(u => u.uid);
+        const pgUids = await query(
+          `SELECT firebase_uid FROM users WHERE firebase_uid = ANY($1)`,
+          [uids]
+        );
+        firebaseMissingInPostgres = fbUsers.length - pgUids.rowCount;
+        status = firebaseMissingInPostgres > 0 ? "needs_sync" : "healthy";
+      } else {
+        status = "healthy";
+      }
+    } catch (fbErr: any) {
+      const msg = fbErr?.message ?? "";
+      if (msg.includes("FIREBASE_SERVICE_ACCOUNT_JSON") || msg.includes("invalid_grant")) {
+        status = "missing_env";
+      } else if (msg.includes("JSON")) {
+        status = "invalid_json";
+      } else {
+        status = "firebase_error";
+      }
+    }
+
+    return res.json({
+      firebase_admin_configured: status !== "missing_env" && status !== "invalid_json",
+      firebase_users: firebaseUsers || null,
+      postgres_users: postgresUsers,
+      firebase_missing_in_postgres: firebaseMissingInPostgres,
+      status,
+    });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "users-source-health error");
+    return res.status(500).json({ error: "تعذّر فحص الحالة" });
+  }
+});
+
 router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
