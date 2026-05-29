@@ -3364,53 +3364,43 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
       return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, skipped: 0, errors: 0 });
     }
 
-    // استجابة فورية حتى لا يُلغى الطلب
-    res.json({
-      firebase_total: firebaseUsers.length,
-      status: "processing",
-      message: `جارٍ مزامنة ${firebaseUsers.length} مستخدم في الخلفية…`,
-    });
-    return;
+    // معالجة دُفعية
+    let created = 0, updated = 0, skipped = 0, errors = 0;
 
-    // معالجة دُفعية في الخلفية بعد إرسال الرد
-    setImmediate(async () => {
-      let created = 0, updated = 0, skipped = 0, errors = 0;
-
-      // دُفعات من 25 لتجنب ضغط قاعدة البيانات
-      const BATCH = 25;
-      for (let i = 0; i < firebaseUsers.length; i += BATCH) {
-        const batch = firebaseUsers.slice(i, i + BATCH);
-        await Promise.allSettled(batch.map(async (fu) => {
+    const BATCH = 25;
+    for (let i = 0; i < firebaseUsers.length; i += BATCH) {
+      const batch = firebaseUsers.slice(i, i + BATCH);
+      await Promise.allSettled(batch.map(async (fu) => {
+        try {
+          const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
+          const result = await query(
+            `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
+             VALUES ($1,$2,$3,$4,'$firebase$','user',$5)
+             ON CONFLICT (firebase_uid) DO UPDATE
+               SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
+                   avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
+                   email=COALESCE(EXCLUDED.email,users.email)
+             RETURNING xmax`,
+            [fu.uid, name, fu.email || null, fu.phoneNumber || null, fu.photoURL || null]
+          );
+          // xmax=0 → INSERT (created), xmax>0 → UPDATE
+          if (result.rows[0]?.xmax === "0") created++;
+          else updated++;
+        } catch {
+          // email conflict with different firebase_uid — try uid-only upsert
           try {
-            const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
-            const result = await query(
-              `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
-               VALUES ($1,$2,$3,$4,'$firebase$','user',$5)
-               ON CONFLICT (firebase_uid) DO UPDATE
-                 SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
-                     avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
-                     email=COALESCE(EXCLUDED.email,users.email)
-               RETURNING xmax`,
-              [fu.uid, name, fu.email || null, fu.phoneNumber || null, fu.photoURL || null]
+            await query(
+              `UPDATE users SET firebase_uid=$1, avatar_url=COALESCE($2,avatar_url) WHERE email=$3`,
+              [fu.uid, fu.photoURL || null, fu.email || null]
             );
-            // xmax=0 → INSERT (created), xmax>0 → UPDATE
-            if (result.rows[0]?.xmax === "0") created++;
-            else updated++;
-          } catch {
-            // email conflict with different firebase_uid — try uid-only upsert
-            try {
-              await query(
-                `UPDATE users SET firebase_uid=$1, avatar_url=COALESCE($2,avatar_url) WHERE email=$3`,
-                [fu.uid, fu.photoURL || null, fu.email || null]
-              );
-              updated++;
-            } catch { errors++; }
-          }
-        }));
-      }
+            updated++;
+          } catch { errors++; }
+        }
+      }));
+    }
 
-      logger.info({ firebase_total: firebaseUsers.length, created, updated, skipped, errors }, "[sync-firebase] complete");
-    });
+    logger.info({ firebase_total: firebaseUsers.length, created, updated, skipped, errors }, "[sync-firebase] complete");
+    return res.json({ firebase_total: firebaseUsers.length, synced: created + updated, created, updated, skipped, errors });
 
   } catch (e: any) {
     logger.error({ err: e?.message }, "sync-firebase-users error");

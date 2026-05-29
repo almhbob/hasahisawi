@@ -1917,12 +1917,12 @@ export default function AdminDashboard() {
       const d = await safeJson(res);
       setFbSyncResult(d);
       // أعد تحميل المستخدمين والإحصائيات بعد المزامنة
-      await Promise.all([loadStats(), loadFirebaseHealth()]);
+      await Promise.all([loadStats(), loadFirebaseHealth(), loadUsers()]);
     } catch (e: any) {
       setFbSyncResult({ error: e?.message ?? "فشل الاتصال" });
     }
     finally { setFbSyncing(false); }
-  }, [token, loadStats, loadFirebaseHealth]);
+  }, [token, loadStats, loadFirebaseHealth, loadUsers]);
 
   const loadLandmarks = useCallback(async () => {
     setLoadingLM(true);
