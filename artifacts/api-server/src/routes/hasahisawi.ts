@@ -2338,6 +2338,111 @@ router.put("/users/me", handleUpdateProfile);
   );
 }
 
+// ── QR Web Login ─────────────────────────────────────────────────────────────
+// Stores short-lived tokens in PostgreSQL so they work across Vercel instances.
+// Table is created on first use (CREATE TABLE IF NOT EXISTS).
+{
+  const ensureQrTable = async () => {
+    await query(`CREATE TABLE IF NOT EXISTS auth_qr_sessions (
+      token       TEXT PRIMARY KEY,
+      status      TEXT NOT NULL DEFAULT 'waiting',
+      session_token TEXT,
+      user_id     INT,
+      expires_at  TIMESTAMPTZ NOT NULL,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  };
+
+  // POST /auth/qr/generate — web app requests a new QR token
+  router.post("/auth/qr/generate", authLimiter, async (_req: Request, res: Response): Promise<any> => {
+    try {
+      await ensureQrTable();
+      const { randomBytes } = await import("node:crypto");
+      const token = randomBytes(24).toString("hex");
+      const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+      await query(
+        `INSERT INTO auth_qr_sessions (token, status, expires_at) VALUES ($1, 'waiting', $2)`,
+        [token, expiresAt]
+      );
+      // cleanup expired rows opportunistically
+      query(`DELETE FROM auth_qr_sessions WHERE expires_at < NOW()`).catch(() => {});
+      return res.json({ token, expires_at: expiresAt });
+    } catch (e: any) {
+      logger.error({ err: e?.message }, "[qr/generate]");
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // GET /auth/qr/:token/poll — web app polls for state changes
+  router.get("/auth/qr/:token/poll", async (req: Request, res: Response): Promise<any> => {
+    try {
+      await ensureQrTable();
+      const { token } = req.params;
+      const r = await query(
+        `SELECT status, session_token, expires_at FROM auth_qr_sessions WHERE token=$1`,
+        [token]
+      );
+      if (!r.rows[0]) return res.json({ status: "expired" });
+      const row = r.rows[0];
+      if (new Date(row.expires_at) < new Date()) return res.json({ status: "expired" });
+      return res.json({ status: row.status, token: row.session_token ?? null });
+    } catch (e: any) {
+      logger.error({ err: e?.message }, "[qr/poll]");
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // POST /auth/qr/:token/scan — mobile marks as scanned (intermediate state)
+  router.post("/auth/qr/:token/scan", async (req: Request, res: Response): Promise<any> => {
+    try {
+      await ensureQrTable();
+      const { token } = req.params;
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "غير مصرح" });
+      const r = await query(
+        `UPDATE auth_qr_sessions SET status='scanned' WHERE token=$1 AND status='waiting' AND expires_at > NOW() RETURNING token`,
+        [token]
+      );
+      if (!r.rowCount) return res.status(410).json({ error: "الرمز منتهي أو استُخدم" });
+      return res.json({ ok: true });
+    } catch (e: any) {
+      logger.error({ err: e?.message }, "[qr/scan]");
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // POST /auth/qr/:token/confirm — mobile confirms, attaches session to QR token
+  router.post("/auth/qr/:token/confirm", async (req: Request, res: Response): Promise<any> => {
+    try {
+      await ensureQrTable();
+      const { token } = req.params;
+      const user = await getSessionUser(req);
+      if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول على الجوال أولاً" });
+
+      // Create a new 30-day session token for the web
+      const { randomBytes } = await import("node:crypto");
+      const sessionToken = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await query(
+        `INSERT INTO sessions (token, user_id, expires_at) VALUES ($1,$2,$3)`,
+        [sessionToken, user.id, expiresAt]
+      );
+
+      const r = await query(
+        `UPDATE auth_qr_sessions SET status='confirmed', session_token=$1, user_id=$2
+         WHERE token=$3 AND status IN ('waiting','scanned') AND expires_at > NOW()
+         RETURNING token`,
+        [sessionToken, user.id, token]
+      );
+      if (!r.rowCount) return res.status(410).json({ error: "الرمز منتهي أو استُخدم من قبل" });
+      return res.json({ ok: true });
+    } catch (e: any) {
+      logger.error({ err: e?.message }, "[qr/confirm]");
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+}
+
 router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone_or_email, password, recaptcha_token } = req.body;
