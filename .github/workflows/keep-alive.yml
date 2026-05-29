@@ -30,5 +30,12 @@ jobs:
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
             "https://almhbob.github.io/hasahisawi/")
-          echo "PWA → HTTP $STATUS"
-          [ "$STATUS" = "200" ] && echo "✅ PWA OK" || echo "⚠️ PWA returned $STATUS"
+          echo "GitHub Pages → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ GitHub Pages OK" || echo "⚠️ GitHub Pages returned $STATUS"
+
+      - name: Ping PWA (Cloudflare Pages)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "https://hasahisawi.pages.dev/")
+          echo "Cloudflare Pages → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Cloudflare OK" || echo "⚠️ Cloudflare returned $STATUS (may not be set up yet)"

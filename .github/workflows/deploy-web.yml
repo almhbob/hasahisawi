@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   pages: write
+  deployments: write
 
 jobs:
   deploy:
@@ -48,7 +49,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:android:7d0a88a80d3be1af418e48
           EXPO_PUBLIC_DISABLE_OTP: 'true'
 
-      - name: Add PWA files
+      - name: Add PWA + Cloudflare files
         working-directory: artifacts/hasahisawi
         run: |
           cp -r public/splash dist/splash 2>/dev/null || true
@@ -57,7 +58,29 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
-      - name: Deploy to docs/ on master
+          # SPA fallback for Cloudflare Pages
+          echo '/* /index.html 200' > dist/_redirects
+
+          # Security + caching headers for Cloudflare Pages
+          cat > dist/_headers << 'HEADERS_EOF'
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-XSS-Protection: 1; mode=block
+
+/_expo/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/splash/*
+  Cache-Control: public, max-age=86400
+HEADERS_EOF
+
+      - name: Deploy to GitHub Pages (docs/)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -67,20 +90,27 @@ jobs:
           mkdir -p docs
           cp -r artifacts/hasahisawi/dist/. docs/
           git add -f docs/
-          git diff --cached --quiet && echo "No changes" || \
+          git diff --cached --quiet && echo "No changes to deploy" || \
             git commit -m "deploy: web PWA → docs/ [auto]"
           git push origin master
 
-      - name: Deploy to Netlify
+      - name: Deploy to Cloudflare Pages
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
-            echo "⚠️  NETLIFY_AUTH_TOKEN or NETLIFY_SITE_ID not set — skipping Netlify deploy"
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "⚠️  CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping"
+            echo "ℹ️  Add these secrets to enable Cloudflare Pages auto-deploy"
           else
-            npx netlify-cli@latest deploy --prod --dir=docs --message="PWA v$(cat artifacts/hasahisawi/app.json | python3 -c 'import sys,json;print(json.load(sys.stdin)["expo"]["version"])')"
-            echo "✅ Netlify deploy complete"
+            VERSION=$(python3 -c "import sys,json; print(json.load(open('artifacts/hasahisawi/app.json'))['expo']['version'])")
+            npx wrangler@latest pages deploy docs \
+              --project-name=hasahisawi \
+              --commit-dirty=true \
+              --commit-message="PWA v${VERSION}"
+            echo "✅ Cloudflare Pages deploy complete → https://hasahisawi.pages.dev"
           fi
 
-      - run: echo "✅ PWA live at https://almhbob.github.io/hasahisawi/"
+      - run: |
+          echo "✅ GitHub Pages → https://almhbob.github.io/hasahisawi/"
+          echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"

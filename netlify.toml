@@ -1,8 +1,0 @@
-[build]
-  publish = "docs"
-
-# SPA fallback — serve index.html for all unmatched routes
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
