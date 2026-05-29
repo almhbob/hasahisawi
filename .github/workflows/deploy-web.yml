@@ -111,7 +111,32 @@ HEADERS_EOF
 
             # إنشاء نسخة Cloudflare: إزالة prefix /hasahisawi/ من HTML
             cp -r docs cf-dist
+
+            # إصلاح مسارات HTML
             find cf-dist -name "*.html" -exec sed -i 's|"/hasahisawi/|"/|g' {} \;
+
+            # نسخ الخطوط لمسار بسيط /fonts/ (تجنب %40 encoding لـ @ في المسارات)
+            mkdir -p cf-dist/fonts
+            find cf-dist/assets/__node_modules -name "*.ttf" -exec cp {} cf-dist/fonts/ \;
+
+            # إنشاء CSS لإعادة توجيه @font-face للمسار الجديد
+            for f in cf-dist/fonts/*.ttf; do
+              fname=$(basename "$f")
+              fontname=$(echo "$fname" | sed 's/\.[a-f0-9]\{32\}\.ttf$//')
+              echo "@font-face { font-family: '${fontname}'; src: url('/fonts/${fname}') format('truetype'); }"
+            done > /tmp/fonts-override.css
+
+            # حقن CSS في index.html
+            python3 -c "
+import sys
+with open('cf-dist/index.html','r') as f: c=f.read()
+with open('/tmp/fonts-override.css','r') as f: css=f.read()
+c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1)
+with open('cf-dist/index.html','w') as f: f.write(c)
+cp_404=c
+with open('cf-dist/404.html','w') as f: f.write(cp_404)
+print('Fonts CSS injected')
+"
 
             npx wrangler@3 pages deploy cf-dist \
               --project-name=hasahisawi \
