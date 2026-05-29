@@ -18,7 +18,7 @@ type Mode = "login" | "register" | "forgot";
 
 export default function AuthModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
-  const { login, register, enterAsGuest, loginWithGoogle } = useAuth();
+  const { login, register, enterAsGuest, loginWithGoogle, loginWithGoogleWeb } = useAuth();
   const { t, isRTL } = useLang();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -70,13 +70,22 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
     setGoogleLoading(true);
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.data?.idToken ?? (signInResult as any).idToken;
-      if (!idToken) throw new Error("لم يتم الحصول على بيانات Google");
-      await handleGoogleSignIn(idToken);
+      if (Platform.OS === "web") {
+        // الويب: Firebase signInWithPopup مباشرة
+        await loginWithGoogleWeb();
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        reset();
+        onClose();
+      } else {
+        // الموبايل: Google Play Services
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const signInResult = await GoogleSignin.signIn();
+        const idToken = signInResult.data?.idToken ?? (signInResult as any).idToken;
+        if (!idToken) throw new Error("لم يتم الحصول على بيانات Google");
+        await handleGoogleSignIn(idToken);
+      }
     } catch (e: any) {
-      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED || e.code === "auth/popup-closed-by-user") {
         setError("");
       } else if (e.code === statusCodes.IN_PROGRESS) {
         setError("تسجيل الدخول جارٍ بالفعل");
