@@ -1577,6 +1577,25 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   const SL: Record<string, string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", active: "نشط" };
 
   async function review(id: number, status: "approved" | "rejected") {
+    // travel_agency approval uses a dedicated POST endpoint that also creates
+    // the agency entry in the travel_agencies table (not just a status patch)
+    if (sub === "travel_agency") {
+      if (status === "approved") {
+        await fetch(`${apiBase}/api/admin/travel-agencies/applications/${id}/approve`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        });
+      } else {
+        await fetch(`${apiBase}/api/admin/travel-agencies/applications/${id}/status`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+      }
+      setItems(prev => prev.filter(x => x.id !== id));
+      return;
+    }
+
     const patchMap: Record<JoinSub, string> = {
       women:         "",
       occasions:     `${apiBase}/api/occasions/shops/${id}/status`,
@@ -1584,7 +1603,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       union_manager: `${apiBase}/api/admin/union-manager-apps/${id}/status`,
       edu_reg:       `${apiBase}/api/admin/education/registrations/${id}`,
       edu_transfer:  `${apiBase}/api/admin/education/transfers/${id}`,
-      travel_agency: `${apiBase}/api/admin/travel-agencies/applications/${id}/status`,
+      travel_agency: "",
     };
     const url = patchMap[sub];
     if (!url) return;
