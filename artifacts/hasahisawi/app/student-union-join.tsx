@@ -11,7 +11,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
 const UC  = "#6366F1";
 const UC2 = "#A5B4FC";
@@ -214,11 +214,18 @@ export default function StudentUnionJoinScreen() {
     setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   const handleSubmit = async () => {
     const err = validateSection();
-    if (err) { Alert.alert("تنبيه", err); return; }
+    if (err) {
+      if (Platform.OS === "web") { setSubmitError(err); return; }
+      Alert.alert("تنبيه", err); return;
+    }
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const body = {
         full_name: fullName.trim(), birth_date: birthDate.trim(), age: age.trim(),
@@ -233,29 +240,42 @@ export default function StudentUnionJoinScreen() {
         pledge_name: pledgeName.trim(), pledge_date: pledgeDate.trim() || null,
       };
 
-      const res = await fetch(`${getApiUrl()}/api/student-union/apply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const res = await fetchWithTimeout(
+        `${getApiUrl()}/api/student-union/apply`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      });
+        45000,
+      );
 
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          "تم الإرسال بنجاح",
-          "تم تقديم استمارة عضوية اتحاد الطلاب بنجاح.\nسيتم مراجعتها والرد عليك خلال 48 ساعة.",
-          [{ text: "حسناً", onPress: () => router.back() }]
-        );
+        if (Platform.OS === "web") {
+          setSubmitSuccess(true);
+        } else {
+          Alert.alert(
+            "تم الإرسال بنجاح",
+            "تم تقديم استمارة عضوية اتحاد الطلاب بنجاح.\nسيتم مراجعتها والرد عليك خلال 48 ساعة.",
+            [{ text: "حسناً", onPress: () => router.back() }]
+          );
+        }
       } else {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "فشل إرسال الاستمارة");
       }
     } catch (e: any) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", e.message || "تعذر إرسال الاستمارة، يرجى المحاولة مرة أخرى");
+      const msg = e.message || "تعذر إرسال الاستمارة، يرجى المحاولة مرة أخرى";
+      if (Platform.OS === "web") {
+        setSubmitError(msg);
+      } else {
+        Alert.alert("خطأ", msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -486,40 +506,64 @@ export default function StudentUnionJoinScreen() {
           </Animated.View>
         )}
 
+        {/* نجاح على الويب */}
+        {submitSuccess && (
+          <View style={s.webSuccessBox}>
+            <Ionicons name="checkmark-circle" size={48} color="#059669" />
+            <Text style={s.webSuccessTitle}>تم الإرسال بنجاح!</Text>
+            <Text style={s.webSuccessMsg}>
+              تم تقديم استمارة عضوية اتحاد الطلاب بنجاح.{"\n"}سيتم مراجعتها والرد عليك خلال 48 ساعة.
+            </Text>
+            <TouchableOpacity onPress={() => router.back()} style={s.webSuccessBtn}>
+              <Text style={s.webSuccessBtnText}>حسناً</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* خطأ على الويب */}
+        {submitError ? (
+          <View style={s.webErrBox}>
+            <Ionicons name="alert-circle-outline" size={20} color="#DC2626" />
+            <Text style={s.webErrText}>{submitError}</Text>
+          </View>
+        ) : null}
+
         {/* أزرار التنقل */}
-        <View style={s.navRow}>
-          {section > 1 && (
-            <TouchableOpacity onPress={goBack} style={s.backNavBtn}>
-              <Ionicons name="chevron-forward" size={18} color={UC2} />
-              <Text style={s.backNavText}>السابق</Text>
-            </TouchableOpacity>
-          )}
-          <View style={{ flex: 1 }} />
-          {section < TOTAL_SECTIONS ? (
-            <TouchableOpacity onPress={goNext} style={s.nextBtn}>
-              <LinearGradient colors={[UC, "#4338CA"]} style={s.nextGrad}>
-                <Text style={s.nextText}>التالي</Text>
-                <Ionicons name="chevron-back" size={18} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={submitting}
-              style={[s.nextBtn, submitting && { opacity: 0.6 }]}
-            >
-              <LinearGradient colors={["#059669", "#047857"]} style={s.nextGrad}>
-                {submitting
-                  ? <ActivityIndicator color="#fff" />
-                  : <>
-                      <Text style={s.nextText}>إرسال الاستمارة</Text>
-                      <Ionicons name="paper-plane-outline" size={17} color="#fff" />
-                    </>
-                }
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </View>
+        {!submitSuccess && (
+          <View style={s.navRow}>
+            {section > 1 && (
+              <TouchableOpacity onPress={goBack} style={s.backNavBtn}>
+                <Ionicons name="chevron-forward" size={18} color={UC2} />
+                <Text style={s.backNavText}>السابق</Text>
+              </TouchableOpacity>
+            )}
+            <View style={{ flex: 1 }} />
+            {section < TOTAL_SECTIONS ? (
+              <TouchableOpacity onPress={goNext} style={s.nextBtn}>
+                <LinearGradient colors={[UC, "#4338CA"]} style={s.nextGrad}>
+                  <Text style={s.nextText}>التالي</Text>
+                  <Ionicons name="chevron-back" size={18} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={submitting}
+                style={[s.nextBtn, submitting && { opacity: 0.6 }]}
+              >
+                <LinearGradient colors={["#059669", "#047857"]} style={s.nextGrad}>
+                  {submitting
+                    ? <ActivityIndicator color="#fff" />
+                    : <>
+                        <Text style={s.nextText}>إرسال الاستمارة</Text>
+                        <Ionicons name="paper-plane-outline" size={17} color="#fff" />
+                      </>
+                  }
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -585,4 +629,21 @@ const s = StyleSheet.create({
     gap: 8, paddingVertical: 14, paddingHorizontal: 20,
   },
   nextText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  webErrBox: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
+    backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8,
+    borderWidth: 1, borderColor: "#FECACA",
+  },
+  webErrText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DC2626", flex: 1, textAlign: "right" },
+  webSuccessBox: {
+    alignItems: "center", justifyContent: "center", gap: 12,
+    padding: 32, margin: 16,
+    backgroundColor: "#F0FDF4", borderRadius: 16, borderWidth: 1, borderColor: "#BBF7D0",
+  },
+  webSuccessTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#059669", textAlign: "center" },
+  webSuccessMsg: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#065F46", textAlign: "center", lineHeight: 22 },
+  webSuccessBtn: {
+    backgroundColor: "#059669", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, marginTop: 8,
+  },
+  webSuccessBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

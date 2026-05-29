@@ -27,6 +27,8 @@ function allowedOrigins(): string[] {
     "https://hasahisawi.com",
     "https://www.hasahisawi.com",
     "https://hasahisawi.vercel.app",
+    "https://hasahisawi.pages.dev",
+    "https://almhbob.github.io",
   ];
   return Array.from(new Set([...configured, ...defaults]));
 }
