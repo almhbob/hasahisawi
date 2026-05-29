@@ -28,13 +28,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'pnpm'
+          cache-dependency-path: artifacts/hasahisawi/pnpm-lock.yaml
 
-      - run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies
+        working-directory: artifacts/hasahisawi
+        run: pnpm install --no-frozen-lockfile
 
       - name: Export web
         working-directory: artifacts/hasahisawi
