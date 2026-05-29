@@ -14639,6 +14639,21 @@ router.post("/admin/travel/routes", async (req: Request, res: Response) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ── GET /api/travel-agencies — قائمة الوكالات المعتمدة ──────────
+router.get("/travel-agencies", async (_req: Request, res: Response) => {
+  try {
+    const r = await query(
+      `SELECT id, agency_name, agency_type, specialties, destinations, description, website,
+              contact_name, contact_role, phone, whatsapp, email, city, country,
+              license_number, founded_year, services_offered, target_routes, created_at
+       FROM travel_agency_applications
+       WHERE status = 'approved'
+       ORDER BY created_at DESC`
+    );
+    return res.json(r.rows);
+  } catch (e: any) { logger.error({ err: e?.message }, "[travel-agencies]"); return res.status(500).json({ error: "Server error" }); }
+});
+
 // ── POST /api/travel-agencies/apply ─────────────────────────────
 router.post("/travel-agencies/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
