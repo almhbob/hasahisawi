@@ -37,7 +37,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -1531,6 +1531,141 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
   );
 }
 
+// ─── Admin Join Requests Tab ─────────────────────────────────────────────────
+type JoinSub = "women" | "occasions" | "union_partner" | "union_manager" | "edu_reg" | "edu_transfer" | "travel_agency";
+function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const [sub, setSub] = React.useState<JoinSub>("women");
+  const [items, setItems] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const SUB_TABS: { key: JoinSub; label: string }[] = [
+    { key: "women",          label: "النساء" },
+    { key: "occasions",      label: "مناسبتي" },
+    { key: "union_partner",  label: "شراكات الاتحادات" },
+    { key: "union_manager",  label: "مديرو الاتحادات" },
+    { key: "edu_reg",        label: "تسجيل طلاب" },
+    { key: "edu_transfer",   label: "نقل قيد" },
+    { key: "travel_agency",  label: "وكالات سفر" },
+  ];
+
+  const URL_MAP: Record<JoinSub, string> = {
+    women:         `${apiBase}/api/women/join-requests`,
+    occasions:     `${apiBase}/api/occasions/shops/all`,
+    union_partner: `${apiBase}/api/admin/union-partnership`,
+    union_manager: `${apiBase}/api/admin/union-manager-apps`,
+    edu_reg:       `${apiBase}/api/admin/education/registrations`,
+    edu_transfer:  `${apiBase}/api/admin/education/transfers`,
+    travel_agency: `${apiBase}/api/admin/travel-agencies/applications`,
+  };
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    fetch(URL_MAP[sub], { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        const arr = Array.isArray(d) ? d
+          : d.rows ?? d.applications ?? d.items ?? d.registrations ?? d.transfers ?? [];
+        setItems(arr);
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [sub, token]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const SC: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444", active: "#10B981" };
+  const SL: Record<string, string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", active: "نشط" };
+
+  async function review(id: number, status: "approved" | "rejected") {
+    const patchMap: Record<JoinSub, string> = {
+      women:         "",
+      occasions:     `${apiBase}/api/occasions/shops/${id}/status`,
+      union_partner: `${apiBase}/api/admin/union-partnership/${id}`,
+      union_manager: `${apiBase}/api/admin/union-manager-apps/${id}/status`,
+      edu_reg:       `${apiBase}/api/admin/education/registrations/${id}`,
+      edu_transfer:  `${apiBase}/api/admin/education/transfers/${id}`,
+      travel_agency: `${apiBase}/api/admin/travel-agencies/applications/${id}`,
+    };
+    const url = patchMap[sub];
+    if (!url) return;
+    await fetch(url, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    setItems(prev => prev.filter(x => x.id !== id));
+  }
+
+  function getTitle(item: any): string {
+    return item.name ?? item.shop_name ?? item.agency_name ?? item.contact_name
+      ?? item.org_name ?? item.student_name ?? item.union_name ?? item.applicant_name ?? `#${item.id}`;
+  }
+  function getSub(item: any): string {
+    return item.phone ?? item.email ?? item.city ?? item.region ?? "";
+  }
+  function getDesc(item: any): string {
+    return item.description ?? item.cooperation_scope ?? item.notes ?? item.reason ?? item.target_routes ?? "";
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
+        {SUB_TABS.map(t => (
+          <TouchableOpacity key={t.key} onPress={() => setSub(t.key)}
+            style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+              backgroundColor: sub === t.key ? Colors.primary : "#FFFFFF0A",
+              borderWidth: 1, borderColor: sub === t.key ? Colors.primary : "#FFFFFF15" }}>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12,
+              color: sub === t.key ? "#fff" : "#9CA3AF" }}>{t.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> :
+         items.length === 0 ? (
+          <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>
+            لا توجد طلبات
+          </Text>
+        ) : items.filter(item => !item.status || item.status === "pending").map(item => {
+          const st = item.status ?? "pending";
+          return (
+            <View key={item.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1,
+              borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14,
+              borderRightWidth: 4, borderRightColor: SC[st] ?? "#F59E0B" }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>
+                  {getTitle(item)}
+                </Text>
+                <View style={{ backgroundColor: (SC[st] ?? "#888") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[st] ?? "#888" }}>
+                    {SL[st] ?? st}
+                  </Text>
+                </View>
+              </View>
+              {!!getSub(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{getSub(item)}</Text>}
+              {!!getDesc(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={3}>{getDesc(item)}</Text>}
+              {item.created_at && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>}
+              {sub !== "women" && (
+                <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                  <TouchableOpacity onPress={() => review(item.id, "rejected")}
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 13 }}>رفض</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => review(item.id, "approved")}
+                    style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#10B981", alignItems: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>قبول</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
@@ -2763,6 +2898,7 @@ export default function AdminDashboard() {
     { key: "partners",         label: "بوابة الشركاء",      icon: "handshake-outline" as any, color: "#F97316", adminOnly: true },
     { key: "lawyers_admin",    label: "المحامون",           icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
     { key: "designers_admin",  label: "المصممون",           icon: "color-palette",      color: "#F472B6",      adminOnly: true },
+    { key: "join_requests",    label: "طلبات الانضمام",     icon: "person-add",         color: "#F59E0B",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -5207,6 +5343,13 @@ export default function AdminDashboard() {
       ═══════════════════════════════════════════════════════ */}
       {tab === "designers_admin" && isAdmin && (
         <AdminDesignersTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          ── طلبات الانضمام الموحدة
+      ═══════════════════════════════════════════════════════ */}
+      {tab === "join_requests" && isAdmin && (
+        <AdminJoinRequestsTab token={token!} apiBase={getApiUrl()} />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
