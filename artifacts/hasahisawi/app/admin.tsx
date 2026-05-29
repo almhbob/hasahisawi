@@ -1052,10 +1052,15 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
   const [acting, setActing] = React.useState<number | null>(null);
   const [filter, setFilter] = React.useState("pending");
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
+  const [grantResult, setGrantResult] = React.useState<{ username: string; temp_password: string; full_name: string } | null>(null);
+  const [granting, setGranting] = React.useState<number | null>(null);
 
   const load = React.useCallback(() => {
-    fetch(`${apiBase}/student-union/applications`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { if (d.applications) { setApps(d.applications); setLastUpdated(new Date()); } }).catch(() => {}).finally(() => setLoading(false));
+    fetch(`${apiBase}/api/student-union/applications`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.applications) { setApps(d.applications); setLastUpdated(new Date()); } })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [token, apiBase]);
 
   React.useEffect(() => { setLoading(true); load(); }, [load]);
@@ -1064,15 +1069,28 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
     return () => clearInterval(iv);
   }, [load]);
 
-  const updateStatus = async (id: number, status: string, notes?: string) => {
+  const updateStatus = async (id: number, status: string) => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/student-union/applications/${id}/status`, {
+      const r = await fetch(`${apiBase}/api/student-union/applications/${id}/status`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status, notes }),
+        body: JSON.stringify({ status }),
       });
+      if (!r.ok) throw new Error();
       setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
     } catch { Alert.alert("خطأ", "تعذّر تحديث الطلب"); } finally { setActing(null); }
+  };
+
+  const grantManager = async (id: number) => {
+    setGranting(id);
+    try {
+      const r = await fetch(`${apiBase}/api/student-union/applications/${id}/grant-manager`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const d = await r.json();
+      if (!r.ok) { Alert.alert("خطأ", d.error || "تعذّر منح الصلاحيات"); return; }
+      setGrantResult({ username: d.username, temp_password: d.temp_password, full_name: d.full_name });
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setGranting(null); }
   };
 
   const filtered = apps.filter(a => filter === "all" ? true : a.status === filter);
@@ -1080,6 +1098,42 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+      {/* مودال بيانات الدخول بعد منح الصلاحيات */}
+      <Modal visible={!!grantResult} transparent animationType="fade" onRequestClose={() => setGrantResult(null)}>
+        <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 14, borderWidth: 1, borderColor: UC + "40" }}>
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <Ionicons name="shield-checkmark" size={40} color={UC} />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "center" }}>
+                تم منح صلاحيات إدارة الإتحاد
+              </Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>
+                {grantResult?.full_name}
+              </Text>
+            </View>
+            <View style={{ backgroundColor: "#0B1A12", borderRadius: 12, padding: 16, gap: 10 }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>بيانات الدخول للبوابة</Text>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>اسم المستخدم</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, letterSpacing: 1 }}>{grantResult?.username}</Text>
+              </View>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>كلمة المرور المؤقتة</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F59E0B", letterSpacing: 1 }}>{grantResult?.temp_password}</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+              احتفظ بهذه البيانات وأرسلها للعضو — لا يمكن استعادة كلمة المرور لاحقاً
+            </Text>
+            <TouchableOpacity onPress={() => setGrantResult(null)}
+              style={{ backgroundColor: UC, borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>حسناً — تم التسجيل</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
           <Ionicons name="refresh" size={14} color={Colors.textMuted} />
@@ -1111,16 +1165,20 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.full_name || a.applicant_name || "مقدّم طلب"}</Text>
             <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: a.status === "approved" ? "#10B98120" : a.status === "rejected" ? "#EF444420" : "#F59E0B20" }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>{a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>
+                {a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}
+              </Text>
             </View>
           </View>
           {a.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${a.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginBottom: 4 }}>
             <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{a.phone}</Text>
           </TouchableOpacity>}
           {a.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>المؤسسة: {a.institution}</Text>}
-          {a.field && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {a.field}</Text>}
-          {a.reason && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }}>"{a.reason}"</Text>}
+          {a.major && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {a.major}</Text>}
+          {a.motivation && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }} numberOfLines={2}>"{a.motivation}"</Text>}
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
+
+          {/* أزرار المعلق */}
           {a.status === "pending" && (
             <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
               <TouchableOpacity onPress={() => updateStatus(a.id, "rejected")} disabled={acting === a.id}
@@ -1133,6 +1191,21 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>✓ قبول في الإتحاد</Text>}
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* زر منح صلاحيات الإدارة للمقبول */}
+          {a.status === "approved" && (
+            <TouchableOpacity
+              onPress={() => grantManager(a.id)}
+              disabled={granting === a.id}
+              style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+              {granting === a.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                <>
+                  <Ionicons name="shield-checkmark-outline" size={15} color="#fff" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح صلاحيات إدارة الإتحاد</Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
         </View>
       ))}
@@ -1532,13 +1605,14 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
 }
 
 // ─── Admin Join Requests Tab ─────────────────────────────────────────────────
-type JoinSub = "women" | "occasions" | "union_partner" | "union_manager" | "edu_reg" | "edu_transfer" | "travel_agency";
+type JoinSub = "student_union" | "women" | "occasions" | "union_partner" | "union_manager" | "edu_reg" | "edu_transfer" | "travel_agency";
 function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: string }) {
-  const [sub, setSub] = React.useState<JoinSub>("women");
+  const [sub, setSub] = React.useState<JoinSub>("student_union");
   const [items, setItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const SUB_TABS: { key: JoinSub; label: string }[] = [
+    { key: "student_union",  label: "إتحاد الطلاب" },
     { key: "women",          label: "النساء" },
     { key: "occasions",      label: "مناسبتي" },
     { key: "union_partner",  label: "شراكات الاتحادات" },
@@ -1549,6 +1623,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   ];
 
   const URL_MAP: Record<JoinSub, string> = {
+    student_union: `${apiBase}/api/student-union/applications`,
     women:         `${apiBase}/api/women/join-requests`,
     occasions:     `${apiBase}/api/occasions/shops/all`,
     union_partner: `${apiBase}/api/admin/union-partnership`,
@@ -1571,14 +1646,15 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       .finally(() => setLoading(false));
   }, [sub, token]);
 
+  const [grantResult2, setGrantResult2] = React.useState<{ username: string; temp_password: string; full_name: string } | null>(null);
+  const [granting2, setGranting2] = React.useState<number | null>(null);
+
   React.useEffect(() => { load(); }, [load]);
 
   const SC: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444", active: "#10B981" };
   const SL: Record<string, string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", active: "نشط" };
 
   async function review(id: number, status: "approved" | "rejected") {
-    // travel_agency approval uses a dedicated POST endpoint that also creates
-    // the agency entry in the travel_agencies table (not just a status patch)
     if (sub === "travel_agency") {
       if (status === "approved") {
         await fetch(`${apiBase}/api/admin/travel-agencies/applications/${id}/approve`, {
@@ -1596,7 +1672,18 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       return;
     }
 
+    if (sub === "student_union") {
+      await fetch(`${apiBase}/api/student-union/applications/${id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setItems(prev => prev.map(x => x.id === id ? { ...x, status } : x));
+      return;
+    }
+
     const patchMap: Record<JoinSub, string> = {
+      student_union: "",
       women:         "",
       occasions:     `${apiBase}/api/occasions/shops/${id}/status`,
       union_partner: `${apiBase}/api/admin/union-partnership/${id}`,
@@ -1615,8 +1702,20 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
     setItems(prev => prev.filter(x => x.id !== id));
   }
 
+  async function grantStudentUnionManager(id: number) {
+    setGranting2(id);
+    try {
+      const r = await fetch(`${apiBase}/api/student-union/applications/${id}/grant-manager`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const d = await r.json();
+      if (!r.ok) { Alert.alert("خطأ", d.error || "تعذّر منح الصلاحيات"); return; }
+      setGrantResult2({ username: d.username, temp_password: d.temp_password, full_name: d.full_name });
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setGranting2(null); }
+  }
+
   function getTitle(item: any): string {
-    return item.name ?? item.shop_name ?? item.agency_name ?? item.contact_name
+    return item.full_name ?? item.name ?? item.shop_name ?? item.agency_name ?? item.contact_name
       ?? item.org_name ?? item.student_name ?? item.union_name ?? item.applicant_name ?? `#${item.id}`;
   }
   function getSub(item: any): string {
@@ -1628,6 +1727,38 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
   return (
     <View style={{ flex: 1 }}>
+
+      {/* مودال بيانات دخول مدير الاتحاد */}
+      <Modal visible={!!grantResult2} transparent animationType="fade" onRequestClose={() => setGrantResult2(null)}>
+        <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 14, borderWidth: 1, borderColor: "#6366F140" }}>
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <Ionicons name="shield-checkmark" size={40} color="#6366F1" />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "center" }}>تم منح صلاحيات إدارة الإتحاد</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>{grantResult2?.full_name}</Text>
+            </View>
+            <View style={{ backgroundColor: "#0B1A12", borderRadius: 12, padding: 16, gap: 10 }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>بيانات دخول بوابة إدارة الاتحاد</Text>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>اسم المستخدم</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#6366F1" }}>{grantResult2?.username}</Text>
+              </View>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>كلمة المرور المؤقتة</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F59E0B" }}>{grantResult2?.temp_password}</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+              أرسل هذه البيانات للعضو — لا يمكن استعادة كلمة المرور لاحقاً
+            </Text>
+            <TouchableOpacity onPress={() => setGrantResult2(null)}
+              style={{ backgroundColor: "#6366F1", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>حسناً — تم التسجيل</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
         contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
         {SUB_TABS.map(t => (
@@ -1646,8 +1777,10 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
           <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>
             لا توجد طلبات
           </Text>
-        ) : items.filter(item => !item.status || item.status === "pending").map(item => {
+        ) : items.map(item => {
           const st = item.status ?? "pending";
+          const isPending = !item.status || item.status === "pending";
+          const isApproved = item.status === "approved";
           return (
             <View key={item.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1,
               borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14,
@@ -1665,7 +1798,8 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               {!!getSub(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{getSub(item)}</Text>}
               {!!getDesc(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={3}>{getDesc(item)}</Text>}
               {item.created_at && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>}
-              {sub !== "women" && (
+              {/* أزرار قبول/رفض للمعلق */}
+              {sub !== "women" && isPending && (
                 <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                   <TouchableOpacity onPress={() => review(item.id, "rejected")}
                     style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
@@ -1676,6 +1810,18 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>قبول</Text>
                   </TouchableOpacity>
                 </View>
+              )}
+              {/* زر منح صلاحيات الاتحاد للمقبولين */}
+              {sub === "student_union" && isApproved && (
+                <TouchableOpacity onPress={() => grantStudentUnionManager(item.id)} disabled={granting2 === item.id}
+                  style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                  {granting2 === item.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                    <>
+                      <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح صلاحيات إدارة الإتحاد</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               )}
             </View>
           );

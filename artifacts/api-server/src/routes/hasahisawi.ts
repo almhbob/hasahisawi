@@ -15348,6 +15348,55 @@ router.patch("/student-union/applications/:id/status", async (req: Request, res:
   }
 });
 
+// POST /api/student-union/applications/:id/grant-manager — منح صلاحيات إدارة الاتحاد
+router.post("/student-union/applications/:id/grant-manager", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+
+    const appResult = await query(`SELECT * FROM student_union_applications WHERE id=$1`, [id]);
+    if (!appResult.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    const app = appResult.rows[0];
+
+    if (app.status !== "approved") {
+      return res.status(400).json({ error: "يجب قبول الطلب أولاً قبل منح الصلاحيات" });
+    }
+
+    await ensureUnionMgrTables();
+
+    // اسم المستخدم من الرقم الوطني أو الهاتف
+    const rawUser = (app.national_id || app.phone || `su${id}`).replace(/\D/g, "").slice(0, 30) || `su_${id}`;
+    const username = rawUser;
+
+    const existing = await query(`SELECT id, username FROM union_managers WHERE username=$1`, [username]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: "يوجد حساب مدير بهذا المعرّف مسبقاً — ربما مُنح الطلب مسبقاً", username });
+    }
+
+    const tempPassword = `SU@${Math.random().toString(36).slice(2, 8).toUpperCase()}#${id}`;
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    const mgr = await query(
+      `INSERT INTO union_managers (full_name, title, username, password_hash, phone, email)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [app.full_name, "عضو إتحاد الطلاب", username, hash, app.phone || null, app.email || null]
+    );
+
+    logger.info({ mgr_id: mgr.rows[0].id, app_id: id }, "[student-union] manager granted");
+    return res.status(201).json({
+      message: "تم منح صلاحيات إدارة الاتحاد بنجاح",
+      manager_id: mgr.rows[0].id,
+      username,
+      temp_password: tempPassword,
+      full_name: app.full_name,
+    });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/grant-manager]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /api/union-partnership/apply — طلب انضمام اتحاد لخدمات التطبيق
 router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
