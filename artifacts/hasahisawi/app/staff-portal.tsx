@@ -121,7 +121,7 @@ function DoctorPortal({ staff }: { staff: Staff }) {
 
   const loadPrescriptions = useCallback(async () => {
     try {
-      const res = await api("/api/medical/staff/prescriptions");
+      const res = await api("/api/medical/prescriptions/doctor");
       const data = await res.json();
       if (data.prescriptions) setPrescriptions(data.prescriptions);
     } catch {}
@@ -133,7 +133,7 @@ function DoctorPortal({ staff }: { staff: Staff }) {
     if (query2.length < 2) { setPatients([]); return; }
     const t = setTimeout(async () => {
       try {
-        const res = await api(`/api/medical/staff/patients?q=${encodeURIComponent(query2)}`);
+        const res = await api(`/api/medical/patients?q=${encodeURIComponent(query2)}`);
         const data = await res.json();
         setPatients(data.patients || []);
       } catch {}
@@ -145,7 +145,7 @@ function DoctorPortal({ staff }: { staff: Staff }) {
     if (!selectedPatient || !medication) { Alert.alert("تنبيه", "اختر مريضاً وأدخل اسم الدواء"); return; }
     setLoading(true);
     try {
-      const res = await api("/api/medical/staff/prescriptions", {
+      const res = await api("/api/medical/prescriptions", {
         method: "POST",
         body: JSON.stringify({ patient_id: selectedPatient.id, medication_name: medication, dosage, frequency, duration, notes }),
       });
@@ -162,7 +162,7 @@ function DoctorPortal({ staff }: { staff: Staff }) {
     if (!selectedPatient || !tests) { Alert.alert("تنبيه", "اختر مريضاً وأدخل التحاليل المطلوبة"); return; }
     setLoading(true);
     try {
-      const res = await api("/api/medical/staff/lab-orders", {
+      const res = await api("/api/medical/lab-orders", {
         method: "POST",
         body: JSON.stringify({ patient_id: selectedPatient.id, tests, notes }),
       });
@@ -299,7 +299,7 @@ function LabPortal({ staff }: { staff: Staff }) {
 
   const loadOrders = useCallback(async () => {
     try {
-      const res = await api("/api/medical/lab/orders");
+      const res = await api("/api/medical/lab-orders");
       const data = await res.json();
       if (data.orders) setOrders(data.orders);
     } catch {}
@@ -311,7 +311,7 @@ function LabPortal({ staff }: { staff: Staff }) {
     if (!selected || !testName || !result) { Alert.alert("تنبيه", "أدخل اسم التحليل والنتيجة"); return; }
     setLoading(true);
     try {
-      const res = await api("/api/medical/lab/results", {
+      const res = await api("/api/medical/lab-results", {
         method: "POST",
         body: JSON.stringify({
           order_id: selected.id, patient_id: selected.id,
@@ -384,12 +384,12 @@ function LabPortal({ staff }: { staff: Staff }) {
 function PharmacistPortal({ staff }: { staff: Staff }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<"pending" | "processing" | "ready" | "all">("pending");
+  const [filter, setFilter] = useState<"pending" | "all">("pending");
 
   const loadOrders = useCallback(async () => {
     try {
       const q = filter === "all" ? "" : `?status=${filter}`;
-      const res = await api(`/api/medical/pharmacy/orders${q}`);
+      const res = await api(`/api/medical/pharmacy-orders${q}`);
       const data = await res.json();
       if (data.orders) setOrders(data.orders);
     } catch {}
@@ -397,29 +397,25 @@ function PharmacistPortal({ staff }: { staff: Staff }) {
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
-  const updateStatus = async (id: number, status: string) => {
+  const dispenseOrder = async (id: number) => {
     try {
-      const res = await api(`/api/medical/pharmacy/orders/${id}/status`, {
-        method: "PATCH", body: JSON.stringify({ status }),
+      const res = await api(`/api/medical/pharmacy-orders/${id}/dispense`, {
+        method: "PATCH",
       });
       if (!res.ok) throw new Error();
       loadOrders();
     } catch { Alert.alert("خطأ", "فشل تحديث الحالة"); }
   };
 
-  const STATUS_MAP: Record<string, { label: string; color: string; next?: string; nextLabel?: string }> = {
-    pending:    { label: "معلق",    color: "#F59E0B", next: "processing", nextLabel: "بدء التجهيز" },
-    processing: { label: "يُجهَّز", color: "#3B82F6", next: "ready",     nextLabel: "جاهز للاستلام" },
-    ready:      { label: "جاهز",   color: "#10B981", next: "delivered",  nextLabel: "تم التسليم" },
-    delivered:  { label: "سُلِّم", color: "#6B7280" },
-    cancelled:  { label: "ملغي",   color: "#EF4444" },
+  const STATUS_MAP: Record<string, { label: string; color: string; canDispense?: boolean }> = {
+    pending:   { label: "معلق",    color: "#F59E0B", canDispense: true },
+    delivered: { label: "سُلِّم", color: "#6B7280" },
+    cancelled: { label: "ملغي",   color: "#EF4444" },
   };
 
   const FILTERS = [
-    { key: "pending" as const,    label: "معلق" },
-    { key: "processing" as const, label: "يُجهَّز" },
-    { key: "ready" as const,      label: "جاهز" },
-    { key: "all" as const,        label: "الكل" },
+    { key: "pending" as const,   label: "معلق" },
+    { key: "all" as const,       label: "الكل" },
   ];
 
   return (
@@ -449,10 +445,10 @@ function PharmacistPortal({ staff }: { staff: Staff }) {
               {o.patient_phone && (
                 <Text style={[dr.listDetail, { color: Colors.primary }]}>📞 {o.patient_phone}</Text>
               )}
-              {sm.next && (
+              {sm.canDispense && (
                 <TouchableOpacity style={[dr.submitBtn, { backgroundColor: sm.color, marginTop: 8 }]}
-                  onPress={() => updateStatus(o.id, sm.next!)}>
-                  <Text style={dr.submitTxt}>{sm.nextLabel}</Text>
+                  onPress={() => dispenseOrder(o.id)}>
+                  <Text style={dr.submitTxt}>صرف الدواء</Text>
                 </TouchableOpacity>
               )}
             </View>

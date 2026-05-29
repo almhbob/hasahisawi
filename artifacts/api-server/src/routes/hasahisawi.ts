@@ -1898,6 +1898,33 @@ export async function initHasahisawiDb() {
   await query(`CREATE INDEX IF NOT EXISTS idx_tb_verify_token ON travel_bookings(verify_token)`);
   // تعبئة رموز تحقق للحجوزات القديمة الفارغة
   await query(`UPDATE travel_bookings SET verify_token = encode(sha256((id::text || ticket_number || booking_ref)::bytea), 'hex') WHERE verify_token = ''`);
+  // طلبات تسجيل وكالات السفر
+  await query(`
+    CREATE TABLE IF NOT EXISTS travel_agency_applications (
+      id               SERIAL PRIMARY KEY,
+      agency_name      VARCHAR(150) NOT NULL,
+      agency_type      VARCHAR(50)  NOT NULL DEFAULT '',
+      specialties      JSONB        NOT NULL DEFAULT '[]',
+      destinations     JSONB        NOT NULL DEFAULT '[]',
+      description      TEXT         NOT NULL DEFAULT '',
+      website          VARCHAR(200) NOT NULL DEFAULT '',
+      contact_name     VARCHAR(100) NOT NULL,
+      contact_role     VARCHAR(80)  NOT NULL DEFAULT '',
+      phone            VARCHAR(30)  NOT NULL,
+      whatsapp         VARCHAR(30)  NOT NULL DEFAULT '',
+      email            VARCHAR(150) NOT NULL DEFAULT '',
+      city             VARCHAR(80)  NOT NULL DEFAULT '',
+      country          VARCHAR(80)  NOT NULL DEFAULT 'السودان',
+      license_number   VARCHAR(80)  NOT NULL DEFAULT '',
+      founded_year     INTEGER,
+      services_offered JSONB        NOT NULL DEFAULT '[]',
+      target_routes    TEXT         NOT NULL DEFAULT '',
+      status           VARCHAR(20)  NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_notes      TEXT         NOT NULL DEFAULT '',
+      created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      reviewed_at      TIMESTAMPTZ
+    )
+  `);
 
   // بيانات افتراضية للشركة
   const { rows: tcCheck } = await query(`SELECT COUNT(*) as cnt FROM travel_companies`);
@@ -2046,6 +2073,11 @@ function getTransportScope(me: any): TransportScope {
 // هل لمستخدم الحق في إجراءات على مستوى المنصة (شركات/تعرفة/إعدادات/أحياء)؟
 function isPlatformAdmin(me: any): boolean {
   return !!me && me.role === "admin";
+}
+
+
+function isValidBcryptHashForLogin(value: unknown): value is string {
+  return typeof value === "string" && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(value);
 }
 
 function safeCompare(a: string, b: string): boolean {
@@ -2276,16 +2308,17 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     );
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
-    // مستخدم سجّل عبر Google/Firebase فقط — لا كلمة مرور مستقلة
-    if (user.firebase_uid && !user.password_hash) {
-      return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
+    // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
+    // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.
+    if (!isValidBcryptHashForLogin(user.password_hash)) {
+      return res.status(401).json({
+        error: user.firebase_uid
+          ? "هذا الحساب مرتبط بـ Google/Firebase. استخدم زر Google أو أعد تعيين كلمة المرور."
+          : "هذا الحساب يحتاج إعادة تعيين كلمة المرور قبل الدخول."
+      });
     }
-    const valid = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
+    const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      // لا توجد كلمة مرور مطلقاً — الحساب Firebase/Google فقط
-      if (!user.password_hash) {
-        return res.status(401).json({ error: "هذا الحساب مرتبط بـ Google. يرجى تسجيل الدخول عبر زر Google." });
-      }
       return res.status(401).json({ error: "بيانات غير صحيحة" });
     }
     const token = randomBytes(32).toString("hex");
@@ -14561,6 +14594,62 @@ router.post("/admin/travel/routes", async (req: Request, res: Response) => {
       [company_id, from_city, to_city, departure_time||"08:00", price, seats_total||30]
     );
     return res.status(201).json(r.rows[0]);
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/travel-agencies/apply ─────────────────────────────
+router.post("/travel-agencies/apply", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const {
+      agency_name, agency_type, specialties, destinations, description, website,
+      contact_name, contact_role, phone, whatsapp, email, city, country,
+      license_number, founded_year, services_offered, target_routes,
+    } = req.body as any;
+    if (!agency_name || !contact_name || !phone)
+      return res.status(400).json({ error: "اسم الوكالة واسم المسؤول ورقم الهاتف مطلوبة" });
+    const r = await query(
+      `INSERT INTO travel_agency_applications
+        (agency_name, agency_type, specialties, destinations, description, website,
+         contact_name, contact_role, phone, whatsapp, email, city, country,
+         license_number, founded_year, services_offered, target_routes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+      [
+        agency_name, agency_type||"", JSON.stringify(specialties||[]), JSON.stringify(destinations||[]),
+        description||"", website||"", contact_name, contact_role||"", phone, whatsapp||"",
+        email||"", city||"", country||"السودان", license_number||"",
+        founded_year||null, JSON.stringify(services_offered||[]), target_routes||"",
+      ]
+    );
+    return res.status(201).json({ id: r.rows[0].id, message: "تم استلام طلبك وسيتم مراجعته من قبل الإدارة" });
+  } catch (e: any) { logger.error({ err: e?.message }, "[travel-agencies/apply]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/travel-agencies/applications ──────────────────
+router.get("/admin/travel-agencies/applications", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status } = req.query;
+    const params: any[] = [];
+    let where = "WHERE 1=1";
+    if (status && status !== "all") { where += ` AND status=$${params.length+1}`; params.push(status); }
+    const r = await query(`SELECT * FROM travel_agency_applications ${where} ORDER BY created_at DESC`, params);
+    return res.json({ applications: r.rows });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/travel-agencies/applications/:id ───────────
+router.patch("/admin/travel-agencies/applications/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { status, admin_notes } = req.body as any;
+    if (!["approved","rejected"].includes(status))
+      return res.status(400).json({ error: "الحالة يجب أن تكون approved أو rejected" });
+    const r = await query(
+      `UPDATE travel_agency_applications SET status=$1, admin_notes=COALESCE($2,admin_notes), reviewed_at=NOW() WHERE id=$3 RETURNING *`,
+      [status, admin_notes||null, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json({ application: r.rows[0] });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
