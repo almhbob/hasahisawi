@@ -101,14 +101,11 @@ HEADERS_EOF
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "⚠️  CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping"
-            echo "ℹ️  Add these secrets to enable Cloudflare Pages auto-deploy"
           else
-            VERSION=$(python3 -c "import sys,json; print(json.load(open('artifacts/hasahisawi/app.json'))['expo']['version'])")
-            npx wrangler@latest pages deploy docs \
+            npx wrangler@3 pages deploy docs \
               --project-name=hasahisawi \
-              --commit-dirty=true \
-              --commit-message="PWA v${VERSION}"
-            echo "✅ Cloudflare Pages deploy complete → https://hasahisawi.pages.dev"
+              --branch=master
+            echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
           fi
 
       - run: |
