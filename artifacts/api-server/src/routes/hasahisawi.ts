@@ -1,4 +1,5 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -2296,6 +2297,47 @@ async function handleUpdateProfile(req: Request, res: Response): Promise<Respons
 router.put("/auth/profile", handleUpdateProfile);
 router.put("/users/me", handleUpdateProfile);
 
+// ── POST /api/auth/upload-avatar ─────────────────────────────────
+// fallback when Firebase Storage is unavailable — uploads via Cloudinary
+{
+  const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  router.post(
+    "/auth/upload-avatar",
+    writeLimiter,
+    (req: Request, res: Response, next: NextFunction) => {
+      avatarUpload.single("file")(req as any, res as any, (err: unknown) => {
+        if (err) { res.status(400).json({ error: "فشل رفع الملف" }); return; }
+        next();
+      });
+    },
+    async (req: Request, res: Response): Promise<any> => {
+      try {
+        const user = await getSessionUser(req);
+        if (!user) return res.status(401).json({ error: "غير مصرح" });
+        if (!req.file) return res.status(400).json({ error: "لم يرسل أي ملف" });
+
+        const { v2: cloudinary } = await import("cloudinary");
+        const buf = req.file.buffer;
+        const dataUri = `data:${req.file.mimetype};base64,${buf.toString("base64")}`;
+
+        const result = await cloudinary.uploader.upload(dataUri, {
+          folder: `hasahisawi/avatars/${user.id}`,
+          public_id: `avatar_${Date.now()}`,
+          resource_type: "image",
+          transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
+        });
+        const url: string = result.secure_url;
+        await query(`UPDATE users SET avatar_url=$1 WHERE id=$2`, [url, user.id]);
+        return res.json({ url });
+      } catch (e: any) {
+        logger.error({ err: e?.message }, "[upload-avatar]");
+        return res.status(500).json({ error: "فشل رفع الصورة" });
+      }
+    }
+  );
+}
+
 router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone_or_email, password, recaptcha_token } = req.body;
@@ -3431,7 +3473,7 @@ router.get("/admin/users-source-health", async (req: Request, res: Response): Pr
           `SELECT firebase_uid FROM users WHERE firebase_uid = ANY($1)`,
           [uids]
         );
-        firebaseMissingInPostgres = fbUsers.length - pgUids.rowCount;
+        firebaseMissingInPostgres = fbUsers.length - (pgUids.rowCount ?? 0);
         status = firebaseMissingInPostgres > 0 ? "needs_sync" : "healthy";
       } else {
         status = "healthy";
@@ -14637,21 +14679,6 @@ router.post("/admin/travel/routes", async (req: Request, res: Response) => {
     );
     return res.status(201).json(r.rows[0]);
   } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// ── GET /api/travel-agencies — قائمة الوكالات المعتمدة ──────────
-router.get("/travel-agencies", async (_req: Request, res: Response) => {
-  try {
-    const r = await query(
-      `SELECT id, agency_name, agency_type, specialties, destinations, description, website,
-              contact_name, contact_role, phone, whatsapp, email, city, country,
-              license_number, founded_year, services_offered, target_routes, created_at
-       FROM travel_agency_applications
-       WHERE status = 'approved'
-       ORDER BY created_at DESC`
-    );
-    return res.json(r.rows);
-  } catch (e: any) { logger.error({ err: e?.message }, "[travel-agencies]"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST /api/travel-agencies/apply ─────────────────────────────

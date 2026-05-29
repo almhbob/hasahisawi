@@ -1584,7 +1584,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       union_manager: `${apiBase}/api/admin/union-manager-apps/${id}/status`,
       edu_reg:       `${apiBase}/api/admin/education/registrations/${id}`,
       edu_transfer:  `${apiBase}/api/admin/education/transfers/${id}`,
-      travel_agency: `${apiBase}/api/admin/travel-agencies/applications/${id}`,
+      travel_agency: `${apiBase}/api/admin/travel-agencies/applications/${id}/status`,
     };
     const url = patchMap[sub];
     if (!url) return;
