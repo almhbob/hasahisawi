@@ -2,11 +2,10 @@ name: Setup DATABASE_URL on Vercel
 
 on:
   workflow_dispatch:
-    inputs:
-      project_name:
-        description: 'Railway project name containing the PostgreSQL DB (leave empty to search all)'
-        required: false
-        default: ''
+  push:
+    branches: [master]
+    paths:
+      - '.setup-db-trigger'
 
 jobs:
   setup:
@@ -14,215 +13,255 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli@latest
-
       - name: Extract DATABASE_URL from Railway
-        id: get_db_url
+        id: get_db
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -e
-          echo "🔍 Listing Railway projects..."
-          railway list 2>&1 || true
 
-          # Try to get variables using Railway CLI
-          # First, find the hasahisawi project
-          PROJECT_JSON=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+          echo "🔍 Step 1: List Railway projects..."
+          PROJECTS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query":"{ projects { edges { node { id name environments { edges { node { id name } } } services { edges { node { id name } } } } } } }"}')
 
-          echo "Projects found:"
-          echo "$PROJECT_JSON" | python3 -c "
+          echo "$PROJECTS" | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
-          if 'errors' in d:
-              print('API ERROR:', json.dumps(d['errors']))
           for p in d.get('data',{}).get('projects',{}).get('edges',[]):
               n=p['node']
               envs=[e['node']['name'] for e in n.get('environments',{}).get('edges',[])]
               svcs=[s['node']['name'] for s in n.get('services',{}).get('edges',[])]
-              print(f\"  {n['id']} | {n['name']} | envs: {envs} | services: {svcs}\")
-          "
+              print(f\"  {n['name']} (id={n['id']}) envs={envs} services={svcs}\")
+          " 2>/dev/null || true
 
-          # Extract project/env/service IDs for the hasahisawi project
-          PROJ_DATA=$(echo "$PROJECT_JSON" | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
-              n=p['node']
-              name=n['name'].lower()
-              # Match by name hint or take first project with postgres service
-              for s in n.get('services',{}).get('edges',[]):
-                  sname=s['node']['name'].lower()
-                  if 'postgres' in sname or 'pg' in sname or 'db' in sname or 'database' in sname:
-                      envs=n.get('environments',{}).get('edges',[])
-                      env_id=envs[0]['node']['id'] if envs else ''
-                      print(f\"{n['id']}|{env_id}|{s['node']['id']}\")
-                      exit()
-          # fallback: first project, first env, first service
-          edges=d.get('data',{}).get('projects',{}).get('edges',[])
-          if edges:
-              n=edges[0]['node']
-              envs=n.get('environments',{}).get('edges',[])
-              svcs=n.get('services',{}).get('edges',[])
-              env_id=envs[0]['node']['id'] if envs else ''
-              svc_id=svcs[0]['node']['id'] if svcs else ''
-              print(f\"{n['id']}|{env_id}|{svc_id}\")
-          ")
+          echo ""
+          echo "🔍 Step 2: Scan variables for each project/env/service combination..."
 
-          PROJECT_ID=$(echo "$PROJ_DATA" | cut -d'|' -f1)
-          ENV_ID=$(echo "$PROJ_DATA" | cut -d'|' -f2)
-          SVC_ID=$(echo "$PROJ_DATA" | cut -d'|' -f3)
-          echo "Using project=$PROJECT_ID env=$ENV_ID service=$SVC_ID"
+          DB_URL=$(echo "$PROJECTS" | python3 - <<'PYEOF'
+          import json, sys, os, urllib.request, urllib.error
 
-          # Query resolved variable values using the variables() query
-          DB_URL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\":\"{ variables(projectId: \\\"$PROJECT_ID\\\", environmentId: \\\"$ENV_ID\\\", serviceId: \\\"$SVC_ID\\\") }\"}" | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          if 'errors' in d:
-              print('VARS ERROR:', json.dumps(d['errors']), file=sys.stderr)
-          vars_data=d.get('data',{}).get('variables',{})
-          if isinstance(vars_data, dict):
-              url=vars_data.get('DATABASE_URL','')
-              if url: print(url)
-          elif isinstance(vars_data, str):
-              try:
-                  vd=json.loads(vars_data)
-                  url=vd.get('DATABASE_URL','')
-                  if url: print(url)
-              except: pass
-          " 2>&1)
+          data = json.load(sys.stdin)
+          token = os.environ["RAILWAY_TOKEN"]
 
-          # If still not found, try scanning ALL services in ALL projects with variables query
-          if [ -z "$DB_URL" ] || echo "$DB_URL" | grep -qi "error"; then
-            echo "⚠️  Direct variables query failed, scanning all project/env combinations..."
-            DB_URL=$(echo "$PROJECT_JSON" | python3 - <<'PYEOF'
-          import json,sys,subprocess,os
-          d=json.load(open('/dev/stdin'))
-          token=os.environ.get('RAILWAY_TOKEN','')
-          import urllib.request
-
-          def gql(query):
-              req=urllib.request.Request('https://backboard.railway.app/graphql/v2',
-                  data=json.dumps({'query':query}).encode(),
-                  headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'})
-              with urllib.request.urlopen(req,timeout=15) as r:
+          def gql(query, variables=None):
+              payload = {"query": query}
+              if variables:
+                  payload["variables"] = variables
+              req = urllib.request.Request(
+                  "https://backboard.railway.app/graphql/v2",
+                  data=json.dumps(payload).encode(),
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json"
+                  }
+              )
+              with urllib.request.urlopen(req, timeout=20) as r:
                   return json.loads(r.read())
 
-          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
-              proj=p['node']
-              envs=proj.get('environments',{}).get('edges',[])
-              svcs=proj.get('services',{}).get('edges',[])
-              for env in envs:
-                  for svc in svcs:
+          projects = data.get("data", {}).get("projects", {}).get("edges", [])
+          for p_edge in projects:
+              proj = p_edge["node"]
+              proj_id = proj["id"]
+              proj_name = proj["name"]
+              envs = proj.get("environments", {}).get("edges", [])
+              svcs = proj.get("services", {}).get("edges", [])
+
+              for env_edge in envs:
+                  env_id = env_edge["node"]["id"]
+                  env_name = env_edge["node"]["name"]
+
+                  for svc_edge in svcs:
+                      svc_id = svc_edge["node"]["id"]
+                      svc_name = svc_edge["node"]["name"]
+
                       try:
-                          r=gql(f'{{ variables(projectId: "{proj["id"]}", environmentId: "{env["node"]["id"]}", serviceId: "{svc["node"]["id"]}") }}')
-                          vd=r.get('data',{}).get('variables',{}) or {}
-                          if isinstance(vd,str):
-                              try: vd=json.loads(vd)
-                              except: vd={}
-                          url=vd.get('DATABASE_URL','')
-                          if url and ('postgres' in url.lower() or 'shortline' in url.lower()):
-                              print(url)
-                              exit()
-                      except Exception as e:
+                          r = gql(
+                              "query Vars($p:String!,$e:String!,$s:String!){"
+                              "variables(projectId:$p,environmentId:$e,serviceId:$s)}",
+                              {"p": proj_id, "e": env_id, "s": svc_id}
+                          )
+                          vd = r.get("data", {}).get("variables", {}) or {}
+                          if isinstance(vd, str):
+                              try: vd = json.loads(vd)
+                              except: vd = {}
+                          db = vd.get("DATABASE_URL", "")
+                          if db and ("postgres" in db.lower() or "shortline" in db.lower()):
+                              print(f"FOUND in {proj_name}/{env_name}/{svc_name}: {db}", file=sys.stderr)
+                              print(db)
+                              sys.exit(0)
+                      except Exception as ex:
+                          print(f"  skip {proj_name}/{env_name}/{svc_name}: {ex}", file=sys.stderr)
+
+          # If not found in service vars, try variablesForServiceDeployment
+          print("Trying variablesForServiceDeployment...", file=sys.stderr)
+          for p_edge in projects:
+              proj = p_edge["node"]
+              envs = proj.get("environments", {}).get("edges", [])
+              svcs = proj.get("services", {}).get("edges", [])
+              for env_edge in envs:
+                  env_id = env_edge["node"]["id"]
+                  for svc_edge in svcs:
+                      svc_id = svc_edge["node"]["id"]
+                      try:
+                          r = gql(
+                              "query VarsD($p:String!,$e:String!,$s:String!){"
+                              "variablesForServiceDeployment(projectId:$p,environmentId:$e,serviceId:$s)}",
+                              {"p": proj["id"], "e": env_id, "s": svc_id}
+                          )
+                          vd = r.get("data", {}).get("variablesForServiceDeployment", {}) or {}
+                          if isinstance(vd, str):
+                              try: vd = json.loads(vd)
+                              except: vd = {}
+                          db = vd.get("DATABASE_URL", "")
+                          if db and ("postgres" in db.lower() or "shortline" in db.lower()):
+                              print(f"FOUND (deploy) in {proj['name']}: {db}", file=sys.stderr)
+                              print(db)
+                              sys.exit(0)
+                      except Exception as ex:
                           pass
           PYEOF
           )
+
+          if [ -z "$DB_URL" ]; then
+            echo ""
+            echo "⚠️  DATABASE_URL not found via GraphQL, trying Railway CLI..."
+
+            npm install -g @railway/cli@latest --quiet 2>/dev/null || true
+
+            # Use Railway CLI to get variables (works with RAILWAY_TOKEN env var)
+            # List all projects first
+            PROJ_LIST=$(railway list 2>/dev/null | grep -v "^$" | head -20 || echo "")
+            echo "Railway projects: $PROJ_LIST"
+
+            # Try linking to first project that has postgres
+            PROJ_IDS=$(echo "$PROJECTS" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
+              print(p['node']['id'])
+          " 2>/dev/null)
+
+            for PID in $PROJ_IDS; do
+              railway link --project "$PID" 2>/dev/null || true
+              CLI_VARS=$(railway variables --json 2>/dev/null || echo "{}")
+              DB_URL=$(echo "$CLI_VARS" | python3 -c "
+          import json,sys
+          try:
+              d=json.load(sys.stdin)
+              url=d.get('DATABASE_URL','')
+              if url and 'postgres' in url.lower():
+                  print(url)
+          except: pass
+          " 2>/dev/null)
+              if [ -n "$DB_URL" ]; then
+                echo "✅ Found via Railway CLI (project $PID)"
+                break
+              fi
+            done
           fi
 
-          if [ -z "$DB_URL" ] || echo "$DB_URL" | grep -qi "error\|ERROR"; then
-            echo "❌ DATABASE_URL not found via Railway API"
-            echo ""
-            echo "=== Manual setup instructions ==="
-            echo "1. Open https://railway.app → your project"
-            echo "2. Open the PostgreSQL service → Variables tab"
-            echo "3. Copy DATABASE_URL value"
-            echo "4. Open https://vercel.com → api-server project → Settings → Environment Variables"
-            echo "5. Add DATABASE_URL as a production variable"
+          if [ -z "$DB_URL" ]; then
+            echo "❌ DATABASE_URL not found. Please set it manually:"
+            echo "   1. Open https://railway.app → project → PostgreSQL service → Variables"
+            echo "   2. Copy DATABASE_URL"
+            echo "   3. Open https://vercel.com → api-server project → Settings → Env Vars"
+            echo "   4. Add DATABASE_URL as production variable"
             exit 1
           fi
 
-          echo "✅ Found DATABASE_URL (length: ${#DB_URL})"
-          # Mask the password in logs
+          # Mask password in logs
           MASKED=$(echo "$DB_URL" | python3 -c "
-          import sys,urllib.parse
-          url=sys.stdin.read().strip()
+          import sys,urllib.parse as p
+          u=sys.stdin.read().strip()
           try:
-              p=urllib.parse.urlparse(url)
-              print(f'{p.scheme}://{p.username}:***@{p.hostname}:{p.port}{p.path}')
-          except: print('postgresql://***')
-          ")
-          echo "URL (masked): $MASKED"
-          echo "DB_URL=$DB_URL" >> $GITHUB_OUTPUT
+              parsed=p.urlparse(u)
+              safe=parsed._replace(netloc=f'{parsed.username}:***@{parsed.hostname}:{parsed.port}')
+              print(p.urlunparse(safe))
+          except: print('postgresql://***@***')
+          " 2>/dev/null || echo "found")
+
+          echo "✅ DATABASE_URL found: $MASKED"
+          echo "DB_URL=$DB_URL" >> "$GITHUB_OUTPUT"
 
       - name: Set DATABASE_URL on Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DB_URL: ${{ steps.get_db_url.outputs.DB_URL }}
         run: |
-          set -e
-          echo "🔧 Setting DATABASE_URL on Vercel project..."
+          DB_URL="${{ steps.get_db.outputs.DB_URL }}"
+          if [ -z "$DB_URL" ]; then
+            echo "No DB_URL to set — skipping"
+            exit 1
+          fi
+
+          # Encode the URL safely as JSON
+          DB_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$DB_URL")
 
           RESULT=$(curl -s -X POST \
             "https://api.vercel.com/v10/projects/prj_7NqIloolEKoPpF5JKr3KVWjapKVw/env?teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q&upsert=true" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            --data-raw "[{\"key\":\"DATABASE_URL\",\"value\":$(echo "$DB_URL" | python3 -c \"import json,sys; print(json.dumps(sys.stdin.read().strip()))\"),\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}]")
+            -d "[{\"key\":\"DATABASE_URL\",\"value\":$DB_JSON,\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}]")
 
           echo "$RESULT" | python3 -c "
           import json,sys
-          d=json.load(sys.stdin)
-          if isinstance(d,list):
-              for e in d: print(f'✅ Set env: {e.get(\"key\",\"?\")}')
-          elif isinstance(d,dict) and 'error' in d:
-              print(f'❌ Error: {d[\"error\"]}')
-              exit(1)
-          else:
-              print(str(d)[:200])
+          try:
+              d=json.load(sys.stdin)
+              if isinstance(d,list):
+                  for e in d: print(f'✅ Vercel env set: {e.get(\"key\",\"?\")}')
+              elif 'error' in d:
+                  print(f'❌ Vercel error: {d[\"error\"]}'); exit(1)
+              else:
+                  print(str(d)[:300])
+          except Exception as ex:
+              print(f'Parse error: {ex}'); print(sys.stdin.read()[:300])
           "
 
-      - name: Trigger Vercel redeploy
+      - name: Redeploy Vercel API with new env
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          echo "🚀 Triggering new Vercel deployment..."
+          echo "🚀 Redeploying Vercel API..."
 
-          # Redeploy latest deployment of the project
-          LATEST=$(curl -s \
-            "https://api.vercel.com/v6/deployments?projectId=prj_7NqIloolEKoPpF5JKr3KVWjapKVw&teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q&limit=1&target=production" \
+          # Find latest production deployment and redeploy it
+          LATEST_UID=$(curl -s \
+            "https://api.vercel.com/v6/deployments?projectId=prj_7NqIloolEKoPpF5JKr3KVWjapKVw&teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q&limit=1&target=production&state=READY" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | \
-            python3 -c "import json,sys; d=json.load(sys.stdin); deps=d.get('deployments',[]); print(deps[0]['uid'] if deps else '')")
+            python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          deps=d.get('deployments',[])
+          print(deps[0]['uid'] if deps else '')
+          " 2>/dev/null)
 
-          if [ -n "$LATEST" ]; then
-            REDEPLOY=$(curl -s -X POST \
+          if [ -n "$LATEST_UID" ]; then
+            echo "Redeploying $LATEST_UID..."
+            REDEP=$(curl -s -X POST \
               "https://api.vercel.com/v13/deployments?teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q&forceNew=1" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
-              -d "{\"deploymentId\":\"$LATEST\",\"name\":\"api-server\",\"target\":\"production\"}")
-            NEW_URL=$(echo "$REDEPLOY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('url','') or d.get('error',''))" 2>/dev/null || echo "?")
-            echo "New deployment: $NEW_URL"
+              -d "{\"deploymentId\":\"$LATEST_UID\",\"name\":\"api-server\",\"target\":\"production\"}")
+            NEW_URL=$(echo "$REDEP" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          print(d.get('url','') or d.get('error',{}).get('message','?'))
+          " 2>/dev/null)
+            echo "New deployment URL: $NEW_URL"
           else
-            echo "No existing deployment found to redeploy — push to master will trigger next deploy"
+            echo "No existing deployment found — next push to master will deploy"
           fi
 
-      - name: Wait and verify API
+      - name: Verify API is alive
         run: |
-          echo "⏳ Waiting 45s for deployment to settle..."
+          echo "⏳ Waiting 45s for deployment..."
           sleep 45
-
-          for i in 1 2 3 4 5 6; do
-            OUT=$(curl -s --max-time 20 "https://api-server-gilt-ten.vercel.app/api/healthz" 2>/dev/null || echo '{}')
-            STATUS=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "error")
-            echo "[$i/6] healthz → $STATUS"
-            if [ "$STATUS" = "ok" ]; then
-              echo "✅ API is healthy at https://api-server-gilt-ten.vercel.app"
-              break
-            fi
-            [ $i -lt 6 ] && sleep 15
+          for i in 1 2 3 4 5 6 7 8; do
+            STATUS=$(curl -s --max-time 20 \
+              "https://api-server-gilt-ten.vercel.app/api/healthz" 2>/dev/null | \
+              python3 -c "import json,sys; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "...")
+            echo "[$i/8] → $STATUS"
+            [ "$STATUS" = "ok" ] && echo "✅ API healthy!" && exit 0
+            sleep 15
           done
+          echo "⚠️ API not confirmed healthy yet — check manually"
