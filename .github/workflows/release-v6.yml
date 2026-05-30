@@ -33,6 +33,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Add swap space (4 GB)
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "✅ Swap active: $(free -h | grep Swap)"
+
       - name: Configure NDK version
         run: |
           echo "=== Pre-installed NDK versions ==="
@@ -171,9 +179,8 @@ jobs:
           sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
           # Build arm64-v8a only — covers all modern Android phones, reduces C++ compilation by 75%
           echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
-          echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $PROPS
-          # parallel=false is the KEY: Metro (Node.js 4GB) and C++ compilation never run simultaneously
-          # Without this, both overlap → 4GB JVM + 4GB Metro + 4GB C++ = 12GB → OOM on 7GB runner
+          # 4GB swap keeps JVM+Metro within 11GB virtual; 2560m JVM leaves headroom for Metro (3.5GB)
+          echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $PROPS
           echo "org.gradle.parallel=false" >> $PROPS
           echo "org.gradle.workers.max=1" >> $PROPS
           echo "org.gradle.caching=true" >> $PROPS
@@ -190,8 +197,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          # Give Metro (Node.js subprocess) enough heap — default 512m causes OOM on large apps
-          NODE_OPTIONS: "--max-old-space-size=4096"
+          # With 4GB swap, 3584m is safe — Gradle (2560m) + Metro (3584m) = 6GB within 11GB virtual
+          NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
