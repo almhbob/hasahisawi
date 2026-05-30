@@ -1,0 +1,155 @@
+name: Setup DATABASE_URL on Vercel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Extract Railway DB URL → Set on Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Extract DATABASE_URL from Railway and configure Vercel
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -e
+
+          echo "🔍 Querying Railway API for projects and services..."
+
+          # Query all projects and their service variables
+          RAILWAY_RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "{ projects { edges { node { id name services { edges { node { id name } } } } } } }"
+            }')
+
+          echo "Railway projects response:"
+          echo "$RAILWAY_RESPONSE" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          if 'errors' in d:
+              print('ERROR:', d['errors'])
+              exit(1)
+          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
+              node = p['node']
+              print(f\"Project: {node['id']} — {node['name']}\")
+              for s in node.get('services',{}).get('edges',[]):
+                  print(f\"  Service: {s['node']['id']} — {s['node']['name']}\")
+          "
+
+          # Get all environment variables for all services to find DATABASE_URL
+          DB_URL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "{ projects { edges { node { id name services { edges { node { id name variables { edges { node { name value } } } } } } } } } }"
+            }' | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
+              for s in p['node'].get('services',{}).get('edges',[]):
+                  for v in s['node'].get('variables',{}).get('edges',[]):
+                      if v['node']['name'] == 'DATABASE_URL':
+                          url = v['node']['value']
+                          if 'postgres' in url.lower() or 'postgresql' in url.lower():
+                              print(url)
+                              exit()
+          ")
+
+          if [ -z "$DB_URL" ]; then
+            echo "⚠️  DATABASE_URL not found in service variables, trying plugin variables..."
+
+            # Try getting plugin variables (Railway Postgres plugin)
+            DB_URL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "{ projects { edges { node { id name plugins { edges { node { id name status variables { edges { node { name value } } } } } } } } } }"
+              }' | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          if 'errors' in d:
+              print('ERROR: ' + str(d['errors']), file=sys.stderr)
+          for p in d.get('data',{}).get('projects',{}).get('edges',[]):
+              for plugin in p['node'].get('plugins',{}).get('edges',[]):
+                  for v in plugin['node'].get('variables',{}).get('edges',[]):
+                      if v['node']['name'] == 'DATABASE_URL':
+                          print(v['node']['value'])
+                          exit()
+          ")
+          fi
+
+          if [ -z "$DB_URL" ]; then
+            echo "❌ Could not find DATABASE_URL in Railway"
+            echo "Please add DATABASE_URL manually to the Vercel project"
+            exit 1
+          fi
+
+          echo "✅ Found DATABASE_URL (host: $(echo $DB_URL | python3 -c \"import sys,urllib.parse; u=urllib.parse.urlparse(sys.stdin.read().strip()); print(u.hostname)\"))"
+
+          # Set DATABASE_URL on new Vercel project (prj_7NqIloolEKoPpF5JKr3KVWjapKVw)
+          VERCEL_RESULT=$(curl -s -X POST \
+            "https://api.vercel.com/v10/projects/prj_7NqIloolEKoPpF5JKr3KVWjapKVw/env?teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q&upsert=true" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "[{\"key\":\"DATABASE_URL\",\"value\":\"$DB_URL\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}]")
+
+          echo "Vercel set env result: $VERCEL_RESULT" | python3 -c "
+          import json,sys
+          line = sys.stdin.read()
+          try:
+              d = json.loads(line.split(': ', 1)[1])
+              if isinstance(d, list):
+                  for e in d:
+                      print(f'Set: {e[\"key\"]}')
+              else:
+                  print(d)
+          except:
+              print(line[:200])
+          "
+
+          echo "✅ DATABASE_URL configured on Vercel project"
+
+      - name: Trigger Vercel redeploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "🚀 Triggering Vercel redeploy..."
+
+          # Get latest deployment ID to redeploy
+          DEPLOY_RESULT=$(curl -s -X POST \
+            "https://api.vercel.com/v13/deployments?teamId=team_RTCz9oaxsbHBdJHrSJNyJr5q" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "api-server",
+              "project": "prj_7NqIloolEKoPpF5JKr3KVWjapKVw",
+              "gitSource": {
+                "type": "github",
+                "repoId": "almhbob/hasahisawi",
+                "ref": "master"
+              }
+            }')
+
+          echo "Deploy result: $(echo $DEPLOY_RESULT | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('url','') or d.get('error','unknown'))\")"
+
+      - name: Test new API readiness
+        run: |
+          echo "⏳ Waiting 30s for deployment..."
+          sleep 30
+
+          MAX_TRIES=6
+          for i in $(seq 1 $MAX_TRIES); do
+            STATUS=$(curl -s --max-time 15 \
+              "https://api-server-gilt-ten.vercel.app/api/healthz" | \
+              python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status','?'))" 2>/dev/null || echo "error")
+            echo "Try $i/$MAX_TRIES → $STATUS"
+            if [ "$STATUS" = "ok" ]; then
+              echo "✅ API is healthy!"
+              break
+            fi
+            sleep 15
+          done
