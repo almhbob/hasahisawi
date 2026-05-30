@@ -95,6 +95,7 @@ export default function UnionManagerApplyScreen() {
   const [section, setSection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // القسم 1 — البيانات الشخصية
   const [fullName, setFullName]   = useState("");
@@ -192,8 +193,12 @@ export default function UnionManagerApplyScreen() {
 
   const handleSubmit = async () => {
     const err = validate();
-    if (err) { Alert.alert("تنبيه", err); return; }
+    if (err) {
+      if (Platform.OS === "web") { setSubmitError(err); return; }
+      Alert.alert("تنبيه", err); return;
+    }
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch(`${getApiUrl()}/api/union-manager/apply`, {
         method: "POST",
@@ -223,7 +228,9 @@ export default function UnionManagerApplyScreen() {
       }
     } catch (e: any) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", e.message || "تعذر إرسال الاستمارة");
+      const msg = e.message || "تعذر إرسال الاستمارة، يرجى المحاولة مرة أخرى";
+      if (Platform.OS === "web") { setSubmitError(msg); }
+      else { Alert.alert("خطأ", msg); }
     } finally {
       setSubmitting(false);
     }
@@ -429,6 +436,14 @@ export default function UnionManagerApplyScreen() {
 
         </Animated.View>
       </ScrollView>
+
+      {/* خطأ الإرسال */}
+      {submitError ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#2D0A0A", borderTopWidth: 1, borderTopColor: "#DC262640", paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DC2626", flex: 1, textAlign: "right" }}>{submitError}</Text>
+        </View>
+      ) : null}
 
       {/* أزرار التنقل */}
       <View style={[s.navRow, { paddingBottom: insets.bottom + 16 }]}>
