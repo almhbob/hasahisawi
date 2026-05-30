@@ -150,11 +150,11 @@ function AuthGate() {
     }
 
     // بعد حفظ الجنس في Firestore يُحدَّث user.gender مباشرةً → هذا الشرط يصبح false
-    const needsGender = !isGuest && !!user && !user.gender;
-    if (needsGender) {
-      if (!inCompleteProfile) router.replace("/complete-profile" as any);
-      return;
-    }
+    // const needsGender = !isGuest && !!user && !user.gender;
+    // if (needsGender) {
+    //   if (!inCompleteProfile) router.replace("/complete-profile" as any);
+    //   return;
+    // }
 
     if (inLogin || inOnboarding || inCompleteProfile) {
       router.replace("/(tabs)/" as any);
