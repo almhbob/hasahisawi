@@ -12,19 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Ping Vercel API
+      - name: Ping Vercel API (new — api-server-gilt-ten)
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-            "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app/api/healthz")
-          echo "Vercel → HTTP $STATUS"
-          [ "$STATUS" = "200" ] && echo "✅ Vercel OK" || echo "⚠️ Vercel returned $STATUS"
-
-      - name: Ping Render API
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
-            "https://hasahisawi.onrender.com/api/healthz")
-          echo "Render → HTTP $STATUS"
-          [ "$STATUS" = "200" ] && echo "✅ Render OK" || echo "⚠️ Render returned $STATUS (may be waking up)"
+            "https://api-server-gilt-ten.vercel.app/api/healthz")
+          echo "Vercel new → HTTP $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Vercel API OK" || echo "⚠️ Vercel API returned $STATUS"
 
       - name: Ping PWA (GitHub Pages)
         run: |
@@ -38,4 +31,4 @@ jobs:
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
             "https://hasahisawi.pages.dev/")
           echo "Cloudflare Pages → HTTP $STATUS"
-          [ "$STATUS" = "200" ] && echo "✅ Cloudflare OK" || echo "⚠️ Cloudflare returned $STATUS (may not be set up yet)"
+          [ "$STATUS" = "200" ] && echo "✅ Cloudflare OK" || echo "⚠️ Cloudflare returned $STATUS"

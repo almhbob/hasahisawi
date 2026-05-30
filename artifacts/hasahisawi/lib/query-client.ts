@@ -4,7 +4,7 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const USER_TOKEN_KEY = "auth_backend_token";
 
-const DEFAULT_PRODUCTION_API_URL = "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
+const DEFAULT_PRODUCTION_API_URL = "https://api-server-gilt-ten.vercel.app";
 
 function cleanBaseUrl(value?: string | null): string | null {
   const trimmed = value?.trim();

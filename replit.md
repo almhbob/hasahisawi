@@ -20,7 +20,7 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 
 ## البنية الإنتاجية ✅ (مكتملة ومُختبَرة)
 
-- **API URL**: `https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app` (Vercel Hobby — مجاني بلا cold-start)
+- **API URL**: `https://api-server-gilt-ten.vercel.app` (Vercel — Team almhbob2026-1311s-projects)
 - **قاعدة البيانات**: Railway PostgreSQL — `shortline.proxy.rlwy.net:28066` — 60 جدول مُهيَّأة
 - **المصادقة**: Firebase Authentication + Backend JWT sessions + Firebase Admin SDK
 - **بناء AAB**: GitHub Actions → `.github/workflows/build-aab.yml`
@@ -29,18 +29,25 @@ pnpm monorepo متعدد التطبيقات. يحتوي على تطبيق موب
 - **webClientId (Google Sign-In)**: `133656291161-kajn1h6a40oriel45qsb4douvl8apm5e.apps.googleusercontent.com`
 
 ### بنية النشر على Vercel (الخادم الحالي النشط)
-- **Vercel Project ID**: `prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm`
-- **نشر عبر Vercel Deploy API** (بدون GitHub push) — رمز الأمان في `VERCEL_TOKEN`
-- **ملفات النشر**: `api/index.js` + `vercel.json` + `dist/vercel-handler.mjs` (مُجمَّع بـ esbuild)
-- **Build**: `node build.mjs` في `artifacts/api-server/` ثم رفع الملفات عبر API
+- **Vercel Project ID**: `prj_7NqIloolEKoPpF5JKr3KVWjapKVw`
+- **Vercel Team ID**: `team_RTCz9oaxsbHBdJHrSJNyJr5q`
+- **نشر عبر GitHub Actions** (`.github/workflows/deploy-api.yml`) بـ `VERCEL_TOKEN`
 - **Health Check**: `GET /api/healthz` ← يعيد `{"status":"ok"}`
 - **متغيرات البيئة على Vercel**:
-  - `DATABASE_URL` = `postgresql://postgres:...@shortline.proxy.rlwy.net:28066/railway?sslmode=require`
-  - `NODE_TLS_REJECT_UNAUTHORIZED=0` (لقبول شهادة Railway self-signed)
-  - `CLOUDINARY_URL`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_CLOUD_NAME`
-  - `NODE_ENV=production`
+  - `DATABASE_URL` = Railway PostgreSQL connection string (يُضبط تلقائياً عبر `setup-vercel-db.yml`)
+  - `NODE_TLS_REJECT_UNAUTHORIZED=0`
+  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+  - `RESEND_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
+  - `DEFAULT_ADMIN_PIN=4444`, `NODE_ENV=production`
 - **SSL Fix**: Pool يُمرر `ssl: { rejectUnauthorized: false }` عندما يحتوي URL على `sslmode=require`
-- **Stable alias**: `hasahisawi-api-asim-abdulrahman-mohammed.vercel.app`
+- **Stable alias**: `api-server-gilt-ten.vercel.app`
+
+### إعداد DATABASE_URL (مرة واحدة فقط)
+شغّل Workflow التالي من GitHub Actions لاستخراج DATABASE_URL من Railway وضبطه تلقائياً على Vercel:
+```
+https://github.com/almhbob/hasahisawi/actions/workflows/setup-vercel-db.yml
+```
+يحتاج: `RAILWAY_TOKEN` و`VERCEL_TOKEN` كـ GitHub Secrets
 
 ### قاعدة البيانات (Railway PostgreSQL)
 - **Connection**: `postgresql://postgres:...@shortline.proxy.rlwy.net:28066/railway?sslmode=require`

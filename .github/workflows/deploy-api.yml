@@ -35,18 +35,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Link Vercel project
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json << 'EOF'
+          {"projectId":"prj_7NqIloolEKoPpF5JKr3KVWjapKVw","orgId":"team_RTCz9oaxsbHBdJHrSJNyJr5q"}
+          EOF
+
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: team_RTCz9oaxsbHBdJHrSJNyJr5q
+          VERCEL_PROJECT_ID: prj_7NqIloolEKoPpF5JKr3KVWjapKVw
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "⚠️  VERCEL_TOKEN not set — skipping"
-            echo "Add VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID to GitHub secrets"
+            echo "Add VERCEL_TOKEN to GitHub secrets"
             exit 1
           fi
           npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
           npx vercel@latest build --prod --token="$VERCEL_TOKEN"
           npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
-          echo "✅ API deployed to Vercel"
+          echo "✅ API deployed to Vercel → https://api-server-gilt-ten.vercel.app"
