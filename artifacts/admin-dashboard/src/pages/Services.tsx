@@ -227,7 +227,7 @@ export default function Services() {
   const { copied, copy } = useCopyToClipboard();
 
   // ── Vercel + Railway (الخادم الحالي)
-  const API_URL        = "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
+  const API_URL        = "https://api-server-gilt-ten.vercel.app";
   const HEALTH_URL     = `${API_URL}/api/healthz`;
 
   return (

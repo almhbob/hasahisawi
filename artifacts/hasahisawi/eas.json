@@ -14,7 +14,7 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "preview": {
@@ -22,7 +22,7 @@
       "credentialsSource": "remote",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
@@ -36,7 +36,7 @@
       "credentialsSource": "local",
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
@@ -49,7 +49,7 @@
     "preview-ios": {
       "ios": { "simulator": true },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
@@ -64,7 +64,7 @@
       "credentialsSource": "remote",
       "ios": { "buildConfiguration": "Release" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
@@ -79,7 +79,7 @@
       "credentialsSource": "remote",
       "ios": { "buildConfiguration": "Release" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",

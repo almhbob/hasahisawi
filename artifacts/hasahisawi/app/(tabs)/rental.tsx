@@ -13,7 +13,7 @@ import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
-const API = () => getApiUrl() || "https://hasahisawi-api-asim-abdulrahman-mohammed.vercel.app";
+const API = () => getApiUrl();
 
 // ─── Types ────────────────────────────────────────────────────────
 type RentalType = "real_estate" | "event_tools" | "construction_tools";
