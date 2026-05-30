@@ -3669,8 +3669,7 @@ router.get("/admin/users-source-health", async (req: Request, res: Response): Pr
 
 router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
   try {
-    const user = await getSessionUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "moderator")) {
+    if (!await isAdminRequest(req)) {
       return res.status(403).json({ error: "غير مصرح" });
     }
     const [totals, byNeighborhood, recent] = await Promise.all([
