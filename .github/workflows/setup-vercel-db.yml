@@ -9,24 +9,41 @@ on:
 
 jobs:
   setup:
-    name: Extract Railway DB URL → Set on Vercel
+    name: Resolve DATABASE_URL → Set on Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Check required secrets
         env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           MISSING=0
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "❌ RAILWAY_TOKEN secret is NOT set in this repository"
-            echo "   Go to: https://github.com/almhbob/hasahisawi/settings/secrets/actions"
-            echo "   Add secret: RAILWAY_TOKEN = your Railway token from https://railway.app/account/tokens"
-            MISSING=1
+
+          # Accept either DATABASE_URL directly OR RAILWAY_TOKEN
+          if [ -n "$DATABASE_URL_DIRECT" ]; then
+            echo "✅ DATABASE_URL secret is set directly — fastest path"
+          elif [ -n "$RAILWAY_TOKEN" ]; then
+            echo "✅ RAILWAY_TOKEN is set — will extract DATABASE_URL from Railway"
           else
-            echo "✅ RAILWAY_TOKEN is set (length: ${#RAILWAY_TOKEN})"
+            echo "❌ Neither DATABASE_URL nor RAILWAY_TOKEN secret is set."
+            echo ""
+            echo "  ── الطريقة الأسرع: أضف DATABASE_URL مباشرة ──────────────────"
+            echo "  1. افتح railway.app → مشروعك → PostgreSQL → Variables"
+            echo "  2. انسخ قيمة DATABASE_URL كاملةً"
+            echo "  3. اذهب إلى:"
+            echo "     https://github.com/almhbob/hasahisawi/settings/secrets/actions"
+            echo "  4. أضف Secret جديد باسم DATABASE_URL"
+            echo "  5. شغّل هذا الـ workflow مرة أخرى"
+            echo "  ──────────────────────────────────────────────────────────────"
+            echo "  ── الطريقة التلقائية: أضف RAILWAY_TOKEN ─────────────────────"
+            echo "  1. اذهب إلى railway.app/account/tokens → أنشئ Token"
+            echo "  2. أضف Secret باسم RAILWAY_TOKEN في GitHub Actions secrets"
+            echo "  ──────────────────────────────────────────────────────────────"
+            MISSING=1
           fi
+
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "❌ VERCEL_TOKEN secret is NOT set"
             MISSING=1
@@ -35,12 +52,29 @@ jobs:
           fi
           [ $MISSING -eq 1 ] && exit 1 || true
 
-      - name: Extract DATABASE_URL from Railway
+      - name: Resolve DATABASE_URL
         id: get_db
         env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -e
+
+          # ── Fast path: use DATABASE_URL secret directly ──────────────────
+          if [ -n "$DATABASE_URL_DIRECT" ]; then
+            echo "✅ Using DATABASE_URL from GitHub Secret directly"
+            MASKED=$(echo "$DATABASE_URL_DIRECT" | python3 -c "
+          import sys,urllib.parse as p
+          u=sys.stdin.read().strip()
+          try:
+              pr=p.urlparse(u)
+              print(f'{pr.scheme}://{pr.username}:***@{pr.hostname}:{pr.port}{pr.path}')
+          except: print('found (url masked)')
+          " 2>/dev/null || echo "found (url masked)")
+            echo "  $MASKED"
+            echo "DB_URL=$DATABASE_URL_DIRECT" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           echo "🔍 Querying Railway for projects..."
           PROJECTS_RAW=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
@@ -174,8 +208,9 @@ jobs:
             echo ""
             echo "❌ DATABASE_URL not found in any Railway project."
             echo ""
-            echo "Manual fallback — add DATABASE_URL to Vercel directly:"
-            echo "  https://vercel.com/almhbob2026-1311s-projects/api-server/settings/environment-variables"
+            echo "  → الحل الأسرع: أضف DATABASE_URL كـ GitHub Secret مباشرة:"
+            echo "    https://github.com/almhbob/hasahisawi/settings/secrets/actions"
+            echo "    (انسخ DATABASE_URL من railway.app → مشروعك → PostgreSQL → Variables)"
             exit 1
           fi
 
