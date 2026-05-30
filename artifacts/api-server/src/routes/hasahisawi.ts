@@ -3555,6 +3555,66 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
   }
 });
 
+// ── POST /api/admin/migrate-users-from-db — نقل المستخدمين من قاعدة بيانات أخرى ──
+router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Request, res: Response): Promise<any> => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    const { source_db_url } = req.body as { source_db_url?: string };
+    if (!source_db_url || !source_db_url.startsWith("postgres"))
+      return res.status(400).json({ error: "source_db_url غير صالح" });
+
+    // Connect to source DB
+    const { Pool: PgPool } = await import("pg");
+    const srcPool = new PgPool({
+      connectionString: source_db_url,
+      connectionTimeoutMillis: 10_000,
+      max: 3,
+      ssl: source_db_url.includes("sslmode=require") || source_db_url.includes(".render.com")
+        ? { rejectUnauthorized: false } : false,
+    });
+
+    let srcUsers: any[];
+    try {
+      const r = await srcPool.query(
+        `SELECT id, name, phone, email, password_hash, role, neighborhood,
+                birth_date, national_id, firebase_uid, avatar_url, gender,
+                is_banned, created_at
+         FROM users ORDER BY id`
+      );
+      srcUsers = r.rows;
+    } finally {
+      await srcPool.end().catch(() => {});
+    }
+
+    if (!srcUsers.length) return res.json({ migrated: 0, skipped: 0, errors: 0, total: 0 });
+
+    let migrated = 0, skipped = 0, errors = 0;
+    for (const u of srcUsers) {
+      try {
+        const result = await query(
+          `INSERT INTO users
+             (name, phone, email, password_hash, role, neighborhood, birth_date,
+              national_id, firebase_uid, avatar_url, gender, is_banned, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING
+           RETURNING id`,
+          [u.name, u.phone, u.email, u.password_hash, u.role ?? "user",
+           u.neighborhood, u.birth_date, u.national_id, u.firebase_uid,
+           u.avatar_url, u.gender, u.is_banned ?? false, u.created_at]
+        );
+        if (result.rows.length) migrated++;
+        else skipped++;
+      } catch { errors++; }
+    }
+
+    logger.info({ total: srcUsers.length, migrated, skipped, errors }, "[migrate-users] done");
+    return res.json({ total: srcUsers.length, migrated, skipped, errors });
+  } catch (err: any) {
+    logger.error({ err: err?.message }, "migrate-users-from-db error");
+    return res.status(500).json({ error: err?.message ?? "Server error" });
+  }
+});
+
 // ── GET /api/admin/users-source-health ──────────────────────────────────────
 router.get("/admin/users-source-health", async (req: Request, res: Response): Promise<any> => {
   try {

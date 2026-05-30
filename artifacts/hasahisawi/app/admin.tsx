@@ -1845,6 +1845,9 @@ export default function AdminDashboard() {
   const [fbHealth, setFbHealth]         = useState<any | null>(null);
   const [fbSyncing, setFbSyncing]       = useState(false);
   const [fbSyncResult, setFbSyncResult] = useState<any | null>(null);
+  const [migrateUrl, setMigrateUrl]     = useState("");
+  const [migrating, setMigrating]       = useState(false);
+  const [migrateResult, setMigrateResult] = useState<any | null>(null);
 
   // ── Users ──
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -2130,6 +2133,27 @@ export default function AdminDashboard() {
     }
     finally { setFbSyncing(false); }
   }, [token, loadStats, loadFirebaseHealth, loadUsers]);
+
+  const migrateFromDb = useCallback(async (sourceUrl: string) => {
+    if (!sourceUrl.trim()) return;
+    setMigrating(true);
+    setMigrateResult(null);
+    try {
+      const res = await apiFetch("/api/admin/migrate-users-from-db", token, {
+        method: "POST",
+        body: JSON.stringify({ source_db_url: sourceUrl.trim() }),
+      }, 120000);
+      const d = await safeJson(res);
+      setMigrateResult(d);
+      if ((d as any).migrated > 0) {
+        await Promise.all([loadStats(), loadUsers()]);
+      }
+    } catch (e: any) {
+      setMigrateResult({ error: e?.message ?? "فشل الاتصال" });
+    } finally {
+      setMigrating(false);
+    }
+  }, [token, loadStats, loadUsers]);
 
   const loadLandmarks = useCallback(async () => {
     setLoadingLM(true);
@@ -3566,33 +3590,77 @@ export default function AdminDashboard() {
           {loadingUsers ? (
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
           ) : users.length === 0 && tab === "members" ? (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 14 }}>
+            <ScrollView contentContainerStyle={{ alignItems: "center", padding: 24, gap: 14 }}>
               <Ionicons name="people-outline" size={52} color={Colors.primary + "50"} />
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "center" }}>
                 قاعدة البيانات فارغة
               </Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>
-                المستخدمون المسجّلون عبر Firebase لم يُزامَنوا بعد. اضغط الزر أدناه لاستيراد جميع المستخدمين.
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28, flexDirection: "row", alignItems: "center", gap: 8 }}
-                onPress={() => syncFirebaseNow()}
-                disabled={fbSyncing}
-              >
-                {fbSyncing
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Ionicons name="sync-outline" size={18} color="#fff" />
-                }
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
-                  {fbSyncing ? "جاري المزامنة..." : "مزامنة مستخدمي Firebase الآن"}
+
+              {/* ── استيراد من DB القديمة ── */}
+              <View style={{ width: "100%", backgroundColor: "#0d1f0d", borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.primary + "40" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>
+                  📦 استيراد من قاعدة بيانات Render القديمة
                 </Text>
-              </TouchableOpacity>
-              {fbSyncResult && (
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
-                  ✅ تمت المزامنة: {(fbSyncResult as any).created ?? 0} جديد، {(fbSyncResult as any).updated ?? 0} محدَّث
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                  من Render Dashboard ← Databases ← انسخ "External Database URL"
                 </Text>
-              )}
-            </View>
+                <TextInput
+                  value={migrateUrl}
+                  onChangeText={setMigrateUrl}
+                  placeholder="postgres://user:pass@host:5432/db"
+                  placeholderTextColor={Colors.textMuted}
+                  style={{ backgroundColor: "#162416", color: "#fff", borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 11, borderWidth: 1, borderColor: Colors.primary + "50" }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={{ backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, opacity: migrating ? 0.7 : 1 }}
+                  onPress={() => migrateFromDb(migrateUrl)}
+                  disabled={migrating || !migrateUrl.trim()}
+                >
+                  {migrating
+                    ? <ActivityIndicator color="#000" size="small" />
+                    : <Ionicons name="cloud-download-outline" size={16} color="#000" />
+                  }
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" }}>
+                    {migrating ? "جاري النقل..." : "نقل المستخدمين الآن"}
+                  </Text>
+                </TouchableOpacity>
+                {migrateResult && !migrateResult.error && (
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
+                    ✅ نُقل: {migrateResult.migrated} · تجاهل: {migrateResult.skipped} · أخطاء: {migrateResult.errors} (من {migrateResult.total})
+                  </Text>
+                )}
+                {migrateResult?.error && (
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", textAlign: "center" }}>
+                    ❌ {migrateResult.error}
+                  </Text>
+                )}
+              </View>
+
+              {/* ── مزامنة Firebase ── */}
+              <View style={{ width: "100%", borderTopWidth: 1, borderColor: "#ffffff15", paddingTop: 14, gap: 8 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
+                  أو إذا سجّل المستخدمون عبر Google / Firebase:
+                </Text>
+                <TouchableOpacity
+                  style={{ borderWidth: 1, borderColor: Colors.primary + "80", borderRadius: 10, paddingVertical: 10, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+                  onPress={() => syncFirebaseNow()}
+                  disabled={fbSyncing}
+                >
+                  {fbSyncing ? <ActivityIndicator color={Colors.primary} size="small" /> : <Ionicons name="sync-outline" size={16} color={Colors.primary} />}
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary }}>
+                    {fbSyncing ? "جاري المزامنة..." : "مزامنة مستخدمي Firebase"}
+                  </Text>
+                </TouchableOpacity>
+                {fbSyncResult && (
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
+                    ✅ Firebase: {(fbSyncResult as any).created ?? 0} جديد، {(fbSyncResult as any).updated ?? 0} محدَّث
+                  </Text>
+                )}
+              </View>
+            </ScrollView>
           ) : (
             <FlatList
               data={filteredUsers}
