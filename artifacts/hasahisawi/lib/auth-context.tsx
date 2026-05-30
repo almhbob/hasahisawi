@@ -784,6 +784,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             national_id_masked: null,
             avatar_url: null,
           };
+          // Also sign into Firebase so refreshBackendToken() works on next visit
+          if (isFirebaseAvailable()) {
+            firebaseLoginEmail(email.trim().toLowerCase(), password).catch(() => {});
+          }
           await saveSession(authUser, json.token as string, json.token as string);
           return;
         }

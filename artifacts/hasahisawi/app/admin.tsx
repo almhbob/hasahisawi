@@ -1834,7 +1834,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
-  const { user, token, isLoading: authLoading, refreshBackendToken } = useAuth();
+  const { user, token, isLoading: authLoading, refreshBackendToken, loginAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>("overview");
 
   // ── Overview ──
@@ -2017,6 +2017,26 @@ export default function AdminDashboard() {
     if (authLoading) return;
     if (!isAdmin && !isMod) router.replace("/(tabs)/" as any);
   }, [user, authLoading, isAdmin, isMod]);
+
+  // ── Re-auth ───────────────────────────────────────────────────────────────
+  const [reAuthPass, setReAuthPass] = useState("");
+  const [reAuthLoading, setReAuthLoading] = useState(false);
+  const [reAuthError, setReAuthError] = useState<string | null>(null);
+
+  const handleReAuth = async () => {
+    if (!reAuthPass.trim()) return;
+    setReAuthLoading(true);
+    setReAuthError(null);
+    try {
+      await loginAdmin(user?.email ?? "", reAuthPass.trim());
+      setReAuthPass("");
+      // token is updated in context — loadStats will auto-run via dep change
+    } catch (e: any) {
+      setReAuthError(e?.message ?? "فشل تسجيل الدخول");
+    } finally {
+      setReAuthLoading(false);
+    }
+  };
 
   // ── Data fetchers ────────────────────────────────────────────────────────
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -3410,12 +3430,41 @@ export default function AdminDashboard() {
               <Text style={[s.empty, { textAlign: "center" }]}>
                 {statsError ?? "تعذّر تحميل البيانات"}
               </Text>
-              <TouchableOpacity
-                onPress={loadStats}
-                style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-              >
-                <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
-              </TouchableOpacity>
+              {/* Re-auth form for stale-session 403 */}
+              {statsError?.includes("صلاحية") ? (
+                <View style={{ width: "100%", gap: 10, marginTop: 8 }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
+                    جلستك منتهية — أدخل كلمة المرور لتجديدها
+                  </Text>
+                  <TextInput
+                    value={reAuthPass}
+                    onChangeText={setReAuthPass}
+                    placeholder="كلمة المرور"
+                    secureTextEntry
+                    style={{ backgroundColor: "#1a2a1a", color: "#fff", borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", textAlign: "right", borderWidth: 1, borderColor: Colors.primary + "60" }}
+                    placeholderTextColor={Colors.textMuted}
+                    onSubmitEditing={handleReAuth}
+                  />
+                  {reAuthError && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.danger, textAlign: "center" }}>{reAuthError}</Text>}
+                  <TouchableOpacity
+                    onPress={handleReAuth}
+                    disabled={reAuthLoading}
+                    style={{ backgroundColor: Colors.primary, paddingVertical: 12, borderRadius: 12, alignItems: "center" }}
+                  >
+                    {reAuthLoading
+                      ? <ActivityIndicator color="#000" size="small" />
+                      : <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>تجديد الجلسة</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={loadStats}
+                  style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+                >
+                  <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ScrollView>
