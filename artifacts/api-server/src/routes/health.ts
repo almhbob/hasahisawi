@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Pool } from "pg";
 
 const router: IRouter = Router();
-const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v6";
+const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v7";
 
 function getDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? "";
