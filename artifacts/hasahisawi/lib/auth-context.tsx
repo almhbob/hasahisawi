@@ -79,6 +79,7 @@ type AuthContextValue = {
   enterAsGuest: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshBackendToken: () => Promise<string | null>;
   enableBiometrics: (identifier: string) => Promise<void>;
   disableBiometrics: () => Promise<void>;
   updateProfile: (updates: { name?: string; avatar_url?: string | null }) => Promise<void>;
@@ -1168,6 +1169,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearSession();
   };
 
+  const refreshBackendToken = async (): Promise<string | null> => {
+    try {
+      const fbUser = getCurrentFirebaseUser();
+      if (!fbUser) return null;
+      const idToken = await fbUser.getIdToken(true);
+      const result = await exchangeForBackendToken(
+        fbUser.uid,
+        user?.name ?? fbUser.displayName ?? "مستخدم",
+        user?.email ?? fbUser.email ?? null,
+        user?.role ?? "user",
+        idToken,
+      );
+      if (!result?.token) return null;
+      await AsyncStorage.setItem(TOKEN_KEY, result.token);
+      setToken(result.token);
+      if (result.role && result.role !== user?.role) {
+        const updated = { ...(user as AuthUser), role: result.role as AuthUser["role"] };
+        setUser(updated);
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      }
+      return result.token;
+    } catch {
+      return null;
+    }
+  };
+
   const updateProfile = async (updates: { name?: string; avatar_url?: string | null }) => {
     const backendToken = token;
     if (!backendToken) throw new Error("غير مصرح");
@@ -1205,7 +1232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         biometricsAvailable, biometricsEnabled,
         login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics, loginAdmin, loginModerator,
         register, setUserGender, completeProfile, registerAdmin,
-        enterAsGuest, logout, refreshUser,
+        enterAsGuest, logout, refreshUser, refreshBackendToken,
         enableBiometrics, disableBiometrics,
         updateProfile,
       }}

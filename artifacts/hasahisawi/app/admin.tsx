@@ -1834,7 +1834,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
-  const { user, token, isLoading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading, refreshBackendToken } = useAuth();
   const [tab, setTab] = useState<Tab>("overview");
 
   // ── Overview ──
@@ -2024,7 +2024,18 @@ export default function AdminDashboard() {
     setLoadingStats(true);
     setStatsError(null);
     try {
-      const res = await apiFetch("/api/admin/dashboard-stats", token);
+      let activeToken = token;
+      let res = await apiFetch("/api/admin/dashboard-stats", activeToken);
+
+      // Stale backend session — refresh via Firebase and retry once
+      if ((res.status === 401 || res.status === 403) && refreshBackendToken) {
+        const newToken = await refreshBackendToken();
+        if (newToken) {
+          activeToken = newToken;
+          res = await apiFetch("/api/admin/dashboard-stats", activeToken);
+        }
+      }
+
       if (res.ok) {
         setStats(await safeJson(res));
       } else if (res.status === 401) {
@@ -2038,7 +2049,7 @@ export default function AdminDashboard() {
       setStatsError(`تعذّر الاتصال بالخادم: ${e?.message ?? "خطأ شبكة"}`);
     }
     finally { setLoadingStats(false); }
-  }, [token]);
+  }, [token, refreshBackendToken]);
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
