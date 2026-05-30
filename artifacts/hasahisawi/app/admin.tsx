@@ -2054,10 +2054,21 @@ export default function AdminDashboard() {
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     let lastErr: any = null;
+    let activeToken = token;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 1500));
-        const res = await apiFetch("/api/admin/users", token, {}, 45000);
+        let res = await apiFetch("/api/admin/users", activeToken, {}, 45000);
+
+        // Stale session — refresh and retry once on first attempt
+        if ((res.status === 401 || res.status === 403) && attempt === 0 && refreshBackendToken) {
+          const newToken = await refreshBackendToken();
+          if (newToken) {
+            activeToken = newToken;
+            res = await apiFetch("/api/admin/users", activeToken, {}, 45000);
+          }
+        }
+
         if (res.ok) {
           const d = await safeJson(res);
           setUsers(Array.isArray(d) ? d : (d.users ?? []));
@@ -2076,7 +2087,7 @@ export default function AdminDashboard() {
     }
     if (lastErr) Alert.alert("خطأ في التحميل", lastErr);
     setLoadingUsers(false);
-  }, [token]);
+  }, [token, refreshBackendToken]);
 
   const loadFirebaseHealth = useCallback(async () => {
     try {
@@ -3505,6 +3516,34 @@ export default function AdminDashboard() {
 
           {loadingUsers ? (
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
+          ) : users.length === 0 && tab === "members" ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 14 }}>
+              <Ionicons name="people-outline" size={52} color={Colors.primary + "50"} />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "center" }}>
+                قاعدة البيانات فارغة
+              </Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>
+                المستخدمون المسجّلون عبر Firebase لم يُزامَنوا بعد. اضغط الزر أدناه لاستيراد جميع المستخدمين.
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28, flexDirection: "row", alignItems: "center", gap: 8 }}
+                onPress={() => syncFirebaseNow()}
+                disabled={fbSyncing}
+              >
+                {fbSyncing
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Ionicons name="sync-outline" size={18} color="#fff" />
+                }
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>
+                  {fbSyncing ? "جاري المزامنة..." : "مزامنة مستخدمي Firebase الآن"}
+                </Text>
+              </TouchableOpacity>
+              {fbSyncResult && (
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
+                  ✅ تمت المزامنة: {(fbSyncResult as any).created ?? 0} جديد، {(fbSyncResult as any).updated ?? 0} محدَّث
+                </Text>
+              )}
+            </View>
           ) : (
             <FlatList
               data={filteredUsers}
