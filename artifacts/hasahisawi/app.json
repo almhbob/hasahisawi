@@ -179,7 +179,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "baseUrl": "/hasahisawi"
+      "baseUrl": ""
     },
     "extra": {
       "router": {},
