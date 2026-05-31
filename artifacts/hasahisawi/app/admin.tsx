@@ -17,6 +17,8 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { uploadLandmarkImage } from "@/lib/firebase/storage";
 import BrandPattern from "@/components/BrandPattern";
+import { IMPORTANT_APP_SERVICE_LINKS } from "@/constants/service-links";
+import { alertForNewPendingAdminItems, countPendingAdminItems } from "@/lib/attention-alerts";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type AdminUser = {
@@ -37,7 +39,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -141,6 +143,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: keyof ty
 const MODERATOR_SECTIONS = [
   { key: "members",     label: "متابعة الأعضاء",   icon: "people-outline"       as const },
   { key: "communities", label: "موافقات المؤسسات",  icon: "business-outline"     as const },
+  { key: "partners_admin", label: "إدارة الشركاء", icon: "briefcase-outline" as const },
   { key: "ads",         label: "الإعلانات",         icon: "megaphone-outline"    as const },
   { key: "landmarks",   label: "المعالم",           icon: "location-outline"     as const },
   { key: "medical",     label: "الطب والصحة",      icon: "medkit-outline"       as const },
@@ -1061,6 +1064,29 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
   const [grantResult, setGrantResult] = React.useState<{ username: string; temp_password: string; full_name: string } | null>(null);
   const [granting, setGranting] = React.useState<number | null>(null);
+  const [resetPwdApp, setResetPwdApp] = React.useState<{ id: number; full_name: string } | null>(null);
+  const [resetPwdNew, setResetPwdNew] = React.useState("");
+  const [resetPwdConfirm, setResetPwdConfirm] = React.useState("");
+  const [resetPwdLoading, setResetPwdLoading] = React.useState(false);
+  const [resetPwdDone, setResetPwdDone] = React.useState<string | null>(null);
+
+  const resetPassword = async () => {
+    if (!resetPwdApp) return;
+    if (resetPwdNew.length < 6) { Alert.alert("خطأ", "كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return; }
+    if (resetPwdNew !== resetPwdConfirm) { Alert.alert("خطأ", "كلمتا المرور غير متطابقتين"); return; }
+    setResetPwdLoading(true);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/student-union/managers/reset-password`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ app_id: resetPwdApp.id, new_password: resetPwdNew }),
+      });
+      const d = await r.json();
+      if (!r.ok) { Alert.alert("خطأ", d.error || "فشل التحديث"); return; }
+      setResetPwdDone(d.username);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setResetPwdLoading(false); }
+  };
 
   const load = React.useCallback(() => {
     fetch(`${apiBase}/api/student-union/applications`, { headers: { Authorization: `Bearer ${token}` } })
@@ -1141,6 +1167,65 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
         </View>
       </Modal>
 
+      {/* مودال تعديل كلمة المرور */}
+      <Modal visible={!!resetPwdApp} transparent animationType="fade" onRequestClose={() => { setResetPwdApp(null); setResetPwdNew(""); setResetPwdConfirm(""); setResetPwdDone(null); }}>
+        <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 14, borderWidth: 1, borderColor: UC + "40" }}>
+            {resetPwdDone ? (
+              <>
+                <View style={{ alignItems: "center", gap: 6 }}>
+                  <Ionicons name="checkmark-circle" size={40} color="#10B981" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "center" }}>تم تحديث كلمة المرور</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>المستخدم: {resetPwdDone}</Text>
+                </View>
+                <TouchableOpacity onPress={() => { setResetPwdApp(null); setResetPwdNew(""); setResetPwdConfirm(""); setResetPwdDone(null); }}
+                  style={{ backgroundColor: "#10B981", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>حسناً</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={{ alignItems: "center", gap: 4 }}>
+                  <Ionicons name="key" size={32} color={UC} />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "center" }}>تعديل كلمة المرور</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>{resetPwdApp?.full_name}</Text>
+                </View>
+                <TextInput
+                  value={resetPwdNew}
+                  onChangeText={setResetPwdNew}
+                  placeholder="كلمة المرور الجديدة"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry
+                  style={{ backgroundColor: "#0B1A12", color: "#fff", borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", textAlign: "right", borderWidth: 1, borderColor: UC + "40" }}
+                />
+                <TextInput
+                  value={resetPwdConfirm}
+                  onChangeText={setResetPwdConfirm}
+                  placeholder="تأكيد كلمة المرور"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry
+                  style={{ backgroundColor: "#0B1A12", color: "#fff", borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", textAlign: "right", borderWidth: 1, borderColor: resetPwdConfirm && resetPwdNew !== resetPwdConfirm ? "#EF4444" : UC + "40" }}
+                />
+                {resetPwdConfirm.length > 0 && resetPwdNew !== resetPwdConfirm && (
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#EF4444", textAlign: "center" }}>كلمتا المرور غير متطابقتين</Text>
+                )}
+                <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                  <TouchableOpacity onPress={() => { setResetPwdApp(null); setResetPwdNew(""); setResetPwdConfirm(""); }}
+                    style={{ flex: 1, paddingVertical: 11, borderRadius: 10, backgroundColor: "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={resetPassword} disabled={resetPwdLoading || resetPwdNew.length < 6 || resetPwdNew !== resetPwdConfirm}
+                    style={{ flex: 2, paddingVertical: 11, borderRadius: 10, backgroundColor: UC, alignItems: "center", opacity: (resetPwdLoading || resetPwdNew.length < 6 || resetPwdNew !== resetPwdConfirm) ? 0.5 : 1 }}>
+                    {resetPwdLoading ? <ActivityIndicator size="small" color="#fff" /> :
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>حفظ كلمة المرور</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
           <Ionicons name="refresh" size={14} color={Colors.textMuted} />
@@ -1200,19 +1285,27 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
             </View>
           )}
 
-          {/* زر منح صلاحيات الإدارة للمقبول */}
+          {/* أزرار المقبول */}
           {a.status === "approved" && (
-            <TouchableOpacity
-              onPress={() => grantManager(a.id)}
-              disabled={granting === a.id}
-              style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
-              {granting === a.id ? <ActivityIndicator size="small" color="#fff" /> : (
-                <>
-                  <Ionicons name="shield-checkmark-outline" size={15} color="#fff" />
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح صلاحيات إدارة الإتحاد</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+              <TouchableOpacity
+                onPress={() => { setResetPwdApp({ id: a.id, full_name: a.full_name || a.applicant_name || "المدير" }); setResetPwdNew(""); setResetPwdConfirm(""); setResetPwdDone(null); }}
+                style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#0B1A12", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5, borderWidth: 1, borderColor: UC + "60" }}>
+                <Ionicons name="key-outline" size={14} color={UC} />
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: UC }}>تعديل كلمة المرور</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => grantManager(a.id)}
+                disabled={granting === a.id}
+                style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                {granting === a.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                  <>
+                    <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>منح صلاحيات الإدارة</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       ))}
@@ -2011,6 +2104,7 @@ export default function AdminDashboard() {
   const [assigningTripId,   setAssigningTripId]   = useState<number | null>(null);
   const [approvedDriversList, setApprovedDriversList] = useState<TransportDriver[]>([]);
   const [updatingTripId,    setUpdatingTripId]    = useState<number | null>(null);
+  const [lastPendingAdminCount, setLastPendingAdminCount] = useState(0);
 
   // ── Updates ──
   const [appVersion, setAppVersion]       = useState("1");
@@ -2063,6 +2157,19 @@ export default function AdminDashboard() {
   const [loadingSvcReqs, setLoadingSvcReqs] = useState(false);
   const [decidingSvcReqId, setDecidingSvcReqId] = useState<number | null>(null);
   const [svcReqsFilter, setSvcReqsFilter] = useState<"pending" | "approved" | "rejected">("pending");
+
+  useEffect(() => {
+    const current = countPendingAdminItems({
+      ads: adsList,
+      communities: communitiesList,
+      serviceRequests: svcRequests,
+      drivers: transportDrivers,
+      trips: transportTrips,
+    });
+
+    alertForNewPendingAdminItems(lastPendingAdminCount, current);
+    setLastPendingAdminCount(current);
+  }, [adsList, communitiesList, svcRequests, transportDrivers, transportTrips]);
 
   const isAdmin = user?.role === "admin";
   const isMod   = user?.role === "moderator";

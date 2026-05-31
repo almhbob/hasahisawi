@@ -15571,6 +15571,35 @@ router.post("/student-union/applications/:id/grant-manager", async (req: Request
   }
 });
 
+// PATCH /api/admin/student-union/managers/reset-password — تعديل كلمة مرور مدير إتحاد الطلاب
+router.patch("/admin/student-union/managers/reset-password", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const { app_id, new_password } = req.body as { app_id?: number; new_password?: string };
+    if (!app_id || !new_password?.trim()) return res.status(400).json({ error: "البيانات ناقصة" });
+    if (new_password.length < 6) return res.status(400).json({ error: "كلمة المرور قصيرة جداً (6 أحرف على الأقل)" });
+
+    const appResult = await query(`SELECT * FROM student_union_applications WHERE id=$1`, [app_id]);
+    if (!appResult.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    const app = appResult.rows[0];
+
+    const rawUser = (app.national_id || app.phone || `su${app_id}`).replace(/\D/g, "").slice(0, 30) || `su_${app_id}`;
+    const username = rawUser;
+
+    const mgr = await query(`SELECT id FROM union_managers WHERE username=$1`, [username]);
+    if (!mgr.rows.length) return res.status(404).json({ error: "لم يتم منح هذا المقدّم صلاحيات الإدارة بعد" });
+
+    const hash = await bcrypt.hash(new_password, 10);
+    await query(`UPDATE union_managers SET password_hash=$1 WHERE username=$2`, [hash, username]);
+
+    logger.info({ app_id, username }, "[student-union] manager password reset");
+    return res.json({ ok: true, username, message: "تم تحديث كلمة المرور بنجاح" });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/reset-password]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /api/union-partnership/apply — طلب انضمام اتحاد لخدمات التطبيق
 router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
