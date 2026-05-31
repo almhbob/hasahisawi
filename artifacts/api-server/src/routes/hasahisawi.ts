@@ -12,12 +12,9 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-// Middleware: block every request until DB tables are ready (cold-start race fix)
+// DB init runs eagerly at module load — idempotent, non-blocking.
+// Each route that needs a specific table calls its own ensureXxx() instead.
 let _dbInitPromise: Promise<void> | null = null;
-router.use((_req: Request, _res: Response, next: NextFunction) => {
-  if (_dbInitPromise) return void _dbInitPromise.then(next, next);
-  next();
-});
 
 // Only create a real pool when DATABASE_URL is a valid external connection string.
 // Without this guard, pg opens TCP sockets that hang silently on hosted platforms
@@ -2967,7 +2964,8 @@ router.get("/posts", async (req: Request, res: Response) => {
     `;
     const result = await query(sql, params);
     return res.json(result.rows);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === "42P01") return res.json([]); // table not ready yet on cold start
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
@@ -4801,7 +4799,8 @@ router.get("/ads", async (_req: Request, res: Response) => {
        ORDER BY priority DESC, approved_at DESC`
     );
     return res.json(rows);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === "42P01") return res.json([]); // table not ready yet on cold start
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
@@ -8532,7 +8531,10 @@ router.get("/lost-items", async (req: Request, res: Response) => {
     sql += ` ORDER BY li.created_at DESC LIMIT 200`;
     const { rows } = await query(sql, params);
     return res.json({ items: rows });
-  } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+  } catch (e: any) {
+    if (e?.code === "42P01") return res.json({ items: [] }); // table not ready yet on cold start
+    logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" });
+  }
 });
 
 router.post("/lost-items", async (req: Request, res: Response) => {
@@ -8759,7 +8761,10 @@ router.get("/emergency-numbers", async (_req: Request, res: Response) => {
   try {
     const { rows } = await query(`SELECT * FROM emergency_numbers WHERE is_active=TRUE ORDER BY sort_order ASC, name ASC`);
     return res.json({ numbers: rows });
-  } catch (e) { return res.status(500).json({ error: "Server error" }); }
+  } catch (e: any) {
+    if (e?.code === "42P01") return res.json({ numbers: [] }); // table not ready yet on cold start
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 router.get("/admin/emergency-numbers", async (req: Request, res: Response) => {
@@ -9338,7 +9343,10 @@ router.get("/jobs", async (req: Request, res: Response) => {
     params.push(Number(limit));
     const { rows } = await query(q, params);
     return res.json(rows);
-  } catch { return res.status(500).json({ error: "Server error" }); }
+  } catch (e: any) {
+    if (e?.code === "42P01") return res.json([]); // table not ready yet on cold start
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 // POST /api/jobs — نشر وظيفة (مستخدم مسجّل)

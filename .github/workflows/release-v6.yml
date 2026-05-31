@@ -191,17 +191,18 @@ jobs:
           echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
           echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
 
-      - name: Build release APK + AAB
+      - name: Build release AAB
         working-directory: artifacts/hasahisawi/android
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          # With 4GB swap, 3584m is safe — Gradle (2560m) + Metro (3584m) = 6GB within 11GB virtual
+          # Split into two --no-daemon calls so OS reclaims memory between them
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease assembleRelease \
+          echo "=== RAM before AAB build ===" && free -h
+          ./gradlew bundleRelease \
             --no-daemon \
             --build-cache \
             --stacktrace \
@@ -209,6 +210,26 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          echo "=== RAM after AAB build ===" && free -h
+
+      - name: Build release APK
+        working-directory: artifacts/hasahisawi/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
+          NODE_OPTIONS: "--max-old-space-size=3584"
+        run: |
+          echo "=== RAM before APK build ===" && free -h
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --build-cache \
+            --stacktrace \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          echo "=== RAM after APK build ===" && free -h
 
       - name: Rename artifacts
         run: |
