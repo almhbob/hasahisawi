@@ -1,1 +1,1 @@
-2026-05-30T15:36:58Z v6.3.8 — retry 6: add 4GB swap + fix JVM/Metro memory balance
+2026-05-31T07:10:00Z v6.3.8 — retry 7: split bundleRelease/assembleRelease into two separate --no-daemon calls to free memory between builds
