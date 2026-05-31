@@ -268,12 +268,12 @@ function AdminLegalSuggestionsTab({ token, apiBase }: { token: string; apiBase: 
 
   React.useEffect(() => {
     setLoading(true);
-    fetch(`${apiBase}/admin/legal-form-suggestions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/legal-form-suggestions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.suggestions) setSuggestions(d.suggestions); }).catch(() => {}).finally(() => setLoading(false));
   }, [filter]);
 
   async function review(id: number, status: "approved" | "rejected", notes?: string) {
-    await fetch(`${apiBase}/admin/legal-form-suggestions/${id}`, {
+    await fetch(`${apiBase}/api/admin/legal-form-suggestions/${id}`, {
       method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ status, admin_notes: notes }),
     });
@@ -647,7 +647,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
 
   const load = React.useCallback(() => {
     const q = filter !== "all" ? `?type=${filter}` : "";
-    fetch(`${apiBase}/admin/sick-leaves${q}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/sick-leaves${q}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.sick_leaves) setLeaves(d.sick_leaves); }).catch(() => {}).finally(() => setLoading(false));
   }, [filter, token, apiBase]);
 
@@ -660,7 +660,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
   const updateStatus = async (id: number, status: string) => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/admin/sick-leaves/${id}/status`, {
+      await fetch(`${apiBase}/api/admin/sick-leaves/${id}/status`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
@@ -737,7 +737,7 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
   const [acting, setActing] = React.useState<number | null>(null);
 
   const load = React.useCallback(() => {
-    fetch(`${apiBase}/admin/admissions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/admissions?status=${filter}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.admissions) setAdmissions(d.admissions); }).catch(() => {}).finally(() => setLoading(false));
   }, [filter, token, apiBase]);
 
@@ -753,7 +753,7 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
       { text: "صرف", style: "destructive", onPress: async () => {
         setActing(id);
         try {
-          await fetch(`${apiBase}/admin/admissions/${id}/discharge`, {
+          await fetch(`${apiBase}/api/admin/admissions/${id}/discharge`, {
             method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify({}),
           });
@@ -821,12 +821,12 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
 
   const loadOrders = React.useCallback(() => {
     const q = ordFilter !== "all" ? `?status=${ordFilter}` : "";
-    fetch(`${apiBase}/admin/zawajil/orders${q}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/zawajil/orders${q}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.orders) setOrders(d.orders); }).catch(() => {}).finally(() => setLoading(false));
   }, [ordFilter, token, apiBase]);
 
   const loadApps = React.useCallback(() => {
-    fetch(`${apiBase}/admin/zawajil/applications`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/zawajil/applications`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.applications) setApps(d.applications); }).catch(() => {});
   }, [token, apiBase]);
 
@@ -843,7 +843,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
   const reviewOrder = async (id: number, action: "approved" | "rejected" | "modification_requested") => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/admin/zawajil/orders/${id}/review`, {
+      await fetch(`${apiBase}/api/admin/zawajil/orders/${id}/review`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ action, admin_notes: notes, rejection_reason: action === "rejected" ? notes : undefined, estimated_cost: cost ? parseFloat(cost) : undefined }),
       });
@@ -855,7 +855,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
   const updateStatus = async (id: number, status: string) => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/admin/zawajil/orders/${id}/status`, {
+      await fetch(`${apiBase}/api/admin/zawajil/orders/${id}/status`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
@@ -866,7 +866,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
   const updateAppStatus = async (id: number, status: string) => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/admin/zawajil/applications/${id}/status`, {
+      await fetch(`${apiBase}/api/admin/zawajil/applications/${id}/status`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
@@ -1241,17 +1241,17 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
 
   const loadMembers = React.useCallback(() => {
     const q = memberFilter !== "all" ? `?status=${memberFilter}` : "";
-    fetch(`${apiBase}/admin/union-members${q}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/union-members${q}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { setMembers(Array.isArray(d) ? d : []); setLastRefresh(new Date()); }).catch(() => {}).finally(() => setLoading(false));
   }, [memberFilter, token, apiBase]);
 
   const loadUnions = React.useCallback(() => {
-    fetch(`${apiBase}/admin/unions`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/unions`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { setUnions(Array.isArray(d) ? d : []); }).catch(() => {}).finally(() => setLoading(false));
   }, [token, apiBase]);
 
   const loadAnnouncements = React.useCallback(() => {
-    fetch(`${apiBase}/admin/union-announcements`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiBase}/api/admin/union-announcements`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { setAnnouncements(Array.isArray(d) ? d : []); }).catch(() => {}).finally(() => setLoading(false));
   }, [token, apiBase]);
 
@@ -1273,7 +1273,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
   const updateMemberStatus = async (id: number, status: string, membership_no?: string) => {
     setActing(id);
     try {
-      await fetch(`${apiBase}/admin/union-members/${id}/status`, {
+      await fetch(`${apiBase}/api/admin/union-members/${id}/status`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status, membership_no: membership_no || undefined }),
       });
@@ -1285,7 +1285,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
   const toggleUnionActive = async (u: any) => {
     setActing(u.id);
     try {
-      await fetch(`${apiBase}/admin/unions/${u.id}`, {
+      await fetch(`${apiBase}/api/admin/unions/${u.id}`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ is_active: !u.is_active }),
       });
@@ -1296,7 +1296,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
   const createUnion = async () => {
     if (!newUnion.name.trim()) { Alert.alert("خطأ", "اسم النقابة مطلوب"); return; }
     try {
-      const r = await fetch(`${apiBase}/admin/unions`, {
+      const r = await fetch(`${apiBase}/api/admin/unions`, {
         method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(newUnion),
       });
@@ -1308,7 +1308,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
   const createAnnouncement = async () => {
     if (!newAnno.title.trim() || !newAnno.body.trim()) { Alert.alert("خطأ", "العنوان والمحتوى مطلوبان"); return; }
     try {
-      await fetch(`${apiBase}/admin/union-announcements`, {
+      await fetch(`${apiBase}/api/admin/union-announcements`, {
         method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ ...newAnno, union_id: newAnno.union_id ? parseInt(newAnno.union_id) : null }),
       });
@@ -1320,7 +1320,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
     Alert.alert("تأكيد الحذف", "هل تريد حذف هذا الإعلان؟", [
       { text: "إلغاء", style: "cancel" },
       { text: "حذف", style: "destructive", onPress: async () => {
-        await fetch(`${apiBase}/admin/union-announcements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+        await fetch(`${apiBase}/api/admin/union-announcements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
         setAnnouncements(prev => prev.filter(a => a.id !== id));
       }},
     ]);
