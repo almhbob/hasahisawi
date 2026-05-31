@@ -1855,6 +1855,10 @@ export default function AdminDashboard() {
   const [migrateUrl, setMigrateUrl]     = useState("");
   const [migrating, setMigrating]       = useState(false);
   const [migrateResult, setMigrateResult] = useState<any | null>(null);
+  const [fbSaJson, setFbSaJson]         = useState("");
+  const [fbSaJsonSaving, setFbSaJsonSaving] = useState(false);
+  const [fbSaJsonResult, setFbSaJsonResult] = useState<any | null>(null);
+  const [showFbSaForm, setShowFbSaForm] = useState(false);
 
   // ── Users ──
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -2145,6 +2149,29 @@ export default function AdminDashboard() {
       setMigrating(false);
     }
   }, [token, loadStats, loadUsers]);
+
+  const saveFbSaJson = useCallback(async () => {
+    if (!fbSaJson.trim()) return;
+    setFbSaJsonSaving(true);
+    setFbSaJsonResult(null);
+    try {
+      const res = await apiFetch("/api/admin/set-firebase-credentials", token, {
+        method: "POST",
+        body: JSON.stringify({ firebase_sa_json: fbSaJson.trim() }),
+      }, 30000);
+      const d = await safeJson(res);
+      setFbSaJsonResult(d);
+      if ((d as any).ok) {
+        setFbSaJson("");
+        setShowFbSaForm(false);
+        setTimeout(() => loadFirebaseHealth(), 3000);
+      }
+    } catch (e: any) {
+      setFbSaJsonResult({ error: e?.message ?? "فشل الاتصال" });
+    } finally {
+      setFbSaJsonSaving(false);
+    }
+  }, [token, fbSaJson, loadFirebaseHealth]);
 
   const loadLandmarks = useCallback(async () => {
     setLoadingLM(true);
@@ -3384,10 +3411,61 @@ export default function AdminDashboard() {
                       </View>
                     )}
                     {!configured && fbHealth && (
-                      <View style={{ backgroundColor: "#6B728015", borderRadius: 10, padding: 10, marginBottom: 10 }}>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "right" }}>
-                          ⚠ Firebase Admin SDK غير مُهيَّأ. تأكد من ضبط متغير البيئة FIREBASE_SERVICE_ACCOUNT_JSON في Vercel.
-                        </Text>
+                      <View style={{ marginBottom: 10 }}>
+                        <View style={{ backgroundColor: "#F59E0B10", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#F59E0B30" }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F59E0B", textAlign: "right", marginBottom: 4 }}>
+                            ⚠ Firebase Admin SDK غير مُهيَّأ — المستخدمون لن يظهروا
+                          </Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9CA3AF", textAlign: "right" }}>
+                            لاسترجاع المستخدمين: افتح Firebase Console ← Project Settings ← Service Accounts ← Generate new private key ← انسخ المحتوى والصقه أدناه
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => setShowFbSaForm(v => !v)}
+                          style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: "#4285F415", borderWidth: 1, borderColor: "#4285F440", marginBottom: 6 }}
+                        >
+                          <Ionicons name={showFbSaForm ? "chevron-up-outline" : "key-outline"} size={15} color="#4285F4" />
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#4285F4" }}>
+                            {showFbSaForm ? "إخفاء النموذج" : "إعداد Firebase Service Account"}
+                          </Text>
+                        </TouchableOpacity>
+                        {showFbSaForm && (
+                          <View style={{ backgroundColor: "#FFFFFF05", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#4285F430" }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>
+                              الصق محتوى ملف serviceAccountKey.json هنا:
+                            </Text>
+                            <TextInput
+                              value={fbSaJson}
+                              onChangeText={setFbSaJson}
+                              multiline
+                              numberOfLines={6}
+                              placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  ...\n}'}
+                              placeholderTextColor="#4B5563"
+                              style={{ backgroundColor: "#111827", borderRadius: 8, padding: 10, fontFamily: "monospace", fontSize: 11, color: "#E5E7EB", textAlign: "left", minHeight: 120, borderWidth: 1, borderColor: "#374151", marginBottom: 8 }}
+                            />
+                            {fbSaJsonResult && (
+                              <View style={{ backgroundColor: (fbSaJsonResult as any).ok ? "#10B98115" : "#EF444415", borderRadius: 8, padding: 8, marginBottom: 8, borderWidth: 1, borderColor: (fbSaJsonResult as any).ok ? "#10B98130" : "#EF444430" }}>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: (fbSaJsonResult as any).ok ? "#10B981" : "#EF4444", textAlign: "right" }}>
+                                  {(fbSaJsonResult as any).ok
+                                    ? `✓ ${(fbSaJsonResult as any).message ?? "تم الحفظ بنجاح"}`
+                                    : `✗ ${(fbSaJsonResult as any).error ?? "فشل الحفظ"}`}
+                                </Text>
+                              </View>
+                            )}
+                            <TouchableOpacity
+                              onPress={saveFbSaJson}
+                              disabled={fbSaJsonSaving || !fbSaJson.trim()}
+                              style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 10, backgroundColor: fbSaJsonSaving || !fbSaJson.trim() ? "#FFFFFF10" : "#4285F4" }}
+                            >
+                              {fbSaJsonSaving
+                                ? <ActivityIndicator size="small" color="#4285F4" />
+                                : <Ionicons name="save-outline" size={15} color="#fff" />}
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: fbSaJsonSaving || !fbSaJson.trim() ? Colors.textMuted : "#fff" }}>
+                                {fbSaJsonSaving ? "جارٍ الحفظ…" : "حفظ وتفعيل Firebase"}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
                     )}
 

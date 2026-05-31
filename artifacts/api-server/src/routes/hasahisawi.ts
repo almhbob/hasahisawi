@@ -3623,6 +3623,85 @@ router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Reque
   }
 });
 
+// ── POST /api/admin/set-firebase-credentials — حفظ FIREBASE_SERVICE_ACCOUNT_JSON في Vercel ──
+router.post("/admin/set-firebase-credentials", heavyWriteLimiter, async (req: Request, res: Response): Promise<any> => {
+  try {
+    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+
+    const { firebase_sa_json } = req.body as { firebase_sa_json?: string };
+    if (!firebase_sa_json) return res.status(400).json({ error: "firebase_sa_json مطلوب" });
+
+    // Validate it's valid JSON with required SA fields
+    let parsed: any;
+    try {
+      parsed = JSON.parse(firebase_sa_json);
+    } catch {
+      return res.status(400).json({ error: "JSON غير صالح — تأكد من نسخ الملف كاملاً" });
+    }
+    if (parsed.type !== "service_account" || !parsed.project_id || !parsed.private_key) {
+      return res.status(400).json({ error: "هذا ليس ملف Service Account صحيحاً — تأكد من تنزيله من Firebase Console" });
+    }
+
+    const vercelToken   = process.env.VERCEL_SELF_TOKEN;
+    const vercelProject = process.env.VERCEL_SELF_PROJECT_ID;
+    if (!vercelToken || !vercelProject) {
+      return res.status(500).json({ error: "VERCEL_SELF_TOKEN غير مضبوط في بيئة الخادم" });
+    }
+
+    // Check if env var already exists
+    const listResp = await fetch(
+      `https://api.vercel.com/v9/projects/${vercelProject}/env?decrypt=false`,
+      { headers: { Authorization: `Bearer ${vercelToken}` } }
+    );
+    const listData: any = await listResp.json();
+    const existing = (listData.envs ?? []).find((e: any) => e.key === "FIREBASE_SERVICE_ACCOUNT_JSON");
+
+    const payload = JSON.stringify({
+      key: "FIREBASE_SERVICE_ACCOUNT_JSON",
+      value: firebase_sa_json,
+      type: "encrypted",
+      target: ["production", "preview", "development"],
+    });
+
+    const upsertResp = existing?.id
+      ? await fetch(
+          `https://api.vercel.com/v9/projects/${vercelProject}/env/${existing.id}`,
+          { method: "PATCH", headers: { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" }, body: payload }
+        )
+      : await fetch(
+          `https://api.vercel.com/v10/projects/${vercelProject}/env`,
+          { method: "POST", headers: { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" }, body: payload }
+        );
+
+    if (!upsertResp.ok) {
+      const errData: any = await upsertResp.json().catch(() => ({}));
+      return res.status(502).json({ error: errData?.error?.message ?? "فشل تحديث Vercel" });
+    }
+
+    // Trigger redeployment so env var takes effect immediately
+    const deployResp = await fetch(
+      `https://api.vercel.com/v13/deployments`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "api-server", gitSource: { type: "github", repoId: "almhbob/hasahisawi", ref: "master" } }),
+      }
+    );
+    const deployData: any = await deployResp.json().catch(() => ({}));
+
+    logger.info({ project_id: parsed.project_id }, "[set-firebase-creds] FIREBASE_SERVICE_ACCOUNT_JSON updated");
+    return res.json({
+      ok: true,
+      project_id: parsed.project_id,
+      deployment_id: deployData?.id ?? null,
+      message: "تم حفظ Firebase Service Account بنجاح. سيتم تطبيقه خلال دقيقة عند إعادة النشر.",
+    });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "set-firebase-credentials error");
+    return res.status(500).json({ error: e?.message ?? "Server error" });
+  }
+});
+
 // ── GET /api/admin/users-source-health ──────────────────────────────────────
 router.get("/admin/users-source-health", async (req: Request, res: Response): Promise<any> => {
   try {
