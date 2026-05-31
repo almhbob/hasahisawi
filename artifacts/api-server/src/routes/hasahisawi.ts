@@ -12,6 +12,13 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
+// Middleware: block every request until DB tables are ready (cold-start race fix)
+let _dbInitPromise: Promise<void> | null = null;
+router.use((_req: Request, _res: Response, next: NextFunction) => {
+  if (_dbInitPromise) return void _dbInitPromise.then(next, next);
+  next();
+});
+
 // Only create a real pool when DATABASE_URL is a valid external connection string.
 // Without this guard, pg opens TCP sockets that hang silently on hosted platforms
 // (e.g. Render) causing an ETIMEDOUT crash after ~60 s even when errors are caught.
@@ -136,7 +143,10 @@ function safeUserPayload(user: Record<string, unknown>) {
   };
 }
 
-export async function initHasahisawiDb() {
+export function initHasahisawiDb(): Promise<void> {
+  return (_dbInitPromise ??= _doInitHasahisawiDb());
+}
+async function _doInitHasahisawiDb(): Promise<void> {
   if (!pool) {
     logger.warn("initHasahisawiDb: skipped — no valid DATABASE_URL");
     return;
