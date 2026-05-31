@@ -12,12 +12,9 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-// Middleware: block every request until DB tables are ready (cold-start race fix)
+// DB init runs eagerly at module load — idempotent, non-blocking.
+// Each route that needs a specific table calls its own ensureXxx() instead.
 let _dbInitPromise: Promise<void> | null = null;
-router.use((_req: Request, _res: Response, next: NextFunction) => {
-  if (_dbInitPromise) return void _dbInitPromise.then(next, next);
-  next();
-});
 
 // Only create a real pool when DATABASE_URL is a valid external connection string.
 // Without this guard, pg opens TCP sockets that hang silently on hosted platforms
