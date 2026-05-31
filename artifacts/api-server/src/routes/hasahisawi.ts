@@ -3507,55 +3507,73 @@ router.get("/admin/users", async (req: Request, res: Response) => {
 });
 
 // ── POST /api/admin/sync-firebase-users — مزامنة Firebase → PostgreSQL ──────
-// يُرسل استجابة سريعة ثم يُكمل العملية في الخلفية (لتجاوز حد Vercel 10s)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request, res: Response): Promise<any> => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
 
-    // جلب مستخدمي Firebase أولاً (سريع — قراءة فقط)
     const firebaseUsers = await listAllFirebaseUsers();
     if (!firebaseUsers.length) {
-      return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, skipped: 0, errors: 0 });
+      return res.json({ firebase_total: 0, synced: 0, created: 0, updated: 0, errors: 0 });
     }
 
-    // معالجة دُفعية
-    let created = 0, updated = 0, skipped = 0, errors = 0;
+    let created = 0, updated = 0, errors = 0;
 
-    const BATCH = 25;
-    for (let i = 0; i < firebaseUsers.length; i += BATCH) {
-      const batch = firebaseUsers.slice(i, i + BATCH);
-      await Promise.allSettled(batch.map(async (fu) => {
-        try {
-          const name = fu.displayName || fu.email?.split("@")[0] || "مستخدم";
-          const result = await query(
-            `INSERT INTO users (firebase_uid, name, email, phone, password_hash, role, avatar_url)
-             VALUES ($1,$2,$3,$4,'$firebase$','user',$5)
-             ON CONFLICT (firebase_uid) DO UPDATE
-               SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
-                   avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
-                   email=COALESCE(EXCLUDED.email,users.email)
-             RETURNING xmax`,
-            [fu.uid, name, fu.email || null, fu.phoneNumber || null, fu.photoURL || null]
-          );
-          // xmax=0 → INSERT (created), xmax>0 → UPDATE
-          if (result.rows[0]?.xmax === "0") created++;
-          else updated++;
-        } catch {
-          // email conflict with different firebase_uid — try uid-only upsert
+    // Bulk UPSERT in chunks of 200 — far fewer round-trips than 25-at-a-time
+    const BULK = 200;
+    for (let i = 0; i < firebaseUsers.length; i += BULK) {
+      const batch = firebaseUsers.slice(i, i + BULK);
+      const placeholders = batch.map((_, j) =>
+        `($${j*5+1},$${j*5+2},$${j*5+3},$${j*5+4},$${j*5+5},'$firebase$','user')`
+      ).join(",");
+      const params = batch.flatMap(fu => [
+        fu.uid,
+        fu.displayName || fu.email?.split("@")[0] || "مستخدم",
+        fu.email || null,
+        fu.phoneNumber || null,
+        fu.photoURL || null,
+      ]);
+      try {
+        await query(
+          `INSERT INTO users (firebase_uid,name,email,phone,avatar_url,password_hash,role)
+           VALUES ${placeholders}
+           ON CONFLICT (firebase_uid) DO UPDATE
+             SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
+                 avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
+                 email=COALESCE(EXCLUDED.email,users.email)`,
+          params
+        );
+        updated += batch.length;
+      } catch {
+        // Fallback: process individually (handles email-conflict edge cases)
+        await Promise.allSettled(batch.map(async (fu) => {
           try {
-            await query(
-              `UPDATE users SET firebase_uid=$1, avatar_url=COALESCE($2,avatar_url) WHERE email=$3`,
-              [fu.uid, fu.photoURL || null, fu.email || null]
+            const result = await query(
+              `INSERT INTO users (firebase_uid,name,email,phone,password_hash,role,avatar_url)
+               VALUES ($1,$2,$3,$4,'$firebase$','user',$5)
+               ON CONFLICT (firebase_uid) DO UPDATE
+                 SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
+                     avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
+                     email=COALESCE(EXCLUDED.email,users.email)
+               RETURNING xmax`,
+              [fu.uid, fu.displayName || fu.email?.split("@")[0] || "مستخدم",
+               fu.email || null, fu.phoneNumber || null, fu.photoURL || null]
             );
-            updated++;
-          } catch { errors++; }
-        }
-      }));
+            if (result.rows[0]?.xmax === "0") created++;
+            else updated++;
+          } catch {
+            try {
+              await query(`UPDATE users SET firebase_uid=$1,avatar_url=COALESCE($2,avatar_url) WHERE email=$3`,
+                [fu.uid, fu.photoURL || null, fu.email || null]);
+              updated++;
+            } catch { errors++; }
+          }
+        }));
+      }
     }
 
-    logger.info({ firebase_total: firebaseUsers.length, created, updated, skipped, errors }, "[sync-firebase] complete");
-    return res.json({ firebase_total: firebaseUsers.length, synced: created + updated, created, updated, skipped, errors });
+    logger.info({ firebase_total: firebaseUsers.length, created, updated, errors }, "[sync-firebase] complete");
+    return res.json({ firebase_total: firebaseUsers.length, synced: created + updated, created, updated, errors });
 
   } catch (e: any) {
     logger.error({ err: e?.message }, "sync-firebase-users error");

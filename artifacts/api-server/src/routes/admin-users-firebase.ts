@@ -284,7 +284,7 @@ async function getUserCounts(): Promise<{ postgres_total: number; firebase_synce
   };
 }
 
-async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummary> {
+async function syncFirebaseUsersToPostgres(_detailLimit = 50): Promise<SyncSummary> {
   const health = firebaseConnectionHealth();
   if (!health.configured) {
     throw Object.assign(new Error(health.message), { code: health.status });
@@ -306,27 +306,46 @@ async function syncFirebaseUsersToPostgres(detailLimit = 50): Promise<SyncSummar
     details: [],
   };
 
-  for (const fu of firebaseUsers) {
-    try {
-      const action = await upsertFirebaseUser(fu);
-      if (action === "created") summary.created++;
-      else if (action === "updated") summary.updated++;
-      else summary.skipped++;
+  if (!firebaseUsers.length) return summary;
 
-      if (summary.details.length < detailLimit) {
-        summary.details.push({ uid: fu.uid, email: fu.email, action });
-      }
-    } catch (err) {
-      summary.errors++;
-      if (summary.details.length < detailLimit) {
-        summary.details.push({
-          uid: fu.uid,
-          email: fu.email,
-          action: "error",
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      logger.warn({ err, uid: fu.uid, email: fu.email }, "failed to sync firebase user");
+  // Bulk UPSERT in chunks of 200 — far fewer DB round-trips than one-by-one
+  const BULK = 200;
+  for (let i = 0; i < firebaseUsers.length; i += BULK) {
+    const batch = firebaseUsers.slice(i, i + BULK);
+    const placeholders = batch.map((_, j) =>
+      `($${j * 5 + 1},$${j * 5 + 2},$${j * 5 + 3},$${j * 5 + 4},$${j * 5 + 5},'${FIREBASE_ONLY_PASSWORD_MARKER}','user')`
+    ).join(",");
+    const params = batch.flatMap(fu => [
+      fu.uid,
+      displayNameForFirebaseUser(fu),
+      fu.email || null,
+      fu.phoneNumber || null,
+      fu.photoURL || null,
+    ]);
+    try {
+      await query(
+        `INSERT INTO users (firebase_uid,name,email,phone,avatar_url,password_hash,role)
+         VALUES ${placeholders}
+         ON CONFLICT (firebase_uid) DO UPDATE
+           SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
+               avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
+               email=COALESCE(EXCLUDED.email,users.email)`,
+        params
+      );
+      summary.updated += batch.length;
+    } catch {
+      // Fallback: process individually to handle email-conflict edge cases
+      await Promise.allSettled(batch.map(async (fu) => {
+        try {
+          const action = await upsertFirebaseUser(fu);
+          if (action === "created") summary.created++;
+          else if (action === "updated") summary.updated++;
+          else summary.skipped++;
+        } catch (err) {
+          summary.errors++;
+          logger.warn({ err, uid: fu.uid }, "failed to sync firebase user");
+        }
+      }));
     }
   }
 
@@ -399,21 +418,8 @@ router.get("/admin/users", async (req: Request, res: Response) => {
 
     const limit = parsePositiveInt(req.query.limit, DEFAULT_ADMIN_USERS_LIMIT, MAX_ADMIN_USERS_LIMIT);
     const offset = parseOffset(req.query.offset);
-    const shouldSync = req.query.sync !== "false";
-    let sync: SyncSummary | { skipped: true; reason: string; firebase: FirebaseConnectionHealth } | null = null;
-
-    if (shouldSync) {
-      try {
-        sync = await syncFirebaseUsersToPostgres(20);
-      } catch (err) {
-        sync = {
-          skipped: true,
-          reason: err instanceof Error ? err.message : String(err),
-          firebase: firebaseConnectionHealth(),
-        };
-        logger.warn({ err }, "admin users automatic firebase sync skipped");
-      }
-    }
+    // Sync is opt-in only — never run automatically on page load
+    const sync = null;
 
     const listed = await listPostgresUsers({
       search: typeof req.query.search === "string" ? req.query.search : undefined,
