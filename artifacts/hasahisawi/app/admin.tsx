@@ -1741,6 +1741,50 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   const [sub, setSub] = React.useState<JoinSub>("student_union");
   const [items, setItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // مدراء الاتحادات
+  const [mgrView, setMgrView] = React.useState<"apps" | "managers">("apps");
+  const [managers, setManagers] = React.useState<any[]>([]);
+  const [mgrLoading, setMgrLoading] = React.useState(false);
+  const [mgrActing, setMgrActing] = React.useState<number | null>(null);
+
+  const loadManagers = React.useCallback(() => {
+    setMgrLoading(true);
+    fetch(`${apiBase}/api/admin/union-managers`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setManagers(Array.isArray(d) ? d : []))
+      .catch(() => setManagers([])).finally(() => setMgrLoading(false));
+  }, [token, apiBase]);
+
+  React.useEffect(() => {
+    if (sub === "union_manager" && mgrView === "managers") loadManagers();
+  }, [sub, mgrView, loadManagers]);
+
+  async function toggleManager(id: number, is_active: boolean) {
+    setMgrActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/union-managers/${id}/status`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active }),
+      });
+      if (r.ok) setManagers(prev => prev.map(m => m.id === id ? { ...m, is_active } : m));
+      else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل التحديث"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setMgrActing(null); }
+  }
+
+  async function deleteManager(id: number, name: string) {
+    Alert.alert("تأكيد الحذف", `هل تريد حذف حساب "${name}" نهائياً؟ لا يمكن التراجع.`, [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: async () => {
+        setMgrActing(id);
+        try {
+          const r = await fetch(`${apiBase}/api/admin/union-managers/${id}`, {
+            method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+          });
+          if (r.ok) setManagers(prev => prev.filter(m => m.id !== id));
+          else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل الحذف"); }
+        } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setMgrActing(null); }
+      }},
+    ]);
+  }
 
   const SUB_TABS: { key: JoinSub; label: string }[] = [
     { key: "student_union",  label: "إتحاد الطلاب" },
@@ -2012,6 +2056,98 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
           );
         })}
       </ScrollView>
+
+      {/* ─── عرض إدارة مدراء الاتحادات ─── */}
+      {sub === "union_manager" && (
+        <View style={{ marginTop: 8 }}>
+          {/* toggle الطلبات / المدراء */}
+          <View style={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingBottom: 10 }}>
+            {(["apps", "managers"] as const).map(v => (
+              <TouchableOpacity key={v} onPress={() => setMgrView(v)}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
+                  backgroundColor: mgrView === v ? "#059669" : "#FFFFFF0A",
+                  borderWidth: 1, borderColor: mgrView === v ? "#059669" : "#FFFFFF15" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: mgrView === v ? "#fff" : "#9CA3AF" }}>
+                  {v === "apps" ? "الطلبات" : "المدراء"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {mgrView === "managers" && (
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+              {/* زر تصدير CSV للمدراء */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 10, gap: 8 }}>
+                <TouchableOpacity onPress={() => exportToCSV(managers.map(m => ({ الاسم: m.full_name, اسم_المستخدم: m.username, الهاتف: m.phone||"", البريد: m.email||"", الحالة: m.is_active ? "نشط" : "معلق", تاريخ_الإنشاء: m.created_at ? new Date(m.created_at).toLocaleDateString("ar-SA") : "" })), "مدراء_الاتحادات.csv")}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+                  <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={loadManagers}
+                  style={{ paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+                  <Ionicons name="refresh" size={13} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" }}>{managers.length} مدير</Text>
+              </View>
+
+              {mgrLoading ? <ActivityIndicator color="#059669" style={{ marginTop: 30 }} /> :
+               managers.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 30 }}>لا يوجد مدراء مسجلون</Text>
+              ) : managers.map(m => (
+                <View key={m.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+                  borderColor: m.is_active ? "#05966940" : "#EF444440", padding: 14, marginBottom: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{m.full_name}</Text>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                      backgroundColor: m.is_active ? "#05966920" : "#EF444420" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10,
+                        color: m.is_active ? "#10B981" : "#EF4444" }}>
+                        {m.is_active ? "● نشط" : "◌ معلق"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                    اسم المستخدم: <Text style={{ color: Colors.text, fontFamily: "Cairo_600SemiBold" }}>{m.username}</Text>
+                  </Text>
+                  {m.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>📞 {m.phone}</Text>}
+                  {m.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{m.institution}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>
+                    {new Date(m.created_at).toLocaleDateString("ar-SA")}
+                  </Text>
+
+                  <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+                    {/* تعليق / تفعيل */}
+                    <TouchableOpacity
+                      onPress={() => toggleManager(m.id, !m.is_active)}
+                      disabled={mgrActing === m.id}
+                      style={{ flex: 2, paddingVertical: 9, borderRadius: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
+                        backgroundColor: m.is_active ? "#F59E0B20" : "#05966920",
+                        borderWidth: 1, borderColor: m.is_active ? "#F59E0B50" : "#05966950" }}>
+                      {mgrActing === m.id ? <ActivityIndicator size="small" color={m.is_active ? "#F59E0B" : "#10B981"} /> : (
+                        <>
+                          <Ionicons name={m.is_active ? "pause-circle-outline" : "play-circle-outline"} size={15} color={m.is_active ? "#F59E0B" : "#10B981"} />
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: m.is_active ? "#F59E0B" : "#10B981" }}>
+                            {m.is_active ? "تعليق النشاط" : "إعادة التفعيل"}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    {/* حذف */}
+                    <TouchableOpacity
+                      onPress={() => deleteManager(m.id, m.full_name)}
+                      disabled={mgrActing === m.id}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
+                        backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444450" }}>
+                      <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
     </View>
   );
 }

@@ -17461,6 +17461,59 @@ router.post("/admin/seed-union-manager", async (req: Request, res: Response) => 
   } catch (e: any) { logger.error({ err: e }, "seed-union-manager"); return res.status(500).json({ error: "Server error" }); }
 });
 
+// ── GET /api/admin/union-managers — قائمة جميع مدراء الاتحادات
+router.get("/admin/union-managers", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const r = await query(
+      `SELECT m.id, m.full_name, m.title, m.username, m.phone, m.email,
+              m.is_active, m.created_at,
+              a.full_name AS app_full_name, a.institution, a.major, a.status AS app_status
+       FROM union_managers m
+       LEFT JOIN union_manager_applications a ON a.id = m.application_id
+       ORDER BY m.created_at DESC`
+    );
+    return res.json(r.rows);
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/union-managers/:id/status — تعليق أو تفعيل مدير
+router.patch("/admin/union-managers/:id/status", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const id = parseInt(req.params.id, 10);
+    const { is_active } = req.body as { is_active?: boolean };
+    if (typeof is_active !== "boolean") return res.status(400).json({ error: "is_active مطلوب" });
+    const r = await query(
+      `UPDATE union_managers SET is_active=$1 WHERE id=$2 RETURNING id, full_name, username, is_active`,
+      [is_active, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "المدير غير موجود" });
+    // إلغاء جلسات المعلَّق
+    if (!is_active) await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1`, [id]);
+    logger.info({ id, is_active }, "[admin] union manager status changed");
+    return res.json(r.rows[0]);
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/admin/union-managers/:id — حذف مدير
+router.delete("/admin/union-managers/:id", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const id = parseInt(req.params.id, 10);
+    const check = await query(`SELECT id, full_name FROM union_managers WHERE id=$1`, [id]);
+    if (!check.rows.length) return res.status(404).json({ error: "المدير غير موجود" });
+    // حذف الجلسات والبيانات المرتبطة ثم السجل
+    await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1`, [id]);
+    await query(`DELETE FROM union_managers WHERE id=$1`, [id]);
+    logger.info({ id, name: check.rows[0].full_name }, "[admin] union manager deleted");
+    return res.json({ ok: true, deleted: check.rows[0].full_name });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
 // ─── POST /api/admin/send-invitations ─────────────────────────────────────
 // يرسل دعوات انضمام بالبريد الإلكتروني لقائمة مؤسسات ولاية الجزيرة
 const INVITATION_HTML = (orgName: string) => `<!DOCTYPE html>
