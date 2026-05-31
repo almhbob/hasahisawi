@@ -161,6 +161,25 @@ const AD_STATUS_META: Record<string, { label: string; color: string; icon: keyof
   expired:  { label: "منتهي",        color: Colors.textMuted, icon: "ban-outline"         },
 };
 
+// ─── CSV Export Helper ────────────────────────────────────────────────────────
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (!rows.length) { Alert.alert("لا توجد بيانات", "لا توجد سجلات للتصدير"); return; }
+  if (Platform.OS !== "web") { Alert.alert("متاح على الويب فقط", "افتح لوحة الإدارة عبر المتصفح لتحميل الملف"); return; }
+
+  const cols = Object.keys(rows[0]);
+  const escape = (v: any) => {
+    const s = v == null ? "" : String(v).replace(/"/g, '""');
+    return /[",\n\r]/.test(s) ? `"${s}"` : s;
+  };
+  const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
+  const bom = "﻿"; // BOM for Arabic in Excel
+  const blob = new (globalThis as any).Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  const url = (globalThis as any).URL.createObjectURL(blob);
+  const a = (globalThis as any).document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  (globalThis as any).URL.revokeObjectURL(url);
+}
+
 // ─── API Helper ─────────────────────────────────────────────────────────────
 function apiFetch(
   path: string,
@@ -440,8 +459,8 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      {/* View toggle */}
-      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
+      {/* View toggle + Export */}
+      <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14, alignItems: "center" }}>
         {(["apps", "active"] as const).map(v => (
           <TouchableOpacity key={v} onPress={() => setView(v)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: view === v ? "#8B5CF6" : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: view === v ? "#8B5CF6" : "#FFFFFF10" }}>
             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: view === v ? "#fff" : "#9CA3AF" }}>
@@ -449,6 +468,11 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          onPress={() => { const data = view === "apps" ? apps : lawyers; exportToCSV(data.map(x => ({ الاسم: x.full_name||x.name||"", الهاتف: x.phone||"", البريد: x.email||"", التخصص: x.specialization||"", الحالة: x.status||"", التاريخ: x.created_at ? new Date(x.created_at).toLocaleDateString("ar-SA") : "" })), view === "apps" ? "طلبات_المحامين.csv" : "المحامون.csv"); }}
+          style={{ paddingHorizontal: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#FFFFFF08", alignItems: "center", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+          <Ionicons name="download-outline" size={15} color={Colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       {view === "apps" && (
@@ -1227,12 +1251,19 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
       </Modal>
 
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
-          <Ionicons name="refresh" size={14} color={Colors.textMuted} />
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
-            {lastUpdated.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+          <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+            <Ionicons name="refresh" size={14} color={Colors.textMuted} />
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
+              {lastUpdated.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => exportToCSV(apps.map(a => ({ الاسم: a.full_name||a.applicant_name||"", الهاتف: a.phone||"", المؤسسة: a.institution||"", التخصص: a.major||"", الحالة: a.status||"", التاريخ: a.created_at ? new Date(a.created_at).toLocaleDateString("ar-SA") : "" })), "طلبات_اتحاد_الطلاب.csv")}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+            <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+          </TouchableOpacity>
+        </View>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
           {pendingCount > 0 && (
             <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#EF444420" }}>
@@ -1885,6 +1916,19 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
         </View>
       </Modal>
 
+      <View style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 6, gap: 8 }}>
+        <TouchableOpacity
+          onPress={() => {
+            const LABELS: Record<JoinSub, string> = { student_union: "اتحاد_الطلاب", women: "النساء", occasions: "مناسبتي", union_partner: "شراكات_الاتحادات", union_manager: "مديرو_الاتحادات", edu_reg: "تسجيل_طلاب", edu_transfer: "نقل_قيد", travel_agency: "وكالات_سفر" };
+            const rows = items.map(x => ({ الاسم: x.full_name||x.contact_person||x.name||x.applicant_name||"", الهاتف: x.phone||"", البريد: x.email||"", الحالة: x.status||"", التاريخ: x.created_at ? new Date(x.created_at).toLocaleDateString("ar-SA") : "" }));
+            exportToCSV(rows, `طلبات_${LABELS[sub]}.csv`);
+          }}
+          style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
+          <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" }}>{items.length} سجل</Text>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
         contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
         {SUB_TABS.map(t => (
