@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import QRCode from "react-native-qrcode-svg";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Platform, Alert, Modal, Share, Linking,
+  TextInput, Platform, Alert, Modal, Share, Linking, KeyboardAvoidingView,
   ActivityIndicator, FlatList, Pressable, Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -381,6 +381,16 @@ function PaymentInstructions({
   );
 }
 
+function getUpcomingTravelDates() {
+  return Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() + index);
+    const iso = date.toISOString().slice(0, 10);
+    const label = index === 0 ? "اليوم" : index === 1 ? "غداً" : date.toLocaleDateString("ar-SD", { weekday: "short", day: "numeric", month: "short" });
+    return { iso, label };
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════
 // نموذج الحجز
 // ═══════════════════════════════════════════════════════════════
@@ -453,7 +463,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
         if (reminderAt > new Date()) {
           await scheduleOccasionReminder(
             {
-              title: "✈️ تذكير — رحلتك بعد ساعتين!",
+              title: "🚌 تذكير — رحلتك بعد ساعتين!",
               body:  `رحلتك من ${fromCity} إلى ${toCity} تنطلق في تمام ${selectedRoute?.departure_time || ""}. تذكرتك: ${data.ticket_number}`,
               data:  { type:"travel_reminder", booking_id: data.id },
             },
@@ -526,7 +536,8 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 
   if (step === "confirm") {
     return (
-      <ScrollView contentContainerStyle={{ padding:16 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }} keyboardVerticalOffset={90}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding:16, paddingBottom:180 }}>
         <View style={styles.sectionHeader}>
           <TouchableOpacity onPress={()=>setStep("route")} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={20} color={Colors.text} />
@@ -539,7 +550,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
             <MaterialCommunityIcons name="bus" size={24} color={ACCENT2} />
             <Text style={styles.confirmCity}>{toCity}</Text>
           </View>
-          <Text style={styles.confirmCompany}>{selectedRoute?.company_name}</Text>
+          <View style={styles.confirmCompanyBadge}><Ionicons name="business-outline" size={14} color={ACCENT2} /><Text style={styles.confirmCompanyBadgeText}>{selectedRoute?.company_name}</Text></View>
           <Text style={styles.confirmTime}>المغادرة: {selectedRoute?.departure_time}</Text>
           <Text style={styles.confirmPrice}>{Number(selectedRoute?.price||0).toLocaleString("ar")} ج.س</Text>
         </LinearGradient>
@@ -551,15 +562,24 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
         <TextInput style={styles.input} value={passengerPhone} onChangeText={setPassengerPhone}
           placeholder="09XXXXXXXX" keyboardType="phone-pad" />
 
-        <Text style={styles.fieldLabel}>تاريخ السفر * (YYYY-MM-DD)</Text>
-        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate}
-          placeholder="2026-05-20" keyboardType="numeric" maxLength={10} />
+        <Text style={styles.fieldLabel}>تاريخ السفر *</Text>
+        <View style={styles.dateChipGrid}>
+          {getUpcomingTravelDates().map((date) => (
+            <TouchableOpacity key={date.iso} onPress={() => setTravelDate(date.iso)} style={[styles.dateChip, travelDate === date.iso && styles.dateChipActive]}>
+              <Ionicons name="calendar-outline" size={14} color={travelDate === date.iso ? "#fff" : ACCENT} />
+              <Text style={[styles.dateChipText, travelDate === date.iso && styles.dateChipTextActive]}>{date.label}</Text>
+              <Text style={[styles.dateChipSub, travelDate === date.iso && styles.dateChipTextActive]}>{date.iso}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor="#4B6A8A" keyboardType="numbers-and-punctuation" maxLength={10} />
 
         <AnimatedPress onPress={submitBooking} style={[styles.bookBtn, submitting && { opacity:0.6 }]}>
           {submitting ? <ActivityIndicator color="#fff" />
             : <><MaterialCommunityIcons name="bus-clock" size={20} color="#fff" /><Text style={styles.bookBtnText}>تأكيد الحجز</Text></>}
         </AnimatedPress>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -882,7 +902,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
       {/* وكالات السفر والسياحة */}
       <AnimatedPress onPress={() => router.push("/travel-agencies" as any)}>
         <LinearGradient colors={["#0A1A2E","#1D4ED8"]} style={[styles.partnerBanner, { marginBottom:10 }]}>
-          <MaterialCommunityIcons name="airplane" size={32} color="#93C5FD" />
+          <MaterialCommunityIcons name="bus" size={32} color="#93C5FD" />
           <View style={{ flex:1, marginStart:12 }}>
             <Text style={styles.partnerBannerTitle}>وكالات السفر والسياحة</Text>
             <Text style={styles.partnerBannerSub}>دليل الوكالات المعتمدة — محلية ودولية — وسجّل وكالتك</Text>
@@ -914,6 +934,31 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
           </Text>
         </View>
       )}
+
+      <Text style={styles.sectionTitle}>مساحة وكالات السفر والسياحة</Text>
+      <View style={styles.agencyPanel}>
+        <View style={styles.agencyHeroIcon}>
+          <MaterialCommunityIcons name="office-building-marker-outline" size={30} color={ACCENT2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.agencyTitle}>بوابة احترافية للوكالات</Text>
+          <Text style={styles.agencySub}>استقبال الحجوزات، إدارة العروض، متابعة الاشتراكات، وتنسيق الرحلات السياحية من مكان واحد.</Text>
+        </View>
+      </View>
+      <View style={styles.agencyGrid}>
+        {[
+          ["calendar-clock", "طلبات الحجز", "متابعة الطلبات الواردة"],
+          ["tag-multiple-outline", "العروض السياحية", "باقات ورحلات موسمية"],
+          ["account-tie-outline", "ملفات الوكالات", "بيانات الترخيص والاتصال"],
+          ["credit-card-check-outline", "الاشتراكات", "تفعيل وتجديد الباقات"],
+        ].map(([icon, title, sub]) => (
+          <View key={title} style={styles.agencyFeatureCard}>
+            <MaterialCommunityIcons name={icon as any} size={24} color={ACCENT2} />
+            <Text style={styles.agencyFeatureTitle}>{title}</Text>
+            <Text style={styles.agencyFeatureSub}>{sub}</Text>
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.sectionTitle}>شركاؤنا الحاليون</Text>
       {companies.length === 0 ? (
@@ -1025,7 +1070,7 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
           <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.contractBadge}>
             <Ionicons name="document-text" size={32} color={ACCENT2} />
             <Text style={styles.contractBadgeTitle}>عقد شراكة رسمي</Text>
-            <Text style={styles.contractBadgeSub}>تطبيق حصاحيصاوي — خدمة تذاكر السفر</Text>
+            <Text style={styles.contractBadgeSub}>تطبيق حصاحيصاوي — خدمة السفريات</Text>
           </LinearGradient>
           <Text style={styles.contractBody}>{contractText}</Text>
           <AnimatedPress onPress={()=>{
@@ -1047,7 +1092,7 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
 function shareTicket(booking: TravelBooking) {
   const dateStr = new Date(booking.travel_date).toLocaleDateString("ar-SD");
   const msg = `
-✈️ تذكرة سفر — حصاحيصاوي
+🚌 تذكرة سفر — حصاحيصاوي
 
 🏙️ من: ${booking.from_city}
 🏙️ إلى: ${booking.to_city}
@@ -1065,7 +1110,7 @@ function shareTicket(booking: TravelBooking) {
 function sendToWhatsApp(booking: TravelBooking) {
   const dateStr = new Date(booking.travel_date).toLocaleDateString("ar-SD");
   const msg = `
-✈️ تذكرة سفر — حصاحيصاوي
+🚌 تذكرة سفر — حصاحيصاوي
 ━━━━━━━━━━━━━━━━━
 من: ${booking.from_city} ← إلى: ${booking.to_city}
 تاريخ: ${dateStr} | ${booking.departure_time || ""}
@@ -1200,6 +1245,12 @@ const styles = StyleSheet.create({
 
   fieldLabel:      { fontSize:13, color:Colors.textMuted, marginBottom:4, marginTop:12 },
   input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.borderSubtle },
+  dateChipGrid:    { flexDirection:"row", flexWrap:"wrap", gap:8, marginBottom:10 },
+  dateChip:        { minWidth:"30%", flexGrow:1, backgroundColor:Colors.cardBg, borderRadius:12, paddingVertical:10, paddingHorizontal:10, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"center", gap:3 },
+  dateChipActive:  { backgroundColor:ACCENT, borderColor:ACCENT },
+  dateChipText:    { color:Colors.text, fontSize:12, fontWeight:"700" },
+  dateChipSub:     { color:Colors.textMuted, fontSize:10, fontWeight:"600" },
+  dateChipTextActive:{ color:"#fff" },
 
   bookBtn:         { flexDirection:"row", backgroundColor:ACCENT, borderRadius:14, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
   bookBtnText:     { color:"#fff", fontWeight:"700", fontSize:16 },
@@ -1225,6 +1276,8 @@ const styles = StyleSheet.create({
   confirmRoute:    { flexDirection:"row", alignItems:"center", gap:12, marginBottom:8 },
   confirmCity:     { fontSize:18, fontWeight:"700", color:"#fff" },
   confirmCompany:  { fontSize:14, color:"#93C5FD", marginBottom:4 },
+  confirmCompanyBadge:{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#ffffff12", borderWidth:1, borderColor:ACCENT2+"35", paddingHorizontal:12, paddingVertical:6, borderRadius:999, marginBottom:6 },
+  confirmCompanyBadgeText:{ fontSize:14, color:"#E0F2FE", fontWeight:"800" },
   confirmTime:     { fontSize:13, color:"#CBD5E1" },
   confirmPrice:    { fontSize:24, fontWeight:"800", color:GOLD, marginTop:8 },
 
@@ -1295,6 +1348,15 @@ const styles = StyleSheet.create({
   emptySub:        { fontSize:13, color:Colors.textMuted, textAlign:"center", maxWidth:260 },
 
   // الشركاء
+  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:"#0F2744", borderRadius:18, borderWidth:1, borderColor:ACCENT+"35", padding:16, marginBottom:12 },
+  agencyHeroIcon:   { width:56, height:56, borderRadius:18, backgroundColor:ACCENT+"18", borderWidth:1, borderColor:ACCENT+"35", justifyContent:"center", alignItems:"center" },
+  agencyTitle:      { color:"#fff", fontSize:16, fontWeight:"900", textAlign:"right", marginBottom:4 },
+  agencySub:        { color:"#93C5FD", fontSize:12, lineHeight:19, textAlign:"right" },
+  agencyGrid:       { flexDirection:"row-reverse", flexWrap:"wrap", gap:10, marginBottom:18 },
+  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderRadius:16, padding:14, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"flex-end", gap:6 },
+  agencyFeatureTitle:{ color:Colors.text, fontSize:13, fontWeight:"800", textAlign:"right" },
+  agencyFeatureSub: { color:Colors.textMuted, fontSize:11, lineHeight:17, textAlign:"right" },
+
   partnerBanner:   { borderRadius:16, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
   partnerBannerTitle:{ color:"#fff", fontWeight:"700", fontSize:15, marginBottom:4 },
   partnerBannerSub:{ color:"#93C5FD", fontSize:12, lineHeight:18 },

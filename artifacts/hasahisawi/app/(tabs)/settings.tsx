@@ -3928,7 +3928,7 @@ const contactSty = StyleSheet.create({
     paddingHorizontal: 4,
   },
   // أزرار ثانوية (اتصال / إيميل)
-  btnRow: { flexDirection: "row-reverse", gap: 10 },
+  btnRow: { flexDirection: "row-reverse", gap: 10, flexWrap: "wrap" },
   btn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 7, paddingVertical: 12, borderRadius: 14,
@@ -3971,10 +3971,10 @@ const legalSty = StyleSheet.create({
     marginLeft: 10,
   },
   btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.2 },
-  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 1 },
+  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2, lineHeight: 18, flexShrink: 1 },
   divider:  { height: 0.5, backgroundColor: Colors.divider, marginVertical: 4 },
   infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1 },
+  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1, lineHeight: 18, flexShrink: 1 },
 });
 
 const profileCompleteSty = StyleSheet.create({

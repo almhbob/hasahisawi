@@ -86,13 +86,13 @@ function ServiceGridItem({
         <View style={[styles.gridItem, (item.soon || isSoonOrMaint) && { opacity: 0.88 }]}>
           {/* توهج خلفي للبطاقة */}
           <View style={[styles.gridGlow, { backgroundColor: item.color + "12" }]} />
-          <View style={[styles.gridIconWrap, { backgroundColor: item.color + "18", borderColor: item.color + "40" }]}>
+          <View style={[styles.gridIconWrap, { backgroundColor: item.color + "14", borderColor: item.color + "30" }]}>
             {item.iconType === "ionicons"
-              ? <Ionicons name={item.icon} size={22} color={item.color} />
-              : <MaterialCommunityIcons name={item.icon} size={22} color={item.color} />}
+              ? <Ionicons name={item.icon} size={19} color={item.color} />
+              : <MaterialCommunityIcons name={item.icon} size={19} color={item.color} />}
           </View>
-          <Text style={styles.gridLabel} numberOfLines={1}>{item.label}</Text>
-          <Text style={styles.gridSub} numberOfLines={1}>{item.sub}</Text>
+          <Text style={styles.gridLabel} numberOfLines={2}>{item.label}</Text>
+          <Text style={styles.gridSub} numberOfLines={2}>{item.sub}</Text>
           {/* شارة ديناميكية لمشوارك علينا */}
           {badge && (
             <View style={[styles.soonBadge, { backgroundColor: badge.bg }]}>
@@ -195,16 +195,16 @@ export default function HomeScreen() {
     { id: "sports",    label: t('home','sports').label,          sub: t('home','sports').sub,           icon: "football",          iconType: "ionicons"  as const, color: "#27AE68", bg: "#27AE6820", route: "/(tabs)/sports"    as const },
     { id: "culture",   label: t('home','culture').label,         sub: t('home','culture').sub,          icon: "palette",           iconType: "material"  as const, color: "#FF4FA3", bg: "#FF4FA320", route: "/(tabs)/culture"   as const },
     { id: "social",    label: t('home','social').label,          sub: t('home','social').sub,           icon: "chatbubbles",       iconType: "ionicons"  as const, color: "#3E9CBF", bg: "#3E9CBF20", route: "/(tabs)/social"    as const },
-    { id: "calendar",  label: t('home','calendarService').label, sub: t('home','calendarService').sub,  icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/calendar"  as const },
+    { id: "calendar",  label: "التقويم", sub: t('home','calendarService').sub,  icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent, bg: Colors.accent+"20", route: "/(tabs)/calendar"  as const },
     { id: "women",     label: t('home','womenService').label,    sub: t('home','womenService').sub,     icon: "face-woman",        iconType: "material"  as const, color: "#FF4FA3", bg: "#FF4FA320", route: "/(tabs)/women"     as const },
-    { id: "orgs",        label: t('home','orgsService').label,     sub: t('home','orgsService').sub,      icon: "hand-heart",        iconType: "material"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/orgs"         as const },
+    { id: "orgs",        label: "المنظمات",     sub: t('home','orgsService').sub,      icon: "hand-heart",        iconType: "material"  as const, color: "#A855F7", bg: "#A855F720", route: "/(tabs)/orgs"         as const },
     { id: "communities", label: "الجاليات",                          sub: "مجتمعات المنطقة",                 icon: "earth",             iconType: "ionicons"  as const, color: Colors.cyber, bg: Colors.cyber+"20", route: "/(tabs)/communities"  as const },
-    { id: "appointments",label: "حجز المواعيد",                    sub: "صحي ومجتمعي",                    icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
+    { id: "appointments",label: "المواعيد",                    sub: "صحي ومجتمعي",                    icon: "calendar",          iconType: "ionicons"  as const, color: Colors.accent,  bg: Colors.accent+"20",    route: "/(tabs)/appointments" as const },
     { id: "reports",   label: "التبليغ السريع",                   sub: "مياه · كهرباء · بيئة",           icon: "megaphone",         iconType: "ionicons"  as const, color: Colors.danger,  bg: Colors.danger+"20",    route: "/(tabs)/reports"      as const },
     { id: "numbers",   label: "أرقام مهمة",                       sub: "طوارئ وخدمات",                   icon: "call",              iconType: "ionicons"  as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/numbers"      as const },
-    { id: "transport", label: "مشاويرك علينا وخدمات التوصيل",      sub: "سيارات · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, rideStatus: ride_status },
-    { id: "telecom",   label: "شركات الاتصالات",                     sub: "MTN · Zain · Sudani · عروض",      icon: "cellular",          iconType: "ionicons"  as const, color: "#0EA5E9",  bg: "#0EA5E920",    route: "/(tabs)/telecom"      as const },
-    { id: "unions",    label: "النقابات المهنية",                    sub: "انضمام · إعلانات · عضوية",         icon: "people-circle-outline", iconType: "ionicons" as const, color: "#8B5CF6",  bg: "#8B5CF620",    route: "/(tabs)/unions"       as const },
+    { id: "transport", label: "مشاويرك علينا",      sub: "توصيل · ركشات · طلبات",         icon: "car-side",          iconType: "material"  as const, color: "#F97316",  bg: "#F9731620",    route: "/(tabs)/transport"    as const, rideStatus: ride_status },
+    { id: "telecom",   label: "الاتصالات",                     sub: "MTN · Zain · Sudani · عروض",      icon: "cellular",          iconType: "ionicons"  as const, color: "#0EA5E9",  bg: "#0EA5E920",    route: "/(tabs)/telecom"      as const },
+    { id: "unions",    label: "النقابات",                    sub: "انضمام · إعلانات · عضوية",         icon: "people-circle-outline", iconType: "ionicons" as const, color: "#8B5CF6",  bg: "#8B5CF620",    route: "/(tabs)/unions"       as const },
     { id: "rental",   label: "التأجير",                            sub: "عقارات · مناسبات · بناء",            icon: "home-city-outline",     iconType: "material" as const, color: "#3E9CBF",  bg: "#3E9CBF20",    route: "/(tabs)/rental"       as const },
     { id: "cv-builder", label: "منشئ السيرة الذاتية",             sub: "قوالب احترافية · PDF",                icon: "document-text-outline", iconType: "ionicons" as const, color: "#06B6D4",  bg: "#06B6D420",    route: "/(tabs)/cv-builder"   as const },
   ], [lang]);
