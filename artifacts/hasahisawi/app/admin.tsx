@@ -1724,17 +1724,26 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
   async function grantUnionManagerCredentials(id: number) {
     setGrantingUnionMgr(id);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
       const r = await fetch(`${apiBase}/api/admin/union-manager-apps/${id}/grant-credentials`, {
-        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        signal: controller.signal,
       });
-      const d = await r.json();
+      clearTimeout(timeout);
+      let d: any = {};
+      try { d = await r.json(); } catch { d = {}; }
       if (!r.ok) {
-        Alert.alert("خطأ", d.error || "تعذّر إنشاء بيانات الدخول");
+        Alert.alert("خطأ", d.error || `فشل الطلب (${r.status})`);
         return;
       }
       setGrantResult2({ username: d.username, temp_password: d.temp_password, full_name: d.full_name });
-    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    } catch (e: any) {
+      clearTimeout(timeout);
+      Alert.alert("خطأ", e?.name === "AbortError" ? "انتهت مهلة الطلب — حاول مجدداً" : "تعذّر الاتصال بالخادم");
+    }
     finally { setGrantingUnionMgr(null); }
   }
 
