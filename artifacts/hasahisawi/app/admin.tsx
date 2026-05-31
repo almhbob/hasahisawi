@@ -1655,6 +1655,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
   const [grantResult2, setGrantResult2] = React.useState<{ username: string; temp_password: string; full_name: string } | null>(null);
   const [granting2, setGranting2] = React.useState<number | null>(null);
+  const [grantingUnionMgr, setGrantingUnionMgr] = React.useState<number | null>(null);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -1719,6 +1720,22 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       if (!r.ok) { Alert.alert("خطأ", d.error || "تعذّر منح الصلاحيات"); return; }
       setGrantResult2({ username: d.username, temp_password: d.temp_password, full_name: d.full_name });
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); } finally { setGranting2(null); }
+  }
+
+  async function grantUnionManagerCredentials(id: number) {
+    setGrantingUnionMgr(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/union-manager-apps/${id}/grant-credentials`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        Alert.alert("خطأ", d.error || "تعذّر إنشاء بيانات الدخول");
+        return;
+      }
+      setGrantResult2({ username: d.username, temp_password: d.temp_password, full_name: d.full_name });
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setGrantingUnionMgr(null); }
   }
 
   function getTitle(item: any): string {
@@ -1818,7 +1835,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                   </TouchableOpacity>
                 </View>
               )}
-              {/* زر منح صلاحيات الاتحاد للمقبولين */}
+              {/* زر منح صلاحيات الاتحاد للمقبولين - طلبات الطلاب */}
               {sub === "student_union" && isApproved && (
                 <TouchableOpacity onPress={() => grantStudentUnionManager(item.id)} disabled={granting2 === item.id}
                   style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
@@ -1826,6 +1843,21 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     <>
                       <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح صلاحيات إدارة الإتحاد</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+              {/* زر منح بيانات الدخول لمديري الاتحادات المقبولين */}
+              {sub === "union_manager" && isApproved && (
+                <TouchableOpacity
+                  onPress={() => grantUnionManagerCredentials(item.id)}
+                  disabled={grantingUnionMgr === item.id}
+                  style={{ marginTop: 8, paddingVertical: 11, borderRadius: 10, backgroundColor: "#059669", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}
+                >
+                  {grantingUnionMgr === item.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                    <>
+                      <Ionicons name="key-outline" size={14} color="#fff" />
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح بيانات الدخول</Text>
                     </>
                   )}
                 </TouchableOpacity>

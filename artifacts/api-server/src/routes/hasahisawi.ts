@@ -17348,6 +17348,51 @@ router.patch("/admin/union-manager-apps/:id/status", async (req: Request, res: R
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 
+// POST /api/admin/union-manager-apps/:id/grant-credentials — منح بيانات دخول للمقبول
+router.post("/admin/union-manager-apps/:id/grant-credentials", async (req: Request, res: Response): Promise<any> => {
+  const me = await getSessionUser(req);
+  if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const appR = await query(`SELECT * FROM union_manager_applications WHERE id=$1`, [req.params.id]);
+    const app_ = appR.rows[0];
+    if (!app_) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (app_.status !== "approved") return res.status(400).json({ error: "يجب قبول الطلب أولاً قبل منح بيانات الدخول" });
+
+    // Check if already has an account
+    const existing = await query(`SELECT id, username FROM union_managers WHERE application_id=$1`, [app_.id]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: "هذا المتقدم لديه حساب مسبق", username: existing.rows[0].username });
+    }
+
+    // Auto-generate username from name + random suffix
+    const baseName = (app_.full_name as string)
+      .replace(/\s+/g, "_")
+      .replace(/[^؀-ۿ\w]/g, "")
+      .substring(0, 12)
+      .toLowerCase() || "union_mgr";
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    const username = `${baseName}_${suffix}`;
+
+    // Generate temporary password: 10-char alphanumeric
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const temp_password = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+
+    const hash = await bcrypt.hash(temp_password, 10);
+    await query(
+      `INSERT INTO union_managers (application_id, full_name, username, password_hash, phone, email)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [app_.id, app_.full_name, username, hash, app_.phone, app_.email]
+    );
+
+    logger.info({ app_id: app_.id, username }, "[grant-union-creds] credentials issued");
+    return res.status(201).json({ username, temp_password, full_name: app_.full_name });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "grant-union-credentials error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /api/admin/seed-union-manager  — إنشاء حساب تجريبي لاتحاد الطلاب (يُنفَّذ مرة واحدة)
 router.post("/admin/seed-union-manager", async (req: Request, res: Response) => {
   const me = await getSessionUser(req);
