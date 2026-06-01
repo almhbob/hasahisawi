@@ -5811,6 +5811,23 @@ router.delete("/admin/reports/:id", async (req: Request, res: Response) => {
   }
 });
 
+router.patch("/admin/reports/:id/status", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const allowed = ["pending", "received", "inProgress", "resolved", "dismissed"];
+    if (!allowed.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const r = await query(
+      `UPDATE citizen_reports SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [status, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json(r.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // مقترحات وشكاوى — Feedback
 // ══════════════════════════════════════════════════════
@@ -13364,6 +13381,52 @@ router.delete("/farmers/workers/:id", async (req: Request, res: Response) => {
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
+
+// ── إدارة السوق الزراعي (أدمن) ──────────────────────────────────────────────
+router.get("/admin/farmers", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const [crops, lands, tools, workers] = await Promise.all([
+      query(`SELECT fc.*, u.name as user_display_name FROM farmer_crops fc LEFT JOIN users u ON u.id=fc.user_id ORDER BY fc.created_at DESC LIMIT 300`),
+      query(`SELECT fl.*, u.name as user_display_name FROM farmer_lands fl LEFT JOIN users u ON u.id=fl.user_id ORDER BY fl.created_at DESC LIMIT 300`),
+      query(`SELECT ft.*, u.name as user_display_name FROM farmer_tools ft LEFT JOIN users u ON u.id=ft.user_id ORDER BY ft.created_at DESC LIMIT 300`),
+      query(`SELECT fw.*, u.name as user_display_name FROM farmer_workers fw LEFT JOIN users u ON u.id=fw.user_id ORDER BY fw.created_at DESC LIMIT 300`),
+    ]);
+    return res.json({ crops: crops.rows, lands: lands.rows, tools: tools.rows, workers: workers.rows });
+  } catch (err) { logger.error({ err }, "GET /admin/farmers"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/farmers/crops/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM farmer_crops WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/farmers/lands/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM farmer_lands WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/farmers/tools/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM farmer_tools WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/farmers/workers/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM farmer_workers WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
 
 // ══════════════════════════════════════════════════════════════════
 // الراعي الرسمي للتطبيق + قسم المصانع والإنتاج المحلي

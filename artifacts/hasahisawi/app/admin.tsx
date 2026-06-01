@@ -39,7 +39,7 @@ type Stats = {
   recentUsers: AdminUser[];
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -2571,6 +2571,44 @@ export default function AdminDashboard() {
   const [loadingAdminMerchants, setLoadingAdminMerchants] = useState(false);
   const [deletingMerchantId, setDeletingMerchantId] = useState<number | null>(null);
 
+  // ── Reports Admin ──
+  const [adminReports, setAdminReports] = useState<any[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [reportsActing, setReportsActing] = useState<number | null>(null);
+  const [reportsFilter, setReportsFilter] = useState<"all"|"pending"|"inProgress"|"resolved">("all");
+
+  // ── Missing Persons Admin ──
+  const [adminMissing, setAdminMissing] = useState<any[]>([]);
+  const [loadingMissing, setLoadingMissing] = useState(false);
+  const [missingActing, setMissingActing] = useState<number | null>(null);
+
+  // ── Emergency Numbers Admin ──
+  const [adminNumbers, setAdminNumbers] = useState<any[]>([]);
+  const [loadingNumbers, setLoadingNumbers] = useState(false);
+  const [numbersActing, setNumbersActing] = useState<number | null>(null);
+  const [showNumberForm, setShowNumberForm] = useState(false);
+  const [editingNumber, setEditingNumber] = useState<any | null>(null);
+  const [numForm, setNumForm] = useState({ name:"", number:"", category:"عام", icon:"call", color:"#F97316", note:"", sort_order:"99" });
+  const [savingNumber, setSavingNumber] = useState(false);
+
+  // ── Factories Admin ──
+  const [adminFactories, setAdminFactories] = useState<any[]>([]);
+  const [loadingFactories, setLoadingFactories] = useState(false);
+  const [factoriesActing, setFactoriesActing] = useState<number | null>(null);
+
+  // ── Farmers Admin ──
+  const [adminFarmers, setAdminFarmers] = useState<{ crops: any[]; lands: any[]; tools: any[]; workers: any[] }>({ crops:[], lands:[], tools:[], workers:[] });
+  const [loadingFarmers, setLoadingFarmers] = useState(false);
+  const [farmersActing, setFarmersActing] = useState<string | null>(null);
+  const [farmersSub, setFarmersSub] = useState<"crops"|"lands"|"tools"|"workers">("crops");
+
+  // ── Rentals Admin ──
+  const [adminRentals, setAdminRentals] = useState<any[]>([]);
+  const [adminContracts, setAdminContracts] = useState<any[]>([]);
+  const [loadingRentals, setLoadingRentals] = useState(false);
+  const [rentalsActing, setRentalsActing] = useState<number | null>(null);
+  const [rentalView, setRentalView] = useState<"listings"|"contracts">("listings");
+
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [savingPin, setSavingPin] = useState(false);
@@ -3214,6 +3252,65 @@ export default function AdminDashboard() {
     } catch {}
   }, [token]);
 
+  // ── load functions for new tabs ──────────────────────────────────────────
+  const loadAdminReports = useCallback(async () => {
+    setLoadingReports(true);
+    try {
+      const res = await apiFetch("/api/admin/reports", token);
+      if (res.ok) { const d = await safeJson(res); setAdminReports(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingReports(false); }
+  }, [token]);
+
+  const loadAdminMissing = useCallback(async () => {
+    setLoadingMissing(true);
+    try {
+      const res = await apiFetch("/api/admin/lost-items", token);
+      if (res.ok) { const d = await safeJson(res); setAdminMissing(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingMissing(false); }
+  }, [token]);
+
+  const loadAdminNumbers = useCallback(async () => {
+    setLoadingNumbers(true);
+    try {
+      const res = await apiFetch("/api/admin/emergency-numbers", token);
+      if (res.ok) { const d = await safeJson(res); setAdminNumbers(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingNumbers(false); }
+  }, [token]);
+
+  const loadAdminFactories = useCallback(async () => {
+    setLoadingFactories(true);
+    try {
+      const res = await apiFetch("/api/admin/factories", token);
+      if (res.ok) { const d = await safeJson(res); setAdminFactories(Array.isArray(d) ? d : d.factories ?? []); }
+    } catch {}
+    finally { setLoadingFactories(false); }
+  }, [token]);
+
+  const loadAdminFarmers = useCallback(async () => {
+    setLoadingFarmers(true);
+    try {
+      const res = await apiFetch("/api/admin/farmers", token);
+      if (res.ok) { const d = await safeJson(res); setAdminFarmers({ crops: d.crops??[], lands: d.lands??[], tools: d.tools??[], workers: d.workers??[] }); }
+    } catch {}
+    finally { setLoadingFarmers(false); }
+  }, [token]);
+
+  const loadAdminRentals = useCallback(async () => {
+    setLoadingRentals(true);
+    try {
+      const [rL, rC] = await Promise.all([
+        apiFetch("/api/admin/rentals", token),
+        apiFetch("/api/admin/rentals/contracts", token),
+      ]);
+      if (rL.ok) { const d = await safeJson(rL); setAdminRentals(Array.isArray(d) ? d : d.listings??[]); }
+      if (rC.ok) { const d = await safeJson(rC); setAdminContracts(Array.isArray(d) ? d : d.contracts??[]); }
+    } catch {}
+    finally { setLoadingRentals(false); }
+  }, [token]);
+
   const loadCommunities = useCallback(async () => {
     setLoadingCommunities(true);
     try {
@@ -3326,6 +3423,12 @@ export default function AdminDashboard() {
     if (tab === "libraries")       loadAdminLibraries();
     if (tab === "merchants_admin") loadAdminMerchants();
     if (tab === "phone_shops")     loadAdminPhoneShops();
+    if (tab === "reports_admin")   loadAdminReports();
+    if (tab === "missing_admin")   loadAdminMissing();
+    if (tab === "numbers_admin")   loadAdminNumbers();
+    if (tab === "factories_admin") loadAdminFactories();
+    if (tab === "farmers_admin")   loadAdminFarmers();
+    if (tab === "rentals_admin")   loadAdminRentals();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -3739,6 +3842,12 @@ export default function AdminDashboard() {
     { key: "lawyers_admin",    label: "المحامون",           icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
     { key: "designers_admin",  label: "المصممون",           icon: "color-palette",      color: "#F472B6",      adminOnly: true },
     { key: "join_requests",    label: "طلبات الانضمام",     icon: "person-add",         color: "#F59E0B",      adminOnly: true },
+    { key: "reports_admin",    label: "البلاغات",            icon: "warning",            color: "#EF4444",      adminOnly: true },
+    { key: "missing_admin",    label: "المفقودات",           icon: "search",             color: "#F97316",      adminOnly: true },
+    { key: "numbers_admin",    label: "الأرقام الهامة",      icon: "call",               color: "#10B981",      adminOnly: true },
+    { key: "factories_admin",  label: "المصانع",             icon: "business-outline" as any, color: "#6B7280", adminOnly: true },
+    { key: "farmers_admin",    label: "السوق الزراعي",       icon: "leaf",               color: "#16A34A",      adminOnly: true },
+    { key: "rentals_admin",    label: "الإيجارات",           icon: "home",               color: "#0EA5E9",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -6313,6 +6422,494 @@ export default function AdminDashboard() {
       ═══════════════════════════════════════════════════════ */}
       {tab === "join_requests" && isAdmin && (
         <AdminJoinRequestsTab token={token!} apiBase={getApiUrl()} />
+      )}
+
+      {/* ══ البلاغات ══ */}
+      {tab === "reports_admin" && isAdmin && (
+        <View style={{ flex: 1 }}>
+          {/* فلتر الحالة */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+            contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
+            {(["all","pending","inProgress","resolved"] as const).map(f => {
+              const FL: Record<string,string> = { all:"الكل", pending:"معلق", inProgress:"قيد المعالجة", resolved:"محلول" };
+              return (
+                <TouchableOpacity key={f} onPress={() => setReportsFilter(f)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                    backgroundColor: reportsFilter === f ? "#EF4444" : "#FFFFFF0A",
+                    borderWidth: 1, borderColor: reportsFilter === f ? "#EF4444" : "#FFFFFF15" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: reportsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loadingReports ? <ActivityIndicator color="#EF4444" style={{ marginTop: 40 }} /> :
+             (() => {
+               const filtered = reportsFilter === "all" ? adminReports : adminReports.filter(r => r.status === reportsFilter);
+               const SC: Record<string,string> = { pending:"#F59E0B", received:"#3B82F6", inProgress:"#F97316", resolved:"#10B981", dismissed:"#6B7280" };
+               const SL: Record<string,string> = { pending:"معلق", received:"استُلم", inProgress:"قيد المعالجة", resolved:"محلول", dismissed:"مُتجاهل" };
+               return filtered.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد بلاغات</Text>
+               ) : filtered.map(r => {
+                 const sc = SC[r.status] || "#F59E0B";
+                 return (
+                   <View key={r.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: sc+"30", borderRightWidth: 4, borderRightColor: sc, padding: 14, marginBottom: 12 }}>
+                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.issue || r.agency_name}</Text>
+                       {r.urgent && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#EF4444" }}>🚨 عاجل</Text></View>}
+                       <View style={{ backgroundColor: sc+"20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: sc }}>{SL[r.status]||r.status}</Text>
+                       </View>
+                     </View>
+                     {r.reporter_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.reporter_name} {r.phone ? `· ${r.phone}` : ""}</Text>}
+                     {r.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.location}</Text>}
+                     {r.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{r.description}</Text>}
+                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                     <View style={{ flexDirection: "row-reverse", gap: 6, flexWrap: "wrap" }}>
+                       {(["received","inProgress","resolved","dismissed"] as const).map(ns => ns !== r.status && (
+                         <TouchableOpacity key={ns} disabled={reportsActing === r.id}
+                           onPress={async () => {
+                             setReportsActing(r.id);
+                             try {
+                               const res = await apiFetch(`/api/admin/reports/${r.id}/status`, token, { method: "PATCH", body: JSON.stringify({ status: ns }) });
+                               if (res.ok) setAdminReports(prev => prev.map(x => x.id === r.id ? { ...x, status: ns } : x));
+                               else { const d = await safeJson(res); Alert.alert("خطأ", d.error); }
+                             } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setReportsActing(null); }
+                           }}
+                           style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: (SC[ns]||"#888")+"18", borderWidth: 1, borderColor: (SC[ns]||"#888")+"40" }}>
+                           <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[ns]||"#888" }}>{SL[ns]||ns}</Text>
+                         </TouchableOpacity>
+                       ))}
+                       <TouchableOpacity disabled={reportsActing === r.id}
+                         onPress={() => Alert.alert("حذف البلاغ", "هل تريد حذف هذا البلاغ؟", [
+                           { text: "إلغاء", style: "cancel" },
+                           { text: "حذف", style: "destructive", onPress: async () => {
+                             setReportsActing(r.id);
+                             await apiFetch(`/api/admin/reports/${r.id}`, token, { method: "DELETE" }).catch(()=>{});
+                             setAdminReports(prev => prev.filter(x => x.id !== r.id));
+                             setReportsActing(null);
+                           }},
+                         ])}
+                         style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
+                         <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                       </TouchableOpacity>
+                     </View>
+                   </View>
+                 );
+               });
+             })()}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══ المفقودات ══ */}
+      {tab === "missing_admin" && isAdmin && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {loadingMissing ? <ActivityIndicator color="#F97316" style={{ marginTop: 40 }} /> :
+           adminMissing.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد سجلات مفقودات</Text>
+           ) : adminMissing.map(item => (
+            <View key={item.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+              borderColor: item.status === "found" ? "#10B98140" : "#F9731640", borderRightWidth: 4, borderRightColor: item.status === "found" ? "#10B981" : "#F97316",
+              padding: 14, marginBottom: 12 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{item.item_name}</Text>
+                <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: (item.status === "found" ? "#10B981" : "#F97316")+"20" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: item.status === "found" ? "#10B981" : "#F97316" }}>
+                    {item.status === "found" ? "✅ وُجد" : "🔍 مفقود"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.reporter_name || item.user_display_name || "—"}</Text>
+              {item.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {item.contact_phone}</Text>}
+              {item.last_seen && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {item.last_seen}</Text>}
+              {item.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{item.description}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TouchableOpacity disabled={missingActing === item.id}
+                  onPress={async () => {
+                    const ns = item.status === "found" ? "lost" : "found";
+                    setMissingActing(item.id);
+                    try {
+                      const res = await apiFetch(`/api/admin/lost-items/${item.id}`, token, { method: "PATCH", body: JSON.stringify({ status: ns }) });
+                      if (res.ok) setAdminMissing(prev => prev.map(x => x.id === item.id ? { ...x, status: ns } : x));
+                    } catch {} finally { setMissingActing(null); }
+                  }}
+                  style={{ flex: 2, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
+                    backgroundColor: item.status === "found" ? "#F9731615" : "#10B98115",
+                    borderColor: item.status === "found" ? "#F9731640" : "#10B98140" }}>
+                  {missingActing === item.id ? <ActivityIndicator size="small" color="#10B981" /> :
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: item.status === "found" ? "#F97316" : "#10B981" }}>
+                      {item.status === "found" ? "تراجع — لا يزال مفقوداً" : "✅ تم العثور عليه"}
+                    </Text>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity disabled={missingActing === item.id}
+                  onPress={() => Alert.alert("حذف", "هل تريد حذف هذا السجل؟", [
+                    { text: "إلغاء", style: "cancel" },
+                    { text: "حذف", style: "destructive", onPress: async () => {
+                      setMissingActing(item.id);
+                      await apiFetch(`/api/admin/lost-items/${item.id}`, token, { method: "DELETE" }).catch(()=>{});
+                      setAdminMissing(prev => prev.filter(x => x.id !== item.id));
+                      setMissingActing(null);
+                    }},
+                  ])}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            </View>
+           ))}
+        </ScrollView>
+      )}
+
+      {/* ══ الأرقام الهامة ══ */}
+      {tab === "numbers_admin" && isAdmin && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+          {/* فورم إضافة / تعديل */}
+          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: "#10B98130", padding: 16, marginBottom: 16 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 12 }}>
+              {editingNumber ? "✏️ تعديل الرقم" : "➕ إضافة رقم جديد"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الاسم *</Text>
+                <TextInput value={numForm.name} onChangeText={v => setNumForm(f=>({...f, name:v}))} placeholder="مثال: الإطفاء" placeholderTextColor={Colors.textMuted}
+                  style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الرقم *</Text>
+                <TextInput value={numForm.number} onChangeText={v => setNumForm(f=>({...f, number:v}))} placeholder="998 أو +249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
+                  style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>التصنيف</Text>
+                <TextInput value={numForm.category} onChangeText={v => setNumForm(f=>({...f, category:v}))} placeholder="عام / طوارئ / صحة..." placeholderTextColor={Colors.textMuted}
+                  style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اللون</Text>
+                <TextInput value={numForm.color} onChangeText={v => setNumForm(f=>({...f, color:v}))} placeholder="#F97316" placeholderTextColor={Colors.textMuted} autoCapitalize="none"
+                  style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+              </View>
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة</Text>
+              <TextInput value={numForm.note} onChangeText={v => setNumForm(f=>({...f, note:v}))} placeholder="وصف اختياري..." placeholderTextColor={Colors.textMuted} multiline
+                style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right", minHeight: 50, textAlignVertical: "top" }} />
+            </View>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
+              {editingNumber && (
+                <TouchableOpacity onPress={() => { setEditingNumber(null); setNumForm({ name:"", number:"", category:"عام", icon:"call", color:"#F97316", note:"", sort_order:"99" }); }}
+                  style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: "#FFFFFF18" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity disabled={savingNumber} onPress={async () => {
+                if (!numForm.name.trim() || !numForm.number.trim()) { Alert.alert("بيانات ناقصة", "الاسم والرقم مطلوبان"); return; }
+                setSavingNumber(true);
+                try {
+                  const url = editingNumber ? `/api/admin/emergency-numbers/${editingNumber.id}` : "/api/admin/emergency-numbers";
+                  const method = editingNumber ? "PATCH" : "POST";
+                  const res = await apiFetch(url, token, { method, body: JSON.stringify({ name: numForm.name, number: numForm.number, category: numForm.category, color: numForm.color, icon: numForm.icon, note: numForm.note, sort_order: parseInt(numForm.sort_order)||99 }) });
+                  if (res.ok) {
+                    const d = await safeJson(res);
+                    if (editingNumber) setAdminNumbers(prev => prev.map(n => n.id === editingNumber.id ? d : n));
+                    else setAdminNumbers(prev => [d, ...prev]);
+                    setEditingNumber(null);
+                    setNumForm({ name:"", number:"", category:"عام", icon:"call", color:"#F97316", note:"", sort_order:"99" });
+                  } else { const d = await safeJson(res); Alert.alert("خطأ", d.error || "تعذّر الحفظ"); }
+                } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setSavingNumber(false); }
+              }}
+                style={{ flex: 1, paddingVertical: 11, borderRadius: 10, backgroundColor: "#10B981", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6, opacity: savingNumber ? 0.6 : 1 }}>
+                {savingNumber ? <ActivityIndicator color="#fff" size="small" /> : (
+                  <><Ionicons name={editingNumber ? "checkmark" : "add"} size={16} color="#fff" /><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>{editingNumber ? "حفظ التعديل" : "إضافة"}</Text></>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* قائمة الأرقام */}
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 10 }}>{adminNumbers.length} رقم مسجّل</Text>
+          {loadingNumbers ? <ActivityIndicator color="#10B981" style={{ marginTop: 20 }} /> :
+           adminNumbers.map(n => (
+            <View key={n.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: (n.color||"#10B981")+"40", borderRightWidth: 4, borderRightColor: n.color||"#10B981", padding: 14, marginBottom: 10 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, flex: 1 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (n.color||"#10B981")+"20", justifyContent: "center", alignItems: "center" }}>
+                    <Ionicons name={(n.icon||"call") as any} size={16} color={n.color||"#10B981"} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>{n.name}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: n.color||"#10B981", textAlign: "right" }}>{n.number}</Text>
+                  </View>
+                </View>
+                {!n.is_active && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#EF4444" }}>معطّل</Text></View>}
+              </View>
+              {n.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{n.category}</Text>}
+              {n.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{n.note}</Text>}
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TouchableOpacity onPress={() => { setEditingNumber(n); setNumForm({ name: n.name, number: n.number, category: n.category||"عام", icon: n.icon||"call", color: n.color||"#F97316", note: n.note||"", sort_order: String(n.sort_order||99) }); }}
+                  style={{ flex: 2, paddingVertical: 8, borderRadius: 9, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: "#FFFFFF18", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted }}>✏️ تعديل</Text>
+                </TouchableOpacity>
+                <TouchableOpacity disabled={numbersActing === n.id}
+                  onPress={() => Alert.alert("حذف", `هل تريد حذف رقم "${n.name}"؟`, [
+                    { text: "إلغاء", style: "cancel" },
+                    { text: "حذف", style: "destructive", onPress: async () => {
+                      setNumbersActing(n.id);
+                      await apiFetch(`/api/admin/emergency-numbers/${n.id}`, token, { method: "DELETE" }).catch(()=>{});
+                      setAdminNumbers(prev => prev.filter(x => x.id !== n.id));
+                      setNumbersActing(null);
+                    }},
+                  ])}
+                  style={{ flex: 1, paddingVertical: 8, borderRadius: 9, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                  {numbersActing === n.id ? <ActivityIndicator size="small" color="#EF4444" /> : <Ionicons name="trash-outline" size={16} color="#EF4444" />}
+                </TouchableOpacity>
+              </View>
+            </View>
+           ))}
+        </ScrollView>
+      )}
+
+      {/* ══ المصانع ══ */}
+      {tab === "factories_admin" && isAdmin && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>{adminFactories.length} مصنع مسجّل</Text>
+          {loadingFactories ? <ActivityIndicator color="#6B7280" style={{ marginTop: 40 }} /> :
+           adminFactories.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد مصانع مسجّلة بعد</Text>
+           ) : adminFactories.map(f => (
+            <View key={f.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: (f.brand_color||"#6B7280")+"40", borderRightWidth: 4, borderRightColor: f.brand_color||"#6B7280", padding: 14, marginBottom: 12 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{f.name}</Text>
+                <View style={{ flexDirection: "row-reverse", gap: 4 }}>
+                  {f.is_featured && <View style={{ backgroundColor: "#F59E0B20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#F59E0B" }}>⭐ مميز</Text></View>}
+                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: f.is_active ? "#10B98120" : "#EF444420" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: f.is_active ? "#10B981" : "#EF4444" }}>{f.is_active ? "نشط" : "معطّل"}</Text>
+                  </View>
+                </View>
+              </View>
+              {f.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {f.category}</Text>}
+              {f.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {f.location}</Text>}
+              {f.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {f.phone}</Text>}
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 4, marginBottom: 10 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(f.created_at).toLocaleDateString("ar-EG")}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>{f.package_type || "free"}</Text>
+              </View>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TouchableOpacity disabled={factoriesActing === f.id}
+                  onPress={async () => {
+                    setFactoriesActing(f.id);
+                    try {
+                      const res = await apiFetch(`/api/admin/factories/${f.id}`, token, { method: "PATCH", body: JSON.stringify({ is_active: !f.is_active }) });
+                      if (res.ok) setAdminFactories(prev => prev.map(x => x.id === f.id ? { ...x, is_active: !f.is_active } : x));
+                    } catch {} finally { setFactoriesActing(null); }
+                  }}
+                  style={{ flex: 2, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
+                    backgroundColor: f.is_active ? "#EF444415" : "#10B98115",
+                    borderColor: f.is_active ? "#EF444440" : "#10B98140" }}>
+                  {factoriesActing === f.id ? <ActivityIndicator size="small" color={f.is_active ? "#EF4444" : "#10B981"} /> :
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: f.is_active ? "#EF4444" : "#10B981" }}>{f.is_active ? "تعطيل" : "تفعيل"}</Text>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity disabled={factoriesActing === f.id}
+                  onPress={async () => {
+                    setFactoriesActing(f.id);
+                    try {
+                      const res = await apiFetch(`/api/admin/factories/${f.id}`, token, { method: "PATCH", body: JSON.stringify({ is_featured: !f.is_featured }) });
+                      if (res.ok) setAdminFactories(prev => prev.map(x => x.id === f.id ? { ...x, is_featured: !f.is_featured } : x));
+                    } catch {} finally { setFactoriesActing(null); }
+                  }}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
+                    backgroundColor: "#F59E0B15", borderColor: "#F59E0B40" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F59E0B" }}>{f.is_featured ? "⭐ إلغاء" : "⭐ تمييز"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity disabled={factoriesActing === f.id}
+                  onPress={() => Alert.alert("حذف", `هل تريد حذف مصنع "${f.name}"؟`, [
+                    { text: "إلغاء", style: "cancel" },
+                    { text: "حذف", style: "destructive", onPress: async () => {
+                      setFactoriesActing(f.id);
+                      await apiFetch(`/api/admin/factories/${f.id}`, token, { method: "DELETE" }).catch(()=>{});
+                      setAdminFactories(prev => prev.filter(x => x.id !== f.id));
+                      setFactoriesActing(null);
+                    }},
+                  ])}
+                  style={{ paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440", alignItems: "center" }}>
+                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            </View>
+           ))}
+        </ScrollView>
+      )}
+
+      {/* ══ السوق الزراعي ══ */}
+      {tab === "farmers_admin" && isAdmin && (
+        <View style={{ flex: 1 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+            contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
+            {(["crops","lands","tools","workers"] as const).map(f => {
+              const FL: Record<string,string> = { crops:"🌾 محاصيل", lands:"🟫 أراضي", tools:"⚙️ معدات", workers:"👷 عمال" };
+              const FC: Record<string,string> = { crops:"#16A34A", lands:"#92400E", tools:"#6B7280", workers:"#F59E0B" };
+              return (
+                <TouchableOpacity key={f} onPress={() => setFarmersSub(f)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                    backgroundColor: farmersSub === f ? FC[f] : "#FFFFFF0A",
+                    borderWidth: 1, borderColor: farmersSub === f ? FC[f] : "#FFFFFF15" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: farmersSub === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loadingFarmers ? <ActivityIndicator color="#16A34A" style={{ marginTop: 40 }} /> : (() => {
+              const items = adminFarmers[farmersSub];
+              const COLOR: Record<string,string> = { crops:"#16A34A", lands:"#92400E", tools:"#6B7280", workers:"#F59E0B" };
+              return items.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد سجلات في هذا القسم</Text>
+              ) : items.map((item: any) => (
+                <View key={item.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1,
+                  borderColor: COLOR[farmersSub]+"30", borderRightWidth: 3, borderRightColor: COLOR[farmersSub],
+                  padding: 12, marginBottom: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }}>{item.title}</Text>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: item.is_available ? "#10B98120" : "#EF444420" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: item.is_available ? "#10B981" : "#EF4444" }}>{item.is_available ? "متاح" : "غير متاح"}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.user_display_name || "—"} {item.contact_phone ? `· ${item.contact_phone}` : ""}</Text>
+                  {item.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>📍 {item.location}</Text>}
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
+                    <TouchableOpacity onPress={() => Alert.alert("حذف", `هل تريد حذف "${item.title}"؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "حذف", style: "destructive", onPress: async () => {
+                        setFarmersActing(`${farmersSub}-${item.id}`);
+                        await apiFetch(`/api/admin/farmers/${farmersSub}/${item.id}`, token, { method: "DELETE" }).catch(()=>{});
+                        setAdminFarmers(prev => ({ ...prev, [farmersSub]: prev[farmersSub].filter((x:any) => x.id !== item.id) }));
+                        setFarmersActing(null);
+                      }},
+                    ])}
+                      style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
+                      {farmersActing === `${farmersSub}-${item.id}` ? <ActivityIndicator size="small" color="#EF4444" /> : <Ionicons name="trash-outline" size={14} color="#EF4444" />}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ));
+            })()}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══ الإيجارات ══ */}
+      {tab === "rentals_admin" && isAdmin && (
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingBottom: 8 }}>
+            {(["listings","contracts"] as const).map(v => (
+              <TouchableOpacity key={v} onPress={() => setRentalView(v)}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
+                  backgroundColor: rentalView === v ? "#0EA5E9" : "#FFFFFF0A",
+                  borderWidth: 1, borderColor: rentalView === v ? "#0EA5E9" : "#FFFFFF15" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: rentalView === v ? "#fff" : "#9CA3AF" }}>
+                  {v === "listings" ? "🏠 العقارات" : "📄 العقود"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loadingRentals ? <ActivityIndicator color="#0EA5E9" style={{ marginTop: 40 }} /> : rentalView === "listings" ? (
+              adminRentals.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد عقارات مسجّلة</Text>
+              ) : adminRentals.map(r => (
+                <View key={r.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+                  borderColor: r.is_verified ? "#0EA5E940" : "#FFFFFF15", borderRightWidth: 4, borderRightColor: r.is_verified ? "#0EA5E9" : "#6B7280",
+                  padding: 14, marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{r.title}</Text>
+                    <View style={{ flexDirection: "row-reverse", gap: 4 }}>
+                      {r.is_verified && <View style={{ backgroundColor: "#0EA5E920", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#0EA5E9" }}>✅ موثّق</Text></View>}
+                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: r.status === "active" ? "#10B98120" : "#6B728020" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: r.status === "active" ? "#10B981" : "#9CA3AF" }}>{r.status === "active" ? "نشط" : r.status}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  {r.owner_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.owner_name} {r.owner_phone ? `· ${r.owner_phone}` : ""}</Text>}
+                  {r.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.neighborhood}</Text>}
+                  {(r.price_per_month || r.price_per_day) && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0EA5E9", textAlign: "right", marginBottom: 6 }}>{r.price_per_month ? `${r.price_per_month} / شهر` : `${r.price_per_day} / يوم`}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                    <TouchableOpacity disabled={rentalsActing === r.id}
+                      onPress={async () => {
+                        setRentalsActing(r.id);
+                        try {
+                          const res = await apiFetch(`/api/admin/rentals/${r.id}/status`, token, { method: "PATCH", body: JSON.stringify({ status: r.status === "active" ? "inactive" : "active" }) });
+                          if (res.ok) setAdminRentals(prev => prev.map(x => x.id === r.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x));
+                        } catch {} finally { setRentalsActing(null); }
+                      }}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
+                        backgroundColor: r.status === "active" ? "#EF444415" : "#10B98115",
+                        borderColor: r.status === "active" ? "#EF444440" : "#10B98140" }}>
+                      {rentalsActing === r.id ? <ActivityIndicator size="small" color={r.status === "active" ? "#EF4444" : "#10B981"} /> :
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: r.status === "active" ? "#EF4444" : "#10B981" }}>{r.status === "active" ? "إيقاف" : "تفعيل"}</Text>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            ) : (
+              adminContracts.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد عقود</Text>
+              ) : adminContracts.map(c => {
+                const SC: Record<string,string> = { pending:"#F59E0B", active:"#10B981", completed:"#3B82F6", cancelled:"#EF4444", disputed:"#EF4444" };
+                const SL: Record<string,string> = { pending:"معلق", active:"نشط", completed:"مكتمل", cancelled:"ملغى", disputed:"نزاع" };
+                return (
+                  <View key={c.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+                    borderColor: (SC[c.status]||"#888")+"30", borderRightWidth: 4, borderRightColor: SC[c.status]||"#888",
+                    padding: 14, marginBottom: 12 }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{c.listing_title}</Text>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: (SC[c.status]||"#888")+"20" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: SC[c.status]||"#888" }}>{SL[c.status]||c.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏠 المالك: {c.owner_name} {c.owner_phone ? `· ${c.owner_phone}` : ""}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 المستأجر: {c.renter_name} {c.renter_phone ? `· ${c.renter_phone}` : ""}</Text>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>{c.start_date ? new Date(c.start_date).toLocaleDateString("ar-EG") : "—"} ← {c.end_date ? new Date(c.end_date).toLocaleDateString("ar-EG") : "—"}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>{c.total_amount} SDG</Text>
+                    </View>
+                    {c.status === "disputed" && c.dispute_details && (
+                      <View style={{ backgroundColor: "#EF444410", borderRadius: 8, padding: 10, marginTop: 8, borderWidth: 1, borderColor: "#EF444430" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#EF4444", textAlign: "right" }}>⚠️ تفاصيل النزاع: {c.dispute_details}</Text>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
+                      {c.status === "disputed" && (
+                        <TouchableOpacity disabled={rentalsActing === c.id}
+                          onPress={async () => {
+                            setRentalsActing(c.id);
+                            try {
+                              const res = await apiFetch(`/api/admin/rentals/${c.id}/status`, token, { method: "PATCH", body: JSON.stringify({ status: "resolved" }) });
+                              if (res.ok) setAdminContracts(prev => prev.map(x => x.id === c.id ? { ...x, status: "resolved" } : x));
+                            } catch {} finally { setRentalsActing(null); }
+                          }}
+                          style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140", alignItems: "center" }}>
+                          {rentalsActing === c.id ? <ActivityIndicator size="small" color="#10B981" /> :
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>✅ حل النزاع</Text>
+                          }
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
