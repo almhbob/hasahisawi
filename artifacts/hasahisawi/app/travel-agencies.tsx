@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn, FadeInRight } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -84,10 +84,13 @@ const WORKSPACE_MODULES = [
 // ─── الشاشة الرئيسية ────────────────────────────────────────────────────────
 export default function TravelAgenciesScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ invite?: string }>();
   const [agencies, setAgencies]   = useState<Agency[]>([]);
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState<AgencyType | "all">("all");
   const [showForm, setShowForm]   = useState(false);
+  const [inviteData, setInviteData] = useState<any>(null);
+  const [inviteToken, setInviteToken] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +103,18 @@ export default function TravelAgenciesScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const token = params.invite;
+    if (!token) return;
+    setInviteToken(token);
+    fetch(`${getApiUrl()}/api/travel-agencies/invite/${token}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d && !d.error) { setInviteData(d); setShowForm(true); }
+      })
+      .catch(() => {});
+  }, [params.invite]);
 
   const featured  = useMemo(() => agencies.filter(a => a.is_featured), [agencies]);
   const filtered  = useMemo(
@@ -348,8 +363,10 @@ export default function TravelAgenciesScreen() {
       {/* نموذج الانضمام */}
       <JoinFormModal
         visible={showForm}
-        onClose={() => setShowForm(false)}
-        onSuccess={() => { setShowForm(false); load(); }}
+        onClose={() => { setShowForm(false); setInviteData(null); setInviteToken(""); }}
+        onSuccess={() => { setShowForm(false); setInviteData(null); setInviteToken(""); load(); }}
+        prefill={inviteData}
+        inviteToken={inviteToken}
       />
     </View>
   );
@@ -491,8 +508,8 @@ function AgencyCard({ agency: a, onWA }: { agency: Agency; onWA: (w: string) => 
 
 // ─── نموذج الانضمام ───────────────────────────────────────────────────────────
 function JoinFormModal({
-  visible, onClose, onSuccess,
-}: { visible: boolean; onClose: () => void; onSuccess: () => void }) {
+  visible, onClose, onSuccess, prefill, inviteToken,
+}: { visible: boolean; onClose: () => void; onSuccess: () => void; prefill?: any; inviteToken?: string }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -521,6 +538,18 @@ function JoinFormModal({
   const [targetRoutes,    setTargetRoutes]    = useState("");
   const [servicesOffered, setServicesOffered] = useState("");
   const [bookingProducts, setBookingProducts] = useState<string[]>(["تذاكر طيران"]);
+
+  // pre-fill from invitation
+  useEffect(() => {
+    if (!prefill) return;
+    if (prefill.agency_name)   setAgencyName(prefill.agency_name);
+    if (prefill.contact_name)  setContactName(prefill.contact_name);
+    if (prefill.phone)         setPhone(prefill.phone);
+    if (prefill.whatsapp)      setWhatsapp(prefill.whatsapp);
+    if (prefill.email)         setEmail(prefill.email);
+    if (prefill.city)          setCity(prefill.city);
+    if (prefill.agency_type && TYPE_KEYS.includes(prefill.agency_type)) setAgencyType(prefill.agency_type as AgencyType);
+  }, [prefill]);
 
   const reset = () => {
     setStep(1);
@@ -570,6 +599,7 @@ function JoinFormModal({
           services_offered: servicesOffered,
           booking_products: bookingProducts,
           target_routes: targetRoutes,
+          ...(inviteToken ? { invite_token: inviteToken } : {}),
         }),
       });
       const j = await r.json();
@@ -593,6 +623,17 @@ function JoinFormModal({
 
         {/* رأس النموذج */}
         <LinearGradient colors={["#0A1A2E", "#1D4ED8"]} style={[m.header, { paddingTop: insets.top + 10 }]}>
+          {!!inviteToken && (
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#F59E0B20", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: "#F59E0B50" }}>
+              <Ionicons name="mail-open-outline" size={16} color="#F59E0B" />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#F59E0B", flex: 1, textAlign: "right" }}>
+                مدعو — {prefill?.agency_name || "وكالتكم"}
+              </Text>
+              <View style={{ backgroundColor: "#F59E0B", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#000" }}>دعوة رسمية</Text>
+              </View>
+            </View>
+          )}
           <View style={m.headerRow}>
             <TouchableOpacity onPress={handleClose} style={m.closeBtn}>
               <Ionicons name="close" size={24} color="#fff" />

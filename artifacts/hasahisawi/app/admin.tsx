@@ -1747,6 +1747,22 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   const [mgrLoading, setMgrLoading] = React.useState(false);
   const [mgrActing, setMgrActing] = React.useState<number | null>(null);
 
+  // دعوات وكالات السفر
+  const [taView, setTaView] = React.useState<"apps" | "invitations">("apps");
+  const [invitations, setInvitations] = React.useState<any[]>([]);
+  const [invLoading, setInvLoading] = React.useState(false);
+  const [invActing, setInvActing] = React.useState<number | null>(null);
+  const [showInvForm, setShowInvForm] = React.useState(false);
+  const [invAgencyName, setInvAgencyName] = React.useState("");
+  const [invContactName, setInvContactName] = React.useState("");
+  const [invPhone, setInvPhone] = React.useState("");
+  const [invWhatsapp, setInvWhatsapp] = React.useState("");
+  const [invEmail, setInvEmail] = React.useState("");
+  const [invCity, setInvCity] = React.useState("");
+  const [invAgencyType, setInvAgencyType] = React.useState("local");
+  const [invNote, setInvNote] = React.useState("");
+  const [invSubmitting, setInvSubmitting] = React.useState(false);
+
   const loadManagers = React.useCallback(() => {
     setMgrLoading(true);
     fetch(`${apiBase}/api/admin/union-managers`, { headers: { Authorization: `Bearer ${token}` } })
@@ -1754,9 +1770,80 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       .catch(() => setManagers([])).finally(() => setMgrLoading(false));
   }, [token, apiBase]);
 
+  const loadInvitations = React.useCallback(() => {
+    setInvLoading(true);
+    fetch(`${apiBase}/api/admin/travel-agencies/invitations`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setInvitations(Array.isArray(d) ? d : []))
+      .catch(() => setInvitations([])).finally(() => setInvLoading(false));
+  }, [token, apiBase]);
+
   React.useEffect(() => {
     if (sub === "union_manager" && mgrView === "managers") loadManagers();
   }, [sub, mgrView, loadManagers]);
+
+  React.useEffect(() => {
+    if (sub === "travel_agency" && taView === "invitations") loadInvitations();
+  }, [sub, taView, loadInvitations]);
+
+  async function createInvitation() {
+    if (!invAgencyName.trim()) { Alert.alert("بيانات ناقصة", "اسم الوكالة مطلوب"); return; }
+    setInvSubmitting(true);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/travel-agencies/invitations`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency_name: invAgencyName, contact_name: invContactName,
+          phone: invPhone, whatsapp: invWhatsapp, email: invEmail,
+          city: invCity, agency_type: invAgencyType, note: invNote,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "فشل الإنشاء");
+      setInvAgencyName(""); setInvContactName(""); setInvPhone(""); setInvWhatsapp(""); setInvEmail(""); setInvCity(""); setInvAgencyType("local"); setInvNote("");
+      setShowInvForm(false);
+      loadInvitations();
+      if (d.invite_link) {
+        Alert.alert("✅ تم إنشاء الدعوة", `رابط الدعوة:\n${d.invite_link}`, [
+          { text: "نسخ الرابط", onPress: () => copyInviteLink({ invite_link: d.invite_link }) },
+          { text: "حسناً" },
+        ]);
+      }
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message || "تعذّر إنشاء الدعوة");
+    } finally { setInvSubmitting(false); }
+  }
+
+  async function deleteInvitation(id: number) {
+    Alert.alert("تأكيد الحذف", "هل تريد حذف هذه الدعوة؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: async () => {
+        setInvActing(id);
+        try {
+          const r = await fetch(`${apiBase}/api/admin/travel-agencies/invitations/${id}`, {
+            method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+          });
+          if (r.ok) setInvitations(prev => prev.filter(i => i.id !== id));
+          else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل الحذف"); }
+        } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setInvActing(null); }
+      }},
+    ]);
+  }
+
+  function copyInviteLink(inv: { invite_link?: string; token?: string }) {
+    const link = inv.invite_link || (inv.token ? `https://hasahisawi.pages.dev/travel-agencies?invite=${inv.token}` : "");
+    if (!link) return;
+    if (Platform.OS === "web") {
+      (globalThis as any).navigator?.clipboard?.writeText(link)
+        .then(() => Alert.alert("تم النسخ ✅", link))
+        .catch(() => Alert.alert("رابط الدعوة", link));
+    } else {
+      Alert.alert("رابط الدعوة", link, [
+        { text: "فتح الرابط", onPress: () => Linking.openURL(link).catch(() => {}) },
+        { text: "حسناً" },
+      ]);
+    }
+  }
 
   async function toggleManager(id: number, is_active: boolean) {
     setMgrActing(id);
@@ -2056,6 +2143,182 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
           );
         })}
       </ScrollView>
+
+      {/* ─── عرض دعوات وكالات السفر ─── */}
+      {sub === "travel_agency" && (
+        <View style={{ marginTop: 8 }}>
+          {/* toggle الطلبات / الدعوات */}
+          <View style={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingBottom: 10 }}>
+            {(["apps", "invitations"] as const).map(v => (
+              <TouchableOpacity key={v} onPress={() => setTaView(v)}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
+                  backgroundColor: taView === v ? "#1D4ED8" : "#FFFFFF0A",
+                  borderWidth: 1, borderColor: taView === v ? "#3B82F6" : "#FFFFFF15" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: taView === v ? "#fff" : "#9CA3AF" }}>
+                  {v === "apps" ? "الطلبات" : "✉️ الدعوات"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {taView === "invitations" && (
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+              {/* زر إنشاء دعوة جديدة */}
+              <TouchableOpacity
+                onPress={() => setShowInvForm(v => !v)}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: showInvForm ? "#FFFFFF12" : "#1D4ED820", borderWidth: 1, borderColor: "#3B82F640", marginBottom: 12 }}>
+                <Ionicons name={showInvForm ? "chevron-up" : "add-circle-outline"} size={18} color="#60A5FA" />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#60A5FA", flex: 1, textAlign: "right" }}>
+                  {showInvForm ? "إخفاء نموذج الدعوة" : "إنشاء دعوة جديدة"}
+                </Text>
+                <TouchableOpacity onPress={loadInvitations} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#FFFFFF0A" }}>
+                  <Ionicons name="refresh" size={13} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              {/* نموذج الدعوة */}
+              {showInvForm && (
+                <View style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: "#3B82F630", padding: 16, marginBottom: 16, gap: 10 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 4 }}>✉️ بيانات الدعوة</Text>
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم الوكالة *</Text>
+                      <TextInput value={invAgencyName} onChangeText={setInvAgencyName} placeholder="وكالة عاشق طيبة" placeholderTextColor={Colors.textMuted}
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم المسؤول</Text>
+                      <TextInput value={invContactName} onChangeText={setInvContactName} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted}
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الهاتف</Text>
+                      <TextInput value={invPhone} onChangeText={setInvPhone} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>واتساب</Text>
+                      <TextInput value={invWhatsapp} onChangeText={setInvWhatsapp} placeholder="+966..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>البريد الإلكتروني</Text>
+                      <TextInput value={invEmail} onChangeText={setInvEmail} placeholder="info@agency.com" placeholderTextColor={Colors.textMuted} keyboardType="email-address" autoCapitalize="none"
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>المدينة</Text>
+                      <TextInput value={invCity} onChangeText={setInvCity} placeholder="الحصاحيصا" placeholderTextColor={Colors.textMuted}
+                        style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
+                    </View>
+                  </View>
+
+                  <View>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>نوع الوكالة</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, flexDirection: "row-reverse" }}>
+                      {(["local","international","hajj_umrah","tourism","corporate"] as const).map(t => {
+                        const EMOJI: Record<string,string> = { local:"🇸🇩", international:"✈️", hajj_umrah:"🕋", tourism:"🌍", corporate:"💼" };
+                        const LABEL: Record<string,string> = { local:"محلية", international:"دولية", hajj_umrah:"حج وعمرة", tourism:"سياحة", corporate:"شركات" };
+                        return (
+                          <TouchableOpacity key={t} onPress={() => setInvAgencyType(t)}
+                            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                              backgroundColor: invAgencyType === t ? "#1D4ED820" : "#FFFFFF08",
+                              borderColor: invAgencyType === t ? "#3B82F6" : "#FFFFFF15" }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: invAgencyType === t ? "#60A5FA" : Colors.textMuted }}>
+                              {EMOJI[t]} {LABEL[t]}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  <View>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة للوكالة</Text>
+                    <TextInput value={invNote} onChangeText={setInvNote} placeholder="نص الدعوة الذي سيراه المدعو..." placeholderTextColor={Colors.textMuted} multiline
+                      style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right", minHeight: 60, textAlignVertical: "top" }} />
+                  </View>
+
+                  <TouchableOpacity onPress={createInvitation} disabled={invSubmitting}
+                    style={{ paddingVertical: 12, borderRadius: 12, backgroundColor: "#1D4ED8", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8, opacity: invSubmitting ? 0.6 : 1 }}>
+                    {invSubmitting ? <ActivityIndicator color="#fff" size="small" /> : (
+                      <>
+                        <Ionicons name="send-outline" size={16} color="#fff" />
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>إرسال الدعوة</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* قائمة الدعوات */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 8, gap: 8 }}>
+                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>
+                  {invitations.length} دعوة مرسلة
+                </Text>
+              </View>
+
+              {invLoading ? <ActivityIndicator color="#3B82F6" style={{ marginTop: 30 }} /> :
+               invitations.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 30 }}>
+                  لا توجد دعوات مرسلة بعد
+                </Text>
+              ) : invitations.map(inv => {
+                const INV_STATUS_COLOR: Record<string,string> = { pending: "#F59E0B", opened: "#3B82F6", applied: "#10B981", expired: "#6B7280" };
+                const INV_STATUS_LABEL: Record<string,string> = { pending: "لم تُفتح", opened: "مفتوحة", applied: "تم التقديم", expired: "منتهية" };
+                const st = inv.status || "pending";
+                const color = INV_STATUS_COLOR[st] || "#F59E0B";
+                return (
+                  <View key={inv.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: color + "40", borderRightWidth: 4, borderRightColor: color, padding: 14, marginBottom: 10 }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{inv.agency_name}</Text>
+                      <View style={{ backgroundColor: color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color }}>{INV_STATUS_LABEL[st] || st}</Text>
+                      </View>
+                    </View>
+                    {inv.contact_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {inv.contact_name}</Text>}
+                    {inv.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {inv.phone}</Text>}
+                    {inv.city && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {inv.city}</Text>}
+                    {inv.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 6, lineHeight: 18 }} numberOfLines={2}>{inv.note}</Text>}
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>
+                        أُنشئت: {new Date(inv.created_at).toLocaleDateString("ar-EG")}
+                      </Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>
+                        تنتهي: {new Date(inv.expires_at).toLocaleDateString("ar-EG")}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                      <TouchableOpacity onPress={() => copyInviteLink(inv)}
+                        style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#1D4ED820", borderWidth: 1, borderColor: "#3B82F650", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5 }}>
+                        <Ionicons name="copy-outline" size={14} color="#60A5FA" />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#60A5FA" }}>نسخ الرابط</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => deleteInvitation(inv.id)} disabled={invActing === inv.id}
+                        style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444450", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5 }}>
+                        {invActing === inv.id ? <ActivityIndicator size="small" color="#EF4444" /> : (
+                          <>
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
 
       {/* ─── عرض إدارة مدراء الاتحادات ─── */}
       {sub === "union_manager" && (

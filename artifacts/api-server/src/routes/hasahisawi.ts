@@ -14989,6 +14989,7 @@ router.post("/travel-agencies/apply", writeLimiter, async (req: Request, res: Re
       agency_name, agency_type, specialties, destinations, description, website,
       contact_name, contact_role, phone, whatsapp, email, city, country,
       license_number, founded_year, services_offered, target_routes,
+      invite_token,
     } = req.body as any;
     if (!agency_name || !contact_name || !phone)
       return res.status(400).json({ error: "اسم الوكالة واسم المسؤول ورقم الهاتف مطلوبة" });
@@ -15005,6 +15006,13 @@ router.post("/travel-agencies/apply", writeLimiter, async (req: Request, res: Re
         founded_year||null, JSON.stringify(services_offered||[]), target_routes||"",
       ]
     );
+    // ربط الدعوة بالطلب إن وُجدت
+    if (invite_token) {
+      await query(
+        `UPDATE travel_agency_invitations SET status='applied', application_id=$1, applied_at=NOW() WHERE token=$2`,
+        [r.rows[0].id, invite_token]
+      ).catch(() => {});
+    }
     return res.status(201).json({ id: r.rows[0].id, message: "تم استلام طلبك وسيتم مراجعته من قبل الإدارة" });
   } catch (e: any) { logger.error({ err: e?.message }, "[travel-agencies/apply]"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -15036,6 +15044,107 @@ router.patch("/admin/travel-agencies/applications/:id", async (req: Request, res
     if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
     return res.json({ application: r.rows[0] });
   } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// نظام دعوات وكالات السفر
+// ═══════════════════════════════════════════════════════════════════
+
+async function ensureInvitationsTable(): Promise<void> {
+  await query(`CREATE TABLE IF NOT EXISTS travel_agency_invitations (
+    id              SERIAL PRIMARY KEY,
+    token           VARCHAR(64) UNIQUE NOT NULL,
+    agency_name     VARCHAR(150) NOT NULL,
+    contact_name    VARCHAR(100) NOT NULL DEFAULT '',
+    phone           VARCHAR(30)  NOT NULL DEFAULT '',
+    whatsapp        VARCHAR(30)  NOT NULL DEFAULT '',
+    email           VARCHAR(150) NOT NULL DEFAULT '',
+    city            VARCHAR(80)  NOT NULL DEFAULT '',
+    agency_type     VARCHAR(50)  NOT NULL DEFAULT 'local',
+    note            TEXT         NOT NULL DEFAULT '',
+    status          VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','opened','applied','expired')),
+    application_id  INTEGER REFERENCES travel_agency_applications(id) ON DELETE SET NULL,
+    expires_at      TIMESTAMPTZ  NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    opened_at       TIMESTAMPTZ,
+    applied_at      TIMESTAMPTZ
+  )`);
+}
+
+// ── POST /api/admin/travel-agencies/invitations ─── إنشاء دعوة
+router.post("/admin/travel-agencies/invitations", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureInvitationsTable();
+    const { agency_name, contact_name, phone, whatsapp, email, city, agency_type, note, expires_days } = req.body as any;
+    if (!agency_name?.trim()) return res.status(400).json({ error: "اسم الوكالة مطلوب" });
+    const token = randomBytes(24).toString("hex");
+    const expiryDays = Math.min(90, Math.max(1, parseInt(expires_days)||30));
+    const r = await query(
+      `INSERT INTO travel_agency_invitations
+         (token,agency_name,contact_name,phone,whatsapp,email,city,agency_type,note,expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW()+($10 || ' days')::INTERVAL)
+       RETURNING *`,
+      [token, agency_name.trim(), contact_name?.trim()||"", phone?.trim()||"",
+       whatsapp?.trim()||"", email?.trim()||"", city?.trim()||"",
+       agency_type||"local", note?.trim()||"", expiryDays]
+    );
+    const inv = r.rows[0];
+    const appUrl = process.env.APP_URL || "https://hasahisawi.pages.dev";
+    return res.status(201).json({ ...inv, link: `${appUrl}/travel-agencies?invite=${token}` });
+  } catch (e: any) { logger.error({ err: e?.message }, "[invitations/create]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/admin/travel-agencies/invitations ─── قائمة الدعوات
+router.get("/admin/travel-agencies/invitations", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureInvitationsTable();
+    const r = await query(
+      `SELECT i.*, a.status AS app_status
+       FROM travel_agency_invitations i
+       LEFT JOIN travel_agency_applications a ON a.id=i.application_id
+       ORDER BY i.created_at DESC`
+    );
+    const appUrl = process.env.APP_URL || "https://hasahisawi.pages.dev";
+    const rows = r.rows.map(inv => ({
+      ...inv,
+      is_expired: new Date(inv.expires_at) < new Date(),
+      link: `${appUrl}/travel-agencies?invite=${inv.token}`,
+    }));
+    return res.json(rows);
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── DELETE /api/admin/travel-agencies/invitations/:id ─── إلغاء دعوة
+router.delete("/admin/travel-agencies/invitations/:id", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureInvitationsTable();
+    await query(`DELETE FROM travel_agency_invitations WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/travel-agencies/invite/:token ─── جلب بيانات الدعوة (عام)
+router.get("/travel-agencies/invite/:token", async (req: Request, res: Response): Promise<any> => {
+  try {
+    await ensureInvitationsTable();
+    const r = await query(
+      `SELECT id,token,agency_name,contact_name,phone,whatsapp,email,city,agency_type,note,status,expires_at
+       FROM travel_agency_invitations WHERE token=$1`, [req.params.token]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "رابط الدعوة غير صالح" });
+    const inv = r.rows[0];
+    if (new Date(inv.expires_at) < new Date()) return res.status(410).json({ error: "انتهت صلاحية رابط الدعوة" });
+    if (inv.status === "applied") return res.status(409).json({ error: "تم تقديم الطلب بالفعل عبر هذه الدعوة" });
+    // تسجيل أول فتح
+    if (inv.status === "pending") {
+      await query(`UPDATE travel_agency_invitations SET status='opened', opened_at=NOW() WHERE token=$1`, [req.params.token]);
+    }
+    return res.json({ invitation: inv });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 
 // ═══════════════════════════════════════════════════════════════════
