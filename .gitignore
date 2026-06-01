@@ -72,3 +72,6 @@ artifacts/hasahisawi/.expo/
 *.ipa
 *.zip
 cf-dist/
+
+# Expo web export cached node_modules (large binary assets, not source)
+docs/assets/__node_modules/

@@ -2453,7 +2453,6 @@ export default function AdminDashboard() {
   const [savingPerms, setSavingPerms] = useState(false);
   const [memberSort, setMemberSort] = useState<"newest" | "oldest" | "name">("newest");
   const [memberNbrFilter, setMemberNbrFilter] = useState<string>("all");
-  const [promotingId, setPromotingId] = useState<number | null>(null);
   const [promoTarget, setPromoTarget] = useState<AdminUser | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 

@@ -86,8 +86,8 @@ async function sendPushToUser(
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(messages),
-    }).catch(() => {});
-  } catch {}
+    }).catch((e) => { logger.warn({ err: e }, "[push] Expo push delivery failed"); });
+  } catch (e) { logger.warn({ err: e }, "[push] sendPushToUser failed"); }
 }
 
 const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
@@ -104,8 +104,8 @@ async function sendPushToAdmins(title: string, body: string, data: Record<string
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(messages),
-    }).catch(() => {});
-  } catch {}
+    }).catch((e) => { logger.warn({ err: e }, "[push] Expo push delivery failed"); });
+  } catch (e) { logger.warn({ err: e }, "[push] sendPushToAdmins failed"); }
 }
 
 // ── reCAPTCHA v2 verification ────────────────────────────────────────────────
@@ -14064,23 +14064,23 @@ const ensureTransportTables = (() => {
         `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating INTEGER`,
         `ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating_note TEXT`,
       ];
-      for (const sql of tripAlters) { try { await query(sql); } catch {} }
+      for (const sql of tripAlters) { try { await query(sql); } catch (e: any) { if (!e?.message?.includes("already exists")) logger.warn({ err: e?.message }, "[db] tripAlters"); } }
       const nbAlters = [
         `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`,
         `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100) NOT NULL DEFAULT ''`,
         `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
         `ALTER TABLE transport_neighborhoods ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
       ];
-      for (const sql of nbAlters) { try { await query(sql); } catch {} }
+      for (const sql of nbAlters) { try { await query(sql); } catch (e: any) { if (!e?.message?.includes("already exists")) logger.warn({ err: e?.message }, "[db] nbAlters"); } }
       const drvAlters = [
         `ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS zone_id INTEGER`,
         `ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS operator_id INTEGER`,
       ];
-      for (const sql of drvAlters) { try { await query(sql); } catch {} }
+      for (const sql of drvAlters) { try { await query(sql); } catch (e: any) { if (!e?.message?.includes("already exists")) logger.warn({ err: e?.message }, "[db] drvAlters"); } }
       const fareAlters = [
         `ALTER TABLE transport_fares ADD COLUMN IF NOT EXISTS fare_motorcycle INTEGER NOT NULL DEFAULT 0`,
       ];
-      for (const sql of fareAlters) { try { await query(sql); } catch {} }
+      for (const sql of fareAlters) { try { await query(sql); } catch (e: any) { if (!e?.message?.includes("already exists")) logger.warn({ err: e?.message }, "[db] fareAlters"); } }
       // seed fares if empty
       const fc = await query(`SELECT count(*) FROM transport_fares`);
       if (parseInt(fc.rows[0].count) === 0) {
@@ -14151,7 +14151,7 @@ const ensureClinicTables = (() => {
         `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`,
         `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_fee NUMERIC(10,2)`,
       ];
-      for (const sql of apptAlters) { try { await query(sql); } catch {} }
+      for (const sql of apptAlters) { try { await query(sql); } catch (e: any) { if (!e?.message?.includes("already exists")) logger.warn({ err: e?.message }, "[db] apptAlters"); } }
       // seed plans if empty
       const pc = await query(`SELECT count(*) FROM clinic_subscription_plans`);
       if (parseInt(pc.rows[0].count) === 0) {
