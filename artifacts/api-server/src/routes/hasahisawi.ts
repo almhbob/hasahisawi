@@ -3443,6 +3443,30 @@ router.get("/ratings/leaderboard", async (req: Request, res: Response) => {
   }
 });
 
+// ── إدارة التقييمات (أدمن) ────────────────────────────────────────────────────
+router.get("/admin/ratings", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`
+      SELECT r.*, e.name AS entity_name, e.type AS entity_type, u.name AS user_display_name
+      FROM ratings r
+      LEFT JOIN rated_entities e ON e.id = r.entity_id
+      LEFT JOIN users u ON u.id = r.user_id
+      ORDER BY r.created_at DESC
+      LIMIT 500
+    `);
+    return res.json(rows);
+  } catch (err) { logger.error({ err }, "GET /admin/ratings"); return res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/admin/ratings/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM ratings WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: "Server error" }); }
+});
+
 router.get("/stats", async (_req: Request, res: Response) => {
   try {
     const [usersResult, postsResult, newsResult] = await Promise.all([
@@ -3777,7 +3801,7 @@ router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const [totals, byNeighborhood, recent] = await Promise.all([
+    const [totals, byNeighborhood, recent, sections] = await Promise.all([
       query(`SELECT
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE role='admin')::int AS admins,
@@ -3789,11 +3813,22 @@ router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
              GROUP BY neighborhood ORDER BY count DESC LIMIT 10`),
       query(`SELECT id, name, role, neighborhood, created_at FROM users
              ORDER BY created_at DESC LIMIT 10`),
+      query(`SELECT
+        (SELECT COUNT(*)::int FROM jobs WHERE is_active=true)                           AS jobs_active,
+        (SELECT COUNT(*)::int FROM citizen_reports WHERE status='pending')::int          AS reports_pending,
+        (SELECT COUNT(*)::int FROM lost_items WHERE status='lost')::int                 AS missing_lost,
+        (SELECT COUNT(*)::int FROM factories WHERE is_active=true)::int                 AS factories_active,
+        (SELECT COUNT(*)::int FROM rental_listings WHERE status='active')::int          AS rentals_active,
+        (SELECT COUNT(*)::int FROM feedback WHERE status='pending')::int                AS feedback_pending,
+        (SELECT COUNT(*)::int FROM ratings)::int                                        AS ratings_total,
+        (SELECT COUNT(*)::int FROM travel_agency_applications WHERE status='pending')::int AS travel_pending
+      `),
     ]);
     return res.json({
       totals: totals.rows[0],
       byNeighborhood: byNeighborhood.rows,
       recentUsers: recent.rows,
+      sections: sections.rows[0],
     });
   } catch (err) {
     logger.error({ err }, "route error");
@@ -17655,7 +17690,7 @@ router.patch("/admin/union-managers/:id/status", async (req: Request, res: Respo
   if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureUnionMgrTables();
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     const { is_active } = req.body as { is_active?: boolean };
     if (typeof is_active !== "boolean") return res.status(400).json({ error: "is_active مطلوب" });
     const r = await query(
@@ -17675,7 +17710,7 @@ router.delete("/admin/union-managers/:id", async (req: Request, res: Response): 
   if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureUnionMgrTables();
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     const check = await query(`SELECT id, full_name FROM union_managers WHERE id=$1`, [id]);
     if (!check.rows.length) return res.status(404).json({ error: "المدير غير موجود" });
     // حذف الجلسات والبيانات المرتبطة ثم السجل

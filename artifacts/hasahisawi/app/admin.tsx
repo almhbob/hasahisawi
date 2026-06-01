@@ -37,9 +37,14 @@ type Stats = {
   totals: { total: number; admins: number; moderators: number; members: number };
   byNeighborhood: { neighborhood: string; count: number }[];
   recentUsers: AdminUser[];
+  sections?: {
+    jobs_active: number; reports_pending: number; missing_lost: number;
+    factories_active: number; rentals_active: number; feedback_pending: number;
+    ratings_total: number; travel_pending: number;
+  };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -2609,6 +2614,24 @@ export default function AdminDashboard() {
   const [rentalsActing, setRentalsActing] = useState<number | null>(null);
   const [rentalView, setRentalView] = useState<"listings"|"contracts">("listings");
 
+  // ── Jobs Admin ──
+  const [adminJobs, setAdminJobs] = useState<any[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [jobsActing, setJobsActing] = useState<number | null>(null);
+  const [jobsFilter, setJobsFilter] = useState<"all"|"active"|"inactive">("all");
+
+  // ── Ratings Admin ──
+  const [adminRatings, setAdminRatings] = useState<any[]>([]);
+  const [loadingRatings, setLoadingRatings] = useState(false);
+  const [ratingsActing, setRatingsActing] = useState<number | null>(null);
+
+  // ── Feedback Admin ──
+  const [adminFeedback, setAdminFeedback] = useState<any[]>([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackActing, setFeedbackActing] = useState<number | null>(null);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [replyText, setReplyText] = useState("");
+
   // ── Security ──
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [savingPin, setSavingPin] = useState(false);
@@ -3311,6 +3334,33 @@ export default function AdminDashboard() {
     finally { setLoadingRentals(false); }
   }, [token]);
 
+  const loadAdminJobs = useCallback(async () => {
+    setLoadingJobs(true);
+    try {
+      const res = await apiFetch("/api/admin/jobs", token);
+      if (res.ok) { const d = await safeJson(res); setAdminJobs(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingJobs(false); }
+  }, [token]);
+
+  const loadAdminRatings = useCallback(async () => {
+    setLoadingRatings(true);
+    try {
+      const res = await apiFetch("/api/admin/ratings", token);
+      if (res.ok) { const d = await safeJson(res); setAdminRatings(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingRatings(false); }
+  }, [token]);
+
+  const loadAdminFeedback = useCallback(async () => {
+    setLoadingFeedback(true);
+    try {
+      const res = await apiFetch("/api/admin/feedback", token);
+      if (res.ok) { const d = await safeJson(res); setAdminFeedback(Array.isArray(d) ? d : []); }
+    } catch {}
+    finally { setLoadingFeedback(false); }
+  }, [token]);
+
   const loadCommunities = useCallback(async () => {
     setLoadingCommunities(true);
     try {
@@ -3429,6 +3479,9 @@ export default function AdminDashboard() {
     if (tab === "factories_admin") loadAdminFactories();
     if (tab === "farmers_admin")   loadAdminFarmers();
     if (tab === "rentals_admin")   loadAdminRentals();
+    if (tab === "jobs_admin")      loadAdminJobs();
+    if (tab === "ratings_admin")   loadAdminRatings();
+    if (tab === "feedback_admin")  loadAdminFeedback();
   }, [tab]);
 
   // ── User actions ─────────────────────────────────────────────────────────
@@ -3848,6 +3901,9 @@ export default function AdminDashboard() {
     { key: "factories_admin",  label: "المصانع",             icon: "business-outline" as any, color: "#6B7280", adminOnly: true },
     { key: "farmers_admin",    label: "السوق الزراعي",       icon: "leaf",               color: "#16A34A",      adminOnly: true },
     { key: "rentals_admin",    label: "الإيجارات",           icon: "home",               color: "#0EA5E9",      adminOnly: true },
+    { key: "jobs_admin",       label: "الوظائف",             icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
+    { key: "ratings_admin",    label: "التقييمات",           icon: "star",               color: "#F59E0B",      adminOnly: true },
+    { key: "feedback_admin",   label: "الشكاوى والمقترحات",  icon: "chatbubbles",        color: "#06B6D4",      adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -4047,6 +4103,19 @@ export default function AdminDashboard() {
                 <StatCard icon="shield-half" label="المشرفون"           value={stats.totals.moderators} color="#F0A500"        />
                 <StatCard icon="person"      label="الأعضاء"            value={stats.totals.members}    color={Colors.cyber}   />
               </Animated.View>
+
+              {stats.sections && (
+                <Animated.View entering={FadeIn.delay(120).duration(400)} style={[s.statsGrid, { marginTop: 4 }]}>
+                  <StatCard icon="briefcase-outline"      label="وظائف نشطة"       value={stats.sections.jobs_active}     color="#10B981" />
+                  <StatCard icon="warning-outline"        label="بلاغات معلقة"      value={stats.sections.reports_pending} color="#EF4444" />
+                  <StatCard icon="search-outline"         label="مفقودون"           value={stats.sections.missing_lost}    color="#F59E0B" />
+                  <StatCard icon="business-outline"       label="مصانع نشطة"        value={stats.sections.factories_active} color="#8B5CF6" />
+                  <StatCard icon="home-outline"           label="إيجارات نشطة"      value={stats.sections.rentals_active}  color="#06B6D4" />
+                  <StatCard icon="chatbubble-outline"     label="مقترحات معلقة"     value={stats.sections.feedback_pending} color="#F97316" />
+                  <StatCard icon="star-outline"           label="التقييمات"         value={stats.sections.ratings_total}   color="#FBBF24" />
+                  <StatCard icon="airplane-outline"       label="وكالات بانتظار"    value={stats.sections.travel_pending}  color="#EC4899" />
+                </Animated.View>
+              )}
 
               {/* ── Firebase Sync Card ── */}
               {isAdmin && (() => {
@@ -6908,6 +6977,234 @@ export default function AdminDashboard() {
                 );
               })
             )}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══ الوظائف ══ */}
+      {tab === "jobs_admin" && isAdmin && (
+        <View style={{ flex: 1 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+            contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
+            {(["all","active","inactive"] as const).map(f => {
+              const FL: Record<string,string> = { all:"الكل", active:"نشطة", inactive:"معطّلة" };
+              return (
+                <TouchableOpacity key={f} onPress={() => setJobsFilter(f)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                    backgroundColor: jobsFilter === f ? "#8B5CF6" : "#FFFFFF0A",
+                    borderWidth: 1, borderColor: jobsFilter === f ? "#8B5CF6" : "#FFFFFF15" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: jobsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity onPress={loadAdminJobs} style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: "#FFFFFF0A" }}>
+              <Ionicons name="refresh" size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminJobs.length} وظيفة</Text>
+          </ScrollView>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loadingJobs ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : (() => {
+              const filtered = jobsFilter === "all" ? adminJobs
+                : jobsFilter === "active" ? adminJobs.filter(j => j.is_active)
+                : adminJobs.filter(j => !j.is_active);
+              const TYPE_LABEL: Record<string,string> = { fulltime:"دوام كامل", parttime:"دوام جزئي", freelance:"عمل حر", volunteer:"تطوع" };
+              return filtered.length === 0 ? (
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد وظائف</Text>
+              ) : filtered.map(job => (
+                <View key={job.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+                  borderColor: job.is_active ? "#8B5CF640" : "#6B728040", borderRightWidth: 4, borderRightColor: job.is_active ? "#8B5CF6" : "#6B7280",
+                  padding: 14, marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{job.title}</Text>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: job.is_active ? "#8B5CF620" : "#6B728020" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: job.is_active ? "#8B5CF6" : "#9CA3AF" }}>{job.is_active ? "● نشطة" : "◌ معطّلة"}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 2 }}>{job.company}</Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 4 }}>
+                    {job.type && <View style={{ backgroundColor: "#8B5CF615", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#A78BFA" }}>{TYPE_LABEL[job.type] || job.type}</Text></View>}
+                    {job.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>📍 {job.location}</Text>}
+                  </View>
+                  {job.salary && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#10B981", textAlign: "right", marginBottom: 2 }}>💰 {job.salary}</Text>}
+                  {job.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {job.contact_phone}</Text>}
+                  {job.author_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 2 }}>👤 {job.author_name}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(job.created_at).toLocaleDateString("ar-EG")}</Text>
+                  <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                    <TouchableOpacity disabled={jobsActing === job.id}
+                      onPress={async () => {
+                        setJobsActing(job.id);
+                        try {
+                          const res = await apiFetch(`/api/admin/jobs/${job.id}`, token, { method: "PATCH", body: JSON.stringify({ is_active: !job.is_active }) });
+                          if (res.ok) setAdminJobs(prev => prev.map(j => j.id === job.id ? { ...j, is_active: !job.is_active } : j));
+                        } catch {} finally { setJobsActing(null); }
+                      }}
+                      style={{ flex: 2, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
+                        backgroundColor: job.is_active ? "#EF444415" : "#10B98115",
+                        borderColor: job.is_active ? "#EF444440" : "#10B98140" }}>
+                      {jobsActing === job.id ? <ActivityIndicator size="small" color={job.is_active ? "#EF4444" : "#10B981"} /> :
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: job.is_active ? "#EF4444" : "#10B981" }}>{job.is_active ? "تعطيل" : "تفعيل"}</Text>
+                      }
+                    </TouchableOpacity>
+                    <TouchableOpacity disabled={jobsActing === job.id}
+                      onPress={() => Alert.alert("حذف الوظيفة", `هل تريد حذف "${job.title}"؟`, [
+                        { text: "إلغاء", style: "cancel" },
+                        { text: "حذف", style: "destructive", onPress: async () => {
+                          setJobsActing(job.id);
+                          await apiFetch(`/api/admin/jobs/${job.id}`, token, { method: "DELETE" }).catch(()=>{});
+                          setAdminJobs(prev => prev.filter(j => j.id !== job.id));
+                          setJobsActing(null);
+                        }},
+                      ])}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ));
+            })()}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ══ التقييمات ══ */}
+      {tab === "ratings_admin" && isAdmin && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 12, gap: 8 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminRatings.length} تقييم</Text>
+            <TouchableOpacity onPress={loadAdminRatings} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF0A" }}>
+              <Ionicons name="refresh" size={13} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          {loadingRatings ? <ActivityIndicator color="#F59E0B" style={{ marginTop: 40 }} /> :
+           adminRatings.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد تقييمات</Text>
+           ) : adminRatings.map(r => {
+             const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+             const starColor = r.rating >= 4 ? "#10B981" : r.rating >= 3 ? "#F59E0B" : "#EF4444";
+             return (
+               <View key={r.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1,
+                 borderColor: starColor + "30", borderRightWidth: 3, borderRightColor: starColor,
+                 padding: 14, marginBottom: 10 }}>
+                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.entity_name || r.target_id || "—"}</Text>
+                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: starColor, letterSpacing: 1 }}>{stars}</Text>
+                 </View>
+                 {r.entity_type && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {r.entity_type}</Text>}
+                 {r.user_display_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.user_display_name}</Text>}
+                 {r.comment && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{r.comment}</Text>}
+                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                   <TouchableOpacity disabled={ratingsActing === r.id}
+                     onPress={() => Alert.alert("حذف التقييم", "هل تريد حذف هذا التقييم؟", [
+                       { text: "إلغاء", style: "cancel" },
+                       { text: "حذف", style: "destructive", onPress: async () => {
+                         setRatingsActing(r.id);
+                         await apiFetch(`/api/admin/ratings/${r.id}`, token, { method: "DELETE" }).catch(()=>{});
+                         setAdminRatings(prev => prev.filter(x => x.id !== r.id));
+                         setRatingsActing(null);
+                       }},
+                     ])}
+                     style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
+                     {ratingsActing === r.id ? <ActivityIndicator size="small" color="#EF4444" /> : <Ionicons name="trash-outline" size={14} color="#EF4444" />}
+                   </TouchableOpacity>
+                 </View>
+               </View>
+             );
+           })}
+        </ScrollView>
+      )}
+
+      {/* ══ الشكاوى والمقترحات ══ */}
+      {tab === "feedback_admin" && isAdmin && (
+        <View style={{ flex: 1 }}>
+          {/* مودال الرد */}
+          <Modal visible={!!replyingTo} transparent animationType="fade" onRequestClose={() => { setReplyingTo(null); setReplyText(""); }}>
+            <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
+              <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 12, borderWidth: 1, borderColor: "#06B6D440" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" }}>رد على: {replyingTo?.title}</Text>
+                <TextInput
+                  value={replyText} onChangeText={setReplyText}
+                  placeholder="اكتب ردّك هنا..." placeholderTextColor={Colors.textMuted}
+                  multiline style={{ backgroundColor: "#FFFFFF0A", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right", minHeight: 90, textAlignVertical: "top" }}
+                />
+                <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+                  <TouchableOpacity onPress={() => { setReplyingTo(null); setReplyText(""); }}
+                    style={{ flex: 1, paddingVertical: 11, borderRadius: 12, backgroundColor: "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: "#FFFFFF18" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>إلغاء</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity disabled={feedbackActing !== null || !replyText.trim()}
+                    onPress={async () => {
+                      if (!replyText.trim() || !replyingTo) return;
+                      setFeedbackActing(replyingTo.id);
+                      try {
+                        const res = await apiFetch(`/api/admin/feedback/${replyingTo.id}/reply`, token, {
+                          method: "PATCH", body: JSON.stringify({ reply: replyText }),
+                        });
+                        if (res.ok) {
+                          setAdminFeedback(prev => prev.map(f => f.id === replyingTo.id ? { ...f, admin_reply: replyText, status: "replied" } : f));
+                          setReplyingTo(null); setReplyText("");
+                        } else { const d = await safeJson(res); Alert.alert("خطأ", d.error || "تعذّر إرسال الرد"); }
+                      } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setFeedbackActing(null); }
+                    }}
+                    style={{ flex: 2, paddingVertical: 11, borderRadius: 12, backgroundColor: "#06B6D4", alignItems: "center", opacity: replyText.trim() ? 1 : 0.5 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>إرسال الرد</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 6, gap: 8 }}>
+            <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{adminFeedback.length} رسالة</Text>
+            <TouchableOpacity onPress={loadAdminFeedback} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF0A" }}>
+              <Ionicons name="refresh" size={13} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {loadingFeedback ? <ActivityIndicator color="#06B6D4" style={{ marginTop: 40 }} /> :
+             adminFeedback.length === 0 ? (
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد شكاوى أو مقترحات</Text>
+             ) : adminFeedback.map(fb => {
+               const TYPE_COLOR: Record<string,string> = { suggestion: "#10B981", complaint: "#EF4444", general: "#6B7280" };
+               const TYPE_LABEL: Record<string,string> = { suggestion: "💡 مقترح", complaint: "⚠️ شكوى", general: "💬 عام" };
+               const STATUS_COLOR: Record<string,string> = { pending: "#F59E0B", replied: "#10B981", closed: "#6B7280" };
+               const STATUS_LABEL: Record<string,string> = { pending: "جديد", replied: "تم الرد", closed: "مغلق" };
+               const tc = TYPE_COLOR[fb.type] || "#6B7280";
+               const sc = STATUS_COLOR[fb.status] || "#F59E0B";
+               return (
+                 <View key={fb.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
+                   borderColor: tc + "30", borderRightWidth: 4, borderRightColor: tc, padding: 14, marginBottom: 12 }}>
+                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{fb.title}</Text>
+                     <View style={{ flexDirection: "row-reverse", gap: 4 }}>
+                       <View style={{ backgroundColor: tc + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: tc }}>{TYPE_LABEL[fb.type] || fb.type}</Text>
+                       </View>
+                       <View style={{ backgroundColor: sc + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: sc }}>{STATUS_LABEL[fb.status] || fb.status}</Text>
+                       </View>
+                     </View>
+                   </View>
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {fb.sender_name} {fb.phone ? `· ${fb.phone}` : ""}</Text>
+                   {fb.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>🏷️ {fb.category}</Text>}
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{fb.body}</Text>
+                   {fb.admin_reply && (
+                     <View style={{ backgroundColor: "#06B6D410", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#06B6D430" }}>
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#06B6D4", textAlign: "right", marginBottom: 4 }}>✅ ردّ الإدارة:</Text>
+                       <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{fb.admin_reply}</Text>
+                     </View>
+                   )}
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(fb.created_at).toLocaleDateString("ar-EG")}</Text>
+                   <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                     <TouchableOpacity onPress={() => { setReplyingTo(fb); setReplyText(fb.admin_reply || ""); }}
+                       style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#06B6D415", borderWidth: 1, borderColor: "#06B6D440", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                       <Ionicons name="chatbubble-outline" size={14} color="#06B6D4" />
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#06B6D4" }}>{fb.admin_reply ? "تعديل الرد" : "ردّ"}</Text>
+                     </TouchableOpacity>
+                   </View>
+                 </View>
+               );
+             })}
           </ScrollView>
         </View>
       )}
