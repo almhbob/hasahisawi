@@ -398,26 +398,49 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.build-android.outputs.version }}
-          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }}"
+          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi"
           body: |
-            ## حصاحيصاوي — v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})
+            ## حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi v${{ needs.build-android.outputs.version }}
+            **versionCode ${{ needs.build-android.outputs.code }}**
 
-            | المنصة | النسخة | الاستخدام |
-            |--------|--------|---------|
-            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
-            | **Android** | AAB ↓ | رفع على Google Play Store |
-            | **iPhone / iPad** | PWA | افتح في Safari ← ↑ ← "إضافة للشاشة الرئيسية" |
+            ---
 
-            ### رابط iPhone / iPad
+            ## 📥 التنزيل / Download
+
+            | المنصة / Platform | الملف / File | الاستخدام / Usage |
+            |---|---|---|
+            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" / Direct install — enable Unknown sources |
+            | **Android** | AAB ↓ | رفع على Google Play / Upload to Google Play |
+            | **iPhone / iPad** | PWA | Safari → ↑ → "إضافة للشاشة الرئيسية" / "Add to Home Screen" |
+
+            ---
+
+            ## 🌐 iPhone / iPad (PWA)
             **https://almhbob.github.io/hasahisawi/**
 
-            ### ميزات v${{ needs.build-android.outputs.version }}
+            ---
+
+            ## ✨ ميزات الإصدار / What's New
+
+            ### عربي
             - ✅ إصلاح جميع طلبات الانضمام (مؤسسات، محامون، نقابات، شراكات خارجية)
-            - ✅ إصلاح شاشة إدارة أقسام التطبيق (لم تكن تظهر)
-            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية (قوائم فارغة)
+            - ✅ لوحة تحكم المشرف — 9 أقسام جديدة وإحصائيات شاملة
+            - ✅ نظام دعوات وكالات السفر
+            - ✅ إصلاح شاشة إدارة أقسام التطبيق
+            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية
             - ✅ ترحيل آمن لقاعدة البيانات — لا حذف للجداول
             - ✅ إشعارات مخصصة مع نغمات لكل قسم
-            - ✅ حماية 700+ مستخدم — لا عمليات حذف على قاعدة البيانات
+            - ✅ حماية 700+ مستخدم
+
+            ### English
+            - ✅ Fixed all join requests (institutions, lawyers, unions, external partnerships)
+            - ✅ Admin dashboard — 9 new panels with comprehensive stats
+            - ✅ Travel agency invitation system
+            - ✅ Fixed app sections management screen
+            - ✅ Fixed women's services & community organizations screens
+            - ✅ Safe database migration — no table drops
+            - ✅ Custom notifications with per-section sounds
+            - ✅ Protected 700+ existing users
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
