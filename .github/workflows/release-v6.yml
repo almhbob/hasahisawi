@@ -299,23 +299,23 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
           echo '/* /index.html 200' > dist/_redirects
-          cat > dist/_headers << 'HEADERS_EOF'
-/*
-  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  X-XSS-Protection: 1; mode=block
-
-/_expo/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/splash/*
-  Cache-Control: public, max-age=86400
-HEADERS_EOF
+          printf '%s\n' \
+            '/*' \
+            '  X-Frame-Options: DENY' \
+            '  X-Content-Type-Options: nosniff' \
+            '  Referrer-Policy: strict-origin-when-cross-origin' \
+            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
+            '  X-XSS-Protection: 1; mode=block' \
+            '' \
+            '/_expo/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            '' \
+            '/assets/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            '' \
+            '/splash/*' \
+            '  Cache-Control: public, max-age=86400' \
+            > dist/_headers
 
       - name: Deploy to GitHub Pages (docs/)
         run: |
@@ -366,15 +366,7 @@ HEADERS_EOF
             done > /tmp/fonts-override.css
 
             # حقن CSS في index.html و 404.html
-            python3 -c "
-import sys
-with open('cf-dist/index.html','r') as f: c=f.read()
-with open('/tmp/fonts-override.css','r') as f: css=f.read()
-c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1)
-with open('cf-dist/index.html','w') as f: f.write(c)
-with open('cf-dist/404.html','w') as f: f.write(c)
-print('Fonts CSS injected')
-"
+            python3 -c "c=open('cf-dist/index.html').read(); css=open('/tmp/fonts-override.css').read(); c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1); open('cf-dist/index.html','w').write(c); open('cf-dist/404.html','w').write(c); print('Fonts CSS injected')"
 
             npx wrangler@3 pages deploy cf-dist \
               --project-name=hasahisawi \
