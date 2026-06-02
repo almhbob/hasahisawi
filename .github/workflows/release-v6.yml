@@ -34,8 +34,10 @@ jobs:
           java-version: '17'
 
       - name: Add swap space (4 GB)
+        continue-on-error: true
         run: |
-          sudo fallocate -l 4G /swapfile
+          sudo fallocate -l 4G /swapfile 2>/dev/null || \
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
