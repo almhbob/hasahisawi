@@ -429,17 +429,19 @@ jobs:
     name: Publish to Google Play — Internal Track
     needs: [build-android, create-release]
     runs-on: ubuntu-latest
-    # Only runs if the service account secret is configured
-    if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    continue-on-error: true
+    env:
+      SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: aab
 
       - name: Upload AAB to Google Play Internal Track
+        if: env.SERVICE_ACCOUNT != ''
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ env.SERVICE_ACCOUNT }}
           packageName: com.almhbob.hasahisawi
           releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
           track: internal
