@@ -1,17 +1,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <!-- Location: required for map-based services -->
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+  <!-- Network -->
   <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+  <!-- Notifications (Android 13+) -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-  <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <!-- Storage: scoped to API levels where it was required -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" tools:ignore="ScopedStorage"/>
+  <!-- Biometric auth -->
+  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+  <!-- Explicitly remove permissions that violate Google Play policy -->
+  <!-- SYSTEM_ALERT_WINDOW: not used — draw-over-apps triggers Misleading Ads policy -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
+  <!-- RECORD_AUDIO: not used — flags as potential spyware -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+  <!-- MODIFY_AUDIO_SETTINGS: not used — modifying system audio with no justification -->
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" tools:node="remove"/>
+  <!-- USE_FINGERPRINT: deprecated since API 28, superseded by USE_BIOMETRIC -->
+  <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove"/>
+  <!-- RECEIVE_BOOT_COMPLETED: not needed — app uses push (FCM), not local scheduled boot jobs -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
