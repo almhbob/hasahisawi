@@ -2033,32 +2033,34 @@ function singleQueryValue(value: unknown): string | undefined {
 }
 
 async function getSessionUser(req: Request): Promise<Record<string, unknown> | null> {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  const tok = auth.slice(7);
+  try {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith("Bearer ")) return null;
+    const tok = auth.slice(7);
 
-  // 1. البحث في جلسات الـ backend أولاً (المسار المعتاد)
-  const result = await query(`
-    SELECT u.* FROM users u
-    JOIN user_sessions s ON s.user_id = u.id
-    WHERE s.token = $1 AND s.expires_at > NOW()
-  `, [tok]);
-  if (result.rows[0]) return result.rows[0];
+    // 1. البحث في جلسات الـ backend أولاً (المسار المعتاد)
+    const result = await query(`
+      SELECT u.* FROM users u
+      JOIN user_sessions s ON s.user_id = u.id
+      WHERE s.token = $1 AND s.expires_at > NOW()
+    `, [tok]);
+    if (result.rows[0]) return result.rows[0];
 
-  // 2. fallback: Firebase ID token (JWT ذو 3 أجزاء)
-  if (tok.split(".").length === 3 && tok.startsWith("eyJ")) {
-    try {
-      const decoded = await verifyIdToken(tok);
-      if (decoded?.uid) {
-        const { rows } = await query(
-          `SELECT * FROM users WHERE firebase_uid = $1`, [decoded.uid]
-        );
-        if (rows[0]) return rows[0];
-      }
-    } catch { /* رمز Firebase غير صالح — تجاهل */ }
-  }
+    // 2. fallback: Firebase ID token (JWT ذو 3 أجزاء)
+    if (tok.split(".").length === 3 && tok.startsWith("eyJ")) {
+      try {
+        const decoded = await verifyIdToken(tok);
+        if (decoded?.uid) {
+          const { rows } = await query(
+            `SELECT * FROM users WHERE firebase_uid = $1`, [decoded.uid]
+          );
+          if (rows[0]) return rows[0];
+        }
+      } catch { /* رمز Firebase غير صالح — تجاهل */ }
+    }
 
-  return null;
+    return null;
+  } catch { return null; }
 }
 
 // مساعد: هل المستخدم مدير أو مشرف ترحيل؟
@@ -3801,34 +3803,39 @@ router.get("/admin/dashboard-stats", async (req: Request, res: Response) => {
     if (!await isAdminRequest(req)) {
       return res.status(403).json({ error: "غير مصرح" });
     }
+    const zeroTotals = { total: 0, admins: 0, moderators: 0, members: 0 };
+    const zeroSections = {
+      jobs_active: 0, reports_pending: 0, missing_lost: 0, factories_active: 0,
+      rentals_active: 0, feedback_pending: 0, ratings_total: 0, travel_pending: 0,
+    };
     const [totals, byNeighborhood, recent, sections] = await Promise.all([
       query(`SELECT
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE role='admin')::int AS admins,
         COUNT(*) FILTER (WHERE role='moderator')::int AS moderators,
         COUNT(*) FILTER (WHERE role='user')::int AS members
-        FROM users`),
+        FROM users`).catch(() => ({ rows: [zeroTotals] })),
       query(`SELECT neighborhood, COUNT(*)::int AS count
              FROM users WHERE neighborhood IS NOT NULL
-             GROUP BY neighborhood ORDER BY count DESC LIMIT 10`),
+             GROUP BY neighborhood ORDER BY count DESC LIMIT 10`).catch(() => ({ rows: [] })),
       query(`SELECT id, name, role, neighborhood, created_at FROM users
-             ORDER BY created_at DESC LIMIT 10`),
+             ORDER BY created_at DESC LIMIT 10`).catch(() => ({ rows: [] })),
       query(`SELECT
-        (SELECT COUNT(*)::int FROM jobs WHERE is_active=true)                           AS jobs_active,
-        (SELECT COUNT(*)::int FROM citizen_reports WHERE status='pending')::int          AS reports_pending,
-        (SELECT COUNT(*)::int FROM lost_items WHERE status='lost')::int                 AS missing_lost,
-        (SELECT COUNT(*)::int FROM factories WHERE is_active=true)::int                 AS factories_active,
-        (SELECT COUNT(*)::int FROM rental_listings WHERE status='active')::int          AS rentals_active,
-        (SELECT COUNT(*)::int FROM feedback WHERE status='pending')::int                AS feedback_pending,
-        (SELECT COUNT(*)::int FROM ratings)::int                                        AS ratings_total,
-        (SELECT COUNT(*)::int FROM travel_agency_applications WHERE status='pending')::int AS travel_pending
-      `),
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM jobs WHERE is_active=true),0))           AS jobs_active,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM citizen_reports WHERE status='pending'),0)) AS reports_pending,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM lost_items WHERE status='lost'),0))       AS missing_lost,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM factories WHERE is_active=true),0))       AS factories_active,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM rental_listings WHERE status='active'),0)) AS rentals_active,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM feedback WHERE status='pending'),0))      AS feedback_pending,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM ratings),0))                              AS ratings_total,
+        (SELECT COALESCE((SELECT COUNT(*)::int FROM travel_agency_applications WHERE status='pending'),0)) AS travel_pending
+      `).catch(() => ({ rows: [zeroSections] })),
     ]);
     return res.json({
-      totals: totals.rows[0],
+      totals: totals.rows[0] ?? zeroTotals,
       byNeighborhood: byNeighborhood.rows,
       recentUsers: recent.rows,
-      sections: sections.rows[0],
+      sections: sections.rows[0] ?? zeroSections,
     });
   } catch (err) {
     logger.error({ err }, "route error");
