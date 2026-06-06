@@ -4072,6 +4072,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       is_pinned   BOOLEAN DEFAULT FALSE,
       created_at  TIMESTAMPTZ DEFAULT NOW()
     )`);
+
+    // push tokens per manager device
+    await query(`CREATE TABLE IF NOT EXISTS union_manager_push_tokens (
+      id         SERIAL PRIMARY KEY,
+      manager_id INTEGER NOT NULL REFERENCES union_managers(id) ON DELETE CASCADE,
+      token      VARCHAR(300) UNIQUE NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  }
+
+  async function pushToUnionManagers(title: string, body: string, data: Record<string, unknown> = {}): Promise<void> {
+    try {
+      const r = await query(`SELECT DISTINCT token FROM union_manager_push_tokens WHERE token IS NOT NULL`);
+      const tokens = r.rows.map((row: any) => row.token as string);
+      await sendExpoPush(tokens, title, body, data, "DEFAULT");
+    } catch (e) { console.error("pushToUnionManagers error:", e); }
   }
 
   async function getManagerFromRequest(req: Request): Promise<{ id: number; full_name: string; title: string; username: string } | null> {
@@ -4138,6 +4154,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = "umt_" + randomBytes(24).toString("hex");
       await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
       res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, title: mgr.title, username: mgr.username } });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تسجيل push token لمسؤول الاتحاد ─────────────────────────────
+  app.put("/api/union-manager/push-token", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { pushToken } = req.body;
+      if (!pushToken) return res.status(400).json({ error: "pushToken مطلوب" });
+      await query(
+        `INSERT INTO union_manager_push_tokens (manager_id, token, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (token) DO UPDATE SET manager_id=$1, updated_at=NOW()`,
+        [mgr.id, pushToken]
+      );
+      res.json({ success: true });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── تغيير كلمة المرور ────────────────────────────────────────────
+  app.post("/api/union-manager/change-password", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { current_password, new_password } = req.body;
+      if (!current_password || !new_password) return res.status(400).json({ error: "كلمة المرور الحالية والجديدة مطلوبتان" });
+      if (new_password.length < 8) return res.status(400).json({ error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" });
+      const r = await query(`SELECT password_hash FROM union_managers WHERE id=$1`, [mgr.id]);
+      const valid = await bcrypt.compare(current_password, r.rows[0].password_hash);
+      if (!valid) return res.status(401).json({ error: "كلمة المرور الحالية غير صحيحة" });
+      const newHash = await bcrypt.hash(new_password, 12);
+      await query(`UPDATE union_managers SET password_hash=$1 WHERE id=$2`, [newHash, mgr.id]);
+      // إلغاء جميع الجلسات الأخرى
+      const authToken = (req.headers.authorization || "").replace("Bearer ", "");
+      await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1 AND token != $2`, [mgr.id, authToken]);
+      res.json({ success: true, message: "تم تغيير كلمة المرور بنجاح" });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  // ── طلبات الانضمام (للمسؤول) ─────────────────────────────────────
+  app.get("/api/union-manager/join-requests", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStudentUnionMgmtTables();
+      const status = req.query.status as string | undefined;
+      const r = status && status !== "all"
+        ? await query(`SELECT * FROM union_manager_applications WHERE status=$1 ORDER BY created_at DESC`, [status])
+        : await query(`SELECT * FROM union_manager_applications ORDER BY created_at DESC`);
+      res.json({ applications: r.rows });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+  });
+
+  app.patch("/api/union-manager/join-requests/:id/status", async (req: Request, res: Response) => {
+    const mgr = await getManagerFromRequest(req);
+    if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { status, admin_note } = req.body;
+      if (!["pending","approved","rejected"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      const r = await query(
+        `UPDATE union_manager_applications SET status=$1, admin_note=$2 WHERE id=$3 RETURNING *`,
+        [status, admin_note || null, req.params.id]
+      );
+      if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+      res.json(r.rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });
 
@@ -4376,6 +4458,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "البريد الإلكتروني": email||"", "المؤسسة": institution||"",
         "التخصص": major||"", "مرحلة الدراسة": study_stage||"",
       });
+      pushToUnionManagers(
+        "🎓 طلب انضمام جديد",
+        `${full_name} — ${institution || study_stage || "طالب"} يطلب الانضمام للاتحاد`,
+        { screen: "union-manager-portal", tab: "requests" }
+      ).catch(() => {});
       res.status(201).json({ success: true, application: r.rows[0] });
     } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
   });

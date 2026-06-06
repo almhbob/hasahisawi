@@ -1,22 +1,26 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform,
-  RefreshControl, FlatList,
+  RefreshControl, FlatList, Animated as RNAnimated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC   = "#6366F1";
+const UC2  = "#A5B4FC";
 const GREEN = "#22C55E";
+const GOLD  = "#F59E0B";
+const RED   = "#EF4444";
+
 const MGTOKEN_KEY = "union_manager_token";
 const MGINFO_KEY  = "union_manager_info";
 
@@ -24,6 +28,13 @@ type Manager = { id: number; full_name: string; title: string; username: string 
 type Staff   = { id: number; full_name: string; role: string; committee?: string; phone?: string; email?: string; notes?: string; is_active: boolean; created_at: string };
 type Meeting = { id: number; title: string; description?: string; meeting_date?: string; meeting_time?: string; location?: string; type: string; status: string; created_at: string };
 type Msg     = { id: number; sender_name: string; content: string; is_pinned: boolean; created_at: string };
+type JoinRequest = {
+  id: number; full_name: string; phone?: string; email?: string;
+  institution?: string; major?: string; study_stage?: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note?: string; created_at: string;
+  committees?: string; motivation?: string;
+};
 
 const COMMITTEES = [
   "الأمانة العامة", "أمانة الإعلام والثقافة", "أمانة التدريب والتطوير",
@@ -34,12 +45,31 @@ const COMMITTEES = [
 
 const MTG_TYPES = ["meeting", "urgent", "workshop", "training"];
 const MTG_TYPE_LABEL: Record<string, string> = { meeting: "اجتماع", urgent: "عاجل", workshop: "ورشة عمل", training: "تدريب" };
-const MTG_TYPE_COLOR: Record<string, string> = { meeting: UC, urgent: "#EF4444", workshop: "#F59E0B", training: GREEN };
+const MTG_TYPE_COLOR: Record<string, string> = { meeting: UC, urgent: RED, workshop: GOLD, training: GREEN };
 
 function formatDate(s?: string) {
   if (!s) return "";
   try { return new Date(s).toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" }); }
   catch { return s; }
+}
+
+// ── تسجيل push token ──────────────────────────────────────────────
+async function registerPushToken(token: string) {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return;
+    const pushToken = (await Notifications.getExpoPushTokenAsync()).data;
+    await fetch(`${getApiUrl()}/api/union-manager/push-token`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pushToken }),
+    });
+  } catch {}
 }
 
 // ── شاشة تسجيل الدخول ─────────────────────────────────────────────
@@ -143,6 +173,234 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
   );
 }
 
+// ── تبويب طلبات الانضمام ──────────────────────────────────────────
+function RequestsTab({ token, onBadge }: { token: string; onBadge: (n: number) => void }) {
+  const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter]     = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [selected, setSelected] = useState<JoinRequest | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [saving, setSaving]     = useState(false);
+
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/join-requests?status=${filter}`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        setRequests(d.applications || []);
+        const pending = (d.applications || []).filter((a: JoinRequest) => a.status === "pending").length;
+        onBadge(pending);
+      }
+    } catch {} finally { setLoading(false); setRefreshing(false); }
+  }, [token, filter]);
+
+  useEffect(() => { setLoading(true); load(); }, [load]);
+
+  const updateStatus = async (id: number, status: "approved" | "rejected") => {
+    setSaving(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/join-requests/${id}/status`, {
+        method: "PATCH", headers,
+        body: JSON.stringify({ status, admin_note: noteText.trim() || null }),
+      });
+      if (r.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSelected(null); setNoteText(""); load();
+      } else { const d = await r.json(); Alert.alert("خطأ", d.error); }
+    } catch { Alert.alert("خطأ", "فشل الاتصال"); } finally { setSaving(false); }
+  };
+
+  const STATUS_COLOR: Record<string, string> = { pending: GOLD, approved: GREEN, rejected: RED };
+  const STATUS_LABEL: Record<string, string> = { pending: "معلّق", approved: "مقبول", rejected: "مرفوض" };
+  const STATUS_ICON:  Record<string, string> = { pending: "time-outline", approved: "checkmark-circle", rejected: "close-circle" };
+
+  const FILTERS: { key: typeof filter; label: string }[] = [
+    { key: "all",      label: "الكل" },
+    { key: "pending",  label: "معلّق" },
+    { key: "approved", label: "مقبول" },
+    { key: "rejected", label: "مرفوض" },
+  ];
+
+  if (loading) return <View style={t.center}><ActivityIndicator color={UC} /></View>;
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* فلاتر */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={rq.filterRow}>
+        {FILTERS.map(f => (
+          <TouchableOpacity key={f.key} onPress={() => setFilter(f.key)}
+            style={[rq.filterChip, filter === f.key && rq.filterChipActive]}>
+            <Text style={[rq.filterChipText, filter === f.key && rq.filterChipTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      >
+        {requests.length === 0 ? (
+          <View style={t.empty}>
+            <Ionicons name="document-text-outline" size={48} color={Colors.textMuted} />
+            <Text style={t.emptyText}>لا توجد طلبات</Text>
+          </View>
+        ) : requests.map((req, i) => (
+          <Animated.View key={req.id} entering={FadeInDown.delay(i * 50).springify()}>
+            <TouchableOpacity style={[t.card, rq.reqCard]} onPress={() => { setSelected(req); setNoteText(req.admin_note || ""); }}>
+              <View style={rq.reqHeader}>
+                <View style={[rq.statusBadge, { backgroundColor: (STATUS_COLOR[req.status] || GOLD) + "20" }]}>
+                  <Ionicons name={STATUS_ICON[req.status] as any} size={14} color={STATUS_COLOR[req.status] || GOLD} />
+                  <Text style={[rq.statusText, { color: STATUS_COLOR[req.status] || GOLD }]}>{STATUS_LABEL[req.status]}</Text>
+                </View>
+                <Text style={rq.date}>{formatDate(req.created_at)}</Text>
+              </View>
+
+              <View style={rq.nameRow}>
+                <View style={[t.avatar, { backgroundColor: UC + "20" }]}>
+                  <Text style={[t.avatarText, { color: UC }]}>{req.full_name[0]}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={t.cardName}>{req.full_name}</Text>
+                  <Text style={t.cardSub}>{[req.institution, req.major, req.study_stage].filter(Boolean).join(" · ")}</Text>
+                  {req.phone && <Text style={t.cardInfo}>{req.phone}</Text>}
+                </View>
+                <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+              </View>
+
+              {req.admin_note && (
+                <View style={rq.notePreview}>
+                  <Text style={rq.notePreviewText} numberOfLines={1}>ملاحظة: {req.admin_note}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        ))}
+      </ScrollView>
+
+      {/* Modal التفاصيل والقرار */}
+      <Modal visible={!!selected} animationType="slide" transparent>
+        <View style={m.overlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+            <View style={[m.sheet, { maxHeight: "92%" }]}>
+              <View style={m.handle} />
+              <View style={rq.modalHeader}>
+                <Text style={m.title}>تفاصيل الطلب</Text>
+                <TouchableOpacity onPress={() => setSelected(null)} hitSlop={10}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {selected && (
+                <ScrollView contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled">
+                  {/* بيانات الطالب */}
+                  <View style={rq.detailCard}>
+                    <Text style={rq.detailSection}>بيانات المتقدم</Text>
+                    {[
+                      { label: "الاسم الكامل", val: selected.full_name },
+                      { label: "الهاتف", val: selected.phone },
+                      { label: "البريد", val: selected.email },
+                      { label: "المؤسسة", val: selected.institution },
+                      { label: "التخصص", val: selected.major },
+                      { label: "المرحلة الدراسية", val: selected.study_stage },
+                    ].filter(r => r.val).map(r => (
+                      <View key={r.label} style={rq.detailRow}>
+                        <Text style={rq.detailLabel}>{r.label}</Text>
+                        <Text style={rq.detailVal}>{r.val}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {selected.motivation && (
+                    <View style={rq.detailCard}>
+                      <Text style={rq.detailSection}>الدافع للانضمام</Text>
+                      <Text style={rq.motivText}>{selected.motivation}</Text>
+                    </View>
+                  )}
+
+                  {/* حالة الطلب الحالية */}
+                  <View style={[rq.detailCard, { flexDirection: "row-reverse", alignItems: "center", gap: 10 }]}>
+                    <Ionicons name={STATUS_ICON[selected.status] as any} size={20} color={STATUS_COLOR[selected.status]} />
+                    <Text style={[rq.detailSection, { color: STATUS_COLOR[selected.status], marginBottom: 0 }]}>
+                      الحالة: {STATUS_LABEL[selected.status]}
+                    </Text>
+                  </View>
+
+                  {/* ملاحظة المسؤول */}
+                  <View>
+                    <Text style={m.label}>ملاحظة (اختيارية)</Text>
+                    <TextInput
+                      style={[m.input, { height: 70, textAlignVertical: "top" }]}
+                      value={noteText} onChangeText={setNoteText}
+                      placeholder="أضف ملاحظة للطالب أو للسجل..."
+                      placeholderTextColor={Colors.textMuted}
+                      textAlign="right" multiline
+                    />
+                  </View>
+
+                  {/* أزرار القرار */}
+                  {selected.status === "pending" ? (
+                    <View style={rq.actionRow}>
+                      <TouchableOpacity
+                        style={[rq.rejectBtn, saving && { opacity: 0.6 }]}
+                        onPress={() => Alert.alert("تأكيد الرفض", `هل تريد رفض طلب ${selected.full_name}؟`, [
+                          { text: "إلغاء", style: "cancel" },
+                          { text: "رفض", style: "destructive", onPress: () => updateStatus(selected.id, "rejected") },
+                        ])}
+                        disabled={saving}
+                      >
+                        <Ionicons name="close-circle-outline" size={20} color={RED} />
+                        <Text style={[rq.actionBtnText, { color: RED }]}>رفض</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[rq.approveBtn, saving && { opacity: 0.6 }]}
+                        onPress={() => Alert.alert("تأكيد القبول", `هل تريد قبول طلب ${selected.full_name}؟`, [
+                          { text: "إلغاء", style: "cancel" },
+                          { text: "قبول", onPress: () => updateStatus(selected.id, "approved") },
+                        ])}
+                        disabled={saving}
+                      >
+                        {saving ? <ActivityIndicator color="#fff" size="small" /> : (
+                          <>
+                            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                            <Text style={[rq.actionBtnText, { color: "#fff" }]}>قبول</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={rq.actionRow}>
+                      <TouchableOpacity
+                        style={[rq.rejectBtn, saving && { opacity: 0.6 }]}
+                        onPress={() => updateStatus(selected.id, "rejected")}
+                        disabled={saving}
+                      >
+                        <Ionicons name="close-circle-outline" size={18} color={RED} />
+                        <Text style={[rq.actionBtnText, { color: RED }]}>تغيير لـ: مرفوض</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[rq.approveBtn, saving && { opacity: 0.6 }]}
+                        onPress={() => updateStatus(selected.id, "approved")}
+                        disabled={saving}
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                        <Text style={[rq.actionBtnText, { color: "#fff" }]}>تغيير لـ: مقبول</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
 // ── تبويب الموظفين ────────────────────────────────────────────────
 function StaffTab({ token }: { token: string }) {
   const [staff, setStaff]       = useState<Staff[]>([]);
@@ -151,7 +409,6 @@ function StaffTab({ token }: { token: string }) {
   const [showModal, setShowModal]   = useState(false);
   const [editItem, setEditItem]     = useState<Staff | null>(null);
   const [saving, setSaving]         = useState(false);
-
   const [form, setForm] = useState({ full_name: "", role: "", committee: "", phone: "", email: "", notes: "" });
 
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -165,7 +422,7 @@ function StaffTab({ token }: { token: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => { setEditItem(null); setForm({ full_name: "", role: "", committee: "", phone: "", email: "", notes: "" }); setShowModal(true); };
+  const openAdd  = () => { setEditItem(null); setForm({ full_name: "", role: "", committee: "", phone: "", email: "", notes: "" }); setShowModal(true); };
   const openEdit = (s: Staff) => { setEditItem(s); setForm({ full_name: s.full_name, role: s.role, committee: s.committee || "", phone: s.phone || "", email: s.email || "", notes: s.notes || "" }); setShowModal(true); };
 
   const save = async () => {
@@ -173,12 +430,9 @@ function StaffTab({ token }: { token: string }) {
     setSaving(true);
     try {
       const url = editItem ? `${getApiUrl()}/api/union-manager/staff/${editItem.id}` : `${getApiUrl()}/api/union-manager/staff`;
-      const method = editItem ? "PATCH" : "POST";
-      const r = await fetch(url, { method, headers, body: JSON.stringify(form) });
-      if (r.ok) {
-        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setShowModal(false); load();
-      } else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل الحفظ"); }
+      const r = await fetch(url, { method: editItem ? "PATCH" : "POST", headers, body: JSON.stringify(form) });
+      if (r.ok) { if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setShowModal(false); load(); }
+      else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل الحفظ"); }
     } catch { Alert.alert("خطأ", "تعذر الاتصال"); } finally { setSaving(false); }
   };
 
@@ -186,11 +440,8 @@ function StaffTab({ token }: { token: string }) {
     Alert.alert("تأكيد الحذف", `هل تريد حذف ${name}؟`, [
       { text: "إلغاء", style: "cancel" },
       { text: "حذف", style: "destructive", onPress: async () => {
-        try {
-          await fetch(`${getApiUrl()}/api/union-manager/staff/${id}`, { method: "DELETE", headers });
-          setStaff(p => p.filter(s => s.id !== id));
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch { Alert.alert("خطأ", "فشل الحذف"); }
+        try { await fetch(`${getApiUrl()}/api/union-manager/staff/${id}`, { method: "DELETE", headers }); setStaff(p => p.filter(s => s.id !== id)); }
+        catch { Alert.alert("خطأ", "فشل الحذف"); }
       }},
     ]);
   };
@@ -208,34 +459,27 @@ function StaffTab({ token }: { token: string }) {
         ) : staff.map((s, i) => (
           <Animated.View key={s.id} entering={FadeInDown.delay(i * 60).springify()} style={t.card}>
             <View style={t.cardHeader}>
-              <View style={t.avatar}>
-                <Text style={t.avatarText}>{s.full_name[0]}</Text>
-              </View>
+              <View style={t.avatar}><Text style={t.avatarText}>{s.full_name[0]}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={t.cardName}>{s.full_name}</Text>
                 <Text style={t.cardRole}>{s.role}</Text>
                 {s.committee && <Text style={t.cardSub}>{s.committee}</Text>}
               </View>
               <View style={t.cardActions}>
-                <TouchableOpacity onPress={() => openEdit(s)} style={t.actionBtn}>
-                  <Ionicons name="pencil-outline" size={16} color={UC} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => remove(s.id, s.full_name)} style={[t.actionBtn, { borderColor: "#EF444420" }]}>
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openEdit(s)} style={t.actionBtn}><Ionicons name="pencil-outline" size={16} color={UC} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => remove(s.id, s.full_name)} style={[t.actionBtn, { borderColor: "#EF444420" }]}><Ionicons name="trash-outline" size={16} color={RED} /></TouchableOpacity>
               </View>
             </View>
             {(s.phone || s.email) && (
               <View style={t.cardFooter}>
-                {s.phone && <Text style={t.cardInfo}><Ionicons name="call-outline" size={12} color={Colors.textMuted} /> {s.phone}</Text>}
-                {s.email && <Text style={t.cardInfo}><Ionicons name="mail-outline" size={12} color={Colors.textMuted} /> {s.email}</Text>}
+                {s.phone && <Text style={t.cardInfo}>{s.phone}</Text>}
+                {s.email && <Text style={t.cardInfo}>{s.email}</Text>}
               </View>
             )}
           </Animated.View>
         ))}
       </ScrollView>
 
-      {/* زر إضافة */}
       <TouchableOpacity style={t.fab} onPress={openAdd}>
         <LinearGradient colors={[UC, "#4338CA"]} style={t.fabInner}>
           <Ionicons name="person-add-outline" size={22} color="#fff" />
@@ -243,36 +487,30 @@ function StaffTab({ token }: { token: string }) {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Modal الإضافة/التعديل */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={m.overlay}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
             <View style={m.sheet}>
               <View style={m.handle} />
               <Text style={m.title}>{editItem ? "تعديل الموظف" : "إضافة موظف جديد"}</Text>
-
               <ScrollView contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
                 {([
-                  { key: "full_name", label: "الاسم الكامل *", placeholder: "اسم الموظف" },
-                  { key: "role", label: "المنصب / الوظيفة *", placeholder: "مثال: أمين الإعلام" },
-                  { key: "phone", label: "رقم الهاتف", placeholder: "09XXXXXXXX", keyboardType: "phone-pad" },
-                  { key: "email", label: "البريد الإلكتروني", placeholder: "example@email.com", keyboardType: "email-address" },
-                  { key: "notes", label: "ملاحظات", placeholder: "أي ملاحظات إضافية...", multiline: true },
+                  { key: "full_name", label: "الاسم الكامل *",         placeholder: "اسم الموظف" },
+                  { key: "role",      label: "المنصب / الوظيفة *",     placeholder: "مثال: أمين الإعلام" },
+                  { key: "phone",     label: "رقم الهاتف",             placeholder: "09XXXXXXXX", keyboardType: "phone-pad" },
+                  { key: "email",     label: "البريد الإلكتروني",      placeholder: "example@email.com", keyboardType: "email-address" },
+                  { key: "notes",     label: "ملاحظات",                placeholder: "أي ملاحظات...", multiline: true },
                 ] as any[]).map(f => (
                   <View key={f.key}>
                     <Text style={m.label}>{f.label}</Text>
                     <TextInput
                       style={[m.input, f.multiline && { height: 80, textAlignVertical: "top" }]}
-                      value={(form as any)[f.key]}
-                      onChangeText={v => setForm(p => ({ ...p, [f.key]: v }))}
-                      placeholder={f.placeholder}
-                      placeholderTextColor={Colors.textMuted}
-                      textAlign="right" keyboardType={f.keyboardType || "default"}
-                      multiline={f.multiline}
+                      value={(form as any)[f.key]} onChangeText={v => setForm(p => ({ ...p, [f.key]: v }))}
+                      placeholder={f.placeholder} placeholderTextColor={Colors.textMuted}
+                      textAlign="right" keyboardType={f.keyboardType || "default"} multiline={f.multiline}
                     />
                   </View>
                 ))}
-
                 <Text style={m.label}>الأمانة / اللجنة</Text>
                 <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
                   {COMMITTEES.map(c => (
@@ -283,11 +521,8 @@ function StaffTab({ token }: { token: string }) {
                   ))}
                 </View>
               </ScrollView>
-
               <View style={m.btnRow}>
-                <TouchableOpacity style={m.cancelBtn} onPress={() => setShowModal(false)}>
-                  <Text style={m.cancelText}>إلغاء</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={m.cancelBtn} onPress={() => setShowModal(false)}><Text style={m.cancelText}>إلغاء</Text></TouchableOpacity>
                 <TouchableOpacity style={[m.saveBtn, saving && { opacity: 0.7 }]} onPress={save} disabled={saving}>
                   {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={m.saveText}>حفظ</Text>}
                 </TouchableOpacity>
@@ -302,12 +537,12 @@ function StaffTab({ token }: { token: string }) {
 
 // ── تبويب الاجتماعات ──────────────────────────────────────────────
 function MeetingsTab({ token }: { token: string }) {
-  const [meetings, setMeetings]   = useState<Meeting[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem]   = useState<Meeting | null>(null);
-  const [saving, setSaving]       = useState(false);
+  const [showModal, setShowModal]   = useState(false);
+  const [editItem, setEditItem]     = useState<Meeting | null>(null);
+  const [saving, setSaving]         = useState(false);
   const [form, setForm] = useState({ title: "", description: "", meeting_date: "", meeting_time: "", location: "", type: "meeting" });
 
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -321,7 +556,7 @@ function MeetingsTab({ token }: { token: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => { setEditItem(null); setForm({ title: "", description: "", meeting_date: "", meeting_time: "", location: "", type: "meeting" }); setShowModal(true); };
+  const openAdd  = () => { setEditItem(null); setForm({ title: "", description: "", meeting_date: "", meeting_time: "", location: "", type: "meeting" }); setShowModal(true); };
   const openEdit = (mtg: Meeting) => { setEditItem(mtg); setForm({ title: mtg.title, description: mtg.description || "", meeting_date: mtg.meeting_date || "", meeting_time: mtg.meeting_time || "", location: mtg.location || "", type: mtg.type }); setShowModal(true); };
 
   const save = async () => {
@@ -369,11 +604,11 @@ function MeetingsTab({ token }: { token: string }) {
                   </View>
                 </View>
                 {mtg.meeting_date && <Text style={t.cardSub}>{mtg.meeting_date} {mtg.meeting_time || ""}</Text>}
-                {mtg.location && <Text style={t.cardInfo}><Ionicons name="location-outline" size={12} /> {mtg.location}</Text>}
+                {mtg.location && <Text style={t.cardInfo}>{mtg.location}</Text>}
               </View>
               <View style={t.cardActions}>
                 <TouchableOpacity onPress={() => openEdit(mtg)} style={t.actionBtn}><Ionicons name="pencil-outline" size={16} color={UC} /></TouchableOpacity>
-                <TouchableOpacity onPress={() => remove(mtg.id)} style={[t.actionBtn, { borderColor: "#EF444420" }]}><Ionicons name="trash-outline" size={16} color="#EF4444" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => remove(mtg.id)} style={[t.actionBtn, { borderColor: "#EF444420" }]}><Ionicons name="trash-outline" size={16} color={RED} /></TouchableOpacity>
               </View>
             </View>
             {mtg.description && <Text style={[t.cardSub, { marginTop: 6 }]}>{mtg.description}</Text>}
@@ -405,11 +640,11 @@ function MeetingsTab({ token }: { token: string }) {
                   ))}
                 </View>
                 {([
-                  { key: "title", label: "عنوان الاجتماع *", placeholder: "موضوع الاجتماع" },
-                  { key: "meeting_date", label: "التاريخ", placeholder: "YYYY-MM-DD", keyboardType: "numeric" },
-                  { key: "meeting_time", label: "الوقت", placeholder: "HH:MM" },
-                  { key: "location", label: "المكان", placeholder: "قاعة الاجتماعات / أونلاين..." },
-                  { key: "description", label: "تفاصيل إضافية", placeholder: "جدول الأعمال والتفاصيل...", multiline: true },
+                  { key: "title",        label: "عنوان الاجتماع *", placeholder: "موضوع الاجتماع" },
+                  { key: "meeting_date", label: "التاريخ",           placeholder: "YYYY-MM-DD", keyboardType: "numeric" },
+                  { key: "meeting_time", label: "الوقت",             placeholder: "HH:MM" },
+                  { key: "location",     label: "المكان",             placeholder: "قاعة الاجتماعات / أونلاين..." },
+                  { key: "description",  label: "تفاصيل إضافية",    placeholder: "جدول الأعمال...", multiline: true },
                 ] as any[]).map(f => (
                   <View key={f.key}>
                     <Text style={m.label}>{f.label}</Text>
@@ -464,11 +699,7 @@ function MessagesTab({ token, manager }: { token: string; manager: Manager }) {
         method: "POST", headers,
         body: JSON.stringify({ sender_name: senderName.trim() || manager.full_name, content: content.trim() }),
       });
-      if (r.ok) {
-        setContent("");
-        if (Platform.OS !== "web") Haptics.selectionAsync();
-        load();
-      }
+      if (r.ok) { setContent(""); if (Platform.OS !== "web") Haptics.selectionAsync(); load(); }
     } catch {} finally { setSending(false); }
   };
 
@@ -489,29 +720,26 @@ function MessagesTab({ token, manager }: { token: string; manager: Manager }) {
     ]);
   };
 
-  const pinned = msgs.filter(m => m.is_pinned);
-  const regular = msgs.filter(m => !m.is_pinned);
+  const pinned  = msgs.filter(msg => msg.is_pinned);
+  const regular = msgs.filter(msg => !msg.is_pinned);
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 180 }}>
         {loading && <ActivityIndicator color={UC} />}
-
         {pinned.length > 0 && (
           <>
             <Text style={msg_.sectionLabel}>📌 المثبتة</Text>
             {pinned.map((msg, i) => <MsgCard key={msg.id} msg={msg} i={i} onPin={togglePin} onDelete={deleteMsg} />)}
           </>
         )}
-
         {regular.length > 0 && (
           <>
             {pinned.length > 0 && <Text style={msg_.sectionLabel}>الرسائل</Text>}
             {regular.map((msg, i) => <MsgCard key={msg.id} msg={msg} i={i} onPin={togglePin} onDelete={deleteMsg} />)}
           </>
         )}
-
         {!loading && msgs.length === 0 && (
           <View style={t.empty}>
             <Ionicons name="chatbubbles-outline" size={48} color={Colors.textMuted} />
@@ -520,7 +748,6 @@ function MessagesTab({ token, manager }: { token: string; manager: Manager }) {
         )}
       </ScrollView>
 
-      {/* حقل الإرسال */}
       <View style={msg_.inputArea}>
         <TextInput
           style={msg_.senderInput}
@@ -553,17 +780,17 @@ function MsgCard({ msg, i, onPin, onDelete }: { msg: Msg; i: number; onPin: (id:
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
             <Text style={t.cardName}>{msg.sender_name}</Text>
-            {msg.is_pinned && <Ionicons name="pin" size={14} color="#F59E0B" />}
+            {msg.is_pinned && <Ionicons name="pin" size={14} color={GOLD} />}
           </View>
           <Text style={msg_.content}>{msg.content}</Text>
           <Text style={t.cardInfo}>{formatDate(msg.created_at)}</Text>
         </View>
         <View style={t.cardActions}>
           <TouchableOpacity onPress={() => onPin(msg.id)} style={t.actionBtn}>
-            <Ionicons name={msg.is_pinned ? "pin" : "pin-outline"} size={14} color={msg.is_pinned ? "#F59E0B" : Colors.textMuted} />
+            <Ionicons name={msg.is_pinned ? "pin" : "pin-outline"} size={14} color={msg.is_pinned ? GOLD : Colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onDelete(msg.id)} style={[t.actionBtn, { borderColor: "#EF444420" }]}>
-            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+            <Ionicons name="trash-outline" size={14} color={RED} />
           </TouchableOpacity>
         </View>
       </View>
@@ -571,14 +798,153 @@ function MsgCard({ msg, i, onPin, onDelete }: { msg: Msg; i: number; onPin: (id:
   );
 }
 
-// ── الشاشة الرئيسية للبوابة ────────────────────────────────────────
+// ── تبويب الحساب (مع تغيير كلمة المرور) ──────────────────────────
+function AccountTab({ token, manager, onLogout }: { token: string; manager: Manager; onLogout: () => void }) {
+  const [showChangePass, setShowChangePass] = useState(false);
+  const [currentPass, setCurrentPass]       = useState("");
+  const [newPass, setNewPass]               = useState("");
+  const [confirmPass, setConfirmPass]       = useState("");
+  const [showCurrent, setShowCurrent]       = useState(false);
+  const [showNew, setShowNew]               = useState(false);
+  const [saving, setSaving]                 = useState(false);
+
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const changePassword = async () => {
+    if (!currentPass.trim() || !newPass.trim()) { Alert.alert("تنبيه", "يرجى ملء جميع الحقول"); return; }
+    if (newPass.length < 8) { Alert.alert("تنبيه", "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل"); return; }
+    if (newPass !== confirmPass) { Alert.alert("تنبيه", "كلمة المرور الجديدة وتأكيدها غير متطابقتين"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/change-password`, {
+        method: "POST", headers,
+        body: JSON.stringify({ current_password: currentPass.trim(), new_password: newPass.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("✅ تم", "تم تغيير كلمة المرور بنجاح");
+        setShowChangePass(false); setCurrentPass(""); setNewPass(""); setConfirmPass("");
+      } else {
+        Alert.alert("خطأ", d.error || "فشل تغيير كلمة المرور");
+      }
+    } catch { Alert.alert("خطأ", "تعذر الاتصال بالخادم"); } finally { setSaving(false); }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+      {/* معلومات الحساب */}
+      <Animated.View entering={FadeInDown.delay(60).springify()} style={t.card}>
+        <View style={ac.sectionHeader}>
+          <Ionicons name="person-circle-outline" size={22} color={UC} />
+          <Text style={ac.sectionTitle}>معلومات الحساب</Text>
+        </View>
+        {[
+          { label: "الاسم الكامل", val: manager.full_name, icon: "person-outline" },
+          { label: "المنصب",       val: manager.title,     icon: "ribbon-outline" },
+          { label: "اسم المستخدم", val: manager.username,  icon: "at-outline" },
+        ].map(r => (
+          <View key={r.label} style={ac.infoRow}>
+            <Ionicons name={r.icon as any} size={16} color={Colors.textMuted} style={{ marginLeft: 6 }} />
+            <Text style={ac.infoLabel}>{r.label}</Text>
+            <Text style={ac.infoVal}>{r.val}</Text>
+          </View>
+        ))}
+      </Animated.View>
+
+      {/* تغيير كلمة المرور */}
+      <Animated.View entering={FadeInDown.delay(120).springify()} style={t.card}>
+        <TouchableOpacity style={ac.sectionHeader} onPress={() => setShowChangePass(p => !p)}>
+          <Ionicons name="key-outline" size={22} color={GOLD} />
+          <Text style={[ac.sectionTitle, { flex: 1 }]}>تغيير كلمة المرور</Text>
+          <Ionicons name={showChangePass ? "chevron-up" : "chevron-down"} size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        {showChangePass && (
+          <View style={{ gap: 12, marginTop: 12 }}>
+            {/* كلمة المرور الحالية */}
+            <View>
+              <Text style={m.label}>كلمة المرور الحالية</Text>
+              <View style={ls.passRow}>
+                <TextInput
+                  style={[ls.input, { flex: 1 }]}
+                  value={currentPass} onChangeText={setCurrentPass}
+                  placeholder="أدخل كلمة المرور الحالية"
+                  placeholderTextColor={Colors.textMuted}
+                  textAlign="right" secureTextEntry={!showCurrent}
+                />
+                <TouchableOpacity onPress={() => setShowCurrent(p => !p)} style={ls.eyeBtn}>
+                  <Ionicons name={showCurrent ? "eye-off-outline" : "eye-outline"} size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* كلمة المرور الجديدة */}
+            <View>
+              <Text style={m.label}>كلمة المرور الجديدة</Text>
+              <View style={ls.passRow}>
+                <TextInput
+                  style={[ls.input, { flex: 1 }]}
+                  value={newPass} onChangeText={setNewPass}
+                  placeholder="8 أحرف على الأقل"
+                  placeholderTextColor={Colors.textMuted}
+                  textAlign="right" secureTextEntry={!showNew}
+                />
+                <TouchableOpacity onPress={() => setShowNew(p => !p)} style={ls.eyeBtn}>
+                  <Ionicons name={showNew ? "eye-off-outline" : "eye-outline"} size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* تأكيد كلمة المرور */}
+            <View>
+              <Text style={m.label}>تأكيد كلمة المرور الجديدة</Text>
+              <TextInput
+                style={ls.input}
+                value={confirmPass} onChangeText={setConfirmPass}
+                placeholder="أعد إدخال كلمة المرور الجديدة"
+                placeholderTextColor={Colors.textMuted}
+                textAlign="right" secureTextEntry
+              />
+              {confirmPass.length > 0 && newPass !== confirmPass && (
+                <Text style={ac.mismatch}>كلمتا المرور غير متطابقتين</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[ac.savePassBtn, saving && { opacity: 0.7 }]}
+              onPress={changePassword}
+              disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <><Ionicons name="checkmark-circle-outline" size={20} color="#fff" /><Text style={ac.savePassText}>حفظ كلمة المرور الجديدة</Text></>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* تسجيل الخروج */}
+      <Animated.View entering={FadeInDown.delay(180).springify()}>
+        <TouchableOpacity style={ac.logoutBtn} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={20} color={RED} />
+          <Text style={ac.logoutText}>تسجيل الخروج</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </ScrollView>
+  );
+}
+
+// ── الشاشة الرئيسية ────────────────────────────────────────────────
 export default function UnionManagerPortalScreen() {
   const insets = useSafeAreaInsets();
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState<"staff" | "meetings" | "messages" | "account">("staff");
-  const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0 });
+  const [tab, setTab] = useState<"requests" | "staff" | "meetings" | "messages" | "account">("requests");
+  const [stats, setStats]     = useState({ staff: 0, upcoming_meetings: 0, messages: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     AsyncStorage.multiGet([MGTOKEN_KEY, MGINFO_KEY]).then(([[, tok], [, info]]) => {
@@ -595,7 +961,12 @@ export default function UnionManagerPortalScreen() {
     } catch {}
   }, []);
 
-  useEffect(() => { if (token) loadStats(token); }, [token]);
+  useEffect(() => {
+    if (token) {
+      loadStats(token);
+      registerPushToken(token);
+    }
+  }, [token]);
 
   const handleLogin = (tok: string, mgr: Manager) => { setToken(tok); setManager(mgr); };
 
@@ -613,10 +984,11 @@ export default function UnionManagerPortalScreen() {
   if (!token || !manager) return <LoginScreen onLogin={handleLogin} />;
 
   const TABS = [
-    { key: "staff",    icon: "people-outline",   label: "الموظفون" },
-    { key: "meetings", icon: "calendar-outline",  label: "الاجتماعات" },
-    { key: "messages", icon: "chatbubbles-outline",label: "التواصل" },
-    { key: "account",  icon: "settings-outline",  label: "الحساب" },
+    { key: "requests",  icon: "document-text-outline", label: "الطلبات", badge: pendingCount },
+    { key: "staff",     icon: "people-outline",         label: "الموظفون" },
+    { key: "meetings",  icon: "calendar-outline",       label: "الاجتماعات" },
+    { key: "messages",  icon: "chatbubbles-outline",    label: "التواصل" },
+    { key: "account",   icon: "settings-outline",       label: "الحساب" },
   ] as const;
 
   return (
@@ -631,16 +1003,16 @@ export default function UnionManagerPortalScreen() {
           <Text style={ps.headerSub}>{manager.full_name} — {manager.title}</Text>
         </View>
         <TouchableOpacity onPress={logout} style={ls.backBtn} hitSlop={12}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color={RED} />
         </TouchableOpacity>
       </LinearGradient>
 
-      {/* إحصائيات سريعة */}
+      {/* إحصائيات */}
       <View style={ps.statsRow}>
         {[
-          { val: stats.staff, label: "موظف", color: UC },
-          { val: stats.upcoming_meetings, label: "اجتماع قادم", color: "#F59E0B" },
-          { val: stats.messages, label: "رسالة", color: GREEN },
+          { val: pendingCount,              label: "طلب معلق",      color: GOLD },
+          { val: stats.staff,               label: "موظف",          color: UC },
+          { val: stats.upcoming_meetings,   label: "اجتماع قادم",   color: GREEN },
         ].map((s, i) => (
           <View key={i} style={ps.statItem}>
             <Text style={[ps.statVal, { color: s.color }]}>{s.val}</Text>
@@ -651,40 +1023,32 @@ export default function UnionManagerPortalScreen() {
 
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
-        {tab === "staff"    && <StaffTab token={token} />}
-        {tab === "meetings" && <MeetingsTab token={token} />}
-        {tab === "messages" && <MessagesTab token={token} manager={manager} />}
-        {tab === "account"  && (
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-            <Animated.View entering={FadeInDown.delay(80).springify()} style={t.card}>
-              <Text style={ps.accountTitle}>معلومات الحساب</Text>
-              {[
-                { label: "الاسم الكامل", val: manager.full_name },
-                { label: "المنصب", val: manager.title },
-                { label: "اسم المستخدم", val: manager.username },
-              ].map(r => (
-                <View key={r.label} style={ps.accountRow}>
-                  <Text style={ps.accountLabel}>{r.label}</Text>
-                  <Text style={ps.accountVal}>{r.val}</Text>
-                </View>
-              ))}
-            </Animated.View>
-            <TouchableOpacity style={ps.logoutBtn} onPress={logout}>
-              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text style={ps.logoutText}>تسجيل الخروج</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
+        {tab === "requests"  && <RequestsTab token={token} onBadge={setPendingCount} />}
+        {tab === "staff"     && <StaffTab token={token} />}
+        {tab === "meetings"  && <MeetingsTab token={token} />}
+        {tab === "messages"  && <MessagesTab token={token} manager={manager} />}
+        {tab === "account"   && <AccountTab token={token} manager={manager} onLogout={logout} />}
       </View>
 
       {/* شريط التبويبات */}
       <View style={[ps.tabBar, { paddingBottom: insets.bottom + 4 }]}>
-        {TABS.map(tb => (
-          <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key)} style={ps.tabItem}>
-            <Ionicons name={tb.icon as any} size={22} color={tab === tb.key ? UC : Colors.textMuted} />
-            <Text style={[ps.tabLabel, { color: tab === tb.key ? UC : Colors.textMuted }]}>{tb.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {TABS.map(tb => {
+          const active = tab === tb.key;
+          const hasBadge = "badge" in tb && (tb as any).badge > 0;
+          return (
+            <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key)} style={ps.tabItem}>
+              <View style={{ position: "relative" }}>
+                <Ionicons name={tb.icon as any} size={22} color={active ? UC : Colors.textMuted} />
+                {hasBadge && (
+                  <View style={ps.badge}>
+                    <Text style={ps.badgeText}>{(tb as any).badge > 9 ? "9+" : (tb as any).badge}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[ps.tabLabel, { color: active ? UC : Colors.textMuted }]}>{tb.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -693,7 +1057,7 @@ export default function UnionManagerPortalScreen() {
 // ── الأنماط ────────────────────────────────────────────────────────
 const ls = StyleSheet.create({
   hero: { paddingHorizontal: 20, paddingBottom: 32, alignItems: "center", gap: 8 },
-  backBtn: { position: "absolute", top: 56, right: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: UC + "30", alignItems: "center", justifyContent: "center", marginTop: 16 },
   heroTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", textAlign: "center" },
   heroSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.6)", textAlign: "center" },
@@ -722,13 +1086,9 @@ const ps = StyleSheet.create({
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   tabBar: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.borderSubtle, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 4 },
-  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 11 },
-  accountTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.text, textAlign: "center", marginBottom: 8 },
-  accountRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
-  accountLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
-  accountVal: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text },
-  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#EF444415", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: "#EF444430" },
-  logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#EF4444", flex: 1, textAlign: "right" },
+  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 10 },
+  badge: { position: "absolute", top: -4, left: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: RED, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  badgeText: { fontSize: 9, fontFamily: "Cairo_700Bold", color: "#fff" },
 });
 
 const t = StyleSheet.create({
@@ -780,4 +1140,44 @@ const msg_ = StyleSheet.create({
   contentRow: { flexDirection: "row-reverse", gap: 8, alignItems: "flex-end" },
   contentInput: { flex: 1, backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text, textAlign: "right", maxHeight: 100 },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: UC, alignItems: "center", justifyContent: "center" },
+});
+
+const rq = StyleSheet.create({
+  filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: "row-reverse" },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderSubtle },
+  filterChipActive: { backgroundColor: UC + "20", borderColor: UC },
+  filterChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  filterChipTextActive: { color: UC },
+  reqCard: { gap: 10 },
+  reqHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
+  statusBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  date: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
+  notePreview: { backgroundColor: GOLD + "10", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: GOLD + "30" },
+  notePreviewText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: GOLD },
+  modalHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
+  detailCard: { backgroundColor: Colors.cardBg, borderRadius: 12, padding: 14, gap: 8, borderWidth: 1, borderColor: Colors.borderSubtle },
+  detailSection: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, marginBottom: 4 },
+  detailRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
+  detailLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  detailVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right", marginRight: 8 },
+  motivText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.text, lineHeight: 22, textAlign: "right" },
+  actionRow: { flexDirection: "row-reverse", gap: 12 },
+  rejectBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: RED + "40", backgroundColor: RED + "10" },
+  approveBtn: { flex: 2, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, padding: 13, borderRadius: 12, backgroundColor: GREEN },
+  actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15 },
+});
+
+const ac = StyleSheet.create({
+  sectionHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
+  infoRow: { flexDirection: "row-reverse", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle, gap: 6 },
+  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
+  infoVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text },
+  savePassBtn: { backgroundColor: GREEN, borderRadius: 12, padding: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 },
+  savePassText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  mismatch: { fontFamily: "Cairo_400Regular", fontSize: 12, color: RED, textAlign: "right", marginTop: 4 },
+  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: RED + "15", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: RED + "30" },
+  logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: RED, flex: 1, textAlign: "right" },
 });
