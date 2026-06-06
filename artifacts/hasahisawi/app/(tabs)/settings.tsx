@@ -1944,14 +1944,15 @@ export default function SettingsScreen() {
             {/* رأس البطاقة */}
             <View style={contactSty.headerRow}>
               <View style={contactSty.iconBox}>
-                <MaterialCommunityIcons name="headset" size={24} color={Colors.primary} />
+                <MaterialCommunityIcons name="headset" size={26} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={contactSty.title}>دعم تطبيق حصاحيصاوي</Text>
-                <Text style={contactSty.sub}>فريق الدعم جاهز — راسلنا عبر واتساب أعمال</Text>
+                <Text style={contactSty.title}>دعم حصاحيصاوي</Text>
+                <Text style={contactSty.sub}>فريق الدعم جاهز للمساعدة</Text>
               </View>
-              <View style={{ backgroundColor: "#25D36620", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: "#25D36640" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#25D366" }}>متصل</Text>
+              <View style={contactSty.onlineBadge}>
+                <View style={contactSty.onlineDot} />
+                <Text style={contactSty.onlineText}>متصل</Text>
               </View>
             </View>
 
@@ -1966,19 +1967,21 @@ export default function SettingsScreen() {
               }}
               activeOpacity={0.82}
             >
-              <View style={contactSty.actionIconBox}>
-                <MaterialCommunityIcons name="bug-outline" size={20} color="#E74C3C" />
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#E74C3C18", borderColor: "#E74C3C35" }]}>
+                <MaterialCommunityIcons name="bug-outline" size={22} color="#E74C3C" />
               </View>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={contactSty.actionTitle}>الإبلاغ عن مشكلة</Text>
                 <Text style={contactSty.actionSub}>أرسل تقرير مشكلة عبر واتساب</Text>
               </View>
-              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+              <View style={contactSty.waBadge}>
+                <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+              </View>
             </TouchableOpacity>
 
             {/* زر الاقتراح */}
             <TouchableOpacity
-              style={[contactSty.actionBtn, { borderColor: "#F39C1220" }]}
+              style={[contactSty.actionBtn, { borderColor: "#F59E0B25" }]}
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 Linking.openURL(PLATFORM.waSuggest(auth.user?.name)).catch(() =>
@@ -1987,27 +1990,29 @@ export default function SettingsScreen() {
               }}
               activeOpacity={0.82}
             >
-              <View style={[contactSty.actionIconBox, { backgroundColor: "#F39C1215", borderColor: "#F39C1230" }]}>
-                <Ionicons name="bulb-outline" size={20} color="#F39C12" />
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#F59E0B18", borderColor: "#F59E0B35" }]}>
+                <Ionicons name="bulb-outline" size={22} color="#F59E0B" />
               </View>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={contactSty.actionTitle}>اقتراح أو ملاحظة</Text>
                 <Text style={contactSty.actionSub}>ساعدنا في تطوير التطبيق</Text>
               </View>
-              <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
+              <View style={contactSty.waBadge}>
+                <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+              </View>
             </TouchableOpacity>
 
             {/* فاصل */}
             <View style={contactSty.divider}>
               <View style={contactSty.dividerLine} />
-              <Text style={contactSty.dividerText}>وسائل أخرى</Text>
+              <Text style={contactSty.dividerText}>وسائل التواصل الأخرى</Text>
               <View style={contactSty.dividerLine} />
             </View>
 
             {/* اتصال وإيميل */}
             <View style={contactSty.btnRow}>
               <TouchableOpacity
-                style={[contactSty.btn, { backgroundColor: "#2980B920" }]}
+                style={[contactSty.btn, { backgroundColor: "#2980B915", borderColor: "#2980B930" }]}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   Linking.openURL(`tel:${PLATFORM.phoneSudan}`).catch(() =>
@@ -2016,11 +2021,11 @@ export default function SettingsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="call-outline" size={18} color="#2980B9" />
+                <Ionicons name="call" size={17} color="#2980B9" />
                 <Text style={[contactSty.btnText, { color: "#2980B9" }]}>اتصال</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[contactSty.btn, { backgroundColor: Colors.primary + "20" }]}
+                style={[contactSty.btn, { backgroundColor: Colors.primary + "15", borderColor: Colors.primary + "35" }]}
                 onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   Linking.openURL(PLATFORM.mailLink("دعم — حصاحيصاوي")).catch(() =>
@@ -2029,26 +2034,35 @@ export default function SettingsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="mail-outline" size={18} color={Colors.primary} />
+                <Ionicons name="mail" size={17} color={Colors.primary} />
                 <Text style={[contactSty.btnText, { color: Colors.primary }]}>إيميل</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={contactSty.infoText}>
-              {PLATFORM.whatsapp}  •  {PLATFORM.phoneSudan}
-            </Text>
-            <Text style={contactSty.infoText}>{PLATFORM.email}</Text>
+            {/* معلومات الاتصال */}
+            <View style={contactSty.infoBox}>
+              <View style={contactSty.infoRow}>
+                <MaterialCommunityIcons name="whatsapp" size={13} color="#25D366" />
+                <Text style={contactSty.infoText}>{PLATFORM.whatsapp}</Text>
+                <Text style={contactSty.infoDot}>•</Text>
+                <Text style={contactSty.infoText}>{PLATFORM.phoneSudan}</Text>
+              </View>
+              <View style={contactSty.infoRow}>
+                <Ionicons name="mail-outline" size={13} color={Colors.textMuted} />
+                <Text style={contactSty.infoText}>{PLATFORM.email}</Text>
+              </View>
+            </View>
           </View>
 
           {/* ─── معلومات قانونية ─── */}
           <View style={legalSty.card}>
             <View style={legalSty.headerRow}>
               <View style={legalSty.iconBox}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#10B981" />
+                <Ionicons name="shield-checkmark" size={22} color="#10B981" />
               </View>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={legalSty.title}>الخصوصية والسياسات</Text>
-                <Text style={legalSty.sub}>كيف نحمي بياناتك وحقوقك كمستخدم</Text>
+                <Text style={legalSty.sub}>بياناتك مشفّرة ومحمية بالكامل</Text>
               </View>
             </View>
 
@@ -2063,19 +2077,19 @@ export default function SettingsScreen() {
               activeOpacity={0.8}
             >
               <View style={legalSty.btnIcon}>
-                <Ionicons name="document-text-outline" size={18} color="#10B981" />
+                <Ionicons name="document-text-outline" size={20} color="#10B981" />
               </View>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={legalSty.btnTitle}>سياسة الخصوصية</Text>
-                <Text style={legalSty.btnSub}>كيف نجمع بياناتك ونستخدمها ونحميها</Text>
+                <Text style={legalSty.btnSub}>كيف نجمع بياناتك ونحميها</Text>
               </View>
-              <Ionicons name="open-outline" size={16} color={Colors.textMuted} />
+              <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <View style={legalSty.divider} />
 
             <TouchableOpacity
-              style={legalSty.btn}
+              style={[legalSty.btn, { borderColor: "#EF444425" }]}
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 Linking.openURL(PLATFORM.deleteAccountUrl).catch(() =>
@@ -2084,22 +2098,20 @@ export default function SettingsScreen() {
               }}
               activeOpacity={0.8}
             >
-              <View style={[legalSty.btnIcon, { backgroundColor: "rgba(239,68,68,0.12)" }]}>
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <View style={[legalSty.btnIcon, { backgroundColor: "#EF444418", borderColor: "#EF444435" }]}>
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
               </View>
-              <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={[legalSty.btnTitle, { color: "#EF4444" }]}>حذف الحساب</Text>
-                <Text style={legalSty.btnSub}>إزالة حسابك وجميع بياناتك نهائياً</Text>
+                <Text style={legalSty.btnSub}>إزالة حسابك وبياناتك نهائياً</Text>
               </View>
-              <Ionicons name="open-outline" size={16} color={Colors.textMuted} />
+              <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
-            <View style={legalSty.divider} />
-
             <View style={legalSty.infoRow}>
-              <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
+              <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
               <Text style={legalSty.infoTxt}>
-                تطبيق حصاحيصاوي v{PLATFORM.version} — جميع البيانات مشفّرة ومحمية
+                حصاحيصاوي v{PLATFORM.version} — جميع البيانات مشفّرة ومحمية
               </Text>
             </View>
           </View>
@@ -3855,126 +3867,148 @@ const instPortalSty = StyleSheet.create({
 const contactSty = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface2,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.primary + "30",
-    padding: 18,
-    gap: 12,
+    borderColor: Colors.primary + "25",
+    padding: 20,
+    gap: 14,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   headerRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 12,
-    paddingBottom: 4,
+    gap: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
   iconBox: {
-    width: 48, height: 48, borderRadius: 15,
+    width: 52, height: 52, borderRadius: 16,
     justifyContent: "center", alignItems: "center",
     backgroundColor: Colors.primary + "18",
-    borderWidth: 1.5, borderColor: Colors.primary + "40",
+    borderWidth: 1.5, borderColor: Colors.primary + "35",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.3 },
-  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
-  // أزرار الإجراءات الرئيسية (إبلاغ / اقتراح)
+  title: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  onlineBadge: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    backgroundColor: "#25D36618", borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: "#25D36635",
+  },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#25D366" },
+  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#25D366" },
+  // أزرار الإجراءات الرئيسية
   actionBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
     backgroundColor: Colors.surface3,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E74C3C25",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 0,
+    borderColor: "#E74C3C22",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   actionIconBox: {
-    width: 42, height: 42, borderRadius: 12,
+    width: 46, height: 46, borderRadius: 13,
     justifyContent: "center", alignItems: "center",
-    backgroundColor: "#E74C3C15",
-    borderWidth: 1, borderColor: "#E74C3C35",
-    marginLeft: 10,
+    marginLeft: 12, flexShrink: 0,
   },
   actionTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 14,
+    fontFamily: "Cairo_700Bold", fontSize: 15,
     color: Colors.textPrimary, textAlign: "right",
-    letterSpacing: 0.2,
   },
   actionSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
+    fontFamily: "Cairo_400Regular", fontSize: 12,
     color: Colors.textMuted, textAlign: "right",
-    marginTop: 2,
+    marginTop: 3,
+  },
+  waBadge: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#25D36618",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "#25D36630",
   },
   // فاصل
   divider: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 8,
-    marginVertical: 4,
+    gap: 10,
+    marginVertical: 2,
   },
-  dividerLine: {
-    flex: 1, height: 0.5,
-    backgroundColor: Colors.divider,
-  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
-    color: Colors.textMuted,
-    paddingHorizontal: 4,
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: Colors.textMuted, paddingHorizontal: 6,
   },
   // أزرار ثانوية (اتصال / إيميل)
-  btnRow: { flexDirection: "row-reverse", gap: 10, flexWrap: "wrap" },
+  btnRow: { flexDirection: "row-reverse", gap: 10 },
   btn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
-    gap: 7, paddingVertical: 12, borderRadius: 14,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+    gap: 8, paddingVertical: 13, borderRadius: 14,
+    borderWidth: 1,
   },
-  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, letterSpacing: 0.2 },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  // معلومات الاتصال
+  infoBox: {
+    backgroundColor: Colors.surface3, borderRadius: 12,
+    padding: 12, gap: 6,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  infoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   infoText: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
-    color: Colors.textMuted, textAlign: "center",
-    letterSpacing: 0.4,
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: Colors.textMuted,
   },
+  infoDot: { fontSize: 12, color: Colors.textMuted, marginHorizontal: 2 },
 });
 
 const legalSty = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface2,
-    borderRadius: 18, borderWidth: 1,
-    borderColor: "#10B98130",
-    padding: 16, gap: 10,
+    borderRadius: 22, borderWidth: 1,
+    borderColor: "#10B98125",
+    padding: 18, gap: 12,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  headerRow: {
+    flexDirection: "row-reverse", alignItems: "center",
+    gap: 14, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
   iconBox: {
-    width: 46, height: 46, borderRadius: 14,
+    width: 50, height: 50, borderRadius: 15,
     justifyContent: "center", alignItems: "center",
     backgroundColor: "#10B98118",
-    borderWidth: 1.5, borderColor: "#10B98140",
+    borderWidth: 1.5, borderColor: "#10B98135",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.2 },
-  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   btn: {
     flexDirection: "row-reverse", alignItems: "center",
     backgroundColor: Colors.surface3,
-    borderRadius: 14, borderWidth: 1, borderColor: "#10B98125",
-    paddingHorizontal: 14, paddingVertical: 13,
+    borderRadius: 14, borderWidth: 1, borderColor: "#10B98122",
+    paddingHorizontal: 16, paddingVertical: 14,
   },
   btnIcon: {
-    width: 40, height: 40, borderRadius: 11,
+    width: 44, height: 44, borderRadius: 13,
     justifyContent: "center", alignItems: "center",
     backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98130",
-    marginLeft: 10,
+    flexShrink: 0,
   },
-  btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.2 },
-  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2, lineHeight: 18, flexShrink: 1 },
-  divider:  { height: 0.5, backgroundColor: Colors.divider, marginVertical: 4 },
-  infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1, lineHeight: 18, flexShrink: 1 },
+  btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 },
+  divider:  { height: 1, backgroundColor: Colors.divider },
+  infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 7, paddingTop: 4 },
+  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1, lineHeight: 18 },
 });
 
 const profileCompleteSty = StyleSheet.create({
