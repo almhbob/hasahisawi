@@ -514,23 +514,25 @@ function getClientIp(req: Request): string {
 // ── Session helpers ────────────────────────────────────────────────────────
 
 async function getSessionUser(req: Request): Promise<{ id: number; role: string; name: string; permissions?: string[] } | null> {
-  const auth = req.headers["authorization"] || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token) return null;
-  const result = await query(
-    `SELECT u.id, u.role, u.name, u.is_banned FROM users u
-     JOIN user_sessions s ON s.user_id = u.id
-     WHERE s.token = $1 AND s.expires_at > NOW()`,
-    [token]
-  );
-  const user = result.rows[0];
-  if (!user) return null;
-  if (user.is_banned) return null;
-  if (user.role === "moderator") {
-    const perms = await query("SELECT section FROM moderator_permissions WHERE user_id = $1", [user.id]);
-    user.permissions = perms.rows.map((r: any) => r.section);
-  }
-  return user;
+  try {
+    const auth = req.headers["authorization"] || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!token) return null;
+    const result = await query(
+      `SELECT u.id, u.role, u.name, u.is_banned FROM users u
+       JOIN user_sessions s ON s.user_id = u.id
+       WHERE s.token = $1 AND s.expires_at > NOW()`,
+      [token]
+    );
+    const user = result.rows[0];
+    if (!user) return null;
+    if (user.is_banned) return null;
+    if (user.role === "moderator") {
+      const perms = await query("SELECT section FROM moderator_permissions WHERE user_id = $1", [user.id]);
+      user.permissions = perms.rows.map((r: any) => r.section);
+    }
+    return user;
+  } catch { return null; }
 }
 
 async function isAdminRequest(req: Request): Promise<boolean> {
@@ -6498,10 +6500,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Admin Dashboard Stats ─────────────────────────────────────────────────────
   app.get("/api/admin/dashboard-stats", async (req, res) => {
-    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
+      if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
       const [users, posts, news, notifications] = await Promise.all([
-        query(`SELECT COUNT(*) FROM users`),
+        query(`SELECT COUNT(*) FROM users`).catch(() => ({ rows: [{ count: 0 }] })),
         query(`SELECT COUNT(*) FROM posts`).catch(() => ({ rows: [{ count: 0 }] })),
         query(`SELECT COUNT(*) FROM news`).catch(() => ({ rows: [{ count: 0 }] })),
         query(`SELECT COUNT(*) FROM notifications`).catch(() => ({ rows: [{ count: 0 }] })),
