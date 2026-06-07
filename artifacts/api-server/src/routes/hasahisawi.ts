@@ -2101,17 +2101,19 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 async function isAdminRequest(req: Request): Promise<boolean> {
-  const user = await getSessionUser(req);
-  if (user?.role === "admin") return true;
-  const pinHeader = req.headers["x-admin-pin"] as string | undefined;
-  const pinBody = req.body?.admin_pin as string | undefined;
-  const submittedPin = pinHeader || pinBody;
-  if (submittedPin && submittedPin.length >= 4 && submittedPin.length <= 20) {
-    const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-    const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    return safeCompare(submittedPin, storedPin);
-  }
-  return false;
+  try {
+    const user = await getSessionUser(req);
+    if (user?.role === "admin") return true;
+    const pinHeader = req.headers["x-admin-pin"] as string | undefined;
+    const pinBody = req.body?.admin_pin as string | undefined;
+    const submittedPin = pinHeader || pinBody;
+    if (submittedPin && submittedPin.length >= 4 && submittedPin.length <= 20) {
+      const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`).catch(() => ({ rows: [] as any[] }));
+      const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
+      return safeCompare(submittedPin, storedPin);
+    }
+    return false;
+  } catch { return false; }
 }
 
 // مساعد مشترك: Transport Admin أو PIN أدمن
