@@ -2128,12 +2128,38 @@ async function isPlatformOrAdminReq(req: Request): Promise<boolean> {
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response) => {
   try {
-    const { name, national_id, phone, email, password, birth_date, neighborhood, gender } = req.body;
+    const { name, national_id, phone, email, password, birth_date, neighborhood, gender, otp_code } = req.body;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
     if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
     if (password.length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
     if (name.length > 100) return res.status(400).json({ error: "الاسم طويل جداً" });
+
+    // OTP verification (required when otp_code is supplied)
+    if (otp_code) {
+      const identifier = (email || phone || "").trim().toLowerCase();
+      const cleanCode = String(otp_code).trim();
+      const otpR = await query(
+        `SELECT id, code, attempts FROM otp_codes
+         WHERE phone_or_email=$1 AND type='register' AND used=FALSE AND expires_at > NOW()
+         ORDER BY created_at DESC LIMIT 1`,
+        [identifier]
+      );
+      if (!otpR.rows.length)
+        return res.status(400).json({ error: "رمز التحقق منتهي الصلاحية أو غير موجود. أعد الإرسال." });
+      const otp = otpR.rows[0];
+      if (otp.attempts >= 5) {
+        await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+        return res.status(400).json({ error: "تجاوزت عدد المحاولات. أعد إرسال رمز جديد." });
+      }
+      if (otp.code !== cleanCode) {
+        await query(`UPDATE otp_codes SET attempts=attempts+1 WHERE id=$1`, [otp.id]);
+        const remaining = 4 - otp.attempts;
+        return res.status(400).json({ error: `رمز التحقق غير صحيح. المحاولات المتبقية: ${remaining}` });
+      }
+      await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+    }
+
     const validGender = ["male", "female"].includes(gender) ? gender : null;
     const hash = await bcrypt.hash(password, 10);
     const result = await query(

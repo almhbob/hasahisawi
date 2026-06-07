@@ -137,9 +137,7 @@ export default function LoginScreen() {
     if (err) { setError(err); return; }
 
     if (mode === "register") {
-      // OTP مُعطَّل مؤقتاً — سيُعاد تفعيله لاحقاً
-      // لإعادة التفعيل: غيّر السطر التالي إلى: if (process.env.EXPO_PUBLIC_DISABLE_OTP !== "true")
-      if (false) {
+      if (true) {
         await handleSendOtp();
         return;
       }
@@ -376,22 +374,13 @@ export default function LoginScreen() {
     setOtpVerifying(true);
     setOtpError("");
     try {
-      const res = await fetch(`${getApiUrl()}/api/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), code: otpCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
-
-      // رمز صحيح — أغلق modal وأنشئ الحساب
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
       setOtpStep(false);
       setLoading(true);
       const id = identifier.trim();
       const isEmail = useEmail || id.includes("@");
       const nid = nationalId.trim().replace(/\s+/g, "");
-      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined, otpCode);
       promptEnableBiometrics(id);
       if (feedback.trim()) {
         fetch(`${getApiUrl()}/feedback`, {
@@ -402,6 +391,7 @@ export default function LoginScreen() {
       }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
+      setOtpStep(true);
       setOtpError(e.message || "رمز التحقق غير صحيح أو منتهي الصلاحية");
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }

@@ -72,6 +72,7 @@ type AuthContextValue = {
     birthDate?: string,
     neighborhood?: string,
     gender?: string,
+    otpCode?: string,
   ) => Promise<void>;
   setUserGender: (gender: "male" | "female") => Promise<void>;
   completeProfile: (gender: "male" | "female", neighborhood?: string) => Promise<void>;
@@ -217,6 +218,7 @@ async function backendRegister(
   birthDate?: string,
   neighborhood?: string,
   gender?: string,
+  otpCode?: string,
 ): Promise<{ user: AuthUser; token: string }> {
   const base = getApiUrl();
   if (!base) throw new Error("الخادم غير متاح");
@@ -236,6 +238,7 @@ async function backendRegister(
         birth_date: birthDate || undefined,
         neighborhood: neighborhood || undefined,
         gender: gender || undefined,
+        otp_code: otpCode || undefined,
       }),
     },
   );
@@ -943,6 +946,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     birthDate?: string,
     neighborhood?: string,
     gender?: string,
+    otpCode?: string,
   ) => {
     const isActualEmail = isEmail || phoneOrEmail.includes("@");
 
@@ -1001,7 +1005,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // في الخلفية: حاول إنشاء صف Backend كامل بكل الحقول (national_id, birth_date, ...)
         // لو فشل، لا بأس — exchange أنشأ صفاً أساسياً
         backendRegister(
-          name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender
+          name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender, otpCode
         ).catch(() => {});
 
         const authUser: AuthUser = {
@@ -1031,7 +1035,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Fallback: backend مباشرة
     const { user: authUser, token: backendTok } = await backendRegister(
-      name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender
+      name, phoneOrEmail, password, nationalId || undefined, birthDate, neighborhood, gender, otpCode
     );
     await saveSession(authUser, backendTok, backendTok);
   };
