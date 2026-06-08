@@ -20,6 +20,15 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 import { getApiUrl } from "@/lib/query-client";
+import { sendFirebasePhoneOtp, verifyFirebasePhoneOtp, normalizePhone, type PhoneOtpSession } from "@/lib/firebase/phone-otp";
+import { FIREBASE_CONFIG } from "@/lib/firebase";
+
+// expo-firebase-recaptcha — موجود فقط في بيئة native (يُحمَّل ديناميكياً)
+let FirebaseRecaptchaVerifierModal: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  FirebaseRecaptchaVerifierModal = require("expo-firebase-recaptcha").FirebaseRecaptchaVerifierModal;
+} catch {}
 
 const CITY_IMAGE = require("@/assets/images/hasahisa-city.jpg");
 const FERRIS     = require("@/assets/images/ferris-wheel.jpg");
@@ -64,8 +73,10 @@ export default function LoginScreen() {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError,     setOtpError]     = useState("");
   const [otpSentVia,   setOtpSentVia]   = useState<"sms"|"email"|"none"|null>(null);
+  const [firebaseOtpSession, setFirebaseOtpSession] = useState<PhoneOtpSession | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpInputRef = useRef<TextInput>(null);
+  const recaptchaVerifierRef = useRef<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -320,6 +331,32 @@ export default function LoginScreen() {
     setOtpSending(true);
     setError("");
     setDevOtp(null);
+
+    const isEmailInput = useEmail || identifier.trim().includes("@");
+
+    if (!isEmailInput) {
+      // ── هاتف: OTP عبر Firebase (SMS مجاني حتى 10,000/شهر) ──
+      try {
+        const phone = normalizePhone(identifier.trim());
+        const session = await sendFirebasePhoneOtp(
+          phone,
+          Platform.OS !== "web" ? recaptchaVerifierRef.current : undefined,
+        );
+        setFirebaseOtpSession(session);
+        setOtpSentVia("sms");
+        setOtpCode("");
+        setOtpError("");
+        setOtpStep(true);
+        startOtpCountdown();
+        setTimeout(() => otpInputRef.current?.focus(), 300);
+      } catch (e: any) {
+        setError(e.message || "فشل إرسال رمز التحقق");
+      }
+      setOtpSending(false);
+      return;
+    }
+
+    // ── إيميل: OTP عبر Resend (الخادم الخلفي) ──
     try {
       const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
@@ -331,6 +368,7 @@ export default function LoginScreen() {
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       if (data.dev_otp) setDevOtp(data.dev_otp);
       setOtpSentVia(data.sent_via ?? "none");
+      setFirebaseOtpSession(null);
       setOtpCode("");
       setOtpError("");
       setOtpStep(true);
@@ -351,6 +389,26 @@ export default function LoginScreen() {
     setOtpSending(true);
     setOtpError("");
     setDevOtp(null);
+
+    if (firebaseOtpSession !== null || (!useEmail && !identifier.trim().includes("@"))) {
+      // إعادة إرسال عبر Firebase
+      try {
+        const phone = normalizePhone(identifier.trim());
+        const session = await sendFirebasePhoneOtp(
+          phone,
+          Platform.OS !== "web" ? recaptchaVerifierRef.current : undefined,
+        );
+        setFirebaseOtpSession(session);
+        setOtpSentVia("sms");
+        setOtpCode("");
+        startOtpCountdown();
+      } catch (e: any) {
+        setOtpError(e.message || "فشل إعادة الإرسال");
+      }
+      setOtpSending(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
         method: "POST",
@@ -373,13 +431,44 @@ export default function LoginScreen() {
     if (otpCode.length !== 6) { setOtpError("يرجى إدخال الرمز المكوّن من 6 أرقام"); return; }
     setOtpVerifying(true);
     setOtpError("");
+
+    const id = identifier.trim();
+    const isEmail = useEmail || id.includes("@");
+    const nid = nationalId.trim().replace(/\s+/g, "");
+
+    if (firebaseOtpSession) {
+      // ── تحقق من رمز Firebase (هاتف) ──
+      try {
+        await verifyFirebasePhoneOtp(firebaseOtpSession, otpCode);
+        setFirebaseOtpSession(null);
+        if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+        setOtpStep(false);
+        setLoading(true);
+        await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+        promptEnableBiometrics(id);
+        if (feedback.trim()) {
+          fetch(`${getApiUrl()}/feedback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "suggestion", title: "اقتراح عند التسجيل", body: feedback.trim(), sender_name: name.trim(), phone: !isEmail ? id : undefined, category: "تسجيل" }),
+          }).catch(() => {});
+        }
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (e: any) {
+        setOtpStep(true);
+        setOtpError(e.message || "رمز التحقق غير صحيح أو منتهي الصلاحية");
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      setOtpVerifying(false);
+      setLoading(false);
+      return;
+    }
+
+    // ── تحقق من رمز الإيميل (خادم Resend) ──
     try {
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
       setOtpStep(false);
       setLoading(true);
-      const id = identifier.trim();
-      const isEmail = useEmail || id.includes("@");
-      const nid = nationalId.trim().replace(/\s+/g, "");
       await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined, otpCode);
       promptEnableBiometrics(id);
       if (feedback.trim()) {
@@ -416,6 +505,15 @@ export default function LoginScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      {/* ─── Firebase reCAPTCHA (native only) ─────────── */}
+      {Platform.OS !== "web" && FirebaseRecaptchaVerifierModal && (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifierRef}
+          firebaseConfig={FIREBASE_CONFIG}
+          attemptInvisibleVerification={true}
+        />
+      )}
+
       {/* ─── Hero ─────────────────────────────────────── */}
       <ImageBackground
         source={FERRIS}

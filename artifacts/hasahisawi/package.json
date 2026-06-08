@@ -76,6 +76,7 @@
     "expo-av": "^16.0.8",
     "expo-camera": "~16.0.18",
     "expo-document-picker": "^14.0.8",
+    "expo-firebase-recaptcha": "^2.3.1",
     "expo-local-authentication": "~17.0.8",
     "expo-localization": "~17.0.8",
     "expo-notifications": "^0.32.16",

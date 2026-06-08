@@ -13,7 +13,7 @@ const DEFAULT_API_KEY =
     ? "AIzaSyDD1dx3OnC4ztLkoajtk7-T1EP6r0zgV68"
     : "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8";
 
-const FIREBASE_CONFIG = {
+export const FIREBASE_CONFIG = {
   apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY            || DEFAULT_API_KEY,
   authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN        || "hasahisawi.firebaseapp.com",
   projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID         || "hasahisawi",
