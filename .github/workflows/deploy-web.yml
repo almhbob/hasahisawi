@@ -52,7 +52,6 @@ jobs:
           EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
           EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
           EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
 
       - name: Add PWA + Cloudflare files
         working-directory: artifacts/hasahisawi
