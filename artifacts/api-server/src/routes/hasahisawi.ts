@@ -6169,6 +6169,37 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
   logger.info({ type, channel: isEmail ? "email" : "sms", identifier }, "[OTP] code generated — expires 10 min");
 
   if (!isEmail) {
+    // ── WhatsApp via Meta Cloud API (مجاني 1000/شهر) ──
+    const waToken   = process.env.WHATSAPP_ACCESS_TOKEN;
+    const waPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (waToken && waPhoneId) {
+      try {
+        const templateName = process.env.WHATSAPP_TEMPLATE_NAME || "hasahisawi_otp";
+        const resp = await fetch(`https://graph.facebook.com/v18.0/${waPhoneId}/messages`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${waToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: identifier,
+            type: "template",
+            template: {
+              name: templateName,
+              language: { code: "ar" },
+              components: [{
+                type: "body",
+                parameters: [{ type: "text", text: code }],
+              }],
+            },
+          }),
+        });
+        if (resp.ok) {
+          logger.info("[OTP] WhatsApp sent via Meta Cloud API");
+          return "sms";
+        }
+        logger.warn({ status: resp.status, body: await resp.text() }, "[OTP] WhatsApp send failed");
+      } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] WhatsApp error"); }
+    }
+
     const smsKey  = process.env.AFRICASTALKING_API_KEY;
     const smsUser = process.env.AFRICASTALKING_USERNAME;
     if (smsKey && smsUser) {
