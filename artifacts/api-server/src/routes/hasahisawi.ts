@@ -5497,9 +5497,10 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
-    const groqKey    = process.env["GROQ_API_KEY"];
-    const envApiKey  = process.env["GOOGLE_API_KEY"];
-    const envApiKey2 = process.env["GOOGLE_API_KEY_2"];
+    const groqKey    = process.env.GROQ_API_KEY;
+    const envApiKey  = process.env.GOOGLE_API_KEY;
+    const envApiKey2 = process.env.GOOGLE_API_KEY_2;
+    logger.info({ hasGroq: !!groqKey, hasGoogle: !!envApiKey }, "[AI] keys check");
     const dbApiKey   = settings["ai_api_key"] || null;
 
     const aiEnabled = settings["ai_enabled"] === "true" || !!groqKey || !!envApiKey;
