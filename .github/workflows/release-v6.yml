@@ -34,8 +34,10 @@ jobs:
           java-version: '17'
 
       - name: Add swap space (4 GB)
+        continue-on-error: true
         run: |
-          sudo fallocate -l 4G /swapfile
+          sudo fallocate -l 4G /swapfile 2>/dev/null || \
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
@@ -299,23 +301,23 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
           echo '/* /index.html 200' > dist/_redirects
-          cat > dist/_headers << 'HEADERS_EOF'
-/*
-  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  X-XSS-Protection: 1; mode=block
-
-/_expo/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/splash/*
-  Cache-Control: public, max-age=86400
-HEADERS_EOF
+          printf '%s\n' \
+            '/*' \
+            '  X-Frame-Options: DENY' \
+            '  X-Content-Type-Options: nosniff' \
+            '  Referrer-Policy: strict-origin-when-cross-origin' \
+            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
+            '  X-XSS-Protection: 1; mode=block' \
+            '' \
+            '/_expo/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            '' \
+            '/assets/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            '' \
+            '/splash/*' \
+            '  Cache-Control: public, max-age=86400' \
+            > dist/_headers
 
       - name: Deploy to GitHub Pages (docs/)
         run: |
@@ -366,15 +368,7 @@ HEADERS_EOF
             done > /tmp/fonts-override.css
 
             # حقن CSS في index.html و 404.html
-            python3 -c "
-import sys
-with open('cf-dist/index.html','r') as f: c=f.read()
-with open('/tmp/fonts-override.css','r') as f: css=f.read()
-c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1)
-with open('cf-dist/index.html','w') as f: f.write(c)
-with open('cf-dist/404.html','w') as f: f.write(c)
-print('Fonts CSS injected')
-"
+            python3 -c "c=open('cf-dist/index.html').read(); css=open('/tmp/fonts-override.css').read(); c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1); open('cf-dist/index.html','w').write(c); open('cf-dist/404.html','w').write(c); print('Fonts CSS injected')"
 
             npx wrangler@3 pages deploy cf-dist \
               --project-name=hasahisawi \
@@ -404,26 +398,49 @@ print('Fonts CSS injected')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.build-android.outputs.version }}
-          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }}"
+          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi"
           body: |
-            ## حصاحيصاوي — v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})
+            ## حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi v${{ needs.build-android.outputs.version }}
+            **versionCode ${{ needs.build-android.outputs.code }}**
 
-            | المنصة | النسخة | الاستخدام |
-            |--------|--------|---------|
-            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" |
-            | **Android** | AAB ↓ | رفع على Google Play Store |
-            | **iPhone / iPad** | PWA | افتح في Safari ← ↑ ← "إضافة للشاشة الرئيسية" |
+            ---
 
-            ### رابط iPhone / iPad
+            ## 📥 التنزيل / Download
+
+            | المنصة / Platform | الملف / File | الاستخدام / Usage |
+            |---|---|---|
+            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" / Direct install — enable Unknown sources |
+            | **Android** | AAB ↓ | رفع على Google Play / Upload to Google Play |
+            | **iPhone / iPad** | PWA | Safari → ↑ → "إضافة للشاشة الرئيسية" / "Add to Home Screen" |
+
+            ---
+
+            ## 🌐 iPhone / iPad (PWA)
             **https://almhbob.github.io/hasahisawi/**
 
-            ### ميزات v${{ needs.build-android.outputs.version }}
+            ---
+
+            ## ✨ ميزات الإصدار / What's New
+
+            ### عربي
             - ✅ إصلاح جميع طلبات الانضمام (مؤسسات، محامون، نقابات، شراكات خارجية)
-            - ✅ إصلاح شاشة إدارة أقسام التطبيق (لم تكن تظهر)
-            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية (قوائم فارغة)
+            - ✅ لوحة تحكم المشرف — 9 أقسام جديدة وإحصائيات شاملة
+            - ✅ نظام دعوات وكالات السفر
+            - ✅ إصلاح شاشة إدارة أقسام التطبيق
+            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية
             - ✅ ترحيل آمن لقاعدة البيانات — لا حذف للجداول
             - ✅ إشعارات مخصصة مع نغمات لكل قسم
-            - ✅ حماية 700+ مستخدم — لا عمليات حذف على قاعدة البيانات
+            - ✅ حماية 700+ مستخدم
+
+            ### English
+            - ✅ Fixed all join requests (institutions, lawyers, unions, external partnerships)
+            - ✅ Admin dashboard — 9 new panels with comprehensive stats
+            - ✅ Travel agency invitation system
+            - ✅ Fixed app sections management screen
+            - ✅ Fixed women's services & community organizations screens
+            - ✅ Safe database migration — no table drops
+            - ✅ Custom notifications with per-section sounds
+            - ✅ Protected 700+ existing users
           files: |
             hasahisawi-v${{ needs.build-android.outputs.version }}.apk
             hasahisawi-v${{ needs.build-android.outputs.version }}.aab
@@ -437,17 +454,19 @@ print('Fonts CSS injected')
     name: Publish to Google Play — Internal Track
     needs: [build-android, create-release]
     runs-on: ubuntu-latest
-    # Only runs if the service account secret is configured
-    if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    continue-on-error: true
+    env:
+      SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: aab
 
       - name: Upload AAB to Google Play Internal Track
+        if: env.SERVICE_ACCOUNT != ''
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ env.SERVICE_ACCOUNT }}
           packageName: com.almhbob.hasahisawi
           releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
           track: internal

@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "6.3.8",
+    "version": "6.4.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "238",
+      "buildNumber": "242",
       "infoPlist": {
         "NSCameraUsageDescription": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية",
         "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
@@ -33,7 +33,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 238,
+      "versionCode": 243,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
@@ -42,11 +42,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ]
@@ -109,7 +107,12 @@
               "name": "حصاحيصاوي — تنبيهات عامة",
               "importance": 3,
               "sound": "hasahisawi_notif",
-              "vibrationPattern": [0, 200, 100, 200],
+              "vibrationPattern": [
+                0,
+                200,
+                100,
+                200
+              ],
               "lightColor": "#22C55E",
               "enableLights": true,
               "enableVibrate": true,
@@ -121,7 +124,14 @@
               "name": "حصاحيصاوي — رسائل",
               "importance": 4,
               "sound": "hasahisawi_chat",
-              "vibrationPattern": [0, 100, 80, 100, 80, 100],
+              "vibrationPattern": [
+                0,
+                100,
+                80,
+                100,
+                80,
+                100
+              ],
               "lightColor": "#3B82F6",
               "enableLights": true,
               "enableVibrate": true,
@@ -133,7 +143,14 @@
               "name": "حصاحيصاوي — تنبيهات عاجلة",
               "importance": 5,
               "sound": "hasahisawi_urgent",
-              "vibrationPattern": [0, 600, 200, 600, 200, 600],
+              "vibrationPattern": [
+                0,
+                600,
+                200,
+                600,
+                200,
+                600
+              ],
               "lightColor": "#EF4444",
               "enableLights": true,
               "enableVibrate": true,
@@ -145,7 +162,12 @@
               "name": "حصاحيصاوي — تحديثات السفر",
               "importance": 4,
               "sound": "hasahisawi_notif",
-              "vibrationPattern": [0, 300, 150, 300],
+              "vibrationPattern": [
+                0,
+                300,
+                150,
+                300
+              ],
               "lightColor": "#0EA5E9",
               "enableLights": true,
               "enableVibrate": true,
@@ -157,7 +179,12 @@
               "name": "حصاحيصاوي — أوقات الصلاة",
               "importance": 4,
               "sound": "hasahisawi_prayer",
-              "vibrationPattern": [0, 400, 100, 400],
+              "vibrationPattern": [
+                0,
+                400,
+                100,
+                400
+              ],
               "lightColor": "#F59E0B",
               "enableLights": true,
               "enableVibrate": true,

@@ -23,24 +23,16 @@ jobs:
           ref: master
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: artifacts/api-server/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Link Vercel project
-        run: |
-          mkdir -p .vercel
-          cat > .vercel/project.json << 'EOF'
-          {"projectId":"prj_7NqIloolEKoPpF5JKr3KVWjapKVw","orgId":"team_RTCz9oaxsbHBdJHrSJNyJr5q"}
-          EOF
+      - name: Build TypeScript
+        run: node build.mjs
 
       - name: Deploy to Vercel
         env:
@@ -50,10 +42,10 @@ jobs:
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "⚠️  VERCEL_TOKEN not set — skipping"
-            echo "Add VERCEL_TOKEN to GitHub secrets"
             exit 1
           fi
-          npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx vercel@latest build --prod --token="$VERCEL_TOKEN"
-          npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
+          npx vercel@latest build --prod
+          npx vercel@latest deploy --prebuilt --prod
           echo "✅ API deployed to Vercel → https://api-server-gilt-ten.vercel.app"
