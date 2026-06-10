@@ -5464,7 +5464,7 @@ router.get("/ai/status", async (_req: Request, res: Response) => {
       `SELECT value FROM admin_settings WHERE key='ai_enabled'`
     );
     const dbEnabled = rows[0]?.value === "true";
-    const hasKey = !!process.env["GOOGLE_API_KEY"];
+    const hasKey = !!process.env["GOOGLE_API_KEY"] || !!process.env["GROQ_API_KEY"];
     const enabled = dbEnabled || hasKey;
 
     // فحص ما إذا كانت كل المفاتيح محجوبة
@@ -5482,7 +5482,7 @@ router.get("/ai/status", async (_req: Request, res: Response) => {
   }
 });
 
-// دعم الذكاء الاصطناعي (Gemini free tier proxy + local fallback)
+// دعم الذكاء الاصطناعي (Groq primary + Gemini fallback + local fallback)
 router.post("/ai/chat", async (req: Request, res: Response) => {
   try {
     const { message, history } = req.body as {
@@ -5497,20 +5497,56 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
     const settings: Record<string, string> = {};
     settingsRows.forEach(r => { settings[r.key] = r.value; });
 
+    const groqKey    = process.env["GROQ_API_KEY"];
     const envApiKey  = process.env["GOOGLE_API_KEY"];
     const envApiKey2 = process.env["GOOGLE_API_KEY_2"];
     const dbApiKey   = settings["ai_api_key"] || null;
 
-    const aiEnabled = settings["ai_enabled"] === "true" || !!envApiKey;
+    const aiEnabled = settings["ai_enabled"] === "true" || !!groqKey || !!envApiKey;
     if (!aiEnabled) {
       return res.status(503).json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حالياً" });
     }
 
-    // قائمة المفاتيح المتاحة — نتجاهل المحجوبة (quota exceeded)
-    const allKeys: string[] = [...new Set([dbApiKey, envApiKey, envApiKey2].filter(Boolean) as string[])];
-    const apiKeys = allKeys.filter(k => !isKeyBlocked(k));
+    const systemPrompt = settings["ai_system_prompt"] ||
+      "أنت مساعد ذكي لتطبيق حصاحيصاوي، مخصص لخدمة أهالي مدينة الحصاحيصا في السودان. أجب باللغة العربية بأسلوب ودود ومفيد. تخصصك في: المعلومات المحلية، الخدمات المتاحة في التطبيق، والإرشاد العام.";
 
-    // إذا كانت كل المفاتيح محجوبة — جرّب الرد المحلي
+    // ── Groq (الأولوية: سريع ومجاني 14400/يوم) ──
+    if (groqKey && !isKeyBlocked(groqKey)) {
+      try {
+        const groqMessages = [
+          { role: "system", content: systemPrompt },
+          ...(history || []).map((h: any) => ({
+            role: h.role === "model" ? "assistant" : "user",
+            content: h.parts?.[0]?.text || "",
+          })),
+          { role: "user", content: message },
+        ];
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: groqMessages,
+            temperature: 0.7,
+            max_tokens: 1024,
+          }),
+        });
+        if (groqRes.ok) {
+          const data = await groqRes.json() as any;
+          const reply = data?.choices?.[0]?.message?.content || "لم أتمكن من الإجابة.";
+          logger.info("[AI] Response via Groq");
+          return res.json({ reply });
+        }
+        const errBody = await groqRes.text();
+        logger.warn({ status: groqRes.status, errBody: errBody.slice(0,150) }, "[AI] Groq error");
+        if (groqRes.status === 429) blockKey(groqKey);
+      } catch (e: any) { logger.warn({ err: e?.message }, "[AI] Groq fetch error"); }
+    }
+
+    // ── Gemini (احتياطي) ──
+    const allGeminiKeys: string[] = [...new Set([dbApiKey, envApiKey, envApiKey2].filter(Boolean) as string[])];
+    const apiKeys = allGeminiKeys.filter(k => !isKeyBlocked(k));
+
     if (!apiKeys.length) {
       const fallback = localFallback(message);
       if (fallback) return res.json({ reply: fallback, local: true });
@@ -5520,9 +5556,6 @@ router.post("/ai/chat", async (req: Request, res: Response) => {
         resetIn: nextQuotaReset(),
       });
     }
-
-    const systemPrompt = settings["ai_system_prompt"] ||
-      "أنت مساعد ذكي لتطبيق حصاحيصاوي، مخصص لخدمة أهالي مدينة الحصاحيصا في السودان. أجب باللغة العربية بأسلوب ودود ومفيد. تخصصك في: المعلومات المحلية، الخدمات المتاحة في التطبيق، والإرشاد العام.";
 
     const contents = [
       ...(history || []),
