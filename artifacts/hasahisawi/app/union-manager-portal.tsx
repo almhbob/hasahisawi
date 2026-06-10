@@ -20,10 +20,31 @@ const GREEN = "#22C55E";
 const MGTOKEN_KEY = "union_manager_token";
 const MGINFO_KEY  = "union_manager_info";
 
-type Manager = { id: number; full_name: string; title: string; username: string };
-type Staff   = { id: number; full_name: string; role: string; committee?: string; phone?: string; email?: string; notes?: string; is_active: boolean; created_at: string };
-type Meeting = { id: number; title: string; description?: string; meeting_date?: string; meeting_time?: string; location?: string; type: string; status: string; created_at: string };
-type Msg     = { id: number; sender_name: string; content: string; is_pinned: boolean; created_at: string };
+type Manager      = { id: number; full_name: string; title: string; username: string };
+type Permissions  = { can_manage_requests: boolean; can_manage_staff: boolean; can_manage_meetings: boolean; can_post_announcements: boolean; can_view_reports: boolean };
+type Staff        = { id: number; full_name: string; role: string; committee?: string; phone?: string; email?: string; notes?: string; is_active: boolean; permissions?: Permissions; created_at: string };
+type Meeting      = { id: number; title: string; description?: string; meeting_date?: string; meeting_time?: string; location?: string; type: string; status: string; created_at: string };
+type Msg          = { id: number; sender_name: string; content: string; is_pinned: boolean; created_at: string };
+type StudentReq   = { id: number; full_name: string; phone: string; email?: string; institution: string; major: string; year: string; motivation?: string; status: string; created_at: string; kind: "student" };
+type EmployeeReq  = { id: number; full_name: string; phone: string; email?: string; role_applied: string; committee?: string; skills?: string; motivation?: string; status: string; created_at: string; kind: "employee" };
+type AnyReq       = StudentReq | EmployeeReq;
+
+const DEFAULT_PERMISSIONS: Permissions = { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: false, can_post_announcements: false, can_view_reports: false };
+const PERMISSION_PRESETS: Record<string, Permissions> = {
+  "أمين عام":       { can_manage_requests: true,  can_manage_staff: true,  can_manage_meetings: true,  can_post_announcements: true,  can_view_reports: true  },
+  "نائب أمين عام":  { can_manage_requests: true,  can_manage_staff: false, can_manage_meetings: true,  can_post_announcements: true,  can_view_reports: true  },
+  "أمين الإعلام":   { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: false, can_post_announcements: true,  can_view_reports: false },
+  "أمين التدريب":   { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: true,  can_post_announcements: false, can_view_reports: false },
+  "أمين المال":     { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: false, can_post_announcements: false, can_view_reports: true  },
+  "عضو لجنة":      { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: false, can_post_announcements: false, can_view_reports: false },
+};
+const PERMISSION_LABELS: Record<keyof Permissions, string> = {
+  can_manage_requests:    "مراجعة طلبات الانضمام",
+  can_manage_staff:       "إدارة الموظفين",
+  can_manage_meetings:    "إدارة الاجتماعات",
+  can_post_announcements: "نشر الإعلانات",
+  can_view_reports:       "عرض التقارير",
+};
 
 const COMMITTEES = [
   "الأمانة العامة", "أمانة الإعلام والثقافة", "أمانة التدريب والتطوير",
@@ -145,12 +166,13 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
 
 // ── تبويب الموظفين ────────────────────────────────────────────────
 function StaffTab({ token }: { token: string }) {
-  const [staff, setStaff]       = useState<Staff[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [staff, setStaff]           = useState<Staff[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal]   = useState(false);
   const [editItem, setEditItem]     = useState<Staff | null>(null);
   const [saving, setSaving]         = useState(false);
+  const [permStaff, setPermStaff]   = useState<Staff | null>(null);
 
   const [form, setForm] = useState({ full_name: "", role: "", committee: "", phone: "", email: "", notes: "" });
 
@@ -217,6 +239,9 @@ function StaffTab({ token }: { token: string }) {
                 {s.committee && <Text style={t.cardSub}>{s.committee}</Text>}
               </View>
               <View style={t.cardActions}>
+                <TouchableOpacity onPress={() => setPermStaff(s)} style={[t.actionBtn, { borderColor: "#A78BFA20", backgroundColor: "#A78BFA10" }]}>
+                  <Ionicons name="shield-outline" size={16} color="#A78BFA" />
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => openEdit(s)} style={t.actionBtn}>
                   <Ionicons name="pencil-outline" size={16} color={UC} />
                 </TouchableOpacity>
@@ -231,6 +256,15 @@ function StaffTab({ token }: { token: string }) {
                 {s.email && <Text style={t.cardInfo}><Ionicons name="mail-outline" size={12} color={Colors.textMuted} /> {s.email}</Text>}
               </View>
             )}
+            {/* مؤشر الصلاحيات */}
+            {s.permissions && Object.values(s.permissions).some(Boolean) && (
+              <View style={sf.permRow}>
+                <Ionicons name="shield-checkmark" size={12} color="#A78BFA" />
+                <Text style={sf.permText}>
+                  {Object.entries(s.permissions).filter(([,v]) => v).map(([k]) => PERMISSION_LABELS[k as keyof Permissions]).join(" · ")}
+                </Text>
+              </View>
+            )}
           </Animated.View>
         ))}
       </ScrollView>
@@ -242,6 +276,15 @@ function StaffTab({ token }: { token: string }) {
           <Text style={t.fabText}>إضافة موظف</Text>
         </LinearGradient>
       </TouchableOpacity>
+
+      {/* مودال الصلاحيات */}
+      {permStaff && (
+        <PermissionsModal
+          staff={permStaff} token={token} visible={!!permStaff}
+          onClose={() => setPermStaff(null)}
+          onSaved={(updated) => { setStaff(p => p.map(s => s.id === updated.id ? updated : s)); setPermStaff(null); }}
+        />
+      )}
 
       {/* Modal الإضافة/التعديل */}
       <Modal visible={showModal} animationType="slide" transparent>
@@ -571,14 +614,241 @@ function MsgCard({ msg, i, onPin, onDelete }: { msg: Msg; i: number; onPin: (id:
   );
 }
 
+// ── تبويب الطلبات ─────────────────────────────────────────────────
+function RequestsTab({ token, onBadgeChange }: { token: string; onBadgeChange: (n: number) => void }) {
+  const [subTab, setSubTab]         = useState<"students" | "employees">("students");
+  const [filter, setFilter]         = useState<"pending" | "approved" | "rejected">("pending");
+  const [students, setStudents]     = useState<StudentReq[]>([]);
+  const [employees, setEmployees]   = useState<EmployeeReq[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actingId, setActingId]     = useState<number | null>(null);
+
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/requests?status=${filter}`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        setStudents((d.students || []).map((s: any) => ({ ...s, kind: "student" })));
+        setEmployees((d.employees || []).map((e: any) => ({ ...e, kind: "employee" })));
+        if (filter === "pending") onBadgeChange((d.students?.length || 0) + (d.employees?.length || 0));
+      }
+    } catch {} finally { setLoading(false); setRefreshing(false); }
+  }, [token, filter]);
+
+  useEffect(() => { setLoading(true); load(); }, [load]);
+
+  const review = async (type: "student" | "employee", id: number, status: "approved" | "rejected") => {
+    const label = status === "approved" ? "قبول" : "رفض";
+    const name  = type === "student"
+      ? students.find(s => s.id === id)?.full_name
+      : employees.find(e => e.id === id)?.full_name;
+    Alert.alert(`تأكيد ${label}`, `هل تريد ${label} طلب ${name}؟`, [
+      { text: "إلغاء", style: "cancel" },
+      { text: label, style: status === "approved" ? "default" : "destructive", onPress: async () => {
+        setActingId(id);
+        try {
+          const url = type === "student"
+            ? `${getApiUrl()}/api/union-manager/requests/student/${id}/status`
+            : `${getApiUrl()}/api/union-manager/requests/employee/${id}/status`;
+          const r = await fetch(url, { method: "PATCH", headers, body: JSON.stringify({ status }) });
+          if (r.ok) {
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (type === "student") setStudents(p => p.filter(s => s.id !== id));
+            else setEmployees(p => p.filter(e => e.id !== id));
+            onBadgeChange(students.length + employees.length - 1);
+          } else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشلت العملية"); }
+        } catch { Alert.alert("خطأ", "تعذر الاتصال"); } finally { setActingId(null); }
+      }},
+    ]);
+  };
+
+  const currentList: AnyReq[] = (subTab === "students" ? students : employees) as AnyReq[];
+
+  const renderRequest = ({ item, index }: { item: AnyReq; index: number }) => {
+    const isEmployee = item.kind === "employee";
+    const emp = item as EmployeeReq;
+    const stu = item as StudentReq;
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()} style={rq.card}>
+        <View style={rq.cardTop}>
+          <View style={rq.avatar}>
+            <Text style={rq.avatarText}>{item.full_name[0]}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={rq.name}>{item.full_name}</Text>
+            <Text style={rq.detail}>
+              {isEmployee
+                ? `${emp.role_applied}${emp.committee ? ` — ${emp.committee}` : ""}`
+                : `${stu.institution} — ${stu.major} — السنة ${stu.year}`
+              }
+            </Text>
+            <Text style={rq.meta}>📞 {item.phone}</Text>
+          </View>
+        </View>
+        {item.motivation ? <Text style={rq.motivation} numberOfLines={3}>{item.motivation}</Text> : null}
+        {isEmployee && emp.skills ? <Text style={rq.skills} numberOfLines={2}>🛠 {emp.skills}</Text> : null}
+        <Text style={rq.date}>{formatDate(item.created_at)}</Text>
+        {filter === "pending" && (
+          <View style={rq.btnRow}>
+            <TouchableOpacity
+              style={[rq.rejectBtn, actingId === item.id && { opacity: 0.6 }]}
+              onPress={() => review(isEmployee ? "employee" : "student", item.id, "rejected")}
+              disabled={actingId === item.id}
+            >
+              <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+              <Text style={rq.rejectText}>رفض</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[rq.approveBtn, actingId === item.id && { opacity: 0.6 }]}
+              onPress={() => review(isEmployee ? "employee" : "student", item.id, "approved")}
+              disabled={actingId === item.id}
+            >
+              {actingId === item.id ? <ActivityIndicator color="#fff" size="small" /> : (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                  <Text style={rq.approveText}>قبول</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* فلتر الحالة */}
+      <View style={rq.filterRow}>
+        {(["pending","approved","rejected"] as const).map(f => (
+          <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[rq.filterBtn, filter === f && rq.filterBtnActive]}>
+            <Text style={[rq.filterText, filter === f && rq.filterTextActive]}>
+              {f === "pending" ? "معلَّق" : f === "approved" ? "مقبول" : "مرفوض"}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* تبويب فرعي */}
+      <View style={rq.subTabRow}>
+        <TouchableOpacity onPress={() => setSubTab("employees")} style={[rq.subTab, subTab === "employees" && rq.subTabActive]}>
+          <Ionicons name="briefcase-outline" size={15} color={subTab === "employees" ? UC : Colors.textMuted} />
+          <Text style={[rq.subTabText, subTab === "employees" && rq.subTabTextActive]}>
+            موظفون ({employees.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSubTab("students")} style={[rq.subTab, subTab === "students" && rq.subTabActive]}>
+          <Ionicons name="school-outline" size={15} color={subTab === "students" ? UC : Colors.textMuted} />
+          <Text style={[rq.subTabText, subTab === "students" && rq.subTabTextActive]}>
+            طلاب ({students.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={t.center}><ActivityIndicator color={UC} /></View>
+      ) : (
+        <FlatList<AnyReq>
+          data={currentList}
+          keyExtractor={item => String(item.id)}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />}
+          contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 40 }}
+          ListEmptyComponent={
+            <View style={t.empty}>
+              <Ionicons name="checkmark-circle-outline" size={48} color={Colors.textMuted} />
+              <Text style={t.emptyText}>لا توجد طلبات {filter === "pending" ? "معلقة" : filter === "approved" ? "مقبولة" : "مرفوضة"}</Text>
+            </View>
+          }
+          renderItem={renderRequest}
+        />
+      )}
+    </View>
+  );
+}
+
+// ── مودال الصلاحيات ───────────────────────────────────────────────
+function PermissionsModal({ staff, token, visible, onClose, onSaved }: {
+  staff: Staff; token: string; visible: boolean; onClose: () => void; onSaved: (updated: Staff) => void;
+}) {
+  const [perms, setPerms] = useState<Permissions>({ ...DEFAULT_PERMISSIONS, ...(staff.permissions || {}) });
+  const [saving, setSaving] = useState(false);
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    if (visible) setPerms({ ...DEFAULT_PERMISSIONS, ...(staff.permissions || {}) });
+  }, [visible, staff]);
+
+  const applyPreset = (preset: string) => {
+    if (PERMISSION_PRESETS[preset]) setPerms({ ...PERMISSION_PRESETS[preset] });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/staff/${staff.id}/permissions`, {
+        method: "PATCH", headers, body: JSON.stringify({ permissions: perms }),
+      });
+      if (r.ok) {
+        const updated = await r.json();
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onSaved(updated);
+        onClose();
+      } else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشل الحفظ"); }
+    } catch { Alert.alert("خطأ", "تعذر الاتصال"); } finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={m.overlay}>
+        <View style={[m.sheet, { gap: 14 }]}>
+          <View style={m.handle} />
+          <Text style={m.title}>صلاحيات {staff.full_name}</Text>
+
+          <Text style={[m.label, { textAlign: "right", marginBottom: 2 }]}>قوالب جاهزة</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
+            {Object.keys(PERMISSION_PRESETS).map(pr => (
+              <TouchableOpacity key={pr} onPress={() => applyPreset(pr)} style={m.chip}>
+                <Text style={m.chipText}>{pr}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={{ gap: 10, marginTop: 4 }}>
+            {(Object.keys(DEFAULT_PERMISSIONS) as (keyof Permissions)[]).map(k => (
+              <TouchableOpacity key={k} onPress={() => setPerms(p => ({ ...p, [k]: !p[k] }))}
+                style={[pm.row, perms[k] && pm.rowActive]}>
+                <Ionicons name={perms[k] ? "checkmark-circle" : "ellipse-outline"} size={22} color={perms[k] ? UC : Colors.textMuted} />
+                <Text style={[pm.label, perms[k] && pm.labelActive]}>{PERMISSION_LABELS[k]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={m.btnRow}>
+            <TouchableOpacity style={m.cancelBtn} onPress={onClose}>
+              <Text style={m.cancelText}>إلغاء</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[m.saveBtn, saving && { opacity: 0.7 }]} onPress={save} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={m.saveText}>حفظ الصلاحيات</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── الشاشة الرئيسية للبوابة ────────────────────────────────────────
 export default function UnionManagerPortalScreen() {
   const insets = useSafeAreaInsets();
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState<"staff" | "meetings" | "messages" | "account">("staff");
-  const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0 });
+  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "account">("staff");
+  const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0 });
+  const [reqBadge, setReqBadge] = useState(0);
 
   useEffect(() => {
     AsyncStorage.multiGet([MGTOKEN_KEY, MGINFO_KEY]).then(([[, tok], [, info]]) => {
@@ -590,8 +860,11 @@ export default function UnionManagerPortalScreen() {
   const loadStats = useCallback(async (tok: string) => {
     try {
       const r = await fetch(`${getApiUrl()}/api/union-manager/dashboard`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (r.ok) { const d = await r.json(); setStats(d.stats); }
-      else { setToken(null); setManager(null); await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]); }
+      if (r.ok) {
+        const d = await r.json();
+        setStats(d.stats);
+        setReqBadge(d.stats.pending_requests || 0);
+      } else { setToken(null); setManager(null); await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]); }
     } catch {}
   }, []);
 
@@ -613,10 +886,11 @@ export default function UnionManagerPortalScreen() {
   if (!token || !manager) return <LoginScreen onLogin={handleLogin} />;
 
   const TABS = [
-    { key: "staff",    icon: "people-outline",   label: "الموظفون" },
-    { key: "meetings", icon: "calendar-outline",  label: "الاجتماعات" },
-    { key: "messages", icon: "chatbubbles-outline",label: "التواصل" },
-    { key: "account",  icon: "settings-outline",  label: "الحساب" },
+    { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",     badge: reqBadge },
+    { key: "staff",    icon: "people-outline",        label: "الموظفون",    badge: 0 },
+    { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات",  badge: 0 },
+    { key: "messages", icon: "chatbubbles-outline",   label: "التواصل",     badge: 0 },
+    { key: "account",  icon: "settings-outline",      label: "الحساب",      badge: 0 },
   ] as const;
 
   return (
@@ -638,9 +912,10 @@ export default function UnionManagerPortalScreen() {
       {/* إحصائيات سريعة */}
       <View style={ps.statsRow}>
         {[
-          { val: stats.staff, label: "موظف", color: UC },
-          { val: stats.upcoming_meetings, label: "اجتماع قادم", color: "#F59E0B" },
-          { val: stats.messages, label: "رسالة", color: GREEN },
+          { val: stats.pending_requests, label: "طلب معلَّق", color: stats.pending_requests > 0 ? "#EF4444" : Colors.textMuted },
+          { val: stats.staff,            label: "موظف",       color: UC },
+          { val: stats.upcoming_meetings,label: "اجتماع",     color: "#F59E0B" },
+          { val: stats.messages,         label: "رسالة",      color: GREEN },
         ].map((s, i) => (
           <View key={i} style={ps.statItem}>
             <Text style={[ps.statVal, { color: s.color }]}>{s.val}</Text>
@@ -651,6 +926,7 @@ export default function UnionManagerPortalScreen() {
 
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
+        {tab === "requests" && <RequestsTab token={token} onBadgeChange={n => { setReqBadge(n); setStats(p => ({ ...p, pending_requests: n })); }} />}
         {tab === "staff"    && <StaffTab token={token} />}
         {tab === "meetings" && <MeetingsTab token={token} />}
         {tab === "messages" && <MessagesTab token={token} manager={manager} />}
@@ -680,8 +956,15 @@ export default function UnionManagerPortalScreen() {
       {/* شريط التبويبات */}
       <View style={[ps.tabBar, { paddingBottom: insets.bottom + 4 }]}>
         {TABS.map(tb => (
-          <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key)} style={ps.tabItem}>
-            <Ionicons name={tb.icon as any} size={22} color={tab === tb.key ? UC : Colors.textMuted} />
+          <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key as any)} style={ps.tabItem}>
+            <View style={{ position: "relative" }}>
+              <Ionicons name={tb.icon as any} size={22} color={tab === tb.key ? UC : Colors.textMuted} />
+              {tb.badge > 0 && (
+                <View style={ps.badge}>
+                  <Text style={ps.badgeText}>{tb.badge > 9 ? "9+" : String(tb.badge)}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[ps.tabLabel, { color: tab === tb.key ? UC : Colors.textMuted }]}>{tb.label}</Text>
           </TouchableOpacity>
         ))}
@@ -717,18 +1000,60 @@ const ps = StyleSheet.create({
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center" },
   statsRow: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
-  statItem: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  statVal: { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  statItem: { flex: 1, alignItems: "center", paddingVertical: 10 },
+  statVal: { fontFamily: "Cairo_700Bold", fontSize: 18 },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   tabBar: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.borderSubtle, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 4 },
-  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 11 },
+  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 10 },
+  badge: { position: "absolute", top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
   accountTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.text, textAlign: "center", marginBottom: 8 },
   accountRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
   accountLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
   accountVal: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.text },
   logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#EF444415", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: "#EF444430" },
   logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#EF4444", flex: 1, textAlign: "right" },
+});
+
+const rq = StyleSheet.create({
+  filterRow: { flexDirection: "row-reverse", gap: 8, padding: 12, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
+  filterBtn: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle },
+  filterBtnActive: { backgroundColor: UC + "20", borderColor: UC },
+  filterText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  filterTextActive: { color: UC },
+  subTabRow: { flexDirection: "row-reverse", gap: 0, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
+  subTab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10 },
+  subTabActive: { borderBottomWidth: 2, borderBottomColor: UC },
+  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  subTabTextActive: { color: UC },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderSubtle, gap: 8 },
+  cardTop: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: UC + "20", alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: UC },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" },
+  detail: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "right", marginTop: 2 },
+  meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  motivation: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.text, textAlign: "right", lineHeight: 20, backgroundColor: Colors.bg, borderRadius: 8, padding: 8 },
+  skills: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  date: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" },
+  btnRow: { flexDirection: "row-reverse", gap: 10 },
+  approveBtn: { flex: 2, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#22C55E", borderRadius: 10, paddingVertical: 10 },
+  approveText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  rejectBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 10, paddingVertical: 10, borderWidth: 1, borderColor: "#EF444430", backgroundColor: "#EF444410" },
+  rejectText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#EF4444" },
+});
+
+const sf = StyleSheet.create({
+  permRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
+  permText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#A78BFA", flex: 1, textAlign: "right" },
+});
+
+const pm = StyleSheet.create({
+  row: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, backgroundColor: Colors.bg },
+  rowActive: { borderColor: UC + "50", backgroundColor: UC + "08" },
+  label: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, flex: 1, textAlign: "right" },
+  labelActive: { color: Colors.text, fontFamily: "Cairo_600SemiBold" },
 });
 
 const t = StyleSheet.create({

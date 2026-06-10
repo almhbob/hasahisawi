@@ -17439,6 +17439,25 @@ async function ensureUnionMgrTables(): Promise<void> {
     is_pinned   BOOLEAN DEFAULT FALSE,
     created_at  TIMESTAMPTZ DEFAULT NOW()
   )`);
+
+  await query(`CREATE TABLE IF NOT EXISTS union_employee_applications (
+    id           SERIAL PRIMARY KEY,
+    full_name    VARCHAR(200) NOT NULL,
+    national_id  VARCHAR(50),
+    phone        VARCHAR(20) NOT NULL,
+    email        VARCHAR(100),
+    role_applied VARCHAR(100) NOT NULL,
+    committee    VARCHAR(100),
+    skills       TEXT,
+    motivation   TEXT,
+    status       VARCHAR(20) DEFAULT 'pending',
+    reviewed_by  INTEGER REFERENCES union_managers(id) ON DELETE SET NULL,
+    reviewed_at  TIMESTAMPTZ,
+    admin_note   TEXT,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+  )`);
+
+  await query(`ALTER TABLE union_staff ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb`);
 }
 
 async function getUnionMgr(req: Request): Promise<{ id: number; full_name: string; title: string; username: string } | null> {
@@ -17508,13 +17527,17 @@ router.get("/union-manager/dashboard", async (req: Request, res: Response) => {
   const mgr = await getUnionMgr(req);
   if (!mgr) return res.status(401).json({ error: "غير مصرح" });
   try {
+    await ensureUnionMgrTables();
     const staff    = await query(`SELECT COUNT(*) FROM union_staff WHERE manager_id=$1 AND is_active=TRUE`, [mgr.id]);
     const meetings = await query(`SELECT COUNT(*) FROM union_meetings WHERE manager_id=$1 AND status='upcoming'`, [mgr.id]);
     const msgs     = await query(`SELECT COUNT(*) FROM union_messages WHERE manager_id=$1`, [mgr.id]);
+    const pendingS = await query(`SELECT COUNT(*) FROM student_union_applications WHERE status='pending'`);
+    const pendingE = await query(`SELECT COUNT(*) FROM union_employee_applications WHERE status='pending'`);
     return res.json({ manager: mgr, stats: {
       staff: parseInt(staff.rows[0].count),
       upcoming_meetings: parseInt(meetings.rows[0].count),
       messages: parseInt(msgs.rows[0].count),
+      pending_requests: parseInt(pendingS.rows[0].count) + parseInt(pendingE.rows[0].count),
     }});
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
@@ -17832,6 +17855,135 @@ router.delete("/admin/union-managers/:id", async (req: Request, res: Response): 
     await query(`DELETE FROM union_managers WHERE id=$1`, [id]);
     logger.info({ id, name: check.rows[0].full_name }, "[admin] union manager deleted");
     return res.json({ ok: true, deleted: check.rows[0].full_name });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── POST /api/union-staff/apply — تقديم طلب انضمام للعمل في الاتحاد
+router.post("/union-staff/apply", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureUnionMgrTables();
+    const { full_name, national_id, phone, email, role_applied, committee, skills, motivation } = req.body;
+    if (!full_name?.trim() || !phone?.trim() || !role_applied?.trim())
+      return res.status(400).json({ error: "الاسم والهاتف والمنصب المطلوب مطلوبة" });
+    const dup = await query(
+      `SELECT id FROM union_employee_applications WHERE phone=$1 AND status='pending'`,
+      [phone.trim()]
+    );
+    if (dup.rows.length) return res.status(409).json({ error: "يوجد طلب معلَّق بهذا الرقم مسبقاً" });
+    const r = await query(
+      `INSERT INTO union_employee_applications (full_name,national_id,phone,email,role_applied,committee,skills,motivation)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,full_name,phone,role_applied,status,created_at`,
+      [full_name.trim(), national_id?.trim()||null, phone.trim(), email?.trim()||null,
+       role_applied.trim(), committee?.trim()||null, skills?.trim()||null, motivation?.trim()||null]
+    );
+    void sendPushToAdmins("👔 طلب انضمام موظف للاتحاد", `${full_name.trim()} — ${role_applied.trim()}`, { type: "union_employee_application", id: r.rows[0].id });
+    return res.status(201).json({ success: true, application: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "union-staff/apply"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/union-manager/requests — طلبات الانضمام (طلاب + موظفون)
+router.get("/union-manager/requests", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const status = (req.query.status as string) || "pending";
+    if (!["pending","approved","rejected"].includes(status))
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    const students = await query(
+      `SELECT id,full_name,phone,email,institution,major,year,motivation,status,created_at,'student' AS type
+       FROM student_union_applications WHERE status=$1 ORDER BY created_at DESC`,
+      [status]
+    );
+    const employees = await query(
+      `SELECT id,full_name,phone,email,role_applied,committee,skills,motivation,status,created_at,'employee' AS type
+       FROM union_employee_applications WHERE status=$1 ORDER BY created_at DESC`,
+      [status]
+    );
+    return res.json({ students: students.rows, employees: employees.rows, total: students.rows.length + employees.rows.length });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── GET /api/union-manager/requests/count — عدد الطلبات المعلقة
+router.get("/union-manager/requests/count", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const s = await query(`SELECT COUNT(*) FROM student_union_applications WHERE status='pending'`);
+    const e = await query(`SELECT COUNT(*) FROM union_employee_applications WHERE status='pending'`);
+    const students = parseInt(s.rows[0].count);
+    const employees = parseInt(e.rows[0].count);
+    return res.json({ count: students + employees, students, employees });
+  } catch { return res.json({ count: 0, students: 0, employees: 0 }); }
+});
+
+// ── PATCH /api/union-manager/requests/student/:id/status — مراجعة طلب طالب
+router.patch("/union-manager/requests/student/:id/status", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { status } = req.body;
+    if (!["approved","rejected","pending"].includes(status))
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    const r = await query(
+      `UPDATE student_union_applications SET status=$1, reviewed_at=NOW() WHERE id=$2 RETURNING id,full_name,status`,
+      [status, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
+    logger.info({ mgr_id: mgr.id, app_id: req.params.id, status }, "[union-mgr] student request reviewed");
+    return res.json({ success: true, application: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/union-manager/requests/employee/:id/status — مراجعة طلب موظف
+router.patch("/union-manager/requests/employee/:id/status", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const { status, admin_note } = req.body;
+    if (!["approved","rejected","pending"].includes(status))
+      return res.status(400).json({ error: "حالة غير صالحة" });
+    await query(
+      `UPDATE union_employee_applications SET status=$1, reviewed_by=$2, reviewed_at=NOW(), admin_note=$3 WHERE id=$4`,
+      [status, mgr.id, admin_note||null, req.params.id]
+    );
+    if (status === "approved") {
+      const appR = await query(`SELECT * FROM union_employee_applications WHERE id=$1`, [req.params.id]);
+      const app_ = appR.rows[0];
+      if (app_) {
+        await query(
+          `INSERT INTO union_staff (manager_id,full_name,role,committee,phone,email)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [mgr.id, app_.full_name, app_.role_applied, app_.committee||null, app_.phone, app_.email||null]
+        );
+      }
+    }
+    logger.info({ mgr_id: mgr.id, app_id: req.params.id, status }, "[union-mgr] employee request reviewed");
+    return res.json({ success: true });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/union-manager/staff/:id/permissions — تحديث صلاحيات موظف
+router.patch("/union-manager/staff/:id/permissions", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const { permissions } = req.body;
+    if (typeof permissions !== "object" || permissions === null)
+      return res.status(400).json({ error: "الصلاحيات يجب أن تكون كائناً" });
+    const allowed = ["can_manage_requests","can_manage_staff","can_manage_meetings","can_post_announcements","can_view_reports"];
+    const clean: Record<string, boolean> = {};
+    for (const k of allowed) clean[k] = Boolean((permissions as any)[k]);
+    const r = await query(
+      `UPDATE union_staff SET permissions=$1::jsonb WHERE id=$2 AND manager_id=$3 RETURNING *`,
+      [JSON.stringify(clean), req.params.id, mgr.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "الموظف غير موجود" });
+    logger.info({ mgr_id: mgr.id, staff_id: req.params.id }, "[union-mgr] permissions updated");
+    return res.json(r.rows[0]);
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 
