@@ -2957,7 +2957,7 @@ router.get("/prayer-times", async (req: Request, res: Response) => {
 
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const { category, device_id, user_id } = req.query as { category?: string; device_id?: string; user_id?: string };
+    const { category, device_id, user_id, page, limit } = req.query as { category?: string; device_id?: string; user_id?: string; page?: string; limit?: string };
     const params: unknown[] = [];
     let paramIndex = 1;
 
@@ -2975,6 +2975,13 @@ router.get("/posts", async (req: Request, res: Response) => {
     const deviceParam = `$${paramIndex++}`;
     params.push(device_id || "");
 
+    const limitNum = Math.min(Math.max(parseInt(limit || "30", 10) || 30, 1), 100);
+    const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
+    const offsetNum = (pageNum - 1) * limitNum;
+    const limitParam = `$${paramIndex++}`;
+    const offsetParam = `$${paramIndex++}`;
+    params.push(limitNum, offsetNum);
+
     const sql = `
       SELECT
         p.*,
@@ -2991,6 +2998,7 @@ router.get("/posts", async (req: Request, res: Response) => {
       ${whereClause}
       GROUP BY p.id, u.avatar_url
       ORDER BY p.created_at DESC
+      LIMIT ${limitParam} OFFSET ${offsetParam}
     `;
     const result = await query(sql, params);
     return res.json(result.rows);

@@ -245,6 +245,13 @@ export default function OrgJoinScreen() {
       .catch(() => {});
   }, []);
 
+  // على iOS لا يعمل nestedScrollEnabled — نمنح المستخدم 8 ثوانٍ لقراءة العهد ثم نفعّل الزر تلقائياً
+  useEffect(() => {
+    if (step !== 5 || commitmentScrolled) return;
+    const timer = setTimeout(() => setCommitmentScrolled(true), 8000);
+    return () => clearTimeout(timer);
+  }, [step]);
+
   const toggleService = (id: string) => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
     setSelectedServices(prev =>
@@ -259,11 +266,38 @@ export default function OrgJoinScreen() {
   const instTypeObj = INST_TYPES.find(t => t.key === instType);
 
   // رفع صورة هوية الممثل
+  const doUploadRepPhoto = async (uri: string) => {
+    setRepPhotoUploading(true);
+    setRepPhotoUploadFailed(false);
+    try {
+      const folder = auth.user ? `institution_applications/${auth.user.id}` : `institution_applications/guest`;
+      const name = `${Date.now()}_rep_id.jpg`;
+      const url = await uploadFile(`${folder}/${name}`, uri);
+      setRepPhotoUrl(url);
+      setRepPhotoUploadFailed(false);
+    } catch {
+      setRepPhotoUploadFailed(true);
+    } finally {
+      setRepPhotoUploading(false);
+    }
+  };
+
   const pickRepPhoto = async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى المعرض لرفع الصورة");
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      if (perm.canAskAgain === false) {
+        Alert.alert(
+          "الإذن مرفوض",
+          "قمت برفض إذن المعرض بشكل دائم. يرجى فتح إعدادات الجهاز والسماح للتطبيق بالوصول إلى الصور.",
+          [
+            { text: "فتح الإعدادات", onPress: () => Linking.openSettings() },
+            { text: "إلغاء", style: "cancel" },
+          ]
+        );
+      } else {
+        Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى المعرض لرفع صورة الهوية");
+      }
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -276,20 +310,7 @@ export default function OrgJoinScreen() {
     const uri = result.assets[0].uri;
     setRepPhotoUri(uri);
     setRepPhotoUrl(null);
-    setRepPhotoUploadFailed(false);
-    if (auth.user) {
-      setRepPhotoUploading(true);
-      try {
-        const name = `${Date.now()}_rep_id.jpg`;
-        const url = await uploadFile(`institution_applications/${auth.user.id}/${name}`, uri);
-        setRepPhotoUrl(url);
-        setRepPhotoUploadFailed(false);
-      } catch {
-        setRepPhotoUploadFailed(true);
-      } finally {
-        setRepPhotoUploading(false);
-      }
-    }
+    await doUploadRepPhoto(uri);
   };
 
   // التحقق من حالة الطلب
@@ -423,10 +444,11 @@ export default function OrgJoinScreen() {
 
     // إعادة محاولة رفع صورة الهوية إذا فشلت سابقاً
     let finalRepPhotoUrl = repPhotoUrl;
-    if (!finalRepPhotoUrl && repPhotoUri && auth.user) {
+    if (!finalRepPhotoUrl && repPhotoUri) {
       try {
+        const folder = auth.user ? `institution_applications/${auth.user.id}` : `institution_applications/guest`;
         const name = `${Date.now()}_rep_id.jpg`;
-        finalRepPhotoUrl = await uploadFile(`institution_applications/${auth.user.id}/${name}`, repPhotoUri);
+        finalRepPhotoUrl = await uploadFile(`${folder}/${name}`, repPhotoUri);
         setRepPhotoUrl(finalRepPhotoUrl);
         setRepPhotoUploadFailed(false);
       } catch {
@@ -793,10 +815,19 @@ export default function OrgJoinScreen() {
                           {repPhotoUploading
                             ? "جارٍ الرفع..."
                             : repPhotoUploadFailed
-                            ? "لم يُرفع بعد — سيُرسل مع الطلب"
+                            ? "فشل الرفع"
                             : "✓ تم رفع الصورة"}
                         </Text>
                       </View>
+                      {repPhotoUploadFailed && !repPhotoUploading && (
+                        <TouchableOpacity
+                          style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}
+                          onPress={(e) => { e.stopPropagation?.(); doUploadRepPhoto(repPhotoUri!); }}
+                        >
+                          <Ionicons name="refresh" size={14} color={Colors.primary} />
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إعادة الرفع</Text>
+                        </TouchableOpacity>
+                      )}
                       <Text style={s.photoPickerChange}>اضغط لتغيير الصورة</Text>
                     </View>
                   </View>
@@ -1065,7 +1096,6 @@ export default function OrgJoinScreen() {
                 contentContainerStyle={{ alignItems: "stretch" }}
                 nestedScrollEnabled
                 onContentSizeChange={(_, contentH) => {
-                  // إذا كان النص يتسع دون تمرير → نعتبره مقروءاً تلقائياً
                   const maxH = 340;
                   if (contentH <= maxH && !commitmentScrolled) setCommitmentScrolled(true);
                 }}
@@ -1079,6 +1109,25 @@ export default function OrgJoinScreen() {
                 <Text style={s.documentBody}>{COMMITMENT_TEXT}</Text>
                 <View style={{ height: 24 }} />
               </ScrollView>
+
+              {/* تأكيد القراءة اليدوي — يظهر دائماً كبديل لمشكلة iOS */}
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 4, marginTop: 8 }}
+                onPress={() => setCommitmentScrolled(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 22, height: 22, borderRadius: 6, borderWidth: 2,
+                  borderColor: commitmentScrolled ? Colors.primary : Colors.textMuted,
+                  backgroundColor: commitmentScrolled ? Colors.primary : "transparent",
+                  justifyContent: "center", alignItems: "center",
+                }}>
+                  {commitmentScrolled && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>
+                  لقد قرأتُ العهد كاملاً وأوافق على جميع بنوده
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* بيانات الممثل */}
