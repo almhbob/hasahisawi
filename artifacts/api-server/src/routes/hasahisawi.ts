@@ -6235,6 +6235,29 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
     return "none";
   }
 
+  // Email via Brevo
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (brevoKey) {
+    try {
+      const senderEmail = process.env.EMAIL_FROM ?? "almhbob.iii@gmail.com";
+      const resp = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": brevoKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: { name: "حصاحيصاوي", email: senderEmail },
+          to: [{ email: identifier }],
+          subject: `رمز تحقق حصاحيصاوي: ${code}`,
+          htmlContent: `<div dir="rtl" style="font-family:Arial;font-size:16px;max-width:400px;margin:auto"><h2 style="color:#1e3a5f">حصاحيصاوي</h2><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:10px;color:#16a34a;font-size:36px">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.</p></div>`,
+        }),
+      });
+      if (resp.ok) {
+        logger.info("[OTP] Email sent via Brevo");
+        return "email";
+      }
+      logger.warn({ status: resp.status, body: await resp.text() }, "[OTP] Brevo send failed");
+    } catch (e: any) { logger.warn({ err: e?.message }, "[OTP] Brevo error"); }
+  }
+
   // Email via Resend
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {
