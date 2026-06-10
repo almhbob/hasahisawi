@@ -76,7 +76,7 @@ function FigureCard({ figure, index, onPress }: {
         {/* المعلومات */}
         <View style={fc.info}>
           <View style={fc.nameRow}>
-            <Text style={fc.name} numberOfLines={1}>{figure.name}</Text>
+            <Text style={fc.name} numberOfLines={2}>{figure.name}</Text>
             {figure.is_current && (
               <View style={fc.currentBadge}>
                 <Text style={fc.currentBadgeText}>المكرَّم الحالي</Text>
@@ -84,10 +84,10 @@ function FigureCard({ figure, index, onPress }: {
             )}
           </View>
           {!!figure.title && (
-            <Text style={fc.title} numberOfLines={1}>{figure.title}</Text>
+            <Text style={fc.title} numberOfLines={2}>{figure.title}</Text>
           )}
           {!!figure.city_role && (
-            <Text style={fc.role} numberOfLines={1}>{figure.city_role}</Text>
+            <Text style={fc.role} numberOfLines={2}>{figure.city_role}</Text>
           )}
           <View style={fc.dateRow}>
             <Ionicons name="calendar-outline" size={11} color={GOLD_DIM} />

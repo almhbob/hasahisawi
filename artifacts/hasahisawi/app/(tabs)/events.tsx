@@ -509,7 +509,7 @@ function RentalCard({ item, onPress }: { item: RentalItem; onPress: () => void }
             </View>
           </View>
           <Text style={styles.rentalProvider}>🏪 {item.provider_name}</Text>
-          {item.description ? <Text style={styles.rentalDesc} numberOfLines={2}>{item.description}</Text> : null}
+          {item.description ? <Text style={styles.rentalDesc} numberOfLines={3}>{item.description}</Text> : null}
           <View style={styles.rentalPriceRow}>
             <View style={styles.rentalPrice}>
               <Text style={styles.rentalPriceNum}>{item.price_per_day}</Text>

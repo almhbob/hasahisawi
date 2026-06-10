@@ -80,7 +80,7 @@ export default function GovEntitiesSection() {
                 <View style={styles.entityInfo}>
                   <Text style={styles.entityName}>{ent.name}</Text>
                   {ent.description && (
-                    <Text style={styles.entityDesc} numberOfLines={2}>{ent.description}</Text>
+                    <Text style={styles.entityDesc} numberOfLines={3}>{ent.description}</Text>
                   )}
                 </View>
               </View>

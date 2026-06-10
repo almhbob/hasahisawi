@@ -92,7 +92,7 @@ function ServiceGridItem({
               : <MaterialCommunityIcons name={item.icon} size={19} color={item.color} />}
           </View>
           <Text style={styles.gridLabel} numberOfLines={2}>{item.label}</Text>
-          <Text style={styles.gridSub} numberOfLines={2}>{item.sub}</Text>
+          <Text style={styles.gridSub} numberOfLines={3}>{item.sub}</Text>
           {/* شارة ديناميكية لمشوارك علينا */}
           {badge && (
             <View style={[styles.soonBadge, { backgroundColor: badge.bg }]}>
@@ -528,8 +528,8 @@ export default function HomeScreen() {
                   <Ionicons name="megaphone" size={16} color={Colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.featuredAdInstitution} numberOfLines={1}>{featuredAd.institution_name}</Text>
-                  <Text style={styles.featuredAdTitle} numberOfLines={1}>{featuredAd.title}</Text>
+                  <Text style={styles.featuredAdInstitution} numberOfLines={2}>{featuredAd.institution_name}</Text>
+                  <Text style={styles.featuredAdTitle} numberOfLines={2}>{featuredAd.title}</Text>
                 </View>
               </View>
               <View style={styles.featuredAdChip}>

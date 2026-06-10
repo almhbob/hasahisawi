@@ -179,7 +179,7 @@ function AdCard({ ad, index }: { ad: Ad; index: number }) {
           <Text style={s.adInstitution}>{ad.institution_name}</Text>
           <Text style={s.adTitle}>{ad.title}</Text>
           {ad.description ? (
-            <Text style={s.adDesc} numberOfLines={2}>{ad.description}</Text>
+            <Text style={s.adDesc} numberOfLines={3}>{ad.description}</Text>
           ) : null}
           <View style={s.adFooterRow}>
             <View style={s.sponsoredChip}>
@@ -227,7 +227,7 @@ function MyRequestCard({ ad, index }: { ad: Ad; index: number }) {
         {ad.admin_note ? (
           <View style={s.adminNoteRow}>
             <Ionicons name="information-circle-outline" size={13} color={MUTED} />
-            <Text style={s.adminNoteText} numberOfLines={2}>{ad.admin_note}</Text>
+            <Text style={s.adminNoteText} numberOfLines={3}>{ad.admin_note}</Text>
           </View>
         ) : null}
         <View style={s.myCardFooter}>

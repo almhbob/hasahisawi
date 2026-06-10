@@ -134,13 +134,13 @@ function ItemCard({ item, onMarkFound, onDelete, myUserId }: {
             </View>
             <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
           </View>
-          <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
+          <Text style={styles.descText} numberOfLines={3}>{item.description}</Text>
           {item.last_seen ? (
             <TouchableOpacity
               style={styles.locationRow}
               onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.last_seen + " Hasahisa")}`)}
             >
-              <Text style={[styles.locationText, { color: Colors.primary }]} numberOfLines={1}>{item.last_seen}</Text>
+              <Text style={[styles.locationText, { color: Colors.primary }]} numberOfLines={2}>{item.last_seen}</Text>
               <Ionicons name="location-outline" size={13} color={Colors.primary} />
             </TouchableOpacity>
           ) : null}

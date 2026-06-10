@@ -290,7 +290,7 @@ export default function DrawerMenu() {
               <Text style={[styles.avatarText, isGuest && { color: Colors.textMuted }]}>{initial}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.userName} numberOfLines={2}>{displayName}</Text>
               {user?.neighborhood ? (
                 <View style={styles.userDetail}>
                   <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
