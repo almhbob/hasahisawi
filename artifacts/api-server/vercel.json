@@ -9,7 +9,7 @@
       "config": {
         "maxLambdaSize": "50mb",
         "includeFiles": ["dist/**"]
-      },
+      }
     }
   ],
   "routes": [
