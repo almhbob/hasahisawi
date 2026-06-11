@@ -21,5 +21,27 @@ allprojects {
   }
 }
 
+// Fix: newer AGP requires all library modules to declare compileSdk.
+// Patches any subproject that omits it (e.g. expo-firebase-core 6.0.0).
+subprojects {
+  afterEvaluate { project ->
+    if (project.hasProperty("android")) {
+      def android = project.extensions.findByName("android")
+      if (android != null) {
+        try {
+          if (!android.hasProperty("compileSdk") || android.compileSdk == null) {
+            android.compileSdk = 35
+          }
+        } catch (Exception ignored) {}
+        try {
+          if (android.compileSdkVersion == null) {
+            android.compileSdkVersion 35
+          }
+        } catch (Exception ignored) {}
+      }
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
