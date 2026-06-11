@@ -117,6 +117,32 @@ jobs:
           KOTLIN
           echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
 
+      - name: Patch expo-firebase-core — replace incompatible Java sources
+        run: |
+          # expo-firebase-core@6.0.0 references ExportedModule removed from expo-modules-core in SDK 52+.
+          # Replace with no-op stubs — Firebase init is via google-services.json, not this native module.
+          while IFS= read -r FIREBASE_BUILD; do
+            SRC="$(dirname "$FIREBASE_BUILD")/src/main/java/expo/modules/firebase/core"
+            if [ -d "$SRC" ]; then
+              cat > "$SRC/FirebaseCorePackage.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import expo.modules.core.BasePackage;
+          public class FirebaseCorePackage extends BasePackage {}
+          JAVA_EOF
+              cat > "$SRC/FirebaseCoreModule.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import android.content.Context;
+          public class FirebaseCoreModule {
+            public FirebaseCoreModule(Context context) {}
+            public String getName() { return "ExpoFirebaseCore"; }
+          }
+          JAVA_EOF
+              echo "✅ expo-firebase-core Java stubs written: $SRC"
+            else
+              echo "⚠️  expo-firebase-core source not found at: $SRC"
+            fi
+          done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
+
       - name: Add custom notification sounds
         run: |
           mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
