@@ -193,14 +193,12 @@ jobs:
           echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
           echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
           # Gradle 8.13 removed AbstractArchiveTask.classifier — patch expo-firebase-core@6.0.0
-          FIREBASE_BUILD=$(find artifacts/hasahisawi/node_modules/expo-firebase-core/android -name "build.gradle" 2>/dev/null | head -1)
-          if [ -n "$FIREBASE_BUILD" ]; then
+          # pnpm stores packages under node_modules/.pnpm/*/node_modules/expo-firebase-core
+          while IFS= read -r FIREBASE_BUILD; do
             sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD"
             sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD"
-            echo "✅ Patched expo-firebase-core build.gradle (classifier → archiveClassifier)"
-          else
-            echo "⚠️  expo-firebase-core build.gradle not found — skipping patch"
-          fi
+            echo "✅ Patched: $FIREBASE_BUILD"
+          done < <(find artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
       - name: Build release AAB
         working-directory: artifacts/hasahisawi/android
