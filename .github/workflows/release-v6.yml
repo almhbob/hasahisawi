@@ -410,8 +410,8 @@ jobs:
           fi
 
       - run: |
-          echo "✅ GitHub Pages → https://almhbob.github.io/hasahisawi/"
-          echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
+          echo "✅ الرابط الأساسي (Cloudflare) → https://hasahisawi.pages.dev"
+          echo "✅ الرابط الاحتياطي (GitHub Pages) → https://almhbob.github.io/hasahisawi/"
 
   # ─── Create GitHub Release ────────────────────────────────────────
   create-release:
@@ -449,7 +449,9 @@ jobs:
             ---
 
             ## 🌐 iPhone / iPad (PWA)
-            **https://almhbob.github.io/hasahisawi/**
+            **https://hasahisawi.pages.dev**
+
+            > بديل: https://almhbob.github.io/hasahisawi/
 
             ---
 
