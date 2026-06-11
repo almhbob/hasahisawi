@@ -29,6 +29,23 @@ type StudentReq   = { id: number; full_name: string; phone: string; email?: stri
 type EmployeeReq  = { id: number; full_name: string; phone: string; email?: string; role_applied: string; committee?: string; skills?: string; motivation?: string; status: string; created_at: string; kind: "employee" };
 type AnyReq       = StudentReq | EmployeeReq;
 
+// تسجيل push token لمدير الإتحاد بعد الدخول
+async function registerUnionManagerPushToken(mgrToken: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const Notifications = await import("expo-notifications");
+    const perm = await Notifications.requestPermissionsAsync();
+    if (perm.status !== "granted") return;
+    const { data: pushToken } = await Notifications.getExpoPushTokenAsync();
+    if (!pushToken?.startsWith("ExponentPushToken[")) return;
+    await fetch(`${getApiUrl()}/api/union-manager/push-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${mgrToken}` },
+      body: JSON.stringify({ token: pushToken, platform: Platform.OS }),
+    });
+  } catch {}
+}
+
 const DEFAULT_PERMISSIONS: Permissions = { can_manage_requests: false, can_manage_staff: false, can_manage_meetings: false, can_post_announcements: false, can_view_reports: false };
 const PERMISSION_PRESETS: Record<string, Permissions> = {
   "أمين عام":       { can_manage_requests: true,  can_manage_staff: true,  can_manage_meetings: true,  can_post_announcements: true,  can_view_reports: true  },
@@ -87,6 +104,8 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
         await AsyncStorage.setItem(MGTOKEN_KEY, data.token);
         await AsyncStorage.setItem(MGINFO_KEY, JSON.stringify(data.manager));
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // تسجيل رمز الإشعارات لهذا المدير
+        registerUnionManagerPushToken(data.token).catch(() => {});
         onLogin(data.token, data.manager);
       } else {
         Alert.alert("خطأ في الدخول", data.error || "بيانات غير صحيحة");
@@ -112,7 +131,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
       <ScrollView contentContainerStyle={{ padding: 24 }} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeInDown.delay(100).springify()} style={ls.card}>
           <Text style={ls.cardTitle}>تسجيل الدخول</Text>
-          <Text style={ls.cardSub}>للمسؤولين المعتمدين من إدارة التطبيق فقط</Text>
+          <Text style={ls.cardSub}>لأعضاء إدارة اتحاد طلاب محلية الحصاحيصا</Text>
 
           <Text style={ls.label}>اسم المستخدم</Text>
           <TextInput

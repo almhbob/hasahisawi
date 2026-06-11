@@ -133,6 +133,28 @@ async function sendPushToAdmins(title: string, body: string, data: Record<string
   } catch (e) { logger.warn({ err: e }, "[push] sendPushToAdmins failed"); }
 }
 
+// إشعار لجميع مديري الإتحاد عند ورود طلب جديد (مستقل تماماً عن إدارة التطبيق)
+async function sendPushToUnionManagers(title: string, body: string, data: Record<string, unknown> = {}, channelId = "hasahisawi-default"): Promise<void> {
+  try {
+    const { rows } = await query(
+      `SELECT DISTINCT token FROM union_manager_push_tokens WHERE token LIKE 'ExponentPushToken[%'`
+    );
+    if (!rows.length) return;
+    const messages = rows.map(r => ({
+      to: r.token as string, title, body,
+      data: { ...data, channelId },
+      sound: pushSound(channelId),
+      channelId,
+      badge: 1,
+    }));
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(messages),
+    }).catch((e) => { logger.warn({ err: e }, "[push] union-manager push delivery failed"); });
+  } catch (e) { logger.warn({ err: e }, "[push] sendPushToUnionManagers failed"); }
+}
+
 // ── reCAPTCHA v2 verification ────────────────────────────────────────────────
 async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
   const secret = process.env.RECAPTCHA_SECRET;
@@ -15844,7 +15866,7 @@ router.post("/student-union/apply", writeLimiter, async (req: Request, res: Resp
         b.pledge_name.trim(), b.pledge_date?.trim()||null,
       ]
     );
-    void sendPushToAdmins("🎓 طلب عضوية اتحاد طلاب جديد", `${b.full_name.trim()} — ${b.institution.trim()}`, { type: "student_union_application", id: result.rows[0].id });
+    void sendPushToUnionManagers("🎓 طلب عضوية اتحاد طلاب جديد", `${b.full_name.trim()} — ${b.institution.trim()}`, { type: "student_union_application", id: result.rows[0].id });
     return res.status(201).json({ application: result.rows[0] });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[student-union/apply]");
@@ -15996,7 +16018,7 @@ router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: 
         b.requested_tier?.trim()||"basic", true,
       ]
     );
-    void sendPushToAdmins("🤝 طلب شراكة اتحاد جديد", `${b.union_name.trim()} — ${b.contact_person.trim()}`, { type: "union_partnership_application", id: result.rows[0].id });
+    void sendPushToUnionManagers("🤝 طلب شراكة اتحاد جديد", `${b.union_name.trim()} — ${b.contact_person.trim()}`, { type: "union_partnership_application", id: result.rows[0].id });
     return res.status(201).json({ application: result.rows[0] });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[union-partnership/apply]");
@@ -17459,6 +17481,15 @@ async function ensureUnionMgrTables(): Promise<void> {
     created_at  TIMESTAMPTZ DEFAULT NOW()
   )`);
 
+  await query(`CREATE TABLE IF NOT EXISTS union_manager_push_tokens (
+    id          SERIAL PRIMARY KEY,
+    manager_id  INTEGER NOT NULL REFERENCES union_managers(id) ON DELETE CASCADE,
+    token       TEXT NOT NULL,
+    platform    VARCHAR(10) NOT NULL DEFAULT 'android',
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(manager_id)
+  )`);
+
   await query(`CREATE TABLE IF NOT EXISTS union_staff (
     id          SERIAL PRIMARY KEY,
     manager_id  INTEGER REFERENCES union_managers(id) ON DELETE CASCADE,
@@ -17574,6 +17605,25 @@ router.post("/union-manager/login", authLimiter, async (req: Request, res: Respo
     await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
     return res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, title: mgr.title, username: mgr.username } });
   } catch (e: any) { logger.error({ err: e }, "union-manager/login"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/union-manager/push-token — تسجيل رمز الإشعارات لمدير الإتحاد
+router.post("/union-manager/push-token", writeLimiter, async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { token, platform } = req.body as { token: string; platform?: string };
+    if (!token || !token.startsWith("ExponentPushToken[")) {
+      return res.status(400).json({ error: "رمز إشعار غير صالح" });
+    }
+    await query(
+      `INSERT INTO union_manager_push_tokens (manager_id, token, platform, updated_at)
+       VALUES ($1,$2,$3,NOW())
+       ON CONFLICT (manager_id) DO UPDATE SET token=$2, platform=$3, updated_at=NOW()`,
+      [mgr.id, token, platform || "android"]
+    );
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
 // GET /api/union-manager/dashboard
@@ -17930,7 +17980,7 @@ router.post("/union-staff/apply", writeLimiter, async (req: Request, res: Respon
       [full_name.trim(), national_id?.trim()||null, phone.trim(), email?.trim()||null,
        role_applied.trim(), committee?.trim()||null, skills?.trim()||null, motivation?.trim()||null]
     );
-    void sendPushToAdmins("👔 طلب انضمام موظف للاتحاد", `${full_name.trim()} — ${role_applied.trim()}`, { type: "union_employee_application", id: r.rows[0].id });
+    void sendPushToUnionManagers("👔 طلب انضمام موظف للاتحاد", `${full_name.trim()} — ${role_applied.trim()}`, { type: "union_employee_application", id: r.rows[0].id });
     return res.status(201).json({ success: true, application: r.rows[0] });
   } catch (e: any) { logger.error({ err: e?.message }, "union-staff/apply"); return res.status(500).json({ error: "Server error" }); }
 });
