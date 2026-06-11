@@ -117,9 +117,50 @@ function AuthGate() {
     const unsub = addNotificationListener(
       (_n) => {},
       (data) => {
+        const type = data?.type as string | undefined;
+        const screen = data?.screen as string | undefined;
+
+        // ── محادثات ──
         if (data?.chatId) {
           router.push({ pathname: "/conversation", params: { chatId: data.chatId, otherName: data.otherName ?? "" } } as any);
+          return;
         }
+
+        // ── الإتحاد ──
+        if (
+          type === "student_union_application" ||
+          type === "union_employee_application" ||
+          type === "union_partnership_application" ||
+          type === "union_manager_application"
+        ) {
+          router.push("/union-manager-portal" as any);
+          return;
+        }
+
+        // ── المؤسسات / الشراكات / المحامون → لوحة الإدارة ──
+        if (
+          type === "institution_application" ||
+          type === "external_partnership" ||
+          type === "lawyer_application"
+        ) {
+          router.push("/admin" as any);
+          return;
+        }
+
+        // ── زواجيل ──
+        if (screen === "zawajil" || type === "zawajil") {
+          router.push("/zawajil" as any);
+          return;
+        }
+
+        // ── إشعار عام أو بث → شاشة الإشعارات ──
+        if (type === "broadcast" || type === "direct" || type === "general") {
+          router.push("/notifications" as any);
+          return;
+        }
+
+        // fallback: افتح شاشة الإشعارات
+        router.push("/notifications" as any);
       },
     );
     return unsub;

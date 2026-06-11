@@ -57,13 +57,29 @@ async function query(sql: string, params: unknown[] = []) {
 
 
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // إرسال Push Notification عبر Expo Push Service
 // ══════════════════════════════════════════════════════
+
+// خريطة القنوات إلى أسماء ملفات الصوت
+const CHANNEL_SOUND_MAP: Record<string, string> = {
+  "hasahisawi-chat":      "hasahisawi_chat",
+  "hasahisawi-urgent":    "hasahisawi_urgent",
+  "hasahisawi-transport": "hasahisawi_notif",
+  "hasahisawi-prayer":    "hasahisawi_prayer",
+  "hasahisawi-default":   "hasahisawi_notif",
+};
+
+function pushSound(channelId: string): string {
+  return CHANNEL_SOUND_MAP[channelId] ?? "hasahisawi_notif";
+}
+
 async function sendPushToUser(
   userId: number,
   title: string,
   body: string,
   data: Record<string, unknown> = {},
+  channelId = "hasahisawi-default",
 ): Promise<void> {
   try {
     const { rows } = await query(
@@ -72,14 +88,17 @@ async function sendPushToUser(
     );
     if (!rows.length) return;
 
-    // إرسال لجميع أجهزة المستخدم دفعةً واحدة
     const tokens = rows
       .map(r => r.token as string)
       .filter(t => t?.startsWith("ExponentPushToken["));
     if (!tokens.length) return;
 
     const messages = tokens.map(to => ({
-      to, title, body, data, sound: "default", badge: 1,
+      to, title, body,
+      data: { ...data, channelId },
+      sound: pushSound(channelId),
+      channelId,
+      badge: 1,
     }));
 
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -93,13 +112,19 @@ async function sendPushToUser(
 const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 
 // إشعار فوري لجميع المشرفين عند ورود طلب جديد
-async function sendPushToAdmins(title: string, body: string, data: Record<string, unknown> = {}): Promise<void> {
+async function sendPushToAdmins(title: string, body: string, data: Record<string, unknown> = {}, channelId = "hasahisawi-urgent"): Promise<void> {
   try {
     const { rows } = await query(
       `SELECT DISTINCT pt.token FROM push_tokens pt JOIN users u ON u.id = pt.user_id WHERE u.role IN ('admin','moderator') AND pt.token LIKE 'ExponentPushToken[%'`
     );
     if (!rows.length) return;
-    const messages = rows.map(r => ({ to: r.token as string, title, body, data, sound: "hasahisawi_notif", badge: 1 }));
+    const messages = rows.map(r => ({
+      to: r.token as string, title, body,
+      data: { ...data, channelId },
+      sound: pushSound(channelId),
+      channelId,
+      badge: 1,
+    }));
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -4186,7 +4211,8 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
       recipientId,
       `رسالة من ${me.name as string}`,
       notifBody,
-      { chatId, otherName: me.name, screen: "chat" }
+      { chatId, otherName: me.name, screen: "chat" },
+      "hasahisawi-chat"
     );
 
     return res.json(msg);
@@ -9789,13 +9815,19 @@ router.get("/admin/full-stats", async (req: Request, res: Response) => {
 // ── إرسال Push Notifications (Expo Push API) ──
 // ══════════════════════════════════════════════════════
 
-async function sendExpoPushToUser(userId: number, title: string, body: string, data?: any) {
+async function sendExpoPushToUser(userId: number, title: string, body: string, data?: any, channelId = "hasahisawi-default") {
   try {
     const { rows } = await query(`SELECT token FROM push_tokens WHERE user_id=$1`, [userId]);
     if (!rows.length) return;
     const messages = rows
       .filter((r: any) => r.token && r.token.startsWith("ExponentPushToken"))
-      .map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default", badge: 1 }));
+      .map((r: any) => ({
+        to: r.token, title, body,
+        data: { ...(data ?? {}), channelId },
+        sound: pushSound(channelId),
+        channelId,
+        badge: 1,
+      }));
     if (!messages.length) return;
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
@@ -9805,14 +9837,19 @@ async function sendExpoPushToUser(userId: number, title: string, body: string, d
   } catch (e) { logger.error({ err: e }, "Push send error"); }
 }
 
-async function sendExpoPushBroadcast(title: string, body: string, data?: any) {
+async function sendExpoPushBroadcast(title: string, body: string, data?: any, channelId = "hasahisawi-default") {
   try {
     const { rows } = await query(`SELECT token FROM push_tokens WHERE token LIKE 'ExponentPushToken%'`);
     if (!rows.length) return;
     const chunks: any[][] = [];
     for (let i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
     for (const chunk of chunks) {
-      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: data ?? {}, sound: "default" }));
+      const messages = chunk.map((r: any) => ({
+        to: r.token, title, body,
+        data: { ...(data ?? {}), channelId },
+        sound: pushSound(channelId),
+        channelId,
+      }));
       await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -13028,7 +13065,7 @@ router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Respo
       if (n) {
         await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'zawajil',$2,$3,$4)`,
           [order.sender_id, n.title, n.body(order), JSON.stringify({ order_id: order.id, order_number: order.order_number })]).catch(() => {});
-        sendExpoPushToUser(order.sender_id, n.title, n.body(order), { screen: "zawajil", order_id: order.id }).catch(() => {});
+        sendExpoPushToUser(order.sender_id, n.title, n.body(order), { screen: "zawajil", order_id: order.id }, "hasahisawi-default").catch(() => {});
       }
     }
     return res.json(r.rows[0]);
@@ -13057,7 +13094,7 @@ router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Respo
       if (m) {
         await query(`INSERT INTO notifications(user_id,type,title,body,data) VALUES($1,'zawajil',$2,$3,$4)`,
           [order.sender_id, m.title, m.body, JSON.stringify({ order_id: order.id, order_number: order.order_number })]).catch(() => {});
-        sendExpoPushToUser(order.sender_id, m.title, m.body, { screen: "zawajil", order_id: order.id }).catch(() => {});
+        sendExpoPushToUser(order.sender_id, m.title, m.body, { screen: "zawajil", order_id: order.id }, "hasahisawi-default").catch(() => {});
       }
     }
     return res.json(r.rows[0] || { error: "لم يُعثر" });

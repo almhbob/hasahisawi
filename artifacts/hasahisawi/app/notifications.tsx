@@ -23,6 +23,7 @@ type Notification = {
   type: string;
   is_read: boolean;
   created_at: string;
+  data?: string; // JSON string
 };
 
 function timeAgo(isoDate: string, isRTL: boolean): string {
@@ -45,22 +46,66 @@ function timeAgo(isoDate: string, isRTL: boolean): string {
 
 function getTypeIcon(type: string): string {
   switch (type) {
-    case "medical": return "medkit-outline";
-    case "news": return "newspaper-outline";
-    case "alert": return "warning-outline";
-    case "event": return "calendar-outline";
-    default: return "notifications-outline";
+    case "medical":
+    case "pharmacy":
+    case "lab":
+    case "hospital":         return "medkit-outline";
+    case "news":
+    case "broadcast":        return "newspaper-outline";
+    case "alert":            return "warning-outline";
+    case "event":            return "calendar-outline";
+    case "chat":             return "chatbubble-outline";
+    case "zawajil":          return "heart-outline";
+    case "institution_application":
+    case "external_partnership": return "business-outline";
+    case "lawyer_application":   return "scale-outline";
+    case "student_union_application":
+    case "union_employee_application":
+    case "union_partnership_application":
+    case "union_manager_application": return "people-outline";
+    case "transport":        return "car-outline";
+    case "direct":           return "person-outline";
+    default:                 return "notifications-outline";
   }
 }
 
 function getTypeColor(type: string): string {
   switch (type) {
-    case "medical": return Colors.primary;
-    case "news": return "#2E7D9A";
-    case "alert": return "#FF4757";
-    case "event": return Colors.accent;
-    default: return Colors.textSecondary;
+    case "medical":
+    case "pharmacy":
+    case "lab":
+    case "hospital":         return Colors.primary;
+    case "news":
+    case "broadcast":        return "#2E7D9A";
+    case "alert":            return "#FF4757";
+    case "event":            return Colors.accent;
+    case "chat":             return "#1E90FF";
+    case "zawajil":          return "#E91E63";
+    case "institution_application":
+    case "external_partnership": return "#FF9800";
+    case "lawyer_application":   return "#9C27B0";
+    case "student_union_application":
+    case "union_employee_application":
+    case "union_partnership_application":
+    case "union_manager_application": return "#4CAF50";
+    case "transport":        return "#00BCD4";
+    case "direct":           return Colors.textSecondary;
+    default:                 return Colors.textSecondary;
   }
+}
+
+function getNotifRoute(notif: Notification): string | null {
+  let parsed: Record<string, unknown> = {};
+  try { parsed = notif.data ? JSON.parse(notif.data) : {}; } catch {}
+  const type = notif.type;
+  if (parsed?.chatId || type === "chat") return "/conversation";
+  if (type === "student_union_application" || type === "union_employee_application" ||
+      type === "union_partnership_application" || type === "union_manager_application") return "/union-manager-portal";
+  if (type === "institution_application" || type === "external_partnership" ||
+      type === "lawyer_application" || type === "alert") return "/admin";
+  if (type === "zawajil" || (parsed as any)?.screen === "zawajil") return "/zawajil";
+  if (type === "transport") return "/(tabs)";
+  return null;
 }
 
 export default function NotificationsScreen() {
@@ -164,7 +209,11 @@ export default function NotificationsScreen() {
             <TouchableOpacity
               key={notif.id}
               style={[styles.card, !notif.is_read && styles.cardUnread]}
-              onPress={() => markAsRead(notif.id)}
+              onPress={() => {
+                markAsRead(notif.id);
+                const route = getNotifRoute(notif);
+                if (route) router.push(route as any);
+              }}
               activeOpacity={0.8}
             >
               <View style={styles.cardRow}>

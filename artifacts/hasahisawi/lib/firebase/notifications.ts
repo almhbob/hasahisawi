@@ -332,12 +332,14 @@ export function addNotificationListener(
   let sub1: any, sub2: any;
   import("expo-notifications").then((Notifications) => {
     sub1 = Notifications.addNotificationReceivedListener((n) => {
-      // تشغيل اهتزاز داخلي مُميَّز عند استقبال تنبيه والتطبيق مفتوح
+      // تشغيل صوت + اهتزاز داخلي مُميَّز عند استقبال تنبيه والتطبيق مفتوح
       const channelId = (n.request.content.data as any)?.channelId as string | undefined;
-      import("@/lib/sounds").then(({ vibrateForType }) => {
-        if (channelId === CHANNELS.URGENT)    vibrateForType("alert");
-        else if (channelId === CHANNELS.CHAT) vibrateForType("message");
-        else if (channelId === CHANNELS.TRANSPORT) vibrateForType("transport");
+      import("@/lib/sounds").then(({ notifyUser }) => {
+        if (channelId === CHANNELS.URGENT)         notifyUser("alert");
+        else if (channelId === CHANNELS.CHAT)      notifyUser("message");
+        else if (channelId === CHANNELS.TRANSPORT) notifyUser("transport");
+        else if (channelId === CHANNELS.PRAYER)    notifyUser("prayer");
+        else                                       notifyUser("success");
       }).catch(() => {});
 
       onReceived({
