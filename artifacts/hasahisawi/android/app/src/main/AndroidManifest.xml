@@ -12,6 +12,8 @@
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" tools:ignore="ScopedStorage"/>
   <!-- Biometric auth -->
   <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+  <!-- AD_ID: app does not use advertising ID — explicitly opt out for Google Play compliance -->
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
   <!-- Explicitly remove permissions that violate Google Play policy -->
   <!-- SYSTEM_ALERT_WINDOW: not used — draw-over-apps triggers Misleading Ads policy -->
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
@@ -31,6 +33,10 @@
     </intent>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
+    <!-- Disable Firebase Analytics auto-collection: app uses FCM only, not Analytics/Ads -->
+    <meta-data android:name="firebase_analytics_collection_enabled" android:value="false"/>
+    <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false"/>
+    <meta-data android:name="google_analytics_ssaid_collection_enabled" android:value="false"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="hasahisawi-default"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon"/>
