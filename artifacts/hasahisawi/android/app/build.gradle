@@ -92,8 +92,8 @@ android {
         applicationId 'com.almhbob.hasahisawi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 250
-        versionName "6.5.0"
+        versionCode 251
+        versionName "6.5.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 

@@ -520,6 +520,6 @@ jobs:
           releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
           track: production
           status: completed
-          changesNotSentForReview: false
+          changesNotSentForReview: true
           releaseName: "v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})"
           whatsNewDirectory: .github/play-whatsnew

@@ -2,7 +2,7 @@
   "expo": {
     "name": "حصاحيصاوي",
     "slug": "al-hasahisa-service",
-    "version": "6.5.0",
+    "version": "6.5.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.almhbob.hasahisawi",
-      "buildNumber": "250",
+      "buildNumber": "251",
       "infoPlist": {
         "NSCameraUsageDescription": "التطبيق يحتاج إذناً للكاميرا لالتقاط صورة شخصية",
         "NSPhotoLibraryUsageDescription": "التطبيق يحتاج إذناً للوصول إلى الصور لتغيير الصورة الشخصية",
@@ -33,7 +33,7 @@
     },
     "android": {
       "package": "com.almhbob.hasahisawi",
-      "versionCode": 250,
+      "versionCode": 251,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
