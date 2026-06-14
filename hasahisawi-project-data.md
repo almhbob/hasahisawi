@@ -7,8 +7,8 @@
 | البيان | القيمة |
 |---|---|
 | اسم الحزمة | `com.almhbob.hasahisawi` |
-| الإصدار الحالي | `6.4.6` |
-| رمز الإصدار (versionCode) | `246` |
+| الإصدار الحالي | `6.5.0` |
+| رمز الإصدار (versionCode) | `250` |
 | slug | `al-hasahisa-service` |
 | SHA1 (Google Play) | `7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08` |
 | SHA1 (بدون نقطتين) | `7bc4a4fc7a923705d36653b1e067794d6bd4c208` |
@@ -17,12 +17,12 @@
 
 ---
 
-## 📥 روابط آخر إصدار (v6.4.6)
+## 📥 روابط آخر إصدار (v6.5.0)
 | الملف | الرابط |
 |---|---|
-| APK (تثبيت مباشر) | `https://github.com/almhbob/hasahisawi/releases/download/v6.4.6/hasahisawi-v6.4.6.apk` |
-| AAB (Google Play) | `https://github.com/almhbob/hasahisawi/releases/download/v6.4.6/hasahisawi-v6.4.6.aab` |
-| صفحة الإصدار | `https://github.com/almhbob/hasahisawi/releases/tag/v6.4.6` |
+| APK (تثبيت مباشر) | `https://github.com/almhbob/hasahisawi/releases/download/v6.5.0/hasahisawi-v6.5.0.apk` |
+| AAB (Google Play) | `https://github.com/almhbob/hasahisawi/releases/download/v6.5.0/hasahisawi-v6.5.0.aab` |
+| صفحة الإصدار | `https://github.com/almhbob/hasahisawi/releases/tag/v6.5.0` |
 
 ---
 

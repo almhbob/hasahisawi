@@ -497,6 +497,20 @@ jobs:
         with:
           name: aab
 
+      - name: Create whatsnew files
+        run: |
+          mkdir -p .github/play-whatsnew
+          printf '%s\n' \
+            '- إصلاح جميع طلبات الانضمام' \
+            '- إشعارات مخصصة مع نغمات' \
+            '- تحسينات عامة في الأداء' \
+            > .github/play-whatsnew/whatsnew-ar
+          printf '%s\n' \
+            '- Fixed all join requests' \
+            '- Custom notifications with sounds' \
+            '- General performance improvements' \
+            > .github/play-whatsnew/whatsnew-en-US
+
       - name: Upload AAB to Google Play Production
         if: env.SERVICE_ACCOUNT != ''
         uses: r0adkll/upload-google-play@v1
