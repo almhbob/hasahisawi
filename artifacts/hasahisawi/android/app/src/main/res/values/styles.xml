@@ -4,6 +4,12 @@
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     <item name="colorPrimary">@color/colorPrimary</item>
     <item name="android:statusBarColor">#F2EBD8</item>
+    <!-- Opt out of Android 15 forced edge-to-edge. The app manages its own
+         window insets via React Native's StatusBar module and the classic
+         setStatusBarColor/setNavigationBarColor APIs. Forcing edge-to-edge
+         renders those calls ineffective and triggers Play Console warnings
+         about restricted APIs. -->
+    <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
   </style>
   <style name="Theme.App.SplashScreen" parent="Theme.SplashScreen">
     <item name="windowSplashScreenBackground">@color/splashscreen_background</item>
