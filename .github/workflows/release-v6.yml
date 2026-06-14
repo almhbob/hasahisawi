@@ -486,7 +486,7 @@ jobs:
 
   # ─── Publish to Google Play (Internal Track) ─────────────────────
   publish-play-store:
-    name: Publish to Google Play — Internal Track
+    name: Publish to Google Play — Production
     needs: [build-android, create-release]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -497,14 +497,14 @@ jobs:
         with:
           name: aab
 
-      - name: Upload AAB to Google Play Internal Track
+      - name: Upload AAB to Google Play Production
         if: env.SERVICE_ACCOUNT != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.SERVICE_ACCOUNT }}
           packageName: com.almhbob.hasahisawi
           releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
-          track: internal
+          track: production
           status: completed
           changesNotSentForReview: false
           releaseName: "v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})"
