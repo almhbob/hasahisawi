@@ -92,8 +92,8 @@ android {
         applicationId 'com.almhbob.hasahisawi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 251
-        versionName "6.5.1"
+        versionCode 252
+        versionName "6.5.2"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
@@ -167,6 +167,9 @@ android {
 configurations.all {
     resolutionStrategy {
         force 'com.google.mlkit:barcode-scanning:17.3.0'
+        // Exclude play-services-ads-identifier to prevent AD_ID policy violation.
+        // The app uses FCM only and does not use advertising ID in any form.
+        exclude group: 'com.google.android.gms', module: 'play-services-ads-identifier'
     }
 }
 
