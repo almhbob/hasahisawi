@@ -92,8 +92,8 @@ android {
         applicationId 'com.almhbob.hasahisawi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 254
-        versionName "6.5.4"
+        versionCode 255
+        versionName "6.5.5"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
@@ -167,10 +167,22 @@ android {
 configurations.all {
     resolutionStrategy {
         force 'com.google.mlkit:barcode-scanning:17.3.0'
-        // Exclude play-services-ads-identifier to prevent AD_ID policy violation.
-        // The app uses FCM only and does not use advertising ID in any form.
-        exclude group: 'com.google.android.gms', module: 'play-services-ads-identifier'
     }
+    // Exclude all advertising and analytics libraries.
+    // The app uses FCM for push notifications only and does not use any
+    // advertising identifier, Analytics, or measurement in any form.
+    // Presence of these libraries in the AAB triggers Google Play's
+    // advertising-data misrepresentation policy scanner.
+    exclude group: 'com.google.android.gms',  module: 'play-services-ads-identifier'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-api'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-base'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-impl'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-sdk'
+    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-sdk-api'
+    exclude group: 'com.google.firebase',      module: 'firebase-analytics'
+    exclude group: 'com.google.firebase',      module: 'firebase-analytics-ktx'
+    exclude group: 'com.google.firebase',      module: 'firebase-measurement-connector'
 }
 
 dependencies {

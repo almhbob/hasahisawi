@@ -20,7 +20,9 @@ export const FIREBASE_CONFIG = {
   storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET     || "hasahisawi.firebasestorage.app",
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "133656291161",
   appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID             || DEFAULT_APP_ID,
-  measurementId:     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID     || "G-8NDWWB1735",
+  // measurementId intentionally omitted on all platforms — Firebase Analytics is
+  // not used and including it pulls in native measurement libs that trigger
+  // Google Play's advertising-data policy scanner.
 };
 
 const isApiKeyValid =

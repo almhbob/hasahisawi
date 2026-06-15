@@ -1,1 +1,1 @@
-2026-06-14T23:30:00Z — production track v6.5.4 (re-enable edge-to-edge; remove opt-out causing Play rejection)
+2026-06-15T10:30:00Z — production track v6.5.5 (remove Firebase Analytics + measurementId; expand measurement lib exclusions)
