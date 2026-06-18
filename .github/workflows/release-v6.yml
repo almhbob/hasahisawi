@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Patch social screen
+        run: node scripts/patch-home-services-ui.mjs
+
       - name: Install EAS CLI
         run: npm install --global eas-cli@latest
 
