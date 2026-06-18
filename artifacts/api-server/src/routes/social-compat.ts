@@ -177,7 +177,7 @@ async function createPost(req: Request, res: Response) {
 
     if (!content && !imageUrl && !videoUrl) return res.status(400).json({ error: "المحتوى مطلوب" });
     if (content) {
-      const moderation = checkContent(content);
+      const moderation = await checkContent(content);
       if (!moderation.allowed) {
         return res.status(400).json({ error: "تم رفض المنشور", blocked: true, reason: moderation.reason });
       }
@@ -229,7 +229,7 @@ async function createComment(req: Request, res: Response) {
     const authorName = String(req.body?.author_name ?? "مجهول").trim() || "مجهول";
     const parentId = req.body?.parent_id ? Number(req.body.parent_id) : null;
     if (!content) return res.status(400).json({ error: "المحتوى مطلوب" });
-    const moderation = checkContent(content);
+    const moderation = await checkContent(content);
     if (!moderation.allowed) {
       return res.status(400).json({ error: "تم رفض التعليق", blocked: true, reason: moderation.reason });
     }
