@@ -37,5 +37,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
       - name: Build preview APK on EAS
-        run: pnpm exec eas build --platform android --profile preview --non-interactive --wait
+        run: eas build --platform android --profile preview --non-interactive --wait
