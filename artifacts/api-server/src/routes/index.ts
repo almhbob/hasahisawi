@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import securityHardeningRouter from "./security-hardening";
+import socialCompatRouter from "./social-compat";
 import adminUsersFirebaseRouter from "./admin-users-firebase";
 import travelAgenciesRouter, { initTravelAgenciesDb } from "./travel-agencies";
 import hasahisawiRouter, { initHasahisawiDb } from "./hasahisawi";
@@ -13,6 +14,7 @@ router.use(securityHardeningRouter);
 router.use(uploadRouter);
 
 // Register dedicated routes before the monolithic router.
+router.use(socialCompatRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(hasahisawiRouter);
