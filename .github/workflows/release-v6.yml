@@ -1,61 +1,27 @@
-name: حصاحيصاوي — Release + Auto-Publish
+name: Hasahisawi Safe Release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - '.release-trigger'
+    inputs:
+      release_version:
+        description: Optional release version override
+        required: false
+        type: string
+      release_code:
+        description: Optional Android versionCode override
+        required: false
+        type: string
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 jobs:
-  # ─── Build APK + AAB (Android) ────────────────────────────────────
-  build-android:
-    name: Build APK + AAB (Android)
+  verify:
+    name: Verify prelaunch readiness
     runs-on: ubuntu-latest
-    timeout-minutes: 240
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-      code: ${{ steps.ver.outputs.code }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: master
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Add swap space (4 GB)
-        continue-on-error: true
-        run: |
-          sudo fallocate -l 4G /swapfile 2>/dev/null || \
-            sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          echo "✅ Swap active: $(free -h | grep Swap)"
-
-      - name: Configure NDK version
-        run: |
-          echo "=== Pre-installed NDK versions ==="
-          ls "$ANDROID_HOME/ndk/" || echo "none"
-          echo "=== Pre-installed Build-tools ==="
-          ls "$ANDROID_HOME/build-tools/" || echo "none"
-          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
-          if [ -z "$NDK_VER" ]; then
-            echo "ERROR: No NDK found" && exit 1
-          fi
-          echo "Using NDK: $NDK_VER"
-          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
-          echo "Wrote ndkVersion=$NDK_VER to gradle.properties"
 
       - uses: pnpm/action-setup@v4
 
@@ -63,243 +29,33 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-
-      - name: Read version
-        id: ver
-        run: |
-          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
-          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "code=$CODE"       >> $GITHUB_OUTPUT
-          echo "Building v$VERSION (versionCode $CODE)"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Patch expo-camera — add missing BarCodeScannerResult stub
-        run: |
-          # expo-camera@16.0.18 references expo.modules.interfaces.barcodescanner.BarCodeScannerResult
-          # which was removed when expo-barcode-scanner was deprecated in Expo SDK 52.
-          # We inject a compatibility stub into expo-camera's own source tree so Kotlin can compile it.
-          EXPO_CAM_ROOT=$(node -e "
-            const path = require('path');
-            const pkg = require.resolve('expo-camera/package.json', {paths:['artifacts/hasahisawi/node_modules']});
-            console.log(path.dirname(pkg));
-          ")
-          STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
-          mkdir -p "$STUB_DIR"
-          cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
-          package expo.modules.interfaces.barcodescanner
+      - name: Prepare release metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RELEASE_CODE: ${{ inputs.release_code }}
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
+        run: node scripts/prepare-mobile-store-release.mjs
 
-          class BarCodeScannerResult(
-              val type: Int,
-              private val _value: String?,
-              private val _raw: String?,
-              var cornerPoints: MutableList<Int>,
-              var referenceImageHeight: Int,
-              var referenceImageWidth: Int,
-          ) {
-              val value: String get() = _value ?: ""
-              val raw: String get() = _raw ?: ""
+      - name: Security and type checks
+        run: pnpm run prelaunch:check
 
-              val boundingBox: BoundingBox
-                  get() {
-                      if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
-                      val xs = cornerPoints.indices.filter { it % 2 == 0 }.map { cornerPoints[it] }
-                      val ys = cornerPoints.indices.filter { it % 2 != 0 }.map { cornerPoints[it] }
-                      val minX = xs.min()
-                      val minY = ys.min()
-                      return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
-                  }
-
-              data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
-          }
-          KOTLIN
-          echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
-
-      - name: Patch expo-firebase-core — replace incompatible Java sources
-        run: |
-          # expo-firebase-core@6.0.0 references ExportedModule removed from expo-modules-core in SDK 52+.
-          # Replace with no-op stubs — Firebase init is via google-services.json, not this native module.
-          while IFS= read -r FIREBASE_BUILD; do
-            SRC="$(dirname "$FIREBASE_BUILD")/src/main/java/expo/modules/firebase/core"
-            if [ -d "$SRC" ]; then
-              cat > "$SRC/FirebaseCorePackage.java" <<'JAVA_EOF'
-          package expo.modules.firebase.core;
-          import expo.modules.core.BasePackage;
-          public class FirebaseCorePackage extends BasePackage {}
-          JAVA_EOF
-              cat > "$SRC/FirebaseCoreModule.java" <<'JAVA_EOF'
-          package expo.modules.firebase.core;
-          import android.content.Context;
-          public class FirebaseCoreModule {
-            public FirebaseCoreModule(Context context) {}
-            public String getName() { return "ExpoFirebaseCore"; }
-          }
-          JAVA_EOF
-              echo "✅ expo-firebase-core Java stubs written: $SRC"
-            else
-              echo "⚠️  expo-firebase-core source not found at: $SRC"
-            fi
-          done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
-
-      - name: Add custom notification sounds
-        run: |
-          mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
-          SRC=artifacts/hasahisawi/assets/sounds
-          DEST=artifacts/hasahisawi/android/app/src/main/res/raw
-          # Default / transport channel — أذان
-          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_notif.mp3"
-          # Chat channel
-          cp "$SRC/hasahisawi_chat.wav"      "$DEST/hasahisawi_chat.wav"
-          # Urgent / alert channel
-          cp "$SRC/hasahisawi_urgent.wav"    "$DEST/hasahisawi_urgent.wav"
-          # Prayer channel — أذان بصيغة mp3
-          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_prayer.mp3"
-          echo "✅ Notification sounds added to res/raw:"
-          ls -lh "$DEST/"
-
-      - name: Create .env
+      - name: Web smoke export
         working-directory: artifacts/hasahisawi
-        run: |
-          printf '%s\n' \
-            'EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8' \
-            'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com' \
-            'EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi' \
-            'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app' \
-            'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161' \
-            'EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48' \
-            'EXPO_PUBLIC_API_URL=https://api-server-gilt-ten.vercel.app' \
-            'EXPO_PUBLIC_DISABLE_OTP=true' > .env
-
-      - name: Write local.properties
-        run: echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
-
-      - name: Setup keystore
         env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
-          if [ -n "$KEYSTORE_B64" ]; then
-            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
-            echo "✅ Keystore from KEYSTORE_BASE64 secret ($(wc -c < $KEYSTORE_DEST) bytes)"
-          else
-            echo "⚠️  KEYSTORE_BASE64 not set — build will use hardcoded signing config"
-          fi
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
+        run: pnpm exec expo export --platform web
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.gradle/build-cache
-          key: gradle-v6-${{ hashFiles('artifacts/hasahisawi/android/gradle/wrapper/gradle-wrapper.properties', 'artifacts/hasahisawi/android/build.gradle', 'artifacts/hasahisawi/android/app/build.gradle') }}
-          restore-keys: gradle-v6-
-          save-always: true
-
-      - name: Pre-build setup
-        run: |
-          PROPS=artifacts/hasahisawi/android/gradle.properties
-          # Keep newArchEnabled=true — reanimated 4.x requires New Architecture.
-          # Disabling it causes: GradleException("[Reanimated] Reanimated requires new architecture")
-          # OOM is prevented instead by parallel=false (Metro and C++ run sequentially, not simultaneously)
-          sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
-          # Build arm64-v8a only — covers all modern Android phones, reduces C++ compilation by 75%
-          echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
-          # 4GB swap keeps JVM+Metro within 11GB virtual; 2560m JVM leaves headroom for Metro (3.5GB)
-          echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $PROPS
-          echo "org.gradle.parallel=false" >> $PROPS
-          echo "org.gradle.workers.max=1" >> $PROPS
-          echo "org.gradle.caching=true" >> $PROPS
-          echo "org.gradle.configuration-cache=false" >> $PROPS
-          echo "=== gradle.properties tail ==="
-          tail -12 $PROPS
-          echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
-          # Gradle 8.13 removed AbstractArchiveTask.classifier — patch expo-firebase-core@6.0.0
-          # pnpm workspace stores all packages in root-level node_modules/.pnpm/
-          while IFS= read -r FIREBASE_BUILD; do
-            sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD"
-            sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD"
-            echo "✅ Patched: $FIREBASE_BUILD"
-          done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
-
-      - name: Build release AAB
-        working-directory: artifacts/hasahisawi/android
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          # Split into two --no-daemon calls so OS reclaims memory between them
-          NODE_OPTIONS: "--max-old-space-size=3584"
-        run: |
-          chmod +x gradlew
-          echo "=== RAM before AAB build ===" && free -h
-          ./gradlew bundleRelease \
-            --no-daemon \
-            --build-cache \
-            --stacktrace \
-            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-          echo "=== RAM after AAB build ===" && free -h
-
-      - name: Build release APK
-        working-directory: artifacts/hasahisawi/android
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'hasahisawi' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'Hasahisawi@2026#Secure' }}
-          NODE_OPTIONS: "--max-old-space-size=3584"
-        run: |
-          echo "=== RAM before APK build ===" && free -h
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --build-cache \
-            --stacktrace \
-            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/artifacts/hasahisawi/android/app/release.keystore" \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-          echo "=== RAM after APK build ===" && free -h
-
-      - name: Rename artifacts
-        run: |
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk \
-             hasahisawi-v${{ steps.ver.outputs.version }}.apk
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
-             hasahisawi-v${{ steps.ver.outputs.version }}.aab
-          ls -lh hasahisawi-v*.apk hasahisawi-v*.aab
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apk
-          path: hasahisawi-v${{ steps.ver.outputs.version }}.apk
-          retention-days: 30
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aab
-          path: hasahisawi-v${{ steps.ver.outputs.version }}.aab
-          retention-days: 30
-
-      - name: Cleanup secrets
-        if: always()
-        run: rm -f artifacts/hasahisawi/android/app/release.keystore artifacts/hasahisawi/.env
-
-  # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
-  deploy-web:
-    name: Build + Deploy Web PWA
+  android-preview:
+    name: Build Android preview APK
+    needs: verify
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
 
@@ -308,218 +64,61 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      - run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Export web
-        working-directory: artifacts/hasahisawi
-        run: pnpm exec expo export --platform web
+      - name: Prepare release metadata
         env:
-          EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RELEASE_CODE: ${{ inputs.release_code }}
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
+        run: node scripts/prepare-mobile-store-release.mjs
 
-      - name: Add PWA files
+      - name: Build internal APK with EAS
         working-directory: artifacts/hasahisawi
-        run: |
-          cp -r public/splash dist/splash 2>/dev/null || true
-          cp public/sw.js dist/sw.js 2>/dev/null || true
-          cp public/manifest.json dist/manifest.json 2>/dev/null || true
-          cp public/icon.png   dist/icon.png   2>/dev/null || true
-          cp public/favicon.png dist/favicon.png 2>/dev/null || true
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
-          echo '/* /index.html 200' > dist/_redirects
-          printf '%s\n' \
-            '/*' \
-            '  X-Frame-Options: DENY' \
-            '  X-Content-Type-Options: nosniff' \
-            '  Referrer-Policy: strict-origin-when-cross-origin' \
-            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
-            '  X-XSS-Protection: 1; mode=block' \
-            '' \
-            '/_expo/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            '' \
-            '/assets/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            '' \
-            '/splash/*' \
-            '  Cache-Control: public, max-age=86400' \
-            > dist/_headers
-
-      - name: Deploy to GitHub Pages (docs/)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master
-          git reset --hard origin/master
-          rm -rf docs/
-          mkdir -p docs
-          cp -r artifacts/hasahisawi/dist/. docs/
-          git add -f docs/
-          VER=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)" 2>/dev/null || echo "latest")
-          git diff --cached --quiet && echo "No changes to deploy" || \
-            git commit -m "deploy: web PWA v${VER} → docs/ [auto]"
-          git push origin master
-
-      - name: Deploy to Cloudflare Pages
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "⚠️  Cloudflare secrets not set — skipping"
-          else
-            # إنشاء المشروع إذا لم يكن موجوداً
-            curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"hasahisawi","production_branch":"master"}' \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project OK:', d.get('result',{}).get('subdomain','already exists'))" || true
-
-            # نسخة Cloudflare: إزالة prefix /hasahisawi/ من HTML
-            cp -r docs cf-dist
-
-            # إصلاح مسارات HTML
-            find cf-dist -name "*.html" -exec sed -i 's|"/hasahisawi/|"/|g' {} \;
-
-            # نسخ الخطوط لمسار /fonts/ (تجنب %40 encoding لـ @ في المسارات)
-            mkdir -p cf-dist/fonts
-            find cf-dist/assets/__node_modules -name "*.ttf" -exec cp {} cf-dist/fonts/ \; 2>/dev/null || true
-
-            # CSS لإعادة توجيه @font-face
-            for f in cf-dist/fonts/*.ttf; do
-              [ -f "$f" ] || continue
-              fname=$(basename "$f")
-              fontname=$(echo "$fname" | sed 's/\.[a-f0-9]\{32\}\.ttf$//')
-              echo "@font-face { font-family: '${fontname}'; src: url('/fonts/${fname}') format('truetype'); }"
-            done > /tmp/fonts-override.css
-
-            # حقن CSS في index.html و 404.html
-            python3 -c "c=open('cf-dist/index.html').read(); css=open('/tmp/fonts-override.css').read(); c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1); open('cf-dist/index.html','w').write(c); open('cf-dist/404.html','w').write(c); print('Fonts CSS injected')"
-
-            npx wrangler@3 pages deploy cf-dist \
-              --project-name=hasahisawi \
-              --branch=master
-            echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "ERROR: EXPO_TOKEN secret is required for EAS builds."
+            exit 1
           fi
+          pnpm exec eas build --platform android --profile preview --non-interactive
 
-      - run: |
-          echo "✅ الرابط الأساسي (Cloudflare) → https://hasahisawi.pages.dev"
-          echo "✅ الرابط الاحتياطي (GitHub Pages) → https://almhbob.github.io/hasahisawi/"
-
-  # ─── Create GitHub Release ────────────────────────────────────────
-  create-release:
-    name: Create GitHub Release
-    needs: [build-android]
+  android-store:
+    name: Build Android store AAB
+    needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
         with:
-          name: apk
+          node-version: '22'
+          cache: 'pnpm'
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: aab
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Create Release + Upload APK/AAB
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.build-android.outputs.version }}
-          name: "حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi"
-          body: |
-            ## حصاحيصاوي v${{ needs.build-android.outputs.version }} — Hasahisawi v${{ needs.build-android.outputs.version }}
-            **versionCode ${{ needs.build-android.outputs.code }}**
-
-            ---
-
-            ## 📥 التنزيل / Download
-
-            | المنصة / Platform | الملف / File | الاستخدام / Usage |
-            |---|---|---|
-            | **Android** | APK ↓ | تثبيت مباشر — فعّل "مصادر غير معروفة" / Direct install — enable Unknown sources |
-            | **Android** | AAB ↓ | رفع على Google Play / Upload to Google Play |
-            | **iPhone / iPad** | PWA | Safari → ↑ → "إضافة للشاشة الرئيسية" / "Add to Home Screen" |
-
-            ---
-
-            ## 🌐 iPhone / iPad (PWA)
-            **https://hasahisawi.pages.dev**
-
-            > بديل: https://almhbob.github.io/hasahisawi/
-
-            ---
-
-            ## ✨ ميزات الإصدار / What's New
-
-            ### عربي
-            - ✅ إصلاح جميع طلبات الانضمام (مؤسسات، محامون، نقابات، شراكات خارجية)
-            - ✅ لوحة تحكم المشرف — 9 أقسام جديدة وإحصائيات شاملة
-            - ✅ نظام دعوات وكالات السفر
-            - ✅ إصلاح شاشة إدارة أقسام التطبيق
-            - ✅ إصلاح خدمات المرأة والمنظمات المجتمعية
-            - ✅ ترحيل آمن لقاعدة البيانات — لا حذف للجداول
-            - ✅ إشعارات مخصصة مع نغمات لكل قسم
-            - ✅ حماية 700+ مستخدم
-
-            ### English
-            - ✅ Fixed all join requests (institutions, lawyers, unions, external partnerships)
-            - ✅ Admin dashboard — 9 new panels with comprehensive stats
-            - ✅ Travel agency invitation system
-            - ✅ Fixed app sections management screen
-            - ✅ Fixed women's services & community organizations screens
-            - ✅ Safe database migration — no table drops
-            - ✅ Custom notifications with per-section sounds
-            - ✅ Protected 700+ existing users
-          files: |
-            hasahisawi-v${{ needs.build-android.outputs.version }}.apk
-            hasahisawi-v${{ needs.build-android.outputs.version }}.aab
-          draft: false
-          prerelease: false
+      - name: Prepare release metadata
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RELEASE_CODE: ${{ inputs.release_code }}
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
+        run: node scripts/prepare-mobile-store-release.mjs
 
-  # ─── Publish to Google Play (Internal Track) ─────────────────────
-  publish-play-store:
-    name: Publish to Google Play — Production
-    needs: [build-android, create-release]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: aab
-
-      - name: Create whatsnew files
+      - name: Build store AAB with EAS
+        working-directory: artifacts/hasahisawi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_DISABLE_OTP: 'false'
         run: |
-          mkdir -p .github/play-whatsnew
-          printf '%s\n' \
-            '- إصلاح جميع طلبات الانضمام' \
-            '- إشعارات مخصصة مع نغمات' \
-            '- تحسينات عامة في الأداء' \
-            > .github/play-whatsnew/whatsnew-ar
-          printf '%s\n' \
-            '- Fixed all join requests' \
-            '- Custom notifications with sounds' \
-            '- General performance improvements' \
-            > .github/play-whatsnew/whatsnew-en-US
-
-      - name: Upload AAB to Google Play Production
-        if: env.SERVICE_ACCOUNT != ''
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ env.SERVICE_ACCOUNT }}
-          packageName: com.almhbob.hasahisawi
-          releaseFiles: hasahisawi-v${{ needs.build-android.outputs.version }}.aab
-          track: production
-          status: completed
-          changesNotSentForReview: true
-          releaseName: "v${{ needs.build-android.outputs.version }} (versionCode ${{ needs.build-android.outputs.code }})"
-          whatsNewDirectory: .github/play-whatsnew
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "ERROR: EXPO_TOKEN secret is required for EAS builds."
+            exit 1
+          fi
+          pnpm exec eas build --platform android --profile production --non-interactive
