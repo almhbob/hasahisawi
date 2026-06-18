@@ -8,97 +8,62 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
         "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "credentialsSource": "remote",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_DISABLE_OTP": "true"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "production": {
-      "credentialsSource": "local",
-      "android": { "buildType": "app-bundle" },
+      "distribution": "store",
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_DISABLE_OTP": "true"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "preview-ios": {
-      "ios": { "simulator": true },
+      "ios": {
+        "simulator": true
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_DISABLE_OTP": "true"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "production-ios": {
       "distribution": "store",
       "credentialsSource": "remote",
-      "ios": { "buildConfiguration": "Release" },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_DISABLE_OTP": "true"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     },
     "ios-adhoc": {
       "distribution": "internal",
       "credentialsSource": "remote",
-      "ios": { "buildConfiguration": "Release" },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "hasahisawi.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "hasahisawi",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "hasahisawi.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "133656291161",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:133656291161:android:7d0a88a80d3be1af418e48",
-        "EXPO_PUBLIC_DISABLE_OTP": "true"
+        "EXPO_PUBLIC_API_URL": "https://api-server-gilt-ten.vercel.app"
       }
     }
   },
   "submit": {
     "production": {
-      "android": { "track": "internal" }
-    },
-    "production-ios": {
-      "ios": {
-        "appleId": "almhbob.2024@gmail.com",
-        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "REPLACE_WITH_TEAM_ID"
+      "android": {
+        "track": "internal"
       }
     }
   }
