@@ -128,4 +128,8 @@ dependencies {
     }
 }
 
-apply plugin: 'com.google.gms.google-services'
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle('google-services.json not found; skipping Google Services plugin for preview APK')
+}
