@@ -1,4 +1,4 @@
-name: Hasahisawi Debug APK
+name: Hasahisawi Hardening APK
 
 on:
   workflow_dispatch:
@@ -13,43 +13,29 @@ permissions:
   contents: read
 
 jobs:
-  debug-apk:
-    name: Build debug APK with branch fixes
+  eas-preview-apk:
+    name: Build EAS preview APK with branch fixes
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: artifacts/hasahisawi
+    env:
+      EXPO_PUBLIC_DISABLE_OTP: 'false'
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.33.0
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build debug APK
-        working-directory: artifacts/hasahisawi
-        env:
-          EXPO_PUBLIC_DISABLE_OTP: 'false'
-        run: pnpm run apk:debug
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: hasahisawi-hardening-debug-apk
-          path: artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
+      - name: Build preview APK on EAS
+        run: pnpm exec eas build --platform android --profile preview --non-interactive --wait
