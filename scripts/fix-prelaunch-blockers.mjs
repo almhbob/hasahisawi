@@ -31,6 +31,12 @@ replaceInFile('.github/workflows/release-v6.yml', [
   [/echo "⚠️  KEYSTORE_BASE64 not set — build will use hardcoded signing config"\n\s*fi/g, 'echo "ERROR: KEYSTORE_BASE64 is required for release signing"\n            exit 1\n          fi'],
 ]);
 
+replaceInFile('artifacts/hasahisawi/package.json', [
+  [/"build"\s*:\s*"node scripts\/patch-travel-agency-workspace\.mjs && node scripts\/patch-home-services-ui\.mjs && node scripts\/build\.js"/g,
+    '"build": "node scripts/patch-travel-agency-workspace.mjs && node scripts/patch-home-services-ui.mjs && pnpm exec expo export --platform web"'],
+  [/"version"\s*:\s*"6\.3\.8"/g, '"version": "6.5.5"'],
+]);
+
 replaceInFile('package.json', [
   [/@tailwindcss\/oxide>@tailwindcss-oxide-darwin-x64/g, '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64'],
 ]);
