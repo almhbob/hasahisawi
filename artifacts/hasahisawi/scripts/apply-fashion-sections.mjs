@@ -35,12 +35,17 @@ src = src.replace(
 );
 
 src = src.replace(
+  '      {subTab === "services" && (',
+  '      {(subTab === "services" || subTab === "fashion" || subTab === "beauty") && (',
+);
+
+src = src.replace(
   '            {filtered.map((item, idx) => {',
   '            <View style={fs.featureGrid}>\n              {[\n                { title: "محلات ملابس", sub: "فساتين · عبايات · طرح · ملابس جاهزة", icon: "storefront-outline", color: "#EC4899" },\n                { title: "بائعات ملابس", sub: "طلبات خاصة وتوصيل داخل المنطقة", icon: "account-heart-outline", color: "#F472B6" },\n                { title: "مستحضرات تجميل", sub: "مكياج · عناية بالبشرة · عروض", icon: "lipstick", color: "#FB7185" },\n                { title: "عطور", sub: "عطور نسائية · مخمرية · بخور", icon: "bottle-tonic-outline", color: "#C084FC" },\n              ].map((x) => (\n                <View key={x.title} style={[fs.featureCard, { borderColor: x.color + "35" }]}>\n                  <View style={[fs.featureIcon, { backgroundColor: x.color + "18" }]}><MaterialCommunityIcons name={x.icon as any} size={23} color={x.color} /></View>\n                  <Text style={fs.featureTitle}>{x.title}</Text>\n                  <Text style={fs.featureSub}>{x.sub}</Text>\n                </View>\n              ))}\n            </View>\n\n            {filtered.map((item, idx) => {',
 );
 
 src = src.replace(
-  '              {([[["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (',
+  '              {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (',
   '              {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["fashion", "ملابس"], ["beauty", "تجميل"], ["perfume", "عطور"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (',
 );
 
