@@ -57,7 +57,7 @@ jobs:
         run: node scripts/patch-home-services-ui.mjs
 
       - name: Build debug APK
-        run: cd android && chmod +x ./gradlew && ./gradlew :app:assembleDebug --stacktrace --info --no-daemon
+        run: cd android && chmod +x ./gradlew && ./gradlew :app:assembleDebug --no-daemon --console=plain
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
