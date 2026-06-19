@@ -58,5 +58,15 @@ jobs:
       - name: Apply app patches
         run: node scripts/patch-home-services-ui.mjs
 
+      - name: Run service smoke checks
+        run: node scripts/smoke-services-check.mjs
+
+      - name: Verify Expo token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN secret is required for EAS Android release builds."
+            exit 1
+          fi
+
       - name: EAS build Android
         run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --wait
