@@ -11,6 +11,12 @@ on:
         options:
           - preview
           - production
+  push:
+    branches:
+      - hardening/prelaunch-security-fixes
+    paths:
+      - artifacts/hasahisawi/.eas-production-build-request-*.txt
+      - .github/workflows/eas-android-release.yml
 
 permissions:
   contents: read
@@ -27,6 +33,7 @@ jobs:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
       EXPO_PUBLIC_DISABLE_OTP: 'false'
+      BUILD_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,4 +76,4 @@ jobs:
           fi
 
       - name: EAS build Android
-        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --wait
+        run: eas build --platform android --profile "$BUILD_PROFILE" --non-interactive --wait
