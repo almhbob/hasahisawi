@@ -1,0 +1,30 @@
+name: App Services Smoke Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - hardening/prelaunch-security-fixes
+    paths:
+      - artifacts/hasahisawi/app/**
+      - artifacts/hasahisawi/components/**
+      - artifacts/hasahisawi/scripts/**
+      - .github/workflows/service-smoke-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-check:
+    name: Verify service screens and patch wiring
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/hasahisawi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run service smoke checks
+        run: node scripts/smoke-services-check.mjs
