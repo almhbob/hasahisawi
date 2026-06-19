@@ -262,3 +262,6 @@ patchSocialScreen();
 await import('./apply-transport-live-requests.mjs').catch((error) => {
   console.warn('[patch-home-services-ui] transport live request patch skipped', error?.message ?? error);
 });
+await import('./apply-cv-free-templates.mjs').catch((error) => {
+  console.warn('[patch-home-services-ui] cv templates patch skipped', error?.message ?? error);
+});
