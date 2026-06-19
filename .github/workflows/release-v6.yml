@@ -56,9 +56,6 @@ jobs:
       - name: Patch UI and social fallback
         run: node scripts/patch-home-services-ui.mjs
 
-      - name: Prepare Android project
-        run: pnpm exec expo prebuild --platform android --no-install
-
       - name: Build debug APK
         run: cd android && chmod +x ./gradlew && ./gradlew :app:assembleDebug --stacktrace --info --no-daemon
 
