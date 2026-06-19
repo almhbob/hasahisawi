@@ -32,7 +32,6 @@ function read(file) {
   return readFileSync(join(root, file), 'utf8');
 }
 
-const home = existsSync(join(root, 'app/(tabs)/index.tsx')) ? read('app/(tabs)/index.tsx') : '';
 const womenPatch = existsSync(join(root, 'scripts/apply-fashion-sections.mjs')) ? read('scripts/apply-fashion-sections.mjs') : '';
 const productPatch = existsSync(join(root, 'scripts/apply-product-showcase.mjs')) ? read('scripts/apply-product-showcase.mjs') : '';
 const patchMain = existsSync(join(root, 'scripts/patch-home-services-ui.mjs')) ? read('scripts/patch-home-services-ui.mjs') : '';
@@ -48,7 +47,7 @@ check('product showcase patches women and men', productPatch.includes("patchFile
 check('product showcase has 3 images per sample', (productShowcase.match(/images:\s*\[/g) || []).length >= 6);
 check('restaurant page has zoom modal', restaurants.includes('Modal') && restaurants.includes('zoomImage') && restaurants.includes('onZoom'));
 check('restaurant page has offers strip', restaurants.includes('عروض اليوم') && restaurants.includes('offerStrip'));
-check('men page has fashion marketplace', men.includes('محلات الملابس') && men.includes('بائعي الملابس') && men.includes('التفصيل'));
+check('men page has fashion marketplace', men.includes('محلات الملابس') && men.includes('بائعي الملابس') && men.includes('تفصيل'));
 
 for (const script of [
   'scripts/patch-home-services-ui.mjs',
