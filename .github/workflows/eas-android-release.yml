@@ -1,0 +1,62 @@
+name: EAS Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  eas-android:
+    name: Build Android with EAS
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: artifacts/hasahisawi
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
+      EXPO_PUBLIC_DISABLE_OTP: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
+      - name: Prepare build manifest
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const legacy = ['expo', 'firebase', 'recaptcha'].join('-');
+          if (pkg.dependencies) delete pkg.dependencies[legacy];
+          if (pkg.devDependencies) delete pkg.devDependencies[legacy];
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Apply app patches
+        run: node scripts/patch-home-services-ui.mjs
+
+      - name: EAS build Android
+        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --wait
