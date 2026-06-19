@@ -9,7 +9,6 @@ react {
     reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
     hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
     codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
-
     enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
@@ -23,7 +22,6 @@ android {
     ndkVersion findProperty("ndkVersion") ?: rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
-
     namespace 'com.almhbob.hasahisawi'
     defaultConfig {
         applicationId 'com.almhbob.hasahisawi'
@@ -33,26 +31,9 @@ android {
         versionName "6.5.5"
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
-    signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
-        release {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
-    }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
+        debug {}
         release {
-            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -68,7 +49,7 @@ android {
         }
     }
     androidResources {
-        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
 }
 
@@ -88,25 +69,15 @@ configurations.all {
     resolutionStrategy {
         force 'com.google.mlkit:barcode-scanning:17.3.0'
     }
-    exclude group: 'com.google.android.gms',  module: 'play-services-ads-identifier'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-api'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-base'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-impl'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-sdk'
-    exclude group: 'com.google.android.gms',  module: 'play-services-measurement-sdk-api'
-    exclude group: 'com.google.firebase',      module: 'firebase-analytics'
-    exclude group: 'com.google.firebase',      module: 'firebase-analytics-ktx'
-    exclude group: 'com.google.firebase',      module: 'firebase-measurement-connector'
+    exclude group: 'com.google.android.gms', module: 'play-services-measurement'
+    exclude group: 'com.google.firebase', module: 'firebase-analytics'
 }
 
 dependencies {
     implementation("com.facebook.react:react-android")
-
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
-
     if (isGifEnabled) {
         implementation("com.facebook.fresco:animated-gif:${expoLibs.versions.fresco.get()}")
     }
@@ -122,5 +93,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-logger.lifecycle('Google Services plugin is disabled for local debug APK builds')
