@@ -13,16 +13,16 @@ permissions:
   contents: read
 
 jobs:
-  eas-preview-apk:
-    name: Build EAS preview APK with branch fixes
+  local-debug-apk:
+    name: Build local debug APK with branch fixes
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: artifacts/hasahisawi
     env:
       EXPO_PUBLIC_DISABLE_OTP: 'false'
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
     steps:
       - uses: actions/checkout@v4
 
@@ -34,14 +34,27 @@ jobs:
         with:
           version: 10.33.0
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Patch social screen
+      - name: Patch UI and social fallback
         run: node scripts/patch-home-services-ui.mjs
 
-      - name: Install EAS CLI
-        run: npm install --global eas-cli@latest
+      - name: Prepare Android project
+        run: pnpm exec expo prebuild --platform android --no-install
 
-      - name: Build preview APK on EAS
-        run: eas build --platform android --profile preview --non-interactive --wait
+      - name: Build debug APK
+        run: cd android && chmod +x ./gradlew && ./gradlew :app:assembleDebug --stacktrace --info --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-hardening-debug-apk
+          path: artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
