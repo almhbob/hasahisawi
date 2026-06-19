@@ -129,3 +129,6 @@ await import('./apply-fashion-sections.mjs').catch((error) => {
 await import('./apply-product-showcase.mjs').catch((error) => {
   console.warn('[patch-home-services-ui] product showcase patch skipped', error?.message ?? error);
 });
+await import('./apply-restaurants-section.mjs').catch((error) => {
+  console.warn('[patch-home-services-ui] restaurants section patch skipped', error?.message ?? error);
+});
