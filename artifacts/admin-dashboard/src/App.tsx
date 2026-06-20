@@ -43,6 +43,7 @@ import GovEntities     from "@/pages/GovEntities";
 import DesignGallery   from "@/pages/DesignGallery";
 import TravelAdmin              from "@/pages/Travel";
 import TravelAgencyApplications from "@/pages/TravelAgencyApplications";
+import ApplicationsArchive      from "@/pages/ApplicationsArchive";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -119,6 +120,7 @@ function AppRoutes() {
         <Route path="/lawyers"        component={LawyersAdmin} />
         <Route path="/app-version"    component={AppVersion} />
         <Route path="/activity-log"   component={ActivityLog} />
+        <Route path="/applications-archive" component={ApplicationsArchive} />
         <Route path="/telecom"        component={Telecom} />
         <Route path="/factories"      component={Factories} />
         <Route path="/unions"         component={Unions} />
