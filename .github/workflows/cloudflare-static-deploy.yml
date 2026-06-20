@@ -2,46 +2,28 @@ name: Cloudflare Static Deploy
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - 'cf-dist/**'
-      - '.github/workflows/cloudflare-static-deploy.yml'
-      - '.cloudflare-static-trigger'
 
 permissions:
   contents: read
 
+concurrency:
+  group: cloudflare-static-deploy
+  cancel-in-progress: true
+
 jobs:
-  deploy:
-    name: Deploy cf-dist to Cloudflare Pages
+  verify:
+    name: Verify Cloudflare static output
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: master
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Verify static output
+      - name: Verify cf-dist output
         run: |
           test -f cf-dist/index.html
           test -f cf-dist/_redirects
           ls -la cf-dist
-
-      - name: Deploy to Cloudflare Pages
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "Cloudflare secrets are missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, then run again."
-            exit 1
-          fi
-          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
-
-      - name: Final URL
-        run: echo "Published: https://hasahisawi.pages.dev/"
+          echo "cf-dist is ready for Cloudflare Pages."
+          echo "Target URL: https://hasahisawi.pages.dev/"
