@@ -46,6 +46,17 @@ jobs:
           echo "org.gradle.workers.max=1" >> artifacts/hasahisawi/android/gradle.properties
           echo "org.gradle.configuration-cache=false" >> artifacts/hasahisawi/android/gradle.properties
 
+      - name: Patch expo-firebase-core Gradle compatibility
+        run: |
+          while IFS= read -r FIREBASE_BUILD; do
+            echo "Patching $FIREBASE_BUILD"
+            sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD" || true
+            sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD" || true
+            sed -i "s/classifier 'sources'/archiveClassifier.set('sources')/g" "$FIREBASE_BUILD" || true
+            sed -i 's/classifier "sources"/archiveClassifier.set("sources")/g' "$FIREBASE_BUILD" || true
+            grep -n "classifier\|archiveClassifier" "$FIREBASE_BUILD" || true
+          done < <(find artifacts/hasahisawi/node_modules node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
+
       - name: Build debug APK
         working-directory: artifacts/hasahisawi/android
         env:
