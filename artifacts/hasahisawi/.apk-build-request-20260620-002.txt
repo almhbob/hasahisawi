@@ -1,0 +1,5 @@
+طلب بناء APK للتجربة
+
+Branch: hardening/prelaunch-security-fixes
+Requested: 2026-06-20
+Purpose: توليد ملف APK للتثبيت والاختبار قبل النشر النهائي.
