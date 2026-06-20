@@ -39,6 +39,11 @@ const requiredTexts = [
   { file: 'app/(tabs)/restaurants.tsx', text: '/api/food/invoices', label: 'food invoice backend endpoint' },
   { file: 'app/(tabs)/transport.tsx', text: '/accept', label: 'atomic trip accept endpoint' },
   { file: 'app/(tabs)/social.tsx', text: 'decodePostImages', label: 'social multi-image decoder applied' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'CV_TEMPLATES', label: 'CV template gallery exists' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'status: "free"', label: 'CV templates are free for now' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'Powered by <strong>Hasahisawi</strong>', label: 'CV Hasahisawi footer branding' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'ImagePicker.launchImageLibraryAsync', label: 'CV optional photo picker' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'CV_COLORS', label: 'CV color customization' },
   { file: 'scripts/apply-latest-sections.mjs', text: 'apply-women-label-cleanup', label: 'women label cleanup patch runs' },
   { file: 'lib/join-requests.ts', text: 'submitJoinRequest', label: 'unified join request app helper' },
 ];
@@ -56,6 +61,8 @@ const forbiddenTexts = [
   { file: 'app/(tabs)/index.tsx', text: 'حواء', label: 'old Hawa label in home screen' },
   { file: 'lib/translations.ts', text: 'حواء', label: 'old Hawa label in translations' },
   { file: 'app/(tabs)/index.tsx', text: 'id: "men"', label: 'standalone men section still linked' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'قالب مدفوع', label: 'paid CV wording should be disabled' },
+  { file: 'app/(tabs)/cv-builder.tsx', text: 'ادفع', label: 'CV payment prompt should be disabled' },
 ];
 
 const warnings = [];
