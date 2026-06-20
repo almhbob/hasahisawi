@@ -79,6 +79,10 @@
     "expo-camera": "~16.0.18",
     "expo-document-picker": "^14.0.8",
     "expo-firebase-recaptcha": "^2.3.1",
-    "expo-print": "~15.0.8"
+    "expo-local-authentication": "~17.0.7",
+    "expo-localization": "~17.0.7",
+    "expo-notifications": "~0.32.12",
+    "expo-print": "~15.0.8",
+    "expo-sharing": "~14.0.8"
   }
 }
