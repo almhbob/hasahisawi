@@ -1,39 +1,47 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07110A">
-  <title>حصاحيصاوي | خدمات الحصاحيصا في مكان واحد</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07110A" />
+  <title>حصاحيصاوي | تطبيق الخدمات</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#07110A;color:#F7FFF8;line-height:1.8}.wrap{max-width:1050px;margin:auto;padding:24px}.hero{padding:48px 0}.badge{display:inline-block;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:8px 14px;border-radius:999px;color:#CFE6D4}h1{font-size:clamp(34px,7vw,72px);line-height:1.1;margin:18px 0}.lead{font-size:20px;color:#CFE6D4;max-width:780px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}.card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:18px;min-height:150px}.icon{font-size:30px}.card h3{margin:10px 0 6px}.card p{margin:0;color:#CFE6D4;font-size:14px}.cta{margin-top:28px;background:linear-gradient(135deg,rgba(110,231,168,.20),rgba(246,200,95,.12));border:1px solid rgba(255,255,255,.16);border-radius:24px;padding:22px}.footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.16);color:#CFE6D4}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.grid{grid-template-columns:1fr}.wrap{padding:18px}.hero{padding:30px 0}}
+    *{box-sizing:border-box}body{margin:0;background:#07110A;color:#f8fff8;font-family:Tahoma,Arial,sans-serif}.app{min-height:100vh;display:flex;flex-direction:column}.top{position:sticky;top:0;z-index:10;background:rgba(7,17,10,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.08);padding:14px 16px}.brand{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1080px;margin:auto}.logo{font-size:25px;font-weight:900}.tag{font-size:12px;color:#b8d6bf;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);padding:7px 11px;border-radius:999px}.main{width:100%;max-width:1080px;margin:0 auto;padding:18px 16px 96px}.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:stretch;margin:12px 0 18px}.panel{background:linear-gradient(135deg,rgba(34,197,94,.13),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 60px rgba(0,0,0,.28);border-radius:28px;padding:22px}.hero h1{font-size:clamp(30px,6vw,62px);line-height:1.08;margin:0 0 12px}.muted{color:#c4d8c8;line-height:1.8}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.stat{border-radius:18px;padding:12px;background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.09)}.stat b{font-size:22px;display:block}.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick .q{min-height:94px;border-radius:22px;padding:14px;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.06);cursor:pointer}.q:hover,.card:hover,.tab:hover{transform:translateY(-2px);border-color:rgba(110,231,183,.38)}.q,.card,.tab{transition:.2s ease}.q .i,.card .i{font-size:28px}.q h3,.card h3{margin:8px 0 3px}.q p,.card p{margin:0;color:#bbd1bf;font-size:12px;line-height:1.7}.tabs{display:flex;gap:8px;overflow:auto;padding:4px 0 14px}.tab{white-space:nowrap;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#eefdf0;border-radius:999px;padding:10px 14px;cursor:pointer}.tab.active{background:#1f7a43;border-color:#49d986;color:#fff}.section{display:none}.section.active{display:block}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{min-height:150px;border-radius:22px;padding:15px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);cursor:pointer}.detail{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.box{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);border-radius:22px;padding:16px}.box h2,.box h3{margin:0 0 8px}.pill{display:inline-flex;margin:5px 4px;padding:7px 10px;border-radius:999px;background:rgba(45,212,191,.13);border:1px solid rgba(45,212,191,.22);color:#b8fff3;font-size:12px}.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.input{width:100%;padding:13px;border-radius:15px;border:1px solid rgba(255,255,255,.13);background:rgba(0,0,0,.18);color:#fff}.input::placeholder{color:#9aaea0}.btn{border:0;border-radius:15px;padding:13px 16px;background:#26a65b;color:#fff;font-weight:800;cursor:pointer}.btn.alt{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.13)}.bottom{position:fixed;right:0;left:0;bottom:0;z-index:20;background:rgba(7,17,10,.9);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.1);display:none;padding:8px}.bottom button{flex:1;background:none;border:0;color:#cfe6d4;padding:8px;border-radius:14px}.bottom button.active{background:rgba(38,166,91,.22);color:#fff}.toast{position:fixed;right:16px;bottom:86px;background:#13351f;border:1px solid #2bc46d;color:#fff;border-radius:16px;padding:12px 14px;display:none}.footer{border-top:1px solid rgba(255,255,255,.1);margin-top:26px;padding:18px;color:#b8d6bf;text-align:center}@media(max-width:850px){.hero,.detail{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.bottom{display:flex}.main{padding-bottom:100px}}@media(max-width:520px){.grid,.quick,.form,.stats{grid-template-columns:1fr}.panel{border-radius:22px;padding:16px}.card{min-height:132px}.brand{align-items:flex-start}.tag{font-size:11px}.top{padding-top:max(12px,env(safe-area-inset-top))}}
   </style>
 </head>
 <body>
-  <main class="wrap">
+<div class="app">
+  <header class="top"><div class="brand"><div><div class="logo">حصاحيصاوي</div><div class="muted">تطبيق خدمات الحصاحيصا في مكان واحد</div></div><span class="tag">نسخة ويب تفاعلية — 20-06-2026</span></div></header>
+  <main class="main">
     <section class="hero">
-      <span class="badge">🚀 نسخة ويب مستقرة منشورة — 2026-06-20</span>
-      <h1>حصاحيصاوي<br>خدمات الحصاحيصا في تطبيق واحد</h1>
-      <p class="lead">منصة خدمية ومجتمعية لأهل الحصاحيصا وقراها تجمع المطاعم، السوق، مشاويرك علينا، قسم المرأة، السيرة الذاتية، المجتمع، السفر والرحلات، الشحن المحلي والدولي، وطلبات الانضمام في مكان واحد.</p>
+      <div class="panel"><h1>كل خدمات الحصاحيصا<br>داخل تطبيق واحد</h1><p class="muted">نسخة ويب تفاعلية تعرض الخدمات الأساسية: المطاعم، سوق المتاجر، وكالات السفر، الشحن المحلي والدولي، طلبات الانضمام، السيرة الذاتية، المجتمع ومشاويرك علينا.</p><div class="stats"><div class="stat"><b>12+</b><span>خدمة</span></div><div class="stat"><b>4</b><span>لوحات إدارة</span></div><div class="stat"><b>24/7</b><span>جاهزية</span></div></div></div>
+      <div class="panel quick"><div class="q" onclick="openTab('travel')"><div class="i">🚌</div><h3>السفر والرحلات</h3><p>وكالات، حجوزات، نقل وشحن.</p></div><div class="q" onclick="openTab('shipping')"><div class="i">📦</div><h3>الشحن</h3><p>محلي ودولي وتتبع.</p></div><div class="q" onclick="openTab('market')"><div class="i">🛍️</div><h3>سوق المتاجر</h3><p>ملابس، عطور، أحذية.</p></div><div class="q" onclick="openTab('admin')"><div class="i">⚙️</div><h3>إدارة الوكالة</h3><p>إعدادات وأسعار وحالات.</p></div></div>
     </section>
+    <nav class="tabs" id="tabs"></nav>
 
-    <section class="grid">
-      <article class="card"><div class="icon">🍽️</div><h3>المطاعم والكافتريات</h3><p>منيوهات، أسعار، سلة طلبات، فواتير وتقارير.</p></article>
-      <article class="card"><div class="icon">🛍️</div><h3>سوق المتاجر</h3><p>ملابس، عطور، أحذية وبوتيكات مع صور وأسعار.</p></article>
-      <article class="card"><div class="icon">👩</div><h3>قسم المرأة</h3><p>متاجر وخدمات نسائية بعرض مرتب وسهل.</p></article>
-      <article class="card"><div class="icon">🚗</div><h3>مشاويرك علينا</h3><p>طلبات مباشرة وتنبيهات أسرع للسائقين.</p></article>
-      <article class="card"><div class="icon">🧾</div><h3>قوالب CV</h3><p>قوالب مجانية، ألوان متعددة، صورة أو بدون، وتصدير PDF.</p></article>
-      <article class="card"><div class="icon">📸</div><h3>المجتمع</h3><p>منشورات وصور متعددة لتواصل محلي أقرب.</p></article>
-      <article class="card"><div class="icon">📦</div><h3>الشحن المحلي والدولي</h3><p>طلبات شحن، مناطق تغطية، أسعار، تتبع، تخليص واستلام من العميل.</p></article>
-      <article class="card"><div class="icon">🚌</div><h3>السفر والرحلات</h3><p>وكالات السفر والرحلات وخدمات النقل والشحن ضمن مساحة واحدة.</p></article>
-    </section>
+    <section id="home" class="section active"><div class="grid" id="servicesGrid"></div></section>
 
-    <section class="cta">
-      <h2>حصاحيصاوي… مشروع يخدم المنطقة</h2>
-      <p>هذه نسخة ويب مستقرة للترويج والمتابعة، بينما يستمر تجهيز نسخة التطبيق النهائية APK/AAB ولوحات إدارة الوكالات.</p>
-    </section>
+    <section id="travel" class="section"><div class="detail"><div class="box"><h2>🚌 مساحة وكالات السفر</h2><p class="muted">عرض احترافي للوكالات: بيانات الوكالة، الوجهات، الخدمات، واتساب، الحجوزات، التذاكر، الحج والعمرة، والباقات السياحية.</p><span class="pill">تذاكر سفر</span><span class="pill">حج وعمرة</span><span class="pill">فنادق</span><span class="pill">تأشيرات</span><span class="pill">نقل بري</span></div><div class="box"><h3>طلب انضمام وكالة</h3><div class="form"><input class="input" placeholder="اسم الوكالة"><input class="input" placeholder="رقم واتساب"><input class="input" placeholder="المدينة"><input class="input" placeholder="الخدمات المقدمة"><button class="btn" onclick="toast('تم تجهيز طلب الانضمام للحفظ داخل التطبيق')">إرسال الطلب</button><button class="btn alt" onclick="openTab('admin')">لوحة الإعدادات</button></div></div></div></section>
 
-    <footer class="footer">© 2026 Hasahisawi — حصاحيصاوي</footer>
+    <section id="shipping" class="section"><div class="detail"><div class="box"><h2>📦 الشحن المحلي والدولي</h2><p class="muted">خدمة مخصصة لوكالات السفر وشركات الشحن: استلام من العميل، تسليم محلي، شحن دولي، مستندات، أسعار، تتبع، وتخليص.</p><span class="pill">شحن محلي</span><span class="pill">شحن دولي</span><span class="pill">استلام من العميل</span><span class="pill">تخليص جمركي</span><span class="pill">تتبع الشحنة</span></div><div class="box"><h3>حالات الشحنة</h3><div class="grid" style="grid-template-columns:1fr 1fr"><div class="stat"><b>1</b><span>طلب جديد</span></div><div class="stat"><b>2</b><span>تم الاستلام</span></div><div class="stat"><b>3</b><span>قيد الشحن</span></div><div class="stat"><b>4</b><span>تم التسليم</span></div></div></div></div></section>
+
+    <section id="admin" class="section"><div class="box"><h2>⚙️ لوحة إعدادات الوكالة والشحن</h2><p class="muted">إدارة تشغيل/إيقاف خدمات الوكالة، مناطق التغطية، أسعار الطرود والكيلو، واتساب مسؤول الشحن، المستندات المطلوبة، وسياسات التسليم.</p><div class="form"><input class="input" placeholder="واتساب مسؤول الشحن"><input class="input" placeholder="مناطق الشحن المحلي"><input class="input" placeholder="وجهات الشحن الدولي"><input class="input" placeholder="ملاحظة الأسعار"><button class="btn" onclick="toast('تم حفظ الإعدادات تجريبيًا في نسخة الويب')">حفظ الإعدادات</button><button class="btn alt" onclick="toast('سيتم ربطها بلوحة الإدارة النهائية')">معاينة اللوحة</button></div></div></section>
+
+    <section id="market" class="section"><div class="grid"><div class="card"><div class="i">👗</div><h3>ملابس</h3><p>متاجر وبوتيكات مع صور وأسعار.</p></div><div class="card"><div class="i">🧴</div><h3>عطور</h3><p>عروض ومنتجات قابلة للإدارة.</p></div><div class="card"><div class="i">👟</div><h3>أحذية</h3><p>تصنيف حسب المتجر والسعر.</p></div><div class="card"><div class="i">🧾</div><h3>طلبات</h3><p>سلة وتواصل مباشر.</p></div></div></section>
+
+    <section id="more" class="section"><div class="grid"><div class="card"><div class="i">🍽️</div><h3>المطاعم</h3><p>منيوهات، طلبات، فواتير.</p></div><div class="card"><div class="i">🚗</div><h3>مشاويرك علينا</h3><p>طلبات وتنبيهات للسائقين.</p></div><div class="card"><div class="i">🧾</div><h3>قوالب CV</h3><p>قوالب مجانية وتصدير PDF.</p></div><div class="card"><div class="i">📸</div><h3>المجتمع</h3><p>منشورات وصور وتواصل.</p></div></div></section>
+
+    <div class="footer">© 2026 Hasahisawi — حصاحيصاوي</div>
   </main>
+  <div class="bottom"><button onclick="openTab('home')">🏠<br>الرئيسية</button><button onclick="openTab('travel')">🚌<br>السفر</button><button onclick="openTab('shipping')">📦<br>الشحن</button><button onclick="openTab('admin')">⚙️<br>الإدارة</button></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+const tabs=[['home','الرئيسية'],['travel','السفر والرحلات'],['shipping','الشحن'],['admin','إدارة الوكالة'],['market','السوق'],['more','خدمات أخرى']];
+const services=[['🍽️','المطاعم والكافتريات','منيوهات، أسعار، سلة طلبات، فواتير وتقارير.','more'],['🛍️','سوق المتاجر','ملابس، عطور، أحذية وبوتيكات مع صور وأسعار.','market'],['👩','قسم المرأة','متاجر وخدمات نسائية بعرض مرتب وسهل.','more'],['🚗','مشاويرك علينا','طلبات مباشرة وتنبيهات أسرع للسائقين.','more'],['🚌','السفر والرحلات','وكالات السفر والرحلات وخدمات النقل والشحن.','travel'],['📦','الشحن المحلي والدولي','طلبات شحن، مناطق تغطية، أسعار، تتبع واستلام من العميل.','shipping'],['🧳','طلبات الانضمام','أرشفة طلبات التجار والوكالات والسائقين.','travel'],['🧾','قوالب CV','قوالب مجانية، ألوان متعددة، صورة أو بدون، وتصدير PDF.','more']];
+document.getElementById('tabs').innerHTML=tabs.map(([id,label])=>`<button class="tab ${id==='home'?'active':''}" data-tab="${id}" onclick="openTab('${id}')">${label}</button>`).join('');
+document.getElementById('servicesGrid').innerHTML=services.map(s=>`<div class="card" onclick="openTab('${s[3]}')"><div class="i">${s[0]}</div><h3>${s[1]}</h3><p>${s[2]}</p></div>`).join('');
+function openTab(id){document.querySelectorAll('.section').forEach(e=>e.classList.remove('active'));document.getElementById(id)?.classList.add('active');document.querySelectorAll('.tab,.bottom button').forEach(e=>e.classList.remove('active'));document.querySelectorAll(`[onclick="openTab('${id}')"]`).forEach(e=>e.classList.add('active'));scrollTo({top:0,behavior:'smooth'});}function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.display='block';setTimeout(()=>el.style.display='none',2400)}
+</script>
 </body>
 </html>
