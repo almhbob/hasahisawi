@@ -1,0 +1,70 @@
+name: Android Debug APK Simple
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.android-debug-simple-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Prepare Android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
+          echo "reactNativeArchitectures=arm64-v8a" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.parallel=false" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.workers.max=1" >> artifacts/hasahisawi/android/gradle.properties
+          echo "org.gradle.configuration-cache=false" >> artifacts/hasahisawi/android/gradle.properties
+
+      - name: Build debug APK
+        working-directory: artifacts/hasahisawi/android
+        env:
+          NODE_OPTIONS: "--max-old-space-size=3584"
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          mkdir -p release-artifacts
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/debug/app-debug.apk "release-artifacts/hasahisawi-debug-v${VERSION}-build${CODE}.apk"
+          ls -lh release-artifacts
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-debug-apk-simple
+          path: release-artifacts/*
+          retention-days: 30
