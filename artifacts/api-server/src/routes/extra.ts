@@ -7,8 +7,8 @@ r.use(a);
 r.use(b);
 
 export async function initExtraDb() {
-  await initStabilizationDb();
-  await initFoodPosDb();
+  try { await initStabilizationDb(); } catch {}
+  try { await initFoodPosDb(); } catch {}
 }
 
 export default r;
