@@ -71,6 +71,45 @@ jobs:
           touch docs/.nojekyll
           node <<'NODE'
           const fs = require('fs');
+          const base = '/hasahisawi';
+          for (const file of ['docs/index.html', 'docs/404.html']) {
+            if (!fs.existsSync(file)) continue;
+            let html = fs.readFileSync(file, 'utf8');
+            html = html
+              .replaceAll('href="/_expo/', `href="${base}/_expo/`)
+              .replaceAll('src="/_expo/', `src="${base}/_expo/`)
+              .replaceAll('href="/assets/', `href="${base}/assets/`)
+              .replaceAll('src="/assets/', `src="${base}/assets/`)
+              .replaceAll('href="/splash/', `href="${base}/splash/`)
+              .replaceAll('src="/splash/', `src="${base}/splash/`)
+              .replaceAll('href="/manifest.json"', `href="${base}/manifest.json"`)
+              .replaceAll('href="/favicon.ico"', `href="${base}/favicon.ico"`)
+              .replaceAll('href="/favicon.png"', `href="${base}/favicon.png"`)
+              .replaceAll("register('/sw.js')", `register('${base}/sw.js')`)
+              .replaceAll('url(/assets/', `url(${base}/assets/`)
+              .replaceAll('url("/assets/', `url("${base}/assets/`)
+              .replaceAll("url('/assets/", `url('${base}/assets/`);
+            if (!html.includes(`${base}/_expo/static/js/`)) {
+              throw new Error(`${file} is missing GitHub Pages base path for JS assets`);
+            }
+            fs.writeFileSync(file, html);
+          }
+          if (fs.existsSync('docs/manifest.json')) {
+            const manifest = JSON.parse(fs.readFileSync('docs/manifest.json', 'utf8'));
+            manifest.start_url = `${base}/`;
+            manifest.scope = `${base}/`;
+            if (manifest.icons) {
+              manifest.icons = manifest.icons.map(icon => ({
+                ...icon,
+                src: String(icon.src || '').startsWith('/') ? `${base}${icon.src}` : icon.src,
+              }));
+            }
+            fs.writeFileSync('docs/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          }
+          console.log('GitHub Pages asset paths rewritten under /hasahisawi');
+          NODE
+          node <<'NODE'
+          const fs = require('fs');
           const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
           fs.writeFileSync('docs/deploy-version.json', JSON.stringify({
             app: 'hasahisawi',
