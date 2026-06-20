@@ -1,0 +1,9 @@
+{
+  "app": "hasahisawi",
+  "target": "cloudflare-pages",
+  "status": "ready",
+  "type": "stable-static-landing",
+  "version": "6.5.6",
+  "publishedAt": "2026-06-20T17:20:00Z",
+  "url": "https://hasahisawi.pages.dev/"
+}
