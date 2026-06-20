@@ -8,24 +8,10 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 const TMP_UPLOAD_DIR = "/tmp/uploads";
-const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 
-function safeCompare(a: string, b: string): boolean {
-  try {
-    const ba = Buffer.from(a.padEnd(64, "\0"));
-    const bb = Buffer.from(b.padEnd(64, "\0"));
-    return crypto.timingSafeEqual(ba, bb) && a.length === b.length;
-  } catch {
-    return false;
-  }
-}
-
-function isAdminPinRequest(req: Request): boolean {
-  const submittedPin = req.headers["x-admin-pin"];
-  if (typeof submittedPin !== "string") return false;
-  if (submittedPin.length < 4 || submittedPin.length > 20) return false;
-  return safeCompare(submittedPin, DEFAULT_ADMIN_PIN);
-}
+const MAX_IMAGE_BYTES = Number(process.env.MAX_IMAGE_UPLOAD_MB ?? 15) * 1024 * 1024;
+const MAX_VIDEO_BYTES = Number(process.env.MAX_VIDEO_UPLOAD_MB ?? 100) * 1024 * 1024;
+const MAX_UPLOAD_BYTES = Math.max(MAX_IMAGE_BYTES, MAX_VIDEO_BYTES);
 
 try {
   mkdirSync(TMP_UPLOAD_DIR, { recursive: true });
@@ -65,27 +51,36 @@ if (CLOUDINARY_OK) {
 
 const ALLOWED_MIME = new Set([
   "image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp",
-  "image/gif",  "image/heic", "image/heif", "image/bmp", "image/tiff",
-  "video/mp4",  "video/quicktime", "video/x-matroska", "video/webm",
-  "video/3gpp", "video/3gpp2", "video/x-msvideo", "video/avi",
-  "application/octet-stream",
+  "image/gif",  "image/heic", "image/heif",
+  "video/mp4",  "video/quicktime", "video/webm", "video/3gpp", "video/3gpp2",
 ]);
 
 const ALLOWED_EXT = new Set([
-  ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".bmp", ".tiff",
-  ".mp4", ".mov", ".m4v", ".mkv", ".webm", ".3gp", ".3g2", ".avi",
+  ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif",
+  ".mp4", ".mov", ".m4v", ".webm", ".3gp", ".3g2",
 ]);
 
-function resolveFolder(filename: string, mimetype: string): string {
+function isVideo(filename: string, mimetype: string): boolean {
   const ext = path.extname(filename || "").toLowerCase();
-  const isVideo = mimetype.startsWith("video/") || [".mp4",".mov",".mkv",".webm",".3gp",".avi",".m4v"].includes(ext);
-  return isVideo ? "hasahisawi/videos" : "hasahisawi/images";
+  return mimetype.startsWith("video/") || [".mp4", ".mov", ".webm", ".3gp", ".3g2", ".m4v"].includes(ext);
 }
 
-function resolveResourceType(mimetype: string, ext: string): "image" | "video" | "raw" {
-  if (mimetype.startsWith("video/") || [".mp4",".mov",".mkv",".webm",".3gp",".avi",".m4v"].includes(ext)) return "video";
-  if (mimetype.startsWith("image/")) return "image";
-  return "raw";
+function assertAllowedSize(file: Express.Multer.File): string | null {
+  const limit = isVideo(file.originalname, file.mimetype) ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (file.size > limit) {
+    const mb = Math.round(limit / 1024 / 1024);
+    return `حجم الملف كبير جداً. الحد الأقصى لهذا النوع هو ${mb}MB`;
+  }
+  return null;
+}
+
+function resolveFolder(filename: string, mimetype: string): string {
+  return isVideo(filename, mimetype) ? "hasahisawi/videos" : "hasahisawi/images";
+}
+
+function resolveResourceType(mimetype: string, ext: string): "image" | "video" {
+  if (mimetype.startsWith("video/") || [".mp4", ".mov", ".webm", ".3gp", ".3g2", ".m4v"].includes(ext)) return "video";
+  return "image";
 }
 
 const multerStorage = CLOUDINARY_OK
@@ -100,10 +95,10 @@ const multerStorage = CLOUDINARY_OK
 
 const upload = multer({
   storage: multerStorage,
-  limits: { fileSize: 500 * 1024 * 1024, files: 1 },
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase();
-    const ok  = ALLOWED_MIME.has((file.mimetype || "").toLowerCase()) || ALLOWED_EXT.has(ext);
+    const ok = ALLOWED_MIME.has((file.mimetype || "").toLowerCase()) && ALLOWED_EXT.has(ext);
     cb(null, ok);
   },
 });
@@ -111,7 +106,7 @@ const upload = multer({
 function uploadBufferToCloudinary(
   buffer: Buffer,
   folder: string,
-  resourceType: "image" | "video" | "raw",
+  resourceType: "image" | "video",
   publicId: string,
 ): Promise<{ secure_url: string; public_id: string; bytes: number; format: string }> {
   return new Promise((resolve, reject) => {
@@ -140,18 +135,18 @@ function uploadBufferToCloudinary(
 router.post(
   "/upload",
   (req: Request, res: Response, next: NextFunction) => {
-    req.setTimeout(15 * 60 * 1000);
-    res.setTimeout(15 * 60 * 1000);
+    req.setTimeout(5 * 60 * 1000);
+    res.setTimeout(5 * 60 * 1000);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     upload.single("file")(req as any, res as any, (err: unknown) => {
       if (err) {
         const e = err as { code?: string; message?: string };
         if (e?.code === "LIMIT_FILE_SIZE") {
-          res.status(413).json({ error: "حجم الملف كبير جداً (الحد الأقصى 500MB)" });
+          res.status(413).json({ error: `حجم الملف كبير جداً. الحد الأقصى ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB` });
           return;
         }
         logger.error({ err: e?.message ?? err }, "upload middleware error");
-        res.status(400).json({ error: "فشل رفع الملف" });
+        res.status(400).json({ error: "فشل رفع الملف أو نوع الملف غير مدعوم" });
         return;
       }
       next();
@@ -160,6 +155,12 @@ router.post(
   async (req: Request, res: Response) => {
     if (!req.file) {
       res.status(400).json({ error: "لم يتم إرسال أي ملف أو نوع الملف غير مدعوم" });
+      return;
+    }
+
+    const sizeError = assertAllowedSize(req.file);
+    if (sizeError) {
+      res.status(413).json({ error: sizeError });
       return;
     }
 
@@ -183,7 +184,7 @@ router.post(
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         logger.error({ msg }, "Cloudinary upload error");
-        res.status(500).json({ error: `فشل رفع الملف إلى Cloudinary: ${msg}` });
+        res.status(500).json({ error: "فشل رفع الملف إلى التخزين الدائم" });
       }
       return;
     }
@@ -207,30 +208,9 @@ router.post(
   },
 );
 
-router.delete("/upload", async (req: Request, res: Response) => {
-  if (!isAdminPinRequest(req)) {
-    res.status(403).json({ error: "غير مصرح بحذف الملفات" });
-    return;
-  }
-
-  const { public_id, resource_type } = req.body as { public_id?: string; resource_type?: string };
-  if (!public_id || typeof public_id !== "string" || public_id.length > 255) {
-    res.status(400).json({ error: "public_id غير صالح" });
-    return;
-  }
-  if (!CLOUDINARY_OK) {
-    res.status(503).json({ error: "Cloudinary غير مهيّأ" });
-    return;
-  }
-  try {
-    const validResourceTypes = new Set(["image", "video", "raw"]);
-    const rt = validResourceTypes.has(String(resource_type)) ? resource_type as "image" | "video" | "raw" : "image";
-    const result = await cloudinary.uploader.destroy(public_id, { resource_type: rt });
-    res.json({ ok: result.result === "ok", result: result.result });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: msg });
-  }
+router.delete("/upload", async (_req: Request, res: Response) => {
+  // Authorization is enforced by security-hardening.ts before this router.
+  res.status(501).json({ error: "حذف الملفات من هذا المسار معطل. استخدم عملية إدارية موثقة ومخصصة." });
 });
 
 export default router;

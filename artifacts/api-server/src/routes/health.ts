@@ -1,8 +1,8 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { Pool } from "pg";
 
 const router: IRouter = Router();
-const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v7";
+const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v8";
 
 function getDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? "";
@@ -24,6 +24,13 @@ function shouldUseSsl(dbUrl: string): boolean {
     dbUrl.includes("railway") ||
     dbUrl.includes("rlwy") ||
     dbUrl.includes("neon.tech");
+}
+
+function canShowDetails(req: Request): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  const required = process.env.HEALTH_DETAILS_TOKEN;
+  if (!required) return false;
+  return req.headers["x-health-token"] === required;
 }
 
 async function databaseStatus() {
@@ -83,7 +90,7 @@ function cloudinaryEnvStatus() {
     configured,
     provider: configured ? "cloudinary" : "local_ephemeral_fallback",
     persistent_uploads: configured,
-    max_upload_mb: 500,
+    max_upload_mb: 100,
     accepted_extensions: ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "mp4", "mov", "webm"],
     reason: configured ? null : "missing_cloudinary_env_uploads_will_not_be_persistent",
   };
@@ -138,8 +145,16 @@ router.get("/healthz", (_req, res) => {
   res.json({ status: "ok", version: HEALTH_ROUTE_VERSION });
 });
 
-router.get("/healthz/full", async (_req, res) => {
+router.get("/healthz/full", async (req, res) => {
   const status = await fullStatus();
+  if (!canShowDetails(req)) {
+    return res.status(status.ok ? 200 : 503).json({
+      status: status.ok ? "ok" : "degraded",
+      service: "api-server",
+      version: HEALTH_ROUTE_VERSION,
+      ready: status.ok,
+    });
+  }
   res.status(status.ok ? 200 : 503).json(status.body);
 });
 
@@ -148,12 +163,6 @@ router.get("/readyz", async (_req, res) => {
   res.status(status.ok ? 200 : 503).json({
     ready: status.ok,
     version: HEALTH_ROUTE_VERSION,
-    checks: {
-      database: status.body.checks.database.connected,
-      firebase: status.body.checks.firebase.configured,
-      persistent_uploads: status.body.checks.cloudinary.persistent_uploads,
-    },
-    details: status.body.checks,
   });
 });
 

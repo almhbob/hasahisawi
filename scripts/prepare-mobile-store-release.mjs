@@ -6,10 +6,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const appRoot = resolve(repoRoot, 'artifacts/hasahisawi');
 
-const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.3.3';
-const RELEASE_CODE = Number(process.env.RELEASE_CODE || '233');
-const API_HOST = process.env.STORE_API_HOST || 'hasahisawi.onrender.com';
-const API_URL = `https://${API_HOST}`;
+const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.5.5';
+const RELEASE_CODE = Number(process.env.RELEASE_CODE || '255');
+const API_HOST = process.env.STORE_API_HOST || 'api-server-gilt-ten.vercel.app';
+const API_URL = process.env.STORE_API_URL || `https://${API_HOST}`;
+const DISABLE_OTP = process.env.EXPO_PUBLIC_DISABLE_OTP || 'false';
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -41,7 +42,7 @@ const easJson = readJson(easJsonPath);
 for (const profile of Object.values(easJson.build || {})) {
   profile.env = profile.env || {};
   profile.env.EXPO_PUBLIC_API_URL = API_URL;
-  profile.env.EXPO_PUBLIC_DISABLE_OTP = 'true';
+  profile.env.EXPO_PUBLIC_DISABLE_OTP = DISABLE_OTP;
 }
 if (easJson.build?.preview) {
   easJson.build.preview.distribution = 'internal';
@@ -72,4 +73,5 @@ writeJson(packageJsonPath, packageJson);
 
 console.log(`Prepared mobile store release ${RELEASE_VERSION} (${RELEASE_CODE})`);
 console.log(`API URL: ${API_URL}`);
+console.log(`OTP disabled in app build: ${DISABLE_OTP}`);
 console.log('Next: cd artifacts/hasahisawi && pnpm run release:check');

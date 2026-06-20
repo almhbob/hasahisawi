@@ -1,0 +1,79 @@
+name: EAS Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+  push:
+    branches:
+      - hardening/prelaunch-security-fixes
+    paths:
+      - artifacts/hasahisawi/.eas-production-build-request-*.txt
+      - .github/workflows/eas-android-release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  eas-android:
+    name: Build Android with EAS
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: artifacts/hasahisawi
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
+      EXPO_PUBLIC_DISABLE_OTP: 'false'
+      BUILD_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
+      - name: Prepare build manifest
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const legacy = ['expo', 'firebase', 'recaptcha'].join('-');
+          if (pkg.dependencies) delete pkg.dependencies[legacy];
+          if (pkg.devDependencies) delete pkg.devDependencies[legacy];
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Apply app patches
+        run: node scripts/patch-home-services-ui.mjs
+
+      - name: Run service smoke checks
+        run: node scripts/smoke-services-check.mjs
+
+      - name: Verify Expo token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN secret is required for EAS Android release builds."
+            exit 1
+          fi
+
+      - name: EAS build Android
+        run: eas build --platform android --profile "$BUILD_PROFILE" --non-interactive --wait
