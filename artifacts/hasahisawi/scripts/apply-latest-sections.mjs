@@ -11,7 +11,7 @@ let changed = false;
 
 function insertAfterService(anchorId, block) {
   if (source.includes(block.idNeedle)) return;
-  const re = new RegExp('(\\n\\s*\\{ id: "' + anchorId + '"[\\s\\S]*?route: "\\/\\(tabs\\)\\/[^\"]+"\\s+as const \\},)');
+  const re = new RegExp('(\n\s*\{ id: "' + anchorId + '"[\s\S]*?route: "\/\(tabs\)\/[^"]+"\s+as const \},)');
   if (!re.test(source)) throw new Error('anchor not found');
   source = source.replace(re, '$1\n' + block.text);
   changed = true;
@@ -27,4 +27,6 @@ insertAfterService('market', {
 
 source = source.replace('label: "معرض المنتجات", sub: "منتجات مختارة · صور · تواصل"', 'label: "سوق المتاجر", sub: "ملابس · عطور · أحذية · بوتيكات"');
 writeFileSync(indexPath, source);
-console.log('sections applied');
+
+await import('./apply-social-multi-images.mjs').catch(() => {});
+console.log(changed ? 'sections applied' : 'sections checked');
