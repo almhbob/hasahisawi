@@ -1,95 +1,224 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking, Platform, Image } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking, Platform, Image, Modal, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 
-type Product = {
+type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories";
+type MerchantStatus = "pending" | "approved";
+
+type Merchant = {
   id: string;
-  name: string;
-  seller: string;
-  category: "phones" | "fashion" | "home" | "food" | "crafts";
-  price: string;
+  shopName: string;
+  ownerName: string;
+  category: RetailCategory;
   phone: string;
-  image?: string;
-  badge?: string;
-  tags: string[];
+  address: string;
+  description: string;
+  status: MerchantStatus;
+  createdAt: string;
 };
 
-const CATEGORIES = [
-  { key: "all", label: "الكل", icon: "apps", color: Colors.primary },
-  { key: "phones", label: "هواتف", icon: "cellphone", color: "#0EA5E9" },
-  { key: "fashion", label: "أزياء", icon: "tshirt-crew-outline", color: "#EC4899" },
-  { key: "home", label: "منزل", icon: "sofa-outline", color: "#A855F7" },
-  { key: "food", label: "أغذية", icon: "food-variant", color: "#F97316" },
-  { key: "crafts", label: "حرف", icon: "palette-outline", color: "#14B8A6" },
-] as const;
+type Product = {
+  id: string;
+  merchantId: string;
+  name: string;
+  category: RetailCategory;
+  price: number;
+  oldPrice?: number;
+  description: string;
+  imageUri?: string;
+  stock: number;
+  isAvailable: boolean;
+  createdAt: string;
+};
 
-const PRODUCTS: Product[] = [
-  { id: "p1", name: "Samsung A-series", seller: "موبايلات الحصاحيصا", category: "phones", price: "حسب المواصفات", phone: "0914000001", badge: "الأكثر طلباً", tags: ["جديد", "ضمان", "تقسيط"] },
-  { id: "p2", name: "جلابية رجالية فاخرة", seller: "أناقة المدينة", category: "fashion", price: "من 18,000 ج", phone: "0914000002", badge: "محلي", tags: ["تفصيل", "ألوان", "مقاسات"] },
-  { id: "p3", name: "طقم ضيافة", seller: "لمسة بيت", category: "home", price: "من 25,000 ج", phone: "0914000003", tags: ["منزل", "هدايا", "طلب خاص"] },
-  { id: "p4", name: "حلويات مناسبات", seller: "مخبوزات البركة", category: "food", price: "بالطلب", phone: "0914000004", badge: "توصيل", tags: ["طازج", "مناسبات", "طلبات"] },
-  { id: "p5", name: "أعمال يدوية نسائية", seller: "حواء للإبداع", category: "crafts", price: "حسب التصميم", phone: "0914000005", tags: ["يدوي", "هدايا", "تصميم خاص"] },
+type CartItem = { productId: string; qty: number };
+
+const MERCHANTS_KEY = "retail_merchants_v1";
+const PRODUCTS_KEY = "retail_products_v1";
+const CART_KEY = "retail_cart_v1";
+
+const CATEGORIES: { key: "all" | RetailCategory; label: string; icon: string; color: string }[] = [
+  { key: "all", label: "الكل", icon: "apps", color: Colors.primary },
+  { key: "clothing", label: "ملابس", icon: "tshirt-crew-outline", color: "#EC4899" },
+  { key: "perfume", label: "عطور", icon: "spray-bottle", color: "#A855F7" },
+  { key: "shoes", label: "أحذية", icon: "shoe-sneaker", color: "#F97316" },
+  { key: "boutique", label: "بوتيكات", icon: "storefront-outline", color: "#14B8A6" },
+  { key: "accessories", label: "إكسسوارات", icon: "watch-variant", color: "#FBBF24" },
 ];
 
-function ProductShowcase({ products }: { products: Product[] }) {
-  return (
-    <View style={styles.showcaseGrid}>
-      {products.map((item, index) => {
-        const cat = CATEGORIES.find(c => c.key === item.category)!;
-        return (
-          <Animated.View key={item.id} entering={FadeInDown.delay(90 + index * 55).springify()} style={styles.productCard}>
-            <LinearGradient colors={[cat.color + "22", Colors.surface]} style={styles.productVisual}>
-              {item.image ? <Image source={{ uri: item.image }} style={StyleSheet.absoluteFillObject} /> : <MaterialCommunityIcons name={cat.icon as any} size={42} color={cat.color} />}
-              {item.badge ? <View style={[styles.badge, { backgroundColor: cat.color }]}><Text style={styles.badgeText}>{item.badge}</Text></View> : null}
-            </LinearGradient>
-            <View style={styles.productInfo}>
-              <Text style={styles.productName}>{item.name}</Text>
-              <Text style={styles.seller}>{item.seller}</Text>
-              <View style={styles.tags}>{item.tags.map(tag => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View>
-              <View style={styles.bottomRow}>
-                <Text style={[styles.price, { color: cat.color }]}>{item.price}</Text>
-                <AnimatedPress onPress={() => Linking.openURL(`tel:${item.phone}`)}>
-                  <View style={styles.callBtn}><Ionicons name="call" size={15} color="#001" /></View>
-                </AnimatedPress>
-              </View>
-            </View>
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
+const SEED_MERCHANTS: Merchant[] = [
+  { id: "m1", shopName: "بوتيك الأناقة", ownerName: "إدارة البوتيك", category: "boutique", phone: "0914000001", address: "السوق الكبير", description: "ملابس وإكسسوارات مختارة للنساء والرجال والأطفال", status: "approved", createdAt: new Date().toISOString() },
+  { id: "m2", shopName: "عطور النيل", ownerName: "قسم العطور", category: "perfume", phone: "0914000002", address: "شارع المستشفى", description: "عطور فرنسية وشرقية وتركيبات خاصة", status: "approved", createdAt: new Date().toISOString() },
+  { id: "m3", shopName: "أحذية المدينة", ownerName: "إدارة المتجر", category: "shoes", phone: "0914000003", address: "وسط الحصاحيصا", description: "أحذية رجالية ونسائية ورياضية", status: "approved", createdAt: new Date().toISOString() },
+];
+
+const SEED_PRODUCTS: Product[] = [
+  { id: "p1", merchantId: "m1", name: "طقم خروج عصري", category: "clothing", price: 28000, oldPrice: 32000, description: "قماش مريح، مقاسات متعددة، ألوان موسمية", stock: 8, isAvailable: true, createdAt: new Date().toISOString() },
+  { id: "p2", merchantId: "m2", name: "عطر شرقي فاخر", category: "perfume", price: 15000, description: "ثبات عالي وحجم مناسب للهدايا", stock: 12, isAvailable: true, createdAt: new Date().toISOString() },
+  { id: "p3", merchantId: "m3", name: "حذاء رياضي خفيف", category: "shoes", price: 22000, oldPrice: 26000, description: "نعل مريح ومناسب للمشي اليومي", stock: 6, isAvailable: true, createdAt: new Date().toISOString() },
+];
+
+function formatPrice(v: number) {
+  return `${Math.round(v).toLocaleString("ar-SA")} ج.س`;
 }
 
 export default function ProductShowcaseScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<typeof CATEGORIES[number]["key"]>("all");
+  const [category, setCategory] = useState<"all" | RetailCategory>("all");
+  const [merchants, setMerchants] = useState<Merchant[]>(SEED_MERCHANTS);
+  const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
 
-  const products = useMemo(() => PRODUCTS.filter(item => {
+  const [shopName, setShopName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [merchantCat, setMerchantCat] = useState<RetailCategory>("boutique");
+
+  const approvedMerchants = merchants.filter(m => m.status === "approved");
+  const [selectedMerchantId, setSelectedMerchantId] = useState("m1");
+  const [productName, setProductName] = useState("");
+  const [productPrice, setProductPrice] = useState("");
+  const [productDesc, setProductDesc] = useState("");
+  const [productStock, setProductStock] = useState("1");
+  const [imageUri, setImageUri] = useState<string | undefined>();
+
+  useEffect(() => {
+    (async () => {
+      const [m, p, c] = await Promise.all([
+        AsyncStorage.getItem(MERCHANTS_KEY), AsyncStorage.getItem(PRODUCTS_KEY), AsyncStorage.getItem(CART_KEY),
+      ]);
+      if (m) setMerchants(JSON.parse(m));
+      if (p) setProducts(JSON.parse(p));
+      if (c) setCart(JSON.parse(c));
+    })().catch(() => {});
+  }, []);
+
+  useEffect(() => { AsyncStorage.setItem(MERCHANTS_KEY, JSON.stringify(merchants)).catch(() => {}); }, [merchants]);
+  useEffect(() => { AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)).catch(() => {}); }, [products]);
+  useEffect(() => { AsyncStorage.setItem(CART_KEY, JSON.stringify(cart)).catch(() => {}); }, [cart]);
+
+  const filtered = useMemo(() => products.filter(item => {
+    const merchant = merchants.find(m => m.id === item.merchantId);
     const byCat = category === "all" || item.category === category;
     const q = query.trim();
-    const byQuery = !q || item.name.includes(q) || item.seller.includes(q) || item.tags.some(tag => tag.includes(q));
-    return byCat && byQuery;
-  }), [query, category]);
+    const byQuery = !q || item.name.includes(q) || item.description.includes(q) || merchant?.shopName.includes(q);
+    return item.isAvailable && byCat && byQuery;
+  }), [products, merchants, query, category]);
+
+  const cartDetails = useMemo(() => cart.map(ci => {
+    const product = products.find(p => p.id === ci.productId);
+    return product ? { ...ci, product } : null;
+  }).filter(Boolean) as Array<CartItem & { product: Product }>, [cart, products]);
+  const cartTotal = cartDetails.reduce((sum, x) => sum + x.product.price * x.qty, 0);
+  const cartCount = cart.reduce((sum, x) => sum + x.qty, 0);
+
+  function addMerchant() {
+    if (!shopName.trim() || !ownerName.trim() || !phone.trim()) {
+      Alert.alert("بيانات ناقصة", "أدخل اسم المحل، المسؤول، ورقم الهاتف");
+      return;
+    }
+    const item: Merchant = {
+      id: `m${Date.now()}`,
+      shopName: shopName.trim(), ownerName: ownerName.trim(), category: merchantCat,
+      phone: phone.trim(), address: address.trim(), description: "متجر جديد قيد الاعتماد داخل سوق حصاحيصاوي",
+      status: "pending", createdAt: new Date().toISOString(),
+    };
+    setMerchants(prev => [item, ...prev]);
+    setShopName(""); setOwnerName(""); setPhone(""); setAddress(""); setJoinOpen(false);
+    Alert.alert("تم إرسال الطلب", "سيظهر المتجر في السوق بعد اعتماده من الإدارة.");
+  }
+
+  async function pickImage() {
+    const res = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (res.status !== "granted") {
+      Alert.alert("إذن مطلوب", "يجب السماح بالوصول للصور لرفع صورة المنتج");
+      return;
+    }
+    const pick = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.85 });
+    if (!pick.canceled && pick.assets[0]) setImageUri(pick.assets[0].uri);
+  }
+
+  function addProduct() {
+    const merchant = merchants.find(m => m.id === selectedMerchantId);
+    const price = Number(productPrice.replace(/,/g, ""));
+    const stock = Number(productStock || "1");
+    if (!merchant || !productName.trim() || !price || price <= 0) {
+      Alert.alert("بيانات ناقصة", "اختر المتجر وأدخل اسم المنتج والسعر");
+      return;
+    }
+    const item: Product = {
+      id: `p${Date.now()}`,
+      merchantId: merchant.id,
+      name: productName.trim(), category: merchant.category,
+      price, description: productDesc.trim() || "منتج من متجر معتمد في السوق",
+      imageUri, stock: Math.max(1, stock), isAvailable: true, createdAt: new Date().toISOString(),
+    };
+    setProducts(prev => [item, ...prev]);
+    setProductName(""); setProductPrice(""); setProductDesc(""); setProductStock("1"); setImageUri(undefined); setProductOpen(false);
+  }
+
+  function updatePrice(product: Product) {
+    Alert.prompt?.("تعديل السعر", "أدخل السعر الجديد بالجنيه السوداني", value => {
+      const next = Number(String(value || "").replace(/,/g, ""));
+      if (next > 0) setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+    }, "plain-text", String(product.price));
+    if (Platform.OS !== "ios") {
+      const next = product.price + 1000;
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+      Alert.alert("تم تحديث السعر", `تم رفع السعر تجريبياً إلى ${formatPrice(next)}. في النسخة النهائية سيظهر حقل إدخال مباشر للتاجر.`);
+    }
+  }
+
+  function addToCart(product: Product) {
+    setCart(prev => {
+      const found = prev.find(x => x.productId === product.id);
+      if (found) return prev.map(x => x.productId === product.id ? { ...x, qty: x.qty + 1 } : x);
+      return [...prev, { productId: product.id, qty: 1 }];
+    });
+  }
+
+  function checkout() {
+    if (!cartDetails.length) return;
+    const text = cartDetails.map(x => `- ${x.product.name} × ${x.qty} = ${formatPrice(x.product.price * x.qty)}`).join("%0A");
+    const phone = merchants.find(m => m.id === cartDetails[0].product.merchantId)?.phone || "0914000001";
+    Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=طلب من سوق حصاحيصاوي:%0A${text}%0Aالإجمالي: ${formatPrice(cartTotal)}`).catch(() => {});
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <LinearGradient colors={["#05231F", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}>
+        <LinearGradient colors={["#241200", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}>
           <Animated.View entering={FadeIn.delay(80)} style={styles.heroIcon}>
-            <Ionicons name="cube-outline" size={40} color="#fff" />
+            <Ionicons name="storefront-outline" size={40} color="#fff" />
           </Animated.View>
-          <Animated.Text entering={FadeInDown.delay(120).springify()} style={styles.title}>معرض المنتجات</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>ProductShowcase لعرض المنتجات المختارة بصورة عصرية مع التواصل السريع</Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(120).springify()} style={styles.title}>سوق المتاجر والبوتيكات</Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>ملابس · عطور · أحذية · بوتيكات — انضمام كتاجر، معرض منتجات، تسعير قابل للتعديل، وسلة شراء</Animated.Text>
         </LinearGradient>
 
         <View style={styles.body}>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={() => setJoinOpen(true)} style={styles.primaryBtn}><Text style={styles.primaryText}>انضم كتاجر</Text><Ionicons name="business-outline" size={16} color="#001" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setProductOpen(true)} style={styles.secondaryBtn}><Text style={styles.secondaryText}>إضافة منتج</Text><Ionicons name="cloud-upload-outline" size={16} color={Colors.primary} /></TouchableOpacity>
+          </View>
+
+          <View style={styles.cartBar}>
+            <Text style={styles.cartTitle}>السلة: {cartCount} منتج</Text>
+            <Text style={styles.cartTotal}>{formatPrice(cartTotal)}</Text>
+            <TouchableOpacity onPress={checkout} style={[styles.checkoutBtn, !cartCount && { opacity: 0.4 }]} disabled={!cartCount}><Text style={styles.checkoutText}>إتمام الطلب</Text></TouchableOpacity>
+          </View>
+
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
             <TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر..." placeholderTextColor={Colors.textMuted} style={styles.input} />
@@ -98,18 +227,75 @@ export default function ProductShowcaseScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
             {CATEGORIES.map(cat => {
               const active = category === cat.key;
-              return (
-                <TouchableOpacity key={cat.key} onPress={() => setCategory(cat.key)} style={[styles.categoryChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}>
-                  <MaterialCommunityIcons name={cat.icon as any} size={15} color={active ? "#001" : cat.color} />
-                  <Text style={[styles.categoryText, active && { color: "#001" }]}>{cat.label}</Text>
-                </TouchableOpacity>
-              );
+              return <TouchableOpacity key={cat.key} onPress={() => setCategory(cat.key)} style={[styles.categoryChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}>
+                <MaterialCommunityIcons name={cat.icon as any} size={15} color={active ? "#001" : cat.color} />
+                <Text style={[styles.categoryText, active && { color: "#001" }]}>{cat.label}</Text>
+              </TouchableOpacity>;
             })}
           </ScrollView>
 
-          <ProductShowcase products={products} />
+          <Text style={styles.sectionTitle}>المتاجر المعتمدة</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.merchantRow}>
+            {approvedMerchants.map(m => {
+              const meta = CATEGORIES.find(c => c.key === m.category)!;
+              return <View key={m.id} style={styles.merchantCard}>
+                <MaterialCommunityIcons name={meta.icon as any} size={25} color={meta.color} />
+                <Text style={styles.merchantName}>{m.shopName}</Text>
+                <Text style={styles.merchantMeta}>{meta.label} · {m.address}</Text>
+              </View>;
+            })}
+          </ScrollView>
+
+          <Text style={styles.sectionTitle}>معرض المنتجات</Text>
+          {filtered.map((item, index) => {
+            const merchant = merchants.find(m => m.id === item.merchantId);
+            const cat = CATEGORIES.find(c => c.key === item.category)!;
+            return <Animated.View key={item.id} entering={FadeInDown.delay(70 + index * 45).springify()} style={styles.productCard}>
+              <LinearGradient colors={[cat.color + "22", Colors.surface]} style={styles.productVisual}>
+                {item.imageUri ? <Image source={{ uri: item.imageUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" /> : <MaterialCommunityIcons name={cat.icon as any} size={46} color={cat.color} />}
+                <View style={[styles.badge, { backgroundColor: cat.color }]}><Text style={styles.badgeText}>{cat.label}</Text></View>
+              </LinearGradient>
+              <View style={styles.productInfo}>
+                <Text style={styles.productName}>{item.name}</Text>
+                <Text style={styles.seller}>{merchant?.shopName || "متجر"} · المخزون {item.stock}</Text>
+                <Text style={styles.desc}>{item.description}</Text>
+                <View style={styles.bottomRow}>
+                  <View><Text style={[styles.price, { color: cat.color }]}>{formatPrice(item.price)}</Text>{item.oldPrice ? <Text style={styles.oldPrice}>{formatPrice(item.oldPrice)}</Text> : null}</View>
+                  <View style={styles.productActions}>
+                    <AnimatedPress onPress={() => updatePrice(item)}><View style={styles.editBtn}><Ionicons name="create-outline" size={16} color={Colors.primary} /></View></AnimatedPress>
+                    <AnimatedPress onPress={() => addToCart(item)}><View style={styles.cartBtn}><Ionicons name="cart" size={16} color="#001" /></View></AnimatedPress>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>;
+          })}
         </View>
       </ScrollView>
+
+      <Modal visible={joinOpen} transparent animationType="slide" onRequestClose={() => setJoinOpen(false)}>
+        <View style={styles.modalBackdrop}><View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>طلب انضمام متجر</Text>
+          <TextInput style={styles.modalInput} value={shopName} onChangeText={setShopName} placeholder="اسم المحل / البوتيك" placeholderTextColor={Colors.textMuted} />
+          <TextInput style={styles.modalInput} value={ownerName} onChangeText={setOwnerName} placeholder="اسم المسؤول" placeholderTextColor={Colors.textMuted} />
+          <TextInput style={styles.modalInput} value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
+          <TextInput style={styles.modalInput} value={address} onChangeText={setAddress} placeholder="العنوان" placeholderTextColor={Colors.textMuted} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{CATEGORIES.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</ScrollView>
+          <View style={styles.modalActions}><TouchableOpacity onPress={() => setJoinOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={addMerchant} style={styles.saveBtn}><Text style={styles.saveText}>إرسال الطلب</Text></TouchableOpacity></View>
+        </View></View>
+      </Modal>
+
+      <Modal visible={productOpen} transparent animationType="slide" onRequestClose={() => setProductOpen(false)}>
+        <View style={styles.modalBackdrop}><View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>إضافة منتج للتاجر</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{approvedMerchants.map(m => <TouchableOpacity key={m.id} onPress={() => setSelectedMerchantId(m.id)} style={[styles.categoryChip, selectedMerchantId === m.id && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Text style={[styles.categoryText, selectedMerchantId === m.id && { color: "#001" }]}>{m.shopName}</Text></TouchableOpacity>)}</ScrollView>
+          <TouchableOpacity onPress={pickImage} style={styles.imagePick}>{imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : <><Ionicons name="image-outline" size={26} color={Colors.textMuted} /><Text style={styles.imagePickText}>رفع صورة المنتج</Text></>}</TouchableOpacity>
+          <TextInput style={styles.modalInput} value={productName} onChangeText={setProductName} placeholder="اسم المنتج" placeholderTextColor={Colors.textMuted} />
+          <TextInput style={styles.modalInput} value={productPrice} onChangeText={setProductPrice} placeholder="السعر" placeholderTextColor={Colors.textMuted} keyboardType="numeric" />
+          <TextInput style={styles.modalInput} value={productStock} onChangeText={setProductStock} placeholder="الكمية" placeholderTextColor={Colors.textMuted} keyboardType="numeric" />
+          <TextInput style={[styles.modalInput, { height: 74 }]} value={productDesc} onChangeText={setProductDesc} placeholder="وصف المنتج" placeholderTextColor={Colors.textMuted} multiline />
+          <View style={styles.modalActions}><TouchableOpacity onPress={() => setProductOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={addProduct} style={styles.saveBtn}><Text style={styles.saveText}>حفظ المنتج</Text></TouchableOpacity></View>
+        </View></View>
+      </Modal>
     </View>
   );
 }
@@ -117,26 +303,54 @@ export default function ProductShowcaseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   hero: { paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: "center" },
-  heroIcon: { width: 76, height: 76, borderRadius: 24, backgroundColor: "#14B8A630", borderWidth: 1, borderColor: "#14B8A660", alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  heroIcon: { width: 76, height: 76, borderRadius: 24, backgroundColor: "#F9731630", borderWidth: 1, borderColor: "#F9731660", alignItems: "center", justifyContent: "center", marginBottom: 14 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 25, color: Colors.textPrimary, textAlign: "center" },
   subtitle: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "center", fontSize: 13, lineHeight: 22, marginTop: 8 },
   body: { padding: 18, gap: 14 },
+  actionsRow: { flexDirection: "row-reverse", gap: 10 },
+  primaryBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  primaryText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 13 },
+  secondaryBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  secondaryText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 13 },
+  cartBar: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  cartTitle: { flex: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
+  cartTotal: { fontFamily: "Cairo_700Bold", color: Colors.primary },
+  checkoutBtn: { backgroundColor: "#14B8A6", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  checkoutText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 12 },
   searchBox: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   input: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   categoryRow: { gap: 8, paddingVertical: 2 },
   categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   categoryText: { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12 },
-  showcaseGrid: { gap: 14 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
+  merchantRow: { gap: 10 },
+  merchantCard: { width: 150, minHeight: 112, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, alignItems: "center", justifyContent: "center" },
+  merchantName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "center", marginTop: 6 },
+  merchantMeta: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10, textAlign: "center", marginTop: 3 },
   productCard: { borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
-  productVisual: { height: 150, alignItems: "center", justifyContent: "center" },
+  productVisual: { height: 160, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: 12, right: 12, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   badgeText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 11 },
-  productInfo: { padding: 14, gap: 8 },
+  productInfo: { padding: 14, gap: 7 },
   productName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
   seller: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 12, textAlign: "right" },
-  tags: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
-  tag: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 10, backgroundColor: Colors.bgAlt, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  bottomRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
-  price: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  callBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  desc: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, textAlign: "right", lineHeight: 20 },
+  bottomRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  price: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" },
+  oldPrice: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textDecorationLine: "line-through", fontSize: 11, textAlign: "right" },
+  productActions: { flexDirection: "row", gap: 8 },
+  editBtn: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  cartBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  modalBackdrop: { flex: 1, backgroundColor: "#0008", justifyContent: "flex-end" },
+  modalCard: { backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 18, gap: 10, borderWidth: 1, borderColor: Colors.border },
+  modalTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 18, textAlign: "right" },
+  modalInput: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
+  modalActions: { flexDirection: "row-reverse", gap: 10, marginTop: 4 },
+  cancelBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  cancelText: { fontFamily: "Cairo_700Bold", color: Colors.textSecondary },
+  saveBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  saveText: { fontFamily: "Cairo_700Bold", color: "#001" },
+  imagePick: { height: 110, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, borderStyle: "dashed", backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  imagePickText: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, marginTop: 6 },
+  preview: { width: "100%", height: "100%" },
 });
