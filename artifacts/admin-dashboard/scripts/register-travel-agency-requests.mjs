@@ -26,6 +26,7 @@ if (!layout.includes('/travel-agency-requests')) {
   writeFileSync(layoutPath, layout);
 }
 
+await import('./apply-travel-shipping-admin.mjs').catch(() => {});
 await import('./apply-archive-db-persistence.mjs').catch(() => {});
 await import('./apply-join-request-alerts.mjs').catch(() => {});
 console.log('dashboard route registration complete');
