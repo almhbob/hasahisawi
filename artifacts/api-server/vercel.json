@@ -1,5 +1,13 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "master": false,
+      "main": false
+    }
+  },
+  "ignoreCommand": "exit 0",
   "buildCommand": "node build.mjs",
   "installCommand": "corepack enable && corepack prepare pnpm@10 --activate && pnpm install --no-frozen-lockfile",
   "builds": [
