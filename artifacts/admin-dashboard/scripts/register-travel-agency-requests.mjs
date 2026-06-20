@@ -26,4 +26,6 @@ if (!layout.includes('/travel-agency-requests')) {
   writeFileSync(layoutPath, layout);
 }
 
-console.log('travel agency requests route registration complete');
+await import('./apply-archive-db-persistence.mjs').catch(() => {});
+await import('./apply-join-request-alerts.mjs').catch(() => {});
+console.log('dashboard route registration complete');
