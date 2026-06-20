@@ -6,9 +6,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const appRoot = resolve(repoRoot, 'artifacts/hasahisawi');
 
-const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.3.3';
-const RELEASE_CODE = Number(process.env.RELEASE_CODE || '233');
-const API_HOST = process.env.STORE_API_HOST || 'hasahisawi.onrender.com';
+const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.5.5';
+const RELEASE_CODE = Number(process.env.RELEASE_CODE || '255');
+const API_HOST = process.env.STORE_API_HOST || 'api-server-gilt-ten.vercel.app';
 const API_URL = `https://${API_HOST}`;
 
 function readJson(path) {
@@ -64,9 +64,9 @@ const packageJsonPath = resolve(appRoot, 'package.json');
 const packageJson = readJson(packageJsonPath);
 packageJson.version = RELEASE_VERSION;
 ensureScript(packageJson, 'release:check', 'pnpm -C ../.. run prelaunch:check && pnpm run typecheck');
-ensureScript(packageJson, 'release:android:apk', 'pnpm run release:check && pnpm exec eas build --platform android --profile preview');
-ensureScript(packageJson, 'release:android:aab', 'pnpm run release:check && pnpm exec eas build --platform android --profile production');
-ensureScript(packageJson, 'release:ios', 'pnpm run release:check && pnpm exec eas build --platform ios --profile production-ios');
+ensureScript(packageJson, 'release:android:apk', 'pnpm run release:check && pnpm exec eas build --platform android --profile preview --non-interactive --no-wait');
+ensureScript(packageJson, 'release:android:aab', 'pnpm run release:check && pnpm exec eas build --platform android --profile production --non-interactive --no-wait');
+ensureScript(packageJson, 'release:ios', 'pnpm run release:check && pnpm exec eas build --platform ios --profile production-ios --non-interactive --no-wait');
 ensureScript(packageJson, 'release:all', 'pnpm run release:android:apk && pnpm run release:android:aab && pnpm run release:ios');
 writeJson(packageJsonPath, packageJson);
 
