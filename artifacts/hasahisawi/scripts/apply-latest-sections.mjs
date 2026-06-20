@@ -36,5 +36,6 @@ await import('./apply-glass-minimal-ui.mjs').catch(() => {});
 await import('./apply-driver-inbox-lite.mjs').catch(() => {});
 await import('./apply-women-label-cleanup.mjs').catch(() => {});
 await import('./apply-social-multi-images.mjs').catch(() => {});
+await import('./apply-travel-shipping-services.mjs').catch(() => {});
 await import('./audit-app-services.mjs');
 console.log(changed ? 'sections applied' : 'sections checked');
