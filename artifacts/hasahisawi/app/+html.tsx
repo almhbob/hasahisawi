@@ -32,42 +32,12 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" sizes="167x167" href="/assets/assets/images/icon.png" />
 
         {/* Apple Splash Screens — شاشة البداية لكل موديل iPhone */}
-        {/* iPhone 16 Pro Max */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)"
-          href="/splash/splash-1320x2868.png"
-        />
-        {/* iPhone 16 Pro */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)"
-          href="/splash/splash-1206x2622.png"
-        />
-        {/* iPhone 15 Plus / 14 Plus */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
-          href="/splash/splash-1290x2796.png"
-        />
-        {/* iPhone 15 / 14 / 13 */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
-          href="/splash/splash-1170x2532.png"
-        />
-        {/* iPhone SE */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
-          href="/splash/splash-750x1334.png"
-        />
-        {/* iPad Pro 12.9" */}
-        <link
-          rel="apple-touch-startup-image"
-          media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)"
-          href="/splash/splash-2048x2732.png"
-        />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="/splash/splash-1320x2868.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" href="/splash/splash-1206x2622.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/splash/splash-1290x2796.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/splash/splash-1170x2532.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/splash/splash-750x1334.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="/splash/splash-2048x2732.png" />
 
         {/* Service Worker registration for offline support */}
         <script dangerouslySetInnerHTML={{ __html: `
@@ -93,17 +63,18 @@ export default function Root({ children }: PropsWithChildren) {
             align-items: stretch;
           }
 
-          /* ── Mobile (< 500px): full screen ── */
+          /* ── Mobile & tablet browsers: full screen ── */
           #root {
             display: flex;
             flex-direction: column;
-            width: 100%;
-            min-height: 100%;
+            width: 100vw;
+            max-width: 100vw;
+            min-height: 100dvh;
             overflow: hidden;
           }
 
-          /* ── Tablet & Desktop (≥ 500px): phone frame centered ── */
-          @media (min-width: 500px) {
+          /* ── Desktop only: phone frame centered ── */
+          @media (min-width: 900px) {
             body {
               overflow: hidden;
               height: 100vh;
@@ -130,7 +101,7 @@ export default function Root({ children }: PropsWithChildren) {
             }
           }
 
-          /* ── Large desktop (≥ 1100px): decorative side panels ── */
+          /* ── Large desktop: decorative side panels ── */
           @media (min-width: 1100px) {
             body {
               display: flex;
@@ -186,18 +157,14 @@ export default function Root({ children }: PropsWithChildren) {
             }
           }
 
-          /* ── Scrollbars ── */
           ::-webkit-scrollbar { width: 4px; height: 4px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: rgba(34,197,94,0.25); border-radius: 2px; }
           ::-webkit-scrollbar-thumb:hover { background: rgba(34,197,94,0.45); }
-
-          /* ── Text selection ── */
           ::selection { background: rgba(34,197,94,0.3); color: inherit; }
 
-          /* ── iOS safe area (mobile) ── */
           @supports (padding-top: env(safe-area-inset-top)) {
-            @media (max-width: 499px) {
+            @media (max-width: 899px) {
               body {
                 padding-top: env(safe-area-inset-top);
                 padding-bottom: env(safe-area-inset-bottom);
@@ -207,10 +174,7 @@ export default function Root({ children }: PropsWithChildren) {
             }
           }
 
-          /* ── Prevent text size adjust on iOS ── */
           body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
-          /* ── Smooth rendering ── */
           * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
         `}</style>
       </head>
