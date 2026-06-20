@@ -32,6 +32,8 @@ if (source.includes('label: "معرض المنتجات", sub: "منتجات مخ
 }
 
 if (changed) writeFileSync(indexPath, source);
+await import('./apply-driver-inbox-lite.mjs').catch(() => {});
 await import('./apply-women-label-cleanup.mjs').catch(() => {});
 await import('./apply-social-multi-images.mjs').catch(() => {});
+await import('./audit-app-services.mjs');
 console.log(changed ? 'sections applied' : 'sections checked');
