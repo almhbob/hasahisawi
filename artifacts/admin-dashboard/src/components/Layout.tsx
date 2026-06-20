@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
+import AdminOrderAlerts from "@/components/AdminOrderAlerts";
 
 type NavItem = {
   path: string;
@@ -58,6 +59,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "hsl(222 47% 8%)" }}>
+      <AdminOrderAlerts />
 
       {/* Sidebar */}
       <aside
