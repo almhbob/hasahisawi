@@ -1,0 +1,6 @@
+طلب بناء AAB للإنتاج
+
+Branch: hardening/prelaunch-security-fixes
+Profile: production
+Requested: 2026-06-20
+Purpose: توليد ملف Android App Bundle للنشر على Google Play.
