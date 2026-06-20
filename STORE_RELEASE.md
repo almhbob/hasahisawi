@@ -10,17 +10,17 @@ From the repository root:
 node scripts/prepare-mobile-store-release.mjs
 ```
 
-Default values:
+Current default values:
 
-- Version: `6.3.3`
-- Android versionCode: `233`
-- iOS buildNumber: `233`
-- API: `https://hasahisawi.onrender.com`
+- Version: `6.5.5`
+- Android versionCode: `255`
+- iOS buildNumber: `255`
+- API: `https://api-server-gilt-ten.vercel.app`
 
 Optional override:
 
 ```bash
-RELEASE_VERSION=6.3.4 RELEASE_CODE=234 STORE_API_HOST=hasahisawi.onrender.com node scripts/prepare-mobile-store-release.mjs
+RELEASE_VERSION=6.5.6 RELEASE_CODE=256 STORE_API_HOST=api-server-gilt-ten.vercel.app node scripts/prepare-mobile-store-release.mjs
 ```
 
 This script updates:
@@ -34,7 +34,7 @@ It ensures:
 - Android APK preview profile is configured.
 - Android AAB production profile is configured.
 - iOS production profile is configured.
-- The app points to the Render API.
+- The app points to the production API.
 - Tablet, foldable, and edge-to-edge support remain enabled.
 
 ## 2. Run prelaunch checks
@@ -100,7 +100,7 @@ The repository can prepare the release configuration, but the signed binaries ar
 Before uploading to stores, verify:
 
 ```bash
-curl https://hasahisawi.onrender.com/api/readyz
+curl https://api-server-gilt-ten.vercel.app/api/readyz
 ```
 
 The response should report the service as ready and confirm database/Firebase readiness.
