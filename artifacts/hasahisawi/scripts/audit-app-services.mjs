@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
+const repoRoot = resolve(root, '../..');
 const reportPath = resolve(root, 'service-audit-report.json');
 
 const requiredFiles = [
@@ -19,6 +20,16 @@ const requiredFiles = [
   'app/(tabs)/orgs.tsx',
   'app/(tabs)/cv-builder.tsx',
   'lib/translations.ts',
+  'lib/join-requests.ts',
+];
+
+const repoFiles = [
+  'artifacts/api-server/src/routes/join-requests.ts',
+  'artifacts/api-server/src/routes/extra.ts',
+  'artifacts/api-server/src/routes/food-pos.ts',
+  'artifacts/api-server/src/routes/stabilization.ts',
+  'artifacts/admin-dashboard/src/components/AdminJoinRequestAlerts.tsx',
+  'artifacts/admin-dashboard/scripts/register-travel-agency-requests.mjs',
 ];
 
 const requiredTexts = [
@@ -29,6 +40,15 @@ const requiredTexts = [
   { file: 'app/(tabs)/transport.tsx', text: '/accept', label: 'atomic trip accept endpoint' },
   { file: 'app/(tabs)/social.tsx', text: 'decodePostImages', label: 'social multi-image decoder applied' },
   { file: 'scripts/apply-latest-sections.mjs', text: 'apply-women-label-cleanup', label: 'women label cleanup patch runs' },
+  { file: 'lib/join-requests.ts', text: 'submitJoinRequest', label: 'unified join request app helper' },
+];
+
+const repoRequiredTexts = [
+  { file: 'artifacts/api-server/src/routes/join-requests.ts', text: 'CREATE TABLE IF NOT EXISTS join_requests', label: 'join request table' },
+  { file: 'artifacts/api-server/src/routes/join-requests.ts', text: '/admin/attention-events', label: 'admin join attention endpoint' },
+  { file: 'artifacts/api-server/src/routes/extra.ts', text: 'initJoinRequestsDb', label: 'join routes registered in extra router' },
+  { file: 'artifacts/admin-dashboard/src/components/AdminJoinRequestAlerts.tsx', text: '/admin/attention-events', label: 'admin join alert component' },
+  { file: 'artifacts/admin-dashboard/scripts/register-travel-agency-requests.mjs', text: 'apply-join-request-alerts', label: 'admin join alert patch chained' },
 ];
 
 const forbiddenTexts = [
@@ -42,8 +62,13 @@ const warnings = [];
 const failures = [];
 const passed = [];
 
-function readRel(rel) {
+function readApp(rel) {
   const abs = resolve(root, rel);
+  if (!existsSync(abs)) return null;
+  return readFileSync(abs, 'utf8');
+}
+function readRepo(rel) {
+  const abs = resolve(repoRoot, rel);
   if (!existsSync(abs)) return null;
   return readFileSync(abs, 'utf8');
 }
@@ -52,22 +77,30 @@ for (const rel of requiredFiles) {
   if (existsSync(resolve(root, rel))) passed.push(`exists:${rel}`);
   else failures.push(`missing required file: ${rel}`);
 }
-
+for (const rel of repoFiles) {
+  if (existsSync(resolve(repoRoot, rel))) passed.push(`exists:${rel}`);
+  else failures.push(`missing required repo file: ${rel}`);
+}
 for (const rule of requiredTexts) {
-  const src = readRel(rule.file);
+  const src = readApp(rule.file);
   if (!src) failures.push(`missing file for rule ${rule.label}: ${rule.file}`);
   else if (src.includes(rule.text)) passed.push(`required:${rule.label}`);
   else failures.push(`missing required text (${rule.label}) in ${rule.file}`);
 }
-
+for (const rule of repoRequiredTexts) {
+  const src = readRepo(rule.file);
+  if (!src) failures.push(`missing repo file for rule ${rule.label}: ${rule.file}`);
+  else if (src.includes(rule.text)) passed.push(`required:${rule.label}`);
+  else failures.push(`missing required repo text (${rule.label}) in ${rule.file}`);
+}
 for (const rule of forbiddenTexts) {
-  const src = readRel(rule.file);
+  const src = readApp(rule.file);
   if (!src) continue;
   if (src.includes(rule.text)) failures.push(`forbidden text (${rule.label}) found in ${rule.file}`);
   else passed.push(`forbidden-clean:${rule.label}`);
 }
 
-const index = readRel('app/(tabs)/index.tsx') || '';
+const index = readApp('app/(tabs)/index.tsx') || '';
 const routes = [...index.matchAll(/route:\s*"\/\(tabs\)\/([^"]+)"/g)].map(m => m[1]);
 for (const route of routes) {
   const file = resolve(root, `app/(tabs)/${route}.tsx`);
@@ -76,21 +109,7 @@ for (const route of routes) {
   else warnings.push(`home route has no matching file yet: ${route}`);
 }
 
-const packageJson = JSON.parse(readRel('package.json') || '{}');
-const scripts = packageJson.scripts || {};
-for (const [name, command] of Object.entries(scripts)) {
-  if (['dev','prebuild','build','release:check'].includes(name) && !String(command).includes('audit-app-services')) {
-    warnings.push(`script ${name} does not run audit-app-services yet`);
-  }
-}
-
-const report = {
-  ok: failures.length === 0,
-  generatedAt: new Date().toISOString(),
-  passed,
-  warnings,
-  failures,
-};
+const report = { ok: failures.length === 0, generatedAt: new Date().toISOString(), passed, warnings, failures };
 writeFileSync(reportPath, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));
 if (failures.length) process.exit(1);
