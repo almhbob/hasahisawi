@@ -1,25 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GoogleSignin } from "@/lib/mobile-google";
-import {
-  isBiometricsAvailable,
-  isBiometricsEnabled,
-  setBiometricsEnabled,
-  saveBiometricIdentifier,
-  authenticate,
-} from "@/lib/biometrics";
-import {
-  firebaseLoginEmail,
-  firebaseRegisterEmail,
-  firebaseLogout,
-  firebaseLoginGoogle,
-  firebaseLoginGoogleWeb,
-  onFirebaseAuthChange,
-  getCurrentFirebaseUser,
-  isFirebaseAvailable,
-} from "@/lib/firebase/auth";
-import { fsSetDoc, fsGetDoc, COLLECTIONS } from "@/lib/firebase/firestore";
-import { isFirebaseConfigured } from "@/lib/firebase/index";
 import { getApiUrl } from "@/lib/query-client";
 
 export type AuthUser = {
@@ -34,19 +14,6 @@ export type AuthUser = {
   neighborhood?: string | null;
   avatar_url?: string | null;
   gender?: "male" | "female" | null;
-};
-
-type UserProfile = {
-  uid: string;
-  name: string;
-  nationalId?: string;
-  phone?: string;
-  email?: string;
-  role: "user" | "admin" | "moderator";
-  permissions: string[];
-  neighborhood?: string;
-  birthDate?: string;
-  createdAt?: unknown;
 };
 
 type AuthContextValue = {
@@ -87,152 +54,128 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const TOKEN_KEY = "auth_session_token";
+const USER_KEY = "auth_user_data";
+const GUEST_KEY = "auth_is_guest";
 
-const TOKEN_KEY        = "auth_session_token";
-const BACKEND_TOKEN_KEY = "auth_backend_token";
-const USER_KEY          = "auth_user_data";
-const GUEST_KEY         = "auth_is_guest";
-const IDENTIFIER_KEY    = "auth_biometric_identifier";
-const PASSWORD_KEY      = "auth_biometric_password";
-
-function phoneToEmail(phone: string): string {
-  const clean = phone.replace(/\s+/g, "").replace(/^\+/, "");
-  return `${clean}@hasahisawi.app`;
+async function safeJson<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    const text = await res.text();
+    let data: any = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+    if (!res.ok) throw new Error(data?.error || data?.message || "تعذّر تنفيذ الطلب");
+    return data as T;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function identifierToEmail(phoneOrEmail: string): string {
-  const trimmed = phoneOrEmail.trim();
-  if (trimmed.includes("@")) return trimmed.toLowerCase();
-  return phoneToEmail(trimmed);
+function emailFromPhoneOrEmail(value: string) {
+  const v = value.trim();
+  if (v.includes("@")) return v.toLowerCase();
+  return `${v.replace(/\s+/g, "").replace(/^\+/, "")}@hasahisawi.app`;
 }
 
-function maskNationalId(id?: string): string | null {
-  if (!id || id.length < 4) return id ?? null;
-  return "*".repeat(id.length - 4) + id.slice(-4);
-}
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-/**
- * يُرسل طلباً مع timeout وإعادة المحاولة التلقائية عند فشل الخادم.
- * يحل مشكلة cold-start في Render وأي استجابة غير JSON.
- *
- * @param url     - عنوان الطلب
- * @param options - خيارات fetch
- * @param retries - عدد المحاولات (افتراضي 3)
- * @param timeoutMs - مهلة كل محاولة بالمللي ثانية (افتراضي 45 ثانية)
- */
-async function safeFetchJson(
-  url: string,
-  options: RequestInit,
-  retries = 4,
-  timeoutMs = 15000,
-): Promise<{ res: Response; json: Record<string, unknown> }> {
-  let lastError: Error = new Error("الخادم غير متاح مؤقتاً، حاول مجدداً");
+  const canPost = !isGuest && !!user;
 
-  for (let attempt = 0; attempt < retries; attempt++) {
-    if (attempt > 0) {
-      // تصاعد تدريجي: 5s، 8s، 12s
-      const delay = attempt === 1 ? 5000 : attempt === 2 ? 8000 : 12000;
-      await new Promise(r => setTimeout(r, delay));
+  useEffect(() => {
+    (async () => {
+      try {
+        const [g, t, u] = await Promise.all([
+          AsyncStorage.getItem(GUEST_KEY),
+          AsyncStorage.getItem(TOKEN_KEY),
+          AsyncStorage.getItem(USER_KEY),
+        ]);
+        if (g === "1") {
+          setIsGuest(true);
+          setUser({ id: 0, name: "زائر", role: "guest" });
+        } else if (t && u) {
+          setToken(t);
+          setUser(JSON.parse(u));
+        }
+      } catch {}
+      setIsLoading(false);
+    })();
+  }, []);
+
+  async function saveSession(authUser: AuthUser, authToken: string | null) {
+    setUser(authUser);
+    setToken(authToken);
+    setIsGuest(authUser.role === "guest");
+    if (authUser.role === "guest") {
+      await AsyncStorage.setItem(GUEST_KEY, "1");
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
+    } else {
+      await AsyncStorage.removeItem(GUEST_KEY);
+      if (authToken) await AsyncStorage.setItem(TOKEN_KEY, authToken);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(authUser));
     }
-
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
-
-    let res: Response;
-    try {
-      res = await fetch(url, { ...options, signal: ctrl.signal });
-      clearTimeout(tid);
-    } catch (err: any) {
-      clearTimeout(tid);
-      if (err?.name === "AbortError") {
-        lastError = new Error("انتهت مهلة الاتصال — تحقق من الإنترنت وأعد المحاولة");
-      } else {
-        lastError = new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت");
-      }
-      continue;
-    }
-
-    let text = "";
-    try {
-      text = await res.text();
-    } catch {
-      lastError = new Error("تعذّر قراءة رد الخادم — تحقق من الإنترنت");
-      continue;
-    }
-
-    let json: Record<string, unknown>;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      // أي استجابة غير JSON مشكلة مؤقتة — نُعيد المحاولة دائماً
-      lastError = new Error(
-        res.status >= 500 || text.trim().startsWith("<")
-          ? "الخادم يستيقظ، جاري إعادة المحاولة…"
-          : res.status >= 400
-            ? `خطأ في الخادم (${res.status}) — جاري إعادة المحاولة`
-            : "الخادم يستيقظ، جاري إعادة المحاولة…",
-      );
-      continue;
-    }
-
-    return { res, json };
   }
 
-  throw lastError;
-}
-
-async function backendLogin(phoneOrEmail: string, password: string): Promise<{ user: AuthUser; token: string }> {
-  const base = getApiUrl();
-  if (!base) throw new Error("الخادم غير متاح");
-
-  const { res, json } = await safeFetchJson(
-    `${base}/api/auth/login`,
-    {
+  const login = async (phoneOrEmail: string, password: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone_or_email: phoneOrEmail, password }),
-    },
-  );
-
-  if (!res.ok) throw new Error((json.error as string) || "بيانات غير صحيحة");
-  const u = json.user as Record<string, unknown>;
-  const authUser: AuthUser = {
-    id: u.id as number,
-    name: u.name as string,
-    phone: (u.phone as string | null) ?? null,
-    email: (u.email as string | null) ?? null,
-    role: (u.role as AuthUser["role"]) ?? "user",
-    neighborhood: (u.neighborhood as string | null) ?? null,
-    national_id_masked: (u.national_id_masked as string | null) ?? null,
-    avatar_url: (u.avatar_url as string | null) ?? null,
-    gender: (u.gender as "male" | "female" | null) ?? null,
+      body: JSON.stringify({ phone_or_email: phoneOrEmail.trim(), password }),
+    });
+    await saveSession(data.user, data.token);
   };
-  return { user: authUser, token: json.token as string };
-}
 
-async function backendRegister(
-  name: string,
-  phoneOrEmail: string,
-  password: string,
-  nationalId?: string,
-  birthDate?: string,
-  neighborhood?: string,
-  gender?: string,
-  otpCode?: string,
-): Promise<{ user: AuthUser; token: string }> {
-  const base = getApiUrl();
-  if (!base) throw new Error("الخادم غير متاح");
-  const isEmail = phoneOrEmail.includes("@");
+  const loginAdmin = async (email: string, password: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/admin-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    });
+    await saveSession({ ...data.user, role: data.user.role || "admin" }, data.token);
+  };
 
-  const { res, json } = await safeFetchJson(
-    `${base}/api/auth/register`,
-    {
+  const loginModerator = async (phoneOrEmail: string, password: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/moderator-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone_or_email: phoneOrEmail.trim(), password }),
+    });
+    await saveSession({ ...data.user, role: "moderator" }, data.token);
+  };
+
+  const register = async (
+    name: string,
+    nationalId: string,
+    phoneOrEmail: string,
+    _isEmail: boolean,
+    password: string,
+    birthDate?: string,
+    neighborhood?: string,
+    gender?: string,
+    otpCode?: string,
+  ) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const isEmail = phoneOrEmail.includes("@");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name,
-        phone: isEmail ? undefined : phoneOrEmail,
-        email: isEmail ? phoneOrEmail : undefined,
+        name: name.trim(),
+        phone: isEmail ? undefined : phoneOrEmail.trim(),
+        email: isEmail ? phoneOrEmail.trim().toLowerCase() : undefined,
         password,
         national_id: nationalId || undefined,
         birth_date: birthDate || undefined,
@@ -240,21 +183,93 @@ async function backendRegister(
         gender: gender || undefined,
         otp_code: otpCode || undefined,
       }),
-    },
-  );
-
-  if (!res.ok) throw new Error((json.error as string) || "فشل إنشاء الحساب");
-  const u = json.user as Record<string, unknown>;
-  const authUser: AuthUser = {
-    id: u.id as number,
-    name: u.name as string,
-    phone: (u.phone as string | null) ?? null,
-    email: (u.email as string | null) ?? null,
-    role: (u.role as AuthUser["role"]) ?? "user",
-    neighborhood: (u.neighborhood as string | null) ?? null,
-    national_id_masked: (u.national_id_masked as string | null) ?? null,
-    avatar_url: (u.avatar_url as string | null) ?? null,
-    gender: (u.gender as "male" | "female" | null) ?? null,
+    });
+    await saveSession(data.user, data.token);
   };
-  return { user: authUser, token: json.token as string };
+
+  const registerAdmin = async (name: string, email: string, password: string, adminCode: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/register-admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email: email.trim().toLowerCase(), password, admin_code: adminCode }),
+    });
+    await saveSession({ ...data.user, role: "admin" }, data.token);
+  };
+
+  const enterAsGuest = () => {
+    saveSession({ id: 0, name: "زائر", role: "guest" }, null).catch(() => {});
+  };
+
+  const logout = async () => {
+    try {
+      const base = getApiUrl();
+      if (base && token) await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    } catch {}
+    setUser(null); setToken(null); setIsGuest(false);
+    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, GUEST_KEY]);
+  };
+
+  const refreshUser = async () => {
+    if (!token) return;
+    const base = getApiUrl();
+    if (!base) return;
+    try {
+      const data = await safeJson<{ user: AuthUser }>(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      setUser(data.user);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    } catch {}
+  };
+
+  const setUserGender = async (gender: "male" | "female") => {
+    const updated = user ? { ...user, gender } : user;
+    if (updated) {
+      setUser(updated);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const completeProfile = async (gender: "male" | "female", neighborhood?: string) => {
+    const updated = user ? { ...user, gender, ...(neighborhood ? { neighborhood } : {}) } : user;
+    if (updated) {
+      setUser(updated);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const updateProfile = async (updates: { name?: string; avatar_url?: string | null }) => {
+    const updated = user ? { ...user, ...updates } : user;
+    if (updated) {
+      setUser(updated);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const loginWithGoogle = async (_idToken: string) => { throw new Error("تسجيل Google غير متاح في هذه النسخة"); };
+  const loginWithGoogleWeb = async () => { throw new Error("تسجيل Google غير متاح في هذه النسخة"); };
+  const loginWithBiometrics = async () => false;
+  const enableBiometrics = async (_identifier: string) => {};
+  const disableBiometrics = async () => {};
+  const refreshBackendToken = async () => token;
+
+  return (
+    <AuthContext.Provider value={{
+      user, token, isLoading, isGuest, canPost,
+      biometricsAvailable: false,
+      biometricsEnabled: false,
+      login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics,
+      loginAdmin, loginModerator, register, setUserGender, completeProfile, registerAdmin,
+      enterAsGuest, logout, refreshUser, refreshBackendToken,
+      enableBiometrics, disableBiometrics, updateProfile,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }
