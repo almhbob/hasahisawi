@@ -32,12 +32,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Prepare web environment and GitHub Pages base path
+      - name: Prepare shared web environment
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const easJsonPath = 'artifacts/hasahisawi/eas.json';
+          const eas = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
+          const env = eas.build?.production?.env || eas.build?.preview?.env || {};
+          const lines = Object.entries(env).map(([key, value]) => `${key}=${value}`);
+          fs.writeFileSync('artifacts/hasahisawi/.env', lines.join('\n') + '\n');
+          console.log(`Prepared ${lines.length} web env values`);
+          NODE
+
+      - name: Build GitHub Pages web app under /hasahisawi
         run: |
           node <<'NODE'
           const fs = require('fs');
           const appJsonPath = 'artifacts/hasahisawi/app.json';
-          const easJsonPath = 'artifacts/hasahisawi/eas.json';
           const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
           app.expo.experiments = app.expo.experiments || {};
           app.expo.experiments.baseUrl = '/hasahisawi';
@@ -45,66 +56,86 @@ jobs:
           app.expo.web.scope = '/hasahisawi/';
           app.expo.web.startUrl = '/hasahisawi/';
           fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
-
-          const eas = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
-          const env = eas.build?.production?.env || eas.build?.preview?.env || {};
-          const lines = Object.entries(env).map(([key, value]) => `${key}=${value}`);
-          fs.writeFileSync('artifacts/hasahisawi/.env', lines.join('\n') + '\n');
-          console.log(`Prepared web deploy for v${app.expo.version} with ${lines.length} env values`);
+          console.log(`GitHub Pages export for v${app.expo.version}`);
           NODE
-
-      - name: Export web app
-        working-directory: artifacts/hasahisawi
-        run: pnpm exec expo export --platform web
-
-      - name: Add PWA compatibility files
-        working-directory: artifacts/hasahisawi
-        run: |
-          cp -r public/splash dist/splash 2>/dev/null || true
-          cp public/sw.js dist/sw.js 2>/dev/null || true
-          cp public/manifest.json dist/manifest.json 2>/dev/null || true
-          cp public/icon.png dist/icon.png 2>/dev/null || true
-          cp public/favicon.png dist/favicon.png 2>/dev/null || true
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
-          echo '/* /index.html 200' > dist/_redirects
-          printf '%s\n' \
-            '/*' \
-            '  X-Frame-Options: DENY' \
-            '  X-Content-Type-Options: nosniff' \
-            '  Referrer-Policy: strict-origin-when-cross-origin' \
-            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
-            '' \
-            '/_expo/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            '' \
-            '/assets/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            > dist/_headers
-
-      - name: Publish GitHub Pages docs folder
-        run: |
-          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          pnpm --dir artifacts/hasahisawi exec expo export --platform web
           rm -rf docs
           mkdir -p docs
           cp -r artifacts/hasahisawi/dist/. docs/
-          node <<NODE
+          cp -r artifacts/hasahisawi/public/splash docs/splash 2>/dev/null || true
+          cp artifacts/hasahisawi/public/sw.js docs/sw.js 2>/dev/null || true
+          cp artifacts/hasahisawi/public/manifest.json docs/manifest.json 2>/dev/null || true
+          cp artifacts/hasahisawi/public/icon.png docs/icon.png 2>/dev/null || true
+          cp artifacts/hasahisawi/public/favicon.png docs/favicon.png 2>/dev/null || true
+          cp docs/index.html docs/404.html
+          touch docs/.nojekyll
+          node <<'NODE'
           const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
           fs.writeFileSync('docs/deploy-version.json', JSON.stringify({
             app: 'hasahisawi',
-            version: process.env.VERSION,
+            version: app.expo.version,
+            androidVersionCode: app.expo.android.versionCode,
+            iosBuildNumber: app.expo.ios.buildNumber,
             commit: process.env.GITHUB_SHA,
             deployedAt: new Date().toISOString(),
+            target: 'github-pages',
             source: 'web-deploy-latest'
           }, null, 2) + '\n');
           NODE
+
+      - name: Commit GitHub Pages docs folder
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f docs/
           git commit -m "deploy: web PWA v${VERSION} latest [auto]" || echo "No docs changes"
-          git push origin master
-        env:
-          VERSION: ${{ github.sha }}
+          git pull --rebase origin master || true
+          git push origin master || (git pull --rebase origin master && git push origin master)
+
+      - name: Build Cloudflare web app at root
+        run: |
+          git checkout -- artifacts/hasahisawi/app.json
+          node <<'NODE'
+          const fs = require('fs');
+          const appJsonPath = 'artifacts/hasahisawi/app.json';
+          const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+          app.expo.experiments = app.expo.experiments || {};
+          app.expo.experiments.baseUrl = '';
+          app.expo.web = app.expo.web || {};
+          app.expo.web.scope = '/';
+          app.expo.web.startUrl = '/';
+          fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
+          console.log(`Cloudflare export for v${app.expo.version}`);
+          NODE
+          rm -rf artifacts/hasahisawi/dist cf-dist
+          pnpm --dir artifacts/hasahisawi exec expo export --platform web
+          mkdir -p cf-dist
+          cp -r artifacts/hasahisawi/dist/. cf-dist/
+          cp -r artifacts/hasahisawi/public/splash cf-dist/splash 2>/dev/null || true
+          cp artifacts/hasahisawi/public/sw.js cf-dist/sw.js 2>/dev/null || true
+          cp artifacts/hasahisawi/public/manifest.json cf-dist/manifest.json 2>/dev/null || true
+          cp artifacts/hasahisawi/public/icon.png cf-dist/icon.png 2>/dev/null || true
+          cp artifacts/hasahisawi/public/favicon.png cf-dist/favicon.png 2>/dev/null || true
+          cp cf-dist/index.html cf-dist/404.html
+          echo '/hasahisawi/* /:splat 302' > cf-dist/_redirects
+          echo '/hasahisawi / 302' >> cf-dist/_redirects
+          echo '/* /index.html 200' >> cf-dist/_redirects
+          node <<'NODE'
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
+          fs.writeFileSync('cf-dist/deploy-version.json', JSON.stringify({
+            app: 'hasahisawi',
+            version: app.expo.version,
+            androidVersionCode: app.expo.android.versionCode,
+            iosBuildNumber: app.expo.ios.buildNumber,
+            commit: process.env.GITHUB_SHA,
+            deployedAt: new Date().toISOString(),
+            target: 'cloudflare-pages',
+            source: 'web-deploy-latest'
+          }, null, 2) + '\n');
+          NODE
 
       - name: Deploy Cloudflare Pages
         env:
@@ -115,6 +146,4 @@ jobs:
             echo "Cloudflare secrets not set — skipped"
             exit 0
           fi
-          cp -r docs cf-dist
-          find cf-dist -name "*.html" -exec sed -i 's|/hasahisawi/|/|g' {} \;
           npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
