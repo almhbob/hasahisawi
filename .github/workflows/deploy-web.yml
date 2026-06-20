@@ -5,11 +5,10 @@ on:
   push:
     branches: [master]
     paths:
-      - 'artifacts/hasahisawi/app/**'
-      - 'artifacts/hasahisawi/lib/**'
-      - 'artifacts/hasahisawi/components/**'
-      - 'artifacts/hasahisawi/app.json'
+      - 'artifacts/hasahisawi/**'
+      - '.github/workflows/deploy-web.yml'
       - '.web-deploy-trigger'
+      - '.web-release-trigger'
 
 permissions:
   contents: write
@@ -18,9 +17,9 @@ permissions:
 
 jobs:
   deploy:
-    name: Build + Deploy Web PWA
+    name: Build and publish web PWA
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,69 +33,174 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: artifacts/hasahisawi/pnpm-lock.yaml
+          cache: pnpm
 
-      - name: Install dependencies
-        working-directory: artifacts/hasahisawi
+      - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Export web
-        working-directory: artifacts/hasahisawi
-        run: pnpm exec expo export --platform web
-        env:
-          EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
+      - name: Prepare web env
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const easJsonPath = 'artifacts/hasahisawi/eas.json';
+          const eas = fs.existsSync(easJsonPath) ? JSON.parse(fs.readFileSync(easJsonPath, 'utf8')) : {};
+          const env = eas.build?.production?.env || eas.build?.preview?.env || {};
+          const fallback = {
+            EXPO_PUBLIC_API_URL: 'https://api-server-gilt-ten.vercel.app',
+            EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'hasahisawi.firebaseapp.com',
+            EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'hasahisawi',
+            EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: 'hasahisawi.firebasestorage.app',
+            EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161',
+            EXPO_PUBLIC_FIREBASE_APP_ID: '1:133656291161:web:7d0a88a80d3be1af418e48'
+          };
+          const merged = { ...fallback, ...env };
+          fs.writeFileSync('artifacts/hasahisawi/.env', Object.entries(merged).map(([k,v]) => `${k}=${v}`).join('\n') + '\n');
+          console.log(`Prepared ${Object.keys(merged).length} env values`);
+          NODE
 
-      - name: Add PWA + Cloudflare files
+      - name: Apply latest app patches
         working-directory: artifacts/hasahisawi
         run: |
-          cp -r public/splash dist/splash 2>/dev/null || true
-          cp public/sw.js dist/sw.js 2>/dev/null || true
-          cp public/manifest.json dist/manifest.json 2>/dev/null || true
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
+          node scripts/apply-latest-sections.mjs || true
+          node scripts/apply-driver-inbox-lite.mjs || true
+          node scripts/apply-women-label-cleanup.mjs || true
+          node scripts/apply-social-multi-images.mjs || true
 
-          # SPA fallback for Cloudflare Pages
-          echo '/* /index.html 200' > dist/_redirects
+      - name: Build GitHub Pages export under /hasahisawi
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const appJsonPath = 'artifacts/hasahisawi/app.json';
+          const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+          app.expo.experiments = app.expo.experiments || {};
+          app.expo.experiments.baseUrl = '/hasahisawi';
+          app.expo.web = app.expo.web || {};
+          app.expo.web.scope = '/hasahisawi/';
+          app.expo.web.startUrl = '/hasahisawi/';
+          fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
+          NODE
+          rm -rf artifacts/hasahisawi/dist docs
+          pnpm --dir artifacts/hasahisawi exec expo export --platform web
+          mkdir -p docs
+          cp -r artifacts/hasahisawi/dist/. docs/
+          cp -r artifacts/hasahisawi/public/splash docs/splash 2>/dev/null || true
+          cp artifacts/hasahisawi/public/sw.js docs/sw.js 2>/dev/null || true
+          cp artifacts/hasahisawi/public/manifest.json docs/manifest.json 2>/dev/null || true
+          cp artifacts/hasahisawi/public/icon.png docs/icon.png 2>/dev/null || true
+          cp artifacts/hasahisawi/public/favicon.png docs/favicon.png 2>/dev/null || true
+          cp docs/index.html docs/404.html
+          touch docs/.nojekyll
 
-          # Security + caching headers for Cloudflare Pages
-          cat > dist/_headers << 'HEADERS_EOF'
-/*
-  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  X-XSS-Protection: 1; mode=block
+      - name: Fix GitHub Pages base paths
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const base = '/hasahisawi';
+          for (const file of ['docs/index.html', 'docs/404.html']) {
+            let html = fs.readFileSync(file, 'utf8');
+            html = html
+              .replaceAll('href="/_expo/', `href="${base}/_expo/`)
+              .replaceAll('src="/_expo/', `src="${base}/_expo/`)
+              .replaceAll('href="/assets/', `href="${base}/assets/`)
+              .replaceAll('src="/assets/', `src="${base}/assets/`)
+              .replaceAll('href="/splash/', `href="${base}/splash/`)
+              .replaceAll('src="/splash/', `src="${base}/splash/`)
+              .replaceAll('href="/manifest.json"', `href="${base}/manifest.json"`)
+              .replaceAll('href="/favicon.png"', `href="${base}/favicon.png"`)
+              .replaceAll("register('/sw.js')", `register('${base}/sw.js')`)
+              .replaceAll('url(/assets/', `url(${base}/assets/`)
+              .replaceAll('url("/assets/', `url("${base}/assets/`)
+              .replaceAll("url('/assets/", `url('${base}/assets/`);
+            if (!html.includes(`${base}/_expo/`) && !html.includes(`${base}/assets/`)) {
+              throw new Error(`${file} did not receive GitHub Pages base paths`);
+            }
+            fs.writeFileSync(file, html);
+          }
+          if (fs.existsSync('docs/manifest.json')) {
+            const manifest = JSON.parse(fs.readFileSync('docs/manifest.json', 'utf8'));
+            manifest.start_url = `${base}/`;
+            manifest.scope = `${base}/`;
+            if (manifest.icons) {
+              manifest.icons = manifest.icons.map(icon => ({
+                ...icon,
+                src: String(icon.src || '').startsWith('/') ? `${base}${icon.src}` : icon.src,
+              }));
+            }
+            fs.writeFileSync('docs/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          }
+          NODE
 
-/_expo/*
-  Cache-Control: public, max-age=31536000, immutable
+      - name: Write deploy metadata
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
+          fs.writeFileSync('docs/deploy-version.json', JSON.stringify({
+            app: 'hasahisawi',
+            version: app.expo.version,
+            androidVersionCode: app.expo.android.versionCode,
+            iosBuildNumber: app.expo.ios.buildNumber,
+            commit: process.env.GITHUB_SHA,
+            deployedAt: new Date().toISOString(),
+            target: 'github-pages',
+            source: 'deploy-web'
+          }, null, 2) + '\n');
+          NODE
 
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/splash/*
-  Cache-Control: public, max-age=86400
-HEADERS_EOF
-
-      - name: Deploy to GitHub Pages (docs/)
+      - name: Commit docs for GitHub Pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master
-          git reset --hard origin/master
-          rm -rf docs/
-          mkdir -p docs
-          cp -r artifacts/hasahisawi/dist/. docs/
           git add -f docs/
-          git diff --cached --quiet && echo "No changes to deploy" || \
-            git commit -m "deploy: web PWA → docs/ [auto]"
-          git push origin master
+          if git diff --cached --quiet; then
+            echo "No docs changes"
+          else
+            git commit -m "deploy: web PWA docs latest [auto]"
+            git pull --rebase origin master || true
+            git push origin master
+          fi
+
+      - name: Build Cloudflare root export
+        run: |
+          git checkout -- artifacts/hasahisawi/app.json
+          rm -rf artifacts/hasahisawi/dist cf-dist
+          node <<'NODE'
+          const fs = require('fs');
+          const appJsonPath = 'artifacts/hasahisawi/app.json';
+          const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+          app.expo.experiments = app.expo.experiments || {};
+          app.expo.experiments.baseUrl = '';
+          app.expo.web = app.expo.web || {};
+          app.expo.web.scope = '/';
+          app.expo.web.startUrl = '/';
+          fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
+          NODE
+          pnpm --dir artifacts/hasahisawi exec expo export --platform web
+          mkdir -p cf-dist
+          cp -r artifacts/hasahisawi/dist/. cf-dist/
+          cp -r artifacts/hasahisawi/public/splash cf-dist/splash 2>/dev/null || true
+          cp artifacts/hasahisawi/public/sw.js cf-dist/sw.js 2>/dev/null || true
+          cp artifacts/hasahisawi/public/manifest.json cf-dist/manifest.json 2>/dev/null || true
+          cp artifacts/hasahisawi/public/icon.png cf-dist/icon.png 2>/dev/null || true
+          cp artifacts/hasahisawi/public/favicon.png cf-dist/favicon.png 2>/dev/null || true
+          cp cf-dist/index.html cf-dist/404.html
+          echo '/hasahisawi/* /:splat 302' > cf-dist/_redirects
+          echo '/hasahisawi / 302' >> cf-dist/_redirects
+          echo '/* /index.html 200' >> cf-dist/_redirects
+          node <<'NODE'
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
+          fs.writeFileSync('cf-dist/deploy-version.json', JSON.stringify({
+            app: 'hasahisawi',
+            version: app.expo.version,
+            androidVersionCode: app.expo.android.versionCode,
+            iosBuildNumber: app.expo.ios.buildNumber,
+            commit: process.env.GITHUB_SHA,
+            deployedAt: new Date().toISOString(),
+            target: 'cloudflare-pages',
+            source: 'deploy-web'
+          }, null, 2) + '\n');
+          NODE
 
       - name: Deploy to Cloudflare Pages
         env:
@@ -104,50 +208,11 @@ HEADERS_EOF
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "⚠️  CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set — skipping"
-          else
-            # إنشاء المشروع إذا لم يكن موجوداً
-            curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"hasahisawi","production_branch":"master"}' \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project OK:', d.get('result',{}).get('subdomain','already exists'))" || true
-
-            # إنشاء نسخة Cloudflare: إزالة prefix /hasahisawi/ من HTML
-            cp -r docs cf-dist
-
-            # إصلاح مسارات HTML
-            find cf-dist -name "*.html" -exec sed -i 's|"/hasahisawi/|"/|g' {} \;
-
-            # نسخ الخطوط لمسار بسيط /fonts/ (تجنب %40 encoding لـ @ في المسارات)
-            mkdir -p cf-dist/fonts
-            find cf-dist/assets/__node_modules -name "*.ttf" -exec cp {} cf-dist/fonts/ \;
-
-            # إنشاء CSS لإعادة توجيه @font-face للمسار الجديد
-            for f in cf-dist/fonts/*.ttf; do
-              fname=$(basename "$f")
-              fontname=$(echo "$fname" | sed 's/\.[a-f0-9]\{32\}\.ttf$//')
-              echo "@font-face { font-family: '${fontname}'; src: url('/fonts/${fname}') format('truetype'); }"
-            done > /tmp/fonts-override.css
-
-            # حقن CSS في index.html
-            python3 -c "
-import sys
-with open('cf-dist/index.html','r') as f: c=f.read()
-with open('/tmp/fonts-override.css','r') as f: css=f.read()
-c=c.replace('</head>','<style id=\"cf-fonts\">' + css + '</style></head>',1)
-with open('cf-dist/index.html','w') as f: f.write(c)
-cp_404=c
-with open('cf-dist/404.html','w') as f: f.write(cp_404)
-print('Fonts CSS injected')
-"
-
-            npx wrangler@3 pages deploy cf-dist \
-              --project-name=hasahisawi \
-              --branch=master
-            echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
+            echo "Cloudflare secrets are not configured — skipped Cloudflare deploy"
+            exit 0
           fi
+          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
 
       - run: |
-          echo "✅ GitHub Pages → https://almhbob.github.io/hasahisawi/"
-          echo "✅ Cloudflare Pages → https://hasahisawi.pages.dev"
+          echo "GitHub Pages: https://almhbob.github.io/hasahisawi/"
+          echo "Cloudflare Pages: https://hasahisawi.pages.dev/"
