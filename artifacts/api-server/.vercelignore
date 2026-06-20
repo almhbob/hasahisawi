@@ -1,0 +1,20 @@
+# Keep Vercel API builds focused and reduce unnecessary build work
+../hasahisawi
+../admin-dashboard
+../firebase-functions
+../mockup-sandbox
+../../docs
+../../artifacts/hasahisawi/android
+../../artifacts/hasahisawi/ios
+../../artifacts/hasahisawi/dist
+../../artifacts/hasahisawi/.expo
+../../artifacts/hasahisawi/node_modules
+../../artifacts/admin-dashboard/node_modules
+**/*.apk
+**/*.aab
+**/.expo
+**/android
+**/ios
+**/coverage
+**/dist
+**/build
