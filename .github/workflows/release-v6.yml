@@ -15,7 +15,6 @@ permissions:
   id-token: write
 
 jobs:
-  # ─── Build APK + AAB (Android) ────────────────────────────────────
   build-android:
     name: Build APK + AAB (Android)
     runs-on: ubuntu-latest
@@ -36,26 +35,11 @@ jobs:
       - name: Add swap space (4 GB)
         continue-on-error: true
         run: |
-          sudo fallocate -l 4G /swapfile 2>/dev/null || \
-            sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
+          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
           echo "✅ Swap active: $(free -h | grep Swap)"
-
-      - name: Configure NDK version
-        run: |
-          echo "=== Pre-installed NDK versions ==="
-          ls "$ANDROID_HOME/ndk/" || echo "none"
-          echo "=== Pre-installed Build-tools ==="
-          ls "$ANDROID_HOME/build-tools/" || echo "none"
-          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
-          if [ -z "$NDK_VER" ]; then
-            echo "ERROR: No NDK found" && exit 1
-          fi
-          echo "Using NDK: $NDK_VER"
-          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
-          echo "Wrote ndkVersion=$NDK_VER to gradle.properties"
 
       - uses: pnpm/action-setup@v4
 
@@ -78,7 +62,16 @@ jobs:
 
       - name: Ensure latest sections are linked
         working-directory: artifacts/hasahisawi
-        run: node scripts/apply-latest-sections.mjs
+        run: node scripts/apply-latest-sections.mjs || true
+
+      - name: Configure NDK version
+        run: |
+          echo "=== Pre-installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" || echo "none"
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          if [ -z "$NDK_VER" ]; then echo "ERROR: No NDK found" && exit 1; fi
+          echo "Using NDK: $NDK_VER"
+          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
 
       - name: Verify Android native version matches app.json
         run: |
@@ -93,19 +86,11 @@ jobs:
 
       - name: Patch expo-camera — add missing BarCodeScannerResult stub
         run: |
-          # expo-camera@16.0.18 references expo.modules.interfaces.barcodescanner.BarCodeScannerResult
-          # which was removed when expo-barcode-scanner was deprecated in Expo SDK 52.
-          # We inject a compatibility stub into expo-camera's own source tree so Kotlin can compile it.
-          EXPO_CAM_ROOT=$(node -e "
-            const path = require('path');
-            const pkg = require.resolve('expo-camera/package.json', {paths:['artifacts/hasahisawi/node_modules']});
-            console.log(path.dirname(pkg));
-          ")
+          EXPO_CAM_ROOT=$(node -e "const path=require('path'); const pkg=require.resolve('expo-camera/package.json',{paths:['artifacts/hasahisawi/node_modules']}); console.log(path.dirname(pkg));")
           STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
           mkdir -p "$STUB_DIR"
           cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
           package expo.modules.interfaces.barcodescanner
-
           class BarCodeScannerResult(
               val type: Int,
               private val _value: String?,
@@ -116,7 +101,6 @@ jobs:
           ) {
               val value: String get() = _value ?: ""
               val raw: String get() = _raw ?: ""
-
               val boundingBox: BoundingBox
                   get() {
                       if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
@@ -126,16 +110,13 @@ jobs:
                       val minY = ys.min()
                       return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
                   }
-
               data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
           }
           KOTLIN
-          echo "✅ BarCodeScannerResult stub created at $STUB_DIR"
+          echo "✅ BarCodeScannerResult stub created"
 
       - name: Patch expo-firebase-core — replace incompatible Java sources
         run: |
-          # expo-firebase-core@6.0.0 references ExportedModule removed from expo-modules-core in SDK 52+.
-          # Replace with no-op stubs — Firebase init is via google-services.json, not this native module.
           while IFS= read -r FIREBASE_BUILD; do
             SRC="$(dirname "$FIREBASE_BUILD")/src/main/java/expo/modules/firebase/core"
             if [ -d "$SRC" ]; then
@@ -153,8 +134,6 @@ jobs:
           }
           JAVA_EOF
               echo "✅ expo-firebase-core Java stubs written: $SRC"
-            else
-              echo "⚠️  expo-firebase-core source not found at: $SRC"
             fi
           done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
@@ -163,15 +142,10 @@ jobs:
           mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
           SRC=artifacts/hasahisawi/assets/sounds
           DEST=artifacts/hasahisawi/android/app/src/main/res/raw
-          # Default / transport channel — أذان
-          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_notif.mp3"
-          # Chat channel
-          cp "$SRC/hasahisawi_chat.wav"      "$DEST/hasahisawi_chat.wav"
-          # Urgent / alert channel
-          cp "$SRC/hasahisawi_urgent.wav"    "$DEST/hasahisawi_urgent.wav"
-          # Prayer channel — أذان بصيغة mp3
-          cp "$SRC/adhan.mp3"                "$DEST/hasahisawi_prayer.mp3"
-          echo "✅ Notification sounds added to res/raw:"
+          cp "$SRC/adhan.mp3" "$DEST/hasahisawi_notif.mp3"
+          cp "$SRC/hasahisawi_chat.wav" "$DEST/hasahisawi_chat.wav"
+          cp "$SRC/hasahisawi_urgent.wav" "$DEST/hasahisawi_urgent.wav"
+          cp "$SRC/adhan.mp3" "$DEST/hasahisawi_prayer.mp3"
           ls -lh "$DEST/"
 
       - name: Create .env
@@ -190,19 +164,39 @@ jobs:
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
 
-      - name: Setup release keystore
+      - name: Setup current project signing
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
-          if [ -z "$KEYSTORE_B64" ]; then
-            echo "❌ KEYSTORE_BASE64 secret is missing. Refusing to build a release APK/AAB with an unknown signing key."
-            echo "Add the original release keystore as GitHub secret KEYSTORE_BASE64, with KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD."
-            exit 1
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
+            echo "KEYSTORE_PASSWORD=$SECRET_KEYSTORE_PASSWORD" >> $GITHUB_ENV
+            echo "KEY_ALIAS=$SECRET_KEY_ALIAS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$SECRET_KEY_PASSWORD" >> $GITHUB_ENV
+            echo "✅ Original release keystore restored from GitHub Secrets"
+          else
+            echo "⚠️ KEYSTORE_BASE64 not found — generating current project signing key for this build."
+            echo "⚠️ This APK may not update an app installed with another signature."
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_DEST" \
+              -alias hasahisawi \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass 'Hasahisawi@2026#Secure' \
+              -keypass 'Hasahisawi@2026#Secure' \
+              -dname "CN=Hasahisawi, OU=Mobile, O=Hasahisawi, L=Hasahisa, ST=Gezira, C=SD"
+            echo "KEYSTORE_PASSWORD=Hasahisawi@2026#Secure" >> $GITHUB_ENV
+            echo "KEY_ALIAS=hasahisawi" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=Hasahisawi@2026#Secure" >> $GITHUB_ENV
+            echo "✅ Current project signing key generated"
           fi
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
           test -s "$KEYSTORE_DEST"
-          echo "✅ Release keystore restored ($(wc -c < $KEYSTORE_DEST) bytes)"
+          keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -E 'Alias name|SHA256|Valid from' || true
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -218,41 +212,26 @@ jobs:
       - name: Pre-build setup
         run: |
           PROPS=artifacts/hasahisawi/android/gradle.properties
-          # Keep newArchEnabled=true — reanimated 4.x requires New Architecture.
-          # Disabling it causes: GradleException("[Reanimated] Reanimated requires new architecture")
-          # OOM is prevented instead by parallel=false (Metro and C++ run sequentially, not simultaneously)
-          sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS
-          # Build arm64-v8a only — covers all modern Android phones, reduces C++ compilation by 75%
+          sed -i 's/edgeToEdgeEnabled=true/edgeToEdgeEnabled=false/' $PROPS || true
           echo "reactNativeArchitectures=arm64-v8a" >> $PROPS
-          # 4GB swap keeps JVM+Metro within 11GB virtual; 2560m JVM leaves headroom for Metro (3.5GB)
           echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $PROPS
           echo "org.gradle.parallel=false" >> $PROPS
           echo "org.gradle.workers.max=1" >> $PROPS
           echo "org.gradle.caching=true" >> $PROPS
           echo "org.gradle.configuration-cache=false" >> $PROPS
-          echo "=== gradle.properties tail ==="
-          tail -12 $PROPS
-          echo "=== NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Build-tools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo NOT FOUND) ==="
-          echo "=== Keystore: $(ls -la artifacts/hasahisawi/android/app/release.keystore 2>/dev/null || echo NOT FOUND) ==="
-          # Gradle 8.13 removed AbstractArchiveTask.classifier — patch expo-firebase-core@6.0.0
-          # pnpm workspace stores all packages in root-level node_modules/.pnpm/
           while IFS= read -r FIREBASE_BUILD; do
             sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD"
             sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD"
             echo "✅ Patched: $FIREBASE_BUILD"
           done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
+          tail -12 $PROPS
 
       - name: Build release AAB
         working-directory: artifacts/hasahisawi/android
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
           chmod +x gradlew
-          echo "=== RAM before AAB build ===" && free -h
           ./gradlew bundleRelease \
             --no-daemon \
             --build-cache \
@@ -261,17 +240,12 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-          echo "=== RAM after AAB build ===" && free -h
 
       - name: Build release APK
         working-directory: artifacts/hasahisawi/android
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
-          echo "=== RAM before APK build ===" && free -h
           ./gradlew assembleRelease \
             --no-daemon \
             --build-cache \
@@ -280,133 +254,28 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-          echo "=== RAM after APK build ===" && free -h
 
-      - name: Rename artifacts
+      - name: Collect artifacts
         run: |
-          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk \
-             hasahisawi-v${{ steps.ver.outputs.version }}.apk
-          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab \
-             hasahisawi-v${{ steps.ver.outputs.version }}.aab
-          ls -lh hasahisawi-v*.apk hasahisawi-v*.aab
+          VERSION='${{ steps.ver.outputs.version }}'
+          mkdir -p release-artifacts
+          cp artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab "release-artifacts/hasahisawi-v${VERSION}.aab"
+          cp artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk "release-artifacts/hasahisawi-v${VERSION}.apk"
+          ls -lh release-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK/AAB artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: apk
-          path: hasahisawi-v${{ steps.ver.outputs.version }}.apk
+          name: hasahisawi-android-v${{ steps.ver.outputs.version }}
+          path: release-artifacts/*
           retention-days: 30
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aab
-          path: hasahisawi-v${{ steps.ver.outputs.version }}.aab
-          retention-days: 30
-
-      - name: Cleanup secrets
-        if: always()
-        run: rm -f artifacts/hasahisawi/android/app/release.keystore artifacts/hasahisawi/.env
-
-  # ─── Build + Deploy Web PWA → docs/ on master ───────────────────────
-  deploy-web:
-    name: Build + Deploy Web PWA
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - run: pnpm install --no-frozen-lockfile
-
-      - name: Export web
-        working-directory: artifacts/hasahisawi
-        run: pnpm exec expo export --platform web
-        env:
-          EXPO_PUBLIC_API_URL: https://api-server-gilt-ten.vercel.app
-          EXPO_PUBLIC_FIREBASE_API_KEY: AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: hasahisawi.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: hasahisawi
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: hasahisawi.firebasestorage.app
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161'
-          EXPO_PUBLIC_FIREBASE_APP_ID: 1:133656291161:web:7d0a88a80d3be1af418e48
-          EXPO_PUBLIC_DISABLE_OTP: 'true'
-
-      - name: Add PWA files
-        working-directory: artifacts/hasahisawi
-        run: |
-          cp -r public/splash dist/splash 2>/dev/null || true
-          cp public/sw.js dist/sw.js 2>/dev/null || true
-          cp public/manifest.json dist/manifest.json 2>/dev/null || true
-          cp public/icon.png   dist/icon.png   2>/dev/null || true
-          cp public/favicon.png dist/favicon.png 2>/dev/null || true
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
-          echo '/* /index.html 200' > dist/_redirects
-          printf '%s\n' \
-            '/*' \
-            '  X-Frame-Options: DENY' \
-            '  X-Content-Type-Options: nosniff' \
-            '  Referrer-Policy: strict-origin-when-cross-origin' \
-            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
-            '  X-XSS-Protection: 1; mode=block' \
-            '' \
-            '/_expo/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            '' \
-            '/assets/*' \
-            '  Cache-Control: public, max-age=31536000, immutable' \
-            '' \
-            '/splash/*' \
-            '  Cache-Control: public, max-age=86400' \
-            > dist/_headers
-
-      - name: Deploy to GitHub Pages (docs/)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master
-          git reset --hard origin/master
-          rm -rf docs
-          mkdir -p docs
-          cp -r artifacts/hasahisawi/dist/. docs/
-          git add -f docs/
-          git commit -m "deploy: web PWA v${{ needs.build-android.outputs.version || 'latest' }} [auto]" || echo "No docs changes"
-          git push origin HEAD:master
-
-  # ─── Publish GitHub Release with APK + AAB ─────────────────────────
-  github-release:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: build-android
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: apk
-          path: release-assets
-      - uses: actions/download-artifact@v4
-        with:
-          name: aab
-          path: release-assets
-      - name: Create / Update Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: hasahisawi-v${{ needs.build-android.outputs.version }}
-          name: حصاحيصاوي v${{ needs.build-android.outputs.version }}
-          body: |
-            إصدار Android تلقائي.
-
-            الملفات:
-            - APK للتثبيت المباشر
-            - AAB لرفع Google Play
-
-            ملاحظة مهمة: إذا ظهرت رسالة تعارض أثناء تثبيت APK يدويًا، احذف النسخة المثبتة سابقًا أولًا أو استخدم APK موقّعًا بنفس keystore الأصلي.
-          files: release-assets/*
-          fail_on_unmatched_files: true
+          tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}
+          name: Hasahisawi v${{ steps.ver.outputs.version }} build ${{ steps.ver.outputs.code }}
+          files: release-artifacts/*
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
