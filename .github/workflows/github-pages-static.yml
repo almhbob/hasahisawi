@@ -1,0 +1,55 @@
+name: Deploy Static Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - hardening/prelaunch-security-fixes
+    paths:
+      - index.html
+      - 404.html
+      - privacy.html
+      - delete-account.html
+      - _headers
+      - _redirects
+      - LATEST_UPDATE_STATUS.md
+      - .github/workflows/github-pages-static.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages-static
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare static site
+        run: |
+          mkdir -p public
+          cp index.html 404.html privacy.html delete-account.html public/
+          cp _headers _redirects public/ || true
+          cp LATEST_UPDATE_STATUS.md public/ || true
+          touch public/.nojekyll
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
