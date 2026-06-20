@@ -1,0 +1,244 @@
+name: Android APK + AAB Current Signing
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.android-current-build-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Build APK first, then AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Add swap space
+        continue-on-error: true
+        run: |
+          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Apply latest app patches
+        working-directory: artifacts/hasahisawi
+        run: |
+          node scripts/apply-latest-sections.mjs || true
+          node scripts/apply-driver-inbox-lite.mjs || true
+
+      - name: Read version
+        id: ver
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          echo "Building Hasahisawi v$VERSION build $CODE"
+
+      - name: Prepare Android signing and Gradle properties
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
+          PROPS=artifacts/hasahisawi/android/gradle.properties
+          mkdir -p artifacts/hasahisawi/android/app
+
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
+            STORE_PASSWORD="$SECRET_KEYSTORE_PASSWORD"
+            KEY_ALIAS_VALUE="$SECRET_KEY_ALIAS"
+            KEY_PASSWORD_VALUE="$SECRET_KEY_PASSWORD"
+            echo "Using original release keystore from GitHub Secrets"
+          else
+            STORE_PASSWORD="Hasahisawi2026Secure"
+            KEY_ALIAS_VALUE="hasahisawi"
+            KEY_PASSWORD_VALUE="Hasahisawi2026Secure"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_DEST" \
+              -alias "$KEY_ALIAS_VALUE" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "$STORE_PASSWORD" \
+              -keypass "$KEY_PASSWORD_VALUE" \
+              -dname "CN=Hasahisawi, OU=Mobile, O=Hasahisawi, L=Hasahisa, ST=Gezira, C=SD"
+            echo "Generated current project signing key"
+          fi
+
+          test -s "$KEYSTORE_DEST"
+          {
+            echo ""
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS_VALUE"
+            echo "keyPassword=$KEY_PASSWORD_VALUE"
+            echo "android.injected.signing.store.file=$GITHUB_WORKSPACE/$KEYSTORE_DEST"
+            echo "android.injected.signing.store.password=$STORE_PASSWORD"
+            echo "android.injected.signing.key.alias=$KEY_ALIAS_VALUE"
+            echo "android.injected.signing.key.password=$KEY_PASSWORD_VALUE"
+            echo "reactNativeArchitectures=arm64-v8a"
+            echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+            echo "org.gradle.parallel=false"
+            echo "org.gradle.workers.max=1"
+            echo "org.gradle.caching=true"
+            echo "org.gradle.configuration-cache=false"
+          } >> "$PROPS"
+
+          echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
+          echo "KEYSTORE_PASSWORD=$STORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_ALIAS_VALUE" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASSWORD_VALUE" >> $GITHUB_ENV
+          keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA256|Valid from' || true
+
+      - name: Configure NDK
+        run: |
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          if [ -z "$NDK_VER" ]; then echo "No NDK found" && exit 1; fi
+          echo "ndkVersion=$NDK_VER" >> artifacts/hasahisawi/android/gradle.properties
+          echo "Using NDK $NDK_VER"
+
+      - name: Patch native compatibility
+        run: |
+          EXPO_CAM_ROOT=$(node -e "const path=require('path'); const pkg=require.resolve('expo-camera/package.json',{paths:['artifacts/hasahisawi/node_modules']}); console.log(path.dirname(pkg));")
+          STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
+          mkdir -p "$STUB_DIR"
+          cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
+          package expo.modules.interfaces.barcodescanner
+          class BarCodeScannerResult(
+              val type: Int,
+              private val _value: String?,
+              private val _raw: String?,
+              var cornerPoints: MutableList<Int>,
+              var referenceImageHeight: Int,
+              var referenceImageWidth: Int,
+          ) {
+              val value: String get() = _value ?: ""
+              val raw: String get() = _raw ?: ""
+              val boundingBox: BoundingBox
+                  get() {
+                      if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
+                      val xs = cornerPoints.indices.filter { it % 2 == 0 }.map { cornerPoints[it] }
+                      val ys = cornerPoints.indices.filter { it % 2 != 0 }.map { cornerPoints[it] }
+                      val minX = xs.min()
+                      val minY = ys.min()
+                      return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
+                  }
+              data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
+          }
+          KOTLIN
+
+          while IFS= read -r FIREBASE_BUILD; do
+            SRC="$(dirname "$FIREBASE_BUILD")/src/main/java/expo/modules/firebase/core"
+            if [ -d "$SRC" ]; then
+              cat > "$SRC/FirebaseCorePackage.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import expo.modules.core.BasePackage;
+          public class FirebaseCorePackage extends BasePackage {}
+          JAVA_EOF
+              cat > "$SRC/FirebaseCoreModule.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import android.content.Context;
+          public class FirebaseCoreModule {
+            public FirebaseCoreModule(Context context) {}
+            public String getName() { return "ExpoFirebaseCore"; }
+          }
+          JAVA_EOF
+              sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD" || true
+              sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD" || true
+            fi
+          done < <(find node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
+
+      - name: Add custom notification sounds
+        run: |
+          mkdir -p artifacts/hasahisawi/android/app/src/main/res/raw
+          SRC=artifacts/hasahisawi/assets/sounds
+          DEST=artifacts/hasahisawi/android/app/src/main/res/raw
+          cp "$SRC/adhan.mp3" "$DEST/hasahisawi_notif.mp3"
+          cp "$SRC/hasahisawi_chat.wav" "$DEST/hasahisawi_chat.wav"
+          cp "$SRC/hasahisawi_urgent.wav" "$DEST/hasahisawi_urgent.wav"
+          cp "$SRC/adhan.mp3" "$DEST/hasahisawi_prayer.mp3"
+
+      - name: Create app env
+        working-directory: artifacts/hasahisawi
+        run: |
+          printf '%s\n' \
+            'EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8' \
+            'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=hasahisawi.firebaseapp.com' \
+            'EXPO_PUBLIC_FIREBASE_PROJECT_ID=hasahisawi' \
+            'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=hasahisawi.firebasestorage.app' \
+            'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=133656291161' \
+            'EXPO_PUBLIC_FIREBASE_APP_ID=1:133656291161:android:7d0a88a80d3be1af418e48' \
+            'EXPO_PUBLIC_API_URL=https://api-server-gilt-ten.vercel.app' \
+            'EXPO_PUBLIC_DISABLE_OTP=true' > .env
+
+      - name: Build APK first
+        working-directory: artifacts/hasahisawi/android
+        env:
+          NODE_OPTIONS: "--max-old-space-size=3584"
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/release-artifacts"
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/apk-build.log"
+
+      - name: Build AAB second
+        working-directory: artifacts/hasahisawi/android
+        continue-on-error: true
+        env:
+          NODE_OPTIONS: "--max-old-space-size=3584"
+        run: |
+          ./gradlew bundleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/aab-build.log"
+
+      - name: Collect artifacts
+        run: |
+          VERSION='${{ steps.ver.outputs.version }}'
+          CODE='${{ steps.ver.outputs.code }}'
+          mkdir -p release-artifacts
+          APK=artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
+          AAB=artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
+          if [ -f "$APK" ]; then cp "$APK" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.apk"; fi
+          if [ -f "$AAB" ]; then cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.aab"; fi
+          ls -lh release-artifacts
+          test -f release-artifacts/*.apk
+
+      - name: Upload APK/AAB artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-android-current-signing-v${{ steps.ver.outputs.version }}
+          path: release-artifacts/*
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-current-signing
+          name: Hasahisawi v${{ steps.ver.outputs.version }} build ${{ steps.ver.outputs.code }} current signing
+          files: release-artifacts/*
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
