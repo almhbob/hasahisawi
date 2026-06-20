@@ -6,8 +6,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const appRoot = resolve(repoRoot, 'artifacts/hasahisawi');
 
-const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.5.5';
-const RELEASE_CODE = Number(process.env.RELEASE_CODE || '255');
+const RELEASE_VERSION = process.env.RELEASE_VERSION || '6.5.6';
+const RELEASE_CODE = Number(process.env.RELEASE_CODE || '256');
 const API_HOST = process.env.STORE_API_HOST || 'api-server-gilt-ten.vercel.app';
 const API_URL = `https://${API_HOST}`;
 
