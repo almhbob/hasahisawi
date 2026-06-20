@@ -25,7 +25,7 @@ react {
     // root = file("../../")
     //   The folder where the react-native NPM package is. Default is ../../node_modules/react-native
     // reactNativeDir = file("../../node_modules/react-native")
-    //   The folder where the react-native Codegen package is. Default is ../../node_modules/@react-native/codegen
+    //   The folder where the React Native Codegen package is. Default is ../../node_modules/@react-native/codegen
     // codegenDir = file("../../node_modules/@react-native/codegen")
 
     /* Variants */
@@ -92,8 +92,8 @@ android {
         applicationId 'com.almhbob.hasahisawi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 255
-        versionName "6.5.5"
+        versionCode 256
+        versionName "6.5.6"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
