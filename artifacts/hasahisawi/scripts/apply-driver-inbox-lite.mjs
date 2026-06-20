@@ -26,10 +26,11 @@ if (!src.includes('loadIncomingTripsLite')) {
   const loadIncomingTripsLite = useCallback(async () => {
     setIncomingLoading(true);
     try {
-      const res = await fetchWithTimeout(\`${'${apiUrl}'}/api/transport/trips?status=pending\`);
+      const url = driverModeId ? \`${'${apiUrl}'}/api/transport/driver/${'${driverModeId}'}/incoming-trips\` : \`${'${apiUrl}'}/api/transport/trips?status=pending\`;
+      const res = await fetchWithTimeout(url);
       if (res.ok) setIncomingTrips(await res.json());
     } catch {} finally { setIncomingLoading(false); }
-  }, [apiUrl]);
+  }, [apiUrl, driverModeId]);
 
   const toggleDriverAvailabilityLite = useCallback(async (driver: Driver) => {
     const next = !driver.is_online;
@@ -52,22 +53,28 @@ if (!src.includes('loadIncomingTripsLite')) {
     if (!driver) { Alert.alert("اختر السائق", "فعّل حالة متاح أولاً"); return; }
     setAcceptingTripId(trip.id);
     try {
-      const res = await fetchWithTimeout(\`${'${apiUrl}'}/api/transport/trips/${'${trip.id}'}\`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "in_progress", driver_id: driver.id, driver_name: driver.name }),
+      const res = await fetchWithTimeout(\`${'${apiUrl}'}/api/transport/trips/${'${trip.id}'}/accept\`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: \`Bearer ${'${token}'}\` } : {}) },
+        body: JSON.stringify({ driver_id: driver.id }),
       });
       if (res.ok) {
         setIncomingTrips(prev => prev.filter(t => t.id !== trip.id));
-        Alert.alert("تم قبول الطلب", "أصبح الطلب رحلة جارية باسم السائق.");
+        Alert.alert("تم قبول الطلب", "أصبح الطلب رحلة جارية باسم السائق، ولن يتمكن سائق آخر من قبوله.");
       } else {
-        Alert.alert("تعذر القبول", "ربما تم قبول الطلب أو إلغاؤه");
+        const j = await res.json().catch(() => ({}));
+        Alert.alert("تعذر القبول", (j as any).error || "ربما تم قبول الطلب بواسطة سائق آخر");
         loadIncomingTripsLite();
       }
     } catch { Alert.alert("خطأ", "تعذر قبول الطلب"); }
     setAcceptingTripId(null);
-  }, [apiUrl, drivers, driverModeId, loadIncomingTripsLite]);
+  }, [apiUrl, drivers, driverModeId, token, loadIncomingTripsLite]);
 `);
+}
+
+if (!src.includes('/accept')) {
+  src = src.replace(/fetchWithTimeout\(`\$\{apiUrl\}\/api\/transport\/trips\/\$\{trip\.id\}`,[\s\S]*?body: JSON\.stringify\(\{ status: "in_progress", driver_id: driver\.id, driver_name: driver\.name \}\),\n\s*\}\);/m, 'fetchWithTimeout(`${apiUrl}/api/transport/trips/${trip.id}/accept`, {\n        method: "POST",\n        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },\n        body: JSON.stringify({ driver_id: driver.id }),\n      });');
+  changed = true;
 }
 
 if (!src.includes('activeTab !== "driver-inbox"')) {
