@@ -1,349 +1,83 @@
-import React, { useState, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  Alert, Platform, Dimensions, Share, KeyboardAvoidingView, Modal,
+  Alert, Platform, Dimensions, Share, KeyboardAvoidingView, Image, Switch,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, withRepeat, withSequence, withTiming, Easing, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
-import { getApiUrl } from "@/lib/query-client";
-import OrgInviteCard from "@/components/OrgInviteCard";
 
+type TemplateId = "sidebar" | "executive" | "classic" | "minimal" | "modern" | "clean" | "ats" | "creative";
 
-const PREMIUM_PRICE = 5000;
-const PREMIUM_FEATURES = [
-  { icon: "layers-outline",         label: "4 قوالب احترافية مميزة" },
-  { icon: "document-text-outline",  label: "تصدير PDF عالي الجودة" },
-  { icon: "share-social-outline",   label: "مشاركة فورية عبر التواصل الاجتماعي" },
-  { icon: "color-palette-outline",  label: "تخصيص الألوان والتصميم" },
-  { icon: "refresh-outline",        label: "تعديل غير محدود مدى الحياة" },
-  { icon: "shield-checkmark-outline", label: "سيرة ذاتية احترافية بضغطة واحدة" },
-];
+type CVTemplate = {
+  id: TemplateId;
+  name: string;
+  style: string;
+  desc: string;
+  primaryColor: string;
+  accentColor: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  supportsPhoto: boolean;
+  status: "free" | "paid" | "hidden";
+  price: number;
+};
 
-// ── شاشة الدفع المميز ─────────────────────────────────────────────
-function PremiumGate({ onPay }: { onPay: () => void }) {
-  const insets = useSafeAreaInsets();
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
-  const [processing, setProcessing] = useState(false);
-
-  // نبضة السعر
-  const scale = useSharedValue(1);
-  React.useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.04, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.00, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-      ), -1, true,
-    );
-  }, []);
-  const priceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  const PAYMENT_METHODS = [
-    { id: "mtn", name: "MTN Mobile Money", icon: "phone-portrait-outline", color: "#FFCD00", bg: "#FFCD0015" },
-    { id: "zain", name: "Zain Cash",        icon: "phone-portrait-outline", color: "#E30613", bg: "#E3061315" },
-    { id: "bank", name: "تحويل بنكي",        icon: "card-outline",           color: "#0EA5E9", bg: "#0EA5E915" },
-  ];
-
-  function handlePay() {
-    if (!selectedMethod) {
-      Alert.alert("تنبيه", "يرجى اختيار طريقة الدفع أولاً");
-      return;
-    }
-    if (!phone.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال رقم الهاتف أو المرجع");
-      return;
-    }
-    setProcessing(true);
-    // محاكاة معالجة الدفع
-    setTimeout(() => {
-      setProcessing(false);
-      setShowPayModal(false);
-      Alert.alert(
-        "تم الدفع بنجاح ✅",
-        `شكراً! تم تفعيل خدمة إنشاء السيرة الذاتية المميزة.\nرقم العملية: CV-${Math.floor(Math.random() * 90000) + 10000}`,
-        [{ text: "ابدأ الآن", onPress: onPay }],
-      );
-    }, 2200);
-  }
-
-  return (
-    <View style={[pg.container, { paddingTop: insets.top }]}>
-      {/* خلفية متدرجة */}
-      <LinearGradient
-        colors={["#06B6D410", "#7C3AED08", Colors.bg]}
-        locations={[0, 0.4, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* رأس الصفحة */}
-      <View style={pg.header}>
-        <TouchableOpacity onPress={() => router.back()} style={pg.backBtn} hitSlop={12}>
-          <Ionicons name="chevron-forward" size={22} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={pg.headerTitle}>منشئ السيرة الذاتية</Text>
-          <Text style={pg.headerSub}>خدمة مميزة</Text>
-        </View>
-        <View style={{ width: 36 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-
-        {/* أيقونة البطل */}
-        <Animated.View entering={FadeIn.delay(100)} style={{ alignItems: "center", marginTop: 24, marginBottom: 8 }}>
-          <LinearGradient
-            colors={["#06B6D4", "#7C3AED"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={pg.heroIcon}
-          >
-            <Ionicons name="document-text-outline" size={52} color="#fff" />
-          </LinearGradient>
-          {/* شارة مميز */}
-          <View style={pg.premiumBadge}>
-            <MaterialCommunityIcons name="crown" size={13} color="#000" />
-            <Text style={pg.premiumBadgeText}>مميز</Text>
-          </View>
-        </Animated.View>
-
-        {/* العنوان */}
-        <Animated.View entering={FadeInDown.delay(150).springify()} style={{ alignItems: "center", paddingHorizontal: 24, gap: 8, marginBottom: 28 }}>
-          <Text style={pg.title}>سيرتك الذاتية في دقيقتين</Text>
-          <Text style={pg.subtitle}>
-            أنشئ سيرة ذاتية احترافية بقوالب عالمية وحمّلها PDF فوراً أو شاركها مباشرةً
-          </Text>
-        </Animated.View>
-
-        {/* السعر */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={{ alignItems: "center", marginBottom: 28 }}>
-          <Animated.View style={[pg.priceCard, priceStyle]}>
-            <LinearGradient
-              colors={["#06B6D420", "#7C3AED15"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <Text style={pg.priceLabel}>رسوم الخدمة</Text>
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, justifyContent: "center" }}>
-              <Text style={pg.priceCurrency}>جنيه</Text>
-              <Text style={pg.priceAmount}>{PREMIUM_PRICE.toLocaleString()}</Text>
-            </View>
-            <Text style={pg.priceNote}>دفعة واحدة · بدون اشتراك شهري</Text>
-          </Animated.View>
-        </Animated.View>
-
-        {/* المزايا */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} style={{ paddingHorizontal: 20, marginBottom: 28 }}>
-          <Text style={pg.featuresTitle}>ماذا تحصل؟</Text>
-          <View style={pg.featuresList}>
-            {PREMIUM_FEATURES.map((f, i) => (
-              <Animated.View key={i} entering={FadeInDown.delay(280 + i * 50).springify()} style={pg.featureItem}>
-                <View style={pg.featureIconWrap}>
-                  <Ionicons name={f.icon as any} size={18} color="#06B6D4" />
-                </View>
-                <Text style={pg.featureText}>{f.label}</Text>
-                <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
-              </Animated.View>
-            ))}
-          </View>
-        </Animated.View>
-
-        {/* زر الدفع */}
-        <Animated.View entering={FadeInUp.delay(400).springify()} style={{ paddingHorizontal: 20 }}>
-          <AnimatedPress onPress={() => setShowPayModal(true)}>
-            <LinearGradient
-              colors={["#06B6D4", "#7C3AED"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={pg.payBtn}
-            >
-              <MaterialCommunityIcons name="crown" size={20} color="#fff" />
-              <Text style={pg.payBtnText}>ادفع {PREMIUM_PRICE.toLocaleString()} جنيه وابدأ</Text>
-              <Ionicons name="arrow-back" size={18} color="#fff" />
-            </LinearGradient>
-          </AnimatedPress>
-
-          <Text style={pg.secureNote}>
-            🔒 الدفع آمن · يمكنك الاستفادة من الخدمة فور تأكيد الدفع
-          </Text>
-        </Animated.View>
-      </ScrollView>
-
-      {/* مودال الدفع */}
-      <Modal visible={showPayModal} transparent animationType="slide" onRequestClose={() => setShowPayModal(false)}>
-        <View style={pg.modalOverlay}>
-          <Animated.View entering={FadeInUp.springify().damping(18)} style={pg.modalSheet}>
-            <LinearGradient colors={["#06B6D4", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={pg.modalHeader}>
-              <TouchableOpacity onPress={() => setShowPayModal(false)} style={pg.modalClose}>
-                <Ionicons name="close" size={20} color="#fff" />
-              </TouchableOpacity>
-              <MaterialCommunityIcons name="credit-card-outline" size={28} color="#fff" />
-              <Text style={pg.modalTitle}>إتمام الدفع</Text>
-              <Text style={pg.modalSubtitle}>{PREMIUM_PRICE.toLocaleString()} جنيه سوداني</Text>
-            </LinearGradient>
-
-            <View style={{ padding: 20, gap: 14 }}>
-              {/* اختيار طريقة الدفع */}
-              <Text style={pg.modalLabel}>اختر طريقة الدفع</Text>
-              {PAYMENT_METHODS.map(method => (
-                <TouchableOpacity
-                  key={method.id}
-                  onPress={() => setSelectedMethod(method.id)}
-                  style={[pg.methodItem, selectedMethod === method.id && { borderColor: method.color + "80", backgroundColor: method.bg }]}
-                >
-                  <View style={[pg.methodIcon, { backgroundColor: method.color + "20" }]}>
-                    <Ionicons name={method.icon as any} size={22} color={method.color} />
-                  </View>
-                  <Text style={[pg.methodName, selectedMethod === method.id && { color: method.color }]}>{method.name}</Text>
-                  {selectedMethod === method.id && <Ionicons name="checkmark-circle" size={20} color={method.color} />}
-                </TouchableOpacity>
-              ))}
-
-              {/* رقم الهاتف / المرجع */}
-              <Text style={pg.modalLabel}>رقم الهاتف أو مرجع التحويل</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="09xxxxxxxx"
-                placeholderTextColor="#3F6B54"
-                keyboardType="phone-pad"
-                style={pg.phoneInput}
-              />
-
-              {/* ملاحظة */}
-              <View style={pg.infoBox}>
-                <Ionicons name="information-circle-outline" size={16} color={Colors.accent} />
-                <Text style={pg.infoText}>
-                  بعد الدفع، أرسل لقطة شاشة لمبلغ {PREMIUM_PRICE.toLocaleString()} جنيه عبر واتساب لتفعيل خدمتك فوراً.
-                </Text>
-              </View>
-
-              {/* زر التأكيد */}
-              <TouchableOpacity onPress={handlePay} disabled={processing} style={{ marginTop: 4 }}>
-                <LinearGradient
-                  colors={["#06B6D4", "#7C3AED"]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={[pg.payBtn, processing && { opacity: 0.7 }]}
-                >
-                  {processing
-                    ? <Text style={pg.payBtnText}>جاري التحقق...</Text>
-                    : <>
-                        <Ionicons name="lock-closed-outline" size={18} color="#fff" />
-                        <Text style={pg.payBtnText}>تأكيد الدفع</Text>
-                      </>
-                  }
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-const { width } = Dimensions.get("window");
-
-// ── أنواع البيانات ────────────────────────────────────────────────
 type CVData = {
   name: string;
   title: string;
   phone: string;
   email: string;
   address: string;
-  objective: string;
+  website: string;
+  summary: string;
   education: EducationItem[];
   experience: ExperienceItem[];
   skills: string[];
   languages: string[];
   courses: string[];
+  photoUri?: string;
+  showPhoto: boolean;
 };
 
 type EducationItem = { degree: string; institution: string; year: string };
 type ExperienceItem = { position: string; company: string; period: string; desc: string };
 
-// ── القوالب المتاحة ───────────────────────────────────────────────
-const TEMPLATES = [
-  {
-    id: "classic",
-    name: "كلاسيكي",
-    desc: "أنيق ومحترف للوظائف الرسمية",
-    primaryColor: "#1E3A5F",
-    accentColor: "#2563EB",
-    icon: "briefcase-outline" as const,
-    gradient: ["#1E3A5F", "#2563EB"] as [string, string],
-    free: true,
-  },
-  {
-    id: "minimal",
-    name: "بسيط",
-    desc: "نظيف ومرتّب بأسلوب مينيمال",
-    primaryColor: "#374151",
-    accentColor: "#6B7280",
-    icon: "square-outline" as const,
-    gradient: ["#374151", "#6B7280"] as [string, string],
-    free: true,
-  },
-  {
-    id: "modern",
-    name: "عصري ✦ مميز",
-    desc: "تصميم حديث بألوان زاهية — قالب مدفوع",
-    primaryColor: "#2563EB",
-    accentColor: "#06B6D4",
-    icon: "layers-outline" as const,
-    gradient: ["#2563EB", "#06B6D4"] as [string, string],
-    free: false,
-  },
-  {
-    id: "creative",
-    name: "إبداعي ✦ مميز",
-    desc: "جريء ومبتكر للمجالات الإبداعية — قالب مدفوع",
-    primaryColor: "#7C3AED",
-    accentColor: "#EC4899",
-    icon: "color-palette-outline" as const,
-    gradient: ["#7C3AED", "#EC4899"] as [string, string],
-    free: false,
-  },
-  {
-    id: "ats",
-    name: "نسخة ATS",
-    desc: "محسّن لأنظمة الفحص الآلي للسير الذاتية",
-    primaryColor: "#000000",
-    accentColor: "#333333",
-    icon: "checkmark-done-outline" as const,
-    gradient: ["#000000", "#333333"] as [string, string],
-    free: true,
-  },
+const CV_TEMPLATES: CVTemplate[] = [
+  { id: "sidebar", name: "Hasahisawi Sidebar", style: "Modern Sidebar", desc: "شريط جانبي داكن وصورة اختيارية مثل القوالب العالمية", primaryColor: "#263248", accentColor: "#C9D8C4", icon: "reader-outline", supportsPhoto: true, status: "free", price: 0 },
+  { id: "executive", name: "Hasahisawi Executive", style: "Executive", desc: "كحلي وذهبي، مناسب للإدارة والمحاسبة والمبيعات", primaryColor: "#1D2F46", accentColor: "#D6A21E", icon: "ribbon-outline", supportsPhoto: true, status: "free", price: 0 },
+  { id: "classic", name: "Hasahisawi Classic", style: "Elegant Classic", desc: "رسمي ومرتب للوظائف التقليدية والجامعية", primaryColor: "#2F3430", accentColor: "#8A8F86", icon: "briefcase-outline", supportsPhoto: true, status: "free", price: 0 },
+  { id: "minimal", name: "Hasahisawi Minimal", style: "Minimal", desc: "نظيف وبسيط بدون ازدحام بصري", primaryColor: "#30343B", accentColor: "#BFC5C0", icon: "square-outline", supportsPhoto: false, status: "free", price: 0 },
+  { id: "modern", name: "Hasahisawi Modern", style: "Creative Director", desc: "عنوان واضح وصورة بارزة ومساحة خبرات منظمة", primaryColor: "#24364F", accentColor: "#D49A2A", icon: "layers-outline", supportsPhoto: true, status: "free", price: 0 },
+  { id: "clean", name: "Hasahisawi Clean", style: "Clean Two Column", desc: "عمود معلومات جانبي وصفحة بيضاء أنيقة", primaryColor: "#46505E", accentColor: "#BFD8C5", icon: "document-text-outline", supportsPhoto: true, status: "free", price: 0 },
+  { id: "ats", name: "Hasahisawi ATS", style: "ATS Friendly", desc: "مناسب للتقديم الإلكتروني وأنظمة فرز السير الذاتية", primaryColor: "#111827", accentColor: "#4B5563", icon: "checkmark-done-outline", supportsPhoto: false, status: "free", price: 0 },
+  { id: "creative", name: "Hasahisawi Creative", style: "Bold Profile", desc: "تصميم جريء للمجالات الإبداعية والتسويق", primaryColor: "#2F2A35", accentColor: "#C79A43", icon: "color-palette-outline", supportsPhoto: true, status: "free", price: 0 },
 ];
 
-// ── الخطوات ───────────────────────────────────────────────────────
+const CV_COLORS = ["#1D2F46", "#263248", "#2F3430", "#30343B", "#46505E", "#1FA971", "#D49A2A", "#111827"];
 const STEPS = [
-  { id: 0, label: "القالب",     icon: "layers-outline"      as const },
-  { id: 1, label: "معلومات",   icon: "person-outline"       as const },
-  { id: 2, label: "تعليم",     icon: "school-outline"       as const },
-  { id: 3, label: "خبرة",      icon: "briefcase-outline"    as const },
-  { id: 4, label: "مهارات",    icon: "star-outline"         as const },
-  { id: 5, label: "معاينة",    icon: "eye-outline"          as const },
+  { id: 0, label: "النموذج", icon: "albums-outline" as const },
+  { id: 1, label: "البيانات", icon: "person-outline" as const },
+  { id: 2, label: "الخبرات", icon: "briefcase-outline" as const },
+  { id: 3, label: "المهارات", icon: "star-outline" as const },
+  { id: 4, label: "المعاينة", icon: "eye-outline" as const },
 ];
 
 const EMPTY_CV: CVData = {
-  name: "", title: "", phone: "", email: "", address: "", objective: "",
+  name: "", title: "", phone: "", email: "", address: "", website: "", summary: "",
   education: [{ degree: "", institution: "", year: "" }],
   experience: [{ position: "", company: "", period: "", desc: "" }],
-  skills: [""],
-  languages: ["العربية"],
-  courses: [""],
+  skills: [""], languages: ["العربية"], courses: [""], photoUri: "", showPhoto: false,
 };
 
-// ── مكوّن حقل الإدخال ─────────────────────────────────────────────
-function InputField({
-  label, value, onChangeText, placeholder, multiline = false, keyboardType = "default",
-}: {
-  label: string; value: string; onChangeText: (v: string) => void;
-  placeholder?: string; multiline?: boolean; keyboardType?: any;
+const { width } = Dimensions.get("window");
+
+function InputField({ label, value, onChangeText, placeholder, multiline = false, keyboardType = "default" }: {
+  label: string; value: string; onChangeText: (v: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: any;
 }) {
   return (
     <View style={s.fieldWrap}>
@@ -352,8 +86,8 @@ function InputField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? label}
-        placeholderTextColor="#3F6B54"
-        style={[s.input, multiline && { height: 90, textAlignVertical: "top" }]}
+        placeholderTextColor={Colors.textMuted}
+        style={[s.input, multiline && { height: 92, textAlignVertical: "top" }]}
         multiline={multiline}
         keyboardType={keyboardType}
       />
@@ -361,1064 +95,245 @@ function InputField({
   );
 }
 
-// ── بناء HTML للسيرة الذاتية ──────────────────────────────────────
-function buildCVHtml(cv: CVData, template: typeof TEMPLATES[0]): string {
-  const p = template.primaryColor;
-  const a = template.accentColor;
-
-  // shared data helpers
-  const skills    = cv.skills.filter(Boolean);
-  const langs     = cv.languages.filter(Boolean);
-  const courses   = cv.courses.filter(Boolean);
-  const education = cv.education.filter(e => e.degree);
-  const experience = cv.experience.filter(e => e.position);
-
-  // ── ATS: plain text-optimised ──────────────────────────────────
-  if (template.id === "ats") {
-    const eduLines = education.map(e =>
-      `<p style="margin:0 0 4px"><strong>${e.degree}</strong><br>${e.institution}${e.year ? " — " + e.year : ""}</p>`
-    ).join("");
-    const expLines = experience.map(e =>
-      `<p style="margin:0 0 8px"><strong>${e.position}</strong><br>${e.company}${e.period ? " | " + e.period : ""}${e.desc ? "<br>" + e.desc : ""}</p>`
-    ).join("");
-    const skillList = skills.map(s => `<li>${s}</li>`).join("");
-    const langList  = langs.map(l => `<li>${l}</li>`).join("");
-    const courseList = courses.map(c => `<li>${c}</li>`).join("");
-
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  body { font-family: Arial, Helvetica, sans-serif; font-size:12pt; color:#000; background:#fff; margin:30px; line-height:1.6; }
-  h1 { font-size:20pt; margin:0 0 2px; }
-  h2 { font-size:12pt; font-weight:bold; margin:18px 0 6px; border-bottom:1px solid #000; padding-bottom:3px; }
-  p, li { font-size:11pt; margin:0 0 4px; }
-  ul { margin:4px 0 0 0; padding-right:20px; }
-  .contact-line { font-size:10pt; margin:4px 0 0; }
-</style>
-</head>
-<body>
-<h1>${cv.name || "الاسم الكامل"}</h1>
-<p style="font-size:11pt;margin:2px 0 0">${cv.title || ""}</p>
-<p class="contact-line">${[cv.phone, cv.email, cv.address].filter(Boolean).join("  |  ")}</p>
-
-${cv.objective ? `<h2>الهدف الوظيفي</h2><p>${cv.objective}</p>` : ""}
-${education.length ? `<h2>المؤهل العلمي</h2>${eduLines}` : ""}
-${experience.length ? `<h2>الخبرة العملية</h2>${expLines}` : ""}
-${skills.length ? `<h2>المهارات</h2><ul>${skillList}</ul>` : ""}
-${langs.length ? `<h2>اللغات</h2><ul>${langList}</ul>` : ""}
-${courses.length ? `<h2>الدورات والشهادات</h2><ul>${courseList}</ul>` : ""}
-</body>
-</html>`;
-  }
-
-  // ── Classic: two-column with sidebar ──────────────────────────
-  if (template.id === "classic") {
-    const sideSkills = skills.map(s => `<div class="side-tag">${s}</div>`).join("");
-    const sideLangs  = langs.map(l => `<div class="side-tag">${l}</div>`).join("");
-    const eduItems   = education.map(e => `
-      <div class="item">
-        <div class="item-title">${e.degree}</div>
-        <div class="item-sub">${e.institution}${e.year ? " · " + e.year : ""}</div>
-      </div>`).join("");
-    const expItems   = experience.map(e => `
-      <div class="item">
-        <div class="item-title">${e.position}</div>
-        <div class="item-sub">${e.company}${e.period ? " · " + e.period : ""}</div>
-        ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
-      </div>`).join("");
-    const courseItems = courses.map(c => `<li>${c}</li>`).join("");
-
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; }
-  .header { background:${p}; color:#fff; padding:28px 30px 22px; }
-  .name { font-size:28px; font-weight:900; letter-spacing:0.5px; }
-  .job-title { font-size:14px; color:rgba(255,255,255,0.82); margin-top:5px; }
-  .header-contacts { display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:11px; color:rgba(255,255,255,0.78); }
-  .layout { display:flex; gap:0; min-height:600px; }
-  .sidebar { width:220px; background:#F0F4F8; padding:22px 16px; flex-shrink:0; border-left:3px solid ${p}; }
-  .main { flex:1; padding:22px 24px; }
-  .side-section { margin-bottom:20px; }
-  .side-label { font-size:10px; font-weight:800; color:${p}; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid ${p}; padding-bottom:4px; margin-bottom:10px; }
-  .side-contact { font-size:11px; color:#374151; margin-bottom:5px; line-height:1.4; }
-  .side-tag { background:${p}20; color:${p}; border:1px solid ${p}40; border-radius:4px; padding:3px 8px; font-size:10px; font-weight:700; display:inline-block; margin:2px 2px 2px 0; }
-  .sec { margin-bottom:18px; }
-  .sec-title { font-size:13px; font-weight:800; color:${p}; text-decoration:underline; text-underline-offset:4px; text-decoration-color:${p}60; margin-bottom:10px; letter-spacing:0.4px; }
-  .item { margin-bottom:10px; padding-right:10px; border-right:2px solid ${p}30; }
-  .item-title { font-weight:700; font-size:12px; color:#111; }
-  .item-sub { font-size:10px; color:#6B7280; margin-top:2px; }
-  .item-desc { font-size:11px; color:#444; margin-top:4px; line-height:1.5; }
-  .objective { font-size:12px; line-height:1.8; color:#374151; background:${p}08; border-right:3px solid ${p}; padding:10px 12px; border-radius:0 6px 6px 0; }
-  .course-list { padding-right:16px; }
-  .course-list li { font-size:11px; color:#374151; margin-bottom:3px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="name">${cv.name || "الاسم الكامل"}</div>
-  <div class="job-title">${cv.title || ""}</div>
-  <div class="header-contacts">
-    ${cv.phone ? `<span>&#128222; ${cv.phone}</span>` : ""}
-    ${cv.email ? `<span>&#9993; ${cv.email}</span>` : ""}
-    ${cv.address ? `<span>&#128205; ${cv.address}</span>` : ""}
-  </div>
-</div>
-<div class="layout">
-  <div class="sidebar">
-    ${skills.length ? `<div class="side-section"><div class="side-label">المهارات</div>${sideSkills}</div>` : ""}
-    ${langs.length ? `<div class="side-section"><div class="side-label">اللغات</div>${sideLangs}</div>` : ""}
-    ${courses.length ? `<div class="side-section"><div class="side-label">الدورات</div><ul class="course-list">${courseItems}</ul></div>` : ""}
-  </div>
-  <div class="main">
-    ${cv.objective ? `<div class="sec"><div class="sec-title">الهدف الوظيفي</div><div class="objective">${cv.objective}</div></div>` : ""}
-    ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
-    ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
-  </div>
-</div>
-</body>
-</html>`;
-  }
-
-  // ── Minimal: ultra-clean single column ────────────────────────
-  if (template.id === "minimal") {
-    const eduItems = education.map(e => `
-      <div class="item">
-        <span class="item-title">${e.degree}</span>
-        <span class="item-meta">${e.institution}${e.year ? " · " + e.year : ""}</span>
-      </div>`).join("");
-    const expItems = experience.map(e => `
-      <div class="item">
-        <span class="item-title">${e.position}</span>
-        <span class="item-meta">${e.company}${e.period ? " · " + e.period : ""}</span>
-        ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
-      </div>`).join("");
-    const skillTags = skills.map(s => `<span class="tag">${s}</span>`).join("");
-    const langTags  = langs.map(l => `<span class="tag">${l}</span>`).join("");
-    const courseList = courses.map(c => `<li>${c}</li>`).join("");
-
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; max-width:680px; margin:0 auto; padding:40px 36px; }
-  .name { font-size:30px; font-weight:900; color:#111; letter-spacing:-0.5px; }
-  .title { font-size:14px; color:#6B7280; margin-top:4px; font-weight:400; }
-  .contacts { display:flex; flex-wrap:wrap; gap:18px; margin-top:10px; font-size:11px; color:#9CA3AF; padding-bottom:20px; border-bottom:1px solid #E5E7EB; }
-  .divider { height:1px; background:#F3F4F6; margin:18px 0; }
-  .sec { margin-bottom:24px; }
-  .sec-label { font-size:9px; font-weight:800; color:#9CA3AF; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; }
-  .item { margin-bottom:12px; }
-  .item-title { font-size:13px; font-weight:700; color:#111; display:block; }
-  .item-meta { font-size:11px; color:#9CA3AF; display:block; margin-top:2px; }
-  .item-desc { font-size:11px; color:#6B7280; margin-top:5px; line-height:1.6; }
-  .objective { font-size:12px; line-height:1.8; color:#4B5563; }
-  .tags { display:flex; flex-wrap:wrap; gap:6px; }
-  .tag { font-size:10px; color:#374151; border:1px solid #D1D5DB; padding:3px 9px; border-radius:3px; }
-  ul { padding-right:16px; }
-  ul li { font-size:11px; color:#4B5563; margin-bottom:3px; }
-</style>
-</head>
-<body>
-<div class="name">${cv.name || "الاسم الكامل"}</div>
-<div class="title">${cv.title || ""}</div>
-<div class="contacts">
-  ${cv.phone ? `<span>${cv.phone}</span>` : ""}
-  ${cv.email ? `<span>${cv.email}</span>` : ""}
-  ${cv.address ? `<span>${cv.address}</span>` : ""}
-</div>
-
-${cv.objective ? `<div class="sec"><div class="sec-label">ملخص مهني</div><div class="objective">${cv.objective}</div></div><div class="divider"></div>` : ""}
-${experience.length ? `<div class="sec"><div class="sec-label">الخبرة العملية</div>${expItems}</div><div class="divider"></div>` : ""}
-${education.length ? `<div class="sec"><div class="sec-label">المؤهل العلمي</div>${eduItems}</div><div class="divider"></div>` : ""}
-${skills.length ? `<div class="sec"><div class="sec-label">المهارات</div><div class="tags">${skillTags}</div></div>` : ""}
-${langs.length ? `<div class="sec"><div class="sec-label">اللغات</div><div class="tags">${langTags}</div></div>` : ""}
-${courses.length ? `<div class="sec"><div class="sec-label">الدورات والشهادات</div><ul>${courseList}</ul></div>` : ""}
-</body>
-</html>`;
-  }
-
-  // ── Modern: gradient header + two-column with sidebar ─────────
-  if (template.id === "modern") {
-    const sideContact = [
-      cv.phone ? `<div class="sc-item"><span class="sc-icon">&#128222;</span>${cv.phone}</div>` : "",
-      cv.email ? `<div class="sc-item"><span class="sc-icon">&#9993;</span>${cv.email}</div>` : "",
-      cv.address ? `<div class="sc-item"><span class="sc-icon">&#128205;</span>${cv.address}</div>` : "",
-    ].join("");
-    const skillBars = skills.map(s => `
-      <div class="skill-row">
-        <span class="skill-name">${s}</span>
-        <div class="skill-bar"><div class="skill-fill"></div></div>
-      </div>`).join("");
-    const langList = langs.map(l => `<div class="sc-item">&#128483; ${l}</div>`).join("");
-    const courseList = courses.map(c => `<li>${c}</li>`).join("");
-    const expItems = experience.map(e => `
-      <div class="tl-item">
-        <div class="tl-dot"></div>
-        <div class="tl-content">
-          <div class="item-title">${e.position}</div>
-          <div class="item-meta">${e.company}${e.period ? " · " + e.period : ""}</div>
-          ${e.desc ? `<div class="item-desc">${e.desc}</div>` : ""}
-        </div>
-      </div>`).join("");
-    const eduItems = education.map(e => `
-      <div class="tl-item">
-        <div class="tl-dot"></div>
-        <div class="tl-content">
-          <div class="item-title">${e.degree}</div>
-          <div class="item-meta">${e.institution}${e.year ? " · " + e.year : ""}</div>
-        </div>
-      </div>`).join("");
-
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#fff; color:#1a1a1a; font-size:12px; }
-  .header { background:linear-gradient(135deg,${p},${a}); color:#fff; padding:30px 30px 24px; }
-  .name { font-size:28px; font-weight:900; letter-spacing:0.3px; }
-  .job-title { font-size:14px; color:rgba(255,255,255,0.85); margin-top:6px; }
-  .layout { display:flex; min-height:620px; }
-  .sidebar { width:195px; background:${p}f0; padding:22px 16px; flex-shrink:0; }
-  .main { flex:1; padding:22px 24px; }
-  .side-sec { margin-bottom:22px; }
-  .side-title { font-size:9px; font-weight:800; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:10px; }
-  .sc-item { font-size:10.5px; color:#fff; margin-bottom:6px; display:flex; align-items:center; gap:6px; word-break:break-all; }
-  .sc-icon { font-size:13px; }
-  .skill-row { margin-bottom:7px; }
-  .skill-name { font-size:10.5px; color:#fff; display:block; margin-bottom:3px; }
-  .skill-bar { background:rgba(255,255,255,0.2); border-radius:4px; height:5px; overflow:hidden; }
-  .skill-fill { background:#fff; width:75%; height:100%; border-radius:4px; }
-  .sec { margin-bottom:20px; }
-  .sec-title { font-size:13px; font-weight:800; color:${p}; border-right:4px solid ${p}; padding-right:9px; margin-bottom:12px; }
-  .tl-item { display:flex; gap:10px; margin-bottom:12px; position:relative; padding-right:6px; }
-  .tl-dot { width:9px; height:9px; border-radius:50%; background:${p}; flex-shrink:0; margin-top:3px; }
-  .tl-content { flex:1; }
-  .item-title { font-weight:700; font-size:12px; color:#111; }
-  .item-meta { font-size:10px; color:#9CA3AF; margin-top:2px; }
-  .item-desc { font-size:11px; color:#555; margin-top:4px; line-height:1.5; }
-  .objective { font-size:12px; line-height:1.8; color:#374151; }
-  ul { padding-right:16px; }
-  ul li { font-size:11px; color:#374151; margin-bottom:3px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="name">${cv.name || "الاسم الكامل"}</div>
-  <div class="job-title">${cv.title || ""}</div>
-</div>
-<div class="layout">
-  <div class="sidebar">
-    ${sideContact ? `<div class="side-sec"><div class="side-title">التواصل</div>${sideContact}</div>` : ""}
-    ${skills.length ? `<div class="side-sec"><div class="side-title">المهارات</div>${skillBars}</div>` : ""}
-    ${langs.length ? `<div class="side-sec"><div class="side-title">اللغات</div>${langList}</div>` : ""}
-    ${courses.length ? `<div class="side-sec"><div class="side-title">الدورات</div><ul style="padding-right:12px">${courses.map(c=>`<li style="color:#fff;font-size:10px;margin-bottom:3px">${c}</li>`).join("")}</ul></div>` : ""}
-  </div>
-  <div class="main">
-    ${cv.objective ? `<div class="sec"><div class="sec-title">الملخص المهني</div><div class="objective">${cv.objective}</div></div>` : ""}
-    ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
-    ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
-  </div>
-</div>
-</body>
-</html>`;
-  }
-
-  // ── Creative: bold hero + card-style sections ──────────────────
-  if (template.id === "creative") {
-    const skillTags  = skills.map(s => `<span class="tag">${s}</span>`).join("");
-    const langTags   = langs.map(l => `<span class="tag lang-tag">${l}</span>`).join("");
-    const courseList = courses.map(c => `<li>${c}</li>`).join("");
-    const expItems   = experience.map(e => `
-      <div class="card">
-        <div class="card-title">${e.position}</div>
-        <div class="card-meta">${e.company}${e.period ? " &bull; " + e.period : ""}</div>
-        ${e.desc ? `<div class="card-desc">${e.desc}</div>` : ""}
-      </div>`).join("");
-    const eduItems   = education.map(e => `
-      <div class="card">
-        <div class="card-title">${e.degree}</div>
-        <div class="card-meta">${e.institution}${e.year ? " &bull; " + e.year : ""}</div>
-      </div>`).join("");
-
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#F9F7FF; color:#1a1a1a; font-size:12px; }
-  .hero { background:linear-gradient(135deg,${p} 0%,${a} 100%); color:#fff; padding:36px 32px 30px; position:relative; overflow:hidden; }
-  .hero::after { content:""; position:absolute; bottom:-30px; left:-30px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,0.06); }
-  .hero-name { font-size:32px; font-weight:900; letter-spacing:-0.5px; }
-  .hero-title { font-size:15px; color:rgba(255,255,255,0.82); margin-top:6px; font-weight:500; }
-  .hero-contacts { display:flex; flex-wrap:wrap; gap:14px; margin-top:16px; font-size:11px; color:rgba(255,255,255,0.75); }
-  .body { padding:24px 28px; }
-  .sec { margin-bottom:22px; }
-  .sec-title { font-size:13px; font-weight:900; color:${p}; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
-  .sec-title::after { content:""; flex:1; height:2px; background:linear-gradient(90deg,${p}50,transparent); }
-  .card { background:#fff; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid ${p}20; border-right:4px solid ${p}; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
-  .card-title { font-weight:700; font-size:13px; color:#111; }
-  .card-meta { font-size:10.5px; color:${a}; margin-top:3px; font-weight:600; }
-  .card-desc { font-size:11px; color:#555; margin-top:5px; line-height:1.5; }
-  .objective { font-size:12px; line-height:1.8; color:#374151; background:#fff; padding:14px 16px; border-radius:10px; border:1px solid ${p}20; border-right:4px solid ${a}; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
-  .tags { display:flex; flex-wrap:wrap; gap:7px; }
-  .tag { background:${p}15; color:${p}; border:1px solid ${p}35; padding:5px 12px; border-radius:20px; font-size:10.5px; font-weight:700; }
-  .lang-tag { background:${a}15; color:${a}; border-color:${a}35; }
-  ul { padding-right:18px; }
-  ul li { font-size:11px; color:#374151; margin-bottom:4px; }
-</style>
-</head>
-<body>
-<div class="hero">
-  <div class="hero-name">${cv.name || "الاسم الكامل"}</div>
-  <div class="hero-title">${cv.title || ""}</div>
-  <div class="hero-contacts">
-    ${cv.phone ? `<span>&#128222; ${cv.phone}</span>` : ""}
-    ${cv.email ? `<span>&#9993; ${cv.email}</span>` : ""}
-    ${cv.address ? `<span>&#128205; ${cv.address}</span>` : ""}
-  </div>
-</div>
-<div class="body">
-  ${cv.objective ? `<div class="sec"><div class="sec-title">الهدف الوظيفي</div><div class="objective">${cv.objective}</div></div>` : ""}
-  ${experience.length ? `<div class="sec"><div class="sec-title">الخبرة العملية</div>${expItems}</div>` : ""}
-  ${education.length ? `<div class="sec"><div class="sec-title">المؤهل العلمي</div>${eduItems}</div>` : ""}
-  ${skills.length ? `<div class="sec"><div class="sec-title">المهارات</div><div class="tags">${skillTags}</div></div>` : ""}
-  ${langs.length ? `<div class="sec"><div class="sec-title">اللغات</div><div class="tags">${langTags}</div></div>` : ""}
-  ${courses.length ? `<div class="sec"><div class="sec-title">الدورات والشهادات</div><ul>${courseList}</ul></div>` : ""}
-</div>
-</body>
-</html>`;
-  }
-
-  // ── Fallback (should not reach here) ─────────────────────────
-  return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/></head><body><h1>${cv.name}</h1></body></html>`;
+function esc(v?: string) {
+  return String(v || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// ── معاينة السيرة داخل التطبيق ───────────────────────────────────
-function CVPreview({ cv, template }: { cv: CVData; template: typeof TEMPLATES[0] }) {
-  const p = template.primaryColor;
+function brandFooter() {
+  return `<div class="hsw-footer">◈ Powered by <strong>Hasahisawi</strong></div>`;
+}
+
+function buildCVHtml(cv: CVData, template: CVTemplate, color: string): string {
+  const p = color || template.primaryColor;
   const a = template.accentColor;
+  const skills = cv.skills.filter(Boolean);
+  const langs = cv.languages.filter(Boolean);
+  const courses = cv.courses.filter(Boolean);
+  const education = cv.education.filter(e => e.degree || e.institution);
+  const experience = cv.experience.filter(e => e.position || e.company);
+  const contact = [cv.phone, cv.email, cv.website, cv.address].filter(Boolean).map(x => `<div class="contact-line">${esc(x)}</div>`).join("");
+  const photo = cv.showPhoto && cv.photoUri
+    ? `<img class="photo" src="${cv.photoUri}"/>`
+    : `<div class="photo no-photo">CV</div>`;
+  const photoBlock = cv.showPhoto ? photo : "";
+  const skillList = skills.map(x => `<li>${esc(x)}</li>`).join("");
+  const langList = langs.map(x => `<li>${esc(x)}</li>`).join("");
+  const courseList = courses.map(x => `<li>${esc(x)}</li>`).join("");
+  const eduList = education.map(e => `<div class="item"><b>${esc(e.degree)}</b><span>${esc(e.institution)}${e.year ? " · " + esc(e.year) : ""}</span></div>`).join("");
+  const expList = experience.map(e => `<div class="item"><b>${esc(e.position)}</b><span>${esc(e.company)}${e.period ? " · " + esc(e.period) : ""}</span>${e.desc ? `<p>${esc(e.desc)}</p>` : ""}</div>`).join("");
+
+  if (template.id === "ats") {
+    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><style>
+      body{font-family:Arial,Tahoma,sans-serif;margin:34px;color:#111;background:#fff;line-height:1.55;font-size:12px}.name{font-size:27px;font-weight:900}.title{font-size:14px;margin-top:4px;color:#333}.contact{margin:10px 0 18px;color:#333}.section{margin-top:17px}.section h2{font-size:14px;border-bottom:1px solid #111;padding-bottom:4px;margin:0 0 8px}.item{margin-bottom:9px}.item b{display:block;font-size:13px}.item span{display:block;color:#555;font-size:11px}.item p{margin:4px 0 0;color:#333}ul{margin:0;padding-right:18px}.hsw-footer{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:5px;background:#fff}
+    </style></head><body><div class="name">${esc(cv.name) || "الاسم الكامل"}</div><div class="title">${esc(cv.title)}</div><div class="contact">${contact}</div>${cv.summary ? `<div class="section"><h2>الملخص المهني</h2><p>${esc(cv.summary)}</p></div>` : ""}${experience.length ? `<div class="section"><h2>الخبرة العملية</h2>${expList}</div>` : ""}${education.length ? `<div class="section"><h2>التعليم</h2>${eduList}</div>` : ""}${skills.length ? `<div class="section"><h2>المهارات</h2><ul>${skillList}</ul></div>` : ""}${langs.length ? `<div class="section"><h2>اللغات</h2><ul>${langList}</ul></div>` : ""}${courses.length ? `<div class="section"><h2>الدورات</h2><ul>${courseList}</ul></div>` : ""}${brandFooter()}</body></html>`;
+  }
+
+  const sidebar = template.id === "sidebar" || template.id === "classic" || template.id === "clean";
+  const shape = template.id === "modern" || template.id === "creative" ? "pill" : "box";
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><style>
+    *{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;margin:0;background:#fff;color:#1f2937;font-size:11.5px;line-height:1.52}.page{min-height:100vh;display:flex;direction:rtl}.side{width:${sidebar ? "32%" : "0"};background:${p};color:#fff;padding:${sidebar ? "28px 22px" : "0"};display:${sidebar ? "block" : "none"}}.main{flex:1;padding:30px 34px 42px}.top{display:flex;gap:20px;align-items:center;margin-bottom:22px;direction:rtl}.headline{flex:1}.name{font-size:31px;letter-spacing:.5px;font-weight:900;color:${sidebar ? p : p};line-height:1.05}.role{font-size:14px;color:#555;margin-top:7px;letter-spacing:1px}.photo{width:112px;height:112px;border-radius:${shape === "pill" ? "28px" : "56px"};object-fit:cover;border:5px solid ${a};background:#eee}.no-photo{display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:${p};background:${a}35}.side .photo{margin:0 auto 22px;display:flex}.side h3{font-size:13px;letter-spacing:2px;border-bottom:1px solid rgba(255,255,255,.32);padding-bottom:7px;margin:22px 0 10px}.contact-line{font-size:11px;margin-bottom:8px;color:${sidebar ? "rgba(255,255,255,.86)" : "#4b5563"}}.section{margin-bottom:22px}.section-title{font-size:14px;font-weight:900;letter-spacing:1.4px;color:${p};border-bottom:2px solid ${a};padding-bottom:7px;margin-bottom:12px;text-transform:uppercase}.item{margin-bottom:13px;padding-right:14px;border-right:2px solid ${p}55}.item b{display:block;font-size:13px;color:#111}.item span{display:block;color:#6b7280;font-size:10.5px;margin-top:2px}.item p{margin:5px 0 0;color:#374151}.summary{border-right:5px solid ${a};background:${p}09;padding:12px 14px;border-radius:10px;color:#374151}.tags{display:flex;flex-wrap:wrap;gap:7px}.tag{background:${p}12;color:${p};border:1px solid ${p}35;border-radius:999px;padding:5px 10px;font-weight:700;font-size:10.5px}.side .tag{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)}ul{margin:0;padding-right:18px}.side ul{padding-right:15px}.side li{color:#fff;margin-bottom:5px}.hsw-footer{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:9px;color:#9ca3af;letter-spacing:.5px;border-top:1px solid #e5e7eb;padding-top:5px;background:rgba(255,255,255,.86)}${!sidebar ? `.main{padding:34px 44px}.top{border-bottom:4px solid ${p};padding-bottom:18px}.section-title{display:inline-block;border-bottom:0;background:${p};color:#fff;padding:6px 14px;border-radius:999px;margin-bottom:14px}.item{border-right:0;border-left:1px solid #ddd;padding:0 0 0 16px}` : ""}
+  </style></head><body><div class="page">${sidebar ? `<aside class="side">${photoBlock}<h3>CONTACT</h3>${contact || "—"}${skills.length ? `<h3>SKILLS</h3><div class="tags">${skills.map(s => `<span class="tag">${esc(s)}</span>`).join("")}</div>` : ""}${langs.length ? `<h3>LANGUAGE</h3><ul>${langList}</ul>` : ""}${courses.length ? `<h3>COURSES</h3><ul>${courseList}</ul>` : ""}</aside>` : ""}<main class="main"><div class="top">${!sidebar ? photoBlock : ""}<div class="headline"><div class="name">${esc(cv.name) || "YOUR NAME"}</div><div class="role">${esc(cv.title) || "PROFESSIONAL TITLE"}</div>${!sidebar ? `<div class="contact" style="margin-top:12px">${contact}</div>` : ""}</div></div>${cv.summary ? `<section class="section"><div class="section-title">Professional Profile</div><div class="summary">${esc(cv.summary)}</div></section>` : ""}${experience.length ? `<section class="section"><div class="section-title">Work Experience</div>${expList}</section>` : ""}${education.length ? `<section class="section"><div class="section-title">Education</div>${eduList}</section>` : ""}${!sidebar && skills.length ? `<section class="section"><div class="section-title">Skills</div><div class="tags">${skills.map(s => `<span class="tag">${esc(s)}</span>`).join("")}</div></section>` : ""}${!sidebar && langs.length ? `<section class="section"><div class="section-title">Languages</div><ul>${langList}</ul></section>` : ""}${!sidebar && courses.length ? `<section class="section"><div class="section-title">Courses</div><ul>${courseList}</ul></section>` : ""}</main></div>${brandFooter()}</body></html>`;
+}
+
+function CVPreview({ cv, template, color }: { cv: CVData; template: CVTemplate; color: string }) {
+  const p = color || template.primaryColor;
+  const photo = cv.showPhoto && cv.photoUri;
   return (
-    <View style={{ borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" }}>
-      {/* Header */}
-      <LinearGradient colors={[p, a]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={{ padding: 18, gap: 4 }}>
-        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" }}>{cv.name || "الاسم الكامل"}</Text>
-        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#fff", opacity: 0.9 }}>{cv.title || "المسمى الوظيفي"}</Text>
-        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginTop: 6 }}>
-          {cv.phone ? <Text style={{ fontSize: 11, color: "#fff", opacity: 0.85 }}>📞 {cv.phone}</Text> : null}
-          {cv.email ? <Text style={{ fontSize: 11, color: "#fff", opacity: 0.85 }}>✉ {cv.email}</Text> : null}
-          {cv.address ? <Text style={{ fontSize: 11, color: "#fff", opacity: 0.85 }}>📍 {cv.address}</Text> : null}
-        </View>
-      </LinearGradient>
-
-      {/* Body */}
-      <View style={{ backgroundColor: "#061525", padding: 16, gap: 14 }}>
-        {cv.objective ? (
-          <View>
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: p, marginBottom: 6 }}>الهدف الوظيفي</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, lineHeight: 19 }}>{cv.objective}</Text>
-          </View>
-        ) : null}
-
-        {cv.education.some(e => e.degree) ? (
-          <View>
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: p, marginBottom: 6 }}>المؤهل العلمي</Text>
-            {cv.education.filter(e => e.degree).map((e, i) => (
-              <View key={i} style={{ marginBottom: 4 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{e.degree}</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{e.institution} · {e.year}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {cv.experience.some(e => e.position) ? (
-          <View>
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: p, marginBottom: 6 }}>الخبرة العملية</Text>
-            {cv.experience.filter(e => e.position).map((e, i) => (
-              <View key={i} style={{ marginBottom: 6 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{e.position}</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{e.company} · {e.period}</Text>
-                {e.desc ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{e.desc}</Text> : null}
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {cv.skills.some(Boolean) ? (
-          <View>
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: p, marginBottom: 8 }}>المهارات</Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
-              {cv.skills.filter(Boolean).map((skill, i) => (
-                <View key={i} style={{ backgroundColor: p + "20", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: p + "40" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: p }}>{skill}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
+    <View style={s.previewSheet}>
+      <View style={[s.previewSide, { backgroundColor: p }]}>
+        {cv.showPhoto ? photo ? <Image source={{ uri: cv.photoUri }} style={s.previewPhoto} /> : <View style={s.previewPhotoPlaceholder}><Text style={{ color: p, fontWeight: "900" }}>CV</Text></View> : null}
+        <Text style={s.previewSideTitle}>CONTACT</Text>
+        {[cv.phone, cv.email, cv.address].filter(Boolean).map((x, i) => <Text key={i} style={s.previewSideText}>{x}</Text>)}
+        <Text style={s.previewSideTitle}>SKILLS</Text>
+        {cv.skills.filter(Boolean).slice(0, 6).map((x, i) => <Text key={i} style={s.previewSideText}>• {x}</Text>)}
+      </View>
+      <View style={s.previewMain}>
+        <Text style={[s.previewName, { color: p }]}>{cv.name || "YOUR NAME"}</Text>
+        <Text style={s.previewRole}>{cv.title || "PROFESSIONAL TITLE"}</Text>
+        {cv.summary ? <Text style={s.previewSummary}>{cv.summary}</Text> : null}
+        <PreviewSection title="Experience" color={p} items={cv.experience.filter(e => e.position).map(e => `${e.position} — ${e.company}`)} />
+        <PreviewSection title="Education" color={p} items={cv.education.filter(e => e.degree).map(e => `${e.degree} — ${e.institution}`)} />
       </View>
     </View>
   );
 }
 
-// ── الشاشة الرئيسية ───────────────────────────────────────────────
-export default function CVBuilderScreen() {
-  return <CVBuilderWorkspace />;
+function PreviewSection({ title, color, items }: { title: string; color: string; items: string[] }) {
+  if (!items.length) return null;
+  return <View style={{ marginTop: 14 }}><Text style={[s.previewSectionTitle, { borderColor: color, color }]}>{title}</Text>{items.slice(0, 3).map((x, i) => <Text key={i} style={s.previewItem}>• {x}</Text>)}</View>;
 }
 
-function CVBuilderWorkspace() {
+export default function CVBuilderScreen() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
+  const [selectedTemplate, setSelectedTemplate] = useState<CVTemplate>(CV_TEMPLATES[0]);
+  const [selectedColor, setSelectedColor] = useState(CV_TEMPLATES[0].primaryColor);
   const [cv, setCv] = useState<CVData>({ ...EMPTY_CV });
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const [unlockedPremium, setUnlockedPremium] = useState(false);
-  const [showPremiumGate, setShowPremiumGate] = useState(false);
 
-  function updateCv(field: keyof CVData, value: any) {
-    setCv(prev => ({ ...prev, [field]: value }));
-  }
+  const selectedForPreview = useMemo(() => ({ ...selectedTemplate, primaryColor: selectedColor }), [selectedTemplate, selectedColor]);
 
-  function updateEducation(index: number, field: keyof EducationItem, value: string) {
-    const arr = [...cv.education];
-    arr[index] = { ...arr[index], [field]: value };
-    updateCv("education", arr);
-  }
+  function updateCv(field: keyof CVData, value: any) { setCv(prev => ({ ...prev, [field]: value })); }
+  function updateEducation(index: number, field: keyof EducationItem, value: string) { const arr = [...cv.education]; arr[index] = { ...arr[index], [field]: value }; updateCv("education", arr); }
+  function updateExperience(index: number, field: keyof ExperienceItem, value: string) { const arr = [...cv.experience]; arr[index] = { ...arr[index], [field]: value }; updateCv("experience", arr); }
+  function updateListItem(field: "skills" | "languages" | "courses", index: number, value: string) { const arr = [...cv[field]]; arr[index] = value; updateCv(field, arr); }
+  function addListItem(field: "skills" | "languages" | "courses") { updateCv(field, [...cv[field], ""]); }
 
-  function addEducation() {
-    updateCv("education", [...cv.education, { degree: "", institution: "", year: "" }]);
-  }
-
-  function removeEducation(i: number) {
-    if (cv.education.length === 1) return;
-    updateCv("education", cv.education.filter((_, idx) => idx !== i));
-  }
-
-  function updateExperience(index: number, field: keyof ExperienceItem, value: string) {
-    const arr = [...cv.experience];
-    arr[index] = { ...arr[index], [field]: value };
-    updateCv("experience", arr);
-  }
-
-  function addExperience() {
-    updateCv("experience", [...cv.experience, { position: "", company: "", period: "", desc: "" }]);
-  }
-
-  function removeExperience(i: number) {
-    if (cv.experience.length === 1) return;
-    updateCv("experience", cv.experience.filter((_, idx) => idx !== i));
-  }
-
-  function updateListItem(field: "skills" | "languages" | "courses", index: number, value: string) {
-    const arr = [...cv[field]];
-    arr[index] = value;
-    updateCv(field, arr);
-  }
-
-  function addListItem(field: "skills" | "languages" | "courses") {
-    updateCv(field, [...cv[field], ""]);
-  }
-
-  function removeListItem(field: "skills" | "languages" | "courses", index: number) {
-    if (cv[field].length === 1) return;
-    updateCv(field, cv[field].filter((_, i) => i !== index));
+  async function pickCvPhoto() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") return Alert.alert("إذن مطلوب", "اسمح للتطبيق بالوصول للصور");
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.9 });
+    if (!result.canceled && result.assets[0]) { updateCv("photoUri", result.assets[0].uri); updateCv("showPhoto", true); }
   }
 
   async function handleDownload() {
-    if (!cv.name) {
-      Alert.alert("تنبيه", "يرجى إدخال الاسم الكامل أولاً");
-      return;
-    }
+    if (!cv.name.trim()) return Alert.alert("تنبيه", "يرجى إدخال الاسم الكامل أولاً");
     setLoading(true);
     try {
-      const html = buildCVHtml(cv, selectedTemplate);
+      const html = buildCVHtml(cv, selectedForPreview, selectedColor);
       if (Platform.OS === "web") {
-        const blob = new Blob([html], { type: "text/html" });
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url;
-        a.download = `${cv.name || "cv"}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
+        a.href = url; a.download = `${cv.name || "cv"}.html`; a.click(); URL.revokeObjectURL(url);
         Alert.alert("تم التحميل", "تم تحميل ملف السيرة الذاتية بنجاح");
       } else {
         const Print = require("expo-print");
         const Sharing = require("expo-sharing");
         const { uri } = await Print.printToFileAsync({ html });
         const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "مشاركة السيرة الذاتية" });
-        } else {
-          Alert.alert("تم الحفظ", `تم حفظ السيرة الذاتية كـ PDF`);
-        }
+        if (canShare) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "مشاركة السيرة الذاتية" });
+        else Alert.alert("تم الحفظ", "تم حفظ السيرة الذاتية كـ PDF");
       }
-    } catch (e) {
-      Alert.alert("خطأ", "حدث خطأ أثناء إنشاء الملف");
-    } finally {
-      setLoading(false);
-    }
+    } catch { Alert.alert("خطأ", "حدث خطأ أثناء إنشاء الملف"); }
+    finally { setLoading(false); }
   }
 
   async function handleShare() {
-    const text = `سيرتي الذاتية — ${cv.name || ""}
-المسمى: ${cv.title || ""}
-الهاتف: ${cv.phone || ""}
-البريد: ${cv.email || ""}
-المهارات: ${cv.skills.filter(Boolean).join("، ")}
-
-📎 أُنشئت بتطبيق حصاحيصاوي`;
-    await Share.share({ message: text, title: "مشاركة السيرة الذاتية" });
+    await Share.share({ title: "مشاركة السيرة الذاتية", message: `سيرتي الذاتية — ${cv.name}\n${cv.title}\nأُنشئت عبر Hasahisawi` });
   }
 
-  function nextStep() {
-    if (step < STEPS.length - 1) {
-      setStep(s => s + 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
-  }
-
-  function prevStep() {
-    if (step > 0) {
-      setStep(s => s - 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
-  }
+  function nextStep() { if (step < STEPS.length - 1) { setStep(x => x + 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); } }
+  function prevStep() { if (step > 0) { setStep(x => x - 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); } }
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
-      {/* مودال الدفع للنماذج المدفوعة */}
-      {showPremiumGate && (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setShowPremiumGate(false)}>
-          <View style={pg.modalOverlay}>
-            <Animated.View entering={FadeInUp.springify().damping(18)} style={pg.modalSheet}>
-              <LinearGradient colors={["#2563EB", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={pg.modalHeader}>
-                <TouchableOpacity onPress={() => setShowPremiumGate(false)} style={pg.modalClose}>
-                  <Ionicons name="close" size={20} color="#fff" />
-                </TouchableOpacity>
-                <MaterialCommunityIcons name="crown" size={28} color="#FFD700" />
-                <Text style={pg.modalTitle}>قالب مميز</Text>
-                <Text style={pg.modalSubtitle}>ادفع {PREMIUM_PRICE.toLocaleString()} جنيه لفتح القوالب المدفوعة</Text>
-              </LinearGradient>
-              <View style={{ padding: 20, gap: 14 }}>
-                <View style={pg.infoBox}>
-                  <Ionicons name="star-outline" size={16} color={Colors.accent} />
-                  <Text style={pg.infoText}>القوالب المدفوعة تتيح لك تصاميم أكثر احترافية وألواناً متميزة مناسبة للمجالات التخصصية والإبداعية.</Text>
-                </View>
-                <TouchableOpacity onPress={() => { setShowPremiumGate(false); setUnlockedPremium(true); Alert.alert("تم التفعيل ✅", "تم فتح جميع القوالب المميزة. يرجى مراجعة المطور لإتمام الدفع.", [{ text: "حسناً" }]); }} style={{ marginTop: 4 }}>
-                  <LinearGradient colors={["#2563EB", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[pg.payBtn]}>
-                    <MaterialCommunityIcons name="crown" size={18} color="#FFD700" />
-                    <Text style={pg.payBtnText}>فتح القوالب المميزة — {PREMIUM_PRICE.toLocaleString()} جنيه</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          </View>
-        </Modal>
-      )}
-
-      {/* رأس الصفحة */}
-      <Animated.View entering={FadeInDown.duration(400)} style={s.header}>
-        <LinearGradient colors={["rgba(37,99,235,0.15)", "transparent"]} style={StyleSheet.absoluteFill} />
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
-          <Ionicons name="chevron-forward" size={22} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={s.headerTitle}>منشئ السيرة الذاتية</Text>
-          <Text style={s.headerSub}>احترافي · قابل للتحميل</Text>
-        </View>
-        <TouchableOpacity onPress={handleShare} style={s.shareBtn} hitSlop={12}>
-          <Ionicons name="share-outline" size={20} color={Colors.accent} />
-        </TouchableOpacity>
+    <View style={[s.container, { paddingTop: insets.top }]}> 
+      <Animated.View entering={FadeInDown.duration(350)} style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}><Ionicons name="chevron-forward" size={22} color={Colors.primary} /></TouchableOpacity>
+        <View style={{ flex: 1, alignItems: "center" }}><Text style={s.headerTitle}>قوالب السيرة الذاتية</Text><Text style={s.headerSub}>مجانية الآن · صورة اختيارية · ألوان قابلة للتعديل</Text></View>
+        <TouchableOpacity onPress={handleShare} style={s.shareBtn} hitSlop={12}><Ionicons name="share-outline" size={20} color={Colors.accent} /></TouchableOpacity>
       </Animated.View>
 
-      {/* شريط الخطوات */}
-      <View style={s.stepsBar}>
-        {STEPS.map((st, i) => (
-          <TouchableOpacity key={st.id} onPress={() => setStep(i)} style={s.stepItem}>
-            <View style={[s.stepCircle, step === i && { backgroundColor: Colors.primary, borderColor: Colors.primary },
-              step > i && { backgroundColor: Colors.primary + "30", borderColor: Colors.primary + "60" }]}>
-              <Ionicons name={st.icon} size={14} color={step >= i ? Colors.primary : Colors.textMuted} />
-            </View>
-            <Text style={[s.stepLabel, step === i && { color: Colors.primary }]}>{st.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <View style={s.stepsBar}>{STEPS.map((st, i) => <TouchableOpacity key={st.id} onPress={() => setStep(i)} style={s.stepItem}><View style={[s.stepCircle, step === i && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Ionicons name={st.icon} size={14} color={step === i ? "#001" : Colors.textMuted} /></View><Text style={[s.stepLabel, step === i && { color: Colors.primary }]}>{st.label}</Text></TouchableOpacity>)}</View>
 
-      {/* المحتوى */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+          {step === 0 && <Animated.View entering={FadeInDown.delay(80).springify()}>
+            <Text style={s.sectionTitle}>اختر النموذج الذي يناسبك قبل تعبئة البيانات</Text>
+            <View style={s.freeNotice}><Ionicons name="checkmark-circle" size={16} color="#22C55E"/><Text style={s.freeNoticeText}>كل القوالب مجانية حاليًا — يمكن تسعيرها لاحقًا من الإدارة</Text></View>
+            <Text style={s.fieldLabel}>لون القالب</Text>
+            <View style={s.colorRow}>{CV_COLORS.map(c => <TouchableOpacity key={c} onPress={() => setSelectedColor(c)} style={[s.colorDot, { backgroundColor: c }, selectedColor === c && s.colorDotOn]} />)}</View>
+            <View style={{ gap: 12 }}>{CV_TEMPLATES.map((tmpl, i) => <TemplateCard key={tmpl.id} tmpl={tmpl} selected={selectedTemplate.id === tmpl.id} color={selectedColor} index={i} onPress={() => { setSelectedTemplate(tmpl); if (!selectedColor) setSelectedColor(tmpl.primaryColor); }} />)}</View>
+          </Animated.View>}
 
-          {/* الخطوة 0: اختيار القالب */}
-          {step === 0 && (
-            <Animated.View entering={FadeInDown.delay(100).springify()}>
-              <Text style={s.sectionTitle}>اختر قالب سيرتك الذاتية</Text>
-              {/* تقسيم مجاني / مدفوع */}
-              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#22C55E18", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#22C55E40" }}>
-                  <Ionicons name="checkmark-circle" size={13} color="#22C55E" />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#22C55E" }}>مجاناً: كلاسيكي، بسيط</Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#F0A50018", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#F0A50040" }}>
-                  <MaterialCommunityIcons name="crown" size={12} color="#F0A500" />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F0A500" }}>مدفوع: عصري، إبداعي</Text>
-                </View>
-              </View>
-              <View style={{ gap: 12 }}>
-                {TEMPLATES.map((tmpl, i) => {
-                  const isPremiumTemplate = !tmpl.free;
-                  const isLocked = isPremiumTemplate && !unlockedPremium;
-                  return (
-                    <Animated.View key={tmpl.id} entering={FadeInDown.delay(80 + i * 60).springify()}>
-                      <AnimatedPress onPress={() => {
-                        if (isLocked) { setShowPremiumGate(true); return; }
-                        setSelectedTemplate(tmpl);
-                      }}>
-                        <View style={[s.templateCard, selectedTemplate.id === tmpl.id && s.templateCardSelected, isLocked && { opacity: 0.75 }]}>
-                          <LinearGradient
-                            colors={tmpl.gradient}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={s.templateGradientStrip}
-                          />
-                          <View style={[s.templateIconBox, { backgroundColor: tmpl.primaryColor + "20" }]}>
-                            {isLocked
-                              ? <Ionicons name="lock-closed" size={22} color={tmpl.primaryColor} />
-                              : <Ionicons name={tmpl.icon} size={26} color={tmpl.primaryColor} />}
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                              <Text style={s.templateName}>{tmpl.name}</Text>
-                              {isPremiumTemplate && (
-                                <View style={{ backgroundColor: "#F0A50020", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: "#F0A50050" }}>
-                                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 8, color: "#F0A500" }}>مميز</Text>
-                                </View>
-                              )}
-                              {tmpl.free && (
-                                <View style={{ backgroundColor: "#22C55E18", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: "#22C55E40" }}>
-                                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 8, color: "#22C55E" }}>مجاني</Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={s.templateDesc}>{tmpl.desc}</Text>
-                          </View>
-                          {selectedTemplate.id === tmpl.id && !isLocked && (
-                            <View style={[s.checkBadge, { backgroundColor: tmpl.primaryColor }]}>
-                              <Ionicons name="checkmark" size={14} color="#fff" />
-                            </View>
-                          )}
-                          {isLocked && (
-                            <View style={[s.checkBadge, { backgroundColor: "#F0A500" }]}>
-                              <MaterialCommunityIcons name="crown" size={13} color="#000" />
-                            </View>
-                          )}
-                        </View>
-                      </AnimatedPress>
-                    </Animated.View>
-                  );
-                })}
-              </View>
-            </Animated.View>
-          )}
+          {step === 1 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 6 }}>
+            <Text style={s.sectionTitle}>البيانات الأساسية</Text>
+            <InputField label="الاسم الكامل" value={cv.name} onChangeText={v => updateCv("name", v)} />
+            <InputField label="المسمى الوظيفي" value={cv.title} onChangeText={v => updateCv("title", v)} placeholder="مثال: محاسب / موظف مبيعات" />
+            <InputField label="الهاتف" value={cv.phone} onChangeText={v => updateCv("phone", v)} keyboardType="phone-pad" />
+            <InputField label="البريد الإلكتروني" value={cv.email} onChangeText={v => updateCv("email", v)} keyboardType="email-address" />
+            <InputField label="الموقع / لينكدإن" value={cv.website} onChangeText={v => updateCv("website", v)} />
+            <InputField label="العنوان" value={cv.address} onChangeText={v => updateCv("address", v)} />
+            <InputField label="نبذة مختصرة" value={cv.summary} onChangeText={v => updateCv("summary", v)} multiline />
+            <View style={s.photoBox}><View style={{ flex: 1 }}><Text style={s.fieldLabel}>الصورة الشخصية</Text><Text style={s.helperText}>يمكن إنشاء السيرة بصورة أو بدون صورة</Text></View><Switch value={cv.showPhoto} onValueChange={v => updateCv("showPhoto", v)} /></View>
+            {cv.showPhoto ? <View style={s.photoActions}>{cv.photoUri ? <Image source={{ uri: cv.photoUri }} style={s.cvPhotoPreview} /> : <View style={s.cvPhotoPlaceholder}><Text style={{ color: Colors.textMuted }}>CV</Text></View>}<TouchableOpacity onPress={pickCvPhoto} style={s.photoBtn}><Ionicons name="image-outline" size={18} color="#001"/><Text style={s.photoBtnText}>اختيار الصورة</Text></TouchableOpacity></View> : null}
+          </Animated.View>}
 
-          {/* الخطوة 1: المعلومات الشخصية */}
-          {step === 1 && (
-            <Animated.View entering={FadeInDown.delay(80).springify()} style={{ gap: 4 }}>
-              <Text style={s.sectionTitle}>المعلومات الشخصية</Text>
-              <InputField label="الاسم الكامل" value={cv.name} onChangeText={v => updateCv("name", v)} />
-              <InputField label="المسمى الوظيفي" value={cv.title} onChangeText={v => updateCv("title", v)} placeholder="مهندس برمجيات · معلم · محاسب..." />
-              <InputField label="رقم الهاتف" value={cv.phone} onChangeText={v => updateCv("phone", v)} keyboardType="phone-pad" />
-              <InputField label="البريد الإلكتروني" value={cv.email} onChangeText={v => updateCv("email", v)} keyboardType="email-address" />
-              <InputField label="العنوان / المدينة" value={cv.address} onChangeText={v => updateCv("address", v)} placeholder="الحصاحيصا، السودان" />
-              <InputField label="الهدف الوظيفي" value={cv.objective} onChangeText={v => updateCv("objective", v)} multiline placeholder="اكتب ملخصاً مهنياً مختصراً..." />
-            </Animated.View>
-          )}
+          {step === 2 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 12 }}>
+            <Text style={s.sectionTitle}>التعليم والخبرات</Text>
+            <Text style={s.subTitle}>الخبرة العملية</Text>
+            {cv.experience.map((e, i) => <View key={i} style={s.groupCard}><InputField label="المسمى" value={e.position} onChangeText={v => updateExperience(i, "position", v)} /><InputField label="الشركة" value={e.company} onChangeText={v => updateExperience(i, "company", v)} /><InputField label="الفترة" value={e.period} onChangeText={v => updateExperience(i, "period", v)} /><InputField label="الوصف" value={e.desc} onChangeText={v => updateExperience(i, "desc", v)} multiline /></View>)}
+            <TouchableOpacity onPress={() => updateCv("experience", [...cv.experience, { position: "", company: "", period: "", desc: "" }])} style={s.addLine}><Ionicons name="add" size={18} color={Colors.primary}/><Text style={s.addLineText}>إضافة خبرة</Text></TouchableOpacity>
+            <Text style={s.subTitle}>التعليم</Text>
+            {cv.education.map((e, i) => <View key={i} style={s.groupCard}><InputField label="المؤهل" value={e.degree} onChangeText={v => updateEducation(i, "degree", v)} /><InputField label="الجامعة / المؤسسة" value={e.institution} onChangeText={v => updateEducation(i, "institution", v)} /><InputField label="السنة" value={e.year} onChangeText={v => updateEducation(i, "year", v)} /></View>)}
+            <TouchableOpacity onPress={() => updateCv("education", [...cv.education, { degree: "", institution: "", year: "" }])} style={s.addLine}><Ionicons name="add" size={18} color={Colors.primary}/><Text style={s.addLineText}>إضافة تعليم</Text></TouchableOpacity>
+          </Animated.View>}
 
-          {/* الخطوة 2: التعليم */}
-          {step === 2 && (
-            <Animated.View entering={FadeInDown.delay(80).springify()}>
-              <Text style={s.sectionTitle}>المؤهل العلمي</Text>
-              {cv.education.map((edu, i) => (
-                <View key={i} style={s.itemCard}>
-                  <View style={s.itemCardHeader}>
-                    <Text style={s.itemCardLabel}>المؤهل {i + 1}</Text>
-                    {cv.education.length > 1 && (
-                      <TouchableOpacity onPress={() => removeEducation(i)}>
-                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <InputField label="الدرجة العلمية" value={edu.degree} onChangeText={v => updateEducation(i, "degree", v)} placeholder="بكالوريوس · ماجستير · دبلوم..." />
-                  <InputField label="المؤسسة التعليمية" value={edu.institution} onChangeText={v => updateEducation(i, "institution", v)} />
-                  <InputField label="سنة التخرج" value={edu.year} onChangeText={v => updateEducation(i, "year", v)} keyboardType="numeric" />
-                </View>
-              ))}
-              <TouchableOpacity style={s.addBtn} onPress={addEducation}>
-                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-                <Text style={s.addBtnText}>إضافة مؤهل آخر</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          {step === 3 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 12 }}>
+            <ListEditor title="المهارات" field="skills" items={cv.skills} update={updateListItem} add={addListItem} />
+            <ListEditor title="اللغات" field="languages" items={cv.languages} update={updateListItem} add={addListItem} />
+            <ListEditor title="الدورات" field="courses" items={cv.courses} update={updateListItem} add={addListItem} />
+          </Animated.View>}
 
-          {/* الخطوة 3: الخبرة */}
-          {step === 3 && (
-            <Animated.View entering={FadeInDown.delay(80).springify()}>
-              <Text style={s.sectionTitle}>الخبرة العملية</Text>
-              {cv.experience.map((exp, i) => (
-                <View key={i} style={s.itemCard}>
-                  <View style={s.itemCardHeader}>
-                    <Text style={s.itemCardLabel}>الخبرة {i + 1}</Text>
-                    {cv.experience.length > 1 && (
-                      <TouchableOpacity onPress={() => removeExperience(i)}>
-                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <InputField label="المنصب / الوظيفة" value={exp.position} onChangeText={v => updateExperience(i, "position", v)} />
-                  <InputField label="جهة العمل" value={exp.company} onChangeText={v => updateExperience(i, "company", v)} />
-                  <InputField label="الفترة الزمنية" value={exp.period} onChangeText={v => updateExperience(i, "period", v)} placeholder="2020 - 2023" />
-                  <InputField label="وصف المهام" value={exp.desc} onChangeText={v => updateExperience(i, "desc", v)} multiline />
-                </View>
-              ))}
-              <TouchableOpacity style={s.addBtn} onPress={addExperience}>
-                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-                <Text style={s.addBtnText}>إضافة خبرة أخرى</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-
-          {/* الخطوة 4: المهارات */}
-          {step === 4 && (
-            <Animated.View entering={FadeInDown.delay(80).springify()}>
-              {/* المهارات */}
-              <Text style={s.sectionTitle}>المهارات</Text>
-              {cv.skills.map((skill, i) => (
-                <View key={i} style={s.listRow}>
-                  <TextInput
-                    value={skill}
-                    onChangeText={v => updateListItem("skills", i, v)}
-                    placeholder={`مهارة ${i + 1}`}
-                    placeholderTextColor="#3F6B54"
-                    style={[s.input, { flex: 1 }]}
-                  />
-                  <TouchableOpacity onPress={() => removeListItem("skills", i)} style={s.removeBtn}>
-                    <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={s.addBtn} onPress={() => addListItem("skills")}>
-                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-                <Text style={s.addBtnText}>إضافة مهارة</Text>
-              </TouchableOpacity>
-
-              {/* اللغات */}
-              <Text style={[s.sectionTitle, { marginTop: 20 }]}>اللغات</Text>
-              {cv.languages.map((lang, i) => (
-                <View key={i} style={s.listRow}>
-                  <TextInput
-                    value={lang}
-                    onChangeText={v => updateListItem("languages", i, v)}
-                    placeholder={`لغة ${i + 1}`}
-                    placeholderTextColor="#3F6B54"
-                    style={[s.input, { flex: 1 }]}
-                  />
-                  <TouchableOpacity onPress={() => removeListItem("languages", i)} style={s.removeBtn}>
-                    <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={s.addBtn} onPress={() => addListItem("languages")}>
-                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-                <Text style={s.addBtnText}>إضافة لغة</Text>
-              </TouchableOpacity>
-
-              {/* الدورات */}
-              <Text style={[s.sectionTitle, { marginTop: 20 }]}>الدورات والشهادات</Text>
-              {cv.courses.map((c, i) => (
-                <View key={i} style={s.listRow}>
-                  <TextInput
-                    value={c}
-                    onChangeText={v => updateListItem("courses", i, v)}
-                    placeholder={`دورة أو شهادة ${i + 1}`}
-                    placeholderTextColor="#3F6B54"
-                    style={[s.input, { flex: 1 }]}
-                  />
-                  <TouchableOpacity onPress={() => removeListItem("courses", i)} style={s.removeBtn}>
-                    <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={s.addBtn} onPress={() => addListItem("courses")}>
-                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-                <Text style={s.addBtnText}>إضافة دورة</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-
-          {/* الخطوة 5: المعاينة */}
-          {step === 5 && (
-            <Animated.View entering={FadeIn.delay(80)} style={{ gap: 16 }}>
-              <Text style={s.sectionTitle}>معاينة السيرة الذاتية</Text>
-              <CVPreview cv={cv} template={selectedTemplate} />
-
-              {/* أزرار الإجراء */}
-              <AnimatedPress onPress={handleDownload}>
-                <LinearGradient
-                  colors={[Colors.primary, Colors.primaryDeep]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={s.downloadBtn}
-                >
-                  {loading
-                    ? <Text style={s.downloadBtnText}>جاري الإنشاء...</Text>
-                    : <>
-                        <Ionicons name="download-outline" size={20} color="#fff" />
-                        <Text style={s.downloadBtnText}>تحميل PDF</Text>
-                      </>
-                  }
-                </LinearGradient>
-              </AnimatedPress>
-
-              <AnimatedPress onPress={handleShare}>
-                <View style={s.shareFullBtn}>
-                  <Ionicons name="share-social-outline" size={20} color={Colors.accent} />
-                  <Text style={[s.downloadBtnText, { color: Colors.accent }]}>مشاركة السيرة الذاتية</Text>
-                </View>
-              </AnimatedPress>
-
-              {/* مؤشر القالب */}
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, justifyContent: "center" }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>
-                  القالب المستخدم:
-                </Text>
-                <View style={[{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }, { backgroundColor: selectedTemplate.primaryColor + "20" }]}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: selectedTemplate.primaryColor }}>
-                    {selectedTemplate.name}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          )}
-                <OrgInviteCard />
-</ScrollView>
+          {step === 4 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 14 }}>
+            <Text style={s.sectionTitle}>المعاينة النهائية</Text>
+            <CVPreview cv={cv} template={selectedForPreview} color={selectedColor} />
+            <View style={s.brandNote}><Text style={s.brandNoteText}>سيظهر توقيع صغير أسفل الورقة: Powered by Hasahisawi</Text></View>
+          </Animated.View>}
+        </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* أزرار التنقل بين الخطوات */}
-      <View style={[s.navBar, { paddingBottom: insets.bottom + 10 }]}>
-        <TouchableOpacity
-          onPress={prevStep}
-          disabled={step === 0}
-          style={[s.navBtn, step === 0 && { opacity: 0.35 }]}
-        >
-          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-          <Text style={s.navBtnText}>السابق</Text>
-        </TouchableOpacity>
-
-        <View style={s.stepIndicator}>
-          {STEPS.map((_, i) => (
-            <View key={i} style={[s.stepDot, step === i && s.stepDotActive]} />
-          ))}
-        </View>
-
-        {step < STEPS.length - 1 ? (
-          <TouchableOpacity onPress={nextStep} style={[s.navBtn, s.navBtnPrimary]}>
-            <Text style={[s.navBtnText, { color: Colors.primary }]}>التالي</Text>
-            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={handleDownload} style={[s.navBtn, s.navBtnPrimary]} disabled={loading}>
-            <Ionicons name="download-outline" size={18} color={Colors.primary} />
-            <Text style={[s.navBtnText, { color: Colors.primary }]}>{loading ? "..." : "تحميل"}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <View style={s.footer}>{step > 0 ? <TouchableOpacity onPress={prevStep} style={s.prevBtn}><Text style={s.prevText}>السابق</Text></TouchableOpacity> : <View style={{ flex: 1 }} />}{step < STEPS.length - 1 ? <TouchableOpacity onPress={nextStep} style={s.nextBtn}><Text style={s.nextText}>التالي</Text><Ionicons name="arrow-back" size={18} color="#001"/></TouchableOpacity> : <TouchableOpacity onPress={handleDownload} disabled={loading} style={[s.nextBtn, loading && { opacity: .65 }]}><Text style={s.nextText}>{loading ? "جاري التصدير..." : "تصدير PDF"}</Text><Ionicons name="download-outline" size={18} color="#001"/></TouchableOpacity>}</View>
     </View>
   );
 }
 
+function TemplateCard({ tmpl, selected, color, index, onPress }: { tmpl: CVTemplate; selected: boolean; color: string; index: number; onPress: () => void }) {
+  return <Animated.View entering={FadeInDown.delay(70 + index * 45).springify()}><AnimatedPress onPress={onPress}><View style={[s.templateCard, selected && { borderColor: Colors.accent, backgroundColor: Colors.glassStrong || Colors.cardBg }]}><LinearGradient colors={[color || tmpl.primaryColor, tmpl.accentColor]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.templateMock}><View style={s.mockPaper}><View style={[s.mockSide, { backgroundColor: color || tmpl.primaryColor }]} /><View style={s.mockLines}><View style={[s.mockLine, { width: "70%" }]} /><View style={[s.mockLine, { width: "45%" }]} /><View style={[s.mockLineThin, { width: "88%" }]} /><View style={[s.mockLineThin, { width: "76%" }]} /></View></View></LinearGradient><View style={{ flex: 1 }}><View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}><Text style={s.templateName}>{tmpl.name}</Text><View style={s.freeBadge}><Text style={s.freeBadgeText}>Free</Text></View></View><Text style={s.templateStyle}>{tmpl.style}</Text><Text style={s.templateDesc}>{tmpl.desc}</Text></View>{selected ? <View style={s.checkBadge}><Ionicons name="checkmark" size={15} color="#001" /></View> : <Ionicons name={tmpl.icon} size={22} color={Colors.textMuted} />}</View></AnimatedPress></Animated.View>;
+}
+
+function ListEditor({ title, field, items, update, add }: { title: string; field: "skills" | "languages" | "courses"; items: string[]; update: (field: any, index: number, value: string) => void; add: (field: any) => void }) {
+  return <View style={s.groupCard}><Text style={s.subTitle}>{title}</Text>{items.map((item, i) => <InputField key={i} label={`${title} ${i + 1}`} value={item} onChangeText={v => update(field, i, v)} />)}<TouchableOpacity onPress={() => add(field)} style={s.addLine}><Ionicons name="add" size={18} color={Colors.primary}/><Text style={s.addLineText}>إضافة</Text></TouchableOpacity></View>;
+}
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-
-  header: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 14, paddingTop: 12,
-    borderBottomWidth: 0.5, borderBottomColor: "rgba(34,197,94,0.15)", gap: 8,
-  },
-  backBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center" },
-  shareBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-
-  stepsBar: {
-    flexDirection: "row", paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: "rgba(255,255,255,0.02)", borderBottomWidth: 0.5, borderBottomColor: Colors.divider,
-  },
+  header: { height: 64, flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bgAlt || Colors.bg },
+  backBtn: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: Colors.glassCard || Colors.cardBg },
+  shareBtn: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: Colors.glassCard || Colors.cardBg },
+  headerTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 16 },
+  headerSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  stepsBar: { flexDirection: "row-reverse", paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bg },
   stepItem: { flex: 1, alignItems: "center", gap: 4 },
-  stepCircle: {
-    width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: Colors.divider,
-    alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
-  },
-  stepLabel: { fontFamily: "Cairo_400Regular", fontSize: 9.5, color: Colors.textMuted },
-
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right", marginBottom: 14 },
-
-  fieldWrap: { marginBottom: 12 },
-  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
-  input: {
-    backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
-    borderWidth: 1, borderColor: "rgba(34,197,94,0.18)", textAlign: "right",
-  },
-
-  itemCard: { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  itemCardHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  itemCardLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary },
-
-  listRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 8 },
-  removeBtn: { padding: 4 },
-
-  addBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "35", borderStyle: "dashed", justifyContent: "center", marginTop: 4 },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
-
-  templateCard: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16,
-    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
-    overflow: "hidden",
-  },
-  templateCardSelected: { borderColor: Colors.primary + "60", backgroundColor: Colors.primary + "08" },
-  templateGradientStrip: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
-  templateIconBox: { width: 52, height: 52, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  templateName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  templateDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
-  checkBadge: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-
-  downloadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, borderRadius: 16 },
-  downloadBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
-  shareFullBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: Colors.accent + "40", backgroundColor: Colors.accent + "10" },
-
-  navBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Colors.divider, backgroundColor: Colors.bg },
-  navBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.04)" },
-  navBtnPrimary: { backgroundColor: Colors.primary + "15" },
-  navBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
-  stepIndicator: { flexDirection: "row", gap: 6 },
-  stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.divider },
-  stepDotActive: { width: 18, backgroundColor: Colors.primary },
-});
-
-// ── أنماط شاشة الدفع المميز ──────────────────────────────────────
-const pg = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-
-  header: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 16,
-    paddingBottom: 14, paddingTop: 12,
-    borderBottomWidth: 0.5, borderBottomColor: "rgba(6,182,212,0.18)", gap: 8,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 11,
-    backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center",
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#06B6D4" },
-
-  heroIcon: {
-    width: 110, height: 110, borderRadius: 32,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#06B6D4", shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5, shadowRadius: 20, elevation: 14,
-  },
-  premiumBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#F59E0B", borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 4,
-    marginTop: -12, zIndex: 10,
-    shadowColor: "#F59E0B", shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.5, shadowRadius: 8, elevation: 6,
-  },
-  premiumBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#000" },
-
-  title: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },
-  subtitle: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
-
-  priceCard: {
-    alignItems: "center", paddingVertical: 22, paddingHorizontal: 40,
-    borderRadius: 24, borderWidth: 1.5, borderColor: "#06B6D430",
-    overflow: "hidden", gap: 6, marginHorizontal: 24,
-  },
-  priceLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
-  priceAmount: { fontFamily: "Cairo_700Bold", fontSize: 52, color: "#06B6D4" },
-  priceCurrency: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#06B6D4", marginBottom: 8 },
-  priceNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 4 },
-
-  featuresTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 12 },
-  featuresList: { gap: 10 },
-  featureItem: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(6,182,212,0.05)", borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: "rgba(6,182,212,0.15)",
-  },
-  featureIconWrap: {
-    width: 36, height: 36, borderRadius: 11,
-    backgroundColor: "#06B6D415", alignItems: "center", justifyContent: "center",
-  },
-  featureText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1 },
-
-  payBtn: {
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
-    gap: 10, padding: 17, borderRadius: 18,
-    shadowColor: "#06B6D4", shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
-  },
-  payBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
-  secureNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 12 },
-
-  // مودال الدفع
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
-  modalHeader: { padding: 20, alignItems: "center", gap: 4 },
-  modalClose: {
-    position: "absolute", top: 14, right: 14,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.25)", alignItems: "center", justifyContent: "center",
-  },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
-  modalSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.85)" },
-  modalLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-
-  methodItem: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
-    borderRadius: 16, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  methodIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  methodName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, flex: 1 },
-
-  phoneInput: {
-    backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 13,
-    fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
-    borderWidth: 1, borderColor: "rgba(6,182,212,0.25)", textAlign: "right",
-  },
-
-  infoBox: {
-    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
-    backgroundColor: Colors.accent + "10", borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: Colors.accent + "30",
-  },
-  infoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, lineHeight: 20, textAlign: "right" },
+  stepCircle: { width: 29, height: 29, borderRadius: 15, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },
+  stepLabel: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 10 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 18, textAlign: "right", marginBottom: 12 },
+  subTitle: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 14, textAlign: "right", marginBottom: 6 },
+  freeNotice: { flexDirection: "row-reverse", alignItems: "center", gap: 7, borderRadius: 14, borderWidth: 1, borderColor: "#22C55E40", backgroundColor: "#22C55E18", padding: 10, marginBottom: 14 },
+  freeNoticeText: { fontFamily: "Cairo_600SemiBold", color: "#22C55E", fontSize: 12, flex: 1, textAlign: "right" },
+  colorRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginVertical: 10 },
+  colorDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
+  colorDotOn: { borderWidth: 3, borderColor: Colors.accent, transform: [{ scale: 1.06 }] },
+  templateCard: { minHeight: 112, borderRadius: 22, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.glassCard || Colors.cardBg, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 12, overflow: "hidden" },
+  templateMock: { width: 82, height: 92, borderRadius: 16, padding: 7, justifyContent: "center" },
+  mockPaper: { flex: 1, borderRadius: 8, backgroundColor: "#fff", flexDirection: "row", overflow: "hidden" },
+  mockSide: { width: 22 }, mockLines: { flex: 1, padding: 7, gap: 5 }, mockLine: { height: 7, backgroundColor: "#111827", borderRadius: 3 }, mockLineThin: { height: 4, backgroundColor: "#CBD5E1", borderRadius: 3 },
+  templateName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 14, textAlign: "right" },
+  templateStyle: { fontFamily: "Cairo_600SemiBold", color: Colors.accent, fontSize: 11, textAlign: "right", marginTop: 2 },
+  templateDesc: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 4, lineHeight: 18 },
+  freeBadge: { backgroundColor: "#22C55E18", borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#22C55E40" },
+  freeBadgeText: { fontFamily: "Cairo_700Bold", color: "#22C55E", fontSize: 9 },
+  checkBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center" },
+  fieldWrap: { marginBottom: 10 }, fieldLabel: { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12, textAlign: "right", marginBottom: 6 },
+  input: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.cardBg, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", paddingHorizontal: 12, textAlign: "right" },
+  groupCard: { borderRadius: 20, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.glassCard || Colors.cardBg, padding: 12, marginBottom: 10 },
+  addLine: { height: 42, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, marginTop: 4 },
+  addLineText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 12 },
+  photoBox: { flexDirection: "row-reverse", alignItems: "center", gap: 12, borderRadius: 17, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.glassCard || Colors.cardBg, padding: 12, marginBottom: 10 },
+  helperText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 3 },
+  photoActions: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 10 },
+  cvPhotoPreview: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: Colors.accent },
+  cvPhotoPlaceholder: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },
+  photoBtn: { flex: 1, height: 44, borderRadius: 14, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  photoBtnText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 12 },
+  previewSheet: { height: Math.min(520, width * 1.28), borderRadius: 18, overflow: "hidden", backgroundColor: "#F9FAFB", flexDirection: "row", borderWidth: 1, borderColor: Colors.border },
+  previewSide: { width: "34%", padding: 12, alignItems: "center" }, previewMain: { flex: 1, padding: 16, backgroundColor: "#fff" },
+  previewPhoto: { width: 70, height: 70, borderRadius: 35, borderWidth: 3, borderColor: "#fff", marginBottom: 12 }, previewPhotoPlaceholder: { width: 70, height: 70, borderRadius: 35, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  previewSideTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 11, marginTop: 12, marginBottom: 6, alignSelf: "stretch", textAlign: "right" }, previewSideText: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,.86)", fontSize: 9, alignSelf: "stretch", textAlign: "right", marginBottom: 4 },
+  previewName: { fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "right" }, previewRole: { fontFamily: "Cairo_400Regular", color: "#6B7280", fontSize: 12, textAlign: "right", marginTop: 3 }, previewSummary: { fontFamily: "Cairo_400Regular", color: "#374151", fontSize: 10, textAlign: "right", marginTop: 12, lineHeight: 16 }, previewSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 12, borderBottomWidth: 1, paddingBottom: 4, textAlign: "right" }, previewItem: { fontFamily: "Cairo_400Regular", color: "#374151", fontSize: 10, textAlign: "right", marginTop: 5 },
+  brandNote: { borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, padding: 10 }, brandNoteText: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 11, textAlign: "center" },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row-reverse", gap: 10, padding: 14, backgroundColor: Colors.bgAlt || Colors.bg, borderTopWidth: 1, borderTopColor: Colors.borderSubtle || Colors.divider },
+  prevBtn: { flex: 1, height: 48, borderRadius: 15, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg }, prevText: { fontFamily: "Cairo_700Bold", color: Colors.textSecondary },
+  nextBtn: { flex: 1.3, height: 48, borderRadius: 15, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 }, nextText: { fontFamily: "Cairo_700Bold", color: "#001" },
 });
