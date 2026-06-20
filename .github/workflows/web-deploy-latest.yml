@@ -1,0 +1,120 @@
+name: Hasahisawi — Web Deploy Latest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - '.web-release-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-web-latest:
+    name: Build and deploy latest web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Prepare web environment and GitHub Pages base path
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const appJsonPath = 'artifacts/hasahisawi/app.json';
+          const easJsonPath = 'artifacts/hasahisawi/eas.json';
+          const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+          app.expo.experiments = app.expo.experiments || {};
+          app.expo.experiments.baseUrl = '/hasahisawi';
+          app.expo.web = app.expo.web || {};
+          app.expo.web.scope = '/hasahisawi/';
+          app.expo.web.startUrl = '/hasahisawi/';
+          fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
+
+          const eas = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
+          const env = eas.build?.production?.env || eas.build?.preview?.env || {};
+          const lines = Object.entries(env).map(([key, value]) => `${key}=${value}`);
+          fs.writeFileSync('artifacts/hasahisawi/.env', lines.join('\n') + '\n');
+          console.log(`Prepared web deploy for v${app.expo.version} with ${lines.length} env values`);
+          NODE
+
+      - name: Export web app
+        working-directory: artifacts/hasahisawi
+        run: pnpm exec expo export --platform web
+
+      - name: Add PWA compatibility files
+        working-directory: artifacts/hasahisawi
+        run: |
+          cp -r public/splash dist/splash 2>/dev/null || true
+          cp public/sw.js dist/sw.js 2>/dev/null || true
+          cp public/manifest.json dist/manifest.json 2>/dev/null || true
+          cp public/icon.png dist/icon.png 2>/dev/null || true
+          cp public/favicon.png dist/favicon.png 2>/dev/null || true
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+          echo '/* /index.html 200' > dist/_redirects
+          printf '%s\n' \
+            '/*' \
+            '  X-Frame-Options: DENY' \
+            '  X-Content-Type-Options: nosniff' \
+            '  Referrer-Policy: strict-origin-when-cross-origin' \
+            '  Permissions-Policy: camera=(), microphone=(), geolocation=()' \
+            '' \
+            '/_expo/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            '' \
+            '/assets/*' \
+            '  Cache-Control: public, max-age=31536000, immutable' \
+            > dist/_headers
+
+      - name: Publish GitHub Pages docs folder
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          rm -rf docs
+          mkdir -p docs
+          cp -r artifacts/hasahisawi/dist/. docs/
+          node <<NODE
+          const fs = require('fs');
+          fs.writeFileSync('docs/deploy-version.json', JSON.stringify({
+            app: 'hasahisawi',
+            version: process.env.VERSION,
+            commit: process.env.GITHUB_SHA,
+            deployedAt: new Date().toISOString(),
+            source: 'web-deploy-latest'
+          }, null, 2) + '\n');
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f docs/
+          git commit -m "deploy: web PWA v${VERSION} latest [auto]" || echo "No docs changes"
+          git push origin master
+        env:
+          VERSION: ${{ github.sha }}
+
+      - name: Deploy Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare secrets not set — skipped"
+            exit 0
+          fi
+          cp -r docs cf-dist
+          find cf-dist -name "*.html" -exec sed -i 's|/hasahisawi/|/|g' {} \;
+          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
