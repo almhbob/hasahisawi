@@ -13,6 +13,17 @@ on:
       - 'artifacts/hasahisawi/lib/**'
       - 'artifacts/hasahisawi/components/**'
       - 'artifacts/hasahisawi/scripts/**'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '.release-trigger'
+      - '.github/workflows/release-v6.yml'
+      - 'artifacts/hasahisawi/package.json'
+      - 'artifacts/hasahisawi/app.json'
+      - 'artifacts/hasahisawi/app/**'
+      - 'artifacts/hasahisawi/lib/**'
+      - 'artifacts/hasahisawi/components/**'
+      - 'artifacts/hasahisawi/scripts/**'
 
 permissions:
   contents: write
@@ -219,7 +230,7 @@ jobs:
           echo "AAB: $AAB_FILE"
 
       - name: Publish GitHub Release
-        if: ${{ hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
+        if: ${{ github.event_name != 'pull_request' && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-android
