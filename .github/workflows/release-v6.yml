@@ -7,6 +7,12 @@ on:
     paths:
       - '.release-trigger'
       - '.github/workflows/release-v6.yml'
+      - 'artifacts/hasahisawi/package.json'
+      - 'artifacts/hasahisawi/app.json'
+      - 'artifacts/hasahisawi/app/**'
+      - 'artifacts/hasahisawi/lib/**'
+      - 'artifacts/hasahisawi/components/**'
+      - 'artifacts/hasahisawi/scripts/**'
 
 permissions:
   contents: write
@@ -57,8 +63,8 @@ jobs:
       - name: Apply app patches
         working-directory: artifacts/hasahisawi
         run: |
-          node scripts/apply-latest-sections.mjs || true
-          node scripts/apply-travel-shipping-services.mjs || true
+          node scripts/apply-latest-sections.mjs
+          node scripts/apply-travel-shipping-services.mjs
           node scripts/apply-driver-inbox-lite.mjs || true
           node scripts/apply-women-label-cleanup.mjs || true
           node scripts/apply-social-multi-images.mjs || true
@@ -162,25 +168,18 @@ jobs:
             echo "android.injected.signing.key.alias=$KEY_ALIAS_VALUE"
             echo "android.injected.signing.key.password=$KEY_PASSWORD_VALUE"
           } >> artifacts/hasahisawi/android/gradle.properties
-          echo "KEYSTORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "KEY_ALIAS=$KEY_ALIAS_VALUE" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=$KEY_PASSWORD_VALUE" >> "$GITHUB_ENV"
           keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA256|Valid from' || true
 
-      - name: Build release APK first
-        id: apk
+      - name: Build release APK
         working-directory: artifacts/hasahisawi/android
-        continue-on-error: true
         env:
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/apk-build.log"
 
-      - name: Build release AAB second
-        id: aab
+      - name: Build release AAB
         working-directory: artifacts/hasahisawi/android
-        continue-on-error: true
         env:
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
@@ -198,7 +197,7 @@ jobs:
           if [ -f "$AAB" ]; then cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.aab"; fi
           ls -lh release-artifacts || true
 
-      - name: Upload APK AAB and logs
+      - name: Upload artifacts and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -207,18 +206,27 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Publish GitHub Release when APK exists
-        if: always()
+      - name: Verify real APK and AAB exist
+        run: |
+          APK_FILE=$(ls release-artifacts/*.apk 2>/dev/null | head -1 || true)
+          AAB_FILE=$(ls release-artifacts/*.aab 2>/dev/null | head -1 || true)
+          if [ -z "$APK_FILE" ] || [ -z "$AAB_FILE" ]; then
+            echo "Missing APK or AAB. Current release-artifacts content:"
+            ls -lah release-artifacts || true
+            exit 1
+          fi
+          echo "APK: $APK_FILE"
+          echo "AAB: $AAB_FILE"
+
+      - name: Publish GitHub Release
+        if: ${{ hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-shipping
-          name: Hasahisawi v${{ steps.ver.outputs.version }} build ${{ steps.ver.outputs.code }} shipping update
-          files: release-artifacts/*
+          tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-android
+          name: Hasahisawi v${{ steps.ver.outputs.version }} build ${{ steps.ver.outputs.code }} Android APK AAB
+          files: |
+            release-artifacts/*.apk
+            release-artifacts/*.aab
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Fail if APK or AAB missing
-        run: |
-          test -f release-artifacts/*.apk
-          test -f release-artifacts/*.aab
