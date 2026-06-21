@@ -6,6 +6,12 @@ export type UploadProgress = {
   percent: number;
 };
 
+export type UploadFileOptions = {
+  onProgress?: (p: UploadProgress) => void;
+  fileName?: string | null;
+  mimeType?: string | null;
+};
+
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -16,6 +22,7 @@ const MIME_BY_EXT: Record<string, string> = {
   heif: "image/heif",
   bmp: "image/bmp",
   tiff: "image/tiff",
+  pdf: "application/pdf",
   mp4: "video/mp4",
   mov: "video/quicktime",
   m4v: "video/x-m4v",
@@ -26,31 +33,59 @@ const MIME_BY_EXT: Record<string, string> = {
   avi: "video/x-msvideo",
 };
 
-function inferFileMeta(uri: string, fallbackPath?: string): { name: string; type: string; ext: string } {
-  const cleaned = uri.split("?")[0].split("#")[0];
+function sanitizeFileName(name?: string | null): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  return trimmed
+    .replace(/[\\/]+/g, "_")
+    .replace(/[^\p{L}\p{N}._-]+/gu, "_")
+    .slice(0, 120) || null;
+}
+
+function extensionFrom(value?: string | null): string {
+  const cleaned = (value || "").split("?")[0].split("#")[0];
   const last = cleaned.substring(cleaned.lastIndexOf("/") + 1);
-  let ext = (last.includes(".") ? last.substring(last.lastIndexOf(".") + 1) : "").toLowerCase();
-  if (!ext && fallbackPath) {
-    const m = fallbackPath.toLowerCase().match(/\.([a-z0-9]+)$/);
-    if (m) ext = m[1];
-  }
+  const ext = last.includes(".") ? last.substring(last.lastIndexOf(".") + 1).toLowerCase() : "";
+  return ext;
+}
+
+function inferFileMeta(
+  uri: string,
+  fallbackPath?: string,
+  options?: UploadFileOptions,
+): { name: string; type: string; ext: string } {
+  const explicitName = sanitizeFileName(options?.fileName);
+  let ext = extensionFrom(explicitName) || extensionFrom(uri) || extensionFrom(fallbackPath);
   if (!ext) ext = "jpg";
-  const type = MIME_BY_EXT[ext] || (ext.match(/^(mp4|mov|mkv|webm|3gp|avi|m4v)$/) ? "video/mp4" : "image/jpeg");
-  const name = `upload_${Date.now()}.${ext}`;
+
+  const type =
+    options?.mimeType?.trim() ||
+    MIME_BY_EXT[ext] ||
+    (ext.match(/^(mp4|mov|mkv|webm|3gp|avi|m4v)$/) ? "video/mp4" : "image/jpeg");
+
+  const name = explicitName || `upload_${Date.now()}.${ext}`;
   return { name, type, ext };
+}
+
+function normalizeUploadOptions(
+  onProgressOrOptions?: ((p: UploadProgress) => void) | UploadFileOptions,
+): UploadFileOptions | undefined {
+  if (!onProgressOrOptions) return undefined;
+  if (typeof onProgressOrOptions === "function") return { onProgress: onProgressOrOptions };
+  return onProgressOrOptions;
 }
 
 async function uploadToBackend(
   filePath: string,
   uri: string,
-  onProgress?: (p: UploadProgress) => void,
+  options?: UploadFileOptions,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
     xhr.upload.onprogress = (e) => {
-      if (onProgress && e.lengthComputable) {
-        onProgress({
+      if (options?.onProgress && e.lengthComputable) {
+        options.onProgress({
           bytesTransferred: e.loaded,
           totalBytes: e.total,
           percent: Math.round((e.loaded / e.total) * 100),
@@ -62,6 +97,10 @@ async function uploadToBackend(
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const json = JSON.parse(xhr.responseText);
+          if (!json?.url) {
+            reject(new Error("لم يُرجع الخادم رابط الملف"));
+            return;
+          }
           resolve(json.url as string);
         } catch {
           reject(new Error("استجابة غير صالحة من الخادم"));
@@ -78,18 +117,22 @@ async function uploadToBackend(
 
     xhr.onerror = () => reject(new Error("تعذّر الاتصال بالخادم أثناء الرفع"));
     xhr.ontimeout = () => reject(new Error("انتهت مهلة الرفع"));
-    // 15 دقيقة لدعم الفيديوهات الكبيرة على الشبكات البطيئة
+    // 15 دقيقة لدعم الملفات الكبيرة على الشبكات البطيئة
     xhr.timeout = 15 * 60 * 1000;
 
     xhr.open("POST", `${getApiUrl()}/api/upload`);
 
-    const meta = inferFileMeta(uri, filePath);
+    const meta = inferFileMeta(uri, filePath, options);
     const formData = new FormData();
     formData.append("file", {
       uri,
       name: meta.name,
       type: meta.type,
     } as any);
+
+    // معلومات إضافية مفيدة للخادم، ولا تكسر الخوادم التي تتجاهلها.
+    formData.append("path", filePath);
+    formData.append("kind", meta.type.startsWith("image/") ? "image" : meta.type === "application/pdf" ? "document" : "file");
 
     xhr.send(formData);
   });
@@ -98,9 +141,9 @@ async function uploadToBackend(
 export async function uploadFile(
   path: string,
   uri: string,
-  onProgress?: (p: UploadProgress) => void,
+  onProgressOrOptions?: ((p: UploadProgress) => void) | UploadFileOptions,
 ): Promise<string> {
-  return uploadToBackend(path, uri, onProgress);
+  return uploadToBackend(path, uri, normalizeUploadOptions(onProgressOrOptions));
 }
 
 export async function deleteFile(_path: string): Promise<void> {
