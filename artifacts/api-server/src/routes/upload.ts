@@ -66,6 +66,7 @@ if (CLOUDINARY_OK) {
 const ALLOWED_MIME = new Set([
   "image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp",
   "image/gif",  "image/heic", "image/heif", "image/bmp", "image/tiff",
+  "application/pdf",
   "video/mp4",  "video/quicktime", "video/x-matroska", "video/webm",
   "video/3gpp", "video/3gpp2", "video/x-msvideo", "video/avi",
   "application/octet-stream",
@@ -73,17 +74,22 @@ const ALLOWED_MIME = new Set([
 
 const ALLOWED_EXT = new Set([
   ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".bmp", ".tiff",
+  ".pdf",
   ".mp4", ".mov", ".m4v", ".mkv", ".webm", ".3gp", ".3g2", ".avi",
 ]);
 
 function resolveFolder(filename: string, mimetype: string): string {
   const ext = path.extname(filename || "").toLowerCase();
-  const isVideo = mimetype.startsWith("video/") || [".mp4",".mov",".mkv",".webm",".3gp",".avi",".m4v"].includes(ext);
-  return isVideo ? "hasahisawi/videos" : "hasahisawi/images";
+  const isVideo = mimetype.startsWith("video/") || [".mp4", ".mov", ".mkv", ".webm", ".3gp", ".avi", ".m4v"].includes(ext);
+  const isDocument = mimetype === "application/pdf" || ext === ".pdf";
+  if (isVideo) return "hasahisawi/videos";
+  if (isDocument) return "hasahisawi/documents";
+  return "hasahisawi/images";
 }
 
 function resolveResourceType(mimetype: string, ext: string): "image" | "video" | "raw" {
-  if (mimetype.startsWith("video/") || [".mp4",".mov",".mkv",".webm",".3gp",".avi",".m4v"].includes(ext)) return "video";
+  if (mimetype.startsWith("video/") || [".mp4", ".mov", ".mkv", ".webm", ".3gp", ".avi", ".m4v"].includes(ext)) return "video";
+  if (mimetype === "application/pdf" || ext === ".pdf") return "raw";
   if (mimetype.startsWith("image/")) return "image";
   return "raw";
 }
