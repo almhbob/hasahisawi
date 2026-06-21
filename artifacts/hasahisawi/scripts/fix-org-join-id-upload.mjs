@@ -17,29 +17,32 @@ function replaceOnce(from, to, label) {
   src = src.replace(from, to);
 }
 
-// 1) Add document-picker fallback beside image-picker.
+function replaceRegex(regex, to, label) {
+  if (!regex.test(src)) {
+    console.warn(`[fix-org-join-id-upload] skipped ${label}: pattern not found`);
+    return;
+  }
+  src = src.replace(regex, to);
+}
+
 replaceOnce(
   'import * as ImagePicker from "expo-image-picker";',
   'import * as ImagePicker from "expo-image-picker";\nimport * as DocumentPicker from "expo-document-picker";',
   'document picker import',
 );
 
-// 2) Add upload-safe helpers and a valid fallback URL that keeps the request from failing.
 replaceOnce(
   'const COMMITMENT_DATE = "١ أبريل ٢٠٢٦";\n',
   `const COMMITMENT_DATE = "١ أبريل ٢٠٢٦";\n\nconst REP_PHOTO_PENDING_URL = "https://almhbob.github.io/hasahisawi/privacy.html#identity-upload-pending";\ntype RepPhotoAsset = { uri: string; name?: string | null; mimeType?: string | null; source: "library" | "camera" | "document" };\n\nfunction getIdentityExt(asset: RepPhotoAsset): string {\n  const value = asset.name || asset.uri || "";\n  const clean = value.split("?")[0].split("#")[0];\n  const match = clean.match(/\\.([a-z0-9]+)$/i);\n  const ext = match?.[1]?.toLowerCase();\n  if (ext && ["jpg", "jpeg", "png", "webp", "heic", "heif", "pdf"].includes(ext)) return ext;\n  if (asset.mimeType === "application/pdf") return "pdf";\n  if (asset.mimeType === "image/png") return "png";\n  if (asset.mimeType === "image/webp") return "webp";\n  if (asset.mimeType === "image/heic") return "heic";\n  if (asset.mimeType === "image/heif") return "heif";\n  return "jpg";\n}\n\nfunction getIdentityMime(asset: RepPhotoAsset): string {\n  if (asset.mimeType && (asset.mimeType.startsWith("image/") || asset.mimeType === "application/pdf")) return asset.mimeType;\n  const ext = getIdentityExt(asset);\n  if (ext === "pdf") return "application/pdf";\n  if (ext === "png") return "image/png";\n  if (ext === "webp") return "image/webp";\n  if (ext === "heic") return "image/heic";\n  if (ext === "heif") return "image/heif";\n  return "image/jpeg";\n}\n`,
   'identity upload helpers',
 );
 
-// 3) Store selected file metadata and readable error.
 replaceOnce(
   '  const [repPhotoUploadFailed, setRepPhotoUploadFailed] = useState(false);',
   `  const [repPhotoUploadFailed, setRepPhotoUploadFailed] = useState(false);\n  const [repPhotoFileName, setRepPhotoFileName] = useState<string | null>(null);\n  const [repPhotoMimeType, setRepPhotoMimeType] = useState<string | null>(null);\n  const [repPhotoUploadError, setRepPhotoUploadError] = useState<string | null>(null);`,
   'identity upload state',
 );
 
-// 4) Replace the fragile upload/pick block with resilient gallery/camera/document flow.
-const blockRe = /  \/\/ رفع صورة هوية الممثل[\s\S]*?\n\n  \/\/ التحقق من حالة الطلب/;
 const robustBlock = `  // رفع صورة هوية الممثل — لا نمنع اكتمال الطلب عند فشل الشبكة، بل نرسله كمراجعة هوية.
   const doUploadRepPhoto = async (assetOrUri: RepPhotoAsset | string): Promise<string | null> => {
     const asset: RepPhotoAsset = typeof assetOrUri === "string"
@@ -181,11 +184,10 @@ const robustBlock = `  // رفع صورة هوية الممثل — لا نمن�
 
   // التحقق من حالة الطلب`;
 
-if (blockRe.test(src) && !src.includes('const pickRepPhotoAsDocument = async () =>')) {
-  src = src.replace(blockRe, robustBlock);
+if (!src.includes('const pickRepPhotoAsDocument = async () =>')) {
+  replaceRegex(/  \/\/ رفع صورة هوية الممثل[\s\S]*?\n\n  \/\/ التحقق من حالة الطلب/, robustBlock, 'robust identity picker block');
 }
 
-// 5) Photo selection should be recommended, not a hard blocker.
 src = src.replace(
 `      if (!repPhotoUri && !repPhotoUrl) {
         return Alert.alert("تنبيه", "يرجى إرفاق صورة هوية الممثل الرسمي");
@@ -196,22 +198,9 @@ src = src.replace(
       }`,
 );
 
-// 6) Submit must complete even if identity upload is temporarily unavailable.
-src = src.replace(
-`    // إعادة محاولة رفع صورة الهوية إذا فشلت سابقاً
-    let finalRepPhotoUrl = repPhotoUrl;
-    if (!finalRepPhotoUrl && repPhotoUri) {
-      try {
-        const folder = auth.user ? \`institution_applications/\${auth.user.id}\` : \`institution_applications/guest\`;
-        const name = \`\${Date.now()}_rep_id.jpg\`;
-        finalRepPhotoUrl = await uploadFile(\`\${folder}/\${name}\`, repPhotoUri);
-        setRepPhotoUrl(finalRepPhotoUrl);
-        setRepPhotoUploadFailed(false);
-      } catch {
-        // نستمر بدون صورة — يمكن للإدارة طلبها لاحقاً
-      }
-    }
-`,
+if (!src.includes('pending_manual_review')) {
+  replaceRegex(
+    /    \/\/ إعادة محاولة رفع صورة الهوية إذا فشلت سابقاً[\s\S]*?\n    }\n\n    try \{/,
 `    // إعادة محاولة رفع الهوية. عند فشل الشبكة لا نسقط الطلب؛ نرسله للمراجعة اليدوية.
     let finalRepPhotoUrl = repPhotoUrl;
     let identityUploadStatus: "uploaded" | "pending_manual_review" = finalRepPhotoUrl ? "uploaded" : "pending_manual_review";
@@ -228,8 +217,11 @@ src = src.replace(
       finalRepPhotoUrl = REP_PHOTO_PENDING_URL;
       identityUploadStatus = "pending_manual_review";
     }
-`,
-);
+
+    try {`,
+    'submit upload fallback block',
+  );
+}
 
 src = src.replace(
 `          rep_email: repEmail.trim() || undefined,
@@ -244,7 +236,6 @@ src = src.replace(
         }),`,
 );
 
-// 7) Make the UI text honest: chosen locally vs uploaded remotely.
 src = src.replace(
 `                            ? "فشل الرفع"
                             : "✓ تم رفع الصورة"`,
@@ -261,7 +252,7 @@ src = src.replace(
                           <Ionicons name="refresh" size={14} color={Colors.primary} />
                           <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إعادة الرفع</Text>
                         </TouchableOpacity>
-                      )}`, 
+                      )}`,
 `                      {repPhotoUploadFailed && !repPhotoUploading && (
                         <View style={{ marginTop: 2, gap: 4 }}>
                           <TouchableOpacity
