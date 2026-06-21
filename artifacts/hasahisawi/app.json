@@ -6,12 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hasahisawi",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/city-crest.png",
       "resizeMode": "cover",
-      "backgroundColor": "#F2EBD8"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -56,8 +56,8 @@
       "name": "حصاحيصاوي",
       "shortName": "حصاحيصاوي",
       "description": "بوابتك المجتمعية لمدينة الحصاحيصا وقراها",
-      "themeColor": "#27AE68",
-      "backgroundColor": "#0D0D0D",
+      "themeColor": "#009B67",
+      "backgroundColor": "#F7FFF9",
       "lang": "ar",
       "dir": "rtl",
       "scope": "/",
@@ -94,7 +94,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#22C55E",
+          "color": "#009B67",
           "defaultChannel": "hasahisawi-default",
           "sounds": [
             "./assets/sounds/hasahisawi_notif.wav",
@@ -113,7 +113,7 @@
                 100,
                 200
               ],
-              "lightColor": "#22C55E",
+              "lightColor": "#009B67",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
@@ -132,7 +132,7 @@
                 80,
                 100
               ],
-              "lightColor": "#3B82F6",
+              "lightColor": "#009B67",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
@@ -151,7 +151,7 @@
                 200,
                 600
               ],
-              "lightColor": "#EF4444",
+              "lightColor": "#FFC20A",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
@@ -168,7 +168,7 @@
                 150,
                 300
               ],
-              "lightColor": "#0EA5E9",
+              "lightColor": "#009B67",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": true,
@@ -185,7 +185,7 @@
                 100,
                 400
               ],
-              "lightColor": "#F59E0B",
+              "lightColor": "#FFC20A",
               "enableLights": true,
               "enableVibrate": true,
               "showBadge": false,
