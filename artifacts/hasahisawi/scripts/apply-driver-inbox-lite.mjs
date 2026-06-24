@@ -6,10 +6,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const file = resolve(__dirname, '../app/(tabs)/transport.tsx');
 let src = readFileSync(file, 'utf8');
 let changed = false;
-const rep = (a, b) => { if (src.includes(a)) { src = src.replace(a, b); changed = true; return true; } return false; };
 
-rep('useState<"book" | "drivers" | "mytrips" | "register">("book")', 'useState<"book" | "driver-inbox" | "drivers" | "mytrips" | "register">("book")');
-rep('  const [myTrips,    setMyTrips]    = useState<Trip[]>([]);\n', '  const [myTrips,    setMyTrips]    = useState<Trip[]>([]);\n  const [driverModeId, setDriverModeId] = useState<number | null>(null);\n  const [incomingTrips, setIncomingTrips] = useState<Trip[]>([]);\n  const [incomingLoading, setIncomingLoading] = useState(false);\n  const [acceptingTripId, setAcceptingTripId] = useState<number | null>(null);\n');
+const rep = (from, to) => {
+  if (!src.includes(from)) return false;
+  src = src.replace(from, to);
+  changed = true;
+  return true;
+};
+
+rep(
+  'useState<"book" | "drivers" | "mytrips" | "register">("book")',
+  'useState<"book" | "driver-inbox" | "drivers" | "mytrips" | "register">("book")',
+);
+
+if (!src.includes('const [driverModeId, setDriverModeId]')) {
+  rep(
+    '  const [myTrips,    setMyTrips]    = useState<Trip[]>([]);\n',
+    '  const [myTrips,    setMyTrips]    = useState<Trip[]>([]);\n  const [driverModeId, setDriverModeId] = useState<number | null>(null);\n  const [incomingTrips, setIncomingTrips] = useState<Trip[]>([]);\n  const [incomingLoading, setIncomingLoading] = useState(false);\n  const [acceptingTripId, setAcceptingTripId] = useState<number | null>(null);\n',
+  );
+}
 
 if (!src.includes('loadIncomingTripsLite')) {
   const anchor = `  const loadMyTrips = useCallback(async () => {
@@ -95,7 +110,12 @@ if (!src.includes('activeTab !== "driver-inbox"')) {
 `);
 }
 
-rep('    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n', '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n    { key: "driver-inbox", label: "طلبات واردة", icon: "radio-outline" as const },\n');
+if (!src.includes('key: "driver-inbox"')) {
+  rep(
+    '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n',
+    '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n    { key: "driver-inbox", label: "طلبات واردة", icon: "radio-outline" as const },\n',
+  );
+}
 
 if (!src.includes('activeTab === "driver-inbox"')) {
   const block = `
@@ -127,8 +147,30 @@ if (!src.includes('activeTab === "driver-inbox"')) {
           </Animated.View>
         )}
 `;
-  rep('        {/* ───ـ السائقون ───ـ */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`) || rep('        {/* ───ـ السائقون ──── */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`) || rep('        {/* ──── السائقون ──── */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`);
+  rep('        {/* ───ـ السائقون ───ـ */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`) ||
+    rep('        {/* ───ـ السائقون ──── */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`) ||
+    rep('        {/* ──── السائقون ──── */}\n', `${block}\n        {/* ───ـ السائقون ───ـ */}\n`);
 }
+
+const declarations = new Set([
+  '  const [driverModeId, setDriverModeId] = useState<number | null>(null);',
+  '  const [incomingTrips, setIncomingTrips] = useState<Trip[]>([]);',
+  '  const [incomingLoading, setIncomingLoading] = useState(false);',
+  '  const [acceptingTripId, setAcceptingTripId] = useState<number | null>(null);',
+]);
+const seen = new Set();
+const cleaned = [];
+for (const line of src.split('\n')) {
+  if (declarations.has(line)) {
+    if (seen.has(line)) {
+      changed = true;
+      continue;
+    }
+    seen.add(line);
+  }
+  cleaned.push(line);
+}
+src = cleaned.join('\n');
 
 if (changed) writeFileSync(file, src);
 console.log(changed ? 'Driver inbox applied' : 'Driver inbox already present');
