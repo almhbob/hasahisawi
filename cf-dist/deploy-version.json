@@ -3,8 +3,8 @@
   "version": "6.5.6",
   "androidVersionCode": 256,
   "iosBuildNumber": "256",
-  "commit": "e91f6ca1d87b8d323eae955952e868e52b663307",
-  "deployedAt": "2026-06-24T23:36:20.535Z",
+  "commit": "4093bb053ed51714164693fdc9a37d551e40190d",
+  "deployedAt": "2026-06-24T23:42:13.865Z",
   "target": "cloudflare-pages",
   "source": "cloudflare-pages-sync"
 }
