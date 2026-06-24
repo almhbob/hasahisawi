@@ -1,0 +1,157 @@
+name: Hasahisawi Android Test APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '.apk-test-trigger'
+      - '.github/workflows/android-test-apk.yml'
+      - 'artifacts/hasahisawi/package.json'
+      - 'artifacts/hasahisawi/app.json'
+      - 'artifacts/hasahisawi/app/**'
+      - 'artifacts/hasahisawi/lib/**'
+      - 'artifacts/hasahisawi/components/**'
+      - 'artifacts/hasahisawi/scripts/**'
+      - 'artifacts/hasahisawi/android/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-apk:
+    name: Build installable test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Apply app patches
+        working-directory: artifacts/hasahisawi
+        run: |
+          node scripts/apply-latest-sections.mjs || true
+          node scripts/fix-org-join-id-upload.mjs || true
+          node scripts/apply-driver-inbox-lite.mjs || true
+          node scripts/patch-travel-agency-workspace.mjs || true
+          node scripts/patch-home-services-ui.mjs || true
+
+      - name: Prepare Android build files
+        run: |
+          mkdir -p release-artifacts
+          echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
+          NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
+          if [ -z "$NDK_VER" ]; then echo "No NDK found" && exit 1; fi
+          PROPS=artifacts/hasahisawi/android/gradle.properties
+          {
+            echo ""
+            echo "ndkVersion=$NDK_VER"
+            echo "reactNativeArchitectures=arm64-v8a"
+            echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+HeapDumpOnOutOfMemoryError"
+            echo "org.gradle.parallel=false"
+            echo "org.gradle.workers.max=1"
+            echo "org.gradle.caching=true"
+            echo "org.gradle.configuration-cache=false"
+          } >> "$PROPS"
+
+      - name: Patch Android native compatibility
+        run: |
+          EXPO_CAM_ROOT=$(node -e "const path=require('path'); const pkg=require.resolve('expo-camera/package.json',{paths:['artifacts/hasahisawi/node_modules','.']}); console.log(path.dirname(pkg));")
+          STUB_DIR="$EXPO_CAM_ROOT/android/src/main/java/expo/modules/interfaces/barcodescanner"
+          mkdir -p "$STUB_DIR"
+          cat > "$STUB_DIR/BarCodeScannerResult.kt" <<'KOTLIN'
+          package expo.modules.interfaces.barcodescanner
+          class BarCodeScannerResult(
+            val type: Int,
+            private val _value: String?,
+            private val _raw: String?,
+            var cornerPoints: MutableList<Int>,
+            var referenceImageHeight: Int,
+            var referenceImageWidth: Int,
+          ) {
+            val value: String get() = _value ?: ""
+            val raw: String get() = _raw ?: ""
+            val boundingBox: BoundingBox
+              get() {
+                if (cornerPoints.size < 8) return BoundingBox(0, 0, 0, 0)
+                val xs = cornerPoints.indices.filter { it % 2 == 0 }.map { cornerPoints[it] }
+                val ys = cornerPoints.indices.filter { it % 2 != 0 }.map { cornerPoints[it] }
+                val minX = xs.min()
+                val minY = ys.min()
+                return BoundingBox(minX, minY, xs.max() - minX, ys.max() - minY)
+              }
+            data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
+          }
+          KOTLIN
+
+          while IFS= read -r FIREBASE_BUILD; do
+            sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD" || true
+            sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD" || true
+            sed -i "s/classifier 'sources'/archiveClassifier.set('sources')/g" "$FIREBASE_BUILD" || true
+            sed -i 's/classifier "sources"/archiveClassifier.set("sources")/g' "$FIREBASE_BUILD" || true
+            SRC="$(dirname "$FIREBASE_BUILD")/src/main/java/expo/modules/firebase/core"
+            if [ -d "$SRC" ]; then
+              cat > "$SRC/FirebaseCorePackage.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import expo.modules.core.BasePackage;
+          public class FirebaseCorePackage extends BasePackage {}
+          JAVA_EOF
+              cat > "$SRC/FirebaseCoreModule.java" <<'JAVA_EOF'
+          package expo.modules.firebase.core;
+          import android.content.Context;
+          public class FirebaseCoreModule {
+            public FirebaseCoreModule(Context context) {}
+            public String getName() { return "ExpoFirebaseCore"; }
+          }
+          JAVA_EOF
+            fi
+          done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
+
+      - name: Build debug APK
+        working-directory: artifacts/hasahisawi/android
+        env:
+          NODE_OPTIONS: "--max-old-space-size=3584"
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/debug-apk-build.log"
+
+      - name: Collect APK
+        if: always()
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          mkdir -p release-artifacts
+          FOUND=0
+          while IFS= read -r APK; do
+            FOUND=1
+            cp "$APK" "release-artifacts/hasahisawi-test-v${VERSION}-build${CODE}-$(basename "$APK")"
+          done < <(find artifacts/hasahisawi/android/app/build/outputs/apk -type f -name '*.apk' 2>/dev/null)
+          ls -lh release-artifacts
+          if [ "$FOUND" -ne 1 ]; then
+            echo "No APK file was produced"
+            exit 1
+          fi
+
+      - name: Upload test APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasahisawi-test-apk
+          path: release-artifacts/*
+          if-no-files-found: error
+          retention-days: 30
