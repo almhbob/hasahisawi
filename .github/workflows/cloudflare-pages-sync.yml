@@ -79,6 +79,7 @@ jobs:
           node scripts/apply-driver-inbox-lite.mjs || true
           node scripts/apply-women-label-cleanup.mjs || true
           node scripts/apply-social-multi-images.mjs || true
+          node scripts/fix-social-image-items-duplicates.mjs || true
           node scripts/patch-travel-agency-workspace.mjs || true
           node scripts/patch-home-services-ui.mjs || true
 
