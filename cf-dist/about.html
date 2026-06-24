@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>الملف التعريفي — حصاحيصاوي</title>
+  <meta name="description" content="الملف التعريفي الرسمي لمشروع حصاحيصاوي — بوابة مجتمعية رقمية لمدينة الحصاحيصا"/>
+  <link rel="icon" href="/hasahisawi/favicon.png"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+
+    :root {
+      --green:   #22C55E;
+      --green2:  #16A34A;
+      --gold:    #EAB308;
+      --gold2:   #CA8A04;
+      --bg:      #050D07;
+      --surface: #0A1A0D;
+      --card:    #0D2010;
+      --border:  #163020;
+      --text:    #E8F5EC;
+      --muted:   #6B9A78;
+      --red:     #EF4444;
+      --blue:    #3B82F6;
+      --purple:  #8B5CF6;
+      --orange:  #F97316;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      overflow-x: hidden;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 80px 24px 60px;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,   rgba(34,197,94,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 20% 80%,  rgba(234,179,8,.08)  0%, transparent 50%),
+        radial-gradient(ellipse 60% 50% at 80% 100%, rgba(34,197,94,.06)  0%, transparent 50%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(34,197,94,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,197,94,.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3);
+      border-radius: 100px; padding: 6px 18px; font-size: 13px;
+      color: var(--green); font-weight: 600; margin-bottom: 32px;
+      backdrop-filter: blur(8px);
+    }
+    .hero-badge::before { content: '●'; font-size: 8px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .logo-wrap {
+      width: 130px; height: 130px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #1a4a25 0%, #07110A 100%);
+      border: 3px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 32px;
+      box-shadow: 0 0 60px rgba(234,179,8,.3), 0 0 120px rgba(34,197,94,.15);
+      font-size: 60px; font-weight: 900; color: var(--gold);
+      position: relative; z-index: 1;
+    }
+    .logo-ring {
+      position: absolute; inset: -8px; border-radius: 50%;
+      border: 1px dashed rgba(234,179,8,.4);
+      animation: spin 20s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hero h1 {
+      font-size: clamp(36px, 8vw, 72px);
+      font-weight: 900; line-height: 1.1;
+      background: linear-gradient(135deg, #fff 0%, var(--green) 50%, var(--gold) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 16px;
+    }
+    .hero-sub {
+      font-size: clamp(15px, 3vw, 20px); color: var(--muted);
+      max-width: 600px; margin: 0 auto 48px;
+    }
+
+    .hero-stats {
+      display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;
+      position: relative; z-index: 1;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num {
+      font-size: 36px; font-weight: 900;
+      background: linear-gradient(135deg, var(--green), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1;
+    }
+    .hero-stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    .scroll-hint {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 12px; animation: bounce 2s infinite;
+    }
+    .scroll-hint::after { content: '↓'; font-size: 20px; }
+    @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)} }
+
+    /* ── SECTIONS ── */
+    section { padding: 80px 24px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--green);
+      background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2);
+      padding: 4px 14px; border-radius: 100px; margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(26px, 5vw, 42px); font-weight: 900;
+      line-height: 1.2; margin-bottom: 16px;
+    }
+    .section-title span { color: var(--green); }
+    .section-desc { font-size: 16px; color: var(--muted); max-width: 600px; }
+
+    /* ── VISION ── */
+    .vision-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 24px; margin-top: 48px;
+    }
+    @media(max-width:700px){ .vision-grid{ grid-template-columns:1fr; } }
+    .vision-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px;
+      position: relative; overflow: hidden;
+      transition: transform .3s, box-shadow .3s;
+    }
+    .vision-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+    .vision-card::before {
+      content: '';
+      position: absolute; top: 0; right: 0;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: radial-gradient(circle, var(--accent,.2) 0%, transparent 70%);
+      transform: translate(40px,-40px);
+    }
+    .vision-icon { font-size: 36px; margin-bottom: 16px; }
+    .vision-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .vision-card p { color: var(--muted); font-size: 15px; }
+
+    /* ── FEATURES ── */
+    .features-bg { background: var(--surface); }
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px; margin-top: 48px;
+    }
+    .module-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+      display: flex; gap: 16px; align-items: flex-start;
+      transition: border-color .3s, transform .3s;
+    }
+    .module-card:hover { border-color: var(--green); transform: translateY(-2px); }
+    .module-icon {
+      width: 48px; height: 48px; min-width: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .module-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .module-card p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .tech-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; text-align: center;
+      transition: border-color .3s;
+    }
+    .tech-card:hover { border-color: var(--green); }
+    .tech-icon { font-size: 32px; margin-bottom: 10px; }
+    .tech-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .tech-card p  { font-size: 12px; color: var(--muted); }
+    .tech-badge {
+      display: inline-block; margin-top: 10px;
+      padding: 2px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    }
+
+    /* ── NUMBERS ── */
+    .numbers-bg { background: var(--surface); }
+    .numbers-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px; margin-top: 48px;
+    }
+    .number-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 28px 24px; text-align: center;
+    }
+    .number-card .num {
+      font-size: 48px; font-weight: 900; line-height: 1;
+      background: linear-gradient(135deg, var(--green), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 8px;
+    }
+    .number-card .label { font-size: 14px; color: var(--muted); }
+
+    /* ── ARCHITECTURE ── */
+    .arch-diagram {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 40px;
+      margin-top: 48px; text-align: center;
+    }
+    .arch-row {
+      display: flex; gap: 16px; justify-content: center;
+      flex-wrap: wrap; margin: 20px 0;
+    }
+    .arch-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 20px;
+      font-size: 13px; font-weight: 600; min-width: 120px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .arch-box .arch-icon { font-size: 24px; }
+    .arch-arrow { color: var(--green); font-size: 20px; margin: 4px 0; }
+    .arch-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      color: var(--muted); text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    /* ── NOTIFICATIONS ── */
+    .notif-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px; margin-top: 40px;
+    }
+    .notif-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .notif-dot {
+      width: 12px; height: 12px; min-width: 12px; border-radius: 50%;
+    }
+    .notif-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .notif-card p  { font-size: 12px; color: var(--muted); }
+
+    /* ── DEVELOPER ── */
+    .dev-section { background: var(--surface); }
+    .dev-card {
+      background: linear-gradient(135deg, #0D1B4B 0%, #091230 100%);
+      border: 1px solid rgba(37,99,235,.3);
+      border-radius: 24px; padding: 40px;
+      display: flex; gap: 32px; align-items: center; flex-wrap: wrap;
+      margin-top: 48px; position: relative; overflow: hidden;
+    }
+    .dev-card::before {
+      content: '';
+      position: absolute; top: -60px; right: -60px;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(37,99,235,.2) 0%, transparent 70%);
+    }
+    .dev-avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      border: 3px solid rgba(37,99,235,.5);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 42px; font-weight: 900; color: #93C5FD;
+      flex-shrink: 0;
+    }
+    .dev-info { flex: 1; }
+    .dev-info h3 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+    .dev-info .dev-title { color: #93C5FD; font-size: 14px; margin-bottom: 16px; }
+    .dev-skills {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .dev-skill {
+      background: rgba(37,99,235,.15); border: 1px solid rgba(37,99,235,.3);
+      border-radius: 100px; padding: 3px 12px; font-size: 12px; font-weight: 600;
+      color: #93C5FD;
+    }
+    .dev-links {
+      display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .dev-link {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: 8px 16px;
+      font-size: 13px; color: var(--text); text-decoration: none;
+      transition: background .2s;
+    }
+    .dev-link:hover { background: rgba(255,255,255,.1); }
+
+    /* ── ROADMAP ── */
+    .timeline { margin-top: 48px; position: relative; padding-right: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute; top: 0; bottom: 0; right: 0;
+      width: 2px; background: linear-gradient(to bottom, var(--green), transparent);
+    }
+    .timeline-item { margin-bottom: 40px; position: relative; }
+    .timeline-dot {
+      position: absolute; right: -36px; top: 6px;
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--green); background: var(--bg);
+    }
+    .timeline-dot.done { background: var(--green); }
+    .timeline-dot.active { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 12px rgba(234,179,8,.5); }
+    .timeline-badge {
+      display: inline-block; padding: 2px 12px; border-radius: 100px;
+      font-size: 11px; font-weight: 700; margin-bottom: 8px;
+    }
+    .timeline-item h4 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .timeline-item p  { font-size: 14px; color: var(--muted); }
+    .timeline-item ul { padding-right: 18px; margin-top: 8px; }
+    .timeline-item li { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+
+    /* ── PLATFORMS ── */
+    .platforms-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px; margin-top: 40px;
+    }
+    @media(max-width:600px){ .platforms-grid{ grid-template-columns:1fr; } }
+    .platform-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 28px; text-align: center;
+      transition: transform .3s;
+    }
+    .platform-card:hover { transform: translateY(-4px); }
+    .platform-icon { font-size: 40px; margin-bottom: 14px; }
+    .platform-card h4 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .platform-card p  { font-size: 13px; color: var(--muted); }
+    .platform-status {
+      display: inline-block; margin-top: 12px;
+      padding: 3px 14px; border-radius: 100px;
+      font-size: 11px; font-weight: 700;
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      text-align: center; padding: 100px 24px;
+      background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(34,197,94,.08) 0%, transparent 70%);
+    }
+    .cta-section h2 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 16px; }
+    .cta-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--green); color: #000;
+      padding: 14px 32px; border-radius: 14px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      transition: background .2s, transform .2s;
+    }
+    .btn-primary:hover { background: var(--green2); transform: translateY(-2px); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--text);
+      padding: 14px 32px; border-radius: 14px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      transition: background .2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.1); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px; text-align: center;
+      color: var(--muted); font-size: 13px;
+    }
+    footer a { color: var(--green); text-decoration: none; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(5,13,7,.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 20px; font-weight: 900; color: var(--green); }
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    @media(max-width:600px){ .nav-links { display: none; } }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-logo">ح حصاحيصاوي</div>
+  <ul class="nav-links">
+    <li><a href="#vision">الرؤية</a></li>
+    <li><a href="#features">الخدمات</a></li>
+    <li><a href="#tech">التقنية</a></li>
+    <li><a href="#numbers">الأرقام</a></li>
+    <li><a href="#roadmap">خارطة الطريق</a></li>
+    <li><a href="#download">تحميل</a></li>
+  </ul>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <div class="hero-badge">مبادرة مجتمعية مستقلة · الحصاحيصا، السودان</div>
+
+  <div class="logo-wrap">
+    ح
+    <div class="logo-ring"></div>
+  </div>
+
+  <h1>حصاحيصاوي</h1>
+  <p class="hero-sub">البوابة الرقمية المجتمعية الشاملة لمدينة الحصاحيصا وقراها — تقنية تخدم الإنسان</p>
+
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num">696+</div>
+      <div class="hero-stat-label">مستخدم مسجّل</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">15+</div>
+      <div class="hero-stat-label">قسم خدمي</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">v6.2.6</div>
+      <div class="hero-stat-label">أحدث إصدار</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">3</div>
+      <div class="hero-stat-label">منصات متاحة</div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">اكتشف المزيد</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ VISION ══ -->
+<section id="vision">
+  <div class="container">
+    <div class="section-label">🎯 الرؤية والرسالة</div>
+    <h2 class="section-title">لماذا <span>حصاحيصاوي؟</span></h2>
+    <p class="section-desc">تطبيق مجتمعي متكامل يجمع خدمات المدينة في منصة واحدة — من الإسعاف حتى السفر، ومن الصحة حتى التعليم</p>
+
+    <div class="vision-grid">
+      <div class="vision-card" style="--accent: rgba(34,197,94,.2)">
+        <div class="vision-icon">🌍</div>
+        <h3>الرؤية</h3>
+        <p>أن تكون الحصاحيصا مدينة رقمية متكاملة يجد فيها كل مواطن الخدمة التي يحتاجها بسهولة وسرعة وأمان — بغض النظر عن موقعه الجغرافي</p>
+      </div>
+      <div class="vision-card" style="--accent: rgba(234,179,8,.2)">
+        <div class="vision-icon">🤝</div>
+        <h3>الرسالة</h3>
+        <p>بناء بنية تحتية رقمية تربط المواطنين بخدمات مدينتهم — طوارئ، طب، سفر، قانون، تصميم — من خلال تقنية حديثة وتجربة مستخدم احترافية</p>
+      </div>
+      <div class="vision-card" style="--accent: rgba(59,130,246,.2)">
+        <div class="vision-icon">⚡</div>
+        <h3>القيم</h3>
+        <p>الشفافية المجتمعية · خصوصية البيانات · سهولة الوصول · الاستمرارية التطوعية · التحديث المستمر بناءً على احتياجات المجتمع الحقيقية</p>
+      </div>
+      <div class="vision-card" style="--accent: rgba(139,92,246,.2)">
+        <div class="vision-icon">🔒</div>
+        <h3>الاستقلالية</h3>
+        <p>التطبيق غير تابع لأي جهة حكومية أو رسمية — مبادرة مواطنة مستقلة تموّلها التبرعات والشراكات المجتمعية وخدمات ذات قيمة مضافة</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ FEATURES ══ -->
+<section id="features" class="features-bg">
+  <div class="container">
+    <div class="section-label">🏗️ الخدمات والوحدات</div>
+    <h2 class="section-title">15+ خدمة في <span>منصة واحدة</span></h2>
+    <p class="section-desc">كل قسم مصمَّم لحاجة مجتمعية حقيقية — يعمل بشكل مستقل ومتكامل في الوقت ذاته</p>
+
+    <div class="modules-grid">
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(239,68,68,.15)">🚨</div>
+        <div>
+          <h4>البلاغات الطارئة</h4>
+          <p>إرسال بلاغات الطوارئ مع الموقع الجغرافي الفوري — حريق، حادث، أمن، إغاثة</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(34,197,94,.15)">🏥</div>
+        <div>
+          <h4>المنظومة الصحية</h4>
+          <p>حجز مواعيد · تسجيل وصول · نتائج مختبر · تقارير طبية · وصفات صيدلية · إجازات مرضية</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(59,130,246,.15)">🚌</div>
+        <div>
+          <h4>تحديثات السفر</h4>
+          <p>حجز تذاكر السفر · متابعة حالة الرحلات · صلاحيات سائقين ومشرفين وكالات</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(139,92,246,.15)">⚖️</div>
+        <div>
+          <h4>بوابة المحامين</h4>
+          <p>تسجيل محامين · إدارة قضايا العملاء · نماذج قانونية معتمدة · متابعة مراحل التقاضي</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(244,114,182,.15)">🎨</div>
+        <div>
+          <h4>بوابة المصممين</h4>
+          <p>ملف إبداعي · استقبال طلبات التصميم · إدارة أعضاء فريق التصميم المجتمعي</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(234,179,8,.15)">🤝</div>
+        <div>
+          <h4>بوابة الشركاء</h4>
+          <p>طلبات الشراكة الخارجية · إدارة عقود المؤسسات · مراجعة وقبول الشراكات المجتمعية</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(34,197,94,.15)">🎓</div>
+        <div>
+          <h4>اتحاد الطلاب</h4>
+          <p>تسجيل الأعضاء · إدارة الاتحاد · التواصل الطلابي · الأنشطة والفعاليات الجامعية</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(249,115,22,.15)">💼</div>
+        <div>
+          <h4>السيرة الذاتية</h4>
+          <p>4 قوالب احترافية · تصدير PDF · مولِّد ذكي للمهارات والخبرات · خدمة مدفوعة 5000 SDG</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(20,184,166,.15)">📢</div>
+        <div>
+          <h4>الأخبار والإعلانات</h4>
+          <p>أخبار المدينة والقرى · إعلانات المجتمع · تصفية حسب الحي والفئة</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(239,68,68,.15)">🩸</div>
+        <div>
+          <h4>بنك الدم</h4>
+          <p>طلبات التبرع بالدم · تطابق فصائل الدم · إشعارات عاجلة للمتبرعين</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(234,179,8,.15)">🕌</div>
+        <div>
+          <h4>أوقات الصلاة</h4>
+          <p>مواقيت دقيقة حسب الموقع · تذكير بالأذان · نغمة صوتية مخصصة</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(59,130,246,.15)">💬</div>
+        <div>
+          <h4>المحادثات والدردشة</h4>
+          <p>تواصل مباشر بين المستخدمين · محادثات الخدمات · إشعارات رسائل فورية</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(139,92,246,.15)">🏛️</div>
+        <div>
+          <h4>النقابات المجتمعية</h4>
+          <p>إدارة نقابات المهن · التسجيل العضوي · متابعة الأنشطة النقابية</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(34,197,94,.15)">🔐</div>
+        <div>
+          <h4>بوابة المؤسسات</h4>
+          <p>واجهة موظفي المؤسسات · إدارة الطلبات الداخلية · صلاحيات متعددة المستويات</p>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:rgba(249,115,22,.15)">🛡️</div>
+        <div>
+          <h4>لوحة الإدارة</h4>
+          <p>إدارة المستخدمين · مزامنة Firebase · الأقسام الإدارية · الإحصاءات الشاملة</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ NOTIFICATIONS ══ -->
+<section>
+  <div class="container">
+    <div class="section-label">🔔 منظومة الإشعارات</div>
+    <h2 class="section-title">5 قنوات إشعار <span>احترافية</span></h2>
+    <p class="section-desc">نغمات مُصمَّمة خصيصاً لكل نوع — مع اهتزاز مميز ودعم كامل لـ Android وiOS</p>
+
+    <div class="notif-grid">
+      <div class="notif-card">
+        <div class="notif-dot" style="background:#22C55E"></div>
+        <div>
+          <h4>عام</h4>
+          <p>تنبيه صاعد G5→C6 · 22050Hz</p>
+        </div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-dot" style="background:#3B82F6"></div>
+        <div>
+          <h4>رسائل</h4>
+          <p>ping مشرق E6 · استجابة فورية</p>
+        </div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-dot" style="background:#EF4444"></div>
+        <div>
+          <h4>عاجل</h4>
+          <p>تنازلي C6→A5→G5 · MAX priority</p>
+        </div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-dot" style="background:#0EA5E9"></div>
+        <div>
+          <h4>سفر</h4>
+          <p>تحديثات الرحلات · HIGH priority</p>
+        </div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-dot" style="background:#F59E0B"></div>
+        <div>
+          <h4>أوقات الصلاة</h4>
+          <p>ثلاثي رنيني A4+E5+A5 · صوت أذان</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ TECH STACK ══ -->
+<section id="tech" class="features-bg">
+  <div class="container">
+    <div class="section-label">⚙️ البنية التقنية</div>
+    <h2 class="section-title">تقنية <span>عالمية المستوى</span></h2>
+    <p class="section-desc">مبني على أحدث المكتبات والأُطر العالمية — أداء عالٍ، أمان محكم، قابلية توسع لا محدودة</p>
+
+    <div class="arch-diagram">
+      <div class="arch-label">طبقة العرض (Frontend)</div>
+      <div class="arch-row">
+        <div class="arch-box"><span class="arch-icon">⚛️</span>React Native 0.81</div>
+        <div class="arch-box"><span class="arch-icon">📱</span>Expo SDK 54</div>
+        <div class="arch-box"><span class="arch-icon">🗺️</span>Expo Router</div>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-label">طبقة الخدمات (Backend)</div>
+      <div class="arch-row">
+        <div class="arch-box"><span class="arch-icon">🟢</span>Node.js + Express</div>
+        <div class="arch-box"><span class="arch-icon">🐘</span>PostgreSQL</div>
+        <div class="arch-box"><span class="arch-icon">🔥</span>Firebase Auth</div>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-label">طبقة البنية التحتية (Infrastructure)</div>
+      <div class="arch-row">
+        <div class="arch-box"><span class="arch-icon">▲</span>Vercel API</div>
+        <div class="arch-box"><span class="arch-icon">🐙</span>GitHub Pages</div>
+        <div class="arch-box"><span class="arch-icon">☁️</span>Cloudinary</div>
+      </div>
+    </div>
+
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-icon">⚛️</div>
+        <h4>React Native</h4>
+        <p>v0.81.5 — New Architecture</p>
+        <span class="tech-badge" style="background:rgba(34,197,94,.15);color:var(--green)">Frontend</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📦</div>
+        <h4>Expo SDK 54</h4>
+        <p>Router · Notifications · AV</p>
+        <span class="tech-badge" style="background:rgba(59,130,246,.15);color:#3B82F6">Platform</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔥</div>
+        <h4>Firebase</h4>
+        <p>Auth · Admin SDK · Realtime</p>
+        <span class="tech-badge" style="background:rgba(249,115,22,.15);color:#F97316">Auth</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🐘</div>
+        <h4>PostgreSQL</h4>
+        <p>قاعدة بيانات رئيسية على Vercel</p>
+        <span class="tech-badge" style="background:rgba(59,130,246,.15);color:#3B82F6">Database</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">▲</div>
+        <h4>Vercel</h4>
+        <p>API Server · Edge Functions</p>
+        <span class="tech-badge" style="background:rgba(255,255,255,.1);color:#ccc">Hosting</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">☁️</div>
+        <h4>Cloudinary</h4>
+        <p>صور · ضغط تلقائي · CDN</p>
+        <span class="tech-badge" style="background:rgba(34,197,94,.15);color:var(--green)">Media</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🛡️</div>
+        <h4>TypeScript</h4>
+        <p>Full-stack type safety</p>
+        <span class="tech-badge" style="background:rgba(59,130,246,.15);color:#3B82F6">Language</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🐙</div>
+        <h4>GitHub Actions</h4>
+        <p>CI/CD تلقائي · إصدارات موقَّعة</p>
+        <span class="tech-badge" style="background:rgba(255,255,255,.1);color:#ccc">DevOps</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ NUMBERS ══ -->
+<section id="numbers" class="numbers-bg">
+  <div class="container">
+    <div class="section-label">📊 الأرقام والإحصاءات</div>
+    <h2 class="section-title">بالأرقام <span>الحقيقية</span></h2>
+
+    <div class="numbers-grid">
+      <div class="number-card">
+        <div class="num">696</div>
+        <div class="label">مستخدم مسجَّل في Firebase</div>
+      </div>
+      <div class="number-card">
+        <div class="num">698</div>
+        <div class="label">سجل في قاعدة البيانات</div>
+      </div>
+      <div class="number-card">
+        <div class="num">15+</div>
+        <div class="label">وحدة خدمية مكتملة</div>
+      </div>
+      <div class="number-card">
+        <div class="num">5</div>
+        <div class="label">قنوات إشعار مخصصة</div>
+      </div>
+      <div class="number-card">
+        <div class="num">228</div>
+        <div class="label">versionCode أحدث إصدار</div>
+      </div>
+      <div class="number-card">
+        <div class="num">3</div>
+        <div class="label">منصات (Android · iOS · Web)</div>
+      </div>
+      <div class="number-card">
+        <div class="num">54MB</div>
+        <div class="label">حجم APK المثبَّت</div>
+      </div>
+      <div class="number-card">
+        <div class="num">100%</div>
+        <div class="label">مفتوح المصدر على GitHub</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ PLATFORMS ══ -->
+<section>
+  <div class="container">
+    <div class="section-label">📱 المنصات المدعومة</div>
+    <h2 class="section-title">متاح على <span>كل جهاز</span></h2>
+
+    <div class="platforms-grid">
+      <div class="platform-card">
+        <div class="platform-icon">🤖</div>
+        <h4>Android</h4>
+        <p>تثبيت مباشر APK أو عبر Google Play Store — يدعم Android 8.0+</p>
+        <span class="platform-status" style="background:rgba(34,197,94,.15);color:var(--green)">✓ متاح</span>
+      </div>
+      <div class="platform-card">
+        <div class="platform-icon">🍎</div>
+        <h4>iPhone / iPad</h4>
+        <p>PWA — يُثبَّت من Safari مباشرةً على الشاشة الرئيسية بتجربة تطبيق كامل</p>
+        <span class="platform-status" style="background:rgba(34,197,94,.15);color:var(--green)">✓ متاح</span>
+      </div>
+      <div class="platform-card">
+        <div class="platform-icon">🌐</div>
+        <h4>الويب</h4>
+        <p>يعمل في أي متصفح — مُحسَّن لسطح المكتب مع دعم RTL كامل</p>
+        <span class="platform-status" style="background:rgba(34,197,94,.15);color:var(--green)">✓ متاح</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ ROADMAP ══ -->
+<section id="roadmap" class="features-bg">
+  <div class="container">
+    <div class="section-label">🗺️ خارطة الطريق</div>
+    <h2 class="section-title">ما تم وما <span>قادم</span></h2>
+
+    <div class="timeline">
+
+      <div class="timeline-item">
+        <div class="timeline-dot done"></div>
+        <span class="timeline-badge" style="background:rgba(34,197,94,.15);color:var(--green)">✓ مكتمل — v6.0</span>
+        <h4>البنية الأساسية وتسجيل الدخول</h4>
+        <ul>
+          <li>Firebase Auth + Google Sign-In</li>
+          <li>PostgreSQL + Vercel API</li>
+          <li>واجهة RTL كاملة باللغة العربية</li>
+          <li>نظام إشعارات متعدد القنوات</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-dot done"></div>
+        <span class="timeline-badge" style="background:rgba(34,197,94,.15);color:var(--green)">✓ مكتمل — v6.1–6.2</span>
+        <h4>الخدمات المجتمعية الرئيسية</h4>
+        <ul>
+          <li>المنظومة الصحية الكاملة</li>
+          <li>بوابة المحامين والمصممين</li>
+          <li>اتحاد الطلاب والنقابات</li>
+          <li>نظام السفر والتذاكر</li>
+          <li>سياسة الخصوصية وامتثال Google Play</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-dot active"></div>
+        <span class="timeline-badge" style="background:rgba(234,179,8,.15);color:var(--gold)">🔄 جارٍ — v6.3</span>
+        <h4>التوسع والتكامل</h4>
+        <ul>
+          <li>نظام المدفوعات الإلكترونية</li>
+          <li>لوحة إدارة زواجل المتكاملة</li>
+          <li>بوابة المشرفين والمشغّلين</li>
+          <li>تقارير المالية وإحصاءات الأقسام</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <span class="timeline-badge" style="background:rgba(139,92,246,.15);color:#A78BFA">📅 قادم — v7.0</span>
+        <h4>الذكاء الاصطناعي والأتمتة</h4>
+        <ul>
+          <li>مساعد ذكي لتوجيه المواطنين</li>
+          <li>تحليل بيانات المجتمع</li>
+          <li>اقتراحات خدمات تلقائية</li>
+          <li>تطبيق iOS نشر رسمي على App Store</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ DEVELOPER ══ -->
+<section class="dev-section">
+  <div class="container">
+    <div class="section-label">👨‍💻 فريق التطوير</div>
+    <h2 class="section-title">المطوِّر <span>الرئيسي</span></h2>
+
+    <div class="dev-card">
+      <div class="dev-avatar">ع</div>
+      <div class="dev-info">
+        <h3>عاصم عبد الرحمن محمد عمر</h3>
+        <div class="dev-title">Full-Stack Developer · مؤسس المشروع</div>
+        <div class="dev-skills">
+          <span class="dev-skill">React Native</span>
+          <span class="dev-skill">TypeScript</span>
+          <span class="dev-skill">Node.js</span>
+          <span class="dev-skill">PostgreSQL</span>
+          <span class="dev-skill">Firebase</span>
+          <span class="dev-skill">Expo</span>
+          <span class="dev-skill">UI/UX Design</span>
+          <span class="dev-skill">DevOps</span>
+        </div>
+        <div class="dev-links">
+          <a href="mailto:almhbob.2024@gmail.com" class="dev-link">✉️ almhbob.2024@gmail.com</a>
+          <a href="https://github.com/almhbob" class="dev-link">🐙 GitHub</a>
+          <a href="https://wa.me/966597083352" class="dev-link">💬 واتساب</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ CTA ══ -->
+<section id="download" class="cta-section">
+  <div class="container">
+    <div class="section-label">📥 تحميل التطبيق</div>
+    <h2 class="section-title">انضم إلى مجتمع <span>الحصاحيصا الرقمي</span></h2>
+    <p class="section-desc" style="margin: 0 auto">أكثر من 696 مستخدم يثقون في حصاحيصاوي — انضم الآن</p>
+
+    <div class="cta-btns">
+      <a href="https://github.com/almhbob/hasahisawi/releases/download/v6.2.6/hasahisawi-v6.2.6.apk" class="btn-primary">
+        🤖 تحميل APK — Android
+      </a>
+      <a href="https://almhbob.github.io/hasahisawi/" class="btn-secondary">
+        🍎 فتح نسخة iPhone / الويب
+      </a>
+      <a href="https://github.com/almhbob/hasahisawi/releases/download/v6.2.6/hasahisawi-v6.2.6.aab" class="btn-secondary">
+        📦 تحميل AAB — Google Play
+      </a>
+    </div>
+
+    <p style="margin-top:24px;font-size:13px;color:var(--muted)">
+      الإصدار الحالي: v6.2.6 · versionCode 228 · صدر مايو 2026
+    </p>
+  </div>
+</section>
+
+<footer>
+  <p>© 2026 حصاحيصاوي — مبادرة مجتمعية مستقلة · الحصاحيصا، ولاية الجزيرة، السودان</p>
+  <p style="margin-top:10px">
+    <a href="/hasahisawi/privacy.html">سياسة الخصوصية</a> ·
+    <a href="/hasahisawi/delete-account.html">حذف الحساب</a> ·
+    <a href="https://github.com/almhbob/hasahisawi">GitHub</a> ·
+    <a href="mailto:almhbob.2024@gmail.com">تواصل معنا</a>
+  </p>
+</footer>
+
+</body>
+</html>
