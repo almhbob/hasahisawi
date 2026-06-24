@@ -1,0 +1,150 @@
+name: Cloudflare Pages Sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/cloudflare-pages-sync.yml'
+      - '.web-deploy-trigger'
+      - '.web-release-trigger'
+      - 'artifacts/hasahisawi/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cloudflare-pages-sync
+  cancel-in-progress: true
+
+jobs:
+  sync-cloudflare:
+    name: Build, commit, and deploy Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Prepare web environment
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const easJsonPath = 'artifacts/hasahisawi/eas.json';
+          const eas = fs.existsSync(easJsonPath) ? JSON.parse(fs.readFileSync(easJsonPath, 'utf8')) : {};
+          const env = eas.build?.production?.env || eas.build?.preview?.env || {};
+          const fallback = {
+            EXPO_PUBLIC_API_URL: 'https://api-server-gilt-ten.vercel.app',
+            EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'hasahisawi.firebaseapp.com',
+            EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'hasahisawi',
+            EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: 'hasahisawi.firebasestorage.app',
+            EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '133656291161',
+            EXPO_PUBLIC_FIREBASE_APP_ID: '1:133656291161:web:7d0a88a80d3be1af418e48'
+          };
+          const merged = { ...fallback, ...env };
+          fs.writeFileSync('artifacts/hasahisawi/.env', Object.entries(merged).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
+          console.log(`Prepared ${Object.keys(merged).length} web env values`);
+          NODE
+
+      - name: Apply runtime patches
+        working-directory: artifacts/hasahisawi
+        run: |
+          node scripts/apply-latest-sections.mjs || true
+          node scripts/fix-org-join-id-upload.mjs || true
+          node scripts/apply-driver-inbox-lite.mjs || true
+          node scripts/apply-women-label-cleanup.mjs || true
+          node scripts/apply-social-multi-images.mjs || true
+          node scripts/patch-travel-agency-workspace.mjs || true
+          node scripts/patch-home-services-ui.mjs || true
+
+      - name: Build Cloudflare root export
+        run: |
+          rm -rf artifacts/hasahisawi/dist cf-dist
+          node <<'NODE'
+          const fs = require('fs');
+          const appJsonPath = 'artifacts/hasahisawi/app.json';
+          const app = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+          app.expo.experiments = app.expo.experiments || {};
+          app.expo.experiments.baseUrl = '';
+          app.expo.web = app.expo.web || {};
+          app.expo.web.scope = '/';
+          app.expo.web.startUrl = '/';
+          app.expo.plugins = ['expo-router', 'expo-font', 'expo-web-browser'];
+          fs.writeFileSync(appJsonPath, JSON.stringify(app, null, 2) + '\n');
+          console.log(`Cloudflare export for v${app.expo.version}`);
+          NODE
+          pnpm --dir artifacts/hasahisawi exec expo export --platform web --clear
+          mkdir -p cf-dist
+          cp -r artifacts/hasahisawi/dist/. cf-dist/
+          cp -r artifacts/hasahisawi/public/splash cf-dist/splash 2>/dev/null || true
+          cp artifacts/hasahisawi/public/sw.js cf-dist/sw.js 2>/dev/null || true
+          cp artifacts/hasahisawi/public/manifest.json cf-dist/manifest.json 2>/dev/null || true
+          cp artifacts/hasahisawi/public/icon.png cf-dist/icon.png 2>/dev/null || true
+          cp artifacts/hasahisawi/public/favicon.png cf-dist/favicon.png 2>/dev/null || true
+          cp cf-dist/index.html cf-dist/404.html
+          echo '/hasahisawi/* /:splat 302' > cf-dist/_redirects
+          echo '/hasahisawi / 302' >> cf-dist/_redirects
+          echo '/* /index.html 200' >> cf-dist/_redirects
+          node <<'NODE'
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
+          fs.writeFileSync('cf-dist/deploy-version.json', JSON.stringify({
+            app: 'hasahisawi',
+            version: app.expo.version,
+            androidVersionCode: app.expo.android.versionCode,
+            iosBuildNumber: app.expo.ios.buildNumber,
+            commit: process.env.GITHUB_SHA,
+            deployedAt: new Date().toISOString(),
+            target: 'cloudflare-pages',
+            source: 'cloudflare-pages-sync'
+          }, null, 2) + '\n');
+          NODE
+
+      - name: Verify Cloudflare output
+        run: |
+          test -f cf-dist/index.html
+          test -f cf-dist/404.html
+          test -f cf-dist/_redirects
+          test -f cf-dist/deploy-version.json
+          node -e "const fs=require('fs'); const v=JSON.parse(fs.readFileSync('cf-dist/deploy-version.json','utf8')); if(v.target!=='cloudflare-pages') process.exit(1); console.log(v);"
+          du -sh cf-dist
+
+      - name: Commit Cloudflare static output
+        run: |
+          git checkout -- artifacts/hasahisawi/app.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f cf-dist/
+          if git diff --cached --quiet; then
+            echo "No cf-dist changes"
+          else
+            git commit -m "deploy: cloudflare pages latest [auto]"
+            git pull --rebase origin master || true
+            git push origin master || (git pull --rebase origin master && git push origin master)
+          fi
+
+      - name: Deploy with Wrangler when configured
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare API secrets are not configured. cf-dist was committed for Cloudflare Git integration."
+            exit 0
+          fi
+          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
