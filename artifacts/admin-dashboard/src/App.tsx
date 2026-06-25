@@ -31,6 +31,7 @@ import MedicalClinics from "@/pages/MedicalClinics";
 import MedicalSubscriptions from "@/pages/MedicalSubscriptions";
 import Services       from "@/pages/Services";
 import LawyersAdmin   from "@/pages/Lawyers";
+import LawyerSubscriptions from "@/pages/LawyerSubscriptions";
 import AppVersion    from "@/pages/AppVersion";
 import ActivityLog   from "@/pages/ActivityLog";
 import Telecom        from "@/pages/Telecom";
@@ -118,6 +119,7 @@ function AppRoutes() {
         <Route path="/medical-subscriptions" component={MedicalSubscriptions} />
         <Route path="/services"       component={Services} />
         <Route path="/lawyers"        component={LawyersAdmin} />
+        <Route path="/lawyer-subscriptions" component={LawyerSubscriptions} />
         <Route path="/app-version"    component={AppVersion} />
         <Route path="/activity-log"   component={ActivityLog} />
         <Route path="/applications-archive" component={ApplicationsArchive} />
