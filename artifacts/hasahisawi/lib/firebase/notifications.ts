@@ -3,7 +3,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 // ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
 // Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
-const CHANNEL_VERSION     = "3";
+const CHANNEL_VERSION     = "4";
 const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
 
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
@@ -20,7 +20,7 @@ const CHANNEL_SOUNDS: Record<string, string> = {
   "hasahisawi-default":   "hasahisawi_notif",
   "hasahisawi-chat":      "hasahisawi_chat",
   "hasahisawi-urgent":    "hasahisawi_urgent",
-  "hasahisawi-transport": "hasahisawi_notif",
+  "hasahisawi-transport": "hasahisawi_urgent",
   "hasahisawi-prayer":    "hasahisawi_prayer",
 };
 
@@ -91,15 +91,16 @@ async function ensureAndroidChannels(
     });
 
     await Notifications.setNotificationChannelAsync(CHANNELS.TRANSPORT, {
-      name: "حصاحيصاوي — تحديثات السفر",
-      description: "حالة الرحلات والتذاكر",
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 300, 150, 300],
-      lightColor: "#0EA5E9",
+      name: "حصاحيصاوي — طلبات مشوارك علينا",
+      description: "طلبات مشاوير فورية للسائقين المتاحين",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 700, 200, 700, 200, 700, 300, 900],
+      lightColor: "#F97316",
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
       sound: CHANNEL_SOUNDS[CHANNELS.TRANSPORT],
+      bypassDnd: true,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
@@ -118,7 +119,7 @@ async function ensureAndroidChannels(
 
     // احفظ الإصدار الجديد بعد نجاح الإنشاء
     if (stored !== CHANNEL_VERSION) {
-      await AsyncStorage.setItem(CHANNEL_VERSION_KEY, CHANNEL_VERSION).catch(() => {});
+      await AsyncStorage.setItem(CHANNEL_VERSION_KEY).catch(() => {});
     }
   } catch {}
 }
@@ -130,7 +131,7 @@ async function setupHandler(
   await Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const channelId = (notification.request.content.data as any)?.channelId as string | undefined;
-      const isUrgent  = channelId === CHANNELS.URGENT;
+      const isUrgent  = channelId === CHANNELS.URGENT || channelId === CHANNELS.TRANSPORT;
       return {
         shouldShowAlert:  true,
         shouldPlaySound:  true,
@@ -218,7 +219,7 @@ export async function scheduleLocalNotification(
     const vibrationMap: Record<string, number[]> = {
       [CHANNELS.CHAT]:      [0, 100, 80, 100, 80, 100],
       [CHANNELS.URGENT]:    [0, 600, 200, 600, 200, 600],
-      [CHANNELS.TRANSPORT]: [0, 300, 150, 300],
+      [CHANNELS.TRANSPORT]: [0, 700, 200, 700, 200, 700, 300, 900],
       [CHANNELS.PRAYER]:    [0, 400, 100, 400],
       [CHANNELS.DEFAULT]:   [0, 200, 100, 200],
     };
@@ -231,7 +232,7 @@ export async function scheduleLocalNotification(
         body:    notification.body,
         data:    { ...(notification.data ?? {}), channelId },
         sound:   Platform.OS === "ios" ? `${soundName}.wav` : soundName,
-        priority: ch === "URGENT"
+        priority: ch === "URGENT" || ch === "TRANSPORT"
           ? Notifications.AndroidNotificationPriority.MAX
           : Notifications.AndroidNotificationPriority.HIGH,
         vibrate: vibrationMap[channelId] ?? [0, 200, 100, 200],
@@ -256,121 +257,4 @@ export async function scheduleChatNotification(
   notification: PushNotification,
 ): Promise<void> {
   return scheduleLocalNotification({ ...notification, channel: "CHAT" });
-}
-
-// ── إشعار سفر ────────────────────────────────────────────────────────────────
-export async function scheduleTransportNotification(
-  notification: PushNotification,
-): Promise<void> {
-  return scheduleLocalNotification({ ...notification, channel: "TRANSPORT" });
-}
-
-// ── إشعار الأذان + تشغيل صوت الأذان داخل التطبيق ───────────────────────────
-export async function schedulePrayerNotification(
-  notification: PushNotification,
-  playAdhan = false,
-): Promise<void> {
-  await scheduleLocalNotification({ ...notification, channel: "PRAYER" });
-  if (playAdhan) {
-    const { playSound } = await import("@/lib/sounds").catch(() => ({ playSound: null }));
-    playSound?.("prayer");
-  }
-}
-
-// ── إشعار مؤجّل (للمناسبات) ──────────────────────────────────────────────────
-export async function scheduleOccasionReminder(
-  notification: PushNotification,
-  atDate: Date,
-): Promise<string | null> {
-  if (Platform.OS === "web") return null;
-  try {
-    const Notifications = await import("expo-notifications");
-    await setupHandler(Notifications);
-    await ensureAndroidChannels(Notifications);
-
-    const ch = notification.channel ?? "DEFAULT";
-    const channelId = CHANNELS[ch] ?? CHANNELS.DEFAULT;
-
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title:   notification.title,
-        body:    notification.body,
-        data:    { ...(notification.data ?? {}), channelId },
-        sound:   Platform.OS === "ios"
-          ? `${CHANNEL_SOUNDS[channelId] ?? "hasahisawi_notif"}.wav`
-          : (CHANNEL_SOUNDS[channelId] ?? "hasahisawi_notif"),
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        vibrate: [0, 250, 250, 250],
-        ...(Platform.OS === "android" && { channelId }),
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: atDate,
-      },
-    });
-    return id;
-  } catch {
-    return null;
-  }
-}
-
-// ── إلغاء إشعار مجدوَل ───────────────────────────────────────────────────────
-export async function cancelScheduledNotification(id: string): Promise<void> {
-  if (Platform.OS === "web") return;
-  try {
-    const Notifications = await import("expo-notifications");
-    await Notifications.cancelScheduledNotificationAsync(id);
-  } catch {}
-}
-
-// ── مستمع الإشعارات ──────────────────────────────────────────────────────────
-export function addNotificationListener(
-  onReceived: (n: PushNotification) => void,
-  onResponse: (data: Record<string, unknown>) => void,
-): (() => void) {
-  if (Platform.OS === "web") return () => {};
-  let sub1: any, sub2: any;
-  import("expo-notifications").then((Notifications) => {
-    sub1 = Notifications.addNotificationReceivedListener((n) => {
-      // تشغيل صوت + اهتزاز داخلي مُميَّز عند استقبال تنبيه والتطبيق مفتوح
-      const channelId = (n.request.content.data as any)?.channelId as string | undefined;
-      import("@/lib/sounds").then(({ notifyUser }) => {
-        if (channelId === CHANNELS.URGENT)         notifyUser("alert");
-        else if (channelId === CHANNELS.CHAT)      notifyUser("message");
-        else if (channelId === CHANNELS.TRANSPORT) notifyUser("transport");
-        else if (channelId === CHANNELS.PRAYER)    notifyUser("prayer");
-        else                                       notifyUser("success");
-      }).catch(() => {});
-
-      onReceived({
-        title:   n.request.content.title ?? "",
-        body:    n.request.content.body  ?? "",
-        data:    n.request.content.data as Record<string, unknown>,
-        channel: (
-          channelId === CHANNELS.CHAT      ? "CHAT"
-          : channelId === CHANNELS.URGENT  ? "URGENT"
-          : channelId === CHANNELS.TRANSPORT ? "TRANSPORT"
-          : channelId === CHANNELS.PRAYER  ? "PRAYER"
-          : "DEFAULT"
-        ) as keyof typeof CHANNELS,
-      });
-    });
-    sub2 = Notifications.addNotificationResponseReceivedListener((r) => {
-      onResponse(r.notification.request.content.data as Record<string, unknown>);
-    });
-  }).catch(() => {});
-
-  return () => {
-    try { sub1?.remove(); } catch {}
-    try { sub2?.remove(); } catch {}
-  };
-}
-
-// ── ضبط شارة التطبيق ─────────────────────────────────────────────────────────
-export async function setBadgeCount(count: number): Promise<void> {
-  if (Platform.OS === "web") return;
-  try {
-    const Notifications = await import("expo-notifications");
-    await Notifications.setBadgeCountAsync(count);
-  } catch {}
 }
