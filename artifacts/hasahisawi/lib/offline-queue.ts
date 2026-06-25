@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import { fetch } from "expo/fetch";
@@ -297,8 +298,7 @@ export function subscribeOfflineQueue(listener: Listener): () => void {
 }
 
 export function useOfflineQueueStatus(): OfflineQueueSummary {
-  const React = require("react") as typeof import("react");
-  const [summary, setSummary] = React.useState<OfflineQueueSummary>({ total: 0, pending: 0, syncing: 0, failed: 0 });
-  React.useEffect(() => subscribeOfflineQueue(setSummary), []);
+  const [summary, setSummary] = useState<OfflineQueueSummary>({ total: 0, pending: 0, syncing: 0, failed: 0 });
+  useEffect(() => subscribeOfflineQueue(setSummary), []);
   return summary;
 }
