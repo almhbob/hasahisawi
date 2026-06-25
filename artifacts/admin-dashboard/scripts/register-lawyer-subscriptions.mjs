@@ -11,18 +11,27 @@ function patchFile(path, patcher) {
   const after = patcher(before);
   if (after !== before) {
     writeFileSync(file, after);
-    console.log(`[lawyer-subscriptions] patched ${path}`);
+    console.log(`[lawyer-admin-links] patched ${path}`);
   } else {
-    console.log(`[lawyer-subscriptions] ${path} already clean`);
+    console.log(`[lawyer-admin-links] ${path} already clean`);
   }
 }
 
 patchFile('src/components/Layout.tsx', (src) => {
-  if (src.includes('path: "/lawyer-subscriptions"')) return src;
-  return src.replace(
-    '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },',
-    '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },\n  { path: "/lawyer-subscriptions", label: "اشتراكات المحامين", icon: "💳" },',
-  );
+  let out = src;
+  if (!out.includes('path: "/lawyer-applications"')) {
+    out = out.replace(
+      '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },',
+      '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },\n  { path: "/lawyer-applications", label: "طلبات انضمام المحامين", icon: "📥" },',
+    );
+  }
+  if (!out.includes('path: "/lawyer-subscriptions"')) {
+    out = out.replace(
+      '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },',
+      '  { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },\n  { path: "/lawyer-subscriptions", label: "اشتراكات المحامين", icon: "💳" },',
+    );
+  }
+  return out;
 });
 
 patchFile('src/App.tsx', (src) => {
@@ -31,6 +40,12 @@ patchFile('src/App.tsx', (src) => {
     out = out.replace(
       'import LawyersAdmin   from "@/pages/Lawyers";',
       'import LawyersAdmin   from "@/pages/Lawyers";\nimport LawyerSubscriptions from "@/pages/LawyerSubscriptions";',
+    );
+  }
+  if (!out.includes('path="/lawyer-applications"')) {
+    out = out.replace(
+      '        <Route path="/lawyers"        component={LawyersAdmin} />',
+      '        <Route path="/lawyers"        component={LawyersAdmin} />\n        <Route path="/lawyer-applications" component={LawyersAdmin} />',
     );
   }
   if (!out.includes('path="/lawyer-subscriptions"')) {
