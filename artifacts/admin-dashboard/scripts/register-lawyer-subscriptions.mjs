@@ -56,3 +56,24 @@ patchFile('src/App.tsx', (src) => {
   }
   return out;
 });
+
+patchFile('src/pages/Lawyers.tsx', (src) => {
+  let out = src;
+
+  out = out.replace(
+    '  id: number; full_name: string; title: string; phone: string; specialties: string;\n  district: string; consult_fee: string; experience_y: number;',
+    '  id: number; full_name: string; title: string; phone: string; specialties: string;\n  whatsapp?: string; email?: string; office_addr?: string; bar_number?: string; languages?: string; photo_url?: string;\n  district: string; consult_fee: string; experience_y: number;',
+  );
+
+  out = out.replace(
+    '    try { setLawyers(Array.isArray(await apiJson<Lawyer[]>("/admin/lawyers")) ? await apiJson<Lawyer[]>("/admin/lawyers") : []); }',
+    '    try {\n      const data = await apiJson<Lawyer[]>("/admin/lawyers");\n      setLawyers(Array.isArray(data) ? data : []);\n    }',
+  );
+
+  out = out.replace(
+    '      phone: l.phone || "", whatsapp: "", email: "", office_addr: "", district: l.district || "",\n      consult_fee: l.consult_fee || "", experience_y: l.experience_y || 0,',
+    '      phone: l.phone || "", whatsapp: l.whatsapp || "", email: l.email || "", office_addr: l.office_addr || "", district: l.district || "",\n      consult_fee: l.consult_fee || "", experience_y: l.experience_y || 0,',
+  );
+
+  return out;
+});
