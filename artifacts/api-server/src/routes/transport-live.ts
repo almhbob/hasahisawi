@@ -46,8 +46,13 @@ async function getSessionUser(req: Request): Promise<Record<string, unknown> | n
   } catch { return null; }
 }
 
+function canManageTransport(user: Record<string, unknown> | null) {
+  const role = String(user?.role || "");
+  return ["admin", "moderator", "transport_supervisor"].includes(role);
+}
+
 const CHANNEL_SOUND_MAP: Record<string, string> = {
-  "hasahisawi-transport": "hasahisawi_notif",
+  "hasahisawi-transport": "hasahisawi_urgent",
   "hasahisawi-urgent": "hasahisawi_urgent",
   "hasahisawi-default": "hasahisawi_notif",
 };
@@ -70,7 +75,6 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data:
       priority: "high",
       badge: 1,
     },
-    // نسخة تذكير ثانية تجعل التنبيه أوضح على الأجهزة التي تكتم أول إشعار.
     {
       to,
       title: "🔔 طلب مشوار ينتظر القبول",
@@ -179,15 +183,15 @@ export async function initTransportLiveDb() {
 
 async function notifyOnlineDriversOfTrip(trip: Record<string, unknown>) {
   const vehicle = normalizeVehicle(trip.vehicle_preference as string);
-  const params: unknown[] = [vehicle];
-  let where = `d.status='approved' AND d.is_online=TRUE`;
-  if (vehicle !== "delivery") where += ` AND (d.vehicle_type=$1 OR d.vehicle_type=$2)`;
   const q = vehicle !== "delivery"
     ? await query(`
         SELECT DISTINCT pt.token
         FROM transport_drivers d
         JOIN push_tokens pt ON pt.user_id = d.user_id
-        WHERE ${where} AND pt.token LIKE 'ExponentPushToken[%'
+        WHERE d.status='approved'
+          AND d.is_online=TRUE
+          AND (d.vehicle_type=$1 OR d.vehicle_type=$2)
+          AND pt.token LIKE 'ExponentPushToken[%'
       `, [vehicle, vehicleArabic(vehicle)])
     : await query(`
         SELECT DISTINCT pt.token
@@ -204,6 +208,25 @@ async function notifyOnlineDriversOfTrip(trip: Record<string, unknown>) {
     tripId: trip.id,
     trip_id: trip.id,
     vehicle,
+  }, "hasahisawi-transport");
+}
+
+async function notifyTransportAdminsOfTrip(trip: Record<string, unknown>) {
+  const q = await query(`
+    SELECT DISTINCT pt.token
+    FROM push_tokens pt
+    JOIN users u ON u.id = pt.user_id
+    WHERE u.role IN ('admin','moderator','transport_supervisor')
+      AND pt.token LIKE 'ExponentPushToken[%'
+  `);
+  const title = "🛎️ طلب جديد في مشوارك علينا";
+  const body = `${trip.user_name || "عميل"}: ${trip.from_location} ← ${trip.to_location}`;
+  await sendExpoPush(q.rows.map(r => r.token), title, body, {
+    type: "transport_admin_request",
+    screen: "admin-transport",
+    tripId: trip.id,
+    trip_id: trip.id,
+    action: "open_transport_supervisor",
   }, "hasahisawi-transport");
 }
 
@@ -287,6 +310,7 @@ router.post("/transport/trips", async (req: Request, res: Response) => {
       String(b.notes || ""), b.delivery_desc || null, clientId,
     ]);
     notifyOnlineDriversOfTrip(rows[0]).catch((err) => logger.warn({ err }, "transport notify drivers failed"));
+    notifyTransportAdminsOfTrip(rows[0]).catch((err) => logger.warn({ err }, "transport notify admins failed"));
     return res.status(201).json(rows[0]);
   } catch (err) {
     logger.error({ err }, "transport trip create error");
@@ -350,6 +374,31 @@ router.post("/transport/trips/:id/accept", async (req: Request, res: Response) =
     return res.json(accepted.rows[0]);
   } catch (err) {
     logger.error({ err }, "transport trip accept error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/admin/transport/trips/:id/assign", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!canManageTransport(me)) return res.status(403).json({ error: "غير مصرح" });
+    const tripId = Number(req.params.id);
+    const driverId = Number(req.body?.driver_id);
+    if (!tripId || !driverId) return res.status(400).json({ error: "اختر السائق أولاً" });
+    const driverR = await query(`SELECT * FROM transport_drivers WHERE id=$1 AND status='approved'`, [driverId]);
+    if (!driverR.rows.length) return res.status(404).json({ error: "السائق غير معتمد" });
+    const d = driverR.rows[0];
+    const accepted = await query(`
+      UPDATE transport_trips
+      SET status='in_progress', driver_id=$1, driver_name=$2, driver_phone=$3, accepted_at=NOW()
+      WHERE id=$4 AND status='pending' AND driver_id IS NULL
+      RETURNING *
+    `, [driverId, d.name, d.phone, tripId]);
+    if (!accepted.rows.length) return res.status(409).json({ error: "تم قبول الطلب مسبقاً" });
+    await query(`UPDATE transport_drivers SET is_online=FALSE, total_trips=total_trips+1 WHERE id=$1`, [driverId]);
+    return res.json(accepted.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "admin transport assign error");
     return res.status(500).json({ error: "Server error" });
   }
 });
