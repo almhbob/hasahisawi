@@ -1,4 +1,4 @@
-name: Hasahisawi Fast Debug APK
+name: Hasahisawi Standalone Test APK
 
 on:
   workflow_dispatch:
@@ -31,8 +31,8 @@ permissions:
   contents: read
 
 jobs:
-  debug-apk:
-    name: Build fast debug APK
+  standalone-apk:
+    name: Build standalone APK with embedded JS
     runs-on: ubuntu-latest
     timeout-minutes: 120
     defaults:
@@ -53,8 +53,28 @@ jobs:
           node-version: '22'
           cache: pnpm
 
+      - name: Add swap space
+        run: |
+          set +e
+          SWAPFILE=/mnt/hasahisawi-standalone-swapfile
+          sudo swapoff "$SWAPFILE" 2>/dev/null || true
+          sudo rm -f "$SWAPFILE"
+          sudo fallocate -l 4G "$SWAPFILE" 2>/dev/null || sudo dd if=/dev/zero of="$SWAPFILE" bs=1M count=4096 status=none
+          sudo chmod 600 "$SWAPFILE"
+          sudo mkswap "$SWAPFILE"
+          sudo swapon "$SWAPFILE"
+          free -h
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Read app version
+        id: app
+        run: |
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
 
       - name: Apply app patches
         working-directory: artifacts/hasahisawi
@@ -66,8 +86,9 @@ jobs:
           node scripts/fix-transport-driver-duplicates.mjs || true
           node scripts/patch-travel-agency-workspace.mjs || true
           node scripts/patch-home-services-ui.mjs || true
+          node scripts/fix-social-image-items-duplicates.mjs || true
 
-      - name: Prepare Android debug build
+      - name: Prepare Android standalone build
         run: |
           mkdir -p release-artifacts artifacts/hasahisawi/android/app
           echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
@@ -83,16 +104,9 @@ jobs:
             echo "org.gradle.workers.max=1"
             echo "org.gradle.caching=true"
             echo "org.gradle.configuration-cache=false"
+            echo "android.enableMinifyInReleaseBuilds=false"
+            echo "android.enableShrinkResourcesInReleaseBuilds=false"
           } >> "$PROPS"
-          keytool -genkeypair -v \
-            -keystore artifacts/hasahisawi/android/app/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Patch Android native compatibility
         run: |
@@ -147,27 +161,46 @@ jobs:
             fi
           done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
-      - name: Build debug APK
+      - name: Create temporary release signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore artifacts/hasahisawi/android/app/release.keystore \
+            -storepass hasahisawi-test-pass \
+            -alias hasahisawi \
+            -keypass hasahisawi-test-pass \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Hasahisawi Test,O=Hasahisawi,L=Hasahisawi,S=Gezira,C=SD"
+          {
+            echo "storePassword=hasahisawi-test-pass"
+            echo "keyAlias=hasahisawi"
+            echo "keyPassword=hasahisawi-test-pass"
+          } >> artifacts/hasahisawi/android/gradle.properties
+
+      - name: Build standalone release APK
         working-directory: artifacts/hasahisawi/android
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/debug-apk-build.log"
+          ./gradlew assembleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/standalone-apk-build.log"
 
-      - name: Collect debug APK
+      - name: Verify embedded JS bundle exists
         run: |
-          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
-          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
-          APK=$(find artifacts/hasahisawi/android/app/build/outputs/apk -type f -name '*.apk' | sort | tail -1 || true)
+          APK=$(find artifacts/hasahisawi/android/app/build/outputs/apk -type f -name '*release*.apk' | sort | tail -1 || true)
           if [ -z "$APK" ]; then
-            echo "No APK file produced"
+            echo "No release APK file produced"
             find artifacts/hasahisawi/android/app/build/outputs -maxdepth 6 -type f | sort || true
             exit 1
           fi
-          cp "$APK" "release-artifacts/hasahisawi-test-debug-v${VERSION}-build${CODE}.apk"
-          APK_SIZE=$(stat -c%s "release-artifacts/hasahisawi-test-debug-v${VERSION}-build${CODE}.apk")
+          unzip -l "$APK" | tee release-artifacts/apk-contents.txt
+          unzip -l "$APK" | grep -E 'assets/index\.android\.bundle|assets/index\.bundle|assets/.+\.bundle' >/dev/null
+          VERSION='${{ steps.app.outputs.version }}'
+          CODE='${{ steps.app.outputs.code }}'
+          cp "$APK" "release-artifacts/hasahisawi-standalone-test-v${VERSION}-build${CODE}.apk"
+          APK_SIZE=$(stat -c%s "release-artifacts/hasahisawi-standalone-test-v${VERSION}-build${CODE}.apk")
           echo "APK size: $APK_SIZE"
           if [ "$APK_SIZE" -lt 1000000 ]; then
             echo "APK size is too small"
@@ -175,12 +208,13 @@ jobs:
           fi
           ls -lh release-artifacts
 
-      - name: Upload fast debug APK
+      - name: Upload standalone test APK
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-fast-debug-apk
+          name: hasahisawi-standalone-test-apk
           path: |
             release-artifacts/*.apk
             release-artifacts/*-build.log
+            release-artifacts/apk-contents.txt
           if-no-files-found: error
           retention-days: 30
