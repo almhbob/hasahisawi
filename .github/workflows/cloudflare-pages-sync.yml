@@ -77,6 +77,7 @@ jobs:
           node scripts/apply-latest-sections.mjs || true
           node scripts/fix-org-join-id-upload.mjs || true
           node scripts/apply-driver-inbox-lite.mjs || true
+          node scripts/patch-transport-notification-routing.mjs || true
           node scripts/apply-women-label-cleanup.mjs || true
           node scripts/apply-social-multi-images.mjs || true
           node scripts/fix-social-image-items-duplicates.mjs || true
