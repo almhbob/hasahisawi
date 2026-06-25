@@ -1,6 +1,7 @@
 import { fetch } from "expo/fetch";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { canQueueRequest, isOnline, queueOfflineRequest, syncOfflineQueue } from "@/lib/offline-queue";
 
 const USER_TOKEN_KEY = "auth_backend_token";
 
@@ -61,15 +62,28 @@ export async function wakeUpServer(): Promise<void> {
 
 export async function fetchWithTimeout(
   url: string,
-  init: RequestInit & { timeout?: number } = {},
+  init: RequestInit & { timeout?: number; offlineQueue?: boolean } = {},
   ms = 15000,
 ): Promise<Response> {
   const timeout = (init as any).timeout ?? ms;
-  const { timeout: _ignored, ...cleanInit } = init as any;
+  const { timeout: _ignored, offlineQueue: _offlineQueue, ...cleanInit } = init as any;
+  const shouldQueue = _offlineQueue !== false && canQueueRequest(url, cleanInit);
+
+  if (shouldQueue && !(await isOnline())) {
+    return queueOfflineRequest(url, cleanInit, "offline");
+  }
+
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), timeout);
   try {
-    return await fetch(url, { ...cleanInit, signal: ctrl.signal } as any);
+    const res = await fetch(url, { ...cleanInit, signal: ctrl.signal } as any);
+    if (shouldQueue) syncOfflineQueue().catch(() => {});
+    return res;
+  } catch (error: any) {
+    if (shouldQueue) {
+      return queueOfflineRequest(url, cleanInit, error?.message || "network_error");
+    }
+    throw error;
   } finally {
     clearTimeout(tid);
   }
@@ -130,8 +144,7 @@ export async function apiRequest(
   const path = route.startsWith("/") ? route : `/${route}`;
   const url = API_URL + path;
   const authHeaders = await getAuthHeaders();
-
-  const res = await fetchWithRetry(url, {
+  const init = {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
@@ -139,9 +152,24 @@ export async function apiRequest(
       ...extraHeaders,
     },
     body: data ? JSON.stringify(data) : undefined,
-  });
+  };
+
+  if (canQueueRequest(url, init) && !(await isOnline())) {
+    return queueOfflineRequest(url, init, "offline");
+  }
+
+  let res: Response;
+  try {
+    res = await fetchWithRetry(url, init);
+  } catch (error: any) {
+    if (canQueueRequest(url, init)) {
+      return queueOfflineRequest(url, init, error?.message || "network_error");
+    }
+    throw error;
+  }
 
   await throwIfResNotOk(res);
+  if (canQueueRequest(url, init)) syncOfflineQueue().catch(() => {});
   return res;
 }
 
