@@ -92,7 +92,7 @@ async function ensureAndroidChannels(
 
     await Notifications.setNotificationChannelAsync(CHANNELS.TRANSPORT, {
       name: "حصاحيصاوي — طلبات مشوارك علينا",
-      description: "طلبات مشاوير فورية للسائقين المتاحين",
+      description: "طلبات مشاوير فورية للسائقين والمشرفين",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 700, 200, 700, 200, 700, 300, 900],
       lightColor: "#F97316",
@@ -119,7 +119,7 @@ async function ensureAndroidChannels(
 
     // احفظ الإصدار الجديد بعد نجاح الإنشاء
     if (stored !== CHANNEL_VERSION) {
-      await AsyncStorage.setItem(CHANNEL_VERSION_KEY).catch(() => {});
+      await AsyncStorage.setItem(CHANNEL_VERSION_KEY, CHANNEL_VERSION).catch(() => {});
     }
   } catch {}
 }
