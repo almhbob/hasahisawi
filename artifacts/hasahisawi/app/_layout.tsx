@@ -31,6 +31,7 @@ import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
+import OfflineQueueSync from "@/components/OfflineQueueSync";
 
 // ── ضبط حجم الخط على الموبايل ─────────────────────────────────────
 // بعض الأجهزة تكون عليها إعدادات Accessibility بحجم خط كبير جداً، وهذا كان يسبب
@@ -315,6 +316,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                    <OfflineQueueSync />
                     <RootLayoutNav />
                     <NetworkBanner />
                     <UpdateBanner />
