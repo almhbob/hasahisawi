@@ -26,6 +26,44 @@ if (!src.includes('const [driverModeId, setDriverModeId]')) {
   );
 }
 
+// إلغاء اختبار السائق قبل التقديم: يصبح التقديم مفتوحاً مباشرة.
+rep(
+  'const [quizPhase,    setQuizPhase]    = useState<"intro" | "quiz" | "result">("intro");',
+  'const [quizPhase,    setQuizPhase]    = useState<"intro" | "quiz" | "result">("result");',
+);
+rep(
+  'const [quizScore,    setQuizScore]    = useState(0);',
+  'const [quizScore,    setQuizScore]    = useState(DRIVER_QUIZ.length);',
+);
+rep(
+  'const [quizPassed,   setQuizPassed]   = useState(false);',
+  'const [quizPassed,   setQuizPassed]   = useState(true);',
+);
+rep(
+  'قبل الانضمام كسائق، يجب اجتياز اختبار قصير يتحقق من فهمك لمراحل عمل التطبيق وقواعده.',
+  'تم حذف اختبار السائق قبل التقديم. يمكنك إرسال طلب الانضمام مباشرة، وستراجع الإدارة البيانات.',
+);
+rep(
+  'المساحة التدريبية للسائقين',
+  'التقديم المباشر للسائقين',
+);
+rep(
+  'ابدأ الاختبار التدريبي',
+  'متابعة التقديم مباشرة',
+);
+rep(
+  'تهانينا! اجتزت الاختبار',
+  'جاهز لتقديم طلب الانضمام',
+);
+rep(
+  'أثبتت فهمك الكامل لمراحل التطبيق',
+  'تم حذف الاختبار — أكمل بياناتك وأرسل طلب الانضمام',
+);
+rep(
+  'مراجعة إجاباتك',
+  'ملاحظة التقديم',
+);
+
 if (!src.includes('loadIncomingTripsLite')) {
   const anchor = `  const loadMyTrips = useCallback(async () => {
     if (!token) return;
@@ -58,7 +96,7 @@ if (!src.includes('loadIncomingTripsLite')) {
       if (res.ok) {
         setDriverModeId(next ? driver.id : null);
         setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: next } : d));
-        loadIncomingTripsLite();
+        if (next) loadIncomingTripsLite();
       }
     } catch { Alert.alert("خطأ", "تعذر تحديث حالة السائق"); }
   }, [apiUrl, loadIncomingTripsLite]);
@@ -75,7 +113,9 @@ if (!src.includes('loadIncomingTripsLite')) {
       });
       if (res.ok) {
         setIncomingTrips(prev => prev.filter(t => t.id !== trip.id));
-        Alert.alert("تم قبول الطلب", "أصبح الطلب رحلة جارية باسم السائق، ولن يتمكن سائق آخر من قبوله.");
+        setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: false, total_trips: d.total_trips + 1 } : d));
+        setDriverModeId(null);
+        Alert.alert("تم قبول الطلب", "أصبح الطلب رحلة جارية باسمك، ولن يتمكن سائق آخر من قبوله.");
       } else {
         const j = await res.json().catch(() => ({}));
         Alert.alert("تعذر القبول", (j as any).error || "ربما تم قبول الطلب بواسطة سائق آخر");
@@ -85,11 +125,6 @@ if (!src.includes('loadIncomingTripsLite')) {
     setAcceptingTripId(null);
   }, [apiUrl, drivers, driverModeId, token, loadIncomingTripsLite]);
 `);
-}
-
-if (!src.includes('/accept')) {
-  src = src.replace(/fetchWithTimeout\(`\$\{apiUrl\}\/api\/transport\/trips\/\$\{trip\.id\}`,[\s\S]*?body: JSON\.stringify\(\{ status: "in_progress", driver_id: driver\.id, driver_name: driver\.name \}\),\n\s*\}\);/m, 'fetchWithTimeout(`${apiUrl}/api/transport/trips/${trip.id}/accept`, {\n        method: "POST",\n        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },\n        body: JSON.stringify({ driver_id: driver.id }),\n      });');
-  changed = true;
 }
 
 if (!src.includes('activeTab !== "driver-inbox"')) {
@@ -104,7 +139,7 @@ if (!src.includes('activeTab !== "driver-inbox"')) {
   useEffect(() => {
     if (activeTab !== "driver-inbox") return;
     loadIncomingTripsLite();
-    const interval = setInterval(() => { loadIncomingTripsLite(); }, 15_000);
+    const interval = setInterval(() => { loadIncomingTripsLite(); }, 7_000);
     return () => clearInterval(interval);
   }, [activeTab, loadIncomingTripsLite]);
 `);
@@ -113,7 +148,7 @@ if (!src.includes('activeTab !== "driver-inbox"')) {
 if (!src.includes('key: "driver-inbox"')) {
   rep(
     '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n',
-    '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n    { key: "driver-inbox", label: "طلبات واردة", icon: "radio-outline" as const },\n',
+    '    { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },\n    { key: "driver-inbox", label: "طلبات السائق", icon: "radio-outline" as const },\n',
   );
 }
 
@@ -123,7 +158,7 @@ if (!src.includes('activeTab === "driver-inbox"')) {
           <Animated.View entering={FadeInDown.springify()}>
             <View style={s.formCard}>
               <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 16 }}>طلبات السائقين الواردة</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontSize: 12 }}>فعّل أحد السائقين المتاحين ثم اقبل الطلب مباشرة.</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontSize: 12 }}>فعّل أحد السائقين كمتاح ثم اقبل الطلب. أول سائق يقبل الطلب يستلمه وحده.</Text>
               {drivers.map(d => (
                 <TouchableOpacity key={d.id} onPress={() => toggleDriverAvailabilityLite(d)} style={{ marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: d.is_online ? GREEN + "55" : Colors.border, backgroundColor: d.is_online ? GREEN + "12" : Colors.cardBg, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
                   <MaterialCommunityIcons name={d.is_online ? "radio-tower" : "car-clock"} size={22} color={d.is_online ? GREEN : Colors.textMuted} />
@@ -140,7 +175,7 @@ if (!src.includes('activeTab === "driver-inbox"')) {
                 <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>من: {trip.from_location}</Text>
                 <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>إلى: {trip.to_location}</Text>
                 <TouchableOpacity onPress={() => acceptIncomingTripLite(trip)} disabled={acceptingTripId === trip.id || !driverModeId} style={{ marginTop: 14, backgroundColor: driverModeId ? GREEN : Colors.textMuted, borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
-                  {acceptingTripId === trip.id ? <ActivityIndicator color="#001" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#001" }}>قبول الطلب</Text>}
+                  {acceptingTripId === trip.id ? <ActivityIndicator color="#001" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#001" }}>قبول الطلب الآن</Text>}
                 </TouchableOpacity>
               </View>
             ))}
@@ -162,10 +197,7 @@ const seen = new Set();
 const cleaned = [];
 for (const line of src.split('\n')) {
   if (declarations.has(line)) {
-    if (seen.has(line)) {
-      changed = true;
-      continue;
-    }
+    if (seen.has(line)) { changed = true; continue; }
     seen.add(line);
   }
   cleaned.push(line);
@@ -173,4 +205,4 @@ for (const line of src.split('\n')) {
 src = cleaned.join('\n');
 
 if (changed) writeFileSync(file, src);
-console.log(changed ? 'Driver inbox applied' : 'Driver inbox already present');
+console.log(changed ? 'Driver inbox applied and driver quiz requirement removed' : 'Driver inbox already present');
