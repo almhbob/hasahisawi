@@ -35,8 +35,6 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: master
 
       - uses: actions/setup-java@v4
         with:
@@ -60,7 +58,9 @@ jobs:
           free -h
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: |
+          node artifacts/hasahisawi/scripts/ensure-android-release-deps.mjs
+          pnpm install --no-frozen-lockfile
 
       - name: Read app version
         id: ver
@@ -78,7 +78,7 @@ jobs:
           node scripts/apply-travel-shipping-services.mjs
           node scripts/apply-driver-inbox-lite.mjs || true
           node scripts/apply-women-label-cleanup.mjs || true
-          node scripts/apply-social-multi-images.mjs || true
+          node scripts/fix-social-image-items-duplicates.mjs || true
 
       - name: Prepare Android build files
         run: |
@@ -186,6 +186,7 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
+          set -o pipefail
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/apk-build.log"
 
@@ -194,6 +195,7 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
+          set -o pipefail
           ./gradlew bundleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/aab-build.log"
 
       - name: Collect APK and AAB
