@@ -14,6 +14,17 @@ const before = source;
 source = source.split('\n').filter(line => !line.includes(oldKey)).join('\n');
 if (source !== before) changed = true;
 
+if (!source.includes('id: "lawyers"')) {
+  const medicalLine = source.split('\n').find(line => line.includes('id: "medical"'));
+  if (medicalLine) {
+    const lawyerLine = '  { id: "lawyers", label: "المحامون والخدمات القانونية", sub: "محامون · استشارات · عقود", icon: "scale-balance", iconType: "material", tone: "gold", route: "/(tabs)/lawyers", badge: "قانون" },';
+    source = source.replace(medicalLine, `${medicalLine}\n${lawyerLine}`);
+    changed = true;
+  }
+}
+
+source = source.replace('منصة حصاحيصا المحلية', 'منصة لخدمة مواطن المنطقة وضواحيها');
+
 if (!source.includes('id: "restaurants"')) {
   const marketLine = source.split('\n').find(line => line.includes('id: "market"'));
   if (!marketLine) throw new Error('market service not found');
@@ -31,7 +42,7 @@ if (source.includes('label: "معرض المنتجات", sub: "منتجات مخ
   changed = true;
 }
 
-if (changed) writeFileSync(indexPath, source);
+if (changed || source !== readFileSync(indexPath, 'utf8')) writeFileSync(indexPath, source);
 await import('./apply-glass-minimal-ui.mjs').catch(() => {});
 await import('./apply-driver-inbox-lite.mjs').catch(() => {});
 await import('./apply-women-label-cleanup.mjs').catch(() => {});
