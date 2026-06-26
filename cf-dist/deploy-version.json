@@ -3,9 +3,9 @@
   "version": "6.5.6",
   "androidVersionCode": 256,
   "iosBuildNumber": "256",
-  "commit": "c86ddcd1f9cdceed391e5a8cff3fc97c0715ba52",
-  "deployedAt": "2026-06-26T01:35:00.000Z",
+  "commit": "f33b84be698628cf7bb0d8a8eb81fb564ecca7a6",
+  "deployedAt": "2026-06-26T02:05:00.000Z",
   "target": "cloudflare-pages",
-  "source": "cloudflare-pages-hotfix-sw",
-  "notes": "patched stale web shell text, hidden design notes, added lawyers/admin/institution shortcuts"
+  "source": "cloudflare-pages-hotfix-sw-women-guard",
+  "notes": "women section hidden for male accounts except admin; direct women route blocked for male non-admin"
 }
