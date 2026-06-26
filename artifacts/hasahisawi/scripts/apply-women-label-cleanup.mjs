@@ -34,6 +34,7 @@ for (const file of files) {
     );
     src = src.replace('if (user.gender === "male")', 'if (isMaleBlocked)');
     src = src.replace('if (!user.gender)', 'if (needsGenderForWomen)');
+    src = src.replace('هذا القسم مخصّص للسيدات فقط — نحرص على توفير مساحة آمنة وخاصة لهن.', 'هذا القسم محجوب تلقائياً على حسابات الذكور، ولا يمكن الدخول إليه إلا بحساب إدارة.');
   }
 
   if (file.endsWith('index.tsx')) {
@@ -55,4 +56,4 @@ for (const file of files) {
   }
 }
 
-console.log(changed ? 'women access guard applied' : 'women labels already clean');
+console.log(changed ? 'women access guard applied' : 'women access guard already clean');
