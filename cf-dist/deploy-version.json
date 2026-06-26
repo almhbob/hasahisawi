@@ -3,8 +3,9 @@
   "version": "6.5.6",
   "androidVersionCode": 256,
   "iosBuildNumber": "256",
-  "commit": "4093bb053ed51714164693fdc9a37d551e40190d",
-  "deployedAt": "2026-06-24T23:42:13.865Z",
+  "commit": "c86ddcd1f9cdceed391e5a8cff3fc97c0715ba52",
+  "deployedAt": "2026-06-26T01:35:00.000Z",
   "target": "cloudflare-pages",
-  "source": "cloudflare-pages-sync"
+  "source": "cloudflare-pages-hotfix-sw",
+  "notes": "patched stale web shell text, hidden design notes, added lawyers/admin/institution shortcuts"
 }
