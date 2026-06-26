@@ -1,4 +1,4 @@
-const CACHE = "hasahisawi-v6.5.6-web-hotfix-20260626-01";
+const CACHE = "hasahisawi-v6.5.6-web-hotfix-20260626-women-guard-02";
 const OFFLINE = ["/", "/index.html"];
 
 const DOM_PATCH = `
@@ -10,6 +10,24 @@ const DOM_PATCH = `
     ["تصميم زجاجي حديث يعتمد على أخضر الشعار وذهبه فقط، بواجهة عربية مريحة وواضحة.", "خدمات يومية، مؤسسات، مشاوير، سوق، ومحامون في تجربة واحدة واضحة وسريعة."],
     ["ألوان موحدة · واجهة زجاجية · تجربة أسرع", "اختر القسم الذي تحتاجه وابدأ مباشرة"],
   ]);
+
+  function readUser() {
+    const keys = ["auth_user_data", "@auth_user_data", "user", "auth_user"];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const user = JSON.parse(raw);
+        if (user && typeof user === "object") return user;
+      } catch {}
+    }
+    return null;
+  }
+
+  function isMaleNonAdmin() {
+    const user = readUser();
+    return user?.gender === "male" && user?.role !== "admin";
+  }
 
   function textNodes(root) {
     const walker = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT);
@@ -28,12 +46,27 @@ const DOM_PATCH = `
     }
   }
 
-  function hideDesignNote() {
-    const nodes = textNodes(document.body).filter(n => (n.nodeValue || "").includes("هوية موحدة من الشعار"));
+  function hideByText(text, levels = 4) {
+    const nodes = textNodes(document.body).filter(n => (n.nodeValue || "").includes(text));
     for (const n of nodes) {
       let el = n.parentElement;
-      for (let i = 0; el && i < 5; i++) el = el.parentElement;
+      for (let i = 0; el && i < levels; i++) el = el.parentElement;
       if (el) el.style.display = "none";
+    }
+  }
+
+  function hideDesignNote() {
+    hideByText("هوية موحدة من الشعار", 5);
+  }
+
+  function guardWomenSection() {
+    if (!isMaleNonAdmin()) return;
+    hideByText("قسم المرأة", 4);
+    hideByText("متاجر وخدمات نسائية", 4);
+    hideByText("صحة المرأة", 4);
+    hideByText("خدمات نسائية", 4);
+    if (location.pathname.includes("women")) {
+      document.body.innerHTML = `<div dir="rtl" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#06120a;color:#fff;font-family:system-ui;padding:24px;text-align:center"><div style="max-width:360px;border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:28px;background:rgba(255,255,255,.06)"><div style="font-size:42px;margin-bottom:12px">🔒</div><h2 style="margin:0 0 10px">قسم المرأة محجوب</h2><p style="opacity:.78;line-height:1.8">هذا القسم محجوب تلقائياً على حسابات الذكور، ولا يمكن الدخول إليه إلا بحساب إدارة.</p><button onclick="location.href='/'" style="margin-top:18px;border:0;border-radius:14px;background:#009B67;color:white;padding:12px 22px;font-weight:700">العودة للرئيسية</button></div></div>`;
     }
   }
 
@@ -55,6 +88,7 @@ const DOM_PATCH = `
   function patch() {
     replaceTexts();
     hideDesignNote();
+    guardWomenSection();
     addShortcut("hs-lawyers-shortcut", "المحامون", "استشارات · عقود", "/lawyers", "⚖️");
     addShortcut("hs-admin-shortcut", "الإدارة والإشراف", "دخول المشرفين", "/admin", "🛡️");
     addShortcut("hs-inst-shortcut", "بوابة المؤسسات", "المؤسسات والشركاء", "/inst-portal", "🏢");
