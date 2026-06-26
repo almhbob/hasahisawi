@@ -8,8 +8,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import { useAuth } from "@/lib/auth-context";
 
-type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories";
+type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories" | "women";
 type MerchantStatus = "pending" | "approved";
 
 type Merchant = {
@@ -44,8 +45,16 @@ const MERCHANTS_KEY = "retail_merchants_v1";
 const PRODUCTS_KEY = "retail_products_v1";
 const CART_KEY = "retail_cart_v1";
 
-const CATEGORIES: { key: "all" | RetailCategory; label: string; icon: string; color: string }[] = [
+function normalizeGender(value: unknown): "male" | "female" | null {
+  const g = String(value ?? "").trim().toLowerCase();
+  if (["male", "m", "man", "ذكر", "رجل", "ولد"].includes(g)) return "male";
+  if (["female", "f", "woman", "أنثى", "انثى", "امرأة", "امراة", "بنت"].includes(g)) return "female";
+  return null;
+}
+
+const CATEGORIES: { key: "all" | RetailCategory; label: string; icon: string; color: string; womenOnly?: boolean }[] = [
   { key: "all", label: "الكل", icon: "apps", color: Colors.primary },
+  { key: "women", label: "القسم النسائي", icon: "face-woman", color: "#EC4899", womenOnly: true },
   { key: "clothing", label: "ملابس", icon: "tshirt-crew-outline", color: "#EC4899" },
   { key: "perfume", label: "عطور", icon: "spray-bottle", color: "#A855F7" },
   { key: "shoes", label: "أحذية", icon: "shoe-sneaker", color: "#F97316" },
@@ -57,12 +66,14 @@ const SEED_MERCHANTS: Merchant[] = [
   { id: "m1", shopName: "بوتيك الأناقة", ownerName: "إدارة البوتيك", category: "boutique", phone: "0914000001", address: "السوق الكبير", description: "ملابس وإكسسوارات مختارة للنساء والرجال والأطفال", status: "approved", createdAt: new Date().toISOString() },
   { id: "m2", shopName: "عطور النيل", ownerName: "قسم العطور", category: "perfume", phone: "0914000002", address: "شارع المستشفى", description: "عطور فرنسية وشرقية وتركيبات خاصة", status: "approved", createdAt: new Date().toISOString() },
   { id: "m3", shopName: "أحذية المدينة", ownerName: "إدارة المتجر", category: "shoes", phone: "0914000003", address: "وسط الحصاحيصا", description: "أحذية رجالية ونسائية ورياضية", status: "approved", createdAt: new Date().toISOString() },
+  { id: "m4", shopName: "مستلزمات المرأة", ownerName: "قسم النساء", category: "women", phone: "0914000004", address: "قسم خاص", description: "منتجات ومستلزمات نسائية تظهر للنساء والإدارة فقط", status: "approved", createdAt: new Date().toISOString() },
 ];
 
 const SEED_PRODUCTS: Product[] = [
   { id: "p1", merchantId: "m1", name: "طقم خروج عصري", category: "clothing", price: 28000, oldPrice: 32000, description: "قماش مريح، مقاسات متعددة، ألوان موسمية", stock: 8, isAvailable: true, createdAt: new Date().toISOString() },
   { id: "p2", merchantId: "m2", name: "عطر شرقي فاخر", category: "perfume", price: 15000, description: "ثبات عالي وحجم مناسب للهدايا", stock: 12, isAvailable: true, createdAt: new Date().toISOString() },
   { id: "p3", merchantId: "m3", name: "حذاء رياضي خفيف", category: "shoes", price: 22000, oldPrice: 26000, description: "نعل مريح ومناسب للمشي اليومي", stock: 6, isAvailable: true, createdAt: new Date().toISOString() },
+  { id: "p4", merchantId: "m4", name: "مستلزمات نسائية أساسية", category: "women", price: 9500, description: "قسم خاص بالنساء: مستلزمات شخصية ومنتجات عناية مختارة", stock: 20, isAvailable: true, createdAt: new Date().toISOString() },
 ];
 
 function formatPrice(v: number) {
@@ -72,6 +83,10 @@ function formatPrice(v: number) {
 export default function ProductShowcaseScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const { user } = useAuth();
+  const gender = normalizeGender(user?.gender);
+  const canSeeWomenStore = user?.role === "admin" || gender === "female";
+
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"all" | RetailCategory>("all");
   const [merchants, setMerchants] = useState<Merchant[]>(SEED_MERCHANTS);
@@ -79,6 +94,7 @@ export default function ProductShowcaseScreen() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [joinOpen, setJoinOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const [shopName, setShopName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -86,13 +102,27 @@ export default function ProductShowcaseScreen() {
   const [address, setAddress] = useState("");
   const [merchantCat, setMerchantCat] = useState<RetailCategory>("boutique");
 
-  const approvedMerchants = merchants.filter(m => m.status === "approved");
   const [selectedMerchantId, setSelectedMerchantId] = useState("m1");
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("");
   const [productDesc, setProductDesc] = useState("");
   const [productStock, setProductStock] = useState("1");
   const [imageUri, setImageUri] = useState<string | undefined>();
+
+  const [deliveryName, setDeliveryName] = useState(user?.name || "");
+  const [deliveryPhone, setDeliveryPhone] = useState(user?.phone || "");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryNote, setDeliveryNote] = useState("");
+
+  const visibleCategories = useMemo(
+    () => CATEGORIES.filter(c => !c.womenOnly || canSeeWomenStore),
+    [canSeeWomenStore],
+  );
+
+  const approvedMerchants = useMemo(
+    () => merchants.filter(m => m.status === "approved" && (m.category !== "women" || canSeeWomenStore)),
+    [merchants, canSeeWomenStore],
+  );
 
   useEffect(() => {
     (async () => {
@@ -110,25 +140,25 @@ export default function ProductShowcaseScreen() {
   useEffect(() => { AsyncStorage.setItem(CART_KEY, JSON.stringify(cart)).catch(() => {}); }, [cart]);
 
   const filtered = useMemo(() => products.filter(item => {
+    if (item.category === "women" && !canSeeWomenStore) return false;
     const merchant = merchants.find(m => m.id === item.merchantId);
+    if (merchant?.status !== "approved") return false;
     const byCat = category === "all" || item.category === category;
     const q = query.trim();
     const byQuery = !q || item.name.includes(q) || item.description.includes(q) || merchant?.shopName.includes(q);
     return item.isAvailable && byCat && byQuery;
-  }), [products, merchants, query, category]);
+  }), [products, merchants, query, category, canSeeWomenStore]);
 
   const cartDetails = useMemo(() => cart.map(ci => {
     const product = products.find(p => p.id === ci.productId);
-    return product ? { ...ci, product } : null;
-  }).filter(Boolean) as Array<CartItem & { product: Product }>, [cart, products]);
+    if (!product || (product.category === "women" && !canSeeWomenStore)) return null;
+    return { ...ci, product };
+  }).filter(Boolean) as Array<CartItem & { product: Product }>, [cart, products, canSeeWomenStore]);
   const cartTotal = cartDetails.reduce((sum, x) => sum + x.product.price * x.qty, 0);
-  const cartCount = cart.reduce((sum, x) => sum + x.qty, 0);
+  const cartCount = cartDetails.reduce((sum, x) => sum + x.qty, 0);
 
   function addMerchant() {
-    if (!shopName.trim() || !ownerName.trim() || !phone.trim()) {
-      Alert.alert("بيانات ناقصة", "أدخل اسم المحل، المسؤول، ورقم الهاتف");
-      return;
-    }
+    if (!shopName.trim() || !ownerName.trim() || !phone.trim()) return Alert.alert("بيانات ناقصة", "أدخل اسم المحل، المسؤول، ورقم الهاتف");
     const item: Merchant = {
       id: `m${Date.now()}`,
       shopName: shopName.trim(), ownerName: ownerName.trim(), category: merchantCat,
@@ -142,10 +172,7 @@ export default function ProductShowcaseScreen() {
 
   async function pickImage() {
     const res = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (res.status !== "granted") {
-      Alert.alert("إذن مطلوب", "يجب السماح بالوصول للصور لرفع صورة المنتج");
-      return;
-    }
+    if (res.status !== "granted") return Alert.alert("إذن مطلوب", "يجب السماح بالوصول للصور لرفع صورة المنتج");
     const pick = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.85 });
     if (!pick.canceled && pick.assets[0]) setImageUri(pick.assets[0].uri);
   }
@@ -154,14 +181,9 @@ export default function ProductShowcaseScreen() {
     const merchant = merchants.find(m => m.id === selectedMerchantId);
     const price = Number(productPrice.replace(/,/g, ""));
     const stock = Number(productStock || "1");
-    if (!merchant || !productName.trim() || !price || price <= 0) {
-      Alert.alert("بيانات ناقصة", "اختر المتجر وأدخل اسم المنتج والسعر");
-      return;
-    }
+    if (!merchant || !productName.trim() || !price || price <= 0) return Alert.alert("بيانات ناقصة", "اختر المتجر وأدخل اسم المنتج والسعر");
     const item: Product = {
-      id: `p${Date.now()}`,
-      merchantId: merchant.id,
-      name: productName.trim(), category: merchant.category,
+      id: `p${Date.now()}`, merchantId: merchant.id, name: productName.trim(), category: merchant.category,
       price, description: productDesc.trim() || "منتج من متجر معتمد في السوق",
       imageUri, stock: Math.max(1, stock), isAvailable: true, createdAt: new Date().toISOString(),
     };
@@ -170,41 +192,65 @@ export default function ProductShowcaseScreen() {
   }
 
   function updatePrice(product: Product) {
-    Alert.prompt?.("تعديل السعر", "أدخل السعر الجديد بالجنيه السوداني", value => {
-      const next = Number(String(value || "").replace(/,/g, ""));
-      if (next > 0) setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
-    }, "plain-text", String(product.price));
-    if (Platform.OS !== "ios") {
-      const next = product.price + 1000;
-      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
-      Alert.alert("تم تحديث السعر", `تم رفع السعر تجريبياً إلى ${formatPrice(next)}. في النسخة النهائية سيظهر حقل إدخال مباشر للتاجر.`);
+    if (Platform.OS === "ios" && Alert.prompt) {
+      Alert.prompt("تعديل السعر", "أدخل السعر الجديد بالجنيه السوداني", value => {
+        const next = Number(String(value || "").replace(/,/g, ""));
+        if (next > 0) setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+      }, "plain-text", String(product.price));
+      return;
     }
+    const next = product.price + 1000;
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+    Alert.alert("تم تحديث السعر", `تم رفع السعر تجريبياً إلى ${formatPrice(next)}.`);
   }
 
   function addToCart(product: Product) {
     setCart(prev => {
       const found = prev.find(x => x.productId === product.id);
-      if (found) return prev.map(x => x.productId === product.id ? { ...x, qty: x.qty + 1 } : x);
+      if (found) return prev.map(x => x.productId === product.id ? { ...x, qty: Math.min(product.stock, x.qty + 1) } : x);
       return [...prev, { productId: product.id, qty: 1 }];
     });
   }
 
+  function changeQty(productId: string, delta: number) {
+    setCart(prev => prev.map(x => x.productId === productId ? { ...x, qty: Math.max(1, x.qty + delta) } : x));
+  }
+
+  function removeFromCart(productId: string) {
+    setCart(prev => prev.filter(x => x.productId !== productId));
+  }
+
+  function clearCart() {
+    if (!cartDetails.length) return;
+    Alert.alert("تفريغ السلة", "هل تريد حذف جميع المنتجات من السلة؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "تفريغ", style: "destructive", onPress: () => setCart([]) },
+    ]);
+  }
+
   function checkout() {
     if (!cartDetails.length) return;
+    setCheckoutOpen(true);
+  }
+
+  function submitCheckout() {
+    if (!deliveryName.trim() || !deliveryPhone.trim() || !deliveryAddress.trim()) {
+      return Alert.alert("بيانات التوصيل ناقصة", "أدخل الاسم، الهاتف، ومكان التوصيل");
+    }
     const text = cartDetails.map(x => `- ${x.product.name} × ${x.qty} = ${formatPrice(x.product.price * x.qty)}`).join("%0A");
     const phone = merchants.find(m => m.id === cartDetails[0].product.merchantId)?.phone || "0914000001";
-    Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=طلب من سوق حصاحيصاوي:%0A${text}%0Aالإجمالي: ${formatPrice(cartTotal)}`).catch(() => {});
+    const msg = `طلب من سوق حصاحيصاوي:%0A${text}%0Aالإجمالي: ${formatPrice(cartTotal)}%0Aطريقة الدفع: الدفع عند الاستلام%0Aالاسم: ${deliveryName}%0Aالهاتف: ${deliveryPhone}%0Aالتوصيل إلى: ${deliveryAddress}%0Aملاحظات: ${deliveryNote || "لا توجد"}`;
+    Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${msg}`).catch(() => {});
+    setCheckoutOpen(false);
   }
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <LinearGradient colors={["#241200", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}>
-          <Animated.View entering={FadeIn.delay(80)} style={styles.heroIcon}>
-            <Ionicons name="storefront-outline" size={40} color="#fff" />
-          </Animated.View>
+        <LinearGradient colors={["#241200", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}> 
+          <Animated.View entering={FadeIn.delay(80)} style={styles.heroIcon}><Ionicons name="storefront-outline" size={40} color="#fff" /></Animated.View>
           <Animated.Text entering={FadeInDown.delay(120).springify()} style={styles.title}>سوق المتاجر والبوتيكات</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>ملابس · عطور · أحذية · بوتيكات — انضمام كتاجر، معرض منتجات، تسعير قابل للتعديل، وسلة شراء</Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>ملابس · عطور · أحذية · بوتيكات · قسم نسائي — سلة شراء وتوصيل ودفع عند الاستلام</Animated.Text>
         </LinearGradient>
 
         <View style={styles.body}>
@@ -216,16 +262,22 @@ export default function ProductShowcaseScreen() {
           <View style={styles.cartBar}>
             <Text style={styles.cartTitle}>السلة: {cartCount} منتج</Text>
             <Text style={styles.cartTotal}>{formatPrice(cartTotal)}</Text>
+            <TouchableOpacity onPress={clearCart} style={[styles.clearBtn, !cartCount && { opacity: 0.35 }]} disabled={!cartCount}><Text style={styles.clearText}>تفريغ</Text></TouchableOpacity>
             <TouchableOpacity onPress={checkout} style={[styles.checkoutBtn, !cartCount && { opacity: 0.4 }]} disabled={!cartCount}><Text style={styles.checkoutText}>إتمام الطلب</Text></TouchableOpacity>
           </View>
 
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={Colors.textMuted} />
-            <TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر..." placeholderTextColor={Colors.textMuted} style={styles.input} />
-          </View>
+          {cartDetails.length ? <View style={styles.cartList}>
+            {cartDetails.map(x => <View key={x.productId} style={styles.cartItem}>
+              <TouchableOpacity onPress={() => removeFromCart(x.productId)} style={styles.removeBtn}><Ionicons name="trash-outline" size={16} color="#fff" /></TouchableOpacity>
+              <View style={{ flex: 1 }}><Text style={styles.cartItemName}>{x.product.name}</Text><Text style={styles.cartItemSub}>{formatPrice(x.product.price * x.qty)}</Text></View>
+              <View style={styles.qtyBox}><TouchableOpacity onPress={() => changeQty(x.productId, -1)}><Text style={styles.qtyBtn}>−</Text></TouchableOpacity><Text style={styles.qtyText}>{x.qty}</Text><TouchableOpacity onPress={() => changeQty(x.productId, 1)}><Text style={styles.qtyBtn}>+</Text></TouchableOpacity></View>
+            </View>)}
+          </View> : null}
+
+          <View style={styles.searchBox}><Ionicons name="search" size={18} color={Colors.textMuted} /><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر..." placeholderTextColor={Colors.textMuted} style={styles.input} /></View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-            {CATEGORIES.map(cat => {
+            {visibleCategories.map(cat => {
               const active = category === cat.key;
               return <TouchableOpacity key={cat.key} onPress={() => setCategory(cat.key)} style={[styles.categoryChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}>
                 <MaterialCommunityIcons name={cat.icon as any} size={15} color={active ? "#001" : cat.color} />
@@ -237,40 +289,34 @@ export default function ProductShowcaseScreen() {
           <Text style={styles.sectionTitle}>المتاجر المعتمدة</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.merchantRow}>
             {approvedMerchants.map(m => {
-              const meta = CATEGORIES.find(c => c.key === m.category)!;
-              return <View key={m.id} style={styles.merchantCard}>
-                <MaterialCommunityIcons name={meta.icon as any} size={25} color={meta.color} />
-                <Text style={styles.merchantName}>{m.shopName}</Text>
-                <Text style={styles.merchantMeta}>{meta.label} · {m.address}</Text>
-              </View>;
+              const meta = CATEGORIES.find(c => c.key === m.category) || CATEGORIES[0];
+              return <View key={m.id} style={styles.merchantCard}><MaterialCommunityIcons name={meta.icon as any} size={25} color={meta.color} /><Text style={styles.merchantName}>{m.shopName}</Text><Text style={styles.merchantMeta}>{meta.label} · {m.address}</Text></View>;
             })}
           </ScrollView>
 
           <Text style={styles.sectionTitle}>معرض المنتجات</Text>
           {filtered.map((item, index) => {
             const merchant = merchants.find(m => m.id === item.merchantId);
-            const cat = CATEGORIES.find(c => c.key === item.category)!;
+            const cat = CATEGORIES.find(c => c.key === item.category) || CATEGORIES[0];
             return <Animated.View key={item.id} entering={FadeInDown.delay(70 + index * 45).springify()} style={styles.productCard}>
-              <LinearGradient colors={[cat.color + "22", Colors.surface]} style={styles.productVisual}>
-                {item.imageUri ? <Image source={{ uri: item.imageUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" /> : <MaterialCommunityIcons name={cat.icon as any} size={46} color={cat.color} />}
-                <View style={[styles.badge, { backgroundColor: cat.color }]}><Text style={styles.badgeText}>{cat.label}</Text></View>
-              </LinearGradient>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.seller}>{merchant?.shopName || "متجر"} · المخزون {item.stock}</Text>
-                <Text style={styles.desc}>{item.description}</Text>
-                <View style={styles.bottomRow}>
-                  <View><Text style={[styles.price, { color: cat.color }]}>{formatPrice(item.price)}</Text>{item.oldPrice ? <Text style={styles.oldPrice}>{formatPrice(item.oldPrice)}</Text> : null}</View>
-                  <View style={styles.productActions}>
-                    <AnimatedPress onPress={() => updatePrice(item)}><View style={styles.editBtn}><Ionicons name="create-outline" size={16} color={Colors.primary} /></View></AnimatedPress>
-                    <AnimatedPress onPress={() => addToCart(item)}><View style={styles.cartBtn}><Ionicons name="cart" size={16} color="#001" /></View></AnimatedPress>
-                  </View>
-                </View>
-              </View>
+              <LinearGradient colors={[cat.color + "22", Colors.surface]} style={styles.productVisual}>{item.imageUri ? <Image source={{ uri: item.imageUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" /> : <MaterialCommunityIcons name={cat.icon as any} size={46} color={cat.color} />}<View style={[styles.badge, { backgroundColor: cat.color }]}><Text style={styles.badgeText}>{cat.label}</Text></View></LinearGradient>
+              <View style={styles.productInfo}><Text style={styles.productName}>{item.name}</Text><Text style={styles.seller}>{merchant?.shopName || "متجر"} · المخزون {item.stock}</Text><Text style={styles.desc}>{item.description}</Text><View style={styles.bottomRow}><View><Text style={[styles.price, { color: cat.color }]}>{formatPrice(item.price)}</Text>{item.oldPrice ? <Text style={styles.oldPrice}>{formatPrice(item.oldPrice)}</Text> : null}</View><View style={styles.productActions}><AnimatedPress onPress={() => updatePrice(item)}><View style={styles.editBtn}><Ionicons name="create-outline" size={16} color={Colors.primary} /></View></AnimatedPress><AnimatedPress onPress={() => addToCart(item)}><View style={styles.cartBtn}><Ionicons name="cart" size={16} color="#001" /></View></AnimatedPress></View></View></View>
             </Animated.View>;
           })}
         </View>
       </ScrollView>
+
+      <Modal visible={checkoutOpen} transparent animationType="slide" onRequestClose={() => setCheckoutOpen(false)}>
+        <View style={styles.modalBackdrop}><View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>بيانات التوصيل والدفع</Text>
+          <Text style={styles.payNote}>طريقة الدفع: الدفع عند الاستلام</Text>
+          <TextInput style={styles.modalInput} value={deliveryName} onChangeText={setDeliveryName} placeholder="اسم المستلم" placeholderTextColor={Colors.textMuted} />
+          <TextInput style={styles.modalInput} value={deliveryPhone} onChangeText={setDeliveryPhone} placeholder="رقم الهاتف" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
+          <TextInput style={[styles.modalInput, { height: 74 }]} value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder="مكان التوصيل بالتفصيل" placeholderTextColor={Colors.textMuted} multiline />
+          <TextInput style={[styles.modalInput, { height: 64 }]} value={deliveryNote} onChangeText={setDeliveryNote} placeholder="ملاحظة اختيارية" placeholderTextColor={Colors.textMuted} multiline />
+          <View style={styles.modalActions}><TouchableOpacity onPress={() => setCheckoutOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={submitCheckout} style={styles.saveBtn}><Text style={styles.saveText}>إرسال الطلب</Text></TouchableOpacity></View>
+        </View></View>
+      </Modal>
 
       <Modal visible={joinOpen} transparent animationType="slide" onRequestClose={() => setJoinOpen(false)}>
         <View style={styles.modalBackdrop}><View style={styles.modalCard}>
@@ -279,7 +325,7 @@ export default function ProductShowcaseScreen() {
           <TextInput style={styles.modalInput} value={ownerName} onChangeText={setOwnerName} placeholder="اسم المسؤول" placeholderTextColor={Colors.textMuted} />
           <TextInput style={styles.modalInput} value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
           <TextInput style={styles.modalInput} value={address} onChangeText={setAddress} placeholder="العنوان" placeholderTextColor={Colors.textMuted} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{CATEGORIES.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{visibleCategories.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</ScrollView>
           <View style={styles.modalActions}><TouchableOpacity onPress={() => setJoinOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={addMerchant} style={styles.saveBtn}><Text style={styles.saveText}>إرسال الطلب</Text></TouchableOpacity></View>
         </View></View>
       </Modal>
@@ -312,11 +358,21 @@ const styles = StyleSheet.create({
   primaryText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 13 },
   secondaryBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   secondaryText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 13 },
-  cartBar: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  cartBar: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   cartTitle: { flex: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
   cartTotal: { fontFamily: "Cairo_700Bold", color: Colors.primary },
   checkoutBtn: { backgroundColor: "#14B8A6", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   checkoutText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 12 },
+  clearBtn: { backgroundColor: "#EF4444", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
+  clearText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
+  cartList: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 10, gap: 8 },
+  cartItem: { flexDirection: "row-reverse", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingBottom: 8 },
+  removeBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
+  cartItemName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
+  cartItemSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 },
+  qtyBox: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  qtyBtn: { color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 18 },
+  qtyText: { color: Colors.textPrimary, fontFamily: "Cairo_700Bold" },
   searchBox: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   input: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   categoryRow: { gap: 8, paddingVertical: 2 },
@@ -344,6 +400,7 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: "#0008", justifyContent: "flex-end" },
   modalCard: { backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 18, gap: 10, borderWidth: 1, borderColor: Colors.border },
   modalTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 18, textAlign: "right" },
+  payNote: { fontFamily: "Cairo_700Bold", color: Colors.accent, textAlign: "right", marginBottom: 4 },
   modalInput: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   modalActions: { flexDirection: "row-reverse", gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
@@ -351,6 +408,6 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", color: "#001" },
   imagePick: { height: 110, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, borderStyle: "dashed", backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  imagePickText: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, marginTop: 6 },
+  imagePickText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, marginTop: 6 },
   preview: { width: "100%", height: "100%" },
 });
