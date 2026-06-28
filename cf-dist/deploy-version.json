@@ -3,9 +3,8 @@
   "version": "6.5.6",
   "androidVersionCode": 256,
   "iosBuildNumber": "256",
-  "commit": "f33b84be698628cf7bb0d8a8eb81fb564ecca7a6",
-  "deployedAt": "2026-06-26T02:05:00.000Z",
+  "commit": "f0301551bbfb6866af230b100f20807092e58655",
+  "deployedAt": "2026-06-28T23:51:07.717Z",
   "target": "cloudflare-pages",
-  "source": "cloudflare-pages-hotfix-sw-women-guard",
-  "notes": "women section hidden for male accounts except admin; direct women route blocked for male non-admin"
+  "source": "cloudflare-pages-sync"
 }
