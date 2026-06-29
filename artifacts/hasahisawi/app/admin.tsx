@@ -3274,6 +3274,20 @@ export default function AdminDashboard() {
     } catch {}
   }, [token]);
 
+  const approveMerchant = useCallback(async (id: number) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ status: "approved" }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, status: "approved" } : m));
+    } catch {}
+  }, [token]);
+
+  const rejectMerchant = useCallback(async (id: number) => {
+    try {
+      await apiFetch(`/api/admin/merchants/${id}`, token, { method: "PUT", body: JSON.stringify({ status: "rejected" }), headers: { "Content-Type": "application/json" } });
+      setAdminMerchants(prev => prev.map(m => m.id === id ? { ...m, status: "rejected" } : m));
+    } catch {}
+  }, [token]);
+
   // ── load functions for new tabs ──────────────────────────────────────────
   const loadAdminReports = useCallback(async () => {
     setLoadingReports(true);
@@ -3882,7 +3896,7 @@ export default function AdminDashboard() {
     { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
-    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true               },
+    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true, badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
     { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#8B5CF6",      adminOnly: true },
@@ -6251,6 +6265,20 @@ export default function AdminDashboard() {
       {/* ══ إدارة مساحة التجار ══ */}
       {tab === "merchants_admin" && isAdmin && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          {!loadingAdminMerchants && adminMerchants.length > 0 && (
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
+              {[
+                { label: "الكل",            val: adminMerchants.length,                                       color: "#6366F1" },
+                { label: "بانتظار الموافقة", val: adminMerchants.filter(m => m.status === "pending").length,  color: "#F59E0B" },
+                { label: "معتمدة",          val: adminMerchants.filter(m => m.status === "approved").length, color: "#10B981" },
+              ].map(stat => (
+                <View key={stat.label} style={{ flex: 1, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: stat.color }}>{stat.val}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {loadingAdminMerchants ? (
             <ActivityIndicator color="#6366F1" style={{ marginTop: 60 }} />
           ) : adminMerchants.length === 0 ? (
@@ -6261,10 +6289,10 @@ export default function AdminDashboard() {
               </Text>
             </Animated.View>
           ) : (
-            adminMerchants.map((m, i) => (
-              <Animated.View key={m.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12 }]}>
+            [...adminMerchants].sort((a, b) => (a.status === "pending" ? 0 : 1) - (b.status === "pending" ? 0 : 1)).map((m, i) => (
+              <Animated.View key={m.id} entering={FadeInDown.delay(i * 60).springify()} style={[s.card, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: m.status === "approved" ? "#10B981" : m.status === "rejected" ? Colors.danger : "#F59E0B" }]}>
                 <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
-                  <Text style={{ fontSize: 28, marginLeft: 10 }}>{m.logo_emoji}</Text>
+                  <Text style={{ fontSize: 28, marginLeft: 10 }}>{m.logo_emoji || "🏪"}</Text>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                       <Text style={[s.cardTitle, { fontSize: 15 }]}>{m.shop_name}</Text>
@@ -6272,10 +6300,29 @@ export default function AdminDashboard() {
                       {m.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
                     </View>
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
-                      {m.owner_name} · {m.phone}
+                      {m.owner_name} · {m.phone || m.whatsapp}
                     </Text>
                     {m.address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{m.address}</Text> : null}
                   </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: m.status === "approved" ? "#10B98120" : m.status === "rejected" ? Colors.danger + "20" : "#F59E0B20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: m.status === "approved" ? "#10B981" : m.status === "rejected" ? Colors.danger : "#F59E0B" }}>
+                      {m.status === "approved" ? "معتمد" : m.status === "rejected" ? "مرفوض" : "بانتظار الموافقة"}
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 8 }}>
+                  {m.status !== "approved" && (
+                    <TouchableOpacity onPress={() => approveMerchant(m.id)}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>قبول الطلب</Text>
+                    </TouchableOpacity>
+                  )}
+                  {m.status !== "rejected" && (
+                    <TouchableOpacity onPress={() => rejectMerchant(m.id)}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.danger }}>رفض</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                   <TouchableOpacity
