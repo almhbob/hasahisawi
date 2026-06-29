@@ -10,6 +10,7 @@ import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import { uploadMarketImage } from "@/lib/firebase/storage";
 
 type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories" | "women";
 type MerchantStatus = "pending" | "approved";
@@ -79,6 +80,10 @@ const SEED_PRODUCTS: Product[] = [
 
 function formatPrice(v: number) {
   return `${Math.round(v).toLocaleString("ar-SA")} ج.س`;
+}
+
+function apiNumId(id: string): number | null {
+  return id.startsWith("api-") ? Number(id.slice(4)) || null : null;
 }
 
 export default function ProductShowcaseScreen() {
@@ -161,6 +166,33 @@ export default function ProductShowcaseScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/merchant-products`, {}, 12000).catch(() => null);
+      if (!res?.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data) ? data : data.products ?? [];
+      const apiProducts: Product[] = list.map((p: any) => ({
+        id: `api-${p.id}`,
+        merchantId: `api-${p.merchant_id}`,
+        name: String(p.name || ""),
+        category: (p.category || "boutique") as RetailCategory,
+        price: Number(p.price || 0),
+        oldPrice: p.old_price ? Number(p.old_price) : undefined,
+        description: String(p.description || ""),
+        imageUri: Array.isArray(p.images) && p.images[0]?.image_url ? p.images[0].image_url : undefined,
+        stock: Number(p.stock || 0),
+        isAvailable: !!p.is_available,
+        createdAt: p.created_at || new Date().toISOString(),
+      }));
+      if (!apiProducts.length) return;
+      setProducts(prev => {
+        const existingIds = new Set(prev.map(x => x.id));
+        return [...prev, ...apiProducts.filter(x => !existingIds.has(x.id))];
+      });
+    })();
+  }, []);
+
   useEffect(() => { AsyncStorage.setItem(MERCHANTS_KEY, JSON.stringify(merchants)).catch(() => {}); }, [merchants]);
   useEffect(() => { AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)).catch(() => {}); }, [products]);
   useEffect(() => { AsyncStorage.setItem(CART_KEY, JSON.stringify(cart)).catch(() => {}); }, [cart]);
@@ -213,31 +245,64 @@ export default function ProductShowcaseScreen() {
     if (!pick.canceled && pick.assets[0]) setImageUri(pick.assets[0].uri);
   }
 
-  function addProduct() {
+  async function addProduct() {
     const merchant = merchants.find(m => m.id === selectedMerchantId);
+    const merchantNumId = merchant ? apiNumId(merchant.id) : null;
     const price = Number(productPrice.replace(/,/g, ""));
     const stock = Number(productStock || "1");
     if (!merchant || !productName.trim() || !price || price <= 0) return Alert.alert("بيانات ناقصة", "اختر المتجر وأدخل اسم المنتج والسعر");
-    const item: Product = {
-      id: `p${Date.now()}`, merchantId: merchant.id, name: productName.trim(), category: merchant.category,
-      price, description: productDesc.trim() || "منتج من متجر معتمد في السوق",
-      imageUri, stock: Math.max(1, stock), isAvailable: true, createdAt: new Date().toISOString(),
-    };
-    setProducts(prev => [item, ...prev]);
+    if (!merchantNumId) return Alert.alert("متجر غير صالح", "اختر متجراً معتمداً فعلياً من القائمة لإضافة منتج له");
+    try {
+      let hostedImageUri = imageUri;
+      if (imageUri) hostedImageUri = await uploadMarketImage("products", imageUri).catch(() => imageUri);
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/merchant-products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          merchant_id: merchantNumId,
+          name: productName.trim(),
+          category: merchant.category,
+          description: productDesc.trim() || "منتج من متجر معتمد في السوق",
+          price, stock: Math.max(1, stock),
+          images: hostedImageUri ? [hostedImageUri] : [],
+        }),
+      }, 12000);
+      if (!res.ok) throw new Error("request_failed");
+      const saved = await res.json();
+      const item: Product = {
+        id: `api-${saved.id}`, merchantId: merchant.id, name: saved.name, category: merchant.category,
+        price: Number(saved.price), description: saved.description || "", imageUri: hostedImageUri,
+        stock: Number(saved.stock), isAvailable: true, createdAt: saved.created_at || new Date().toISOString(),
+      };
+      setProducts(prev => [item, ...prev]);
+    } catch {
+      return Alert.alert("تعذر حفظ المنتج", "تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+    }
     setProductName(""); setProductPrice(""); setProductDesc(""); setProductStock("1"); setImageUri(undefined); setProductOpen(false);
   }
 
   function updatePrice(product: Product) {
+    const numId = apiNumId(product.id);
+    const applyNext = (next: number) => {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+      if (numId) {
+        fetchWithTimeout(`${getApiUrl()}/api/merchant-products/${numId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ price: next, old_price: product.price }),
+        }, 12000).catch(() => {});
+      }
+    };
     if (Platform.OS === "ios" && Alert.prompt) {
       Alert.prompt("تعديل السعر", "أدخل السعر الجديد بالجنيه السوداني", value => {
         const next = Number(String(value || "").replace(/,/g, ""));
-        if (next > 0) setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
+        if (next > 0) applyNext(next);
       }, "plain-text", String(product.price));
       return;
     }
     const next = product.price + 1000;
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, oldPrice: p.price, price: next } : p));
-    Alert.alert("تم تحديث السعر", `تم رفع السعر تجريبياً إلى ${formatPrice(next)}.`);
+    applyNext(next);
+    Alert.alert("تم تحديث السعر", `تم رفع السعر إلى ${formatPrice(next)}.`);
   }
 
   function addToCart(product: Product) {
@@ -269,15 +334,32 @@ export default function ProductShowcaseScreen() {
     setCheckoutOpen(true);
   }
 
-  function submitCheckout() {
+  async function submitCheckout() {
     if (!deliveryName.trim() || !deliveryPhone.trim() || !deliveryAddress.trim()) {
       return Alert.alert("بيانات التوصيل ناقصة", "أدخل الاسم، الهاتف، ومكان التوصيل");
     }
+    const firstMerchant = merchants.find(m => m.id === cartDetails[0].product.merchantId);
+    const merchantNumId = firstMerchant ? apiNumId(firstMerchant.id) : null;
+    try {
+      await fetchWithTimeout(`${getApiUrl()}/api/marketplace-orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          merchant_id: merchantNumId,
+          customer_name: deliveryName.trim(),
+          customer_phone: deliveryPhone.trim(),
+          total: cartTotal,
+          items: cartDetails.map(x => ({ product_id: x.productId, name: x.product.name, price: x.product.price, qty: x.qty })),
+          notes: `التوصيل إلى: ${deliveryAddress.trim()}${deliveryNote.trim() ? ` — ${deliveryNote.trim()}` : ""}`,
+        }),
+      }, 12000);
+    } catch {}
     const text = cartDetails.map(x => `- ${x.product.name} × ${x.qty} = ${formatPrice(x.product.price * x.qty)}`).join("%0A");
-    const phone = merchants.find(m => m.id === cartDetails[0].product.merchantId)?.phone || "0914000001";
+    const phone = firstMerchant?.phone || "0914000001";
     const msg = `طلب من سوق حصاحيصاوي:%0A${text}%0Aالإجمالي: ${formatPrice(cartTotal)}%0Aطريقة الدفع: الدفع عند الاستلام%0Aالاسم: ${deliveryName}%0Aالهاتف: ${deliveryPhone}%0Aالتوصيل إلى: ${deliveryAddress}%0Aملاحظات: ${deliveryNote || "لا توجد"}`;
     Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${msg}`).catch(() => {});
     setCheckoutOpen(false);
+    setCart([]);
   }
 
   return (
