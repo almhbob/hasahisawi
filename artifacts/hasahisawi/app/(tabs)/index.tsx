@@ -112,7 +112,7 @@ export default function HomeScreen() {
             <LinearGradient colors={["rgba(255,255,255,0.86)", "rgba(255,255,255,0.48)"]} style={StyleSheet.absoluteFill} />
             <View style={styles.heroTextBlock}>
               <Text style={styles.heroTitle}>خدمات، سوق، مشاوير، مطاعم، ومجتمع في مكان واحد</Text>
-              <Text style={styles.heroText}>تصميم زجاجي حديث يعتمد على أخضر الشعار وذهبه فقط، بواجهة عربية مريحة وواضحة.</Text>
+              <Text style={styles.heroText}>منصة موحدة تجمع كل خدمات حصاحيصا لتسهيل حياتك اليومية.</Text>
             </View>
             <View style={styles.heroIconCluster}>
               <View style={[styles.miniIcon, { backgroundColor: Colors.primary + "14" }]}><Ionicons name="airplane" size={20} color={Colors.primary} /></View>
@@ -139,19 +139,10 @@ export default function HomeScreen() {
             <View style={styles.onlineBadge}><Text style={styles.onlineText}>جاهز</Text></View>
           </Animated.View>
 
-          <View style={styles.highlightCard}>
-            <LinearGradient colors={[Colors.primary + "10", Colors.accent + "12"]} style={StyleSheet.absoluteFill} />
-            <View style={styles.highlightIcon}><Ionicons name="sparkles" size={20} color={Colors.accentDeep} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.highlightTitle}>هوية موحدة من الشعار</Text>
-              <Text style={styles.highlightText}>تم اعتماد الأخضر والذهبي فقط مع بطاقات زجاجية، حواف ناعمة، ومساحات بيضاء احترافية.</Text>
-            </View>
-          </View>
-
           <View style={styles.sectionHead}>
             <View>
               <Text style={styles.sectionTitle}>الخدمات</Text>
-              <Text style={styles.sectionSub}>ألوان موحدة · واجهة زجاجية · تجربة أسرع</Text>
+              <Text style={styles.sectionSub}>{SERVICES.length} خدمة في مكان واحد</Text>
             </View>
             <View style={styles.sectionMark} />
           </View>
@@ -195,10 +186,6 @@ const styles = StyleSheet.create({
   dateText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11, marginTop: 3 },
   onlineBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: Colors.primary + "12", borderWidth: 1, borderColor: Colors.primary + "30" },
   onlineText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 10 },
-  highlightCard: { borderRadius: 24, overflow: "hidden", backgroundColor: Colors.glassCard, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 16, flexDirection: "row-reverse", gap: 12, alignItems: "center" },
-  highlightIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.accent + "30" },
-  highlightTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 15, textAlign: "right" },
-  highlightText: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, textAlign: "right", lineHeight: 21, marginTop: 3 },
   sectionHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 19, textAlign: "right" },
   sectionSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 2 },
