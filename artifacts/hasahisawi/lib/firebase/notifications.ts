@@ -258,3 +258,51 @@ export async function scheduleChatNotification(
 ): Promise<void> {
   return scheduleLocalNotification({ ...notification, channel: "CHAT" });
 }
+
+// ── تذكير بمناسبة في وقت محدد (مثل رحلات السفر والمواعيد) ──────────────────
+export async function scheduleOccasionReminder(
+  notification: PushNotification,
+  fireDate: Date,
+): Promise<void> {
+  const delaySeconds = Math.round((fireDate.getTime() - Date.now()) / 1000);
+  if (delaySeconds <= 0) return;
+  return scheduleLocalNotification(notification, delaySeconds);
+}
+
+// ── الاستماع للإشعارات الواردة والمضغوط عليها ────────────────────────────────
+export function addNotificationListener(
+  onReceive?: (notification: import("expo-notifications").Notification) => void,
+  onResponse?: (data: Record<string, unknown>) => void,
+): () => void {
+  if (Platform.OS === "web") return () => {};
+
+  let receivedSub: { remove: () => void } | null = null;
+  let responseSub: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  import("expo-notifications").then((Notifications) => {
+    if (cancelled) return;
+    receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      onReceive?.(notification);
+    });
+    responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = (response?.notification?.request?.content?.data ?? {}) as Record<string, unknown>;
+      onResponse?.(data);
+    });
+  }).catch(() => {});
+
+  return () => {
+    cancelled = true;
+    receivedSub?.remove();
+    responseSub?.remove();
+  };
+}
+
+// ── تحديث شارة عدد الإشعارات غير المقروءة على أيقونة التطبيق ───────────────
+export async function setBadgeCount(count: number): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const Notifications = await import("expo-notifications");
+    await Notifications.setBadgeCountAsync(Math.max(0, count));
+  } catch {}
+}
