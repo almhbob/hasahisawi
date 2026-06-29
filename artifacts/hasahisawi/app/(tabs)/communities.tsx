@@ -15,6 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -721,12 +722,11 @@ export default function CommunitiesScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 14 }]}>
-        <View style={[styles.headerRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
-            <Text style={styles.headerTitle}>الجاليات بالحصاحيصا</Text>
-            <Text style={styles.headerSub}>المجتمعات المقيمة بالمنطقة وخدماتها</Text>
-          </View>
+      <ModernHeader
+        title="الجاليات بالحصاحيصا"
+        subtitle="المجتمعات المقيمة بالمنطقة وخدماتها"
+        icon="people"
+        rightSlot={
           <AnimatedPress
             style={[styles.regBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => setShowRegister(true)}
@@ -734,8 +734,8 @@ export default function CommunitiesScreen() {
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.regBtnText}>سجّل جاليتك</Text>
           </AnimatedPress>
-        </View>
-
+        }
+      >
         {/* Search */}
         <View style={[styles.searchBox, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
@@ -753,7 +753,7 @@ export default function CommunitiesScreen() {
             </Pressable>
           ) : null}
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Filter Pills */}
       <ScrollView
@@ -840,22 +840,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
 
   // Header
-  header: {
-    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider, gap: 12,
-  },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1, textAlign: "right" },
   regBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.20)", borderRadius: Colors.radius.md,
     paddingHorizontal: 14, paddingVertical: 9,
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
   },
   regBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff" },
   searchBox: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
+    backgroundColor: "rgba(255,255,255,0.92)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)",
     paddingHorizontal: 12, paddingVertical: 10,
   },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
@@ -864,7 +857,7 @@ const styles = StyleSheet.create({
   filtersScroll: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   filtersRow: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
   filterBtn: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
   filterText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
@@ -882,20 +875,19 @@ const styles = StyleSheet.create({
   // Card
   list: { padding: 14, gap: 12 },
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: Colors.divider,
     padding: 14, gap: 8,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
+    ...Colors.shadow.card,
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 },
   cardIcon: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 48, height: 48, borderRadius: Colors.radius.md,
     justifyContent: "center", alignItems: "center", flexShrink: 0,
   },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", lineHeight: 22 },
   cardOrigin: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
-  catBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start" },
+  catBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start" },
   catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
   servicesRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
@@ -903,13 +895,13 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: "row-reverse", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 4 },
   metaChip: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    backgroundColor: Colors.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4,
     borderWidth: 1, borderColor: Colors.divider,
   },
   metaChipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   callBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, marginRight: "auto",
+    borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 6, marginRight: "auto",
   },
   callBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
 
@@ -917,7 +909,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
   emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary, textAlign: "center" },
   emptyBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14,
+    backgroundColor: Colors.primary, borderRadius: Colors.radius.md,
     paddingHorizontal: 24, paddingVertical: 12, marginTop: 8,
   },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
@@ -925,7 +917,7 @@ const styles = StyleSheet.create({
   // Footer
   footerCard: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
-    backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginTop: 8,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 14, marginTop: 8,
     borderWidth: 1, borderColor: Colors.divider,
   },
   footerText: {
@@ -939,50 +931,50 @@ const styles = StyleSheet.create({
 
   // Detail sheet
   detailSheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%",
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "92%",
   },
   detailHeader: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
-    margin: 16, padding: 14, borderRadius: 14,
+    margin: 16, padding: 14, borderRadius: Colors.radius.md,
     backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
-  detailIcon: { width: 52, height: 52, borderRadius: 16, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  detailIcon: { width: 52, height: 52, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   detailName: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
   detailOrigin: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   detailSection: {
-    backgroundColor: Colors.bg, borderRadius: 14, padding: 14, gap: 8,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 14, gap: 8,
     borderWidth: 1, borderColor: Colors.divider,
   },
   detailSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   detailSectionText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
   detailRow: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
-    backgroundColor: Colors.bg, borderRadius: 12, padding: 12,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, padding: 12,
     borderWidth: 1, borderColor: Colors.divider,
   },
   detailRowLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
   detailRowValue: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginTop: 2 },
   membersCard: {
-    borderRadius: 14, padding: 16, alignItems: "center", gap: 4,
+    borderRadius: Colors.radius.md, padding: 16, alignItems: "center", gap: 4,
   },
   membersCount: { fontFamily: "Cairo_700Bold", fontSize: 32 },
   membersLabel: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   serviceItem: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   serviceItemText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   detailCallBtn: {
-    borderRadius: 14, paddingVertical: 14,
+    borderRadius: Colors.radius.md, paddingVertical: 14,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    ...Colors.shadow.raised, shadowColor: Colors.primary,
   },
   detailCallBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
   closeBtn: {
-    backgroundColor: Colors.divider, borderRadius: 14, paddingVertical: 12, alignItems: "center",
+    backgroundColor: Colors.divider, borderRadius: Colors.radius.md, paddingVertical: 12, alignItems: "center",
   },
   closeBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary },
 
   // Register sheet
   regSheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "95%",
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "95%",
   },
   regHeader: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
@@ -991,7 +983,7 @@ const styles = StyleSheet.create({
   },
   regTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   stepPill: {
-    backgroundColor: Colors.primary + "20", borderRadius: 10,
+    backgroundColor: Colors.primary + "20", borderRadius: Colors.radius.sm,
     paddingHorizontal: 10, paddingVertical: 3,
   },
   stepPillText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
@@ -1003,7 +995,7 @@ const styles = StyleSheet.create({
   formField: { gap: 5 },
   formLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   formInput: {
-    backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
     borderWidth: 1, borderColor: Colors.divider,
   },
@@ -1011,23 +1003,23 @@ const styles = StyleSheet.create({
   catGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   catBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 11, paddingVertical: 7, borderRadius: 10,
+    paddingHorizontal: 11, paddingVertical: 7, borderRadius: Colors.radius.sm,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
   catBtnText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
   nextBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14,
+    backgroundColor: Colors.primary, borderRadius: Colors.radius.md, paddingVertical: 14,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     marginTop: 4,
   },
   nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
   regBtns: { flexDirection: "row-reverse", gap: 10, marginTop: 4 },
-  backBtn: { flex: 0.4, backgroundColor: Colors.divider, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+  backBtn: { flex: 0.4, backgroundColor: Colors.divider, borderRadius: Colors.radius.md, paddingVertical: 14, alignItems: "center" },
   backBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary },
   submitBtn: {
-    flex: 1, backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14,
+    flex: 1, backgroundColor: Colors.primary, borderRadius: Colors.radius.md, paddingVertical: 14,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    ...Colors.shadow.raised, shadowColor: Colors.primary,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
@@ -1035,16 +1027,16 @@ const styles = StyleSheet.create({
   svcSectionHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   svcMgmtBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4,
   },
   svcMgmtBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   svcEmptyBtn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-    borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14,
+    borderRadius: Colors.radius.sm, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14,
   },
   svcEmptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   svcSheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%",
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "92%",
   },
   svcSheetHeader: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
@@ -1054,18 +1046,18 @@ const styles = StyleSheet.create({
   svcSheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   svcSheetSub: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 6 },
   svcSection: {
-    backgroundColor: Colors.bg, borderRadius: 14, padding: 14, gap: 10,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 14, gap: 10,
     borderWidth: 1, borderColor: Colors.divider,
   },
   svcSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   svcAddRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   svcAddBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 9,
   },
   svcAddBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
   svcInput: {
-    backgroundColor: Colors.cardBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 10,
     fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
     borderWidth: 1, borderColor: Colors.divider,
   },
@@ -1075,7 +1067,7 @@ const styles = StyleSheet.create({
   },
   svcActionBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 0,
+    borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 0,
   },
   svcActionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   svcItemLeft: { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 6 },
@@ -1084,7 +1076,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 10,
     paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  svcStatusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
+  svcStatusBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
   svcStatusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   svcRequestName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   svcRequestAction: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },

@@ -13,6 +13,7 @@ import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 import {
   useApiChats, apiGetUsers, apiGetOrCreateChat,
@@ -187,7 +188,7 @@ export default function ChatScreen() {
 
   if (!token) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, alignItems: "center", justifyContent: "center" }]}>
+      <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
         <ActivityIndicator color={Colors.primary} />
       </View>
     );
@@ -202,13 +203,16 @@ export default function ChatScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>الدردشة</Text>
-        <TouchableOpacity style={styles.newBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
-          <Ionicons name="create-outline" size={20} color={Colors.primary} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <ModernHeader
+        title="الدردشة"
+        icon="chatbubbles-outline"
+        rightSlot={
+          <TouchableOpacity style={styles.newBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+            <Ionicons name="create-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -264,22 +268,10 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   newBtn: {
     width: 38, height: 38,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + "18",
-    borderWidth: 1,
-    borderColor: Colors.primary + "30",
+    borderRadius: Colors.radius.pill,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -293,18 +285,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     marginHorizontal: 12,
     marginVertical: 5,
-    borderRadius: 18,
+    borderRadius: Colors.radius.lg,
     borderWidth: 1,
     borderColor: Colors.divider,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Colors.shadow.card,
   },
   avatar: {
     width: 48, height: 48,
-    borderRadius: 14,
+    borderRadius: Colors.radius.md,
     backgroundColor: Colors.primary + "20",
     borderWidth: 1.5,
     borderColor: Colors.primary + "40",
@@ -339,7 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: Colors.radius.md,
   },
   startBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#fff" },
   fab: {
@@ -359,8 +347,8 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: "#0F1E16",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: Colors.radius.xl,
+    borderTopRightRadius: Colors.radius.xl,
     maxHeight: "80%",
     paddingTop: 8,
   },
@@ -382,7 +370,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: Colors.cardBgElevated,
-    borderRadius: 12,
+    borderRadius: Colors.radius.md,
     borderWidth: 1,
     borderColor: Colors.primary + "50",
   },

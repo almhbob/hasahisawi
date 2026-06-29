@@ -18,6 +18,7 @@ import { getApiUrl } from "@/lib/query-client";
 import AnimatedPress from "@/components/AnimatedPress";
 import { uploadAdImage } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -881,18 +882,16 @@ export default function AdsScreen() {
     <View style={s.container}>
 
       {/* Header */}
-      <View style={[s.header, { paddingTop: topPad + 12 }]}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>الإعلانات والمساحات</Text>
-            <Text style={s.headerSub}>إعلانات مؤسسات الحصاحيصا · تحت إشراف الإدارة</Text>
-          </View>
+      <ModernHeader
+        title="الإعلانات والمساحات"
+        subtitle="إعلانات مؤسسات الحصاحيصا · تحت إشراف الإدارة"
+        rightSlot={
           <AnimatedPress style={s.addBtn} onPress={() => setShowModal(true)}>
             <Ionicons name="add-circle-outline" size={18} color="#fff" />
             <Text style={s.addBtnText}>أعلن معنا</Text>
           </AnimatedPress>
-        </View>
-
+        }
+      >
         {/* Tabs */}
         <View style={s.tabsRow}>
           {TABS.map(tab => (
@@ -904,13 +903,13 @@ export default function AdsScreen() {
               <Ionicons
                 name={tab.icon}
                 size={14}
-                color={activeTab === tab.id ? "#fff" : MUTED}
+                color={activeTab === tab.id ? EMERALD : "rgba(255,255,255,0.7)"}
               />
               <Text style={[s.tabText, activeTab === tab.id && s.tabTextActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Tab Content */}
       {activeTab === "spaces" && (
@@ -981,17 +980,9 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
 
   // Header
-  header: {
-    backgroundColor: CARD_BG,
-    paddingHorizontal: 16, paddingBottom: 0,
-    borderBottomWidth: 1, borderBottomColor: DIVIDER,
-  },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingBottom: 12 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: TEXT },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, marginTop: 2 },
   addBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
-    backgroundColor: EMERALD, borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md,
     paddingHorizontal: 14, paddingVertical: 9,
   },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
@@ -1000,11 +991,11 @@ const s = StyleSheet.create({
   tabsRow: { flexDirection: "row-reverse", gap: 8, paddingBottom: 0 },
   tab: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 0,
-    borderBottomWidth: 2, borderBottomColor: "transparent",
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.pill,
+    backgroundColor: "rgba(255,255,255,0.10)",
   },
-  tabActive: { borderBottomColor: EMERALD },
-  tabText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: MUTED },
+  tabActive: { backgroundColor: "#fff" },
+  tabText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
   tabTextActive: { color: EMERALD, fontFamily: "Cairo_700Bold" },
 
   // Loading
@@ -1024,11 +1015,10 @@ const s = StyleSheet.create({
 
   // Active Ad Card
   adCard: {
-    backgroundColor: CARD_BG, borderRadius: 18,
+    backgroundColor: CARD_BG, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: DIVIDER,
     marginHorizontal: 14, overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8,
+    ...Colors.shadow.card,
   },
   adImage: { width: "100%", height: 170 },
   adTypeBorderLine: { height: 3, width: "100%" },
@@ -1063,9 +1053,9 @@ const s = StyleSheet.create({
   // My Request Card
   myCard: {
     flexDirection: "row-reverse", backgroundColor: CARD_BG,
-    borderRadius: 16, borderWidth: 1, borderColor: DIVIDER,
+    borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: DIVIDER,
     marginHorizontal: 16, overflow: "hidden",
-    elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6,
+    ...Colors.shadow.card,
   },
   myCardImg: { width: 90, height: "100%" as any },
   myCardImgPlaceholder: { width: 90, justifyContent: "center", alignItems: "center" },
@@ -1089,7 +1079,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: TEXT },
   emptySub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "center" },
   emptyBtn: {
-    backgroundColor: EMERALD, borderRadius: 14,
+    backgroundColor: EMERALD, borderRadius: Colors.radius.md,
     paddingHorizontal: 24, paddingVertical: 11, marginTop: 8,
   },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
@@ -1097,7 +1087,7 @@ const s = StyleSheet.create({
   // Spaces Tab
   spacesContent: { paddingBottom: 40 },
   spaceHero: {
-    margin: 14, borderRadius: 22, overflow: "hidden",
+    margin: 14, borderRadius: Colors.radius.xl, overflow: "hidden",
     backgroundColor: "#0C1E14", borderWidth: 1, borderColor: EMERALD + "30",
     alignItems: "center", padding: 24, gap: 10,
   },
@@ -1110,7 +1100,7 @@ const s = StyleSheet.create({
   },
   spaceHeroTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: TEXT, textAlign: "center" },
   spaceHeroSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "center", lineHeight: 22 },
-  heroStatsRow: { flexDirection: "row-reverse", gap: 0, width: "100%", backgroundColor: EMERALD + "12", borderRadius: 14, padding: 12, justifyContent: "space-around" },
+  heroStatsRow: { flexDirection: "row-reverse", gap: 0, width: "100%", backgroundColor: EMERALD + "12", borderRadius: Colors.radius.md, padding: 12, justifyContent: "space-around" },
   heroStat:     { alignItems: "center", gap: 2 },
   heroStatVal:  { fontFamily: "Cairo_700Bold", fontSize: 18, color: TEXT },
   heroStatLabel:{ fontFamily: "Cairo_400Regular", fontSize: 10, color: MUTED },
@@ -1124,7 +1114,7 @@ const s = StyleSheet.create({
   pkgsSelectRow: { flexDirection: "row", gap: 10 },
   pkgStaticWrapper: {},
   pkgCard: {
-    width: 168, borderRadius: 18, borderWidth: 1.5, borderColor: DIVIDER,
+    width: 168, borderRadius: Colors.radius.lg, borderWidth: 1.5, borderColor: DIVIDER,
     backgroundColor: CARD_BG, padding: 14, gap: 4, alignItems: "center",
   },
   pkgBadge: {
@@ -1147,16 +1137,15 @@ const s = StyleSheet.create({
 
   bigCTA: {
     flexDirection: "row-reverse", alignItems: "center", gap: 10,
-    backgroundColor: EMERALD, borderRadius: 16, marginHorizontal: 14, marginBottom: 6,
+    backgroundColor: EMERALD, borderRadius: Colors.radius.lg, marginHorizontal: 14, marginBottom: 6,
     paddingVertical: 16, paddingHorizontal: 20, justifyContent: "center",
-    elevation: 4,
-    shadowColor: EMERALD, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 10,
+    ...Colors.shadow.raised,
   },
   bigCTAText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
 
   stepCard: {
     flexDirection: "row-reverse", gap: 14,
-    backgroundColor: CARD_BG, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: CARD_BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: DIVIDER,
     padding: 14, marginHorizontal: 14, marginBottom: 10,
   },
   stepNum: {
@@ -1169,7 +1158,7 @@ const s = StyleSheet.create({
   stepDesc:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right", marginTop: 3 },
 
   contactCard: {
-    backgroundColor: CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: CARD_BG, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: DIVIDER,
     margin: 14, padding: 18, alignItems: "center", gap: 6,
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: TEXT },
@@ -1177,13 +1166,13 @@ const s = StyleSheet.create({
   contactBtns:  { flexDirection: "row", gap: 10, marginTop: 8 },
   waBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    backgroundColor: "#25D366", borderRadius: 12,
+    backgroundColor: "#25D366", borderRadius: Colors.radius.md,
     paddingHorizontal: 18, paddingVertical: 11,
   },
   waBtnText:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   callBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    backgroundColor: EMERALD + "18", borderRadius: 12, borderWidth: 1.5, borderColor: EMERALD + "40",
+    backgroundColor: EMERALD + "18", borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: EMERALD + "40",
     paddingHorizontal: 18, paddingVertical: 11,
   },
   callBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: EMERALD },
@@ -1191,20 +1180,20 @@ const s = StyleSheet.create({
   // My Requests Tab
   mineContent: { paddingHorizontal: 0, gap: 12, paddingTop: 16, paddingBottom: 80 },
   phoneSearchCard: {
-    backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: CARD_BG, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: DIVIDER,
     margin: 16, padding: 20, alignItems: "center", gap: 8,
   },
   phoneSearchTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: TEXT },
   phoneSearchSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "center" },
   phoneRow: { flexDirection: "row", gap: 8, width: "100%", marginTop: 6 },
   phoneInput: {
-    flex: 1, backgroundColor: BG, borderRadius: 12,
+    flex: 1, backgroundColor: BG, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: DIVIDER,
     paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 14, color: TEXT,
   },
   phoneSearchBtn: {
-    width: 48, height: 48, borderRadius: 14, backgroundColor: EMERALD,
+    width: 48, height: 48, borderRadius: Colors.radius.md, backgroundColor: EMERALD,
     justifyContent: "center", alignItems: "center",
   },
   resultsCount: {
@@ -1212,7 +1201,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, textAlign: "right",
   },
   noResultsCard: {
-    alignItems: "center", backgroundColor: CARD_BG, borderRadius: 16,
+    alignItems: "center", backgroundColor: CARD_BG, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: DIVIDER, marginHorizontal: 16,
     padding: 28, gap: 8,
   },
@@ -1222,7 +1211,7 @@ const s = StyleSheet.create({
   // Modal
   overlay: { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
   sheet: {
-    backgroundColor: CARD_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: CARD_BG, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     maxHeight: "92%",
   },
   sheetHandle: {
@@ -1265,11 +1254,11 @@ const s = StyleSheet.create({
   stepSubheading: { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "right", marginBottom: 12 },
 
   // Image step
-  imgPreviewWrap: { borderRadius: 16, overflow: "hidden", position: "relative", marginBottom: 12 },
-  imgPreview:     { width: "100%", height: 190, borderRadius: 16 },
+  imgPreviewWrap: { borderRadius: Colors.radius.md, overflow: "hidden", position: "relative", marginBottom: 12 },
+  imgPreview:     { width: "100%", height: 190, borderRadius: Colors.radius.md },
   imgRemoveBtn:   { position: "absolute", top: 8, left: 8 },
   imgPickerEmpty: {
-    height: 170, borderRadius: 16, borderWidth: 2, borderStyle: "dashed", borderColor: DIVIDER,
+    height: 170, borderRadius: Colors.radius.md, borderWidth: 2, borderStyle: "dashed", borderColor: DIVIDER,
     justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12,
     backgroundColor: BG,
   },
@@ -1278,13 +1267,13 @@ const s = StyleSheet.create({
   imgBtnsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
   imgPickBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: EMERALD + "18", borderRadius: 14, borderWidth: 1.5, borderColor: EMERALD + "40",
+    backgroundColor: EMERALD + "18", borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: EMERALD + "40",
     paddingVertical: 13,
   },
   imgPickBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: EMERALD },
   imgTipBox: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
-    backgroundColor: ACCENT + "10", borderRadius: 12, borderWidth: 1, borderColor: ACCENT + "30",
+    backgroundColor: ACCENT + "10", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: ACCENT + "30",
     padding: 12, marginBottom: 16,
   },
   imgTipText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: SUB, textAlign: "right", lineHeight: 20 },
@@ -1293,7 +1282,7 @@ const s = StyleSheet.create({
   formField: { marginBottom: 12 },
   formLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: SUB, textAlign: "right", marginBottom: 6 },
   formInput: {
-    backgroundColor: BG, borderRadius: 12,
+    backgroundColor: BG, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: DIVIDER,
     paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 14, color: TEXT,
@@ -1304,14 +1293,14 @@ const s = StyleSheet.create({
   typeRow: { flexDirection: "row", gap: 8 },
   typeChip: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    borderRadius: 10, borderWidth: 1.5, borderColor: DIVIDER,
+    borderRadius: Colors.radius.sm, borderWidth: 1.5, borderColor: DIVIDER,
     paddingHorizontal: 12, paddingVertical: 8,
   },
   typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: MUTED },
 
   // Cost card
   costCard: {
-    backgroundColor: EMERALD + "0C", borderRadius: 14,
+    backgroundColor: EMERALD + "0C", borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: EMERALD + "25",
     padding: 14, gap: 4, marginBottom: 14,
   },
@@ -1337,20 +1326,20 @@ const s = StyleSheet.create({
   navRow:   { flexDirection: "row-reverse", gap: 10, marginTop: 10 },
   nextBtn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: EMERALD, borderRadius: 14, paddingVertical: 14,
+    backgroundColor: EMERALD, borderRadius: Colors.radius.md, paddingVertical: 14,
   },
   nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   skipBtn:  { alignItems: "center", paddingVertical: 8 },
   skipBtnText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED },
   backBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: BG, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: DIVIDER,
     paddingHorizontal: 16, paddingVertical: 14,
   },
   backBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: MUTED },
   submitBtn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: EMERALD, borderRadius: 14, paddingVertical: 14,
+    backgroundColor: EMERALD, borderRadius: Colors.radius.md, paddingVertical: 14,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
@@ -1364,14 +1353,14 @@ const s = StyleSheet.create({
   successTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: TEXT, textAlign: "center", paddingHorizontal: 24 },
   successSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "center", paddingHorizontal: 24, lineHeight: 22 },
   bankBox: {
-    backgroundColor: ACCENT + "10", borderRadius: 14, borderWidth: 1, borderColor: ACCENT + "30",
+    backgroundColor: ACCENT + "10", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: ACCENT + "30",
     marginHorizontal: 16, padding: 14, gap: 6,
   },
   bankBoxHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   bankBoxTitle:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT },
   bankBoxText:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: TEXT, textAlign: "right", lineHeight: 22 },
   nextStepsBox: {
-    backgroundColor: CARD_BG, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: CARD_BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: DIVIDER,
     marginHorizontal: 16, padding: 14, gap: 10,
   },
   nextStepsTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: TEXT, textAlign: "right", marginBottom: 4 },
@@ -1383,7 +1372,7 @@ const s = StyleSheet.create({
   nextStepNumText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: EMERALD },
   nextStepText:    { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "right" },
   successCloseBtn: {
-    backgroundColor: EMERALD, borderRadius: 16, marginHorizontal: 16,
+    backgroundColor: EMERALD, borderRadius: Colors.radius.lg, marginHorizontal: 16,
     paddingVertical: 15, alignItems: "center",
   },
   successCloseBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },

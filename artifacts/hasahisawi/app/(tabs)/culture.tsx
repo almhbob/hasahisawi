@@ -20,6 +20,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -317,8 +318,7 @@ export default function CultureScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={[styles.headerTitle, { textAlign: isRTL ? "right" : "left" }]}>{t("culture", "title")}</Text>
+      <ModernHeader title={t("culture", "title")} icon="globe-outline">
         <View style={[styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Ionicons name="search" size={16} color={Colors.textMuted} />
           <TextInput
@@ -341,7 +341,7 @@ export default function CultureScreen() {
             onPress={() => setActiveTab("centers")}
             scaleDown={0.92}
           >
-            <Ionicons name="library-outline" size={14} color={activeTab === "centers" ? Colors.textPrimary : Colors.textMuted} />
+            <Ionicons name="library-outline" size={14} color={activeTab === "centers" ? Colors.textPrimary : Colors.textOnDark} />
             <Text style={[styles.switchBtnText, activeTab === "centers" && styles.switchBtnTextActive]}>{t("culture", "centers")}</Text>
           </AnimatedPress>
           <AnimatedPress
@@ -349,11 +349,11 @@ export default function CultureScreen() {
             onPress={() => setActiveTab("events")}
             scaleDown={0.92}
           >
-            <Ionicons name="sparkles-outline" size={14} color={activeTab === "events" ? Colors.textPrimary : Colors.textMuted} />
+            <Ionicons name="sparkles-outline" size={14} color={activeTab === "events" ? Colors.textPrimary : Colors.textOnDark} />
             <Text style={[styles.switchBtnText, activeTab === "events" && styles.switchBtnTextActive]}>{t("culture", "events")}</Text>
           </AnimatedPress>
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Filter Bar */}
       <ScrollView
@@ -434,31 +434,25 @@ export default function CultureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "right", marginBottom: 10 },
   searchRow: {
-    flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg,
-    borderRadius: 12, paddingHorizontal: 12, gap: 8, marginBottom: 10,
+    flexDirection: "row-reverse", alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: Colors.radius.md, paddingHorizontal: 12, gap: 8,
   },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, paddingVertical: 9 },
-  tabSwitch: { flexDirection: "row-reverse", backgroundColor: Colors.bg, borderRadius: 12, padding: 3, gap: 2 },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textOnDark, paddingVertical: 9 },
+  tabSwitch: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 3, gap: 2 },
   switchBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 10,
+    flex: 1, paddingVertical: 8, borderRadius: Colors.radius.sm,
     alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
   },
   switchBtnActive: {
     backgroundColor: Colors.cardBg,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2,
+    ...Colors.shadow.card,
   },
-  switchBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
+  switchBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textOnDark },
   switchBtnTextActive: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold" },
   filtersRow: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   filtersContent: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   filterChipTextActive: { color: "#FFFFFF" },
@@ -468,38 +462,38 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textSecondary },
   emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 18, overflow: "hidden",
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, overflow: "hidden",
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    ...Colors.shadow.card,
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "flex-start", padding: 14, gap: 12 },
-  cardIconCircle: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  cardIconCircle: { width: 52, height: 52, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   cardInfo: { flex: 1, alignItems: "flex-end", gap: 5 },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   typeRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
   typeLabel: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
-  callBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center" },
+  callBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center" },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
   cardDetails: { padding: 14, gap: 7 },
   detailRow: { flexDirection: "row-reverse", alignItems: "center", gap: 7 },
   detailValue: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", flex: 1 },
   eventCard: {
-    backgroundColor: Colors.cardBg, borderRadius: 16,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    ...Colors.shadow.card,
     overflow: "hidden",
   },
   eventHeader: { padding: 14, gap: 8, alignItems: "flex-end" },
   eventTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  eventBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  eventBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm },
   eventBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   eventDetails: { paddingHorizontal: 14, paddingBottom: 10, gap: 6 },
   eventDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 19, marginTop: 4 },
   contactBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     margin: 14, marginTop: 4, alignSelf: "flex-start",
-    backgroundColor: Colors.primary + "12", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8,
   },
   contactBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.primary },
 });

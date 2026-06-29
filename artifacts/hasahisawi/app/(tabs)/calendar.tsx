@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -10,6 +9,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -138,9 +138,7 @@ function DayCell({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CalendarScreen() {
-  const insets = useSafeAreaInsets();
   const { t, isRTL, lang, tr } = useLang();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const now = new Date();
 
   const months = t('calendar', 'months');
@@ -195,13 +193,15 @@ export default function CalendarScreen() {
   return (
     <View style={s.container}>
       {/* Header */}
-      <View style={[s.header, { paddingTop: topPad + 12, flexDirection }]}>
-        <AnimatedPress onPress={goToday} style={s.todayBtn} scaleDown={0.92}>
-          <Text style={s.todayBtnText}>{t('calendar', 'today')}</Text>
-        </AnimatedPress>
-        <Text style={s.headerTitle}>{t('calendar', 'title')}</Text>
-        <View style={{ width: 60 }} />
-      </View>
+      <ModernHeader
+        title={t('calendar', 'title')}
+        icon="calendar"
+        rightSlot={(
+          <AnimatedPress onPress={goToday} style={s.todayBtn} scaleDown={0.92}>
+            <Text style={s.todayBtnText}>{t('calendar', 'today')}</Text>
+          </AnimatedPress>
+        )}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 120 }}>
         {/* Month navigator */}
@@ -347,7 +347,7 @@ const cal = StyleSheet.create({
   dayCell: {
     width: CELL_SIZE, height: CELL_SIZE,
     alignItems: "center", justifyContent: "center",
-    borderRadius: 10, gap: 2,
+    borderRadius: Colors.radius.sm, gap: 2,
   },
   dayCellToday: {
     backgroundColor: Colors.primary,
@@ -365,25 +365,18 @@ const cal = StyleSheet.create({
 // ─── Page Styles ─────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingBottom: 12,
-    backgroundColor: Colors.bg,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   todayBtn: {
-    backgroundColor: Colors.primary + "14", borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm,
     paddingHorizontal: 14, paddingVertical: 7,
-    borderWidth: 1, borderColor: Colors.primary + "28",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.28)",
   },
-  todayBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
+  todayBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
   monthNav: {
     alignItems: "center",
     justifyContent: "space-between", paddingHorizontal: 24, paddingVertical: 16,
   },
   navBtn: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: Colors.primary + "12",
+    width: 36, height: 36, borderRadius: Colors.radius.md, backgroundColor: Colors.primary + "12",
     alignItems: "center", justifyContent: "center",
   },
   monthTitleWrap: { alignItems: "center", gap: 2 },
@@ -391,9 +384,8 @@ const s = StyleSheet.create({
   yearText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
   calCard: {
     marginHorizontal: 16, backgroundColor: Colors.cardBg,
-    borderRadius: 20, padding: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
+    borderRadius: Colors.radius.xl, padding: 14,
+    ...Colors.shadow.card,
     borderWidth: 1, borderColor: Colors.divider,
   },
   legendRow: {
@@ -405,8 +397,9 @@ const s = StyleSheet.create({
   legendText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   selectedCard: {
     marginHorizontal: 16, marginTop: 12,
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     padding: 16, borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
   selectedDateTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary,
@@ -421,7 +414,7 @@ const s = StyleSheet.create({
   eventName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   eventNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   eventBadge: {
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0,
   },
   eventBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   listSection: { marginHorizontal: 16, marginTop: 8 },
@@ -429,15 +422,14 @@ const s = StyleSheet.create({
   sectionDot: { width: 8, height: 8, borderRadius: 4 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   listItem: {
-    backgroundColor: Colors.cardBg, borderRadius: 16,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     alignItems: "center", gap: 14,
     padding: 14, marginBottom: 10,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    ...Colors.shadow.card,
   },
   listBadge: {
-    width: 46, height: 46, borderRadius: 12,
+    width: 46, height: 46, borderRadius: Colors.radius.md,
     alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
@@ -446,7 +438,7 @@ const s = StyleSheet.create({
   listInfo: { flex: 1, gap: 4 },
   listName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   listNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  listTypePill: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  listTypePill: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
   listTypeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   emptyWrap: { alignItems: "center", gap: 12, paddingVertical: 30 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },

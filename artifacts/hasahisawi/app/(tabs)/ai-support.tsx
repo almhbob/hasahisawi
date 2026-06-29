@@ -280,29 +280,24 @@ export default function AiSupportScreen() {
 
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: Colors.bg },
-  headerGrad:  { paddingBottom: 16 },
-  header:      { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 12 },
-  headerTitle: { fontSize: 18, fontFamily: "Cairo_700Bold", color: Colors.textPrimary },
 
-  aiAvatar:    { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center" },
-  aiAvatarOffline: { backgroundColor: "#555" },
-  aiAvatarSmall: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center", marginLeft: 6 },
+  aiAvatarSmall: { width: 26, height: 26, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center", marginLeft: 6 },
   aiAvatarSmallLocal: { backgroundColor: "#F5A623" },
 
-  statusRow:   { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  statusDot:   { width: 7, height: 7, borderRadius: 4 },
-  statusDotOnline:  { backgroundColor: Colors.primary },
-  statusDotOffline: { backgroundColor: "#F5A623" },
-  statusTxt:   { fontSize: 11, fontFamily: "Cairo_400Regular" },
-  statusTxtOnline:  { color: Colors.primary },
-  statusTxtOffline: { color: "#F5A623" },
-  refreshBtn:  { padding: 6 },
+  statusRow:   { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  statusDot:   { width: 7, height: 7, borderRadius: Colors.radius.pill },
+  statusDotOnline:  { backgroundColor: "#fff" },
+  statusDotOffline: { backgroundColor: "#FFE38A" },
+  statusTxt:   { fontSize: 12, fontFamily: "Cairo_400Regular" },
+  statusTxtOnline:  { color: "rgba(255,255,255,0.92)" },
+  statusTxtOffline: { color: "#FFE38A" },
+  refreshBtn:  { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
 
   quotaBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#F5A62318", borderLeftWidth: 3, borderLeftColor: "#F5A623",
     paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 12, marginBottom: 8,
-    borderRadius: 8,
+    borderRadius: Colors.radius.md,
   },
   quotaTxt:    { flex: 1, fontSize: 12, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
 
@@ -311,7 +306,7 @@ const s = StyleSheet.create({
   msgRowUser:  { justifyContent: "flex-start", flexDirection: isRTL ? "row" : "row-reverse" },
   msgRowAi:    { justifyContent: "flex-end",   flexDirection: isRTL ? "row-reverse" : "row" },
 
-  bubble:      { maxWidth: "78%", borderRadius: 16, padding: 12 },
+  bubble:      { maxWidth: "78%", borderRadius: Colors.radius.lg, padding: 12, ...Colors.shadow.card },
   bubbleUser:  { backgroundColor: Colors.primary, borderBottomStartRadius: 4 },
   bubbleAi:    { backgroundColor: Colors.cardBg, borderBottomEndRadius: 4 },
   bubbleText:  { fontSize: 15, lineHeight: 22, fontFamily: "Cairo_400Regular", textAlign: "right" },
@@ -322,14 +317,14 @@ const s = StyleSheet.create({
   timeAi:      { color: Colors.textMuted, textAlign: "right" },
 
   typingRow:   { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  typingBubble: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12 },
+  typingBubble: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 12, ...Colors.shadow.card },
   typingText:  { color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_400Regular" },
 
   inputBar:    { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.divider },
-  input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Cairo_400Regular", color: Colors.textPrimary, maxHeight: 120 },
+  input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.pill, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Cairo_400Regular", color: Colors.textPrimary, maxHeight: 120 },
   sendBtn:     { width: 44, height: 44 },
   sendBtnDisabled: { opacity: 0.5 },
-  sendGrad:    { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+  sendGrad:    { width: 44, height: 44, borderRadius: Colors.radius.pill, justifyContent: "center", alignItems: "center" },
 
   offlineWrap:  { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
   offlineIcon:  { marginBottom: 16 },

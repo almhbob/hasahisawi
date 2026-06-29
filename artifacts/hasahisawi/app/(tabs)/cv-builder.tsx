@@ -11,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 type TemplateId = "sidebar" | "executive" | "classic" | "minimal" | "modern" | "clean" | "ats" | "creative";
 
@@ -218,11 +219,19 @@ export default function CVBuilderScreen() {
   function prevStep() { if (step > 0) { setStep(x => x - 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); } }
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}> 
-      <Animated.View entering={FadeInDown.duration(350)} style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}><Ionicons name="chevron-forward" size={22} color={Colors.primary} /></TouchableOpacity>
-        <View style={{ flex: 1, alignItems: "center" }}><Text style={s.headerTitle}>قوالب السيرة الذاتية</Text><Text style={s.headerSub}>مجانية الآن · صورة اختيارية · ألوان قابلة للتعديل</Text></View>
-        <TouchableOpacity onPress={handleShare} style={s.shareBtn} hitSlop={12}><Ionicons name="share-outline" size={20} color={Colors.accent} /></TouchableOpacity>
+    <View style={s.container}>
+      <Animated.View entering={FadeInDown.duration(350)}>
+        <ModernHeader
+          title="قوالب السيرة الذاتية"
+          subtitle="مجانية الآن · صورة اختيارية · ألوان قابلة للتعديل"
+          showBack
+          onBack={() => router.back()}
+          rightSlot={
+            <TouchableOpacity onPress={handleShare} style={s.shareBtn} hitSlop={12}>
+              <Ionicons name="share-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          }
+        />
       </Animated.View>
 
       <View style={s.stepsBar}>{STEPS.map((st, i) => <TouchableOpacity key={st.id} onPress={() => setStep(i)} style={s.stepItem}><View style={[s.stepCircle, step === i && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Ionicons name={st.icon} size={14} color={step === i ? "#001" : Colors.textMuted} /></View><Text style={[s.stepLabel, step === i && { color: Colors.primary }]}>{st.label}</Text></TouchableOpacity>)}</View>
@@ -289,11 +298,7 @@ function ListEditor({ title, field, items, update, add }: { title: string; field
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { height: 64, flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bgAlt || Colors.bg },
-  backBtn: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: Colors.glassCard || Colors.cardBg },
-  shareBtn: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: Colors.glassCard || Colors.cardBg },
-  headerTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 16 },
-  headerSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  shareBtn: { width: 36, height: 36, borderRadius: Colors.radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
   stepsBar: { flexDirection: "row-reverse", paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bg },
   stepItem: { flex: 1, alignItems: "center", gap: 4 },
   stepCircle: { width: 29, height: 29, borderRadius: 15, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },
