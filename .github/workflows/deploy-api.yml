@@ -44,8 +44,7 @@ jobs:
             echo "⚠️  VERCEL_TOKEN not set — skipping"
             exit 1
           fi
-          mkdir -p .vercel
-          printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
-          npx vercel@latest build --prod
-          npx vercel@latest deploy --prebuilt --prod
+          npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
           echo "✅ API deployed to Vercel → https://api-server-gilt-ten.vercel.app"
