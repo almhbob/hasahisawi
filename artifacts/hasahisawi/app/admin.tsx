@@ -2574,6 +2574,8 @@ export default function AdminDashboard() {
   const [adminMerchants, setAdminMerchants] = useState<any[]>([]);
   const [loadingAdminMerchants, setLoadingAdminMerchants] = useState(false);
   const [deletingMerchantId, setDeletingMerchantId] = useState<number | null>(null);
+  const [marketOrders, setMarketOrders] = useState<any[]>([]);
+  const [loadingMarketOrders, setLoadingMarketOrders] = useState(false);
 
   // ── Reports Admin ──
   const [adminReports, setAdminReports] = useState<any[]>([]);
@@ -3288,6 +3290,22 @@ export default function AdminDashboard() {
     } catch {}
   }, [token]);
 
+  const loadMarketOrders = useCallback(async () => {
+    setLoadingMarketOrders(true);
+    try {
+      const res = await apiFetch("/api/admin/marketplace-orders", token);
+      if (res.ok) { const d = await safeJson(res); setMarketOrders(Array.isArray(d) ? d : d.orders ?? []); }
+    } catch {}
+    finally { setLoadingMarketOrders(false); }
+  }, [token]);
+
+  const updateOrderStatus = useCallback(async (id: number, status: string) => {
+    try {
+      await apiFetch(`/api/admin/marketplace-orders/${id}`, token, { method: "PATCH", body: JSON.stringify({ status }), headers: { "Content-Type": "application/json" } });
+      setMarketOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    } catch {}
+  }, [token]);
+
   // ── load functions for new tabs ──────────────────────────────────────────
   const loadAdminReports = useCallback(async () => {
     setLoadingReports(true);
@@ -3484,7 +3502,7 @@ export default function AdminDashboard() {
     if (tab === "security")      loadSecurity();
     if (tab === "updates")         loadUpdates();
     if (tab === "libraries")       loadAdminLibraries();
-    if (tab === "merchants_admin") loadAdminMerchants();
+    if (tab === "merchants_admin") { loadAdminMerchants(); loadMarketOrders(); }
     if (tab === "phone_shops")     loadAdminPhoneShops();
     if (tab === "reports_admin")   loadAdminReports();
     if (tab === "missing_admin")   loadAdminMissing();
@@ -6355,6 +6373,57 @@ export default function AdminDashboard() {
                       ? <ActivityIndicator size="small" color={Colors.danger} />
                       : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
                   </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ))
+          )}
+
+          <Text style={[s.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>طلبات الشراء من السوق</Text>
+          {loadingMarketOrders ? (
+            <ActivityIndicator color="#14B8A6" style={{ marginTop: 20 }} />
+          ) : marketOrders.length === 0 ? (
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 24 }}>
+              لا توجد طلبات شراء حتى الآن
+            </Text>
+          ) : (
+            marketOrders.map((o, i) => (
+              <Animated.View key={o.id} entering={FadeInDown.delay(i * 50).springify()} style={[s.card, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#6366F1" : "#F59E0B" }]}>
+                <View style={[s.cardHeaderRow, { marginBottom: 8 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.cardTitle, { fontSize: 14 }]}>{o.order_number}{o.shop_name ? ` · ${o.shop_name}` : ""}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                      {o.customer_name} · {o.customer_phone}
+                    </Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: o.status === "delivered" ? "#10B98120" : o.status === "cancelled" ? Colors.danger + "20" : o.status === "confirmed" ? "#6366F120" : "#F59E0B20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#6366F1" : "#F59E0B" }}>
+                      {o.status === "delivered" ? "تم التسليم" : o.status === "cancelled" ? "ملغي" : o.status === "confirmed" ? "مؤكد" : "بانتظار التأكيد"}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textAlign: "right", marginBottom: 8 }}>
+                  الإجمالي: {Math.round(Number(o.total || 0)).toLocaleString("ar-SA")} ج.س
+                </Text>
+                {o.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{o.notes}</Text> : null}
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  {o.status === "pending" && (
+                    <TouchableOpacity onPress={() => updateOrderStatus(o.id, "confirmed")}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#6366F115", borderWidth: 1, borderColor: "#6366F140" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#6366F1" }}>تأكيد الطلب</Text>
+                    </TouchableOpacity>
+                  )}
+                  {(o.status === "pending" || o.status === "confirmed") && (
+                    <TouchableOpacity onPress={() => updateOrderStatus(o.id, "delivered")}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>تم التسليم</Text>
+                    </TouchableOpacity>
+                  )}
+                  {o.status !== "cancelled" && o.status !== "delivered" && (
+                    <TouchableOpacity onPress={() => updateOrderStatus(o.id, "cancelled")}
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.danger }}>إلغاء</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </Animated.View>
             ))

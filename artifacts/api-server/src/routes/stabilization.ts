@@ -89,7 +89,7 @@ export async function initStabilizationDb(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS merchant_products (
       id BIGSERIAL PRIMARY KEY,
-      merchant_id INTEGER REFERENCES merchants(id) ON DELETE CASCADE,
+      merchant_id INTEGER REFERENCES merchant_spaces(id) ON DELETE CASCADE,
       name VARCHAR(220) NOT NULL,
       category VARCHAR(80) NOT NULL DEFAULT 'general',
       description TEXT,
@@ -119,7 +119,7 @@ export async function initStabilizationDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS marketplace_orders (
       id BIGSERIAL PRIMARY KEY,
       order_number VARCHAR(40) UNIQUE NOT NULL,
-      merchant_id INTEGER REFERENCES merchants(id) ON DELETE SET NULL,
+      merchant_id INTEGER REFERENCES merchant_spaces(id) ON DELETE SET NULL,
       customer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       customer_name VARCHAR(160),
       customer_phone VARCHAR(40),
@@ -350,6 +350,38 @@ router.post("/marketplace-orders", async (req: Request, res: Response) => {
       [orderNumber, req.body?.merchant_id ?? null, me?.id ?? null, req.body?.customer_name ?? me?.name ?? null, req.body?.customer_phone ?? me?.phone ?? null, total, JSON.stringify(items), req.body?.notes ?? null],
     );
     return res.status(201).json(rows[0]);
+  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+});
+
+router.get("/admin/marketplace-orders", async (req: Request, res: Response) => {
+  try {
+    await initStabilizationDb();
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+    const status = typeof req.query.status === "string" ? req.query.status : null;
+    const { rows } = await query(
+      `SELECT o.*, m.shop_name
+         FROM marketplace_orders o
+         LEFT JOIN merchant_spaces m ON m.id = o.merchant_id
+        WHERE ($1::text IS NULL OR o.status = $1)
+        ORDER BY o.created_at DESC LIMIT 200`,
+      [status],
+    );
+    return res.json({ orders: rows });
+  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+});
+
+router.patch("/admin/marketplace-orders/:id", async (req: Request, res: Response) => {
+  try {
+    await initStabilizationDb();
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+    const { rows } = await query(
+      `UPDATE marketplace_orders SET status=COALESCE($1,status), updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [req.body?.status ?? null, req.params.id],
+    );
+    if (!rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+    return res.json(rows[0]);
   } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
 });
 
