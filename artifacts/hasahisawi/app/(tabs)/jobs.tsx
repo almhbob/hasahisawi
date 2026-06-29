@@ -27,6 +27,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 export type Job = {
@@ -431,35 +432,38 @@ export default function JobsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPad + 16, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <AnimatedPress onPress={() => {
-          if (auth.isGuest) {
-            Alert.alert(
-              tr("تسجيل مطلوب", "Login Required"),
-              tr("يجب إنشاء حساب لنشر إعلانات الوظائف.", "You need an account to post job listings."),
-              [{ text: tr("حسناً", "OK") }]
-            );
-            return;
-          }
-          setShowModal(true);
-        }}>
-          <View style={[styles.addBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <Ionicons name="add" size={20} color={Colors.cardBg} />
-            <Text style={styles.addBtnText}>{t("jobs", "postJob")}</Text>
-          </View>
-        </AnimatedPress>
-        <Text style={styles.headerTitle}>{t("jobs", "title")}</Text>
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        {TYPE_OPTIONS.map((opt) => (
-          <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
-            <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
-              <Text style={[styles.filterChipText, filter === opt.key && styles.filterChipTextActive]}>{opt.label}</Text>
+      <ModernHeader
+        title={t("jobs", "title")}
+        icon="briefcase-outline"
+        rightSlot={
+          <AnimatedPress onPress={() => {
+            if (auth.isGuest) {
+              Alert.alert(
+                tr("تسجيل مطلوب", "Login Required"),
+                tr("يجب إنشاء حساب لنشر إعلانات الوظائف.", "You need an account to post job listings."),
+                [{ text: tr("حسناً", "OK") }]
+              );
+              return;
+            }
+            setShowModal(true);
+          }}>
+            <View style={[styles.addBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <Ionicons name="add" size={20} color={Colors.primary} />
+              <Text style={styles.addBtnText}>{t("jobs", "postJob")}</Text>
             </View>
           </AnimatedPress>
-        ))}
-      </ScrollView>
+        }
+      >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          {TYPE_OPTIONS.map((opt) => (
+            <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
+              <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
+                <Text style={[styles.filterChipText, filter === opt.key && styles.filterChipTextActive]}>{opt.label}</Text>
+              </View>
+            </AnimatedPress>
+          ))}
+        </ScrollView>
+      </ModernHeader>
 
       <GuestGate
         title={tr("فرص العمل", "Job Opportunities")}
@@ -470,13 +474,13 @@ export default function JobsScreen() {
               { title: "محاسب قانوني", company: "شركة النيل التجارية", type: "دوام جزئي", loc: "الحصاحيصا" },
               { title: "مهندس زراعي", company: "مزرعة الخير", type: "عقد", loc: "الجزيرة" },
             ].map((item, i) => (
-              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{item.title}</Text>
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
                   </View>
-                  <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginRight: 10 }}>
+                  <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, marginRight: 10 }}>
                     <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primary }}>{item.type}</Text>
                   </View>
                 </View>
@@ -619,50 +623,43 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   addBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Colors.radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
   },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.cardBg },
+  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
   filtersRow: {
-    backgroundColor: Colors.cardBg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
+    marginHorizontal: -18,
   },
   filtersContent: {
     flexDirection: "row-reverse",
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
   },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: Colors.bg,
+    borderRadius: Colors.radius.pill,
+    backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
-  filterChipTextActive: { color: "#FFFFFF" },
+  filterChipActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#FFFFFF" },
+  filterChipTextActive: { color: Colors.primary },
   listContent: { padding: 14, gap: 12 },
   emptyState: { alignItems: "center", paddingTop: 80, gap: 12 },
   emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 18, color: Colors.textSecondary },
   emptySubtitle: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center" },
   jobCard: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 16,
+    borderRadius: Colors.radius.lg,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    ...Colors.shadow.card,
     borderWidth: 1,
     borderColor: Colors.divider,
   },
@@ -672,8 +669,8 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    borderTopLeftRadius: Colors.radius.lg,
+    borderBottomLeftRadius: Colors.radius.lg,
   },
   jobCardTop: { flexDirection: "row-reverse", padding: 14, gap: 10 },
   jobMeta: { flexDirection: "column", alignItems: "flex-start", gap: 8, paddingTop: 2 },
@@ -682,7 +679,7 @@ const styles = StyleSheet.create({
   companyRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
   companyName: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   tagsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  typeTag: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
+  typeTag: { borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 3 },
   typeTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   locationTag: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
   locationText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
@@ -694,7 +691,7 @@ const styles = StyleSheet.create({
   jobDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
   contactRow: { flexDirection: "row-reverse", gap: 8 },
   applyBtn: {
-    borderRadius: 12,
+    borderRadius: Colors.radius.md,
     paddingVertical: 12,
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -712,8 +709,8 @@ const modalStyles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: Colors.radius.xl,
+    borderTopRightRadius: Colors.radius.xl,
     maxHeight: "92%",
   },
   handle: {
@@ -740,7 +737,7 @@ const modalStyles = StyleSheet.create({
   label: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   input: {
     backgroundColor: Colors.bg,
-    borderRadius: 12,
+    borderRadius: Colors.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: "Cairo_400Regular",
@@ -752,7 +749,7 @@ const modalStyles = StyleSheet.create({
   typeBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: Colors.radius.sm,
     borderWidth: 1,
     borderColor: Colors.divider,
     backgroundColor: Colors.bg,
@@ -760,18 +757,14 @@ const modalStyles = StyleSheet.create({
   typeBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   saveBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: Colors.radius.md,
     paddingVertical: 15,
     alignItems: "center",
     marginTop: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Colors.shadow.raised,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
-  imagePicker: { borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", minHeight: 90 },
+  imagePicker: { borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", minHeight: 90 },
   imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
   imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   imagePreview: { width: "100%", height: 160 },

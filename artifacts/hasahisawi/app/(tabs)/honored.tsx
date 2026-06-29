@@ -453,13 +453,13 @@ const s = StyleSheet.create({
     backgroundColor: "#050E04", gap: 12,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 38, height: 38, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.cardBg + "80",
     justifyContent: "center", alignItems: "center",
   },
   headerCenter: { alignItems: "center", gap: 8 },
   trophyWrap: {
-    width: 64, height: 64, borderRadius: 20,
+    width: 64, height: 64, borderRadius: Colors.radius.xl,
     justifyContent: "center", alignItems: "center",
     borderWidth: 1.5, borderColor: GOLD + "35",
   },
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
   sectionLine: { flex: 1, height: 1, backgroundColor: GOLD + "30" },
   sectionChip: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: GOLD, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
+    backgroundColor: GOLD, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Colors.radius.pill,
   },
   sectionChipText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#1A0F00" },
   tapHint: {
@@ -506,7 +506,7 @@ const s = StyleSheet.create({
   },
   prevTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: GOLD_LITE, flex: 1 },
   prevCount: {
-    backgroundColor: GOLD + "22", borderRadius: 12,
+    backgroundColor: GOLD + "22", borderRadius: Colors.radius.pill,
     paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: GOLD + "35",
   },
   prevCountText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: GOLD },
@@ -519,7 +519,7 @@ const s = StyleSheet.create({
   },
   yearLine: { flex: 1, height: 1, backgroundColor: GOLD_DIM + "30" },
   yearBadge: {
-    backgroundColor: GOLD_DIM + "22", borderRadius: 10,
+    backgroundColor: GOLD_DIM + "22", borderRadius: Colors.radius.pill,
     paddingHorizontal: 12, paddingVertical: 3,
     borderWidth: 1, borderColor: GOLD_DIM + "40",
   },
@@ -552,25 +552,25 @@ const fc = StyleSheet.create({
   card: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
     marginHorizontal: 12, marginBottom: 6,
-    backgroundColor: "#0A180A", borderRadius: 16, padding: 12,
+    backgroundColor: "#0A180A", borderRadius: Colors.radius.lg, padding: 12,
     borderWidth: 1, borderColor: GOLD + "18",
   },
   avatarWrap: {
-    width: 58, height: 58, borderRadius: 16,
+    width: 58, height: 58, borderRadius: Colors.radius.lg,
     position: "relative", justifyContent: "center", alignItems: "center",
   },
   currentRing: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 16, borderWidth: 2, borderColor: GOLD,
+    borderRadius: Colors.radius.lg, borderWidth: 2, borderColor: GOLD,
     zIndex: 1,
   },
   avatar: {
-    width: 54, height: 54, borderRadius: 14,
+    width: 54, height: 54, borderRadius: Colors.radius.md,
     backgroundColor: Colors.cardBg,
   },
   starBadge: {
     position: "absolute", bottom: -2, right: -2,
-    width: 18, height: 18, borderRadius: 6,
+    width: 18, height: 18, borderRadius: Colors.radius.sm,
     backgroundColor: GOLD, justifyContent: "center", alignItems: "center",
     zIndex: 2,
   },
@@ -578,7 +578,7 @@ const fc = StyleSheet.create({
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   name: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FFFFFF" },
   currentBadge: {
-    backgroundColor: GOLD + "22", borderRadius: 8,
+    backgroundColor: GOLD + "22", borderRadius: Colors.radius.sm,
     paddingHorizontal: 7, paddingVertical: 2,
     borderWidth: 1, borderColor: GOLD + "40",
   },
@@ -601,7 +601,7 @@ const dm = StyleSheet.create({
   },
   headerDecor: { ...StyleSheet.absoluteFillObject },
   closeBtn: {
-    width: 36, height: 36, borderRadius: 11,
+    width: 36, height: 36, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.cardBg + "80",
     justifyContent: "center", alignItems: "center",
   },
@@ -612,7 +612,7 @@ const dm = StyleSheet.create({
   currentChip: { position: "absolute", top: 16, alignSelf: "center" },
   currentChipGrad: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill,
   },
   currentChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1A0F00" },
   body: { paddingHorizontal: 20, paddingTop: 20, gap: 18 },
@@ -626,7 +626,7 @@ const dm = StyleSheet.create({
   titleText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: GOLD_LITE },
   role: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   periodCard: {
-    backgroundColor: "#0A180A", borderRadius: 16, padding: 16,
+    backgroundColor: "#0A180A", borderRadius: Colors.radius.lg, padding: 16,
     borderWidth: 1, borderColor: GOLD + "25", gap: 12,
   },
   periodRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
@@ -637,7 +637,7 @@ const dm = StyleSheet.create({
   periodDateVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GOLD_LITE, textAlign: "center" },
   periodSep: { paddingHorizontal: 8 },
   tributeCard: {
-    backgroundColor: GOLD + "08", borderRadius: 16, padding: 16,
+    backgroundColor: GOLD + "08", borderRadius: Colors.radius.lg, padding: 16,
     borderWidth: 1, borderColor: GOLD + "25", gap: 12,
   },
   tributeHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },

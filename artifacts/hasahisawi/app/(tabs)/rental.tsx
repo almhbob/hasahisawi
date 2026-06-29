@@ -11,6 +11,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const API = () => getApiUrl();
@@ -459,22 +460,17 @@ export default function RentalScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       {/* Header */}
-      <View style={styles.header}>
-        <MaterialCommunityIcons name="home-city-outline" size={22} color={Colors.accent} />
-        <Text style={styles.headerTitle}>قسم التأجير</Text>
-        <Text style={styles.headerSub}>عقارات · مناسبات · بناء</Text>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {(["browse","post","contracts"] as const).map(t => (
-          <TouchableOpacity key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === "browse" ? "🏠 عروض" : t === "post" ? "➕ أضف عرضاً" : "📄 عقودي"}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ModernHeader title="قسم التأجير" subtitle="عقارات · مناسبات · بناء" icon="home-outline">
+        <View style={styles.tabs}>
+          {(["browse","post","contracts"] as const).map(t => (
+            <TouchableOpacity key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
+              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+                {t === "browse" ? "🏠 عروض" : t === "post" ? "➕ أضف عرضاً" : "📄 عقودي"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ModernHeader>
 
       {/* ── BROWSE ── */}
       {tab === "browse" && (
@@ -832,31 +828,28 @@ export default function RentalScreen() {
 // ─── Styles ────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: Colors.bg },
-  header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
-  headerTitle:     { flex: 1, fontSize: 18, fontWeight: "700", color: Colors.text, textAlign: "right" },
-  headerSub:       { fontSize: 11, color: Colors.textMuted },
-  tabs:            { flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
-  tabBtn:          { flex: 1, paddingVertical: 12, alignItems: "center" },
-  tabBtnActive:    { borderBottomWidth: 2, borderBottomColor: Colors.accent },
-  tabText:         { fontSize: 12, color: Colors.textMuted },
-  tabTextActive:   { color: Colors.accent, fontWeight: "600" },
+  tabs:            { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4 },
+  tabBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: Colors.radius.sm },
+  tabBtnActive:    { backgroundColor: "rgba(255,255,255,0.92)" },
+  tabText:         { fontSize: 12, color: "rgba(255,255,255,0.85)" },
+  tabTextActive:   { color: Colors.primaryDeep, fontWeight: "600" },
   scrollContent:   { padding: 12, paddingBottom: 100 },
   filterBar:       { marginBottom: 10 },
-  filterChip:      { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.borderSubtle, marginLeft: 8, backgroundColor: Colors.surface2 },
+  filterChip:      { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.borderSubtle, marginLeft: 8, backgroundColor: Colors.surface2 },
   filterChipActive:{ borderColor: Colors.accent, backgroundColor: Colors.accent + "15" },
   filterChipText:  { fontSize: 12, color: Colors.textMuted },
   filterChipTextActive: { color: Colors.accent, fontWeight: "600" },
   searchRow:       { flexDirection: "row-reverse", gap: 8, marginBottom: 8 },
   filterRow:       { flexDirection: "row-reverse", gap: 8, marginBottom: 10 },
-  searchBox:       { flex: 1, flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.surface2, borderRadius: 10, paddingHorizontal: 10, gap: 6, borderWidth: 1, borderColor: Colors.borderSubtle },
+  searchBox:       { flex: 1, flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.surface2, borderRadius: Colors.radius.sm, paddingHorizontal: 10, gap: 6, borderWidth: 1, borderColor: Colors.borderSubtle },
   searchInput:     { flex: 1, height: 38, color: Colors.text, fontSize: 13, textAlign: "right" },
-  searchBtn:       { backgroundColor: Colors.accent, paddingHorizontal: 16, borderRadius: 10, justifyContent: "center", height: 38 },
+  searchBtn:       { backgroundColor: Colors.accent, paddingHorizontal: 16, borderRadius: Colors.radius.sm, justifyContent: "center", height: 38 },
   searchBtnText:   { color: "#000", fontWeight: "700", fontSize: 13 },
-  notice:          { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: 10, padding: 10, gap: 8, marginBottom: 14, alignItems: "flex-start" },
+  notice:          { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 10, gap: 8, marginBottom: 14, alignItems: "flex-start" },
   noticeText:      { flex: 1, color: Colors.text, fontSize: 11, lineHeight: 18, textAlign: "right" },
-  card:            { backgroundColor: Colors.surface2, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle },
+  card:            { backgroundColor: Colors.surface2, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle, ...Colors.shadow.card },
   cardHeader:      { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 },
-  typeBadge:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  typeBadge:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm },
   typeBadgeText:   { fontSize: 11, fontWeight: "600" },
   verifiedBadge:   { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   verifiedText:    { fontSize: 11, color: "#3EFF9C" },
@@ -870,25 +863,25 @@ const styles = StyleSheet.create({
   empty:           { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyText:       { fontSize: 16, fontWeight: "600", color: Colors.text },
   emptySubText:    { fontSize: 13, color: Colors.textMuted },
-  emptyBtn:        { marginTop: 12, backgroundColor: Colors.accent, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
+  emptyBtn:        { marginTop: 12, backgroundColor: Colors.accent, paddingHorizontal: 24, paddingVertical: 10, borderRadius: Colors.radius.sm },
   emptyBtnText:    { color: "#000", fontWeight: "700" },
   sectionTitle:    { fontSize: 13, fontWeight: "700", color: Colors.textMuted, marginBottom: 8, marginTop: 12, textAlign: "right" },
-  input:           { backgroundColor: Colors.surface2, borderRadius: 10, padding: 12, color: Colors.text, fontSize: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.borderSubtle, textAlign: "right" },
+  input:           { backgroundColor: Colors.surface2, borderRadius: Colors.radius.sm, padding: 12, color: Colors.text, fontSize: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.borderSubtle, textAlign: "right" },
   textArea:        { height: 100, textAlignVertical: "top" },
   typeSelector:    { flexDirection: "row-reverse", gap: 8, marginBottom: 8, flexWrap: "wrap" },
-  typeChip:        { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, backgroundColor: Colors.surface2 },
+  typeChip:        { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.borderSubtle, backgroundColor: Colors.surface2 },
   typeChipText:    { fontSize: 13, color: Colors.textMuted },
   priceRow:        { flexDirection: "row-reverse", gap: 8 },
   priceInput:      { flex: 1 },
-  commissionNote:  { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: 10, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
+  commissionNote:  { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
   commissionNoteText: { flex: 1, color: Colors.text, fontSize: 12, lineHeight: 18, textAlign: "right" },
-  submitBtn:       { backgroundColor: Colors.accent, borderRadius: 12, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
+  submitBtn:       { backgroundColor: Colors.accent, borderRadius: Colors.radius.md, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
   submitBtnText:   { color: "#000", fontWeight: "700", fontSize: 16 },
-  contractCard:    { backgroundColor: Colors.surface2, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle },
+  contractCard:    { backgroundColor: Colors.surface2, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle, ...Colors.shadow.card },
   contractHeader:  { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   contractTitle:   { fontSize: 14, fontWeight: "700", color: Colors.text, textAlign: "right" },
   contractSub:     { fontSize: 11, color: Colors.textMuted, textAlign: "right" },
-  statusBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm },
   statusText:      { fontSize: 11, fontWeight: "600" },
   contractInfo:    { gap: 3, marginBottom: 10 },
   contractMeta:    { fontSize: 12, color: Colors.textMuted, textAlign: "right" },
@@ -896,7 +889,7 @@ const styles = StyleSheet.create({
   sigItem:         { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   sigText:         { fontSize: 12, color: Colors.textMuted },
   contractActions: { flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" },
-  actionBtn:       { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: Colors.borderSubtle },
+  actionBtn:       { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.borderSubtle },
   actionBtnText:   { fontSize: 12, color: Colors.accent },
   signBtn:         { backgroundColor: Colors.accent, borderColor: Colors.accent },
   payBtn:          { backgroundColor: "#25D366", borderColor: "#25D366" },
@@ -905,35 +898,35 @@ const styles = StyleSheet.create({
   modalTitle:      { fontSize: 16, fontWeight: "700", color: Colors.text },
   detailPrice:     { fontSize: 22, fontWeight: "800", color: Colors.accent, textAlign: "right", marginBottom: 6 },
   detailMeta:      { fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 4 },
-  ownerCard:       { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.surface2, borderRadius: 12, padding: 14, marginTop: 16, gap: 10 },
+  ownerCard:       { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginTop: 16, gap: 10 },
   ownerName:       { fontSize: 15, fontWeight: "700", color: Colors.text, textAlign: "right" },
   ownerPhone:      { fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   detailActions:   { flexDirection: "row-reverse", gap: 10, marginTop: 14 },
-  callBtn:         { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 12 },
-  waBtn:           { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#25D366", borderRadius: 10, paddingVertical: 12 },
+  callBtn:         { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, borderRadius: Colors.radius.sm, paddingVertical: 12 },
+  waBtn:           { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#25D366", borderRadius: Colors.radius.sm, paddingVertical: 12 },
   callBtnText:     { color: "#fff", fontWeight: "700", fontSize: 14 },
-  contractBtn:     { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, marginTop: 14 },
+  contractBtn:     { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.accent, borderRadius: Colors.radius.md, paddingVertical: 14, marginTop: 14 },
   contractBtnText: { color: "#000", fontWeight: "700", fontSize: 15 },
-  witnessNote:     { flexDirection: "row-reverse", backgroundColor: Colors.accent + "10", borderRadius: 10, padding: 12, gap: 8, marginTop: 14, alignItems: "flex-start" },
+  witnessNote:     { flexDirection: "row-reverse", backgroundColor: Colors.accent + "10", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginTop: 14, alignItems: "flex-start" },
   witnessText:     { flex: 1, color: Colors.textMuted, fontSize: 11, lineHeight: 18, textAlign: "right" },
-  contractPreview: { backgroundColor: Colors.accent + "12", borderRadius: 10, padding: 12, marginBottom: 10 },
+  contractPreview: { backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 10 },
   contractPreviewTitle: { fontSize: 15, fontWeight: "700", color: Colors.text, textAlign: "right" },
   contractPreviewSub: { fontSize: 12, color: Colors.accent, textAlign: "right", marginTop: 2 },
-  commissionCalc:  { backgroundColor: Colors.accent + "15", borderRadius: 8, padding: 10, marginBottom: 8 },
+  commissionCalc:  { backgroundColor: Colors.accent + "15", borderRadius: Colors.radius.sm, padding: 10, marginBottom: 8 },
   commissionCalcText: { fontSize: 13, color: Colors.text, textAlign: "right" },
   boolRow:         { flexDirection: "row-reverse", gap: 10, marginBottom: 10 },
-  boolBtn:         { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, alignItems: "center" },
+  boolBtn:         { flex: 1, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.borderSubtle, alignItems: "center" },
   boolBtnActive:   { borderColor: Colors.accent, backgroundColor: Colors.accent + "15" },
   boolBtnText:     { fontSize: 12, color: Colors.textMuted },
   boolBtnTextActive: { color: Colors.accent, fontWeight: "600" },
   exemptNote:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10 },
   exemptText:      { fontSize: 12, color: "#3EFF9C" },
-  legalNote:       { flexDirection: "row-reverse", backgroundColor: "#FBBF2415", borderRadius: 10, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
+  legalNote:       { flexDirection: "row-reverse", backgroundColor: "#FBBF2415", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
   legalText:       { flex: 1, color: Colors.textMuted, fontSize: 11, lineHeight: 18, textAlign: "right" },
-  contractDoc:     { backgroundColor: Colors.surface2, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.borderSubtle },
+  contractDoc:     { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.borderSubtle },
   contractDocText: { fontSize: 12, color: Colors.text, lineHeight: 22, textAlign: "right", fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
-  payReminder:     { backgroundColor: "#FBBF2415", borderRadius: 12, padding: 14, gap: 10, marginBottom: 16 },
+  payReminder:     { backgroundColor: "#FBBF2415", borderRadius: Colors.radius.md, padding: 14, gap: 10, marginBottom: 16 },
   payReminderText: { fontSize: 13, color: Colors.text, lineHeight: 20, textAlign: "right" },
-  payNowBtn:       { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#25D366", borderRadius: 10, paddingVertical: 10 },
+  payNowBtn:       { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#25D366", borderRadius: Colors.radius.sm, paddingVertical: 10 },
   payNowBtnText:   { color: "#fff", fontWeight: "700", fontSize: 13 },
 });

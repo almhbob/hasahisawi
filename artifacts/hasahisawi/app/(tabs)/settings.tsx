@@ -32,6 +32,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const DEFAULT_ADMIN_PIN = "4444";
@@ -1790,9 +1791,7 @@ export default function SettingsScreen() {
   if (!hasAccess) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={styles.headerTitle}>الإعدادات</Text>
-        </View>
+        <ModernHeader title="الإعدادات" icon="settings-outline" />
         <ScrollView contentContainerStyle={[styles.loginWrap, { paddingTop: 8 }]} keyboardShouldPersistTaps="handled">
 
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}

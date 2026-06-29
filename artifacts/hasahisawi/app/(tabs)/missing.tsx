@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 export type LostItem = {
@@ -447,7 +448,17 @@ export default function LostItemsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
+      <ModernHeader
+        title="المفقودات"
+        icon="search-outline"
+        rightSlot={
+          lostCount > 0 ? (
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{lostCount}</Text>
+            </View>
+          ) : undefined
+        }
+      >
         <AnimatedPress
           style={styles.addBtn}
           onPress={() => {
@@ -461,15 +472,7 @@ export default function LostItemsScreen() {
           <Ionicons name="add" size={20} color={Colors.cardBg} />
           <Text style={styles.addBtnText}>إبلاغ عن مفقود</Text>
         </AnimatedPress>
-        <View style={styles.headerRight}>
-          <Text style={styles.headerTitle}>المفقودات</Text>
-          {lostCount > 0 && (
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{lostCount}</Text>
-            </View>
-          )}
-        </View>
-      </View>
+      </ModernHeader>
 
       <GuestGate
         title="المفقودات والموجودات"
@@ -480,16 +483,16 @@ export default function LostItemsScreen() {
               { name: "هاتف سامسونج A54", status: "lost", loc: "شارع المدارس", time: "منذ ٥ أيام" },
               { name: "وثيقة هوية وطنية", status: "found", loc: "حي السلام", time: "منذ ٣ أيام" },
             ].map((item, i) => (
-              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card }}>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", alignItems: "center", justifyContent: "center" }}>
+                  <View style={{ width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name={item.status === "lost" ? "search-outline" : "checkmark-circle-outline"} size={20} color={item.status === "lost" ? Colors.danger : Colors.primary} />
                   </View>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{item.name}</Text>
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{item.loc} • {item.time}</Text>
                   </View>
-                  <View style={{ backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                  <View style={{ backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm }}>
                     <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: item.status === "lost" ? Colors.danger : Colors.primary }}>
                       {item.status === "lost" ? "مفقود" : "موجود"}
                     </Text>
@@ -533,12 +536,12 @@ export default function LostItemsScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="search-outline" size={52} color={Colors.textMuted} 
-          ListFooterComponent={<OrgInviteCard />}/>
+                <Ionicons name="search-outline" size={52} color={Colors.textMuted} />
                 <Text style={styles.emptyTitle}>لا توجد بلاغات</Text>
                 <Text style={styles.emptyText}>كن أول من يُبلّغ عن مفقود في مدينتنا</Text>
               </View>
             }
+            ListFooterComponent={<OrgInviteCard />}
             renderItem={({ item, index }) => (
               <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
                 <ItemCard
@@ -573,12 +576,12 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
-  countBadge: { backgroundColor: Colors.danger + "18", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  countText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.danger },
+  countBadge: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
+  countText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   addBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14,
+    backgroundColor: Colors.primaryDeep, borderRadius: Colors.radius.md,
     paddingHorizontal: 14, paddingVertical: 9,
-    flexDirection: "row-reverse", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start",
   },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.cardBg },
   filters: {
@@ -586,7 +589,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10, backgroundColor: Colors.cardBg,
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   filterBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   filterBtnTextActive: { color: "#FFFFFF" },
@@ -595,20 +598,20 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textSecondary },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    ...Colors.shadow.card,
   },
   cardFound: { opacity: 0.6 },
   cardInner: { flexDirection: "row-reverse", padding: 14, gap: 12, alignItems: "flex-start" },
-  catIcon: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  catIcon: { width: 52, height: 52, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   cardBody: { flex: 1, alignItems: "flex-end", gap: 5 },
   cardTitleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   itemName: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  foundBadge: { backgroundColor: Colors.success + "18", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 2 },
+  foundBadge: { backgroundColor: Colors.success + "18", borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
   foundBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.success },
   catRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  catTag: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 2 },
+  catTag: { borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 2 },
   catTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   timeText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   descText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 19 },
@@ -619,27 +622,27 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   actionsRight: { flexDirection: "row-reverse", gap: 8 },
   actionsLeft: { flexDirection: "row", gap: 12, alignItems: "center" },
-  foundBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.success + "15", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  foundBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.success + "15", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
   foundBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.success },
   shareBtn: { width: 30, height: 30, justifyContent: "center", alignItems: "center" },
-  contactBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary + "12", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  contactBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
   contactBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
 });
 
 const addModal = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "flex-end" },
-  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: "92%" },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 40, maxHeight: "92%" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 16 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
-  input: { backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
+  input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
+  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   actions: { flexDirection: "row", gap: 12, marginTop: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
+  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  saveBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  saveBtn: { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
-  imagePicker: { borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", marginBottom: 14, minHeight: 90 },
+  imagePicker: { borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", marginBottom: 14, minHeight: 90 },
   imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
   imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   imagePreview: { width: "100%", height: 160 },

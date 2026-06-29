@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Linking, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Linking } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 const SERVICES = [
   { id: "barber", title: "حلاقين وصوالين", sub: "حجز سريع · عناية شعر ولحية", icon: "content-cut", color: "#38BDF8" },
@@ -24,8 +24,6 @@ const PROVIDERS = [
 ];
 
 export default function MenScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const [selected, setSelected] = useState("all");
   const [joinName, setJoinName] = useState("");
   const [joinPhone, setJoinPhone] = useState("");
@@ -44,15 +42,12 @@ export default function MenScreen() {
 
   return (
     <View style={styles.container}>
+      <ModernHeader
+        title="قسم الرجال"
+        subtitle="خدمات الرجال في مكان واحد: حلاقة، أزياء، عطور، رياضة، وصيانة"
+        icon="male-outline"
+      />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <LinearGradient colors={["#061826", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}>
-          <Animated.View entering={FadeIn.delay(80)} style={styles.heroIcon}>
-            <Ionicons name="male-outline" size={40} color="#fff" />
-          </Animated.View>
-          <Animated.Text entering={FadeInDown.delay(120).springify()} style={styles.title}>قسم الرجال</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>خدمات الرجال في مكان واحد: حلاقة، أزياء، عطور، رياضة، وصيانة</Animated.Text>
-        </LinearGradient>
-
         <View style={styles.body}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             <TouchableOpacity onPress={() => setSelected("all")} style={[styles.chip, selected === "all" && styles.chipActive]}>
@@ -110,32 +105,28 @@ export default function MenScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  hero: { paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: "center" },
-  heroIcon: { width: 74, height: 74, borderRadius: 24, backgroundColor: "#38BDF825", borderWidth: 1, borderColor: "#38BDF855", alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 25, color: Colors.textPrimary, textAlign: "center" },
-  subtitle: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "center", fontSize: 13, lineHeight: 22, marginTop: 8 },
   body: { padding: 18, gap: 16 },
   filterRow: { gap: 8, paddingVertical: 2 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingVertical: 8, paddingHorizontal: 12 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingVertical: 8, paddingHorizontal: 12 },
   chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipText: { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12 },
   chipTextActive: { color: "#001" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  serviceCard: { width: "48%", minHeight: 130, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 13, alignItems: "center", justifyContent: "center" },
-  serviceIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 8 },
+  serviceCard: { width: "48%", minHeight: 130, borderRadius: Colors.radius.lg, backgroundColor: Colors.surface, padding: 13, alignItems: "center", justifyContent: "center", ...Colors.shadow.card },
+  serviceIcon: { width: 48, height: 48, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 8 },
   serviceTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "center" },
   serviceSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10, textAlign: "center", marginTop: 3, lineHeight: 16 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right", marginTop: 4 },
-  providerCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.surface, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 13 },
+  providerCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.surface, borderRadius: Colors.radius.lg, padding: 13, ...Colors.shadow.card },
   providerName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 15 },
   providerMeta: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 },
   tags: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 5, marginTop: 8 },
-  tag: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 10, backgroundColor: Colors.bgAlt, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  callBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  joinCard: { borderRadius: 22, borderWidth: 1, borderColor: "#38BDF830", padding: 16, gap: 10 },
+  tag: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 10, backgroundColor: Colors.bgAlt, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.pill },
+  callBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  joinCard: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: "#38BDF830", padding: 16, gap: 10 },
   joinTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
   joinSub: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, textAlign: "right" },
-  input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.bgAlt, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
-  submitBtn: { height: 46, borderRadius: 14, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  input: { height: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.bgAlt, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
+  submitBtn: { height: 46, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   submitText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 13 },
 });

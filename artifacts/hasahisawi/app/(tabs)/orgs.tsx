@@ -14,6 +14,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import JoinOrgBanner from "@/components/JoinOrgBanner";
 import ExternalPartnershipBanner from "@/components/ExternalPartnershipBanner";
 import { getApiUrl } from "@/lib/query-client";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -180,17 +181,7 @@ export default function OrgsScreen() {
   return (
     <View style={s.root}>
       {/* ── Header ── */}
-      <LinearGradient colors={[Colors.cardBg, Colors.bg]} style={[s.header, { paddingTop: topPad + 12 }]}>
-        <View style={s.headerTop}>
-          <View style={s.headerIcon}>
-            <MaterialCommunityIcons name="hand-heart" size={24} color="#FF4FA3" />
-          </View>
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
-            <Text style={s.headerTitle}>المبادرات والمنظمات</Text>
-            <Text style={s.headerSub}>خيرية · تطوعية · تعاونية</Text>
-          </View>
-        </View>
-
+      <ModernHeader title="المبادرات والمنظمات" subtitle="خيرية · تطوعية · تعاونية" icon="hand-left-outline">
         {/* Stats */}
         <View style={s.statsRow}>
           {[
@@ -210,13 +201,13 @@ export default function OrgsScreen() {
         <View style={s.subTabRow}>
           {([["orgs", "المنظمات", "business-outline"], ["events", "الفعاليات", "calendar-outline"], ["campaigns", "حملات التبرع", "heart-outline"]] as [SubTab, string, string][]).map(([k, label, icon]) => (
             <TouchableOpacity key={k} style={[s.subTab, subTab === k && s.subTabActive]} onPress={() => setSubTab(k)}>
-              {subTab === k && <LinearGradient colors={[Colors.primary + "25", Colors.accent + "18"]} style={StyleSheet.absoluteFill} />}
-              <Ionicons name={icon as any} size={14} color={subTab === k ? Colors.primary : Colors.textMuted} />
-              <Text style={[s.subTabText, subTab === k && { color: Colors.primary }]}>{label}</Text>
+              {subTab === k && <View style={[StyleSheet.absoluteFill, s.subTabActiveFill]} />}
+              <Ionicons name={icon as any} size={14} color={subTab === k ? "#fff" : "rgba(255,255,255,0.75)"} />
+              <Text style={[s.subTabText, subTab === k && { color: "#fff" }]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ══ ORGS TAB ══ */}
       {subTab === "orgs" && (
@@ -481,31 +472,26 @@ export default function OrgsScreen() {
 // ══════════════════════════════════════════════════════
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 16, paddingBottom: 0 },
-  headerTop: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  headerIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: "#FF4FA320", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#FF4FA340" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
-
-  statsRow: { flexDirection: "row", backgroundColor: Colors.bg, borderRadius: 16, padding: 14, marginBottom: 14, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 14, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
 
-  subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 14 },
-  subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
-  subTabActive: { borderColor: Colors.primary + "60" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+  subTabRow: { flexDirection: "row", gap: 8 },
+  subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", overflow: "hidden" },
+  subTabActive: { borderColor: "rgba(255,255,255,0.5)" },
+  subTabActiveFill: { backgroundColor: "rgba(255,255,255,0.22)" },
+  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: 12, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
+  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
 
-  card: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  iconCircle: { width: 54, height: 54, borderRadius: 15, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
+  iconCircle: { width: 54, height: 54, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", flex: 1 },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" },
@@ -516,7 +502,7 @@ const s = StyleSheet.create({
   ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
 
-  expandedSection: { backgroundColor: Colors.bg, borderRadius: 14, padding: 14, gap: 0 },
+  expandedSection: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 14, gap: 0 },
   goalsSection: {},
   goalsSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, textAlign: "right", marginBottom: 8 },
   goalRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 },
@@ -528,50 +514,50 @@ const s = StyleSheet.create({
   expandBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
 
   cardActions: { flexDirection: "row", gap: 10 },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 12 },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12 },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // Events
-  eventCard: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden" },
+  eventCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
   eventHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  eventDateBox: { width: 46, height: 46, borderRadius: 13, justifyContent: "center", alignItems: "center", borderWidth: 1 },
+  eventDateBox: { width: 46, height: 46, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   eventTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   eventOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   eventInfo: { gap: 6 },
   eventInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   eventInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   eventDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
-  eventBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 11, borderWidth: 1 },
+  eventBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 11, borderWidth: 1 },
   eventBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
 
   // Campaigns
-  donateNote: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
+  donateNote: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
   donateNoteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
-  campCard: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden" },
+  campCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
   campHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  campIcon: { width: 56, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  campIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   campTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   campOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
-  campTarget: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-end" },
+  campTarget: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, alignSelf: "flex-end" },
   campTargetText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   campDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
-  campBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 13 },
+  campBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
   campBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "80%", borderTopWidth: 1, borderColor: Colors.primary + "30" },
-  modalHandle: { width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.primary + "40", alignSelf: "center", marginTop: 12 },
+  modalSheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "80%", borderTopWidth: 1, borderColor: Colors.primary + "30" },
+  modalHandle: { width: 44, height: 4, borderRadius: Colors.radius.sm / 2, backgroundColor: Colors.primary + "40", alignSelf: "center", marginTop: 12 },
   modalHeader: { padding: 20, paddingTop: 12, alignItems: "center", gap: 8 },
-  modalClose: { position: "absolute", top: 12, left: 16, width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.bg, justifyContent: "center", alignItems: "center" },
-  modalIconWrap: { width: 64, height: 64, borderRadius: 18, backgroundColor: Colors.primary + "20", justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: Colors.primary + "40" },
+  modalClose: { position: "absolute", top: 12, left: 16, width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, justifyContent: "center", alignItems: "center" },
+  modalIconWrap: { width: 64, height: 64, borderRadius: Colors.radius.lg, backgroundColor: Colors.primary + "20", justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: Colors.primary + "40" },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   modalSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   modalBody: { padding: 20, gap: 16 },
-  modalNeeds: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", backgroundColor: Colors.bg, borderRadius: 12, padding: 12, lineHeight: 22 },
+  modalNeeds: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 12, lineHeight: 22 },
   fieldBlock: { gap: 6 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
-  fieldInput: { borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 14, backgroundColor: Colors.bg, paddingHorizontal: 14, paddingVertical: 13, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary },
-  modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 16, paddingVertical: 15 },
+  fieldInput: { borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.bg, paddingHorizontal: 14, paddingVertical: 13, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary },
+  modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
   modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
 });

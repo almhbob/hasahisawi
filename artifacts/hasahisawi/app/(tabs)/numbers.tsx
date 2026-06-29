@@ -370,12 +370,12 @@ export default function NumbersScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={[Colors.bg, Colors.cardBg]}
+        colors={Colors.gradients.brand}
         style={[styles.header, { paddingTop: topPad + 16 }]}
       >
         <Animated.View entering={FadeIn.delay(60).duration(500)} style={styles.headerContent}>
           <View style={styles.headerIconWrap}>
-            <Ionicons name="call" size={26} color={Colors.primary} />
+            <Ionicons name="call" size={26} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>الأرقام المهمة</Text>
@@ -387,19 +387,19 @@ export default function NumbersScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.adminBtn} onPress={() => setShowPinModal(true)}>
-              <Ionicons name="settings-outline" size={18} color={Colors.textSecondary} />
+              <Ionicons name="settings-outline" size={18} color="#fff" />
             </TouchableOpacity>
           )}
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={{ backgroundColor: "#FEF3C720", borderRadius: 8, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#F59E0B30" }}>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#92400E", textAlign: "right" }}>
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={{ backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" }}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#fff", textAlign: "right" }}>
             الأرقام متاحة للعامة — المنصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.emergencyStrip}>
-          <Ionicons name="alert-circle" size={16} color="#EF4444" />
+          <Ionicons name="alert-circle" size={16} color="#fff" />
           <Text style={styles.emergencyText}>طوارئ سريعة:</Text>
           {firstPolice && (
             <TouchableOpacity onPress={() => Linking.openURL(`tel:${firstPolice.number}`)} style={styles.emergencyChip}>
@@ -506,62 +506,62 @@ export default function NumbersScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
   headerContent: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 14 },
-  headerIconWrap: { width: 52, height: 52, borderRadius: 16, backgroundColor: Colors.primary + "20", borderWidth: 1, borderColor: Colors.primary + "40", justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
-  addBtn: { backgroundColor: Colors.primary, borderRadius: 12, padding: 10 },
-  adminBtn: { backgroundColor: Colors.cardBg, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: Colors.divider },
+  headerIconWrap: { width: 52, height: 52, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#fff" },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.82)", marginTop: 2 },
+  addBtn: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.sm, padding: 10 },
+  adminBtn: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, padding: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
 
-  emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "#EF444415", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "#EF444430", gap: 8, flexWrap: "wrap" },
-  emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
-  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
+  emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
+  emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
+  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
   emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   scroll: { flex: 1 },
-  section: { marginBottom: 16, borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider },
+  section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: "#fff", ...Colors.shadow.card },
   sectionHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
-  sectionIconWrap: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, justifyContent: "center", alignItems: "center" },
+  sectionIconWrap: { width: 36, height: 36, borderRadius: Colors.radius.sm, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, flex: 1 },
-  pinBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 1 },
+  pinBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: Colors.radius.sm, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 1 },
   pinText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  sectionBadge: { backgroundColor: Colors.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: Colors.divider },
+  sectionBadge: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: Colors.divider },
   sectionBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   sectionBody: { backgroundColor: Colors.cardBg, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
 
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: 14, padding: 12, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 12 },
-  cardIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: "center", alignItems: "center" },
+  card: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 12, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 12 },
+  cardIcon: { width: 44, height: 44, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   cardInfo: { flex: 1 },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   cardNumber: { fontFamily: "Cairo_700Bold", fontSize: 17, marginTop: 2, textAlign: "right", letterSpacing: 0.5 },
   cardNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
-  callBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, gap: 3, minWidth: 52 },
+  callBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, gap: 3, minWidth: 52 },
   callLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  deleteBtn: { backgroundColor: "#EF444415", borderRadius: 10, padding: 8, borderWidth: 1, borderColor: "#EF444430" },
+  deleteBtn: { backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, padding: 8, borderWidth: 1, borderColor: "#EF444430" },
 
   emptyHint: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 32, gap: 10 },
   emptyHintTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textSecondary, textAlign: "center" },
   emptyHintSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
 
-  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary + "40", borderStyle: "dashed", marginBottom: 16 },
+  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary + "40", borderStyle: "dashed", marginBottom: 16 },
   addRowText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.primary },
 });
 
 const modal = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "flex-end" },
-  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, gap: 4 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 40, gap: 4 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 12 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
-  input: { backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 10 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
+  input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 10 },
+  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  colorDot: { width: 28, height: 28, borderRadius: 14, marginRight: 8, borderWidth: 2, borderColor: "transparent" },
+  colorDot: { width: 28, height: 28, borderRadius: Colors.radius.pill, marginRight: 8, borderWidth: 2, borderColor: "transparent" },
   colorDotActive: { borderColor: Colors.textPrimary, transform: [{ scale: 1.2 }] },
-  iconBtn: { width: 38, height: 38, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, justifyContent: "center", alignItems: "center", marginRight: 8, backgroundColor: Colors.bg },
+  iconBtn: { width: 38, height: 38, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, justifyContent: "center", alignItems: "center", marginRight: 8, backgroundColor: Colors.bg },
   actions: { flexDirection: "row", gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  saveBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

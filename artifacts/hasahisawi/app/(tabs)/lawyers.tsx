@@ -6,7 +6,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { fetch } from "expo/fetch";
@@ -18,6 +17,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -757,23 +757,14 @@ export default function LawyersScreen() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View style={s.container}>
       {/* Header */}
-      <LinearGradient colors={["#1a0f2e", "#0F1A14"]} style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-            <Ionicons name="chevron-forward" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <View style={s.headerTitleRow}>
-              <MaterialCommunityIcons name="scale-balance" size={22} color="#C4B5FD" />
-              <Text style={s.headerTitle}>الخدمات القانونية</Text>
-            </View>
-            <Text style={s.headerSub}>محامون · استشارات · استمارات</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-
+      <ModernHeader
+        title="الخدمات القانونية"
+        subtitle="محامون · استشارات · استمارات"
+        showBack
+        onBack={() => router.back()}
+      >
         {/* Tabs */}
         <View style={s.tabsRow}>
           {[
@@ -787,7 +778,7 @@ export default function LawyersScreen() {
             </Pressable>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ── DIRECTORY ── */}
       {tab === "directory" && (
@@ -839,7 +830,7 @@ export default function LawyersScreen() {
                   { icon: "💎", name: "محترف", sub: "1,500 ج.س · إعلانات + موثّق", color: "#8B5CF6" },
                   { icon: "👑", name: "بريميوم", sub: "3,000 ج.س · الصدارة + 8%", color: "#F59E0B" },
                 ].map(p => (
-                  <View key={p.name} style={{ backgroundColor: p.color + "18", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: p.color + "44", alignItems: "center", minWidth: 110 }}>
+                  <View key={p.name} style={{ backgroundColor: p.color + "18", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: p.color + "44", alignItems: "center", minWidth: 110 }}>
                     <Text style={{ fontSize: 18, marginBottom: 2 }}>{p.icon}</Text>
                     <Text style={{ fontSize: 11, fontWeight: "800", color: p.color }}>{p.name}</Text>
                     <Text style={{ fontSize: 9, color: "#6B7280", textAlign: "center", marginTop: 2 }}>{p.sub}</Text>
@@ -1019,7 +1010,7 @@ export default function LawyersScreen() {
                             <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
                           </View>
                           <TouchableOpacity onPress={() => router.push("/lawyer-portal")}
-                            style={{ marginTop: 10, backgroundColor: "#8B5CF6", borderRadius: 10, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                            style={{ marginTop: 10, backgroundColor: "#8B5CF6", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
                             <Ionicons name="grid-outline" size={16} color="#fff" />
                             <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 }}>⚖️ بوابتي — لوحة تحكم المحامي</Text>
                           </TouchableOpacity>
@@ -1357,19 +1348,13 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 // ─── styles ─────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#020C1B" },
-  header: { paddingHorizontal: 14, paddingBottom: 12 },
-  headerTop: { flexDirection: "row", alignItems: "center", paddingTop: 6 },
-  backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  headerTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 17 },
-  headerSub: { fontFamily: "Cairo_400Regular", color: "#9CA3AF", fontSize: 11, marginTop: 2 },
-  tabsRow: { flexDirection: "row", backgroundColor: "#0F1A14", borderRadius: 12, padding: 4, marginTop: 14, borderWidth: 1, borderColor: "#1F2937" },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 9 },
+  tabsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
   tabBtnActive: { backgroundColor: "#8B5CF6" },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C4B5FD" },
   tabLabelActive: { color: "#fff" },
 
-  adCard: { width: 270, padding: 12, borderRadius: 14, borderWidth: 1 },
+  adCard: { width: 270, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   adBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   adBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Cairo_700Bold" },
   adTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 14, marginTop: 6 },
@@ -1379,18 +1364,18 @@ const s = StyleSheet.create({
   adCtaText: { color: "#fff", fontSize: 11, fontFamily: "Cairo_700Bold" },
   adAuthor: { color: "#9CA3AF", fontSize: 10, fontFamily: "Cairo_400Regular", flex: 1, textAlign: "left", marginLeft: 8 },
 
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0F1A14", borderRadius: 12, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#1F2937" },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#1F2937" },
   searchInput: { flex: 1, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, paddingVertical: 0, textAlign: "right" },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, backgroundColor: "#0F1A14", borderWidth: 1, borderColor: "#1F2937" },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: "#0F1A14", borderWidth: 1, borderColor: "#1F2937" },
   chipActive: { backgroundColor: "#8B5CF6", borderColor: "#8B5CF6" },
   chipText: { color: "#9CA3AF", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   chipTextActive: { color: "#fff" },
 
-  lawyerCard: { backgroundColor: "#0F1A14", borderRadius: 14, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: "#1F2937" },
+  lawyerCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: "#1F2937" },
   featBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#FBBF2422", borderColor: "#FBBF24", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   featBadgeText: { color: "#FBBF24", fontFamily: "Cairo_700Bold", fontSize: 9 },
   lawyerHead: { flexDirection: "row", gap: 12, alignItems: "center" },
-  avatar: { width: 54, height: 54, borderRadius: 14, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
+  avatar: { width: 54, height: 54, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
   lawyerName: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 14, flexShrink: 1 },
   lawyerTitle: { fontFamily: "Cairo_400Regular", color: "#C4B5FD", fontSize: 11, marginTop: 1 },
   lawyerMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 10 },
@@ -1403,19 +1388,19 @@ const s = StyleSheet.create({
   centerBox: { paddingVertical: 60, alignItems: "center", gap: 10 },
   emptyText: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 13 },
 
-  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#8B5CF612", borderRadius: 10, borderWidth: 1, borderColor: "#8B5CF633", marginBottom: 12 },
+  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#8B5CF612", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#8B5CF633", marginBottom: 12 },
   formsHeaderText: { flex: 1, color: "#C4B5FD", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18 },
-  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#0F1A14", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
-  formIconBox: { width: 44, height: 44, borderRadius: 11, backgroundColor: "#8B5CF622", alignItems: "center", justifyContent: "center" },
+  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
+  formIconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF622", alignItems: "center", justifyContent: "center" },
   formTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   officialBadge: { backgroundColor: "#10B98122", borderColor: "#10B98155", borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
   officialBadgeText: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 9 },
   formCat: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 10, marginTop: 2 },
   formDesc: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 16 },
-  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9 },
+  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   printBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
 
-  contractCard: { backgroundColor: "#0F1A14", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
+  contractCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
   contractNo: { color: "#9CA3AF", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 14, borderWidth: 1 },
   statusPillText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
@@ -1423,29 +1408,29 @@ const s = StyleSheet.create({
   contractSvc: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 12, marginTop: 2 },
   contractMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11 },
   contractActions: { flexDirection: "row", gap: 8, marginTop: 12 },
-  miniBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  miniBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
   miniBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
 
   // detail modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#020C1B", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#1F2937" },
+  modalSheet: { backgroundColor: "#020C1B", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#1F2937" },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#374151", alignSelf: "center", marginBottom: 12 },
   detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
-  avatarLg: { width: 70, height: 70, borderRadius: 18, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
+  avatarLg: { width: 70, height: 70, borderRadius: Colors.radius.lg, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
   detailName: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 16, flexShrink: 1 },
   detailTitle: { fontFamily: "Cairo_400Regular", color: "#C4B5FD", fontSize: 12, marginTop: 2 },
   detailMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#1F2937", alignItems: "center", justifyContent: "center" },
   quickRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
-  quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: 10 },
+  quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.sm },
   quickBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
-  infoBox: { backgroundColor: "#0F1A14", borderRadius: 12, padding: 12, marginTop: 14, borderWidth: 1, borderColor: "#1F2937" },
+  infoBox: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: "#1F2937" },
   infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
   infoLineLabel: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, width: 90 },
   infoLineValue: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "left" },
 
-  bioBox: { backgroundColor: "#1a0f2e", borderRadius: 12, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#8B5CF633" },
+  bioBox: { backgroundColor: "#1a0f2e", borderRadius: Colors.radius.md, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#8B5CF633" },
   bioTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 12, marginBottom: 6 },
   bioText: { color: "#E5E7EB", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 20 },
 
@@ -1453,52 +1438,52 @@ const s = StyleSheet.create({
   sectionTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 10 },
   emptyInline: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 12, fontStyle: "italic" },
 
-  svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#0F1A14", borderRadius: 11, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
+  svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
   svcTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   svcDesc: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 3, lineHeight: 16 },
   svcChip: { backgroundColor: "#1F2937", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
   svcChipText: { color: "#D1D5DB", fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9 },
+  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
-  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: "#8B5CF655", borderStyle: "dashed", marginTop: 4 },
+  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#8B5CF655", borderStyle: "dashed", marginTop: 4 },
   contactGenText: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
-  reviewCard: { backgroundColor: "#0F1A14", borderRadius: 10, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: "#1F2937" },
+  reviewCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.sm, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: "#1F2937" },
   reviewName: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 11 },
   reviewText: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 17 },
 
   // contract & rate modals
   modalOverlay2: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: 20 },
-  contractModal: { backgroundColor: "#0F1A14", borderRadius: 18, padding: 18, borderWidth: 1, borderColor: "#1F2937" },
+  contractModal: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 18, borderWidth: 1, borderColor: "#1F2937" },
   contractHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   contractTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
   contractSubt: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 6, lineHeight: 16 },
   fieldLabel: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 5 },
-  fieldInput: { backgroundColor: "#020C1B", borderRadius: 10, paddingHorizontal: 12, height: 44, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#1F2937", textAlign: "right" },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: "#1F2937", alignItems: "center" },
+  fieldInput: { backgroundColor: "#020C1B", borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 44, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#1F2937", textAlign: "right" },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#1F2937", alignItems: "center" },
   cancelBtnText: { color: "#9CA3AF", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: "#8B5CF6" },
+  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#8B5CF6" },
   submitBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
 
-  rateModal: { backgroundColor: "#0F1A14", borderRadius: 18, padding: 22, borderWidth: 1, borderColor: "#1F2937" },
+  rateModal: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 22, borderWidth: 1, borderColor: "#1F2937" },
   rateTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
-  rateInput: { backgroundColor: "#020C1B", borderRadius: 10, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
+  rateInput: { backgroundColor: "#020C1B", borderRadius: Colors.radius.sm, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
 
-  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#8B5CF6", padding: 14, borderRadius: 14, marginBottom: 14 },
-  joinIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#8B5CF6", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
+  joinIcon: { width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   joinTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   joinSub: { color: "#EDE9FE", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 2 },
   joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
-  joinHeadIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
+  joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
   joinSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
-  termsBox: { backgroundColor: "#1a0f2e", borderRadius: 12, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#8B5CF655" },
+  termsBox: { backgroundColor: "#1a0f2e", borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#8B5CF655" },
   termsTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
   termsText: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 22 },
-  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#0F1A14", borderRadius: 10, borderWidth: 1, borderColor: "#1F2937" },
+  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#0F1A14", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#1F2937" },
   checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
   checkboxOn: { backgroundColor: "#8B5CF6" },
   agreeText: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
   contractsSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
-  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#8B5CF6" },
+  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#8B5CF6" },
   contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "center" },
 });

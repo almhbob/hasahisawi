@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   },
   heroStats: {
     flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.xl,
     paddingVertical: 12, paddingHorizontal: 20, gap: 0,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
   },
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
   /* ── بطاقة منتج ── */
   productCard: {
     flex: 1, backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: Colors.radius.lg, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)",
     overflow: "hidden",
   },
   productThumb: { height: 130, alignItems: "center", justifyContent: "center" },
@@ -859,11 +859,11 @@ const styles = StyleSheet.create({
   /* ── بطاقة مصمم ── */
   designersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   designerCard: {
-    width: (width - 44) / 2, borderRadius: 20,
+    width: (width - 44) / 2, borderRadius: Colors.radius.xl,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
     padding: 14, alignItems: "center", gap: 8, overflow: "hidden",
   },
-  designerCardBorder: { position: "absolute", inset: 0, borderRadius: 20, borderWidth: 1 },
+  designerCardBorder: { position: "absolute", inset: 0, borderRadius: Colors.radius.xl, borderWidth: 1 },
   featuredBadge: {
     position: "absolute", top: 10, right: 10,
     width: 24, height: 24, borderRadius: 8,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
 
   /* ── باقات ── */
   pkgCard: {
-    width: 240, borderRadius: 22, padding: 20, gap: 10,
+    width: 240, borderRadius: Colors.radius.xl, padding: 20, gap: 10,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     overflow: "hidden",
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   },
   howStep: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: Colors.radius.lg,
     padding: 14, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
   howNum: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -953,19 +953,19 @@ const styles = StyleSheet.create({
   formField: { marginBottom: 14 },
   formLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 6 },
   formInput: {
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.md,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.12)",
     paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
     height: 48,
   },
-  submitBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8 },
+  submitBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8 },
   submitBtnGrad: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
-  successCard: { marginHorizontal: 16, marginTop: 16, borderRadius: 20, overflow: "hidden" },
+  successCard: { marginHorizontal: 16, marginTop: 16, borderRadius: Colors.radius.xl, overflow: "hidden" },
   successGrad: { padding: 28, alignItems: "center", gap: 10 },
   successIcon: { fontSize: 48 },
   successTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
   },
   orderProductInfo: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.lg,
     padding: 12, marginBottom: 16,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
   },
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
   orderProductDesigner: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   contactOptionBtn: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    padding: 16, borderRadius: 16, borderWidth: 1,
+    padding: 16, borderRadius: Colors.radius.lg, borderWidth: 1,
   },
   contactOptionText: { fontFamily: "Cairo_700Bold", fontSize: 16 },
 
