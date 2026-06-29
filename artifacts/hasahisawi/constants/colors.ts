@@ -161,6 +161,39 @@ function section(key: string): typeof SECTIONS[SectionKey] {
   return (SECTIONS as Record<string, typeof SECTIONS[SectionKey]>)[key] || SECTIONS.settings;
 }
 
+// ── Modern flat design tokens (radius + soft shadow) ───────────
+const radius = {
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
+  pill: 999,
+} as const;
+
+const shadow = {
+  card: {
+    shadowColor: "#0F3D27",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  raised: {
+    shadowColor: "#0F3D27",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  none: {
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+} as const;
+
 export default {
   primary,
   primaryDeep,
@@ -225,6 +258,8 @@ export default {
   sections: SECTIONS,
   section,
   gradients,
+  radius,
+  shadow,
   light: {
     text: textPrimary,
     background: bg,

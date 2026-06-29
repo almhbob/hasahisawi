@@ -12,6 +12,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import BrandPattern from "@/components/BrandPattern";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const isRTL = I18nManager.isRTL;
@@ -144,14 +145,9 @@ export default function AiSupportScreen() {
 
   if (!status?.enabled) {
     return (
-      <View style={[s.root, { paddingTop: insets.top }]}>
+      <View style={s.root}>
         <BrandPattern variant="diagonal" opacity={0.025} />
-        <LinearGradient colors={["#0D1A12", "#0D1A12CC", "transparent"]} style={s.headerGrad}>
-          <View style={s.header}>
-            <Ionicons name="sparkles" size={24} color={Colors.primary} />
-            <Text style={s.headerTitle}>المساعد الذكي</Text>
-          </View>
-        </LinearGradient>
+        <ModernHeader title="المساعد الذكي" icon="sparkles" />
         <View style={s.offlineWrap}>
           <View style={s.offlineIcon}>
             <Ionicons name="construct-outline" size={48} color={Colors.textMuted} />
@@ -168,32 +164,29 @@ export default function AiSupportScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[s.root, { paddingTop: insets.top }]}
+      style={s.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={insets.bottom + 10}
     >
       <BrandPattern variant="diagonal" opacity={0.025} />
 
       {/* Header */}
-      <LinearGradient colors={["#0D1A12", "#0D1A12CC", "transparent"]} style={s.headerGrad}>
-        <View style={s.header}>
-          <View style={[s.aiAvatar, quotaExceeded && s.aiAvatarOffline]}>
-            <Ionicons name={quotaExceeded ? "moon-outline" : "sparkles"} size={20} color="#000" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>المساعد الذكي</Text>
-            <View style={s.statusRow}>
-              <View style={[s.statusDot, isOnline ? s.statusDotOnline : s.statusDotOffline]} />
-              <Text style={[s.statusTxt, isOnline ? s.statusTxtOnline : s.statusTxtOffline]}>
-                {isOnline ? "متصل" : `مؤقتاً غير متاح${status?.resetIn ? ` — يعود ${status.resetIn}` : ""}`}
-              </Text>
-            </View>
-          </View>
+      <ModernHeader
+        title="المساعد الذكي"
+        icon={quotaExceeded ? "moon-outline" : "sparkles"}
+        rightSlot={
           <TouchableOpacity onPress={fetchStatus} style={s.refreshBtn}>
-            <Ionicons name="refresh-outline" size={18} color={Colors.textMuted} />
+            <Ionicons name="refresh-outline" size={18} color="#fff" />
           </TouchableOpacity>
+        }
+      >
+        <View style={s.statusRow}>
+          <View style={[s.statusDot, isOnline ? s.statusDotOnline : s.statusDotOffline]} />
+          <Text style={[s.statusTxt, isOnline ? s.statusTxtOnline : s.statusTxtOffline]}>
+            {isOnline ? "متصل" : `مؤقتاً غير متاح${status?.resetIn ? ` — يعود ${status.resetIn}` : ""}`}
+          </Text>
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* Quota banner */}
       {quotaExceeded && (

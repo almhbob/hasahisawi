@@ -146,15 +146,15 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
         {/* طبقة الضبابية */}
         {Platform.OS !== "web" && (
           <BlurView
-            intensity={Platform.OS === "ios" ? 70 : 28}
-            tint="dark"
+            intensity={Platform.OS === "ios" ? 50 : 18}
+            tint="light"
             style={StyleSheet.absoluteFill}
           />
         )}
 
         {/* تدرج الخلفية */}
         <LinearGradient
-          colors={[Colors.bg + "F8", Colors.bgDeep + "FC"]}
+          colors={[Colors.white + "FA", Colors.bg + "FA"]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -463,9 +463,9 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   fabGradient: {
-    width: 52,
-    height: 40,
-    borderRadius: 18,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: Colors.primary,
@@ -476,13 +476,13 @@ const styles = StyleSheet.create({
   },
   fabGlow: {
     position: "absolute",
-    top: 2,
-    width: 52,
-    height: 40,
-    borderRadius: 18,
+    top: -4,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Colors.primary,
     opacity: 0.12,
-    transform: [{ scaleX: 1.15 }, { scaleY: 1.3 }],
+    transform: [{ scaleX: 1.22 }, { scaleY: 1.22 }],
     zIndex: -1,
   },
   fabLabel: {
