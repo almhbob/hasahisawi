@@ -9,6 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
 type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories" | "women";
 type MerchantStatus = "pending" | "approved";
@@ -135,6 +136,31 @@ export default function ProductShowcaseScreen() {
     })().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/merchants`, {}, 12000).catch(() => null);
+      if (!res?.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data) ? data : data.merchants ?? [];
+      const apiMerchants: Merchant[] = list.map((m: any) => ({
+        id: `api-${m.id}`,
+        shopName: String(m.shop_name || ""),
+        ownerName: String(m.owner_name || ""),
+        category: (m.category || "boutique") as RetailCategory,
+        phone: String(m.phone || m.whatsapp || ""),
+        address: String(m.address || ""),
+        description: String(m.description || ""),
+        status: "approved",
+        createdAt: m.created_at || new Date().toISOString(),
+      }));
+      if (!apiMerchants.length) return;
+      setMerchants(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        return [...prev, ...apiMerchants.filter(m => !existingIds.has(m.id))];
+      });
+    })();
+  }, []);
+
   useEffect(() => { AsyncStorage.setItem(MERCHANTS_KEY, JSON.stringify(merchants)).catch(() => {}); }, [merchants]);
   useEffect(() => { AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)).catch(() => {}); }, [products]);
   useEffect(() => { AsyncStorage.setItem(CART_KEY, JSON.stringify(cart)).catch(() => {}); }, [cart]);
@@ -157,15 +183,25 @@ export default function ProductShowcaseScreen() {
   const cartTotal = cartDetails.reduce((sum, x) => sum + x.product.price * x.qty, 0);
   const cartCount = cartDetails.reduce((sum, x) => sum + x.qty, 0);
 
-  function addMerchant() {
+  async function addMerchant() {
     if (!shopName.trim() || !ownerName.trim() || !phone.trim()) return Alert.alert("بيانات ناقصة", "أدخل اسم المحل، المسؤول، ورقم الهاتف");
-    const item: Merchant = {
-      id: `m${Date.now()}`,
-      shopName: shopName.trim(), ownerName: ownerName.trim(), category: merchantCat,
-      phone: phone.trim(), address: address.trim(), description: "متجر جديد قيد الاعتماد داخل سوق حصاحيصاوي",
-      status: "pending", createdAt: new Date().toISOString(),
-    };
-    setMerchants(prev => [item, ...prev]);
+    try {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/merchants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shop_name: shopName.trim(),
+          owner_name: ownerName.trim(),
+          category: merchantCat,
+          phone: phone.trim(),
+          address: address.trim(),
+          description: "متجر جديد قيد الاعتماد داخل سوق حصاحيصاوي",
+        }),
+      }, 12000);
+      if (!res.ok) throw new Error("request_failed");
+    } catch {
+      return Alert.alert("تعذر إرسال الطلب", "تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+    }
     setShopName(""); setOwnerName(""); setPhone(""); setAddress(""); setJoinOpen(false);
     Alert.alert("تم إرسال الطلب", "سيظهر المتجر في السوق بعد اعتماده من الإدارة.");
   }
