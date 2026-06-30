@@ -165,6 +165,12 @@ function AuthGate() {
           return;
         }
 
+        // ── المتاجر ──
+        if (type === "store_order" || type === "store_application" || type === "store_approved") {
+          router.push(type === "store_order" ? "/store-portal" : "/stores" as any);
+          return;
+        }
+
         // ── إشعار عام أو بث → شاشة الإشعارات ──
         if (type === "broadcast" || type === "direct" || type === "general") {
           router.push("/notifications" as any);
@@ -256,6 +262,8 @@ function RootLayoutNav() {
         <Stack.Screen name="travel-agencies"          options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
         <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="stores"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="store-portal"             options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
   );
