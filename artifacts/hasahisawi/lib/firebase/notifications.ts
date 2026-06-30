@@ -3,7 +3,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 // ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
 // Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
-const CHANNEL_VERSION     = "4";
+const CHANNEL_VERSION     = "5";
 const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
 
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
