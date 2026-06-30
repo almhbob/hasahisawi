@@ -3070,30 +3070,30 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* نظام المصادقة الذاتي */}
+            {/* Firebase */}
             <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#009B6720" }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color="#009B67" />
+              <View style={[sub_s.iconBox, { backgroundColor: "#FFCA2825" }]}>
+                <MaterialCommunityIcons name="firebase" size={22} color="#F57F17" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>نظام المصادقة الذاتي</Text>
+                  <Text style={sub_s.cardName}>Firebase (Storage & FCM)</Text>
                   <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مدمج مجاناً</Text>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Spark مجاني</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  تسجيل الدخول عبر OTP + JWT مخزّن في PostgreSQL — بدون طرف ثالث، بيانات المستخدمين محلية 100%
+                  رفع الصور والملفات (Storage) + إشعارات Push (FCM) + App Check للحماية من الاستغلال
                 </Text>
                 <View style={sub_s.tagRow}>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>OTP SMS</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>JWT</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>بيانات محلية</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Storage</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>FCM Push</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>App Check</Text></View>
                 </View>
               </View>
               <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#009B67" }]}
-                onPress={() => Linking.openURL("https://railway.app")}
+                style={[sub_s.payBtn, { backgroundColor: "#F57F17" }]}
+                onPress={() => Linking.openURL("https://console.firebase.google.com/project/hasahisawi")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={15} color="#fff" />
