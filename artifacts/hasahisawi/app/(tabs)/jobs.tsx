@@ -26,6 +26,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import { checkConnected } from "@/lib/network";
+import { cacheGet, cacheSet } from "@/lib/offline-cache";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
@@ -343,6 +345,12 @@ export default function JobsScreen() {
   useEffect(() => { loadJobs(); }, []);
 
   const loadJobs = async () => {
+    const online = await checkConnected();
+    if (!online) {
+      const cached = await cacheGet<Job[]>("jobs_list");
+      setJobs(cached ? cached.data : SAMPLE_JOBS);
+      return;
+    }
     try {
       const base = getApiUrl();
       if (!base) { setJobs(SAMPLE_JOBS); return; }
@@ -361,12 +369,16 @@ export default function JobsScreen() {
           createdAt: j.created_at || new Date().toISOString(),
           imageUrl: j.image_url || undefined,
         }));
-        setJobs(list.length > 0 ? list : SAMPLE_JOBS);
+        const final = list.length > 0 ? list : SAMPLE_JOBS;
+        setJobs(final);
+        if (list.length > 0) cacheSet("jobs_list", list).catch(() => {});
       } else {
-        setJobs(SAMPLE_JOBS);
+        const cached = await cacheGet<Job[]>("jobs_list");
+        setJobs(cached ? cached.data : SAMPLE_JOBS);
       }
     } catch {
-      setJobs(SAMPLE_JOBS);
+      const cached = await cacheGet<Job[]>("jobs_list");
+      setJobs(cached ? cached.data : SAMPLE_JOBS);
     }
   };
 

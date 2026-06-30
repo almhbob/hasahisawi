@@ -43,7 +43,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
-import { requireNetwork } from "@/lib/network";
+import { requireNetwork, checkConnected } from "@/lib/network";
+import { cacheGet, cacheSet, cacheAge } from "@/lib/offline-cache";
 import UserAvatar from "@/components/UserAvatar";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
@@ -90,6 +91,7 @@ type MediaAsset = {
 
 const DEVICE_ID_KEY = "social_device_id";
 const USER_NAME_KEY = "social_user_name";
+const POSTS_CACHE_KEY = "social_posts";
 
 const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر"];
 
@@ -1108,6 +1110,8 @@ export default function SocialScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState("");
   const [deviceId, setDeviceId] = useState("");
+  const [fromCache, setFromCache] = useState(false);
+  const [cachedAt, setCachedAt] = useState(0);
   const [userName, setUserName] = useState(auth.user?.name || "مجهول");
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -1130,19 +1134,56 @@ export default function SocialScreen() {
     const p = opts?.reset ? 1 : page;
     if (!opts?.quiet) setLoading(true);
     setError("");
+
+    const online = await checkConnected();
+
+    // أوفلاين — اعرض بيانات الـ cache مباشرةً
+    if (!online && (opts?.reset || p === 1)) {
+      const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+      if (cached) {
+        setPosts(cached.data);
+        setFromCache(true);
+        setCachedAt(Date.now());
+        setPage(2);
+        setHasMore(false);
+      } else {
+        setError("لا يوجد اتصال · لا توجد بيانات محفوظة لهذا القسم");
+      }
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+      return;
+    }
+
     try {
       const id = deviceId || await getDeviceId();
       const data = await apiFetchPosts(id, cat, p);
       if (opts?.reset || p === 1) {
         setPosts(data);
         setPage(2);
+        setFromCache(false);
+        // خزّن الصفحة الأولى فقط (الأحدث) للاستخدام أوفلاين
+        if (data.length > 0) cacheSet(`${POSTS_CACHE_KEY}_${cat}`, data).catch(() => {});
       } else {
         setPosts(prev => [...prev, ...data]);
         setPage(p + 1);
       }
       setHasMore(data.length >= 30);
     } catch {
-      setError("تعذّر تحميل المنشورات");
+      // عند الفشل جرّب الـ cache كبديل
+      if (p === 1) {
+        const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+        if (cached) {
+          setPosts(cached.data);
+          setFromCache(true);
+          setCachedAt(Date.now());
+          setHasMore(false);
+        } else {
+          setError("تعذّر تحميل المنشورات");
+        }
+      } else {
+        setError("تعذّر تحميل المزيد");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -1353,9 +1394,17 @@ export default function SocialScreen() {
             />
           }
           ListHeaderComponent={
-            !auth.isGuest ? (
-              <ComposeBar name={userName} onPress={handleComposePress} />
-            ) : null
+            <>
+              {fromCache && (
+                <View style={styles.cacheBanner}>
+                  <Ionicons name="cloud-offline-outline" size={14} color={Colors.textMuted} />
+                  <Text style={styles.cacheBannerText}>بيانات محفوظة · تحديث عند عودة الاتصال</Text>
+                </View>
+              )}
+              {!auth.isGuest ? (
+                <ComposeBar name={userName} onPress={handleComposePress} />
+              ) : null}
+            </>
           }
           ListEmptyComponent={
             loading ? (
@@ -1650,5 +1699,14 @@ const cs = StyleSheet.create({
     width: 42, height: 42, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary,
     alignItems: "center", justifyContent: "center",
     ...Colors.shadow.raised,
+  },
+  cacheBanner: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
+    backgroundColor: Colors.surface1, borderWidth: 1, borderColor: Colors.divider,
+    borderRadius: Colors.radius.md, marginHorizontal: 14, marginTop: 8,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  cacheBannerText: {
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right",
   },
 });
