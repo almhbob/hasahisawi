@@ -152,6 +152,8 @@ type Driver = {
   id: number; name: string; vehicle_type: string; vehicle_desc: string;
   area: string; zone_id: number | null; is_online: boolean;
   total_trips: number; rating: number; phone: string;
+  status: "pending" | "approved" | "rejected";
+  user_id?: number;
 };
 type Trip = {
   id: number; user_name: string; trip_type: string;
@@ -465,7 +467,7 @@ export default function TransportScreen() {
   const [note,       setNote]      = useState("");
   const [neighborhoodsByZone, setNeighborhoodsByZone] = useState<Record<number, string[]>>({});
   const [loading,    setLoading]   = useState(true);
-  const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register">("book");
+  const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register" | "driver">("book");
 
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [myTrips,    setMyTrips]    = useState<Trip[]>([]);
@@ -503,6 +505,13 @@ export default function TransportScreen() {
   const [quizRevealed, setQuizRevealed] = useState(false);
   const [quizScore,    setQuizScore]    = useState(0);
   const [quizPassed,   setQuizPassed]   = useState(false);
+
+  // ── بيانات السائق (لتبويب "كسائق") ──
+  const [driverProfile,        setDriverProfile]        = useState<Driver | null>(null);
+  const [pendingTrips,         setPendingTrips]         = useState<Trip[]>([]);
+  const [driverLoading,        setDriverLoading]        = useState(false);
+  const [accepting,            setAccepting]            = useState<number | null>(null);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   // ── خريطة الأحياء المجتمعية ──
   const [showCommunityModal, setShowCommunityModal] = useState(false);
@@ -605,16 +614,76 @@ export default function TransportScreen() {
     } catch {}
   }, [apiUrl, token]);
 
+  const loadDriverProfile = useCallback(async () => {
+    if (!token) return;
+    setDriverLoading(true);
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/driver/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setDriverProfile(await res.json());
+      else setDriverProfile(null);
+    } catch { setDriverProfile(null); }
+    finally { setDriverLoading(false); }
+  }, [apiUrl, token]);
+
+  const loadPendingTrips = useCallback(async () => {
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/active-trips`);
+      if (res.ok) setPendingTrips(await res.json());
+    } catch {}
+  }, [apiUrl]);
+
+  const acceptTrip = useCallback(async (tripId: number) => {
+    if (!token) return;
+    setAccepting(tripId);
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/trips/${tripId}/accept`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("✅ تم قبول الرحلة", "تواصل مع العميل فوراً.", [{ text: "حسناً" }]);
+        loadPendingTrips();
+      } else {
+        const j = await res.json().catch(() => ({}));
+        Alert.alert("خطأ", (j as any).error || "تعذّر قبول الرحلة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setAccepting(null); }
+  }, [apiUrl, token, loadPendingTrips]);
+
+  const toggleAvailability = useCallback(async () => {
+    if (!token || !driverProfile) return;
+    setTogglingAvailability(true);
+    const newState = !driverProfile.is_online;
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/driver/availability`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_online: newState }),
+      });
+      if (res.ok) {
+        setDriverProfile(prev => prev ? { ...prev, is_online: newState } : prev);
+        if (newState && Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("خطأ", "تعذّر تغيير حالة الإتاحة");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setTogglingAvailability(false); }
+  }, [apiUrl, token, driverProfile]);
+
   useEffect(() => { loadStatus(); loadFares(); loadNeighborhoods(); loadCommunityStats(); }, []);
   useEffect(() => {
-    if (enabled) { loadDrivers(); loadMyTrips(); }
+    if (enabled) { loadDrivers(); loadMyTrips(); loadDriverProfile(); }
   }, [enabled]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadDrivers(), loadMyTrips(), loadFares()]);
+    await Promise.all([loadDrivers(), loadMyTrips(), loadFares(), loadDriverProfile()]);
     setRefreshing(false);
-  }, [loadDrivers, loadMyTrips, loadFares]);
+  }, [loadDrivers, loadMyTrips, loadFares, loadDriverProfile]);
 
   // تحديث تلقائي لتبويب "طلباتي" كل ٣٠ ثانية
   useEffect(() => {
@@ -622,6 +691,14 @@ export default function TransportScreen() {
     const interval = setInterval(() => { loadMyTrips(); }, 30_000);
     return () => clearInterval(interval);
   }, [activeTab, token, loadMyTrips]);
+
+  // تحديث تلقائي لتبويب "كسائق" كل ٢٠ ثانية
+  useEffect(() => {
+    if (activeTab !== "driver" || !driverProfile) return;
+    loadPendingTrips();
+    const interval = setInterval(() => { loadPendingTrips(); }, 20_000);
+    return () => clearInterval(interval);
+  }, [activeTab, driverProfile]);
 
   // تقييم رحلة مكتملة
   const rateTrip = useCallback(async (tripId: number, rating: number, note: string) => {
@@ -792,6 +869,9 @@ export default function TransportScreen() {
     { key: "drivers",  label: "السائقون",   icon: "people-outline"    as const },
     { key: "mytrips",  label: "طلباتي",     icon: "list-outline"      as const },
     { key: "register", label: "كن سائقاً",  icon: "car-sport-outline" as const },
+    ...(driverProfile?.status === "approved"
+      ? [{ key: "driver" as const, label: "لوحة السائق", icon: "navigate-circle-outline" as const }]
+      : []),
   ];
 
   const onlineCnt   = drivers.filter(d => d.is_online).length;
@@ -1147,6 +1227,189 @@ export default function TransportScreen() {
                 onCancel={cancelTrip}
               />
             ))}
+          </Animated.View>
+        )}
+
+        {/* ──── لوحة السائق ──── */}
+        {activeTab === "driver" && driverProfile && (
+          <Animated.View entering={FadeInDown.springify()} style={{ gap: 14 }}>
+
+            {/* ─ بطاقة الحالة والتبديل ─ */}
+            <View style={{ backgroundColor: Colors.cardBg, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: driverProfile.is_online ? GREEN + "40" : Colors.divider }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                  <View style={{ width: 46, height: 46, borderRadius: 23,
+                    backgroundColor: driverProfile.is_online ? GREEN + "20" : Colors.divider + "80",
+                    alignItems: "center", justifyContent: "center",
+                    borderWidth: 1, borderColor: driverProfile.is_online ? GREEN + "50" : Colors.divider }}>
+                    <MaterialCommunityIcons name="steering" size={24} color={driverProfile.is_online ? GREEN : Colors.textMuted} />
+                  </View>
+                  <View>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>
+                      {(driverProfile as any).phone || "سائق معتمد"}
+                    </Text>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 2 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: driverProfile.is_online ? GREEN : Colors.textMuted }} />
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: driverProfile.is_online ? GREEN : Colors.textMuted }}>
+                        {driverProfile.is_online ? "متاح الآن" : "غير متاح"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* زر التبديل */}
+                <TouchableOpacity
+                  onPress={toggleAvailability}
+                  disabled={togglingAvailability}
+                  activeOpacity={0.8}
+                  style={{ borderRadius: 24, overflow: "hidden" }}>
+                  {togglingAvailability
+                    ? <ActivityIndicator color={ACCENT} size="small" style={{ paddingHorizontal: 16 }} />
+                    : (
+                      <LinearGradient
+                        colors={driverProfile.is_online ? [GREEN, "#22C55E"] : [Colors.divider, Colors.cardBg]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, borderWidth: 1, borderColor: driverProfile.is_online ? GREEN + "60" : Colors.divider }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: driverProfile.is_online ? "#000" : Colors.textMuted }}>
+                          {driverProfile.is_online ? "⏸ توقف" : "▶ ابدأ"}
+                        </Text>
+                      </LinearGradient>
+                    )}
+                </TouchableOpacity>
+              </View>
+
+              {/* إحصائيات السائق */}
+              <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
+                {[
+                  { label: "الرحلات",  val: driverProfile.total_trips ?? 0, color: BLUE   },
+                  { label: "التقييم",  val: driverProfile.rating ? `${driverProfile.rating}⭐` : "—", color: ACCENT2 },
+                  { label: "المنطقة",  val: driverProfile.area || "—",        color: GREEN  },
+                ].map((st, i) => (
+                  <View key={i} style={{ flex: 1, backgroundColor: st.color + "12", borderRadius: 10, padding: 10, alignItems: "center", borderWidth: 1, borderColor: st.color + "25" }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: st.color }}>{st.val}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>{st.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* ─ عنوان الطلبات المتاحة ─ */}
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary }}>
+                  الطلبات المفتوحة
+                </Text>
+              </View>
+              <TouchableOpacity onPress={loadPendingTrips} style={{ padding: 8 }}>
+                <Ionicons name="refresh-outline" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {!driverProfile.is_online ? (
+              <View style={s.emptyCard}>
+                <MaterialCommunityIcons name="power-off" size={42} color={Colors.textMuted} />
+                <Text style={s.emptyText}>أنت غير متاح حالياً</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
+                  اضغط "ابدأ" أعلاه لاستقبال طلبات المشاوير
+                </Text>
+              </View>
+            ) : pendingTrips.length === 0 ? (
+              <View style={s.emptyCard}>
+                <MaterialCommunityIcons name="car-clock" size={42} color={Colors.textMuted} />
+                <Text style={s.emptyText}>لا توجد طلبات مفتوحة الآن</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
+                  ستظهر الطلبات الجديدة هنا تلقائياً
+                </Text>
+              </View>
+            ) : pendingTrips.map(trip => {
+              const fromZ = TRANSPORT_ZONES.find(z => z.id === trip.from_zone);
+              const toZ   = TRANSPORT_ZONES.find(z => z.id === trip.to_zone);
+              const vcIcon = trip.vehicle_preference === "rickshaw"   ? "rickshaw"        :
+                             trip.vehicle_preference === "delivery"   ? "package-variant" :
+                             trip.vehicle_preference === "motorcycle" ? "motorcycle"       : "car-side";
+              const isAccepting = accepting === trip.id;
+              return (
+                <Animated.View key={trip.id} entering={FadeInDown.springify()} style={{
+                  backgroundColor: Colors.cardBg, borderRadius: 18, overflow: "hidden",
+                  borderWidth: 1, borderColor: ACCENT + "30",
+                }}>
+                  {/* شريط الأولوية */}
+                  <LinearGradient colors={[ACCENT + "30", ACCENT2 + "10"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }}
+                    style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                    <MaterialCommunityIcons name={vcIcon as any} size={18} color={ACCENT} />
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: ACCENT, flex: 1, textAlign: "right" }}>
+                      {trip.vehicle_preference === "rickshaw" ? "ركشة" :
+                       trip.vehicle_preference === "delivery" ? "توصيل شحنة" :
+                       trip.vehicle_preference === "motorcycle" ? "دراجة نارية" : "سيارة"}
+                    </Text>
+                    {trip.fare_estimate ? (
+                      <View style={{ backgroundColor: ACCENT2 + "25", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: ACCENT2 }}>
+                          {formatFare(trip.fare_estimate)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </LinearGradient>
+
+                  <View style={{ padding: 14, gap: 10 }}>
+                    {/* المسار */}
+                    <View style={{ gap: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: GREEN }} />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>
+                          {trip.from_location || (fromZ ? fromZ.name : `منطقة ${trip.from_zone}`)}
+                        </Text>
+                      </View>
+                      <View style={{ marginRight: 4, height: 14, width: 2, backgroundColor: Colors.divider, alignSelf: "flex-end" }} />
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: ACCENT }} />
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>
+                          {trip.to_location || (toZ ? toZ.name : `منطقة ${trip.to_zone}`)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* بيانات التواصل */}
+                    {(trip.user_name || trip.notes) ? (
+                      <View style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 10, gap: 4 }}>
+                        {trip.user_name ? (
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                            👤 {trip.user_name}
+                          </Text>
+                        ) : null}
+                        {trip.notes ? (
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                            📝 {trip.notes}
+                          </Text>
+                        ) : null}
+                        {trip.delivery_desc ? (
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                            📦 {trip.delivery_desc}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+
+                    {/* زر القبول */}
+                    <TouchableOpacity
+                      onPress={() => acceptTrip(trip.id)}
+                      disabled={isAccepting || accepting !== null}
+                      activeOpacity={0.85}
+                      style={{ borderRadius: 12, overflow: "hidden", opacity: (accepting !== null && !isAccepting) ? 0.5 : 1 }}>
+                      <LinearGradient colors={[GREEN, "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
+                        {isAccepting
+                          ? <ActivityIndicator color="#000" size="small" />
+                          : <>
+                              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#000" />
+                              <Text style={[s.submitBtnText, { color: "#000" }]}>قبول المشوار</Text>
+                            </>}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              );
+            })}
           </Animated.View>
         )}
 
