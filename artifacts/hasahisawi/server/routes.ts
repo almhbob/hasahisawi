@@ -7807,6 +7807,351 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // ── متاجر المجتمع ─────────────────────────────────────────────────────────────
+  async function ensureStoreTables() {
+    await query(`CREATE TABLE IF NOT EXISTS stores (
+      id SERIAL PRIMARY KEY,
+      owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(200) NOT NULL,
+      type VARCHAR(50) DEFAULT 'general',
+      description TEXT,
+      logo_url TEXT,
+      cover_url TEXT,
+      phone VARCHAR(30),
+      address TEXT,
+      working_hours TEXT DEFAULT '٨ص–١٠م',
+      delivery_available BOOLEAN DEFAULT TRUE,
+      min_order NUMERIC(8,2) DEFAULT 0,
+      delivery_fee NUMERIC(8,2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS store_categories (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+      name VARCHAR(100) NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS store_products (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+      category_id INTEGER REFERENCES store_categories(id) ON DELETE SET NULL,
+      name VARCHAR(200) NOT NULL,
+      description TEXT,
+      price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      image_url TEXT,
+      is_available BOOLEAN DEFAULT TRUE,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS store_orders (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) ON DELETE SET NULL,
+      customer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      customer_name VARCHAR(100),
+      customer_phone VARCHAR(30),
+      customer_address TEXT,
+      customer_notes TEXT,
+      items JSONB DEFAULT '[]',
+      subtotal NUMERIC(10,2) DEFAULT 0,
+      delivery_fee NUMERIC(8,2) DEFAULT 0,
+      total NUMERIC(10,2) DEFAULT 0,
+      status VARCHAR(30) DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+  }
+
+  // ── Public: قائمة المتاجر ─────────────────────────────────────────────────
+  app.get("/api/stores", async (req, res) => {
+    try {
+      await ensureStoreTables();
+      const type  = req.query.type  as string | undefined;
+      const q     = req.query.q     as string | undefined;
+      let sql  = `SELECT s.*, u.name as owner_name,
+        (SELECT COUNT(*) FROM store_products p WHERE p.store_id=s.id AND p.is_available=TRUE) as product_count
+        FROM stores s LEFT JOIN users u ON u.id=s.owner_id
+        WHERE s.status='active'`;
+      const params: unknown[] = [];
+      if (type && type !== "all") { params.push(type); sql += ` AND s.type=$${params.length}`; }
+      if (q) { params.push(`%${q}%`); sql += ` AND (s.name ILIKE $${params.length} OR s.description ILIKE $${params.length})`; }
+      sql += " ORDER BY s.created_at DESC LIMIT 100";
+      const r = await query(sql, params);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Public: تفاصيل متجر + منتجاته + تصنيفاته ────────────────────────────
+  app.get("/api/stores/:id", async (req, res) => {
+    try {
+      await ensureStoreTables();
+      const id = parseInt(req.params.id);
+      const [storeRes, catsRes, prdsRes] = await Promise.all([
+        query(`SELECT s.*, u.name as owner_name FROM stores s LEFT JOIN users u ON u.id=s.owner_id WHERE s.id=$1`, [id]),
+        query(`SELECT * FROM store_categories WHERE store_id=$1 ORDER BY sort_order, id`, [id]),
+        query(`SELECT * FROM store_products WHERE store_id=$1 AND is_available=TRUE ORDER BY sort_order, id`, [id]),
+      ]);
+      if (!storeRes.rows.length) return res.status(404).json({ error: "المتجر غير موجود" });
+      res.json({ store: storeRes.rows[0], categories: catsRes.rows, products: prdsRes.rows });
+    } catch { res.status(500).json({ error: "خطأ في الخادم" }); }
+  });
+
+  // ── Public: إرسال طلب شراء ───────────────────────────────────────────────
+  app.post("/api/stores/:id/orders", async (req, res) => {
+    try {
+      await ensureStoreTables();
+      const storeId = parseInt(req.params.id);
+      const me = await getSessionUser(req).catch(() => null);
+      const { customer_name, customer_phone, customer_address, customer_notes, items, subtotal, delivery_fee, total } = req.body;
+      if (!items?.length) return res.status(400).json({ error: "الطلب فارغ" });
+      const r = await query(
+        `INSERT INTO store_orders (store_id,customer_id,customer_name,customer_phone,customer_address,customer_notes,items,subtotal,delivery_fee,total)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [storeId, me?.id || null, customer_name, customer_phone, customer_address || null, customer_notes || null,
+         JSON.stringify(items), subtotal, delivery_fee, total]
+      );
+      const order = r.rows[0];
+      // إشعار صاحب المتجر
+      const storeRes = await query(`SELECT owner_id, name FROM stores WHERE id=$1`, [storeId]).catch(() => ({ rows: [] }));
+      if (storeRes.rows[0]?.owner_id) {
+        void pushToUser(storeRes.rows[0].owner_id, `🛍️ طلب جديد — ${storeRes.rows[0].name}`,
+          `${customer_name} — ${formatPrice(total)} ج.س`, { type: "store_order", orderId: order.id, storeId }, "DEFAULT");
+      }
+      res.json(order);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Owner: بيانات متجري ──────────────────────────────────────────────────
+  app.get("/api/store/my", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const r = await query(`SELECT * FROM stores WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 1`, [me.id]);
+      if (!r.rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
+      res.json(r.rows[0]);
+    } catch { res.status(500).json({ error: "خطأ" }); }
+  });
+
+  // ── Owner: تسجيل متجر جديد ───────────────────────────────────────────────
+  app.post("/api/store/register", upload.single("logo"), async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee } = req.body;
+      if (!name) return res.status(400).json({ error: "اسم المتجر مطلوب" });
+      let logo_url: string | null = null;
+      if ((req as any).file) {
+        logo_url = await uploadToCloudinary((req as any).file.buffer, (req as any).file.mimetype, "stores").catch(() => null);
+      }
+      const r = await query(
+        `INSERT INTO stores (owner_id,name,type,description,phone,address,working_hours,delivery_available,min_order,delivery_fee,logo_url,status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending') RETURNING *`,
+        [me.id, name.trim(), type||"general", description||null, phone||null, address||null,
+         working_hours||"٨ص–١٠م", delivery_available!==false, parseFloat(min_order)||0, parseFloat(delivery_fee)||0, logo_url]
+      );
+      void pushToAdmins("🏪 طلب فتح متجر", `${me.name}: ${name}`, { screen: "admin", type: "store_application" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Owner: تحديث بيانات المتجر ──────────────────────────────────────────
+  app.put("/api/store/my", upload.fields([{ name: "logo" }, { name: "cover" }]), async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const storeRes = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!storeRes.rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
+      const sid = storeRes.rows[0].id;
+      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee } = req.body;
+      const files = (req as any).files as Record<string, Express.Multer.File[]> | undefined;
+      let logo_url: string | undefined;
+      let cover_url: string | undefined;
+      if (files?.logo?.[0]) logo_url  = await uploadToCloudinary(files.logo[0].buffer,  files.logo[0].mimetype,  "stores").catch(() => undefined);
+      if (files?.cover?.[0]) cover_url = await uploadToCloudinary(files.cover[0].buffer, files.cover[0].mimetype, "stores").catch(() => undefined);
+      const r = await query(
+        `UPDATE stores SET
+          name=COALESCE($1,name), type=COALESCE($2,type), description=COALESCE($3,description),
+          phone=COALESCE($4,phone), address=COALESCE($5,address), working_hours=COALESCE($6,working_hours),
+          delivery_available=COALESCE($7,delivery_available), min_order=COALESCE($8,min_order), delivery_fee=COALESCE($9,delivery_fee),
+          logo_url=COALESCE($10,logo_url), cover_url=COALESCE($11,cover_url)
+         WHERE id=$12 RETURNING *`,
+        [name||null, type||null, description||null, phone||null, address||null, working_hours||null,
+         delivery_available!==undefined ? delivery_available!==false : null,
+         min_order ? parseFloat(min_order) : null, delivery_fee ? parseFloat(delivery_fee) : null,
+         logo_url||null, cover_url||null, sid]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Owner: تصنيفات المتجر ────────────────────────────────────────────────
+  app.get("/api/store/my/categories", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.json([]);
+      const r = await query(`SELECT * FROM store_categories WHERE store_id=$1 ORDER BY sort_order, id`, [s.rows[0].id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/store/my/categories", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
+      const { name, sort_order } = req.body;
+      const r = await query(`INSERT INTO store_categories (store_id,name,sort_order) VALUES ($1,$2,$3) RETURNING *`,
+        [s.rows[0].id, name.trim(), sort_order||0]);
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/store/my/categories/:id", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(403).json({ error: "غير مصرح" });
+      await query(`DELETE FROM store_categories WHERE id=$1 AND store_id=$2`, [parseInt(req.params.id), s.rows[0].id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Owner: منتجات المتجر ─────────────────────────────────────────────────
+  app.get("/api/store/my/products", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.json([]);
+      const r = await query(`SELECT p.*, c.name as category_name FROM store_products p LEFT JOIN store_categories c ON c.id=p.category_id WHERE p.store_id=$1 ORDER BY p.sort_order, p.id`, [s.rows[0].id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/store/my/products", upload.single("image"), async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
+      const { name, description, price, category_id, sort_order } = req.body;
+      if (!name || price === undefined) return res.status(400).json({ error: "الاسم والسعر مطلوبان" });
+      let image_url: string | null = null;
+      if ((req as any).file) image_url = await uploadToCloudinary((req as any).file.buffer, (req as any).file.mimetype, "store_products").catch(() => null);
+      const r = await query(
+        `INSERT INTO store_products (store_id,category_id,name,description,price,image_url,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [s.rows[0].id, category_id||null, name.trim(), description||null, parseFloat(price), image_url, sort_order||0]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.put("/api/store/my/products/:id", upload.single("image"), async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(403).json({ error: "غير مصرح" });
+      const { name, description, price, category_id, is_available, sort_order } = req.body;
+      let image_url: string | null | undefined;
+      if ((req as any).file) image_url = await uploadToCloudinary((req as any).file.buffer, (req as any).file.mimetype, "store_products").catch(() => null);
+      const r = await query(
+        `UPDATE store_products SET
+          name=COALESCE($1,name), description=COALESCE($2,description), price=COALESCE($3,price),
+          category_id=COALESCE($4,category_id), is_available=COALESCE($5,is_available),
+          sort_order=COALESCE($6,sort_order), image_url=COALESCE($7,image_url)
+         WHERE id=$8 AND store_id=$9 RETURNING *`,
+        [name||null, description||null, price?parseFloat(price):null, category_id||null,
+         is_available!==undefined?(is_available!==false&&is_available!=="false"):null,
+         sort_order?parseInt(sort_order):null, image_url||null, parseInt(req.params.id), s.rows[0].id]
+      );
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.delete("/api/store/my/products/:id", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(403).json({ error: "غير مصرح" });
+      await query(`DELETE FROM store_products WHERE id=$1 AND store_id=$2`, [parseInt(req.params.id), s.rows[0].id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Owner: طلبات المتجر ──────────────────────────────────────────────────
+  app.get("/api/store/my/orders", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.json([]);
+      const r = await query(`SELECT * FROM store_orders WHERE store_id=$1 ORDER BY created_at DESC LIMIT 200`, [s.rows[0].id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.patch("/api/store/my/orders/:id", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const s = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
+      if (!s.rows.length) return res.status(403).json({ error: "غير مصرح" });
+      const { status } = req.body;
+      const r = await query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND store_id=$3 RETURNING *`, [status, parseInt(req.params.id), s.rows[0].id]);
+      const order = r.rows[0];
+      if (order?.customer_id) {
+        const labels: Record<string, string> = { confirmed: "تأكيد طلبك", preparing: "جاري تجهيز طلبك", out_for_delivery: "طلبك في الطريق إليك", delivered: "تم توصيل طلبك", cancelled: "تم إلغاء طلبك" };
+        const label = labels[status] || status;
+        void pushToUser(order.customer_id, `🛍️ ${label}`, `طلب رقم #${order.id}`, { type: "order_status", orderId: order.id }, "DEFAULT");
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Customer: طلباتي من المتاجر ─────────────────────────────────────────
+  app.get("/api/store/my-orders", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const r = await query(`SELECT o.*, s.name as store_name, s.logo_url as store_logo, s.type as store_type FROM store_orders o LEFT JOIN stores s ON s.id=o.store_id WHERE o.customer_id=$1 ORDER BY o.created_at DESC LIMIT 50`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ── Admin: إدارة المتاجر ─────────────────────────────────────────────────
+  app.get("/api/admin/stores", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      await ensureStoreTables();
+      const r = await query(`SELECT s.*, u.name as owner_name, u.email as owner_email FROM stores s LEFT JOIN users u ON u.id=s.owner_id ORDER BY s.created_at DESC`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  app.patch("/api/admin/stores/:id", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { status } = req.body;
+      const r = await query(`UPDATE stores SET status=$1 WHERE id=$2 RETURNING *`, [status, parseInt(req.params.id)]);
+      const store = r.rows[0];
+      if (store?.owner_id && status === "active") {
+        void pushToUser(store.owner_id, "🎉 تمت الموافقة على متجرك", `متجر "${store.name}" الآن مفعّل ويظهر للعملاء`, { type: "store_approved", storeId: store.id }, "DEFAULT");
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  function formatPrice(n: number | string): string {
+    return `${Number(n).toLocaleString("ar-SD")} ج.س`;
+  }
+
   // ════════════════════════════════════════════════════════════════════════════
   const httpServer = createServer(app);
   return httpServer;
