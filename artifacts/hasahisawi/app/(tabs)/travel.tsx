@@ -6,7 +6,6 @@ import {
   TextInput, Platform, Alert, Modal, Share, Linking, KeyboardAvoidingView,
   ActivityIndicator, FlatList, Pressable, Dimensions,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -1132,7 +1131,6 @@ function sendToWhatsApp(booking: TravelBooking) {
 // الشاشة الرئيسية
 // ═══════════════════════════════════════════════════════════════
 export default function TravelScreen() {
-  const insets  = useSafeAreaInsets();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"book"|"tickets"|"partners">("book");
   const [myBookingsCount, setMyBookingsCount] = useState(0);

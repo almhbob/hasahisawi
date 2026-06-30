@@ -588,11 +588,6 @@ export default function FactoriesScreen() {
 // ════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  header:       { paddingHorizontal: 16, paddingBottom: 12 },
-  headerRow:    { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
-  headerIcon:   { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  headerTitle:  { fontSize: 18, fontFamily: "Cairo_700Bold", color: Colors.text },
-  headerSub:    { fontSize: 11, color: Colors.textMuted },
   pkgBtn:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)" },
   pkgBtnText:   { fontSize: 11, fontFamily: "Cairo_600SemiBold", color: "#fff" },
   searchWrap:   { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", paddingHorizontal: 12, paddingVertical: 8 },

@@ -6,7 +6,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { fetch } from "expo/fetch";
 import * as Print from "expo-print";
@@ -94,7 +93,6 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>
 // ═══════════════════════════════════════════════════════════════════════════
 export default function LawyersScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const [tab, setTab] = useState<"directory" | "forms" | "contracts">("directory");
 
