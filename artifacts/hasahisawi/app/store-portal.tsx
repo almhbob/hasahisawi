@@ -316,6 +316,7 @@ function RegisterStoreView({
   const [deliveryFee, setDeliveryFee] = useState("");
   const [minOrder, setMinOrder] = useState("");
   const [workingHours, setWorkingHours] = useState("");
+  const [womenOnly, setWomenOnly] = useState(false);
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -346,6 +347,7 @@ function RegisterStoreView({
       form.append("delivery_available", deliveryAvailable ? "true" : "false");
       form.append("min_order", minOrder || "0");
       form.append("delivery_fee", deliveryFee || "0");
+      form.append("women_only", womenOnly ? "true" : "false");
       if (logoUri) {
         form.append("logo", { uri: logoUri, name: "logo.jpg", type: "image/jpeg" } as any);
       }
@@ -487,6 +489,21 @@ function RegisterStoreView({
           placeholderTextColor={Colors.textMuted}
           textAlign="right"
         />
+
+        <View style={[styles.switchRow, { marginTop: 8, borderRadius: Colors.radius.md, backgroundColor: "#A855F710", padding: 12, borderWidth: 1, borderColor: "#A855F730" }]}>
+          <Switch
+            value={womenOnly}
+            onValueChange={setWomenOnly}
+            trackColor={{ false: Colors.divider, true: "#A855F740" }}
+            thumbColor={womenOnly ? "#A855F7" : "#999"}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.switchLabel, { color: "#A855F7" }]}>متجر نسائي خاص 🌸</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+              سيظهر في قسم ركن المرأة ضمن البوتيكات النسائية
+            </Text>
+          </View>
+        </View>
       </Animated.View>
 
       {/* Card 3: Logo */}

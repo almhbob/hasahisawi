@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Linking, Platform, Alert,
-  Modal, ActivityIndicator, KeyboardAvoidingView, Keyboard,
+  Modal, ActivityIndicator, KeyboardAvoidingView, Keyboard, Image,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -115,10 +115,37 @@ const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: str
   handmade:  { label: "أعمال يدوية",  icon: "hand-heart-outline",  color: "#14B8A6" },
 };
 
+const STORE_TYPE_LABELS: Record<string, string> = {
+  boutique:  "بوتيك",
+  restaurant: "مطعم",
+  cafe:       "كافيه",
+  grocery:    "بقالة",
+  pharmacy:   "صيدلية",
+  sweets:     "حلويات",
+  electronics:"إلكترونيات",
+  general:    "متجر عام",
+};
+
 // ══════════════════════════════════════════════════════
 // SCREEN
 // ══════════════════════════════════════════════════════
-type SubTab = "services" | "health" | "recipes" | "handmade";
+type SubTab = "services" | "health" | "recipes" | "handmade" | "boutiques";
+
+type WomenStore = {
+  id: number;
+  name: string;
+  type: string;
+  description: string | null;
+  logo_url: string | null;
+  phone: string | null;
+  address: string | null;
+  working_hours: string;
+  delivery_available: boolean;
+  min_order: number;
+  delivery_fee: number;
+  product_count: number;
+  owner_name: string | null;
+};
 
 export default function WomenScreen() {
   const { user, isGuest, setUserGender } = useAuth();
@@ -130,6 +157,9 @@ export default function WomenScreen() {
   const [subTab, setSubTab] = useState<SubTab>("services");
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [expandedTip, setExpandedTip]       = useState<string | null>(null);
+  const [womenStores, setWomenStores]       = useState<WomenStore[]>([]);
+  const [storesLoading, setStoresLoading]   = useState(false);
+  const [storeSearch, setStoreSearch]       = useState("");
 
   // ── نموذج الانضمام ──────────────────────────────────────────────────────
   const [joinModal,    setJoinModal]   = useState(false);
@@ -204,7 +234,21 @@ export default function WomenScreen() {
     } catch { /* offline */ }
   };
 
+  const loadWomenStores = async () => {
+    setStoresLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/stores?women_only=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setWomenStores(data);
+      }
+    } catch { /* offline */ } finally {
+      setStoresLoading(false);
+    }
+  };
+
   useEffect(() => { load(); }, [filter]);
+  useEffect(() => { if (subTab === "boutiques") loadWomenStores(); }, [subTab]);
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const filtered = services.filter(s => {
@@ -331,14 +375,15 @@ export default function WomenScreen() {
         {/* Sub tabs */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...s.subTabRow }}>
           {([
-            ["services",  "الخدمات",      "storefront-outline",   "#FF4FA3"],
-            ["handmade",  "يدوية",         "hand-heart-outline",   "#14B8A6"],
-            ["health",    "صحة المرأة",   "heart-outline",        "#3E9CBF"],
-            ["recipes",   "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
+            ["services",   "الخدمات",      "storefront-outline",   "#FF4FA3"],
+            ["boutiques",  "بوتيكات",       "bag-personal-outline", "#A855F7"],
+            ["handmade",   "يدوية",         "hand-heart-outline",   "#14B8A6"],
+            ["health",     "صحة المرأة",   "heart-outline",        "#3E9CBF"],
+            ["recipes",    "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
           ] as [SubTab, string, string, string][]).map(([k, label, icon, color]) => (
             <TouchableOpacity key={k} style={[s.subTab, subTab === k && s.subTabActive]} onPress={() => setSubTab(k)}>
               {subTab === k && <LinearGradient colors={[color + "30", color + "10"]} style={StyleSheet.absoluteFill} />}
-              <Ionicons name={icon as any} size={14} color={subTab === k ? color : Colors.textMuted} />
+              <MaterialCommunityIcons name={icon as any} size={14} color={subTab === k ? color : Colors.textMuted} />
               <Text style={[s.subTabText, subTab === k && { color }]}>{label}</Text>
             </TouchableOpacity>
           ))}
@@ -736,6 +781,161 @@ export default function WomenScreen() {
         </ScrollView>
       )}
 
+      {/* ══ TAB: BOUTIQUES ══ */}
+      {subTab === "boutiques" && (
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+
+          {/* بانر ترحيبي */}
+          <Animated.View entering={FadeIn.duration(400)}>
+            <View style={bt.introBanner}>
+              <LinearGradient colors={["#A855F730", "#FF4FA320"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="shopping-outline" size={36} color="#A855F7" style={{ marginBottom: 8 }} />
+              <Text style={bt.introTitle}>البوتيكات النسائية</Text>
+              <Text style={bt.introSub}>
+                تسوّقي بخصوصية تامة — عطور، ملابس، إكسسوارات وأكثر من بوتيكات حصاحيصاوية موثوقة
+              </Text>
+            </View>
+          </Animated.View>
+
+          {/* شريط البحث */}
+          <View style={s.searchRow}>
+            <MaterialCommunityIcons name="magnify" size={18} color={Colors.textMuted} />
+            <TextInput
+              style={s.searchInput}
+              placeholder="ابحثي عن بوتيك..."
+              placeholderTextColor={Colors.textMuted}
+              value={storeSearch}
+              onChangeText={setStoreSearch}
+              textAlign="right"
+            />
+          </View>
+
+          {storesLoading ? (
+            <ActivityIndicator color="#A855F7" size="large" style={{ marginTop: 40 }} />
+          ) : womenStores.length === 0 ? (
+            <Animated.View entering={FadeIn.duration(500)}>
+              <View style={bt.emptyBanner}>
+                <MaterialCommunityIcons name="store-off-outline" size={52} color="#A855F750" />
+                <Text style={bt.emptyTitle}>لا توجد بوتيكات بعد</Text>
+                <Text style={bt.emptySub}>
+                  كوني أول من تفتح بوتيكها في حصاحيصا — اضغطي على "فتح متجري" للبدء
+                </Text>
+                <TouchableOpacity
+                  style={bt.openStoreBtn}
+                  onPress={() => router.push("/store-portal" as any)}
+                >
+                  <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.openStoreBtnGrad}>
+                    <MaterialCommunityIcons name="store-plus-outline" size={18} color="#fff" />
+                    <Text style={bt.openStoreBtnText}>فتح بوتيكي</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          ) : (
+            <>
+              {womenStores
+                .filter(st => !storeSearch || st.name.includes(storeSearch) || (st.description ?? "").includes(storeSearch) || (st.address ?? "").includes(storeSearch))
+                .map((store, idx) => (
+                <Animated.View key={store.id} entering={FadeInDown.delay(idx * 60).springify()}>
+                  <View style={bt.storeCard}>
+                    <LinearGradient colors={["#A855F710", "#FF4FA308"]} style={StyleSheet.absoluteFill} />
+
+                    {/* رأس البطاقة */}
+                    <View style={bt.storeHeader}>
+                      <View style={bt.storeLogoWrap}>
+                        {store.logo_url ? (
+                          <Image
+                            source={{ uri: store.logo_url }}
+                            style={bt.storeLogo}
+                          />
+                        ) : (
+                          <MaterialCommunityIcons name="shopping-outline" size={28} color="#A855F7" />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={bt.storeName}>{store.name}</Text>
+                        <View style={bt.storeMeta}>
+                          <View style={bt.typeChip}>
+                            <MaterialCommunityIcons name="tag-outline" size={11} color="#A855F7" />
+                            <Text style={bt.typeChipText}>{STORE_TYPE_LABELS[store.type] ?? store.type}</Text>
+                          </View>
+                          {store.delivery_available && (
+                            <View style={bt.deliveryChip}>
+                              <MaterialCommunityIcons name="moped-outline" size={11} color={Colors.primary} />
+                              <Text style={bt.deliveryChipText}>توصيل</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+
+                    {store.description ? (
+                      <Text style={bt.storeDesc} numberOfLines={2}>{store.description}</Text>
+                    ) : null}
+
+                    {/* معلومات */}
+                    <View style={bt.storeInfoRow}>
+                      {store.address ? (
+                        <>
+                          <MaterialCommunityIcons name="map-marker-outline" size={13} color={Colors.textMuted} />
+                          <Text style={bt.storeInfoText} numberOfLines={1}>{store.address}</Text>
+                        </>
+                      ) : null}
+                      {store.working_hours ? (
+                        <>
+                          <MaterialCommunityIcons name="clock-outline" size={13} color={Colors.textMuted} />
+                          <Text style={bt.storeInfoText}>{store.working_hours}</Text>
+                        </>
+                      ) : null}
+                    </View>
+
+                    {/* شارة عدد المنتجات */}
+                    {store.product_count > 0 && (
+                      <View style={bt.productsBadge}>
+                        <MaterialCommunityIcons name="hanger" size={13} color="#A855F7" />
+                        <Text style={bt.productsBadgeText}>{store.product_count} منتج</Text>
+                      </View>
+                    )}
+
+                    {/* أزرار */}
+                    <View style={bt.storeActions}>
+                      <AnimatedPress
+                        style={{ flex: 1 }}
+                        onPress={() => router.push({ pathname: "/stores", params: { openStoreId: String(store.id) } } as any)}
+                      >
+                        <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.actionBtn}>
+                          <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
+                          <Text style={bt.actionBtnText}>تسوّقي الآن</Text>
+                        </LinearGradient>
+                      </AnimatedPress>
+                      {store.phone ? (
+                        <AnimatedPress
+                          style={bt.callBtn}
+                          onPress={() => handleCall(store.phone!)}
+                        >
+                          <MaterialCommunityIcons name="phone-outline" size={18} color="#A855F7" />
+                        </AnimatedPress>
+                      ) : null}
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+
+              {/* زر فتح بوتيك جديد */}
+              <TouchableOpacity
+                style={bt.addStoreRow}
+                onPress={() => router.push("/store-portal" as any)}
+              >
+                <LinearGradient colors={["#A855F720", "transparent"]} style={StyleSheet.absoluteFill} />
+                <MaterialCommunityIcons name="store-plus-outline" size={20} color="#A855F7" />
+                <Text style={bt.addStoreText}>فتح بوتيكي الخاص</Text>
+                <MaterialCommunityIcons name="chevron-left" size={18} color="#A855F7" />
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      )}
+
       {/* ══ زر الانضمام العائم ══════════════════════════════════════════════ */}
       <TouchableOpacity
         style={jm.fab}
@@ -1086,4 +1286,82 @@ const hm = StyleSheet.create({
     flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textSecondary, lineHeight: 22, textAlign: "right",
   },
+});
+
+// ── أنماط قسم البوتيكات ───────────────────────────────────────────────────────
+const bt = StyleSheet.create({
+  introBanner: {
+    borderRadius: Colors.radius.lg, padding: 20, alignItems: "center", gap: 6,
+    borderWidth: 1.5, borderColor: "#A855F730", overflow: "hidden",
+    backgroundColor: Colors.cardBg, ...Colors.shadow.card,
+  },
+  introTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  introSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 22,
+  },
+
+  emptyBanner: {
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 28,
+    alignItems: "center", gap: 10,
+    borderWidth: 1.5, borderColor: "#A855F720", ...Colors.shadow.card,
+  },
+  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+  openStoreBtn: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 8, width: "100%" },
+  openStoreBtnGrad: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 14,
+  },
+  openStoreBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+
+  storeCard: {
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 10,
+    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+  },
+  storeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  storeLogoWrap: {
+    width: 56, height: 56, borderRadius: Colors.radius.md,
+    backgroundColor: "#A855F718", borderWidth: 1, borderColor: "#A855F730",
+    justifyContent: "center", alignItems: "center", overflow: "hidden",
+  },
+  storeLogo: { width: 56, height: 56, borderRadius: Colors.radius.md },
+  storeName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  storeMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
+  typeChip: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
+  },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" },
+  deliveryChip: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: Colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
+  },
+  deliveryChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  storeDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
+  storeInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  storeInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  productsBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end",
+    backgroundColor: "#A855F712", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm,
+  },
+  productsBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A855F7" },
+  storeActions: { flexDirection: "row", gap: 10, alignItems: "center" },
+  actionBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12,
+  },
+  actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  callBtn: {
+    width: 44, height: 44, borderRadius: Colors.radius.md,
+    borderWidth: 1.5, borderColor: "#A855F740", backgroundColor: "#A855F710",
+    justifyContent: "center", alignItems: "center",
+  },
+
+  addStoreRow: {
+    flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center",
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
+    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+  },
+  addStoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A855F7", flex: 1, textAlign: "center" },
 });

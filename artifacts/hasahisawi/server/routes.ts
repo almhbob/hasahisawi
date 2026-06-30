@@ -7824,8 +7824,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       min_order NUMERIC(8,2) DEFAULT 0,
       delivery_fee NUMERIC(8,2) DEFAULT 0,
       status VARCHAR(20) DEFAULT 'pending',
+      women_only BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(() => {});
+    await query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS women_only BOOLEAN DEFAULT FALSE`).catch(() => {});
     await query(`CREATE TABLE IF NOT EXISTS store_categories (
       id SERIAL PRIMARY KEY,
       store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
@@ -7865,14 +7867,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stores", async (req, res) => {
     try {
       await ensureStoreTables();
-      const type  = req.query.type  as string | undefined;
-      const q     = req.query.q     as string | undefined;
+      const type       = req.query.type       as string | undefined;
+      const q          = req.query.q          as string | undefined;
+      const womenOnly  = req.query.women_only as string | undefined;
       let sql  = `SELECT s.*, u.name as owner_name,
         (SELECT COUNT(*) FROM store_products p WHERE p.store_id=s.id AND p.is_available=TRUE) as product_count
         FROM stores s LEFT JOIN users u ON u.id=s.owner_id
         WHERE s.status='active'`;
       const params: unknown[] = [];
       if (type && type !== "all") { params.push(type); sql += ` AND s.type=$${params.length}`; }
+      if (womenOnly === "true") { sql += ` AND s.women_only=TRUE`; }
       if (q) { params.push(`%${q}%`); sql += ` AND (s.name ILIKE $${params.length} OR s.description ILIKE $${params.length})`; }
       sql += " ORDER BY s.created_at DESC LIMIT 100";
       const r = await query(sql, params);
@@ -7938,17 +7942,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     try {
       await ensureStoreTables();
-      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee } = req.body;
+      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee, women_only } = req.body;
       if (!name) return res.status(400).json({ error: "اسم المتجر مطلوب" });
       let logo_url: string | null = null;
       if ((req as any).file) {
         logo_url = await uploadToCloudinary((req as any).file.buffer, (req as any).file.mimetype, "stores").catch(() => null);
       }
       const r = await query(
-        `INSERT INTO stores (owner_id,name,type,description,phone,address,working_hours,delivery_available,min_order,delivery_fee,logo_url,status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending') RETURNING *`,
+        `INSERT INTO stores (owner_id,name,type,description,phone,address,working_hours,delivery_available,min_order,delivery_fee,logo_url,women_only,status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING *`,
         [me.id, name.trim(), type||"general", description||null, phone||null, address||null,
-         working_hours||"٨ص–١٠م", delivery_available!==false, parseFloat(min_order)||0, parseFloat(delivery_fee)||0, logo_url]
+         working_hours||"٨ص–١٠م", delivery_available!==false, parseFloat(min_order)||0, parseFloat(delivery_fee)||0, logo_url,
+         women_only === "true" || women_only === true]
       );
       void pushToAdmins("🏪 طلب فتح متجر", `${me.name}: ${name}`, { screen: "admin", type: "store_application" });
       res.json(r.rows[0]);
@@ -7964,23 +7969,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storeRes = await query(`SELECT id FROM stores WHERE owner_id=$1 LIMIT 1`, [me.id]);
       if (!storeRes.rows.length) return res.status(404).json({ error: "لا يوجد متجر" });
       const sid = storeRes.rows[0].id;
-      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee } = req.body;
+      const { name, type, description, phone, address, working_hours, delivery_available, min_order, delivery_fee, women_only } = req.body;
       const files = (req as any).files as Record<string, Express.Multer.File[]> | undefined;
       let logo_url: string | undefined;
       let cover_url: string | undefined;
       if (files?.logo?.[0]) logo_url  = await uploadToCloudinary(files.logo[0].buffer,  files.logo[0].mimetype,  "stores").catch(() => undefined);
       if (files?.cover?.[0]) cover_url = await uploadToCloudinary(files.cover[0].buffer, files.cover[0].mimetype, "stores").catch(() => undefined);
+      const womenOnlyVal = women_only !== undefined ? (women_only === "true" || women_only === true) : null;
       const r = await query(
         `UPDATE stores SET
           name=COALESCE($1,name), type=COALESCE($2,type), description=COALESCE($3,description),
           phone=COALESCE($4,phone), address=COALESCE($5,address), working_hours=COALESCE($6,working_hours),
           delivery_available=COALESCE($7,delivery_available), min_order=COALESCE($8,min_order), delivery_fee=COALESCE($9,delivery_fee),
-          logo_url=COALESCE($10,logo_url), cover_url=COALESCE($11,cover_url)
+          logo_url=COALESCE($10,logo_url), cover_url=COALESCE($11,cover_url),
+          women_only=COALESCE($13,women_only)
          WHERE id=$12 RETURNING *`,
         [name||null, type||null, description||null, phone||null, address||null, working_hours||null,
          delivery_available!==undefined ? delivery_available!==false : null,
          min_order ? parseFloat(min_order) : null, delivery_fee ? parseFloat(delivery_fee) : null,
-         logo_url||null, cover_url||null, sid]
+         logo_url||null, cover_url||null, sid, womenOnlyVal]
       );
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
