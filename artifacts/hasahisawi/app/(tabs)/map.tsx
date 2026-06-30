@@ -6,13 +6,14 @@ import {
 import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Location from "expo-location";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
@@ -252,20 +253,20 @@ export default function MapScreen() {
   const mapHtml = buildMapHtml(places, userLoc?.lat, userLoc?.lng);
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <View style={s.root}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={s.header}>
-        <View style={s.headerLeft}>
-          <Ionicons name="map" size={22} color={CYBER} />
-          <Text style={s.headerTitle}>خريطة المدينة</Text>
-        </View>
-        <View style={s.headerRight}>
-          <Text style={s.placeCount}>{filteredCount} مكان</Text>
-          <TouchableOpacity style={s.locBtn} onPress={goToUser}>
-            <Ionicons name="locate" size={18} color={CYBER} />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+      <ModernHeader
+        title="خريطة المدينة"
+        icon="map"
+        rightSlot={
+          <View style={s.headerRight}>
+            <Text style={s.placeCount}>{filteredCount} مكان</Text>
+            <TouchableOpacity style={s.locBtn} onPress={goToUser}>
+              <Ionicons name="locate" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Filter chips */}
       <View style={s.filterWrap}>
@@ -337,25 +338,22 @@ export default function MapScreen() {
 // ── الأنماط ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
-  header:       { flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
-  headerLeft:   { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle:  { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
   headerRight:  { flexDirection: "row", alignItems: "center", gap: 10 },
-  placeCount:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: MUTED },
-  locBtn:       { width: 36, height: 36, borderRadius: 10, backgroundColor: CYBER + "18",
-                  alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: CYBER + "40" },
+  placeCount:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
+  locBtn:       { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)",
+                  alignItems: "center", justifyContent: "center" },
   filterWrap:   { borderBottomWidth: 1, borderBottomColor: BORDER },
   filterScroll: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   chip:         { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12,
-                  paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: BORDER,
+                  paddingVertical: 6, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER,
                   backgroundColor: CARD },
   chipTxt:      { fontFamily: "Cairo_500Medium", fontSize: 13, color: MUTED },
   mapWrap:      { flex: 1 },
   webview:      { flex: 1, backgroundColor: BG },
   center:       { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadTxt:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: MUTED },
-  legend:       { backgroundColor: CARD, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 8 },
+  legend:       { backgroundColor: CARD, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 8,
+                  borderTopLeftRadius: Colors.radius.lg, borderTopRightRadius: Colors.radius.lg, ...Colors.shadow.card },
   legendTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: MUTED,
                   paddingHorizontal: 16, marginBottom: 6 },
   legendScroll: { paddingHorizontal: 12, gap: 10 },

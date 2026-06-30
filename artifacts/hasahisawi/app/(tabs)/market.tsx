@@ -28,6 +28,7 @@ import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1665,39 +1666,42 @@ export default function MarketScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 14, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <AnimatedPress
-          style={[
-            styles.addBtn,
-            tab === "auction" && { backgroundColor: Colors.violet },
-            tab === "carpentry" && { backgroundColor: CARPENTRY_ACCENT },
-            { flexDirection: isRTL ? "row-reverse" : "row" },
-          ]}
-          onPress={() => {
-            if (auth.isGuest) {
-              Alert.alert(
-                tr("تسجيل مطلوب", "Login Required"),
-                tr("يجب إنشاء حساب لإضافة عروض في السوق.", "You need an account to add items to the market."),
-                [{ text: tr("حسناً", "OK") }]
-              );
-              return;
-            }
-            if (tab === "family") setShowFamilyModal(true);
-            else if (tab === "auction") setShowAuctionModal(true);
-            else if (tab === "carpentry") setShowCarpentryModal(true);
-            else { setMerchantRegSuccess(false); setMerchantRegModal(true); }
-          }}
-        >
-          <Ionicons name="add" size={20} color={Colors.cardBg} />
-          <Text style={styles.addBtnText}>{t("common", "add")}</Text>
-        </AnimatedPress>
-        <View style={[styles.headerRight, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Text style={styles.headerTitle}>{t("market", "title")}</Text>
-          <View style={styles.headerCountBadge}>
-            <Text style={styles.headerCountText}>{activeCount}</Text>
+      <ModernHeader
+        title={t("market", "title")}
+        icon="storefront-outline"
+        rightSlot={
+          <View style={[styles.headerRightRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <View style={styles.headerCountBadge}>
+              <Text style={styles.headerCountText}>{activeCount}</Text>
+            </View>
+            <AnimatedPress
+              style={[
+                styles.addBtn,
+                tab === "auction" && { backgroundColor: Colors.violet },
+                tab === "carpentry" && { backgroundColor: CARPENTRY_ACCENT },
+                { flexDirection: isRTL ? "row-reverse" : "row" },
+              ]}
+              onPress={() => {
+                if (auth.isGuest) {
+                  Alert.alert(
+                    tr("تسجيل مطلوب", "Login Required"),
+                    tr("يجب إنشاء حساب لإضافة عروض في السوق.", "You need an account to add items to the market."),
+                    [{ text: tr("حسناً", "OK") }]
+                  );
+                  return;
+                }
+                if (tab === "family") setShowFamilyModal(true);
+                else if (tab === "auction") setShowAuctionModal(true);
+                else if (tab === "carpentry") setShowCarpentryModal(true);
+                else { setMerchantRegSuccess(false); setMerchantRegModal(true); }
+              }}
+            >
+              <Ionicons name="add" size={20} color={Colors.cardBg} />
+              <Text style={styles.addBtnText}>{t("common", "add")}</Text>
+            </AnimatedPress>
           </View>
-        </View>
-      </View>
+        }
+      />
 
       {/* Tab Switch */}
       <View style={[styles.tabSwitch, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
@@ -2800,25 +2804,18 @@ function EmptyState({ icon, text }: { icon: string; text: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    backgroundColor: Colors.cardBg,
-    paddingHorizontal: 16, paddingBottom: 14,
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
-  headerRight: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
+  headerRightRow: { alignItems: "center", gap: 8 },
   headerCountBadge: {
-    backgroundColor: Colors.primary + "18", borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm,
     paddingHorizontal: 8, paddingVertical: 2,
   },
-  headerCountText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+  headerCountText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   addBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.md,
     paddingHorizontal: 14, paddingVertical: 9,
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
   },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.cardBg },
+  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff" },
   tabSwitch: {
     flexDirection: "row-reverse",
     backgroundColor: Colors.cardBg,
@@ -2839,7 +2836,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
   },
   filterChip: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
@@ -2849,27 +2846,26 @@ const styles = StyleSheet.create({
   emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   // Card
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    ...Colors.shadow.card,
   },
   cardSold: { opacity: 0.55 },
   cardTop: { flexDirection: "row-reverse", padding: 14, gap: 12, alignItems: "flex-start" },
   cardIcon: {
-    width: 52, height: 52, borderRadius: 14,
+    width: 52, height: 52, borderRadius: Colors.radius.md,
     justifyContent: "center", alignItems: "center", flexShrink: 0,
   },
   cardBody: { flex: 1, alignItems: "flex-end", gap: 4 },
   cardTitleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   soldBadge: {
-    backgroundColor: Colors.textMuted + "22", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 2,
+    backgroundColor: Colors.textMuted + "22", borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2,
   },
   soldBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
   sellerName: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.accent },
   condRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  condBadge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 2 },
+  condBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 2 },
   condBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   timeSmall: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   cardDesc: {
@@ -2883,25 +2879,25 @@ const styles = StyleSheet.create({
   },
   footerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   priceWrap: {
-    backgroundColor: Colors.primary + "14", borderRadius: 10,
+    backgroundColor: Colors.primary + "14", borderRadius: Colors.radius.sm,
     paddingHorizontal: 12, paddingVertical: 5,
   },
   priceText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary },
   soldBtn: {
-    backgroundColor: Colors.textMuted + "18", borderRadius: 9,
+    backgroundColor: Colors.textMuted + "18", borderRadius: Colors.radius.sm,
     paddingHorizontal: 8, paddingVertical: 4,
   },
   soldBtnText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
   callBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    backgroundColor: Colors.primary + "12", borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
+    backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
   },
   callBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
   // Owner badge
   ownerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" },
   ownerBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    backgroundColor: Colors.primary + "12", borderRadius: 8,
+    backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm,
     paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1, borderColor: Colors.primary + "25",
   },
@@ -2910,28 +2906,28 @@ const styles = StyleSheet.create({
   // Auction-specific
   auctionAccentBar: {
     position: "absolute", top: 0, bottom: 0, left: 0,
-    width: 4, borderTopLeftRadius: 18, borderBottomLeftRadius: 18,
+    width: 4, borderTopLeftRadius: Colors.radius.lg, borderBottomLeftRadius: Colors.radius.lg,
   },
   interestedBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
     borderWidth: 1, borderColor: Colors.divider,
   },
   interestedText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   interestedBadge: {
-    borderRadius: 8, minWidth: 18, height: 18,
+    borderRadius: Colors.radius.sm, minWidth: 18, height: 18,
     justifyContent: "center", alignItems: "center", paddingHorizontal: 4,
   },
   interestedBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
   // Dalala banner
   dalalaBanner: {
     backgroundColor: Colors.violet + "10",
-    borderRadius: 14, borderWidth: 1, borderColor: Colors.violet + "30",
+    borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.violet + "30",
     marginBottom: 4, padding: 12,
   },
   dalalaBannerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   dalalaBannerIcon: {
-    width: 42, height: 42, borderRadius: 12,
+    width: 42, height: 42, borderRadius: Colors.radius.sm,
     backgroundColor: Colors.violet + "18",
     justifyContent: "center", alignItems: "center",
   },
@@ -2942,7 +2938,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     maxHeight: "92%",
   },
   sheetHandle: {
@@ -2961,7 +2957,7 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right",
   },
   formInput: {
-    backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md, paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
     borderWidth: 1, borderColor: Colors.divider,
   },
@@ -2969,12 +2965,12 @@ const styles = StyleSheet.create({
   catBtnRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   catPickBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
   catPickText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   saveBtn: {
-    backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 15,
+    backgroundColor: Colors.primary, borderRadius: Colors.radius.md, paddingVertical: 15,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     marginTop: 4,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
@@ -2983,7 +2979,7 @@ const styles = StyleSheet.create({
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
   // ─── Image Picker Styles ────────────────────────────────────────────────────
   imgPickerBtn: {
-    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider,
     borderStyle: "dashed", overflow: "hidden", minHeight: 90,
   },
   imgPickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 24 },
@@ -2997,19 +2993,18 @@ const styles = StyleSheet.create({
   imgRemoveBtn: { position: "absolute", top: 6, right: 6 },
   // ─── Carpentry Styles ───────────────────────────────────────────────────────
   carpCard: {
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#7D4E2D", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    ...Colors.shadow.card,
     overflow: "hidden",
   },
   carpAccentBar: {
     position: "absolute", top: 0, bottom: 0, left: 0,
-    width: 5, borderTopLeftRadius: 18, borderBottomLeftRadius: 18,
+    width: 5, borderTopLeftRadius: Colors.radius.lg, borderBottomLeftRadius: Colors.radius.lg,
   },
   carpHeader: { flexDirection: "row-reverse", padding: 14, gap: 12, alignItems: "flex-start" },
   carpIconWrap: {
-    width: 58, height: 58, borderRadius: 16,
+    width: 58, height: 58, borderRadius: Colors.radius.md,
     justifyContent: "center", alignItems: "center", flexShrink: 0,
     borderWidth: 1, borderColor: "#7D4E2D22",
   },
@@ -3018,13 +3013,13 @@ const styles = StyleSheet.create({
   carpTagsRow: { flexDirection: "row-reverse", gap: 6, flexWrap: "wrap" },
   carpSpecBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1,
   },
   carpSpecText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   carpLocBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 3,
-    backgroundColor: Colors.bg, borderRadius: 8,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.sm,
     paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1, borderColor: Colors.divider,
     maxWidth: 160,
@@ -3044,19 +3039,19 @@ const styles = StyleSheet.create({
   carpPriceCurrency: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   carpQuoteBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
-    borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
     borderWidth: 1,
   },
   carpQuoteText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   // Carpentry Banner
   carpBanner: {
     backgroundColor: "#7D4E2D12",
-    borderRadius: 14, borderWidth: 1, borderColor: "#7D4E2D30",
+    borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#7D4E2D30",
     marginBottom: 4, padding: 12,
   },
   carpBannerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   carpBannerIcon: {
-    width: 42, height: 42, borderRadius: 12,
+    width: 42, height: 42, borderRadius: Colors.radius.sm,
     backgroundColor: "#7D4E2D18",
     justifyContent: "center", alignItems: "center",
   },

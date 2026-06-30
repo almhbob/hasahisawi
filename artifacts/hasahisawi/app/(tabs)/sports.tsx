@@ -15,6 +15,7 @@ import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
+import ModernHeader from "@/components/ui/ModernHeader";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
@@ -157,7 +158,7 @@ function PostCard({ post, onLike, onPress, admin, onDelete }:{
   );
 }
 const pc = StyleSheet.create({
-  card:     {backgroundColor:Colors.cardBg,borderRadius:18,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginBottom:12},
+  card:     {backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginBottom:12,...Colors.shadow.card},
   img:      {width:"100%",height:180},
   body:     {padding:14},
   topRow:   {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:8},
@@ -307,7 +308,7 @@ function PlayerCard({ player, onPress }:{ player:KouraPlayer; onPress:()=>void }
 }
 const CARD_W = 158;
 const pl = StyleSheet.create({
-  card:          {width:CARD_W,backgroundColor:Colors.cardBg,borderRadius:18,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginLeft:12},
+  card:          {width:CARD_W,backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginLeft:12,...Colors.shadow.card},
   featuredCard:  {borderColor:"#F0A500",borderWidth:1.5},
   starBadge:     {position:"absolute",top:8,left:8,flexDirection:"row-reverse",alignItems:"center",gap:3,backgroundColor:"#F0A500",borderRadius:8,paddingHorizontal:6,paddingVertical:2,zIndex:10},
   starTxt:       {fontFamily:"Cairo_700Bold",fontSize:9,color:"#fff"},
@@ -464,7 +465,7 @@ function MatchCard({ match }:{ match:KouraMatch }) {
   );
 }
 const mc = StyleSheet.create({
-  card:   {backgroundColor:Colors.cardBg,borderRadius:18,borderWidth:1,borderColor:Colors.divider,overflow:"hidden",marginBottom:12},
+  card:   {backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,borderWidth:1,borderColor:Colors.divider,overflow:"hidden",marginBottom:12,...Colors.shadow.card},
   header: {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",padding:12,paddingBottom:8,borderBottomWidth:1,borderBottomColor:Colors.divider},
   comp:   {fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.textPrimary},
   sBadge: {borderRadius:8,paddingHorizontal:8,paddingVertical:3},
@@ -523,7 +524,7 @@ function ClubCard({ club }:{ club:SportClub }) {
   );
 }
 const cc = StyleSheet.create({
-  card:    {backgroundColor:Colors.cardBg,borderRadius:18,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginBottom:12},
+  card:    {backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginBottom:12,...Colors.shadow.card},
   top:     {flexDirection:"row-reverse",alignItems:"center",padding:14,gap:12},
   iconBox: {width:50,height:50,borderRadius:14,justifyContent:"center",alignItems:"center"},
   name:    {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.textPrimary,textAlign:"right"},
@@ -885,8 +886,6 @@ function FeatureModal({ player, visible, onClose, onConfirm }:{
 type KouraTab = "news"|"players"|"matches"|"clubs";
 
 export default function SportsScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS==="web" ? 67 : insets.top;
   const auth = useAuth();
 
   const [posts,   setPosts]   = useState<KouraPost[]>([]);
@@ -1190,14 +1189,17 @@ export default function SportsScreen() {
       </Modal>
 
       {/* Header */}
-      <LinearGradient colors={["#0B1A0D",Colors.cardBg]} style={[s.header,{paddingTop:topPad+10}]}>
-        <View style={s.headerTop}>
+      <ModernHeader
+        title="الحصاحيصا كورة حديثة"
+        subtitle="أخبار · لاعبون · مباريات · أندية"
+        icon="football"
+        rightSlot={
           <View style={{flexDirection:"row-reverse",gap:8,alignItems:"center"}}>
             {isAdmin ? (
               <>
                 <TouchableOpacity style={s.adminBadge} onPress={logout}>
-                  <Ionicons name="log-out-outline" size={13} color={Colors.primary} />
-                  <Text style={s.adminBadgeTxt}>خروج</Text>
+                  <Ionicons name="log-out-outline" size={13} color="#fff" />
+                  <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>خروج</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.fabAdd} onPress={()=>{
                   if (tab==="news") setAddPost(true);
@@ -1209,27 +1211,18 @@ export default function SportsScreen() {
                 </TouchableOpacity>
               </>
             ) : (
-              <TouchableOpacity style={[s.adminBadge,{borderColor:Colors.divider}]} onPress={()=>setPinModal(true)}>
-                <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
-                <Text style={[s.adminBadgeTxt,{color:Colors.textMuted}]}>إدارة</Text>
+              <TouchableOpacity style={[s.adminBadge,{borderColor:"rgba(255,255,255,0.28)"}]} onPress={()=>setPinModal(true)}>
+                <Ionicons name="lock-closed-outline" size={13} color="rgba(255,255,255,0.82)" />
+                <Text style={[s.adminBadgeTxt,{color:"rgba(255,255,255,0.82)"}]}>إدارة</Text>
               </TouchableOpacity>
             )}
           </View>
-          <View style={{alignItems:"flex-end"}}>
-            <View style={{flexDirection:"row-reverse",alignItems:"center",gap:10}}>
-              <View style={s.logoBox}><Ionicons name="football" size={22} color={Colors.primary} /></View>
-              <View>
-                <Text style={s.brandName}>الحصاحيصا كورة حديثة</Text>
-                <Text style={s.brandSub}>أخبار · لاعبون · مباريات · أندية</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
+        }
+      >
         <View style={s.searchRow}>
-          <Ionicons name="search" size={15} color={Colors.textMuted} />
-          <TextInput style={s.searchInput} placeholder="ابحث عن خبر، لاعب..." placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} textAlign="right" />
-          {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
+          <Ionicons name="search" size={15} color="rgba(255,255,255,0.7)" />
+          <TextInput style={s.searchInput} placeholder="ابحث عن خبر، لاعب..." placeholderTextColor="rgba(255,255,255,0.55)" value={search} onChangeText={setSearch} textAlign="right" />
+          {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.7)" /></TouchableOpacity>}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
@@ -1237,7 +1230,7 @@ export default function SportsScreen() {
             <TouchableOpacity key={t.key} style={[s.tabBtn,tab===t.key&&s.tabBtnActive]}
               onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(t.key); }}>
               {tab===t.key && <View style={s.tabLine} />}
-              <Ionicons name={t.icon as any} size={15} color={tab===t.key?Colors.primary:Colors.textMuted} />
+              <Ionicons name={t.icon as any} size={15} color={tab===t.key?"#fff":"rgba(255,255,255,0.62)"} />
               <Text style={[s.tabTxt,tab===t.key&&s.tabTxtActive]}>{t.label}</Text>
               {t.badge&&t.badge>0 ? (
                 <View style={[s.badge,{backgroundColor:t.key==="players"?"#F0A500":Colors.danger}]}>
@@ -1247,7 +1240,7 @@ export default function SportsScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* NEWS */}
       {tab==="news" && (
@@ -1400,22 +1393,17 @@ export default function SportsScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container:   {flex:1,backgroundColor:Colors.bg},
-  header:      {paddingHorizontal:16,paddingBottom:0},
-  headerTop:   {flexDirection:"row-reverse",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12},
-  logoBox:     {width:42,height:42,borderRadius:12,backgroundColor:Colors.primary+"20",justifyContent:"center",alignItems:"center"},
-  brandName:   {fontFamily:"Cairo_700Bold",fontSize:19,color:Colors.textPrimary,textAlign:"right"},
-  brandSub:    {fontFamily:"Cairo_400Regular",fontSize:10,color:Colors.textMuted,textAlign:"right",marginTop:1},
-  adminBadge:  {flexDirection:"row-reverse",alignItems:"center",gap:5,backgroundColor:Colors.primary+"18",borderRadius:10,paddingHorizontal:10,paddingVertical:6,borderWidth:1,borderColor:Colors.primary+"30"},
-  adminBadgeTxt:{fontFamily:"Cairo_600SemiBold",fontSize:12,color:Colors.primary},
-  fabAdd:      {width:34,height:34,borderRadius:10,backgroundColor:Colors.primary,justifyContent:"center",alignItems:"center"},
-  searchRow:   {flexDirection:"row-reverse",alignItems:"center",backgroundColor:Colors.bg,borderRadius:12,paddingHorizontal:12,gap:8,marginBottom:10},
-  searchInput: {flex:1,fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textPrimary,paddingVertical:9},
+  adminBadge:  {flexDirection:"row-reverse",alignItems:"center",gap:5,backgroundColor:"rgba(255,255,255,0.18)",borderRadius:Colors.radius.md,paddingHorizontal:10,paddingVertical:6,borderWidth:1,borderColor:"rgba(255,255,255,0.28)"},
+  adminBadgeTxt:{fontFamily:"Cairo_600SemiBold",fontSize:12,color:"#fff"},
+  fabAdd:      {width:34,height:34,borderRadius:Colors.radius.sm,backgroundColor:"rgba(255,255,255,0.92)",justifyContent:"center",alignItems:"center"},
+  searchRow:   {flexDirection:"row-reverse",alignItems:"center",backgroundColor:"rgba(255,255,255,0.18)",borderRadius:Colors.radius.md,paddingHorizontal:12,gap:8,borderWidth:1,borderColor:"rgba(255,255,255,0.22)"},
+  searchInput: {flex:1,fontFamily:"Cairo_400Regular",fontSize:13,color:"#fff",paddingVertical:9},
   tabsRow:     {flexDirection:"row-reverse",paddingBottom:0,gap:4,paddingRight:0},
-  tabBtn:      {flexDirection:"row-reverse",alignItems:"center",gap:5,paddingHorizontal:12,paddingVertical:10,borderRadius:10,position:"relative"},
-  tabBtnActive:{backgroundColor:Colors.primary+"12"},
-  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:Colors.primary},
-  tabTxt:      {fontFamily:"Cairo_500Medium",fontSize:12,color:Colors.textMuted},
-  tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize:12,color:Colors.primary},
+  tabBtn:      {flexDirection:"row-reverse",alignItems:"center",gap:5,paddingHorizontal:12,paddingVertical:10,borderRadius:Colors.radius.sm,position:"relative"},
+  tabBtnActive:{backgroundColor:"rgba(255,255,255,0.18)"},
+  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:"#fff"},
+  tabTxt:      {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.62)"},
+  tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#fff"},
   badge:       {borderRadius:8,paddingHorizontal:5,paddingVertical:1,minWidth:16,alignItems:"center"},
   badgeTxt:    {fontFamily:"Cairo_700Bold",fontSize:9,color:"#fff"},
   scroll:      {flex:1},
@@ -1426,18 +1414,18 @@ const s = StyleSheet.create({
   empty:       {alignItems:"center",paddingTop:60,gap:10},
   emptyTitle:  {fontFamily:"Cairo_600SemiBold",fontSize:17,color:Colors.textSecondary,textAlign:"center"},
   emptySub:    {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textMuted,textAlign:"center"},
-  liveBanner:  {flexDirection:"row-reverse",alignItems:"center",gap:8,backgroundColor:Colors.danger+"14",borderRadius:14,padding:12,marginBottom:14,borderWidth:1,borderColor:Colors.danger+"30"},
+  liveBanner:  {flexDirection:"row-reverse",alignItems:"center",gap:8,backgroundColor:Colors.danger+"14",borderRadius:Colors.radius.md,padding:12,marginBottom:14,borderWidth:1,borderColor:Colors.danger+"30",...Colors.shadow.card},
   liveDot:     {width:9,height:9,borderRadius:5,backgroundColor:Colors.danger},
   liveTxt:     {fontFamily:"Cairo_700Bold",fontSize:12,color:Colors.danger,flex:1,textAlign:"right"},
-  delChip:     {flexDirection:"row-reverse",alignItems:"center",gap:4,alignSelf:"flex-end",paddingHorizontal:10,paddingVertical:4,borderRadius:8,backgroundColor:Colors.danger+"12",marginBottom:8,marginTop:-6},
+  delChip:     {flexDirection:"row-reverse",alignItems:"center",gap:4,alignSelf:"flex-end",paddingHorizontal:10,paddingVertical:4,borderRadius:Colors.radius.sm,backgroundColor:Colors.danger+"12",marginBottom:8,marginTop:-6},
   delChipTxt:  {fontFamily:"Cairo_500Medium",fontSize:11,color:Colors.danger},
   pinOverlay:  {flex:1,backgroundColor:"rgba(0,0,0,0.75)",justifyContent:"center",alignItems:"center",padding:24},
-  pinCard:     {width:"100%",borderRadius:24,overflow:"hidden"},
-  pinInner:    {padding:28,alignItems:"center",borderRadius:24,borderWidth:1,borderColor:Colors.divider},
-  pinIconBox:  {width:64,height:64,borderRadius:18,backgroundColor:Colors.primary+"20",justifyContent:"center",alignItems:"center",marginBottom:14},
+  pinCard:     {width:"100%",borderRadius:Colors.radius.xl,overflow:"hidden",...Colors.shadow.raised},
+  pinInner:    {padding:28,alignItems:"center",borderRadius:Colors.radius.xl,borderWidth:1,borderColor:Colors.divider},
+  pinIconBox:  {width:64,height:64,borderRadius:Colors.radius.lg,backgroundColor:Colors.primary+"20",justifyContent:"center",alignItems:"center",marginBottom:14},
   pinTitle:    {fontFamily:"Cairo_700Bold",fontSize:18,color:Colors.textPrimary,textAlign:"center",marginBottom:6},
   pinSub:      {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textSecondary,textAlign:"center",marginBottom:16,lineHeight:20},
-  pinInput:    {width:"100%",backgroundColor:Colors.bg,borderRadius:14,padding:14,fontFamily:"Cairo_700Bold",fontSize:24,color:Colors.textPrimary,borderWidth:2,borderColor:Colors.divider,letterSpacing:8,textAlign:"center",marginBottom:6},
+  pinInput:    {width:"100%",backgroundColor:Colors.bg,borderRadius:Colors.radius.md,padding:14,fontFamily:"Cairo_700Bold",fontSize:24,color:Colors.textPrimary,borderWidth:2,borderColor:Colors.divider,letterSpacing:8,textAlign:"center",marginBottom:6},
   pinError:    {fontFamily:"Cairo_500Medium",fontSize:13,color:Colors.danger,marginBottom:6},
-  pinBtn:      {flex:1,height:46,borderRadius:12,justifyContent:"center",alignItems:"center"},
+  pinBtn:      {flex:1,height:46,borderRadius:Colors.radius.md,justifyContent:"center",alignItems:"center"},
 });

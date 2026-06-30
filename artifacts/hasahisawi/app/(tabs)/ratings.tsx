@@ -17,6 +17,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -207,7 +208,6 @@ function EntityCard({ entity, onPress, index }: { entity: RatedEntity; onPress: 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function RatingsScreen() {
   const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, isGuest, token } = useAuth();
 
   const [activeTab, setActiveTab]       = useState<EntityType>("institution");
@@ -332,35 +332,31 @@ export default function RatingsScreen() {
   return (
     <View style={s.root}>
       {/* ── Header ── */}
-      <LinearGradient colors={[Colors.cardBg, Colors.bg]} style={[s.header, { paddingTop: topPad + 12 }]}>
-        <View style={s.headerRow}>
-          <View style={[s.headerIcon, { backgroundColor: cfg.color + "20" }]}>
-            <Ionicons name="star" size={24} color={cfg.color} />
-          </View>
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
-            <Text style={s.headerTitle}>التقييمات</Text>
-            <Text style={s.headerSub}>{currentTab.sub}</Text>
-          </View>
+      <ModernHeader
+        title="التقييمات"
+        subtitle={currentTab.sub}
+        icon="star"
+        rightSlot={
           <AnimatedPress onPress={() => {
             if (isGuest) { Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب لإضافة جهة جديدة."); return; }
             setShowAddEntity(true);
           }}>
-            <View style={[s.addBtn, { borderColor: cfg.color + "60", backgroundColor: cfg.color + "14" }]}>
-              <Ionicons name="add" size={22} color={cfg.color} />
+            <View style={s.addBtn}>
+              <Ionicons name="add" size={22} color="#fff" />
             </View>
           </AnimatedPress>
-        </View>
-
+        }
+      >
         {/* Quick stats */}
         <View style={s.statsRow}>
           {[
-            { num: `${entities.length}`,           label: "إجمالي",    color: Colors.textSecondary },
-            { num: `${entities.filter(e => e.review_count > 0).length}`, label: "تقييمات",  color: cfg.color },
-            { num: avgScore,                        label: "متوسط",     color: Colors.accent },
-            { num: `${entities.filter(e => parseFloat(String(e.avg_rating)) >= 4).length}`, label: "ممتاز",  color: Colors.primary },
+            { num: `${entities.length}`,           label: "إجمالي" },
+            { num: `${entities.filter(e => e.review_count > 0).length}`, label: "تقييمات" },
+            { num: avgScore,                        label: "متوسط" },
+            { num: `${entities.filter(e => parseFloat(String(e.avg_rating)) >= 4).length}`, label: "ممتاز" },
           ].map((st, i) => (
             <View key={i} style={s.statItem}>
-              <Text style={[s.statNum, { color: st.color }]}>{st.num}</Text>
+              <Text style={s.statNum}>{st.num}</Text>
               <Text style={s.statLabel}>{st.label}</Text>
             </View>
           ))}
@@ -373,16 +369,16 @@ export default function RatingsScreen() {
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={[s.tabBtn, activeTab === tab.key && { borderColor: tc.color, backgroundColor: tc.color + "18" }]}
+                style={[s.tabBtn, activeTab === tab.key && { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.22)" }]}
                 onPress={() => { setActiveTab(tab.key); setCatFilter("الكل"); setSearch(""); }}
               >
-                <MaterialCommunityIcons name={tc.icon as any} size={14} color={activeTab === tab.key ? tc.color : Colors.textMuted} />
-                <Text style={[s.tabBtnText, activeTab === tab.key && { color: tc.color }]}>{tab.label}</Text>
+                <MaterialCommunityIcons name={tc.icon as any} size={14} color={activeTab === tab.key ? "#fff" : "rgba(255,255,255,0.75)"} />
+                <Text style={[s.tabBtnText, activeTab === tab.key && { color: "#fff" }]}>{tab.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ── Search + Filter ── */}
       <View style={s.filterSection}>
@@ -683,34 +679,29 @@ export default function RatingsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  header: { paddingHorizontal: 16, paddingBottom: 4 },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  headerIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1 },
-  addBtn: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  addBtn: { width: 38, height: 38, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
 
-  statsRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 14 },
+  statsRow: { flexDirection: "row", justifyContent: "space-around" },
   statItem: { alignItems: "center" },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.78)", marginTop: 1 },
 
-  tabRow: { flexDirection: "row", gap: 8, paddingBottom: 12 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
-  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+  tabRow: { flexDirection: "row", gap: 8 },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.75)" },
 
   filterSection: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
 
-  catChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
+  catChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   catChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
 
-  card: { borderRadius: 16, borderWidth: 1, padding: 14, overflow: "hidden", backgroundColor: Colors.cardBg },
-  rankBadge: { position: "absolute", top: 10, left: 10, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+  card: { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 14, overflow: "hidden", backgroundColor: Colors.cardBg, ...Colors.shadow.card },
+  rankBadge: { position: "absolute", top: 10, left: 10, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
   rankBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   cardBody: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  cardIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  cardIcon: { width: 48, height: 48, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
   cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" },
@@ -722,44 +713,44 @@ const s = StyleSheet.create({
   cardAvg: { fontFamily: "Cairo_700Bold", fontSize: 20 },
   cardReviews: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
-  emptyAddBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 8 },
+  emptyAddBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md, marginTop: 8 },
   emptyAddText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
 
   // Modal
   modalRoot: { flex: 1, backgroundColor: Colors.bg },
   modalHeader: { paddingHorizontal: 16 },
-  closeBtn: { alignSelf: "flex-end", marginRight: 16, marginTop: 12, width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  closeBtn: { alignSelf: "flex-end", marginRight: 16, marginTop: 12, width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
 
-  detailIcon: { width: 70, height: 70, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 4 },
+  detailIcon: { width: 70, height: 70, borderRadius: Colors.radius.xl, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 4 },
   detailName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center" },
   detailSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 4, textAlign: "center" },
   detailRatingBlock: { alignItems: "center", marginVertical: 14, gap: 6 },
   detailAvg: { fontFamily: "Cairo_700Bold", fontSize: 42, color: Colors.accent, lineHeight: 50 },
   detailReviewCount: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
-  detailInfoRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, padding: 12, borderRadius: 12 },
+  detailInfoRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, padding: 12, borderRadius: Colors.radius.md },
   detailInfoText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   detailNotes: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
 
   reviewsTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
-  reviewCard: { borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, padding: 14, overflow: "hidden", gap: 6 },
+  reviewCard: { borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, padding: 14, overflow: "hidden", gap: 6, ...Colors.shadow.card },
   reviewTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  reviewerIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  reviewerIcon: { width: 30, height: 30, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
   reviewerName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   reviewComment: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 21, textAlign: "right" },
   reviewDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" },
 
   detailFooter: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
-  rateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: 16 },
+  rateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: Colors.radius.lg },
   rateBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   starLabel: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.accent },
-  commentBox: { width: "100%", borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, overflow: "hidden" },
+  commentBox: { width: "100%", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, overflow: "hidden" },
   commentInput: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, padding: 16, minHeight: 110 },
 
-  addTypeRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
+  addTypeRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   addTypeText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   addLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 6, textAlign: "right" },
-  addInput: { backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 16, paddingVertical: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
+  addInput: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 16, paddingVertical: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
   catsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });

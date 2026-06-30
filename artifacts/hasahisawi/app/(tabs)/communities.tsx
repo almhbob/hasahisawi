@@ -558,7 +558,7 @@ function RegisterModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             {/* ─── الخطوة ٢: بيانات الممثل ─── */}
             {step === 2 && (
               <>
-                <View style={{ backgroundColor: Colors.primary + "12", borderRadius: 10, padding: 12, marginBottom: 14, flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
+                <View style={{ backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 14, flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
                   <Ionicons name="person-circle-outline" size={20} color={Colors.primary} />
                   <Text style={[styles.formSectionTitle, { marginBottom: 0, color: Colors.primary }]}>بيانات ممثل الجهة</Text>
                 </View>

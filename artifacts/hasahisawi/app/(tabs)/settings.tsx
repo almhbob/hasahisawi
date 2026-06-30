@@ -32,6 +32,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const DEFAULT_ADMIN_PIN = "4444";
@@ -1790,9 +1791,7 @@ export default function SettingsScreen() {
   if (!hasAccess) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={styles.headerTitle}>الإعدادات</Text>
-        </View>
+        <ModernHeader title="الإعدادات" icon="settings-outline" />
         <ScrollView contentContainerStyle={[styles.loginWrap, { paddingTop: 8 }]} keyboardShouldPersistTaps="handled">
 
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
@@ -2343,16 +2342,20 @@ export default function SettingsScreen() {
   // ─── Admin Dashboard ──────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.danger} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("admin", "overview")}</Text>
-        <View style={[styles.adminBadge, isModerator && { backgroundColor: Colors.accent + "18" }]}>
-          <Ionicons name={isModerator ? "shield-half-outline" : "shield-checkmark"} size={13} color={isModerator ? Colors.accent : Colors.primary} />
+      <ModernHeader
+        title={t("admin", "overview")}
+        icon={isModerator ? "shield-half-outline" : "shield-checkmark-outline"}
+        rightSlot={
+          <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutBtn}>
+            <Ionicons name="log-out-outline" size={22} color="rgba(255,255,255,0.85)" />
+          </TouchableOpacity>
+        }
+      >
+        <View style={[styles.adminBadge, isModerator && { backgroundColor: Colors.accent + "28" }]}>
+          <Ionicons name={isModerator ? "shield-half-outline" : "shield-checkmark"} size={13} color={isModerator ? Colors.accent : "rgba(255,255,255,0.9)"} />
           <Text style={[styles.adminBadgeText, isModerator && { color: Colors.accent }]}>{isModerator ? t("admin", "moderatorBadge") : adminName}</Text>
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Tab Bar */}
       <ScrollView
@@ -3382,17 +3385,18 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 16,
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  headerLogoutBtn: {
+    width: 36, height: 36, borderRadius: Colors.radius.pill,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   adminBadge: {
+    alignSelf: "flex-end",
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    backgroundColor: Colors.primary + "12", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md,
+    paddingHorizontal: 10, paddingVertical: 4,
   },
-  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
+  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.92)" },
   langToggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   langBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary, alignItems: "center" },
   langBtnActive: { backgroundColor: Colors.primary },
@@ -3403,10 +3407,10 @@ const styles = StyleSheet.create({
   settingLabel: { fontSize: 14, fontFamily: "Cairo_600SemiBold", color: Colors.textPrimary, marginBottom: 4 },
   loginWrap: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 24, paddingBottom: 60 },
   loginCard: {
-    backgroundColor: Colors.cardBg, borderRadius: 24, padding: 28,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.xl, padding: 28,
     width: "100%", maxWidth: 380, alignItems: "center", gap: 12,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
+    ...Colors.shadow.raised,
   },
   loginIconWrap: { width: 70, height: 70, borderRadius: 20, backgroundColor: Colors.primary + "14", justifyContent: "center", alignItems: "center" },
   loginTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
@@ -3461,18 +3465,19 @@ const styles = StyleSheet.create({
   sectionLabelRow: { gap: 2 },
   statsGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   statCard: {
-    width: "47.5%", backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14,
+    width: "47.5%", backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14,
     alignItems: "flex-end", borderTopWidth: 3, borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    ...Colors.shadow.card,
   },
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 28 },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   toolRow: {
-    backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 14,
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
     borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
-  toolIcon: { width: 40, height: 40, borderRadius: 11, justifyContent: "center", alignItems: "center" },
+  toolIcon: { width: 40, height: 40, borderRadius: Colors.radius.sm, justifyContent: "center", alignItems: "center" },
   toolLabel: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   marketSubTabs: {
     flexDirection: "row-reverse", backgroundColor: Colors.bg, borderRadius: 12, padding: 3, gap: 2,
@@ -3517,8 +3522,8 @@ const styles = StyleSheet.create({
 
 const ac = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
   row: { flexDirection: "row-reverse", padding: 12, gap: 10, alignItems: "flex-start" },
   actions: { flexDirection: "column", gap: 6 },
@@ -3561,7 +3566,7 @@ const ms = StyleSheet.create({
   fieldWrap: { gap: 6 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   fieldInput: {
-    backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
     borderWidth: 1, borderColor: Colors.divider,
   },
@@ -3580,16 +3585,17 @@ const ms = StyleSheet.create({
   toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff", alignSelf: "flex-end" },
   toggleThumbOn: { alignSelf: "flex-start" },
   saveBtn: {
-    borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 4,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+    borderRadius: Colors.radius.md, paddingVertical: 14, alignItems: "center", marginTop: 4,
+    ...Colors.shadow.card,
   },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
 
   // ── Landmarks styles ──
   lmCard: {
     flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
-    borderRadius: 10, padding: 10, marginBottom: 10, gap: 10,
+    borderRadius: Colors.radius.md, padding: 10, marginBottom: 10, gap: 10,
     borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
   lmThumb: { width: 52, height: 52, borderRadius: 8 },
   lmLocalThumb: { backgroundColor: "#9B59B620", alignItems: "center", justifyContent: "center" },
@@ -3637,8 +3643,9 @@ const ms = StyleSheet.create({
 
 const sub_s = StyleSheet.create({
   summaryBox: {
-    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, marginBottom: 20,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 20,
     borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
   summaryRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-around" },
   summaryItem: { alignItems: "center", flex: 1 },
@@ -3655,9 +3662,9 @@ const sub_s = StyleSheet.create({
 
   card: {
     flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
-    borderRadius: 14, padding: 14, marginBottom: 10, gap: 12,
+    borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 12,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+    ...Colors.shadow.card,
   },
   cardPaid: { borderColor: "#EF444430", borderLeftWidth: 3, borderLeftColor: "#EF4444" },
   iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -3678,8 +3685,9 @@ const sub_s = StyleSheet.create({
   payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
 
   rideCard: {
-    backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, marginBottom: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 18,
     borderWidth: 1, borderColor: "#F9731630",
+    ...Colors.shadow.card,
   },
   rideCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
   rideCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
@@ -3694,8 +3702,9 @@ const sub_s = StyleSheet.create({
 
   devCard: {
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
-    backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 14, marginBottom: 10,
     borderWidth: 1, borderColor: Colors.divider,
+    ...Colors.shadow.card,
   },
   devIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   devTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 3 },

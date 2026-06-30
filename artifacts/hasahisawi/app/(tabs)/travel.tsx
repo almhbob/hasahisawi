@@ -22,6 +22,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { scheduleOccasionReminder } from "@/lib/firebase/notifications";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1149,25 +1150,21 @@ export default function TravelScreen() {
   }));
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* رأس الصفحة */}
-      <LinearGradient colors={["#0C1D3A","#1E3A5F","#0369A1"]} style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>السفريات</Text>
-            <Text style={styles.headerSub}>حجوزات موثوقة عبر شركات ووكالات السفر</Text>
-          </View>
-          <View style={styles.headerIcon}>
-            <MaterialCommunityIcons name="bus" size={32} color={ACCENT2} />
-          </View>
-        </View>
-        {/* طائرة متحركة */}
+      <ModernHeader
+        title="السفريات"
+        subtitle="حجوزات موثوقة عبر شركات ووكالات السفر"
+        icon="bus-outline"
+        gradient={Colors.gradients.gold}
+      >
+        {/* حافلة متحركة */}
         <View style={styles.planeLine}>
           <Animated.View style={[styles.movingPlane, planeStyle]}>
-            <MaterialCommunityIcons name="bus" size={18} color={ACCENT2 + "80"} />
+            <MaterialCommunityIcons name="bus" size={18} color="rgba(255,255,255,0.55)" />
           </Animated.View>
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* تبويبات */}
       <View style={styles.tabBar}>
@@ -1181,7 +1178,7 @@ export default function TravelScreen() {
             <MaterialCommunityIcons
               name={tab.icon as any}
               size={18}
-              color={activeTab===tab.key ? ACCENT : Colors.textMuted}
+              color={activeTab===tab.key ? Colors.accent : Colors.textMuted}
             />
             <Text style={[styles.tabLabel, activeTab===tab.key && styles.tabLabelActive]}>
               {tab.label}
@@ -1213,27 +1210,22 @@ export default function TravelScreen() {
 // ═══════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container:       { flex:1, backgroundColor:Colors.bg },
-  header:          { paddingHorizontal:20, paddingVertical:16, paddingBottom:8 },
-  headerTop:       { flexDirection:"row", justifyContent:"space-between", alignItems:"center" },
-  headerTitle:     { fontSize:22, fontWeight:"700", color:"#fff" },
-  headerSub:       { fontSize:13, color:"#93C5FD", marginTop:2 },
-  headerIcon:      { width:52, height:52, borderRadius:26, backgroundColor:"#ffffff15", justifyContent:"center", alignItems:"center" },
-  planeLine:       { height:28, overflow:"hidden", marginTop:4 },
-  movingPlane:     { position:"absolute", top:4 },
+  planeLine:       { height:24, overflow:"hidden", marginTop:2 },
+  movingPlane:     { position:"absolute", top:2 },
 
   tabBar:          { flexDirection:"row", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   tabItem:         { flex:1, alignItems:"center", paddingVertical:10, gap:3 },
-  tabItemActive:   { borderBottomWidth:2, borderBottomColor:ACCENT },
+  tabItemActive:   { borderBottomWidth:2, borderBottomColor:Colors.accent },
   tabLabel:        { fontSize:11, color:Colors.textMuted, fontWeight:"500" },
-  tabLabelActive:  { color:ACCENT, fontWeight:"700" },
+  tabLabelActive:  { color:Colors.accent, fontWeight:"700" },
 
   sectionTitle:    { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:12, marginTop:8 },
 
   cityPickerRow:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:12 },
-  cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:12, padding:12, gap:6, borderWidth:1, borderColor:Colors.borderSubtle },
+  cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:12, gap:6, borderWidth:1, borderColor:Colors.borderSubtle },
   cityPickerTxt:   { flex:1, fontSize:13, color:Colors.text },
   swapBtn:         { width:36, height:36, borderRadius:18, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" },
-  searchBtn:       { flexDirection:"row", backgroundColor:ACCENT, borderRadius:12, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  searchBtn:       { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   searchBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:15 },
 
   destChip:        { backgroundColor:Colors.cardBg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, marginEnd:8, borderWidth:1, borderColor:ACCENT+"44" },
@@ -1246,19 +1238,19 @@ const styles = StyleSheet.create({
   fieldLabel:      { fontSize:13, color:Colors.textMuted, marginBottom:4, marginTop:12 },
   input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.borderSubtle },
   dateChipGrid:    { flexDirection:"row", flexWrap:"wrap", gap:8, marginBottom:10 },
-  dateChip:        { minWidth:"30%", flexGrow:1, backgroundColor:Colors.cardBg, borderRadius:12, paddingVertical:10, paddingHorizontal:10, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"center", gap:3 },
-  dateChipActive:  { backgroundColor:ACCENT, borderColor:ACCENT },
+  dateChip:        { minWidth:"30%", flexGrow:1, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, paddingVertical:10, paddingHorizontal:10, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"center", gap:3 },
+  dateChipActive:  { backgroundColor:Colors.primary, borderColor:Colors.primary },
   dateChipText:    { color:Colors.text, fontSize:12, fontWeight:"700" },
   dateChipSub:     { color:Colors.textMuted, fontSize:10, fontWeight:"600" },
   dateChipTextActive:{ color:"#fff" },
 
-  bookBtn:         { flexDirection:"row", backgroundColor:ACCENT, borderRadius:14, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
+  bookBtn:         { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.lg, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
   bookBtnText:     { color:"#fff", fontWeight:"700", fontSize:16 },
 
   sectionHeader:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:16 },
-  backBtn:         { width:36, height:36, borderRadius:18, backgroundColor:Colors.cardBg, justifyContent:"center", alignItems:"center" },
+  backBtn:         { width:36, height:36, borderRadius:Colors.radius.pill, backgroundColor:Colors.cardBg, justifyContent:"center", alignItems:"center" },
 
-  routeCard:       { backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, flexDirection:"row", borderWidth:1, borderColor:Colors.borderSubtle },
+  routeCard:       { backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, marginBottom:10, flexDirection:"row", borderWidth:1, borderColor:Colors.borderSubtle, ...Colors.shadow.card },
   routeCardSelected:{ borderColor:ACCENT, borderWidth:2 },
   routeCardLeft:   { flex:1 },
   routeCardRight:  { alignItems:"flex-end", justifyContent:"space-between" },
@@ -1272,7 +1264,7 @@ const styles = StyleSheet.create({
   selectBtn:       { backgroundColor:ACCENT, borderRadius:8, paddingHorizontal:10, paddingVertical:4 },
   selectBtnTxt:    { color:"#fff", fontSize:12, fontWeight:"700" },
 
-  confirmCard:     { borderRadius:16, padding:20, marginBottom:16, alignItems:"center" },
+  confirmCard:     { borderRadius:Colors.radius.lg, padding:20, marginBottom:16, alignItems:"center" },
   confirmRoute:    { flexDirection:"row", alignItems:"center", gap:12, marginBottom:8 },
   confirmCity:     { fontSize:18, fontWeight:"700", color:"#fff" },
   confirmCompany:  { fontSize:14, color:"#93C5FD", marginBottom:4 },
@@ -1285,7 +1277,7 @@ const styles = StyleSheet.create({
   successBadge:    { borderRadius:20, padding:24, alignItems:"center" },
   successTitle:    { fontSize:22, fontWeight:"800", color:"#fff", marginTop:12 },
   successSub:      { fontSize:14, color:"#6EE7B7" },
-  newBookingBtn:   { backgroundColor:ACCENT, borderRadius:12, padding:14, alignItems:"center", marginTop:16 },
+  newBookingBtn:   { backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, alignItems:"center", marginTop:16 },
   newBookingBtnText:{ color:"#fff", fontWeight:"700", fontSize:15 },
 
   // بطاقة التذكرة
@@ -1338,34 +1330,34 @@ const styles = StyleSheet.create({
 
   // قوائم
   filterRow:       { flexDirection:"row", gap:8, marginBottom:16 },
-  filterChip:      { flex:1, paddingVertical:7, borderRadius:10, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.borderSubtle },
-  filterChipActive:{ backgroundColor:ACCENT, borderColor:ACCENT },
+  filterChip:      { flex:1, paddingVertical:7, borderRadius:Colors.radius.md, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.borderSubtle },
+  filterChipActive:{ backgroundColor:Colors.primary, borderColor:Colors.primary },
   filterChipTxt:   { fontSize:13, color:Colors.textMuted, fontWeight:"600" },
-  filterChipTxtActive:{ color:"#fff" },
+  filterChipTxtActive:{ color:Colors.white },
 
   emptyBox:        { alignItems:"center", paddingVertical:40, gap:8 },
   emptyTitle:      { fontSize:16, fontWeight:"700", color:Colors.textMuted },
   emptySub:        { fontSize:13, color:Colors.textMuted, textAlign:"center", maxWidth:260 },
 
   // الشركاء
-  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:"#0F2744", borderRadius:18, borderWidth:1, borderColor:ACCENT+"35", padding:16, marginBottom:12 },
-  agencyHeroIcon:   { width:56, height:56, borderRadius:18, backgroundColor:ACCENT+"18", borderWidth:1, borderColor:ACCENT+"35", justifyContent:"center", alignItems:"center" },
+  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.lg, borderWidth:1, borderColor:Colors.borderGlow, padding:16, marginBottom:12 },
+  agencyHeroIcon:   { width:56, height:56, borderRadius:Colors.radius.md, backgroundColor:Colors.primaryGlow, borderWidth:1, borderColor:Colors.borderGlow, justifyContent:"center", alignItems:"center" },
   agencyTitle:      { color:"#fff", fontSize:16, fontWeight:"900", textAlign:"right", marginBottom:4 },
   agencySub:        { color:"#93C5FD", fontSize:12, lineHeight:19, textAlign:"right" },
   agencyGrid:       { flexDirection:"row-reverse", flexWrap:"wrap", gap:10, marginBottom:18 },
-  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderRadius:16, padding:14, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"flex-end", gap:6 },
+  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"flex-end", gap:6, ...Colors.shadow.card },
   agencyFeatureTitle:{ color:Colors.text, fontSize:13, fontWeight:"800", textAlign:"right" },
   agencyFeatureSub: { color:Colors.textMuted, fontSize:11, lineHeight:17, textAlign:"right" },
 
-  partnerBanner:   { borderRadius:16, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
+  partnerBanner:   { borderRadius:Colors.radius.lg, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
   partnerBannerTitle:{ color:"#fff", fontWeight:"700", fontSize:15, marginBottom:4 },
   partnerBannerSub:{ color:"#93C5FD", fontSize:12, lineHeight:18 },
-  contractBtn:       { flexDirection:"row", backgroundColor:"#1E40AF", borderRadius:12, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  contractBtn:       { flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   contractBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:14 },
-  contractLockedBox: { flexDirection:"row-reverse", alignItems:"flex-start", gap:10, backgroundColor:Colors.cardBg, borderRadius:12, padding:14, marginBottom:20, borderWidth:1, borderColor:Colors.borderSubtle },
+  contractLockedBox: { flexDirection:"row-reverse", alignItems:"flex-start", gap:10, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:14, marginBottom:20, borderWidth:1, borderColor:Colors.borderSubtle },
   contractLockedTxt: { flex:1, fontSize:13, color:Colors.textSecondary, textAlign:"right" as const, lineHeight:20 },
 
-  companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:14, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.borderSubtle },
+  companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.borderSubtle, ...Colors.shadow.card },
   companyCardIcon: { width:44, height:44, borderRadius:22, backgroundColor:ACCENT+"20", justifyContent:"center", alignItems:"center" },
   companyCardName: { fontSize:15, fontWeight:"700", color:Colors.text },
   companyCardOwner:{ fontSize:12, color:Colors.textMuted, marginTop:2 },
@@ -1379,22 +1371,22 @@ const styles = StyleSheet.create({
   // عقد الشراكة
   contractHeader:  { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   contractHeaderTitle:{ fontSize:18, fontWeight:"700", color:Colors.text },
-  contractBadge:   { borderRadius:16, padding:20, alignItems:"center", marginBottom:16 },
+  contractBadge:   { borderRadius:Colors.radius.lg, padding:20, alignItems:"center", marginBottom:16 },
   contractBadgeTitle:{ color:"#fff", fontWeight:"700", fontSize:18, marginTop:8 },
   contractBadgeSub:{ color:"#93C5FD", fontSize:13, marginTop:4 },
   contractBody:    { fontSize:13, color:Colors.textSecondary, lineHeight:22, textAlign:"right" },
-  shareContractBtn:{ flexDirection:"row", backgroundColor:ACCENT, borderRadius:12, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
+  shareContractBtn:{ flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
   shareContractBtnTxt:{ color:"#fff", fontWeight:"700", fontSize:14 },
 
   // موديالات
   modalOverlay:    { flex:1, backgroundColor:"#00000088", justifyContent:"flex-end" },
-  cityModal:       { backgroundColor:Colors.bg, borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:"75%", paddingBottom:32 },
+  cityModal:       { backgroundColor:Colors.bg, borderTopLeftRadius:Colors.radius.xl, borderTopRightRadius:Colors.radius.xl, maxHeight:"75%", paddingBottom:32 },
   cityModalHeader: { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   cityModalTitle:  { fontSize:16, fontWeight:"700", color:Colors.text },
   cityOption:      { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:14, borderBottomWidth:1, borderColor:Colors.dividerSoft },
   cityOptionTxt:   { fontSize:15, color:Colors.text },
 
-  smallModal:      { backgroundColor:Colors.bg, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24 },
+  smallModal:      { backgroundColor:Colors.bg, borderTopLeftRadius:Colors.radius.xl, borderTopRightRadius:Colors.radius.xl, padding:24 },
   smallModalTitle: { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:4 },
   smallModalSub:   { fontSize:12, color:Colors.textMuted, marginBottom:16 },
   modalBtns:       { flexDirection:"row", gap:10, marginTop:16 },

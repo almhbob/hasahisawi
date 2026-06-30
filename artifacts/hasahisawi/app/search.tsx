@@ -21,6 +21,7 @@ import { useLang } from "@/lib/lang-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 import UserAvatar from "@/components/UserAvatar";
+import ModernHeader from "@/components/ui/ModernHeader";
 import { MEDICAL_KEY } from "./(tabs)/medical";
 import { SCHOOLS_KEY } from "./(tabs)/student";
 import { SPORT_CLUBS_KEY } from "./(tabs)/sports";
@@ -391,36 +392,32 @@ export default function SearchScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: topPad }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{lang === "ar" ? "البحث الشامل" : "Global Search"}</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Search Input */}
-      <View style={styles.searchWrap}>
+      <ModernHeader
+        title={lang === "ar" ? "البحث الشامل" : "Global Search"}
+        icon="search-outline"
+        showBack
+        onBack={() => router.back()}
+      >
         <View style={[styles.searchBox, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          <Ionicons name="search-outline" size={20} color={Colors.textMuted} style={{ marginHorizontal: 12 }} />
+          <Ionicons name="search-outline" size={20} color="rgba(255,255,255,0.85)" style={{ marginHorizontal: 12 }} />
           <TextInput
             style={[styles.searchInput, { textAlign: isRTL ? "right" : "left" }]}
             value={query}
             onChangeText={handleQueryChange}
             placeholder={lang === "ar" ? "ابحث في كل الأقسام..." : "Search all sections..."}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor="rgba(255,255,255,0.7)"
             autoFocus
             returnKeyType="search"
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => { setQuery(""); setResults([]); }} style={{ marginHorizontal: 8 }}>
-              <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Results */}
       {query.trim().length === 0 ? (
@@ -476,22 +473,11 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  searchWrap: { padding: 16 },
   searchBox: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: Colors.radius.lg,
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: "rgba(255,255,255,0.28)",
     alignItems: "center",
     height: 52,
   },
@@ -499,36 +485,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Cairo_400Regular",
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: "#fff",
     height: "100%",
   },
-  list: { paddingHorizontal: 16, paddingBottom: 100 },
+  list: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 },
   resultsCount: {
     fontFamily: "Cairo_500Medium",
     fontSize: 13,
     color: Colors.textMuted,
     marginBottom: 12,
-    marginTop: 4,
   },
   resultCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    backgroundColor: Colors.surface4,
+    borderRadius: Colors.radius.lg,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     gap: 12,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    ...Colors.shadow.card,
   },
   resultIcon: {
     width: 46,
     height: 46,
-    borderRadius: 13,
+    borderRadius: Colors.radius.md,
     justifyContent: "center",
     alignItems: "center",
     flexShrink: 0,
@@ -540,7 +519,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: Colors.radius.sm,
     borderWidth: 1,
     marginTop: 2,
   },
@@ -548,7 +527,7 @@ const styles = StyleSheet.create({
   callBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: Colors.radius.md,
     backgroundColor: Colors.primary + "15",
     justifyContent: "center",
     alignItems: "center",
@@ -562,7 +541,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: -40,
   },
-  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textSecondary },
+  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   emptySub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
@@ -580,7 +559,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Colors.radius.pill,
     borderWidth: 1,
   },
   chipText: { fontFamily: "Cairo_500Medium", fontSize: 12 },

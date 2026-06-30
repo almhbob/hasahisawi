@@ -208,7 +208,7 @@ export default function EventsScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* ── Header ── */}
-      <LinearGradient colors={["#051209", "#071610"]} style={styles.header}>
+      <LinearGradient colors={Colors.gradients.brand} style={styles.header}>
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerTitle}>🎪 الفعاليات</Text>
@@ -231,7 +231,7 @@ export default function EventsScreen() {
               style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
               onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
             >
-              <Ionicons name={t.icon as any} size={16} color={tab === t.key ? "#000" : "#7aad8c"} />
+              <Ionicons name={t.icon as any} size={16} color={tab === t.key ? PRIMARY : "rgba(255,255,255,0.85)"} />
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
@@ -680,38 +680,38 @@ const styles = StyleSheet.create({
   scroll:    { flex: 1 },
 
   // Header
-  header:    { paddingHorizontal: 16, paddingBottom: 12 },
+  header:    { paddingHorizontal: 16, paddingBottom: 12, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
   headerRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 8 },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#e0f5e8", textAlign: "right" },
-  headerSub:   { fontSize: 11, color: "#4a7a5a", textAlign: "right", marginTop: 2 },
-  headerBadge: { alignItems: "center", backgroundColor: PRIMARY + "22", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: PRIMARY + "44" },
-  headerBadgeText: { fontSize: 22, fontWeight: "800", color: PRIMARY },
-  headerBadgeLabel: { fontSize: 10, color: PRIMARY + "aa" },
+  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff", textAlign: "right" },
+  headerSub:   { fontSize: 11, color: "rgba(255,255,255,0.82)", textAlign: "right", marginTop: 2 },
+  headerBadge: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  headerBadgeText: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  headerBadgeLabel: { fontSize: 10, color: "rgba(255,255,255,0.75)" },
 
   // Tabs
   tabBar:        { flexDirection: "row-reverse", gap: 8 },
-  tabBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 20, backgroundColor: "#0e2016", borderWidth: 1, borderColor: BORDER },
-  tabBtnActive:  { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  tabLabel:      { fontSize: 12, color: "#7aad8c", fontWeight: "600" },
-  tabLabelActive:{ color: "#000", fontWeight: "700" },
+  tabBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
+  tabBtnActive:  { backgroundColor: "#fff", borderColor: "#fff" },
+  tabLabel:      { fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
+  tabLabelActive:{ color: PRIMARY, fontWeight: "700" },
 
   // Search
-  searchBox:   { flexDirection: "row-reverse", alignItems: "center", backgroundColor: CARD2, borderRadius: 14, margin: 14, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, gap: 8 },
+  searchBox:   { flexDirection: "row-reverse", alignItems: "center", backgroundColor: CARD2, borderRadius: Colors.radius.md, margin: 14, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, gap: 8 },
   searchInput: { flex: 1, color: "#d0e8d8", fontSize: 14, textAlign: "right" },
 
   // Filter chips
   filterScroll:    { paddingHorizontal: 14, marginBottom: 12 },
-  filterChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8 },
+  filterChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8 },
   filterChipText:  { fontSize: 12, color: "#7aad8c" },
 
   // Events grid
   eventsGrid: { paddingHorizontal: 14, gap: 12 },
-  eventCard:  { borderRadius: 16, overflow: "hidden" },
-  eventCardInner: { borderRadius: 16, padding: 14, borderWidth: 1, borderColor: BORDER },
+  eventCard:  { borderRadius: Colors.radius.lg, overflow: "hidden" },
+  eventCardInner: { borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: BORDER },
   eventCardTop: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  typeBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 1 },
+  typeBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
   typeBadgeText: { fontSize: 11, fontWeight: "600" },
-  priceBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  priceBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
   priceFree: { backgroundColor: "#10B981" + "33", borderWidth: 1, borderColor: "#10B981" + "55" },
   pricePaid: { backgroundColor: GOLD + "33", borderWidth: 1, borderColor: GOLD + "55" },
   priceBadgeText: { fontSize: 11, fontWeight: "700", color: "#d0e8d8" },
@@ -727,31 +727,31 @@ const styles = StyleSheet.create({
   detailBtnText: { fontSize: 12, color: PRIMARY, fontWeight: "600" },
 
   // Rental
-  rentalCatChip: { alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8, minWidth: 80 },
+  rentalCatChip: { alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8, minWidth: 80 },
   rentalCatEmoji: { fontSize: 22, marginBottom: 4 },
   rentalCatLabel: { fontSize: 11, color: "#7aad8c", fontWeight: "600" },
 
-  rentalCard:      { marginHorizontal: 14, marginBottom: 12, borderRadius: 16, overflow: "hidden" },
-  rentalCardInner: { flexDirection: "row-reverse", padding: 14, borderRadius: 16, borderWidth: 1, borderColor: BORDER, gap: 12 },
+  rentalCard:      { marginHorizontal: 14, marginBottom: 12, borderRadius: Colors.radius.lg, overflow: "hidden" },
+  rentalCardInner: { flexDirection: "row-reverse", padding: 14, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, gap: 12 },
   rentalCardLeft:  { justifyContent: "center" },
-  rentalEmoji:     { width: 60, height: 60, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  rentalEmoji:     { width: 60, height: 60, borderRadius: Colors.radius.lg, alignItems: "center", justifyContent: "center" },
   rentalCardBody:  { flex: 1 },
   rentalCardTop:   { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
   rentalName:      { fontSize: 15, fontWeight: "700", color: "#d0f0e0", flex: 1, textAlign: "right" },
-  catTag:          { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginRight: 6 },
+  catTag:          { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, marginRight: 6 },
   catTagText:      { fontSize: 10, fontWeight: "600" },
   rentalProvider:  { fontSize: 12, color: "#6a9a72", textAlign: "right", marginBottom: 4 },
   rentalProvider2: { fontSize: 14, color: "#6a9a72", textAlign: "center", marginBottom: 12 },
   rentalDesc:      { fontSize: 12, color: "#5a7a62", textAlign: "right", marginBottom: 8 },
   rentalPriceRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  rentalPrice:     { flexDirection: "row-reverse", alignItems: "baseline", backgroundColor: GOLD + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  rentalPrice:     { flexDirection: "row-reverse", alignItems: "baseline", backgroundColor: GOLD + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: Colors.radius.sm },
   rentalPriceNum:  { fontSize: 14, fontWeight: "800", color: GOLD },
   rentalPriceUnit: { fontSize: 10, color: GOLD + "aa" },
-  availBadge:      { backgroundColor: PRIMARY + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  availBadge:      { backgroundColor: PRIMARY + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: Colors.radius.sm },
   availText:       { fontSize: 11, color: PRIMARY },
 
   // Organize
-  organizeHero:  { margin: 16, borderRadius: 20, padding: 24, alignItems: "center", borderWidth: 1, borderColor: PURPLE + "44" },
+  organizeHero:  { margin: 16, borderRadius: Colors.radius.xl, padding: 24, alignItems: "center", borderWidth: 1, borderColor: PURPLE + "44" },
   organizeIcon:  { fontSize: 48, marginBottom: 8 },
   organizeTitle: { fontSize: 22, fontWeight: "800", color: "#d0e8ff", marginBottom: 4 },
   organizeSub:   { fontSize: 13, color: "#8898aa", textAlign: "center" },
@@ -759,38 +759,38 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: "700", color: "#aac8b2", textAlign: "right", paddingHorizontal: 16, marginBottom: 8, marginTop: 4 },
   fieldLabel:   { fontSize: 13, fontWeight: "600", color: "#8aaa92", textAlign: "right", marginBottom: 6, marginTop: 4 },
 
-  typeChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8 },
+  typeChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8 },
   typeChipText:  { fontSize: 13, color: "#7aad8c", fontWeight: "600" },
 
   formField:  { paddingHorizontal: 16, marginBottom: 4 },
-  inputBox:   { flexDirection: "row-reverse", alignItems: "center", backgroundColor: CARD2, borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12 },
+  inputBox:   { flexDirection: "row-reverse", alignItems: "center", backgroundColor: CARD2, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12 },
   input:      { flex: 1, color: "#d0e8d8", fontSize: 14, textAlign: "right", paddingVertical: 12 },
 
   toggleRow:    { flexDirection: "row-reverse", gap: 10, paddingHorizontal: 16, marginBottom: 12 },
-  toggleBtn:    { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, alignItems: "center" },
+  toggleBtn:    { flex: 1, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, alignItems: "center" },
   toggleBtnActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   toggleBtnText:   { fontSize: 13, fontWeight: "600", color: "#7aad8c" },
 
-  submitBtn:   { margin: 16, borderRadius: 16, overflow: "hidden" },
+  submitBtn:   { margin: 16, borderRadius: Colors.radius.lg, overflow: "hidden" },
   submitGrad:  { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
   submitText:  { fontSize: 16, fontWeight: "800", color: "#000" },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "#000000bb", justifyContent: "flex-end" },
-  modalSheet:   { backgroundColor: "#0a1a0e", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "88%", paddingHorizontal: 20, paddingBottom: 0 },
-  sheetHandle:  { width: 40, height: 4, backgroundColor: BORDER, borderRadius: 2, alignSelf: "center", marginVertical: 12 },
-  sheetTypeBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "center", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, marginBottom: 10 },
+  modalSheet:   { backgroundColor: "#0a1a0e", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "88%", paddingHorizontal: 20, paddingBottom: 0 },
+  sheetHandle:  { width: 40, height: 4, backgroundColor: BORDER, borderRadius: Colors.radius.sm, alignSelf: "center", marginVertical: 12 },
+  sheetTypeBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "center", paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.md, marginBottom: 10 },
   sheetTypeText:  { fontSize: 14, fontWeight: "700" },
   sheetTitle:  { fontSize: 20, fontWeight: "800", color: "#d0f0e0", textAlign: "center", marginBottom: 16 },
   sheetMetaGrid: { gap: 10, marginBottom: 16 },
-  sheetMetaItem: { flexDirection: "row-reverse", alignItems: "flex-start", backgroundColor: CARD2, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BORDER },
+  sheetMetaItem: { flexDirection: "row-reverse", alignItems: "flex-start", backgroundColor: CARD2, borderRadius: Colors.radius.md, padding: 12, borderWidth: 1, borderColor: BORDER },
   sheetMetaLabel: { fontSize: 11, color: "#5a7a62", textAlign: "right" },
   sheetMetaValue: { fontSize: 14, fontWeight: "600", color: "#b0d8b8", textAlign: "right" },
-  sheetDescBox: { backgroundColor: CARD2, borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: BORDER },
+  sheetDescBox: { backgroundColor: CARD2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: BORDER },
   sheetDescLabel: { fontSize: 12, color: "#5a7a62", textAlign: "right", marginBottom: 6 },
   sheetDesc: { fontSize: 14, color: "#9abaa2", textAlign: "right", lineHeight: 22 },
 
-  callBtn:      { marginBottom: 10, borderRadius: 16, overflow: "hidden" },
+  callBtn:      { marginBottom: 10, borderRadius: Colors.radius.lg, overflow: "hidden" },
   callBtnInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
   callBtnText:  { fontSize: 16, fontWeight: "800", color: "#000" },
   closeBtn:     { alignItems: "center", paddingVertical: 14 },

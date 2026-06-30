@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking, Platform, Image, Modal, Alert } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
+import ModernHeader from "@/components/ui/ModernHeader";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
@@ -87,8 +87,6 @@ function apiNumId(id: string): number | null {
 }
 
 export default function ProductShowcaseScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user } = useAuth();
   const gender = normalizeGender(user?.gender);
   const canSeeWomenStore = user?.role === "admin" || gender === "female";
@@ -365,11 +363,11 @@ export default function ProductShowcaseScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <LinearGradient colors={["#241200", "#0D1F13", Colors.bg]} style={[styles.hero, { paddingTop: topPad + 16 }]}> 
-          <Animated.View entering={FadeIn.delay(80)} style={styles.heroIcon}><Ionicons name="storefront-outline" size={40} color="#fff" /></Animated.View>
-          <Animated.Text entering={FadeInDown.delay(120).springify()} style={styles.title}>سوق المتاجر والبوتيكات</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(180).springify()} style={styles.subtitle}>ملابس · عطور · أحذية · بوتيكات · قسم نسائي — سلة شراء وتوصيل ودفع عند الاستلام</Animated.Text>
-        </LinearGradient>
+        <ModernHeader
+          title="سوق المتاجر والبوتيكات"
+          subtitle="ملابس · عطور · أحذية · بوتيكات · قسم نسائي — سلة شراء وتوصيل ودفع عند الاستلام"
+          icon="storefront-outline"
+        />
 
         <View style={styles.body}>
           <View style={styles.actionsRow}>
@@ -466,44 +464,40 @@ export default function ProductShowcaseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  hero: { paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: "center" },
-  heroIcon: { width: 76, height: 76, borderRadius: 24, backgroundColor: "#F9731630", borderWidth: 1, borderColor: "#F9731660", alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 25, color: Colors.textPrimary, textAlign: "center" },
-  subtitle: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "center", fontSize: 13, lineHeight: 22, marginTop: 8 },
   body: { padding: 18, gap: 14 },
   actionsRow: { flexDirection: "row-reverse", gap: 10 },
-  primaryBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  primaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   primaryText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 13 },
-  secondaryBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  secondaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   secondaryText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 13 },
-  cartBar: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  cartBar: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap", ...Colors.shadow.card },
   cartTitle: { flex: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
   cartTotal: { fontFamily: "Cairo_700Bold", color: Colors.primary },
-  checkoutBtn: { backgroundColor: "#14B8A6", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  checkoutBtn: { backgroundColor: "#14B8A6", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8 },
   checkoutText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 12 },
-  clearBtn: { backgroundColor: "#EF4444", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
+  clearBtn: { backgroundColor: "#EF4444", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
   clearText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
-  cartList: { borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 10, gap: 8 },
+  cartList: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 10, gap: 8, ...Colors.shadow.card },
   cartItem: { flexDirection: "row-reverse", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingBottom: 8 },
-  removeBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
+  removeBtn: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
   cartItemName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
   cartItemSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 },
-  qtyBox: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  qtyBox: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.bg, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   qtyBtn: { color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 18 },
   qtyText: { color: Colors.textPrimary, fontFamily: "Cairo_700Bold" },
-  searchBox: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   input: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   categoryRow: { gap: 8, paddingVertical: 2 },
-  categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, borderRadius: Colors.radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
   categoryText: { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
   merchantRow: { gap: 10 },
-  merchantCard: { width: 150, minHeight: 112, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, alignItems: "center", justifyContent: "center" },
+  merchantCard: { width: 150, minHeight: 112, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, alignItems: "center", justifyContent: "center", ...Colors.shadow.card },
   merchantName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "center", marginTop: 6 },
   merchantMeta: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10, textAlign: "center", marginTop: 3 },
-  productCard: { borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
+  productCard: { borderRadius: Colors.radius.xl, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, ...Colors.shadow.card },
   productVisual: { height: 160, alignItems: "center", justifyContent: "center" },
-  badge: { position: "absolute", top: 12, right: 12, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  badge: { position: "absolute", top: 12, right: 12, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   badgeText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 11 },
   productInfo: { padding: 14, gap: 7 },
   productName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
@@ -513,19 +507,19 @@ const styles = StyleSheet.create({
   price: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" },
   oldPrice: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textDecorationLine: "line-through", fontSize: 11, textAlign: "right" },
   productActions: { flexDirection: "row", gap: 8 },
-  editBtn: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  cartBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  editBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  cartBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   modalBackdrop: { flex: 1, backgroundColor: "#0008", justifyContent: "flex-end" },
-  modalCard: { backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 18, gap: 10, borderWidth: 1, borderColor: Colors.border },
+  modalCard: { backgroundColor: Colors.bg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 18, gap: 10, borderWidth: 1, borderColor: Colors.border },
   modalTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 18, textAlign: "right" },
   payNote: { fontFamily: "Cairo_700Bold", color: Colors.accent, textAlign: "right", marginBottom: 4 },
-  modalInput: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
+  modalInput: { minHeight: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   modalActions: { flexDirection: "row-reverse", gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  cancelBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   cancelText: { fontFamily: "Cairo_700Bold", color: Colors.textSecondary },
-  saveBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  saveBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", color: "#001" },
-  imagePick: { height: 110, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, borderStyle: "dashed", backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  imagePick: { height: 110, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: Colors.border, borderStyle: "dashed", backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   imagePickText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, marginTop: 6 },
   preview: { width: "100%", height: "100%" },
 });

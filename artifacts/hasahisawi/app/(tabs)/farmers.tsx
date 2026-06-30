@@ -725,34 +725,34 @@ const styles = StyleSheet.create({
   header: { paddingBottom: 8 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
   headerIcon: { },
-  headerIconGrad: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  headerIconGrad: { width: 44, height: 44, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: C.text },
   headerSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: C.sub, marginTop: 1 },
-  addBtn:      { width: 38, height: 38, borderRadius: 12, overflow: "hidden" },
+  addBtn:      { width: 38, height: 38, borderRadius: Colors.radius.sm, overflow: "hidden" },
   addBtnGrad:  { flex: 1, alignItems: "center", justifyContent: "center" },
 
   // ── تبويبات ──
   tabsRow: { paddingHorizontal: 12, gap: 8, paddingBottom: 10 },
-  tabBtn:  { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "transparent", backgroundColor: "rgba(255,255,255,0.04)", position: "relative" },
+  tabBtn:  { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: "transparent", backgroundColor: "rgba(255,255,255,0.04)", position: "relative" },
   tabLabel:{ fontFamily: "Cairo_400Regular", fontSize: 13, color: C.muted },
   tabDot:  { position: "absolute", bottom: 2, left: "50%", width: 4, height: 4, borderRadius: 2, marginLeft: -2 },
 
   // ── بحث ──
-  searchWrap:  { flexDirection: "row", alignItems: "center", marginHorizontal: 14, marginBottom: 8, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: "rgba(74,222,128,0.12)" },
+  searchWrap:  { flexDirection: "row", alignItems: "center", marginHorizontal: 14, marginBottom: 8, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: "rgba(74,222,128,0.12)" },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: C.text, padding: 0 },
 
   // ── فلاتر ──
   filtersRow:  { paddingHorizontal: 12, gap: 6, paddingBottom: 8 },
-  filterChip:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
+  filterChip:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
   filterText:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
 
   // ── بطاقات ──
   list:  { padding: 14, gap: 12, paddingBottom: 100 },
-  card:  { borderRadius: 18, borderWidth: 0.8, borderColor: C.cardBdr, backgroundColor: C.card, padding: 14, overflow: "hidden", gap: 8 },
-  cardGrad: { ...StyleSheet.absoluteFillObject, borderRadius: 18 },
+  card:  { borderRadius: Colors.radius.lg, borderWidth: 0.8, borderColor: C.cardBdr, backgroundColor: C.card, padding: 14, overflow: "hidden", gap: 8, ...Colors.shadow.card },
+  cardGrad: { ...StyleSheet.absoluteFillObject, borderRadius: Colors.radius.lg },
 
   cardHead: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  catBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 0.5 },
+  catBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 0.5 },
   catText:  { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
 
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: C.text, lineHeight: 22 },
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
   metaSub:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
 
   cardActions: { flexDirection: "row", gap: 8, marginTop: 4 },
-  actionBtn:   { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10, borderWidth: 0.5 },
+  actionBtn:   { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, borderWidth: 0.5 },
   actionText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // ── فارغ ──
@@ -772,16 +772,16 @@ const styles = StyleSheet.create({
   empty:  { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 30 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, textAlign: "center" },
   emptySub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: C.sub, textAlign: "center" },
-  emptyBtn:   { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 14, borderWidth: 1, marginTop: 6 },
+  emptyBtn:   { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, marginTop: 6 },
   emptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
 
   // ── زر عائم ──
-  fab: { position: "absolute", bottom: 24, left: 20, width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", elevation: 6, shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8 },
+  fab: { position: "absolute", bottom: 24, left: 20, width: 52, height: 52, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", ...Colors.shadow.raised },
 
   // ── مودال ──
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
   modalKAV:     { },
-  modalBox:     { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", maxHeight: "92%" },
+  modalBox:     { borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, overflow: "hidden", maxHeight: "92%" },
   modalHandle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.15)", alignSelf: "center", marginTop: 10 },
   modalHeader:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
   modalTitle:   { fontFamily: "Cairo_700Bold", fontSize: 17, color: C.text },
@@ -789,12 +789,12 @@ const styles = StyleSheet.create({
   modalContent: { padding: 18, gap: 4, paddingBottom: 40 },
 
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: C.sub, marginTop: 8, marginBottom: 4 },
-  input: { backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 0.7, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 13, color: C.text },
+  input: { backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 0.7, borderRadius: Colors.radius.sm, paddingHorizontal: 13, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 13, color: C.text },
   inputMulti: { height: 80, textAlignVertical: "top" },
   row2: { flexDirection: "row", gap: 10 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 14, borderWidth: 0.7, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
+  chip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: Colors.radius.md, borderWidth: 0.7, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
   chipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
-  saveBtn: { borderRadius: 14, padding: 14, alignItems: "center", marginTop: 12 },
+  saveBtn: { borderRadius: Colors.radius.md, padding: 14, alignItems: "center", marginTop: 12 },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

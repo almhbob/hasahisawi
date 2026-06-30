@@ -7,11 +7,11 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 // ── ثوابت ───────────────────────────────────────────────────────────────────
@@ -95,17 +95,11 @@ type OccasionTransport = {
 // ── قسم الرأس ────────────────────────────────────────────────────────────────
 function HeroSection() {
   return (
-    <LinearGradient colors={["#1A0E00", "#0A1A10"]} style={h.hero}>
-      <View style={h.heroContent}>
-        <View style={h.iconCircle}>
-          <MaterialCommunityIcons name="party-popper" size={38} color={GOLD} />
-        </View>
-        <Text style={h.heroTitle}>مناسبتي</Text>
-        <Text style={h.heroSub}>
-          كل ما تحتاجه لمناسباتك في مكان واحد — صيوانات، كراسي، ترابيز، صوتيات ومواصلات
-        </Text>
-      </View>
-
+    <ModernHeader
+      title="مناسبتي"
+      subtitle="كل ما تحتاجه لمناسباتك في مكان واحد — صيوانات، كراسي، ترابيز، صوتيات ومواصلات"
+      icon="sparkles-outline"
+    >
       {/* ── إحصائيات ── */}
       <View style={h.statsRow}>
         {[
@@ -114,13 +108,13 @@ function HeroSection() {
           { icon: "checkmark-circle-outline" as const, label: "أصناف",sub: "متوفرة"  },
         ].map((s, i) => (
           <View key={i} style={h.statCard}>
-            <Ionicons name={s.icon} size={20} color={GOLD} />
+            <Ionicons name={s.icon} size={20} color="#fff" />
             <Text style={h.statLabel}>{s.label}</Text>
             <Text style={h.statSub}>{s.sub}</Text>
           </View>
         ))}
       </View>
-    </LinearGradient>
+    </ModernHeader>
   );
 }
 
@@ -547,7 +541,6 @@ function JoinTab() {
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════════════════
 export default function OccasionsScreen() {
-  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"shops" | "transport" | "join">("shops");
   const [shops,      setShops]     = useState<OccasionShop[]>([]);
   const [transport,  setTransport] = useState<OccasionTransport[]>([]);
@@ -585,7 +578,7 @@ export default function OccasionsScreen() {
   ] as const;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <HeroSection />
 
       {/* ── أزرار التبويبات ── */}
@@ -700,29 +693,14 @@ export default function OccasionsScreen() {
 
 // رأس الصفحة
 const h = StyleSheet.create({
-  hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-  heroContent: { alignItems: "center", marginBottom: 16 },
-  iconCircle: {
-    width: 72, height: 72, borderRadius: 20,
-    backgroundColor: GOLD + "20", borderWidth: 2, borderColor: GOLD + "50",
-    alignItems: "center", justifyContent: "center", marginBottom: 10,
-  },
-  heroTitle: {
-    fontFamily: "Cairo_800ExtraBold", fontSize: 28, color: GOLD,
-    textAlign: "center", letterSpacing: 0.5,
-  },
-  heroSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
-    textAlign: "center", marginTop: 4, lineHeight: 22,
-  },
   statsRow: { flexDirection: "row", gap: 10 },
   statCard: {
-    flex: 1, backgroundColor: CARD, borderRadius: 14,
-    borderWidth: 1, borderColor: GOLD + "25",
+    flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
     alignItems: "center", paddingVertical: 10, gap: 2,
   },
-  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textPrimary },
-  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.78)" },
 });
 
 // شاشة
@@ -739,19 +717,20 @@ const s = StyleSheet.create({
 
   // كرت محل
   shopCard: {
-    backgroundColor: CARD, borderRadius: 18, borderWidth: 1,
+    backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1,
     borderColor: Colors.divider, marginBottom: 14, overflow: "hidden",
+    ...Colors.shadow.card,
   },
   shopHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   shopAvatar: {
-    width: 50, height: 50, borderRadius: 14,
+    width: 50, height: 50, borderRadius: Colors.radius.md,
     backgroundColor: GOLD + "18", borderWidth: 1.5, borderColor: GOLD + "40",
     alignItems: "center", justifyContent: "center",
   },
   shopName:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   shopOwner: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
   shopArea:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
-  availBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  availBadge: { borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   availText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   shopDesc: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
@@ -761,7 +740,7 @@ const s = StyleSheet.create({
   noItems:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 12 },
   itemChip: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: BG, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
+    backgroundColor: BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider,
     paddingHorizontal: 12, paddingVertical: 10,
   },
   itemChipOff: { opacity: 0.5 },
@@ -771,25 +750,26 @@ const s = StyleSheet.create({
   shopActions: { flexDirection: "row", gap: 10, padding: 12, paddingTop: 8 },
   actionBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-    borderWidth: 1.5, borderRadius: 12, paddingVertical: 10,
+    borderWidth: 1.5, borderRadius: Colors.radius.md, paddingVertical: 10,
   },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
 
   // كرت مواصلات
   transportCard: {
-    backgroundColor: CARD, borderRadius: 18, borderWidth: 1,
+    backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1,
     borderColor: Colors.divider, marginBottom: 14, flexDirection: "row", overflow: "hidden",
+    ...Colors.shadow.card,
   },
   transportLeft: {
     width: 70, alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14,
   },
   transportIcon: {
-    width: 50, height: 50, borderRadius: 14, borderWidth: 1.5,
+    width: 50, height: 50, borderRadius: Colors.radius.md, borderWidth: 1.5,
     alignItems: "center", justifyContent: "center",
   },
   availPill: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    borderRadius: 8, paddingHorizontal: 5, paddingVertical: 3,
+    borderRadius: Colors.radius.sm, paddingHorizontal: 5, paddingVertical: 3,
   },
   availPillText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   transportBody: { flex: 1, padding: 12 },
@@ -799,7 +779,7 @@ const s = StyleSheet.create({
   transportMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, justifyContent: "flex-end" },
   metaTag: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: BG, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider,
+    backgroundColor: BG, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider,
     paddingHorizontal: 8, paddingVertical: 4,
   },
   metaTagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
@@ -808,20 +788,20 @@ const s = StyleSheet.create({
   // أخرى
   catChip: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 20,
+    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.pill,
     paddingHorizontal: 12, paddingVertical: 6, backgroundColor: CARD,
   },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   infoBanner: {
     flexDirection: "row", alignItems: "flex-start", gap: 8,
-    borderWidth: 1, borderRadius: 14, padding: 12,
+    borderWidth: 1, borderRadius: Colors.radius.md, padding: 12,
     backgroundColor: Colors.cyber + "08", marginBottom: 12,
   },
   infoBannerText: { fontFamily: "Cairo_400Regular", fontSize: 12, flex: 1, textAlign: "right", lineHeight: 20 },
   emptyBox: { alignItems: "center", paddingVertical: 50, gap: 8 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary },
   emptySub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
-  emptyBtn:   { borderRadius: 14, paddingHorizontal: 28, paddingVertical: 12, marginTop: 8 },
+  emptyBtn:   { borderRadius: Colors.radius.md, paddingHorizontal: 28, paddingVertical: 12, marginTop: 8 },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });
 
@@ -830,43 +810,44 @@ const j = StyleSheet.create({
   typeRow:    { flexDirection: "row", gap: 12, marginBottom: 16, marginTop: 8 },
   typeBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    borderWidth: 2, borderColor: Colors.divider, borderRadius: 16,
+    borderWidth: 2, borderColor: Colors.divider, borderRadius: Colors.radius.lg,
     paddingVertical: 14, backgroundColor: CARD,
   },
   typeBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted },
   formCard: {
-    backgroundColor: CARD, borderRadius: 20, borderWidth: 1,
+    backgroundColor: CARD, borderRadius: Colors.radius.xl, borderWidth: 1,
     borderColor: Colors.divider, padding: 20, gap: 4,
+    ...Colors.shadow.card,
   },
   formTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
   formSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 12 },
   fieldBlock: { marginBottom: 12 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 6, textAlign: "right" },
   input: {
-    backgroundColor: BG, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.divider,
+    backgroundColor: BG, borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider,
     color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14,
     paddingHorizontal: 14, paddingVertical: 12,
   },
   vTypeBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: BG,
   },
   vTypeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   submitBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    borderRadius: 16, paddingVertical: 16, marginTop: 8,
+    borderRadius: Colors.radius.lg, paddingVertical: 16, marginTop: 8,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   successBox: { alignItems: "center", paddingVertical: 60, gap: 12 },
   successIcon: {
-    width: 100, height: 100, borderRadius: 28,
+    width: 100, height: 100, borderRadius: Colors.radius.xl,
     backgroundColor: GOLD + "18", borderWidth: 2, borderColor: GOLD + "40",
     alignItems: "center", justifyContent: "center",
   },
   successTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: GOLD },
   successSub:   { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, paddingHorizontal: 20 },
-  successBtn:   { backgroundColor: GOLD, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 },
+  successBtn:   { backgroundColor: GOLD, borderRadius: Colors.radius.md, paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

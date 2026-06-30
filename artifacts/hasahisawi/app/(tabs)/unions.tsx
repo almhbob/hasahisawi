@@ -17,6 +17,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -867,39 +868,34 @@ export default function UnionsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={[UC2 + "60", "#050E08"]} style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerIcon}>
-            <Ionicons name="people-circle" size={28} color={UC} />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>النقابات المهنية</Text>
-            <Text style={styles.headerSub}>نقابات وجمعيات الحصاحيصا</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Tabs — scrollable row */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, paddingVertical: 6 }}>
-        {[
-          { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
-          { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
-          { key: "programs", label: "البرامج",       icon: "clipboard-outline",     activeColor: UC  },
-          { key: "laws",     label: "القوانين",      icon: "document-lock-outline", activeColor: UC  },
-          { key: "apply",    label: "انضم",          icon: "person-add-outline",    activeColor: UC  },
-          { key: "my",       label: "طلباتي",        icon: "document-text-outline", activeColor: UC  },
-        ].map(t => (
-          <Pressable key={t.key}
-            style={[styles.tabBtn, { flexShrink: 0, paddingHorizontal: 12 },
-              tab === t.key && { backgroundColor: t.activeColor, borderColor: t.activeColor }]}
-            onPress={() => { setTab(t.key as any); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <Ionicons name={t.icon as any} size={14} color={tab === t.key ? "#fff" : UC + "99"} />
-            <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <ModernHeader
+        title="النقابات المهنية"
+        subtitle="نقابات وجمعيات الحصاحيصا"
+        icon="people-circle-outline"
+        gradient={Colors.gradients.brand}
+      >
+        {/* Tabs — scrollable row */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
+          {[
+            { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
+            { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
+            { key: "programs", label: "البرامج",       icon: "clipboard-outline",     activeColor: UC  },
+            { key: "laws",     label: "القوانين",      icon: "document-lock-outline", activeColor: UC  },
+            { key: "apply",    label: "انضم",          icon: "person-add-outline",    activeColor: UC  },
+            { key: "my",       label: "طلباتي",        icon: "document-text-outline", activeColor: UC  },
+          ].map(t => (
+            <Pressable key={t.key}
+              style={[styles.tabBtn, { flexShrink: 0, paddingHorizontal: 12 },
+                tab === t.key && { backgroundColor: "rgba(255,255,255,0.28)", borderColor: "rgba(255,255,255,0.55)" }]}
+              onPress={() => { setTab(t.key as any); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
+              <Ionicons name={t.icon as any} size={14} color="#fff" />
+              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </ModernHeader>
 
       {/* Content */}
       {tab === "unions" && (
@@ -1227,7 +1223,7 @@ function AddReference({ onAdd }: { onAdd: (r: Reference) => void }) {
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#050E08" },
+  container: { flex: 1, backgroundColor: Colors.bg },
   header: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   headerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: UC + "20", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "40" },
@@ -1235,29 +1231,29 @@ const styles = StyleSheet.create({
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890" },
 
   tabRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, marginBottom: 12 },
-  tabBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10, backgroundColor: UC + "12", borderWidth: 1, borderColor: UC + "30" },
-  tabBtnActive: { backgroundColor: UC, borderColor: UC },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC + "99" },
+  tabBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  tabBtnActive: { backgroundColor: "rgba(255,255,255,0.28)", borderColor: "rgba(255,255,255,0.55)" },
+  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.82)" },
   tabLabelActive: { color: "#fff" },
 
   // Union card
-  unionCard: { borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: UC + "30" },
+  unionCard: { borderRadius: Colors.radius.lg, overflow: "hidden", ...Colors.shadow.card },
   unionCardGrad: { padding: 16 },
   unionCardRow: { flexDirection: "row", gap: 12, marginBottom: 10 },
-  unionInitial: { width: 48, height: 48, borderRadius: 24, backgroundColor: UC + "30", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "50", flexShrink: 0 },
+  unionInitial: { width: 48, height: 48, borderRadius: Colors.radius.pill, backgroundColor: UC + "30", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "50", flexShrink: 0 },
   unionInitialText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: UC },
   unionName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FAFAFA" },
   unionField: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC3 },
   unionDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890", lineHeight: 18 },
   unionStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
-  statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: UC + "15" },
+  statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: UC + "15" },
   statChipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: UC3 },
   unionActions: { flexDirection: "row", gap: 8 },
-  uBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  uBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
   uBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // Announcement
-  annCard: { backgroundColor: "#0B1A12", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#1B3626" },
+  annCard: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#1B3626", ...Colors.shadow.card },
   annCardPinned: { borderColor: GOLD + "50", backgroundColor: GOLD + "08" },
   pinnedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 },
   pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GOLD },
@@ -1270,7 +1266,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FAFAFA", marginBottom: 10, paddingRight: 4 },
   emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 14 },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#4B6E58", textAlign: "center" },
-  applyNowBtn: { backgroundColor: UC, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
+  applyNowBtn: { backgroundColor: UC, paddingHorizontal: 24, paddingVertical: 10, borderRadius: Colors.radius.md },
   applyNowText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // Modal
@@ -1283,33 +1279,33 @@ const styles = StyleSheet.create({
   unionModalInitialText: { fontFamily: "Cairo_700Bold", fontSize: 30, color: UC },
   modalField: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, textAlign: "center" },
   modalDesc: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#9DBFAA", textAlign: "center", lineHeight: 22 },
-  modalInfoGrid: { backgroundColor: "#0B1A12", borderRadius: 12, padding: 14, gap: 10 },
+  modalInfoGrid: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.lg, padding: 14, gap: 10, ...Colors.shadow.card },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   infoLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#79A890" },
   infoVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#FAFAFA", flex: 1 },
-  annInModal: { backgroundColor: "#0B1A12", borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: UC },
+  annInModal: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: UC },
   annInModalTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#FAFAFA", marginBottom: 4 },
   annInModalBody: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890" },
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
-  modalJoinBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UC, paddingVertical: 13, borderRadius: 12 },
+  modalJoinBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UC, paddingVertical: 13, borderRadius: Colors.radius.md },
   modalJoinText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  modalCallBtn: { width: 48, height: 48, borderRadius: 12, backgroundColor: "#0B1A12", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#1B3626" },
+  modalCallBtn: { width: 48, height: 48, borderRadius: Colors.radius.md, backgroundColor: "#0B1A12", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#1B3626" },
 
   // Form
   formContainer: { padding: 16, paddingBottom: 100 },
   formSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, marginBottom: 12 },
   fGroup: { marginBottom: 14 },
   fLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9DBFAA", marginBottom: 6 },
-  fInput: { backgroundColor: "#0B1A12", borderWidth: 1, borderColor: "#1B3626", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: "#FAFAFA", fontFamily: "Cairo_400Regular", fontSize: 14 },
-  genderBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: "#1B3626", alignItems: "center", backgroundColor: "#0B1A12" },
+  fInput: { backgroundColor: "#0B1A12", borderWidth: 1, borderColor: "#1B3626", borderRadius: Colors.radius.sm, paddingHorizontal: 14, paddingVertical: 10, color: "#FAFAFA", fontFamily: "Cairo_400Regular", fontSize: 14 },
+  genderBtn: { flex: 1, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#1B3626", alignItems: "center", backgroundColor: "#0B1A12" },
   genderBtnActive: { borderColor: UC, backgroundColor: UC + "20" },
   genderText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#79A890" },
   genderTextActive: { color: UC },
-  degreeChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: "#1B3626", backgroundColor: "#0B1A12" },
+  degreeChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#1B3626", backgroundColor: "#0B1A12" },
   degreeChipActive: { borderColor: UC, backgroundColor: UC + "20" },
   degreeText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#79A890" },
   degreeTextActive: { color: UC },
-  unionChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "#1B3626", backgroundColor: "#0B1A12" },
+  unionChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#1B3626", backgroundColor: "#0B1A12" },
   unionChipActive: { borderColor: UC, backgroundColor: UC + "25" },
   unionChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#79A890" },
   unionChipTextActive: { color: UC },
@@ -1326,54 +1322,54 @@ const styles = StyleSheet.create({
   stepNumActive: { color: UC },
   stepLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, textAlign: "center", marginBottom: 18 },
 
-  prevUnionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#0B1A12", borderRadius: 8, padding: 10, marginBottom: 6 },
+  prevUnionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#0B1A12", borderRadius: Colors.radius.sm, padding: 10, marginBottom: 6 },
   prevUnionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9DBFAA", flex: 1 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 12 },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC },
-  addBox: { backgroundColor: "#0B1A12", borderRadius: 12, padding: 14, gap: 8, marginBottom: 12, borderWidth: 1, borderColor: UC + "30" },
-  addInput: { backgroundColor: "#071210", borderWidth: 1, borderColor: "#1B3626", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: "#FAFAFA", fontFamily: "Cairo_400Regular", fontSize: 13 },
-  addConfirm: { flex: 1, backgroundColor: UC, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
+  addBox: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.md, padding: 14, gap: 8, marginBottom: 12, borderWidth: 1, borderColor: UC + "30" },
+  addInput: { backgroundColor: "#071210", borderWidth: 1, borderColor: "#1B3626", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8, color: "#FAFAFA", fontFamily: "Cairo_400Regular", fontSize: 13 },
+  addConfirm: { flex: 1, backgroundColor: UC, paddingVertical: 8, borderRadius: Colors.radius.sm, alignItems: "center" },
   addConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
-  addCancel: { flex: 1, backgroundColor: "#1B3626", paddingVertical: 8, borderRadius: 8, alignItems: "center" },
+  addCancel: { flex: 1, backgroundColor: "#1B3626", paddingVertical: 8, borderRadius: Colors.radius.sm, alignItems: "center" },
   addCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#79A890" },
   listItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
   listItemText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9DBFAA", flex: 1 },
-  smallAddBtn: { backgroundColor: UC, width: 40, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  smallAddBtn: { backgroundColor: UC, width: 40, borderRadius: Colors.radius.sm, alignItems: "center", justifyContent: "center" },
 
-  summaryBox: { backgroundColor: "#0B1A12", borderRadius: 12, padding: 16, marginTop: 16, borderWidth: 1, borderColor: UC + "40" },
+  summaryBox: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.md, padding: 16, marginTop: 16, borderWidth: 1, borderColor: UC + "40", ...Colors.shadow.card },
   summaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, marginBottom: 10 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderColor: "#1B3626" },
   summaryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#79A890" },
   summaryVal: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#FAFAFA", flex: 1, textAlign: "right" },
 
   formNavBtns: { flexDirection: "row", gap: 12, marginTop: 24 },
-  prevBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: UC + "50", backgroundColor: UC + "10" },
+  prevBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: UC + "50", backgroundColor: UC + "10" },
   prevBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: UC },
-  nextBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: UC },
+  nextBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13, borderRadius: Colors.radius.md, backgroundColor: UC },
   nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  submitBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary },
+  submitBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: Colors.radius.md, backgroundColor: Colors.primary },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   successBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  successCard: { borderRadius: 20, padding: 30, alignItems: "center", width: W - 48, borderWidth: 1, borderColor: UC + "40" },
+  successCard: { borderRadius: Colors.radius.xl, padding: 30, alignItems: "center", width: W - 48, borderWidth: 1, borderColor: UC + "40", ...Colors.shadow.raised },
   successIcon: { marginBottom: 16 },
   successTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FAFAFA", textAlign: "center", marginBottom: 10 },
   successSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#79A890", textAlign: "center", lineHeight: 22, marginBottom: 20 },
-  successBtn: { backgroundColor: UC, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12 },
+  successBtn: { backgroundColor: UC, paddingHorizontal: 28, paddingVertical: 12, borderRadius: Colors.radius.md },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // My memberships
-  myCard: { backgroundColor: "#0B1A12", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: "#1B3626" },
+  myCard: { backgroundColor: "#0B1A12", borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: "#1B3626", ...Colors.shadow.card },
   myCardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
   myCardUnion: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FAFAFA" },
   myCardDate: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4B6E58", marginTop: 2 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, borderWidth: 1 },
   statusText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
-  membershipNoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, padding: 8, backgroundColor: Colors.primary + "15", borderRadius: 8 },
+  membershipNoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, padding: 8, backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm },
   membershipNoText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
   rejectionReason: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", marginBottom: 8 },
   myCardInfo: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  miniInfo: { backgroundColor: "#071210", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "#1B3626" },
+  miniInfo: { backgroundColor: "#071210", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#1B3626" },
   miniLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#4B6E58" },
   miniVal: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9DBFAA" },
 });
@@ -1381,9 +1377,8 @@ const styles = StyleSheet.create({
 // ── أنماط تبويب اتحاد الطلاب ──────────────────────────────────────
 const stuStyles = StyleSheet.create({
   heroBanner: {
-    borderRadius: 22, padding: 20, gap: 16, overflow: "hidden",
-    shadowColor: SU, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+    borderRadius: Colors.radius.xl, padding: 20, gap: 16, overflow: "hidden",
+    ...Colors.shadow.raised,
   },
   heroOrb: {
     position: "absolute", top: -40, right: -30,
@@ -1396,7 +1391,7 @@ const stuStyles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   heroIcon: {
-    width: 70, height: 70, borderRadius: 22,
+    width: 70, height: 70, borderRadius: Colors.radius.lg,
     backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
@@ -1430,11 +1425,11 @@ const stuStyles = StyleSheet.create({
 
   featuresGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
   featureCard: {
-    backgroundColor: "#0B1A12", borderRadius: 16, padding: 14, gap: 10,
-    borderWidth: 1, borderColor: "#1B3626", alignItems: "flex-end",
+    backgroundColor: "#0B1A12", borderRadius: Colors.radius.lg, padding: 14, gap: 10,
+    borderWidth: 1, borderColor: "#1B3626", alignItems: "flex-end", ...Colors.shadow.card,
   },
   featureIcon: {
-    width: 44, height: 44, borderRadius: 13,
+    width: 44, height: 44, borderRadius: Colors.radius.md,
     alignItems: "center", justifyContent: "center",
   },
   featureLabel: {
@@ -1448,9 +1443,8 @@ const stuStyles = StyleSheet.create({
 
   joinBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
-    padding: 18, borderRadius: 18,
-    shadowColor: SU, shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+    padding: 18, borderRadius: Colors.radius.xl,
+    ...Colors.shadow.raised,
   },
   joinBtnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   joinBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 2 },
@@ -1465,19 +1459,19 @@ const stuStyles = StyleSheet.create({
 
   contactBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
-    backgroundColor: "#0B1A12", borderRadius: 18, padding: 16,
-    borderWidth: 1, borderColor: "#06B6D430",
+    backgroundColor: "#0B1A12", borderRadius: Colors.radius.xl, padding: 16,
+    borderWidth: 1, borderColor: "#06B6D430", ...Colors.shadow.card,
   },
   contactIcon: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 48, height: 48, borderRadius: Colors.radius.md,
     backgroundColor: "#06B6D415", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "#06B6D430",
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FAFAFA" },
   contactSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#79A890", marginTop: 2 },
-  portalBtn: { borderRadius: 18, overflow: "hidden" },
+  portalBtn: { borderRadius: Colors.radius.xl, overflow: "hidden", ...Colors.shadow.raised },
   portalGradient: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16 },
-  portalIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  portalIconWrap: { width: 48, height: 48, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   portalTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   portalSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 });

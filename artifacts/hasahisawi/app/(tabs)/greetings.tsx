@@ -979,17 +979,17 @@ const s = StyleSheet.create({
 
   activeBanner: {
     flexDirection:"row-reverse",alignItems:"center",gap:12,
-    borderRadius:20,padding:16,borderWidth:1,overflow:"hidden",
+    borderRadius:Colors.radius.xl,padding:16,borderWidth:1,overflow:"hidden",
   },
   activeBannerLeft: {width:48,alignItems:"center"},
   activeBannerEmoji:{fontSize:36},
   activeBannerTitle:{fontFamily:"Cairo_700Bold",fontSize:16,textAlign:"right"},
   activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.5)",textAlign:"right",marginTop:2},
-  activeCTA:{flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingVertical:8,borderRadius:12},
+  activeCTA:{flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingVertical:8,borderRadius:Colors.radius.sm},
   activeCTAText:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#000"},
 
   dateBox:   {flexDirection:"row-reverse",alignItems:"center",gap:12},
-  dateIconWrap:{width:38,height:38,borderRadius:12,alignItems:"center",justifyContent:"center"},
+  dateIconWrap:{width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center"},
   hijriDate: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD,textAlign:"right"},
   gregDate:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.4)",textAlign:"right"},
 
@@ -998,26 +998,26 @@ const s = StyleSheet.create({
   tabBtnActive:{borderBottomWidth:2,borderBottomColor:GOLD},
   tabLabel:  {fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.textMuted},
 
-  hintCard:  {flexDirection:"row-reverse",alignItems:"center",gap:8,borderRadius:14,padding:12,borderWidth:1,borderColor:GOLD+"20",overflow:"hidden"},
+  hintCard:  {flexDirection:"row-reverse",alignItems:"center",gap:8,borderRadius:Colors.radius.md,padding:12,borderWidth:1,borderColor:GOLD+"20",overflow:"hidden"},
   hintText:  {fontFamily:"Cairo_400Regular",fontSize:12,color:GOLD+"BB",flex:1,textAlign:"right",lineHeight:20},
 });
 
 // بطاقات المناسبات
 const oc = StyleSheet.create({
-  card:        {borderRadius:22,overflow:"hidden",borderWidth:1,borderColor:BORDER},
+  card:        {borderRadius:Colors.radius.xl,overflow:"hidden",borderWidth:1,borderColor:BORDER},
   topLine:     {height:2.5},
-  todayBadge:  {position:"absolute",top:14,left:14,flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:10,paddingHorizontal:8,paddingVertical:3},
+  todayBadge:  {position:"absolute",top:14,left:14,flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:Colors.radius.sm,paddingHorizontal:8,paddingVertical:3},
   todayText:   {fontFamily:"Cairo_700Bold",fontSize:10,color:"#fff"},
   pulse:       {width:5,height:5,borderRadius:2.5},
   content:     {flexDirection:"row-reverse",alignItems:"flex-start",gap:12,padding:16,paddingTop:14},
-  iconBox:     {width:56,height:56,borderRadius:16,alignItems:"center",justifyContent:"center",borderWidth:1},
+  iconBox:     {width:56,height:56,borderRadius:Colors.radius.md,alignItems:"center",justifyContent:"center",borderWidth:1},
   emoji:       {fontSize:28},
   name:        {fontFamily:"Cairo_700Bold",fontSize:15,color:"#fff",textAlign:"right"},
   date:        {fontFamily:"Cairo_400Regular",fontSize:12,textAlign:"right",marginTop:2},
   pill:        {flexDirection:"row-reverse",alignItems:"center",gap:4,borderWidth:1,borderRadius:8,paddingHorizontal:8,paddingVertical:3,marginTop:6,alignSelf:"flex-end"},
   pillText:    {fontFamily:"Cairo_600SemiBold",fontSize:11},
   dot:         {width:5,height:5,borderRadius:2.5},
-  cardIcon:    {width:38,height:38,borderRadius:10,alignItems:"center",justifyContent:"center",borderWidth:1},
+  cardIcon:    {width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center",borderWidth:1},
   versePreview:{marginHorizontal:16,borderTopWidth:1,paddingTop:8},
   versePreviewText:{fontFamily:"Cairo_400Regular",fontSize:11,textAlign:"right"},
   cta:         {flexDirection:"row-reverse",alignItems:"center",gap:5,padding:14,paddingTop:6},
@@ -1026,9 +1026,9 @@ const oc = StyleSheet.create({
 
 // التقويم
 const cal = StyleSheet.create({
-  wrap:      {backgroundColor:CARD,borderRadius:20,padding:16,borderWidth:1,borderColor:BORDER},
+  wrap:      {backgroundColor:CARD,borderRadius:Colors.radius.xl,padding:16,borderWidth:1,borderColor:BORDER},
   header:    {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:14},
-  navBtn:    {width:36,height:36,borderRadius:10,backgroundColor:CARD2,alignItems:"center",justifyContent:"center"},
+  navBtn:    {width:36,height:36,borderRadius:Colors.radius.sm,backgroundColor:CARD2,alignItems:"center",justifyContent:"center"},
   monthName: {fontFamily:"Cairo_700Bold",fontSize:17,color:GOLD,textAlign:"center"},
   year:      {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center"},
   weekRow:   {flexDirection:"row-reverse",marginBottom:4},
@@ -1050,16 +1050,16 @@ const cal = StyleSheet.create({
 // المودال
 const cm = StyleSheet.create({
   overlay:  {flex:1,justifyContent:"flex-end"},
-  sheet:    {borderTopLeftRadius:30,borderTopRightRadius:30,overflow:"hidden",maxHeight:"94%",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
+  sheet:    {borderTopLeftRadius:Colors.radius.xl,borderTopRightRadius:Colors.radius.xl,overflow:"hidden",maxHeight:"94%",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
   sheetHeader:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",padding:20,paddingBottom:12},
-  closeBtn: {width:40,height:40,borderRadius:14,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
-  headerShareBtn:{width:40,height:40,borderRadius:14,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
+  closeBtn: {width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
+  headerShareBtn:{width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
   sheetTitle:{fontFamily:"Cairo_700Bold",fontSize:18,color:"#fff"},
   sheetSub:  {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center",marginTop:2},
   scrollContent:{padding:20,paddingTop:4,gap:20,paddingBottom:30},
 
   // البطاقة
-  cardWrap:  {borderRadius:24,overflow:"hidden",borderWidth:1},
+  cardWrap:  {borderRadius:Colors.radius.xl,overflow:"hidden",borderWidth:1},
   cardGrad:  {padding:22,gap:16,overflow:"hidden",minHeight:480},
   ornamentTop:{flexDirection:"row-reverse",alignItems:"center",gap:8},
   ornamentLine:{flex:1,height:1},
@@ -1072,17 +1072,17 @@ const cm = StyleSheet.create({
 
   cardTitle: {fontFamily:"Cairo_700Bold",fontSize:26,textAlign:"center",letterSpacing:1},
 
-  verseBox:  {borderWidth:1,borderRadius:14,padding:14,alignItems:"center"},
+  verseBox:  {borderWidth:1,borderRadius:Colors.radius.md,padding:14,alignItems:"center"},
   verseLabel:{fontFamily:"Cairo_400Regular",fontSize:11,marginBottom:5},
   verseText: {fontFamily:"Cairo_400Regular",fontSize:14,textAlign:"center",lineHeight:26},
 
-  greetBox:  {borderRadius:14,padding:14,borderWidth:1,overflow:"hidden"},
+  greetBox:  {borderRadius:Colors.radius.md,padding:14,borderWidth:1,overflow:"hidden"},
   greetText: {fontFamily:"Cairo_400Regular",fontSize:13,color:"rgba(255,255,255,0.88)",textAlign:"right",lineHeight:24},
 
   cardFooter:{gap:10,marginTop:4},
   footerLine:{height:1},
   footerRow: {flexDirection:"row-reverse",justifyContent:"space-between",alignItems:"center"},
-  stamp:     {borderWidth:1,borderRadius:10,paddingHorizontal:10,paddingVertical:5},
+  stamp:     {borderWidth:1,borderRadius:Colors.radius.sm,paddingHorizontal:10,paddingVertical:5},
   stampText: {fontFamily:"Cairo_700Bold",fontSize:12},
   watermark: {fontFamily:"Cairo_700Bold",fontSize:13},
   bottomGlow:{position:"absolute",bottom:0,left:0,right:0,height:60},
@@ -1090,32 +1090,32 @@ const cm = StyleSheet.create({
   section:   {gap:10},
   sectionLabel:{fontFamily:"Cairo_700Bold",fontSize:13,color:"rgba(255,255,255,0.8)",textAlign:"right"},
   styleRow:  {gap:8,paddingVertical:2},
-  stylePill: {flexDirection:"row-reverse",alignItems:"center",gap:7,paddingHorizontal:14,paddingVertical:9,borderRadius:14,backgroundColor:"rgba(255,255,255,0.06)",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
+  stylePill: {flexDirection:"row-reverse",alignItems:"center",gap:7,paddingHorizontal:14,paddingVertical:9,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.06)",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
   styleColor:{width:10,height:10,borderRadius:5},
   stylePillText:{fontFamily:"Cairo_600SemiBold",fontSize:13,color:"rgba(255,255,255,0.5)"},
 
-  inputRow:  {flexDirection:"row-reverse",alignItems:"center",backgroundColor:"rgba(255,255,255,0.05)",borderRadius:14,borderWidth:1,height:52},
+  inputRow:  {flexDirection:"row-reverse",alignItems:"center",backgroundColor:"rgba(255,255,255,0.05)",borderRadius:Colors.radius.md,borderWidth:1,height:52},
   input:     {flex:1,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff",paddingHorizontal:6},
 
   actionsGrid:{flexDirection:"row-reverse",flexWrap:"wrap",gap:10},
-  actionCard: {width:"47%",aspectRatio:1.8,borderRadius:16,borderWidth:1,alignItems:"center",justifyContent:"center",gap:6,overflow:"hidden"},
+  actionCard: {width:"47%",aspectRatio:1.8,borderRadius:Colors.radius.md,borderWidth:1,alignItems:"center",justifyContent:"center",gap:6,overflow:"hidden"},
   actionCardPublished:{opacity:0.7},
   actionLabel:{fontFamily:"Cairo_700Bold",fontSize:13},
 });
 
 // المنبر
 const b = StyleSheet.create({
-  compose:     {borderRadius:20,padding:16,gap:10,borderWidth:1,borderColor:BORDER,marginBottom:16,overflow:"hidden"},
+  compose:     {borderRadius:Colors.radius.xl,padding:16,gap:10,borderWidth:1,borderColor:BORDER,marginBottom:16,overflow:"hidden"},
   composeAccent:{position:"absolute",top:0,left:0,right:0,height:4},
   composeHeader:{flexDirection:"row-reverse",alignItems:"center",gap:8},
   composeTitle: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD},
   tagsRow:     {gap:8,paddingBottom:4},
-  tag:         {paddingHorizontal:12,paddingVertical:5,borderRadius:14,backgroundColor:"rgba(255,255,255,0.05)",borderWidth:1,borderColor:BORDER},
+  tag:         {paddingHorizontal:12,paddingVertical:5,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.05)",borderWidth:1,borderColor:BORDER},
   tagText:     {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.4)"},
-  composeInput:{backgroundColor:"rgba(255,255,255,0.05)",borderRadius:14,borderWidth:1,borderColor:BORDER,minHeight:88,padding:14,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff"},
+  composeInput:{backgroundColor:"rgba(255,255,255,0.05)",borderRadius:Colors.radius.md,borderWidth:1,borderColor:BORDER,minHeight:88,padding:14,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff"},
   composeBottom:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between"},
   charCount:   {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.3)"},
-  postBtn:     {borderRadius:12,overflow:"hidden"},
+  postBtn:     {borderRadius:Colors.radius.sm,overflow:"hidden"},
   postBtnGrad: {flexDirection:"row-reverse",alignItems:"center",gap:6,paddingHorizontal:16,paddingVertical:9},
   postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:"#000"},
 
@@ -1123,7 +1123,7 @@ const b = StyleSheet.create({
   emptyTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:"rgba(255,255,255,0.6)"},
   emptySub:  {fontFamily:"Cairo_400Regular",fontSize:13,color:"rgba(255,255,255,0.3)"},
 
-  postCard:  {borderRadius:18,padding:16,borderWidth:1,borderColor:BORDER,overflow:"hidden",gap:10},
+  postCard:  {borderRadius:Colors.radius.lg,padding:16,borderWidth:1,borderColor:BORDER,overflow:"hidden",gap:10},
   postCardFeatured:{borderColor:GOLD+"30"},
   postAccent:{position:"absolute",top:0,left:0,right:0,height:3},
   featuredBadge:{position:"absolute",top:12,left:12,flexDirection:"row-reverse",alignItems:"center",gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:8},

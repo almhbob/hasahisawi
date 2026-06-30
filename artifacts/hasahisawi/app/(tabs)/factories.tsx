@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -443,39 +444,32 @@ export default function FactoriesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Colors.bg }]}>
       {/* HEADER */}
-      <LinearGradient colors={["#0A1628", FAC2 + "55", FAC + "30", Colors.bg]} locations={[0, 0.35, 0.65, 1]}
-        style={[styles.header, { paddingTop: topPad }]}>
-        <Animated.View entering={FadeIn.delay(60).duration(600)}>
-          <View style={styles.headerRow}>
-            <View style={[styles.headerIcon, { backgroundColor: FAC + "25", borderColor: FAC + "50" }]}>
-              <MaterialCommunityIcons name="factory" size={22} color={FAC} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle}>المصانع والإنتاج المحلي</Text>
-              <Text style={styles.headerSub}>منتجات مباشرة من المصنع للمستهلك</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.pkgBtn, { borderColor: FAC + "50", backgroundColor: FAC + "15" }]}
-              onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setPkgModal(true); }}>
-              <Ionicons name="pricetags-outline" size={13} color={FAC} />
-              <Text style={[styles.pkgBtnText, { color: FAC }]}>الباقات</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
+      <ModernHeader
+        title="المصانع والإنتاج المحلي"
+        subtitle="منتجات مباشرة من المصنع للمستهلك"
+        icon="business-outline"
+        rightSlot={
+          <TouchableOpacity
+            style={styles.pkgBtn}
+            onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setPkgModal(true); }}>
+            <Ionicons name="pricetags-outline" size={13} color="#fff" />
+            <Text style={styles.pkgBtnText}>الباقات</Text>
+          </TouchableOpacity>
+        }
+      >
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.75)" />
           <TextInput
             style={styles.searchInput}
             placeholder="ابحث عن مصنع أو منتج…"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor="rgba(255,255,255,0.6)"
             value={search}
             onChangeText={setSearch}
           />
           {search !== "" && (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+              <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.75)" />
             </TouchableOpacity>
           )}
         </View>
@@ -485,13 +479,13 @@ export default function FactoriesScreen() {
           {TABS.map(t => (
             <TouchableOpacity key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
               onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setTab(t.key as any); }} activeOpacity={0.8}>
-              {tab === t.key && <LinearGradient colors={[FAC, FAC2]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />}
-              <Ionicons name={t.icon} size={13} color={tab === t.key ? "#fff" : Colors.textMuted} />
+              {tab === t.key && <View style={[StyleSheet.absoluteFill, styles.tabBtnActiveBg]} />}
+              <Ionicons name={t.icon} size={13} color={tab === t.key ? FAC : "#fff"} />
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* CONTENT */}
       {loading ? (
@@ -599,30 +593,31 @@ const styles = StyleSheet.create({
   headerIcon:   { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   headerTitle:  { fontSize: 18, fontFamily: "Cairo_700Bold", color: Colors.text },
   headerSub:    { fontSize: 11, color: Colors.textMuted },
-  pkgBtn:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1 },
-  pkgBtnText:   { fontSize: 11, fontFamily: "Cairo_600SemiBold" },
-  searchWrap:   { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  searchInput:  { flex: 1, color: Colors.text, fontFamily: "Cairo_400Regular", fontSize: 13 },
-  tabBar:       { flexDirection: "row", gap: 6 },
-  tabBtn:       { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" },
+  pkgBtn:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)" },
+  pkgBtnText:   { fontSize: 11, fontFamily: "Cairo_600SemiBold", color: "#fff" },
+  searchWrap:   { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", paddingHorizontal: 12, paddingVertical: 8 },
+  searchInput:  { flex: 1, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13 },
+  tabBar:       { flexDirection: "row", gap: 6, marginTop: 10 },
+  tabBtn:       { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" },
   tabBtnActive: { overflow: "hidden" },
-  tabLabel:     { fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.textMuted },
-  tabLabelActive:{ color: "#fff" },
+  tabBtnActiveBg:{ backgroundColor: "#fff" },
+  tabLabel:     { fontSize: 12, fontFamily: "Cairo_600SemiBold", color: "#fff" },
+  tabLabelActive:{ color: FAC },
   catScroll:    { marginBottom: 12 },
-  catPill:      { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  catPill:      { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border },
   catLabel:     { fontSize: 11, fontFamily: "Cairo_500Medium", color: Colors.textMuted },
   scrollContent:{ padding: 16, paddingTop: 12 },
   loadingWrap:  { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText:  { color: Colors.textMuted, fontFamily: "Cairo_400Regular" },
   // sponsor banner
-  sponsorBanner:{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16, overflow: "hidden" },
+  sponsorBanner:{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: Colors.radius.md, borderWidth: 1, padding: 14, marginBottom: 16, overflow: "hidden", ...Colors.shadow.card },
   sponsorIcon:  { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   sponsorLabel: { fontSize: 10, color: Colors.textMuted, fontFamily: "Cairo_400Regular" },
   sponsorName:  { fontSize: 15, fontFamily: "Cairo_700Bold" },
   sponsorTagline:{ fontSize: 11, color: Colors.textMuted },
-  sponsorBtn:   { padding: 8, borderRadius: 8, borderWidth: 1 },
+  sponsorBtn:   { padding: 8, borderRadius: Colors.radius.sm, borderWidth: 1 },
   // factory card
-  factoryCard:       { borderRadius: 16, marginBottom: 12, overflow: "hidden", backgroundColor: Colors.surface2 },
+  factoryCard:       { borderRadius: Colors.radius.lg, marginBottom: 12, overflow: "hidden", backgroundColor: Colors.surface2, ...Colors.shadow.card },
   factoryCardFeatured:{ borderWidth: 1, borderColor: GOLD + "60" },
   factoryCardGrad:   { ...StyleSheet.absoluteFillObject },
   factoryStripe:     { position: "absolute", left: 0, top: 0, bottom: 0, width: 3 },
@@ -642,7 +637,7 @@ const styles = StyleSheet.create({
   metaChip:          { flexDirection: "row", alignItems: "center", gap: 3 },
   metaText:          { fontSize: 10, color: Colors.textMuted },
   // product card
-  productCard:       { borderRadius: 14, marginBottom: 10, padding: 14, overflow: "hidden", borderWidth: 1 },
+  productCard:       { borderRadius: Colors.radius.md, marginBottom: 10, padding: 14, overflow: "hidden", borderWidth: 1, ...Colors.shadow.card },
   productHeader:     { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   productCat:        { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   productCatText:    { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
@@ -660,52 +655,52 @@ const styles = StyleSheet.create({
   contactBtn:        { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
   contactBtnText:    { fontSize: 12, fontFamily: "Cairo_600SemiBold" },
   // join CTA
-  joinCta:           { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8, overflow: "hidden" },
+  joinCta:           { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: Colors.radius.lg, borderWidth: 1, padding: 16, marginTop: 8, overflow: "hidden", ...Colors.shadow.card },
   joinCtaTitle:      { fontSize: 14, fontFamily: "Cairo_700Bold" },
   joinCtaDesc:       { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   // empty state
   empty:             { alignItems: "center", paddingVertical: 60, gap: 10 },
   emptyTitle:        { fontSize: 16, fontFamily: "Cairo_700Bold", color: Colors.textMuted },
   emptyDesc:         { fontSize: 12, color: Colors.textMuted, textAlign: "center", paddingHorizontal: 20 },
-  registerBtn:       { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
+  registerBtn:       { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: Colors.radius.sm },
   registerBtnText:   { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
   // modal
   modalOverlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
-  modalSheet:    { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface2, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "88%", overflow: "hidden" },
+  modalSheet:    { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface2, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, maxHeight: "88%", overflow: "hidden" },
   dragBar:       { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 4 },
   modalHeader:   { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, paddingBottom: 12 },
   modalLogo:     { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   modalLogoText: { fontSize: 22, color: "#fff", fontFamily: "Cairo_700Bold" },
   modalTitle:    { fontSize: 17, fontFamily: "Cairo_700Bold", color: Colors.text },
   modalCloseBtn: { padding: 4 },
-  planPill:      { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
+  planPill:      { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
   planPillText:  { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
-  promoTaglineBox:{ marginHorizontal: 16, marginBottom: 4, borderRadius: 12, borderWidth: 1, padding: 12 },
+  promoTaglineBox:{ marginHorizontal: 16, marginBottom: 4, borderRadius: Colors.radius.sm, borderWidth: 1, padding: 12 },
   promoTaglineBig:{ fontSize: 15, fontFamily: "Cairo_600SemiBold", textAlign: "center" },
   modalSection:  { padding: 16, paddingTop: 8 },
   modalSectionTitle:{ fontSize: 14, fontFamily: "Cairo_700Bold", marginBottom: 10 },
   contactGrid:   { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  contactCard:   { flex: 1, minWidth: 120, alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 14, padding: 12 },
+  contactCard:   { flex: 1, minWidth: 120, alignItems: "center", gap: 6, borderWidth: 1, borderRadius: Colors.radius.md, padding: 12 },
   contactLabel:  { fontSize: 11, color: Colors.textMuted },
   contactVal:    { fontSize: 13, fontFamily: "Cairo_600SemiBold" },
   statsRow:      { flexDirection: "row", gap: 10 },
-  statBlock:     { flex: 1, alignItems: "center", gap: 4, padding: 12, borderRadius: 12, borderWidth: 1 },
+  statBlock:     { flex: 1, alignItems: "center", gap: 4, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   statBlockVal:  { fontSize: 13, fontFamily: "Cairo_700Bold" },
   statBlockLabel:{ fontSize: 10, color: Colors.textMuted },
   factoryDesc:   { fontSize: 12, color: Colors.textMuted, marginTop: 10, lineHeight: 20 },
-  websiteBtn:    { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, margin: 16, borderRadius: 14, borderWidth: 1, paddingVertical: 12 },
+  websiteBtn:    { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, margin: 16, borderRadius: Colors.radius.md, borderWidth: 1, paddingVertical: 12 },
   websiteBtnText:{ fontSize: 14, fontFamily: "Cairo_600SemiBold" },
   // packages modal
-  pkgCard:       { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12, overflow: "hidden" },
+  pkgCard:       { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 16, marginBottom: 12, overflow: "hidden", ...Colors.shadow.card },
   pkgHeader:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  pkgBadge:      { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
+  pkgBadge:      { borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
   pkgBadgeText:  { fontSize: 13, fontFamily: "Cairo_700Bold" },
   pkgPrice:      { fontSize: 14, fontFamily: "Cairo_700Bold" },
   pkgFeature:    { flexDirection: "row", alignItems: "center", gap: 6 },
   pkgFeatureText:{ fontSize: 12, color: Colors.textMuted },
-  ctaBox:        { borderRadius: 16, borderWidth: 1, padding: 18, alignItems: "center", marginTop: 8 },
+  ctaBox:        { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 18, alignItems: "center", marginTop: 8 },
   ctaTitle:      { fontSize: 17, fontFamily: "Cairo_700Bold", marginBottom: 8 },
   ctaDesc:       { fontSize: 12, color: Colors.textMuted, textAlign: "center", marginBottom: 16 },
-  ctaBtn:        { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  ctaBtn:        { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Colors.radius.sm },
   ctaBtnText:    { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

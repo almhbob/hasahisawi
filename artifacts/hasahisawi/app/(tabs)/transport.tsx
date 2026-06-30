@@ -16,6 +16,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 import {
   TRANSPORT_ZONES, DEFAULT_FARE_MATRIX,
@@ -456,8 +457,6 @@ const ZONE_META_MOB: Record<number, { name: string; color: string; icon: string 
 
 // ─── الشاشة الرئيسية ──────────────────────────────────────────────────────────
 export default function TransportScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, token } = useAuth();
   const apiUrl = getApiUrl();
 
@@ -801,27 +800,23 @@ export default function TransportScreen() {
   return (
     <View style={s.container}>
       {/* ── رأس الصفحة ── */}
-      <LinearGradient colors={["#081A0E", "#0D2B17"]} style={[s.header, { paddingTop: topPad + 8 }]}>
-        <View style={s.headerRow}>
-          <View style={s.headerIcon}>
-            <MaterialCommunityIcons name="car-side" size={22} color={ACCENT} />
-          </View>
-          <View style={{ flex: 1, marginRight: 10 }}>
-            <Text style={s.headerTitle}>مشوارك علينا</Text>
-            <Text style={s.headerSub}>مشاويرك علينا · ٥ مناطق تغطية</Text>
-          </View>
+      <ModernHeader
+        title="مشوارك علينا"
+        subtitle="مشاويرك علينا · ٥ مناطق تغطية"
+        gradient={Colors.gradients.brand}
+        rightSlot={
           <View style={s.liveBadge}>
             <View style={s.liveDot} />
             <Text style={s.liveText}>مفعّل</Text>
           </View>
-        </View>
-
+        }
+      >
         {/* إحصائيات سريعة */}
         <View style={s.quickStats}>
           {[
-            { num: onlineCnt,   label: "سائق الآن",   color: GREEN  },
-            { num: approvedCnt, label: "سائق معتمد",  color: BLUE   },
-            { num: myTrips.length, label: "طلباتي",   color: ACCENT },
+            { num: onlineCnt,      label: "سائق الآن",  color: GREEN  },
+            { num: approvedCnt,    label: "سائق معتمد", color: BLUE   },
+            { num: myTrips.length, label: "طلباتي",     color: ACCENT },
           ].map((st, i) => (
             <React.Fragment key={i}>
               {i > 0 && <View style={s.quickStatDiv} />}
@@ -842,7 +837,7 @@ export default function TransportScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ── المحتوى ── */}
       <ScrollView
@@ -2146,7 +2141,7 @@ const cs = StyleSheet.create({
   secRow:        { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
   secBar:        { width: 3, height: 18, borderRadius: 2 },
   secTitle:      { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  zonePreviewCard:  { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 10, padding: 10, borderWidth: 1 },
+  zonePreviewCard:  { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 10, borderWidth: 1, ...Colors.shadow.card },
   zonePreviewBadge: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   zonePreviewNum:   { fontFamily: "Cairo_700Bold", fontSize: 13 },
   zonePreviewName:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
@@ -2177,7 +2172,7 @@ const zp = StyleSheet.create({
 const fe = StyleSheet.create({
   placeholder:     { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 16, marginVertical: 12, borderWidth: 1, borderColor: Colors.divider, borderStyle: "dashed" },
   placeholderText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 20 },
-  card:            { backgroundColor: Colors.cardBg, borderRadius: 14, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30" },
+  card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30", ...Colors.shadow.card },
   header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, flexWrap: "wrap" },
   headerTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 },
   routeBadge:      { flex: 1, alignItems: "flex-start" },
@@ -2192,12 +2187,7 @@ const fe = StyleSheet.create({
 
 const s = StyleSheet.create({
   container:      { flex: 1, backgroundColor: Colors.bg },
-  header:         { paddingHorizontal: 16, paddingBottom: 0 },
-  headerRow:      { flexDirection: "row-reverse", alignItems: "center", marginBottom: 12, gap: 0 },
-  headerIcon:     { width: 40, height: 40, borderRadius: 20, backgroundColor: ACCENT + "20", alignItems: "center", justifyContent: "center", marginLeft: 10 },
-  headerTitle:    { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
-  headerSub:      { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70" },
-  liveBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "20", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: GREEN + "40" },
+  liveBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "20", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: GREEN + "40" },
   liveDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: GREEN },
   liveText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
   quickStats:     { flexDirection: "row-reverse", justifyContent: "space-around", marginBottom: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#ffffff12" },
@@ -2215,7 +2205,7 @@ const s = StyleSheet.create({
   secBar:         { width: 3, height: 18, borderRadius: 2 },
   secTitle:       { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
 
-  zoneSelectCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 4 },
+  zoneSelectCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 4, ...Colors.shadow.card },
   zoneSelectRow:  { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" },
   zoneSelectDot:  { width: 10, height: 10, borderRadius: 5, marginTop: 14 },
   zoneSelectLabel:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
@@ -2223,7 +2213,7 @@ const s = StyleSheet.create({
   zoneDivider:    { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginVertical: 6, paddingRight: 14 },
   zoneDivLine:    { flex: 1, height: 1, backgroundColor: Colors.divider },
 
-  formCard:       { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Colors.divider },
+  formCard:       { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   formCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 4 },
   formCardTitle:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   formCardSub:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginBottom: 14 },
@@ -2234,7 +2224,7 @@ const s = StyleSheet.create({
   typeBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 10, paddingVertical: 10 },
   typeBtnLabel:   { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
-  howCard:        { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.divider },
+  howCard:        { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   howCardTitle:   { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 14 },
   howRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 10, position: "relative" },
   howBubble:      { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 2 },
@@ -2247,7 +2237,7 @@ const s = StyleSheet.create({
 });
 
 const dc = StyleSheet.create({
-  card:        { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
+  card:        { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   row:         { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 10 },
   avatar:      { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   name:        { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
@@ -2264,7 +2254,7 @@ const dc = StyleSheet.create({
 });
 
 const tc = StyleSheet.create({
-  card:            { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider },
+  card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   topRow:          { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 10 },
   typeBadge:       { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   typeText:        { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT },

@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Linking, Platform, Alert, Dimensions,
+  TextInput, Linking, Platform, Alert,
   Modal, ActivityIndicator, KeyboardAvoidingView, Keyboard,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
@@ -16,9 +15,8 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "expo-router";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
-
-const { width } = Dimensions.get("window");
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -123,8 +121,6 @@ const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: str
 type SubTab = "services" | "health" | "recipes" | "handmade";
 
 export default function WomenScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, isGuest, setUserGender } = useAuth();
   const router = useRouter();
   const [settingGender, setSettingGender] = useState(false);
@@ -232,9 +228,7 @@ export default function WomenScreen() {
   if (isGuest || !user) {
     return (
       <View style={s.root}>
-        <View style={[s.header, { paddingTop: topPad + 12 }]}>
-          <LinearGradient colors={[Colors.cardBg, Colors.bg]} style={StyleSheet.absoluteFill} />
-        </View>
+        <ModernHeader title="ركن المرأة" subtitle="خدمات · صحة · مطبخ سوداني" />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <MaterialCommunityIcons name="lock-outline" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
@@ -245,7 +239,7 @@ export default function WomenScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => router.push("/login")}
-            style={{ backgroundColor: "#FF4FA3", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14 }}
+            style={{ backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: Colors.radius.md }}
           >
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>تسجيل الدخول</Text>
           </TouchableOpacity>
@@ -318,17 +312,7 @@ export default function WomenScreen() {
   return (
     <View style={s.root}>
       {/* ── Header ── */}
-      <LinearGradient colors={[Colors.cardBg, Colors.bg]} style={[s.header, { paddingTop: topPad + 12 }]}>
-        <View style={s.headerTop}>
-          <View style={s.headerIcon}>
-            <MaterialCommunityIcons name="face-woman" size={24} color="#FF4FA3" />
-          </View>
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
-            <Text style={s.headerTitle}>ركن المرأة</Text>
-            <Text style={s.headerSub}>خدمات · صحة · مطبخ سوداني</Text>
-          </View>
-        </View>
-
+      <ModernHeader title="ركن المرأة" subtitle="خدمات · صحة · مطبخ سوداني">
         {/* Stats */}
         <View style={s.statsRow}>
           {[
@@ -359,7 +343,7 @@ export default function WomenScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ══ TAB: SERVICES ══ */}
       {subTab === "services" && (
@@ -893,61 +877,61 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   header: { paddingHorizontal: 16, paddingBottom: 0 },
   headerTop: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  headerIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: "#FF4FA320", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#FF4FA340" },
+  headerIcon: { width: 46, height: 46, borderRadius: Colors.radius.md, backgroundColor: "#FF4FA320", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#FF4FA340" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
 
-  statsRow: { flexDirection: "row", backgroundColor: Colors.bg, borderRadius: 16, padding: 14, marginBottom: 14, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
 
-  subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 14, paddingHorizontal: 0 },
-  subTab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 4, paddingHorizontal: 0 },
+  subTab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", overflow: "hidden" },
   subTabActive: { borderColor: "#FF4FA360" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: 12, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
+  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8, ...Colors.shadow.card },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
 
-  card: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  iconCircle: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", borderWidth: 1 },
+  iconCircle: { width: 52, height: 52, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  typeBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  typeBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
   typeBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
+  tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
   cardInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   cardInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   cardActions: { flexDirection: "row", gap: 10 },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 12 },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12 },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  wideBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 13 },
+  wideBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
 
   emptyState: { alignItems: "center", paddingTop: 50, gap: 10 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
 
   // Health tips
-  tipCard: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, overflow: "hidden" },
+  tipCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
   tipHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  tipIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  tipIcon: { width: 44, height: 44, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   tipTitle: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   tipBody: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.divider },
   tipBodyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, lineHeight: 24, textAlign: "right" },
 
   // Recipes
-  recipeCard: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  recipeCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden", ...Colors.shadow.card },
   recipeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  recipeIcon: { width: 54, height: 54, borderRadius: 14, justifyContent: "center", alignItems: "center" },
+  recipeIcon: { width: 54, height: 54, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   recipeName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   recipeTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
   recipeBody: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.divider, gap: 8 },
@@ -966,28 +950,28 @@ const jm = StyleSheet.create({
   // بانر في قائمة الخدمات
   joinBanner: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: Colors.cardBg, borderRadius: 18,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1.5, borderColor: "#FF4FA340",
-    padding: 14, marginBottom: 4, overflow: "hidden",
+    padding: 14, marginBottom: 4, overflow: "hidden", ...Colors.shadow.card,
   },
   joinBannerIcon: {
-    width: 50, height: 50, borderRadius: 14,
+    width: 50, height: 50, borderRadius: Colors.radius.md,
     backgroundColor: "#FF4FA318", borderWidth: 1.5, borderColor: "#FF4FA340",
     alignItems: "center", justifyContent: "center",
   },
   joinBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FF4FA3", textAlign: "right" },
   joinBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 1 },
   joinBannerArrow: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 32, height: 32, borderRadius: Colors.radius.sm,
     backgroundColor: "#FF4FA318", alignItems: "center", justifyContent: "center",
   },
 
   // زر عائم
   fab: {
     position: "absolute", bottom: 24, alignSelf: "center",
-    borderRadius: 28, overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#FF4FA3", shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    borderRadius: Colors.radius.pill, overflow: "hidden",
+    ...Colors.shadow.raised,
+    shadowColor: "#FF4FA3",
   },
   fabGrad: {
     flexDirection: "row", alignItems: "center", gap: 8,
@@ -1002,7 +986,7 @@ const jm = StyleSheet.create({
   },
   sheet: { maxHeight: "92%" },
   sheetInner: {
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     padding: 20, paddingBottom: 36,
   },
   sheetHeader: {
@@ -1010,7 +994,7 @@ const jm = StyleSheet.create({
     marginBottom: 20,
   },
   closeBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36, height: 36, borderRadius: Colors.radius.sm,
     backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center",
   },
   sheetTitleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -1022,19 +1006,19 @@ const jm = StyleSheet.create({
     textAlign: "right", marginBottom: 6,
   },
   input: {
-    backgroundColor: Colors.bg, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider,
     color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
   },
   typeChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
   },
   typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
   // زر الإرسال
-  sendBtn: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
+  sendBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 4 },
   sendBtnGrad: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 15,
@@ -1044,7 +1028,7 @@ const jm = StyleSheet.create({
   // نجاح
   successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },
   successIconWrap: {
-    width: 100, height: 100, borderRadius: 28,
+    width: 100, height: 100, borderRadius: Colors.radius.xl,
     alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: "#FF4FA340",
   },
@@ -1053,7 +1037,7 @@ const jm = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22, paddingHorizontal: 16,
   },
-  successBtn: { borderRadius: 16, overflow: "hidden", marginTop: 8, width: "80%" },
+  successBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8, width: "80%" },
   successBtnGrad: { paddingVertical: 14, alignItems: "center" },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
@@ -1061,9 +1045,9 @@ const jm = StyleSheet.create({
 // ── أنماط قسم الأعمال اليدوية ────────────────────────────────────────────────
 const hm = StyleSheet.create({
   introBanner: {
-    borderRadius: 20, padding: 20, alignItems: "center", gap: 6,
+    borderRadius: Colors.radius.lg, padding: 20, alignItems: "center", gap: 6,
     borderWidth: 1.5, borderColor: "#14B8A630", overflow: "hidden",
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.cardBg, ...Colors.shadow.card,
   },
   introTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#14B8A6", textAlign: "center" },
   introSub: {
@@ -1073,20 +1057,20 @@ const hm = StyleSheet.create({
 
   catChip: {
     flexDirection: "column", alignItems: "center", gap: 6,
-    borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: Colors.radius.lg, paddingHorizontal: 14, paddingVertical: 12,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     minWidth: 84, overflow: "hidden",
   },
   catLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 
   emptyBanner: {
-    backgroundColor: Colors.cardBg, borderRadius: 20, padding: 28,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 28,
     alignItems: "center", gap: 10,
-    borderWidth: 1.5, borderColor: "#14B8A620",
+    borderWidth: 1.5, borderColor: "#14B8A620", ...Colors.shadow.card,
   },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" },
-  emptyBtn: { borderRadius: 14, overflow: "hidden", marginTop: 8, width: "100%" },
+  emptyBtn: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 8, width: "100%" },
   emptyBtnGrad: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 14,
@@ -1095,7 +1079,7 @@ const hm = StyleSheet.create({
 
   tipCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#F0A50010", borderRadius: 14, padding: 14,
+    backgroundColor: "#F0A50010", borderRadius: Colors.radius.md, padding: 14,
     borderWidth: 1, borderColor: "#F0A50030",
   },
   tipText: {
