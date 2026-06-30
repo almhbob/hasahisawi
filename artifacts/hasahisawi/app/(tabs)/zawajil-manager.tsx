@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const PINK = "#EC4899";
@@ -686,7 +687,6 @@ function ProductsTab({ token }: { token: string }) {
 
 // ── الشاشة الرئيسية ──────────────────────────────────────────────────────────
 export default function ZawajilManagerScreen() {
-  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [loading, setLoading] = useState(true);
@@ -765,24 +765,22 @@ export default function ZawajilManagerScreen() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
+  const logoutSlot = (
+    <TouchableOpacity onPress={handleLogout} style={s.logoutBtn}>
+      <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+      <Text style={s.logoutText}>خروج</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={[s.flex, { backgroundColor: BG }]}>
       {/* رأس الصفحة */}
-      <LinearGradient colors={[CARD, BG]} style={[s.header, { paddingTop: insets.top + 12 }]}>
-        <View style={s.headerRow}>
-          <TouchableOpacity onPress={handleLogout} style={s.logoutBtn}>
-            <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-            <Text style={s.logoutText}>خروج</Text>
-          </TouchableOpacity>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={s.headerTitle}>بوابة مدير زواجل</Text>
-            <Text style={s.headerSub}>{manager.full_name}</Text>
-          </View>
-          <View style={s.headerIcon}>
-            <Ionicons name="shield-checkmark" size={24} color={PINK} />
-          </View>
-        </View>
-
+      <ModernHeader
+        title="بوابة مدير زواجل"
+        subtitle={manager.full_name}
+        icon="shield-checkmark"
+        rightSlot={logoutSlot}
+      >
         {/* بطاقات الإحصائيات */}
         {stats && (
           <Animated.View entering={FadeIn.duration(500)} style={s.statsRow}>
@@ -798,15 +796,15 @@ export default function ZawajilManagerScreen() {
           {([["orders", "الطلبات", "receipt-outline"], ["products", "المنتجات", "cube-outline"]] as const).map(([k, lbl, icon]) => (
             <TouchableOpacity
               key={k}
-              style={[s.tabBtn, activeTab === k && { backgroundColor: PINK + "25", borderColor: PINK + "60" }]}
+              style={[s.tabBtn, activeTab === k && { backgroundColor: "rgba(255,255,255,0.20)", borderColor: "rgba(255,255,255,0.45)" }]}
               onPress={() => setActiveTab(k)}
             >
-              <Ionicons name={icon} size={15} color={activeTab === k ? PINK : Colors.textMuted} />
-              <Text style={[s.tabBtnText, activeTab === k && { color: PINK }]}>{lbl}</Text>
+              <Ionicons name={icon} size={15} color={activeTab === k ? "#fff" : "rgba(255,255,255,0.60)"} />
+              <Text style={[s.tabBtnText, activeTab === k && { color: "#fff" }]}>{lbl}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* المحتوى */}
       {activeTab === "orders" && <OrdersTab token={token} />}
@@ -825,48 +823,43 @@ const s = StyleSheet.create({
   loginIconBg: { width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center" },
   loginTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", textAlign: "center", marginBottom: 4 },
   loginSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginBottom: 28 },
-  loginCard: { width: "100%", backgroundColor: CARD, borderRadius: 20, borderWidth: 1, borderColor: BORDER, padding: 20 },
+  loginCard: { width: "100%", backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 20 },
 
   // حقول الإدخال
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, textAlign: "right", marginBottom: 6 },
-  inputWrap: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF0A", borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, height: 48 },
+  inputWrap: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF0A", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, height: 48 },
   inputIcon: { marginLeft: 8 },
   input: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: "#fff" },
 
   // خطأ
-  errorBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, padding: 10, backgroundColor: "#EF444415", borderRadius: 10, borderWidth: 1, borderColor: "#EF444435" },
+  errorBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, padding: 10, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
   errorText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#EF4444", flex: 1, textAlign: "right" },
 
   // زر الدخول
-  loginBtn: { marginTop: 20, borderRadius: 14, overflow: "hidden" },
+  loginBtn: { marginTop: 20, borderRadius: Colors.radius.md, overflow: "hidden" },
   loginBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 },
   loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
-  // رأس الصفحة
-  header: { paddingHorizontal: 16, paddingBottom: 12 },
-  headerRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: PINK, textAlign: "right" },
-  headerIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: PINK + "18", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: PINK + "35" },
-  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, padding: 8, backgroundColor: "#EF444415", borderRadius: 10, borderWidth: 1, borderColor: "#EF444435" },
+  // رأس الصفحة — يستخدم الآن ModernHeader
+  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, padding: 8, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
   logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" },
 
   // إحصائيات
   statsRow: { flexDirection: "row-reverse", gap: 8, marginBottom: 14 },
-  statCard: { flex: 1, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  statCard: { flex: 1, borderRadius: Colors.radius.md, borderWidth: 1, overflow: "hidden" },
   statCardGrad: { padding: 10, alignItems: "center", gap: 3 },
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 15 },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, textAlign: "center" },
 
   // تبويبات
   tabBtns: { flexDirection: "row-reverse", gap: 8 },
-  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: BORDER, backgroundColor: "#FFFFFF0A" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", backgroundColor: "rgba(255,255,255,0.08)" },
+  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.60)" },
 
   // فلاتر
   filterScroll: { maxHeight: 50 },
   filterRow: { flexDirection: "row-reverse", paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
 
   // محتوى القائمة
@@ -877,7 +870,7 @@ const s = StyleSheet.create({
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
 
   // بطاقة الطلب
-  orderCard: { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, padding: 14 },
+  orderCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, ...Colors.shadow.card },
   orderRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8 },
   orderNumber: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, marginBottom: 2 },
   orderRecipient: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", marginBottom: 2 },
@@ -893,34 +886,34 @@ const s = StyleSheet.create({
 
   // أزرار الإجراءات
   actionBtns: { flexDirection: "row-reverse", gap: 8, marginTop: 10 },
-  actionBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
+  actionBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm, borderWidth: 1 },
   actionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // شارة الحالة
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
   badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
 
   // بطاقة منتج
-  productCard: { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, padding: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  productCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10, ...Colors.shadow.card },
   productName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" },
   productDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#22C55E" },
-  categoryChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
+  categoryChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
   categoryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   productActions: { flexDirection: "column", alignItems: "center", gap: 8 },
   iconBtn: { padding: 6 },
 
   // رأس المنتجات
   productsHeader: { padding: 14, paddingBottom: 8 },
-  addBtn: { borderRadius: 12, overflow: "hidden" },
+  addBtn: { borderRadius: Colors.radius.md, overflow: "hidden" },
   addBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
   addBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // مودال
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#0D1F12", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, borderTopWidth: 1, borderColor: BORDER },
-  modalHandle: { width: 40, height: 4, backgroundColor: BORDER, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
+  modalSheet: { backgroundColor: "#0D1F12", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 32, borderTopWidth: 1, borderColor: BORDER },
+  modalHandle: { width: 40, height: 4, backgroundColor: BORDER, borderRadius: Colors.radius.pill, alignSelf: "center", marginBottom: 16 },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right", marginBottom: 16 },
-  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center" },
   modalBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

@@ -22,6 +22,7 @@ import {
 import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import ModernHeader from "@/components/ui/ModernHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -306,14 +307,10 @@ const rp = StyleSheet.create({
   wrap: {
     flexDirection: "row-reverse",
     backgroundColor: Colors.cardBg,
-    borderRadius: 30,
+    borderRadius: Colors.radius.pill,
     padding: 8,
     gap: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 10,
+    ...Colors.shadow.raised,
     borderWidth: 1,
     borderColor: Colors.divider,
   },
@@ -344,7 +341,7 @@ function MediaPreview({ uri, type, onRemove }: { uri: string; type: "image" | "v
 }
 
 const mp = StyleSheet.create({
-  wrap: { borderRadius: 16, overflow: "hidden", height: 240, marginTop: 8, backgroundColor: "#000" },
+  wrap: { borderRadius: Colors.radius.lg, overflow: "hidden", height: 240, marginTop: 8, backgroundColor: "#000" },
   img: { width: "100%", height: "100%" },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -405,7 +402,7 @@ function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null;
 
 const pmd = StyleSheet.create({
   wrap: {
-    borderRadius: 18, overflow: "hidden", marginVertical: 10,
+    borderRadius: Colors.radius.xl, overflow: "hidden", marginVertical: 10,
     width: IMG_MAX_W, alignSelf: "center", backgroundColor: Colors.surface1,
   },
   skeleton: { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.divider },
@@ -1097,27 +1094,29 @@ export default function SocialScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <View style={styles.headerInner}>
-          <View style={styles.headerLeft}>
-            {isAdmin && (
-              <View style={styles.adminBadge}>
-                <Ionicons name="shield-checkmark" size={12} color={Colors.accent} />
-                <Text style={styles.adminBadgeText}>مدير</Text>
-              </View>
-            )}
-            <Text style={styles.headerTitle}>المجتمع</Text>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>مباشر</Text>
-            </View>
-          </View>
+      <ModernHeader
+        title="المجتمع"
+        icon="people-outline"
+        rightSlot={
           <TouchableOpacity style={styles.newPostFab} onPress={handleComposePress}>
             <Ionicons name="create-outline" size={19} color="#fff" />
             <Text style={styles.newPostFabText}>نشر</Text>
           </TouchableOpacity>
+        }
+      >
+        <View style={styles.headerMeta}>
+          {isAdmin && (
+            <View style={styles.adminBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={Colors.accentLight} />
+              <Text style={styles.adminBadgeText}>مدير</Text>
+            </View>
+          )}
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>مباشر</Text>
+          </View>
         </View>
-      </View>
+      </ModernHeader>
 
       {/* Category filter */}
       <ScrollView
@@ -1153,7 +1152,7 @@ export default function SocialScreen() {
               { author: "فاطمة علي", time: "منذ ١٢ دقيقة", cat: "سؤال", text: "هل توجد وظائف شاغرة في مجال التعليم؟..." },
               { author: "المجتمع الحصاحيصاوي", time: "منذ ساعة", cat: "إعلان", text: "إعلان هام: اجتماع مجلس الحي يوم الخميس..." },
             ].map((item, i) => (
-              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.divider }}>
+              <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card }}>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
                   <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: Colors.primary + "25", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="person" size={18} color={Colors.primary} />
@@ -1289,13 +1288,14 @@ function ComposeBar({ name, onPress }: { name: string; onPress: () => void }) {
 const cb = StyleSheet.create({
   wrap: {
     backgroundColor: Colors.cardBg, marginHorizontal: 14, marginBottom: 10, marginTop: 4,
-    borderRadius: 20, padding: 12, alignItems: "center", gap: 10,
+    borderRadius: Colors.radius.xl, padding: 12, alignItems: "center", gap: 10,
     borderWidth: 1, borderColor: Colors.divider, flexDirection: "row-reverse",
+    ...Colors.shadow.card,
   },
-  avatar: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  avatar: { width: 38, height: 38, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
   avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 16 },
   inputFake: {
-    flex: 1, height: 38, backgroundColor: Colors.bg, borderRadius: 12,
+    flex: 1, height: 38, backgroundColor: Colors.bg, borderRadius: Colors.radius.md,
     justifyContent: "center", paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider,
   },
   inputFakePlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "right" },
@@ -1307,36 +1307,29 @@ const cb = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
 
-  header: {
-    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
-  headerInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
+  headerMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   adminBadge: {
-    backgroundColor: Colors.accent + "15", paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 8, alignItems: "center", gap: 4, flexDirection: "row-reverse",
+    backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Colors.radius.sm, alignItems: "center", gap: 4, flexDirection: "row-reverse",
   },
-  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accent },
+  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accentLight },
   newPostFab: {
-    backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 22, flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
+    backgroundColor: "rgba(255,255,255,0.22)", paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: Colors.radius.pill, flexDirection: "row-reverse", alignItems: "center", gap: 5,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
   },
   newPostFabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   liveBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    backgroundColor: "#27AE6015", paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 8, borderWidth: 1, borderColor: "#27AE6030",
+    backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
   },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#27AE60" },
-  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#27AE60" },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#fff" },
+  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
 
   filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
   filterBtn: {
-    paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20,
+    paddingHorizontal: 13, paddingVertical: 7, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
   },
@@ -1346,10 +1339,9 @@ const styles = StyleSheet.create({
   list: { paddingTop: 8, paddingHorizontal: 14, gap: 12 },
 
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: 22, padding: 16,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
     borderWidth: 1, borderColor: Colors.divider,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
+    ...Colors.shadow.card,
   },
   pinnedCard: { borderColor: Colors.accent + "50", borderWidth: 1.5 },
   pinnedBadge: {
@@ -1380,7 +1372,7 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: "row-reverse", gap: 8, alignItems: "center" },
   actionBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
   actionBtnActive: { backgroundColor: Colors.primary + "12", borderColor: Colors.primary + "40" },
@@ -1395,7 +1387,7 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", marginTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
   emptyBtn: {
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12,
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md,
     backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
   },
   emptyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
@@ -1416,10 +1408,10 @@ const ms = StyleSheet.create({
   },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   closeBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.bg,
+    width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg,
     alignItems: "center", justifyContent: "center",
   },
-  publishBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, alignItems: "center", justifyContent: "center", minWidth: 60 },
+  publishBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: Colors.radius.pill, alignItems: "center", justifyContent: "center", minWidth: 60 },
   publishBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   form: { padding: 16, gap: 12 },
@@ -1437,7 +1429,7 @@ const ms = StyleSheet.create({
   catRow: { gap: 6, paddingBottom: 4, flexDirection: "row-reverse" },
   catChip: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
+    borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
   catChipText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
   contentInput: {
@@ -1462,11 +1454,11 @@ const cs = StyleSheet.create({
     flexDirection: "row-reverse", gap: 10, padding: 14, backgroundColor: Colors.bg,
     borderBottomWidth: 1, borderBottomColor: Colors.divider, alignItems: "center",
   },
-  snippetImg: { width: 48, height: 48, borderRadius: 10 },
+  snippetImg: { width: 48, height: 48, borderRadius: Colors.radius.sm },
   snippetText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, fontStyle: "italic", textAlign: "right" },
 
   commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider + "66" },
-  replyCard: { marginRight: 40, backgroundColor: Colors.bg, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: Colors.divider },
+  replyCard: { marginRight: 40, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 10, borderWidth: 1, borderColor: Colors.divider },
   commentHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   commentAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   commentAvatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
@@ -1488,13 +1480,13 @@ const cs = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 10,
   },
   replyInputWrap: {
-    flex: 1, backgroundColor: Colors.bg, borderRadius: 20, borderWidth: 1,
+    flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.xl, borderWidth: 1,
     borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 8,
   },
   replyInput: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, maxHeight: 100, textAlign: "right" },
   sendBtn: {
-    width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.primary,
+    width: 42, height: 42, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary,
     alignItems: "center", justifyContent: "center",
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+    ...Colors.shadow.raised,
   },
 });

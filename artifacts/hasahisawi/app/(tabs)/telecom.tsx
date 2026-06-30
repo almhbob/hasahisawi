@@ -4,14 +4,15 @@ import {
   TouchableOpacity, Linking, Alert, ActivityIndicator,
   RefreshControl, Modal, Pressable, Dimensions,
 } from "react-native";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
+
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -322,9 +323,6 @@ function CompanyModal({ company, visible, onClose, offers, services }: {
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
 export default function TelecomScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
-
   const [tab, setTab]               = useState<"companies" | "offers" | "events" | "services">("companies");
   const [companies, setCompanies]   = useState<Company[]>(FALLBACK_COMPANIES);
   const [offers, setOffers]         = useState<Offer[]>([]);
@@ -374,18 +372,11 @@ export default function TelecomScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Colors.bg }]}>
       {/* ══ HEADER ══ */}
-      <LinearGradient colors={["#0A1628", TC2 + "55", TC + "30", Colors.bg]} locations={[0, 0.35, 0.65, 1]} style={[styles.header, { paddingTop: topPad }]}>
-        <Animated.View entering={FadeIn.delay(60).duration(600)}>
-          <View style={styles.headerRow}>
-            <View style={[styles.headerIcon, { backgroundColor: TC + "25", borderColor: TC + "50" }]}>
-              <MaterialCommunityIcons name="antenna" size={22} color={TC} />
-            </View>
-            <View>
-              <Text style={styles.headerTitle}>شركات الاتصالات</Text>
-              <Text style={styles.headerSub}>مساحات إعلانية · خدمات · عروض</Text>
-            </View>
-          </View>
-        </Animated.View>
+      <ModernHeader
+        title="شركات الاتصالات"
+        subtitle="مساحات إعلانية · خدمات · عروض"
+        icon="wifi"
+      >
         <View style={styles.tabBar}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
@@ -396,7 +387,7 @@ export default function TelecomScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ══ CONTENT ══ */}
       {loading ? (
@@ -609,13 +600,8 @@ export default function TelecomScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 18, paddingBottom: 0 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
-  headerIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", borderWidth: 1 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  tabBar: { flexDirection: "row", gap: 6, paddingVertical: 14, paddingBottom: 18 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: 11, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  tabBar: { flexDirection: "row", gap: 6, paddingTop: 10, paddingBottom: 4 },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
   tabBtnActive: { borderColor: TC + "60" },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
   tabLabelActive: { color: "#fff" },
@@ -627,7 +613,7 @@ const styles = StyleSheet.create({
   sectionSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 14, lineHeight: 20 },
 
   // Company card
-  companyCard: { borderRadius: 16, overflow: "hidden", marginBottom: 12, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2 },
+  companyCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 12, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, ...Colors.shadow.card },
   companyCardPremium: { borderColor: GOLD + "50" },
   companyCardGrad: { ...StyleSheet.absoluteFillObject },
   companyStripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
@@ -645,7 +631,7 @@ const styles = StyleSheet.create({
   premiumRibbonText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
 
   // Promo
-  promoBanner: { borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: TC + "20" },
+  promoBanner: { borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: TC + "20", ...Colors.shadow.card },
   promoBannerLogo: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   promoBannerLogoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
   promoBannerName: { fontFamily: "Cairo_700Bold", fontSize: 14 },
@@ -657,8 +643,8 @@ const styles = StyleSheet.create({
   pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
 
   // Service card
-  svcCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, backgroundColor: Colors.surface2, overflow: "hidden" },
-  svcIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
+  svcCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, backgroundColor: Colors.surface2, overflow: "hidden", ...Colors.shadow.card },
+  svcIcon: { width: 44, height: 44, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
   svcTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 2 },
   svcCompany: { fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 3 },
   svcDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginBottom: 6 },
@@ -668,7 +654,7 @@ const styles = StyleSheet.create({
   ussdText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   // Offer card
-  offerCard: { borderRadius: 14, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14 },
+  offerCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, ...Colors.shadow.card },
   offerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   offerCatBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   offerCatText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
@@ -683,8 +669,8 @@ const styles = StyleSheet.create({
   offerDetailsBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // Event card
-  eventCard: { borderRadius: 14, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, flexDirection: "row", gap: 14, alignItems: "flex-start" },
-  eventDateBox: { width: 50, height: 56, borderRadius: 12, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  eventCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, flexDirection: "row", gap: 14, alignItems: "flex-start", ...Colors.shadow.card },
+  eventDateBox: { width: 50, height: 56, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   eventDay: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff", lineHeight: 24 },
   eventMonth: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffffCC", lineHeight: 14 },
   eventTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, marginBottom: 2 },
@@ -694,7 +680,7 @@ const styles = StyleSheet.create({
   eventLocationText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   // Info card
-  infoCard: { borderRadius: 14, borderWidth: 1, borderColor: TC + "30", padding: 16, marginTop: 4, marginBottom: 8 },
+  infoCard: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: TC + "30", padding: 16, marginTop: 4, marginBottom: 8, ...Colors.shadow.card },
   infoCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   infoCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
@@ -702,7 +688,7 @@ const styles = StyleSheet.create({
 
   // Category filter
   catScroll: { marginBottom: 14 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
   catChipActive: { borderColor: TC + "60" },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
@@ -713,7 +699,7 @@ const styles = StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
-  modalSheet: { maxHeight: "90%", backgroundColor: Colors.surface2, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", flex: 1 },
+  modalSheet: { maxHeight: "90%", backgroundColor: Colors.surface2, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, overflow: "hidden", flex: 1, ...Colors.shadow.raised },
   dragBar: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 6 },
   modalHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, paddingTop: 8 },
   modalLogo: { width: 54, height: 54, borderRadius: 27, justifyContent: "center", alignItems: "center" },
@@ -724,17 +710,17 @@ const styles = StyleSheet.create({
   modalSection: { paddingHorizontal: 16, marginBottom: 20 },
   modalSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 12 },
   contactGrid: { flexDirection: "row", gap: 10 },
-  contactCard: { flex: 1, alignItems: "center", gap: 6, padding: 12, borderRadius: 12, borderWidth: 1, backgroundColor: Colors.surface3 },
+  contactCard: { flex: 1, alignItems: "center", gap: 6, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.surface3 },
   contactLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center" },
   contactVal: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
   statsRow: { flexDirection: "row", gap: 10 },
-  statBlock: { flex: 1, alignItems: "center", gap: 5, padding: 12, borderRadius: 12, borderWidth: 1, backgroundColor: Colors.surface3 },
+  statBlock: { flex: 1, alignItems: "center", gap: 5, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.surface3 },
   statBlockVal: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   statBlockLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  websiteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, paddingVertical: 14, borderRadius: 14, borderWidth: 1, marginBottom: 4 },
+  websiteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, paddingVertical: 14, borderRadius: Colors.radius.lg, borderWidth: 1, marginBottom: 4 },
   websiteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   // ── قسم التعاقد ──
-  contractSection: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 12, marginBottom: 8, overflow: "hidden" },
+  contractSection: { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 16, marginTop: 12, marginBottom: 8, overflow: "hidden", ...Colors.shadow.card },
   contractHeader:  { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   contractIconWrap:{ width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   contractTitle:   { fontSize: 16, fontFamily: "Cairo_700Bold" },
