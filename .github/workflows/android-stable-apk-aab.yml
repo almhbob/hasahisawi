@@ -161,20 +161,21 @@ jobs:
 
       - name: Create release signing key
         run: |
+          # build.gradle expects: storeFile file('release.keystore') with properties
+          # storePassword / keyAlias / keyPassword
           keytool -genkeypair -v \
-            -keystore artifacts/hasahisawi/android/app/hasahisawi-release.keystore \
+            -keystore artifacts/hasahisawi/android/app/release.keystore \
             -storepass hasahisawi-test-pass \
-            -alias hasahisawi-release \
+            -alias hasahisawi \
             -keypass hasahisawi-test-pass \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=Hasahisawi Test,O=Hasahisawi,L=Hasahisawi,S=Gezira,C=SD"
           {
-            echo "MYAPP_UPLOAD_STORE_FILE=hasahisawi-release.keystore"
-            echo "MYAPP_UPLOAD_KEY_ALIAS=hasahisawi-release"
-            echo "MYAPP_UPLOAD_STORE_PASSWORD=hasahisawi-test-pass"
-            echo "MYAPP_UPLOAD_KEY_PASSWORD=hasahisawi-test-pass"
+            echo "storePassword=hasahisawi-test-pass"
+            echo "keyAlias=hasahisawi"
+            echo "keyPassword=hasahisawi-test-pass"
           } >> artifacts/hasahisawi/android/gradle.properties
 
       - name: Build release APK
