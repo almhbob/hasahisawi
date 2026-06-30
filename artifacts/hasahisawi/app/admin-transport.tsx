@@ -119,9 +119,10 @@ export default function AdminTransportScreen() {
   const [editingFares, setEditingFares] = useState<Record<string, { car: string; rickshaw: string; delivery: string }>>({});
   const [savingFares,  setSavingFares]  = useState(false);
 
-  // ── assign modal
+  // ── assign / reassign modal
   const [showAssign,      setShowAssign]      = useState(false);
   const [assigningTripId, setAssigningTripId] = useState<number | null>(null);
+  const [isReassigning,   setIsReassigning]   = useState(false);
   const [approvedDrivers, setApprovedDrivers] = useState<TransportDriver[]>([]);
   const [assigningId,     setAssigningId]     = useState<number | null>(null);
 
@@ -309,6 +310,17 @@ export default function AdminTransportScreen() {
 
   const openAssign = async (tripId: number) => {
     setAssigningTripId(tripId);
+    setIsReassigning(false);
+    setShowAssign(true);
+    try {
+      const res = await apiFetch("/api/admin/transport/drivers?status=approved", token);
+      if (res.ok) setApprovedDrivers(await res.json());
+    } catch {}
+  };
+
+  const openReassign = async (tripId: number) => {
+    setAssigningTripId(tripId);
+    setIsReassigning(true);
     setShowAssign(true);
     try {
       const res = await apiFetch("/api/admin/transport/drivers?status=approved", token);
@@ -319,17 +331,23 @@ export default function AdminTransportScreen() {
   const assignDriver = async (driver: TransportDriver) => {
     if (!assigningTripId) return;
     setAssigningId(driver.id);
+    const endpoint = isReassigning
+      ? `/api/admin/transport/trips/${assigningTripId}/reassign`
+      : `/api/admin/transport/trips/${assigningTripId}/assign`;
     try {
-      const res = await apiFetch(`/api/admin/transport/trips/${assigningTripId}/assign`, token, {
-        method: "PATCH",
-        body: JSON.stringify({ driver_id: driver.id, status: "accepted" }),
+      const res = await apiFetch(endpoint, token, {
+        method: "POST",
+        body: JSON.stringify({ driver_id: driver.id }),
       });
       if (res.ok) {
         setTrips(prev => prev.map(t =>
           t.id === assigningTripId ? { ...t, status: "accepted", driver_id: driver.id, driver_name: driver.name } : t
         ));
         setShowAssign(false); setAssigningTripId(null);
-        Alert.alert("✅ تم التعيين", `تم تعيين السائق ${driver.name}`);
+        Alert.alert(
+          isReassigning ? "✅ تم التحويل" : "✅ تم التعيين",
+          `${isReassigning ? "الرحلة حُوِّلت للسائق" : "تم تعيين السائق"} ${driver.name}`,
+        );
       } else {
         const j = await res.json();
         Alert.alert("خطأ", j.error || "تعذّرت العملية");
@@ -1240,6 +1258,14 @@ export default function AdminTransportScreen() {
                             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#3EFF9C" }}>إتمام الرحلة</Text>
                           </TouchableOpacity>
                         )}
+                        {trip.status === "accepted" && (
+                          <TouchableOpacity onPress={() => openReassign(trip.id)}
+                            style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
+                              backgroundColor: "#A855F715", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#A855F730" }}>
+                            <MaterialCommunityIcons name="swap-horizontal" size={13} color="#A855F7" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" }}>تحويل</Text>
+                          </TouchableOpacity>
+                        )}
                         {(trip.status === "pending" || trip.status === "accepted") && (
                           <TouchableOpacity onPress={() => cancelTrip(trip.id)} disabled={updatingTripId === trip.id}
                             style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
@@ -1322,9 +1348,11 @@ export default function AdminTransportScreen() {
             <Pressable onPress={e => e.stopPropagation()}>
               <View style={s.handle} />
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                <MaterialCommunityIcons name="steering" size={22} color="#3E9CBF" />
+                <MaterialCommunityIcons name={isReassigning ? "swap-horizontal" : "steering"} size={22} color={isReassigning ? "#A855F7" : "#3E9CBF"} />
                 <View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>تعيين سائق للرحلة</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>
+                    {isReassigning ? "تحويل الرحلة لسائق آخر" : "تعيين سائق للرحلة"}
+                  </Text>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>اختر من السائقين المعتمدين</Text>
                 </View>
               </View>

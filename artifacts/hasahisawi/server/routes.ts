@@ -5555,7 +5555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       from_neighborhood VARCHAR(100), to_neighborhood VARCHAR(100),
-      seats INTEGER DEFAULT 1, status VARCHAR(20) DEFAULT 'active',
+      seats INTEGER DEFAULT 1, status VARCHAR(20) DEFAULT 'pending',
       notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(() => {});
     await query(`CREATE TABLE IF NOT EXISTS transport_drivers (
@@ -5564,6 +5564,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       phone VARCHAR(30), neighborhood VARCHAR(100),
       status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(() => {});
+    // ── أعمدة إضافية — تُضاف عند الحاجة ──────────────────────────────────────
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS user_name VARCHAR(100)`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS user_phone VARCHAR(30)`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS trip_type VARCHAR(30) DEFAULT 'ride'`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS vehicle_preference VARCHAR(30) DEFAULT 'car'`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS from_location TEXT`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS to_location TEXT`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS from_zone INTEGER`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS to_zone INTEGER`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS fare_estimate NUMERIC(8,2)`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS delivery_desc TEXT`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating NUMERIC(3,1)`).catch(() => {});
+    await query(`ALTER TABLE transport_trips ADD COLUMN IF NOT EXISTS rating_note TEXT`).catch(() => {});
+    await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT FALSE`).catch(() => {});
+    await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS vehicle_desc TEXT`).catch(() => {});
+    await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS rating NUMERIC(3,1) DEFAULT 0`).catch(() => {});
+    await query(`ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS total_trips INTEGER DEFAULT 0`).catch(() => {});
   }
   app.get("/api/transport/neighborhoods", async (_req, res) => {
     try { await ensureTransportTables(); const r = await query(`SELECT * FROM transport_neighborhoods WHERE is_active=TRUE ORDER BY sort_order, name`); res.json(r.rows); }
@@ -5576,28 +5593,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/transport/trips", async (_req, res) => {
     try {
       await ensureTransportTables();
-      const r = await query(`SELECT t.*, u.name as user_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id WHERE t.status='active' ORDER BY t.created_at DESC LIMIT 50`);
+      const r = await query(`SELECT t.*, u.name as requester_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id WHERE t.status IN ('pending','active') ORDER BY t.created_at DESC LIMIT 50`);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  // ── الرحلات المفتوحة (للسائقين) ─────────────────────────────────────────────
+  app.get("/api/transport/active-trips", async (req, res) => {
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT t.*, u.name as requester_name FROM transport_trips t LEFT JOIN users u ON u.id=t.user_id WHERE t.status IN ('pending','active') ORDER BY t.created_at DESC LIMIT 30`);
       res.json(r.rows);
     } catch { res.json([]); }
   });
   app.get("/api/transport/my-trips", async (req, res) => {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
-    try { await ensureTransportTables(); const r = await query(`SELECT * FROM transport_trips WHERE user_id=$1 ORDER BY created_at DESC`, [me.id]); res.json(r.rows); }
-    catch { res.json([]); }
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT t.*, d.phone as driver_phone, (u2.name) as driver_name FROM transport_trips t LEFT JOIN transport_drivers d ON d.id=t.driver_id LEFT JOIN users u2 ON u2.id=d.user_id WHERE t.user_id=$1 ORDER BY t.created_at DESC`, [me.id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+  // ── ملف السائق الخاص بالمستخدم الحالي ──────────────────────────────────────
+  app.get("/api/transport/driver/me", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const r = await query(`SELECT d.* FROM transport_drivers d WHERE d.user_id=$1 ORDER BY d.created_at DESC LIMIT 1`, [me.id]);
+      if (!r.rows.length) return res.status(404).json({ error: "لم يتم العثور على سائق" });
+      res.json(r.rows[0]);
+    } catch { res.status(500).json({ error: "خطأ في الخادم" }); }
+  });
+  // ── تبديل حالة الإتاحة (متاح / غير متاح) ───────────────────────────────────
+  app.patch("/api/transport/driver/availability", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const { is_online } = req.body;
+      const r = await query(`UPDATE transport_drivers SET is_online=$1 WHERE user_id=$2 AND status='approved' RETURNING *`, [!!is_online, me.id]);
+      if (!r.rows.length) return res.status(404).json({ error: "لم يتم العثور على سائق معتمد" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.post("/api/transport/trips", async (req, res) => {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     try {
       await ensureTransportTables();
-      const { from_neighborhood, to_neighborhood, seats, notes } = req.body;
+      const {
+        from_neighborhood, to_neighborhood, seats, notes,
+        user_name, user_phone, trip_type, vehicle_preference,
+        from_location, to_location, from_zone, to_zone,
+        fare_estimate, delivery_desc,
+      } = req.body;
       const r = await query(
-        `INSERT INTO transport_trips (user_id,from_neighborhood,to_neighborhood,seats,notes) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [me.id, from_neighborhood||null, to_neighborhood||null, seats||1, notes||null]
+        `INSERT INTO transport_trips
+          (user_id, from_neighborhood, to_neighborhood, seats, notes,
+           user_name, user_phone, trip_type, vehicle_preference,
+           from_location, to_location, from_zone, to_zone,
+           fare_estimate, delivery_desc, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'pending') RETURNING *`,
+        [
+          me.id,
+          from_neighborhood || (from_zone ? `منطقة ${from_zone}` : null),
+          to_neighborhood   || (to_zone   ? `منطقة ${to_zone}`   : null),
+          seats || 1, notes || null,
+          (user_name || me.name || null),
+          user_phone || null,
+          trip_type || "ride",
+          vehicle_preference || "car",
+          from_location || null,
+          to_location   || null,
+          from_zone     || null,
+          to_zone       || null,
+          fare_estimate || null,
+          delivery_desc || null,
+        ]
       );
-      void pushToAdmins("🚗 طلب مشوار جديد", `${me.name}: ${from_neighborhood||"?"} ← ${to_neighborhood||"?"}`, { screen: "transport", tripId: r.rows[0].id }, "TRANSPORT");
-      res.json(r.rows[0]);
+      const trip = r.rows[0];
+      const fromLabel = from_location || from_neighborhood || `منطقة ${from_zone || "؟"}`;
+      const toLabel   = to_location   || to_neighborhood   || `منطقة ${to_zone   || "؟"}`;
+      void pushToAdmins("🚗 طلب مشوار جديد", `${user_name || me.name}: ${fromLabel} ← ${toLabel}`, { screen: "transport", tripId: trip.id, type: "new_trip" }, "TRANSPORT");
+      // ── بث الطلب لجميع السائقين المعتمدين المتاحين ──────────────────────────
+      const driversRes = await query(`SELECT d.user_id FROM transport_drivers d WHERE d.status='approved' AND d.is_online=TRUE`).catch(() => ({ rows: [] }));
+      for (const dr of driversRes.rows) {
+        if (dr.user_id) {
+          void pushToUser(
+            dr.user_id as number,
+            "🚗 طلب مشوار جديد",
+            `${fromLabel} ← ${toLabel}`,
+            { type: "new_trip", tripId: trip.id, screen: "driver_trips" },
+            "TRANSPORT",
+            false,
+          );
+        }
+      }
+      res.json(trip);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  // ── قبول رحلة من قِبَل سائق ─────────────────────────────────────────────────
+  app.post("/api/transport/trips/:id/accept", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await ensureTransportTables();
+      const tripId = parseInt(req.params.id);
+      // تحقّق أن السائق معتمد
+      const driverRes = await query(`SELECT * FROM transport_drivers WHERE user_id=$1 AND status='approved'`, [me.id]);
+      if (!driverRes.rows.length) return res.status(403).json({ error: "أنت لست سائقاً معتمداً" });
+      const driver = driverRes.rows[0];
+      // تحقّق أن الرحلة لا تزال متاحة (pending أو active)
+      const tripRes = await query(`SELECT * FROM transport_trips WHERE id=$1 AND status IN ('pending','active')`, [tripId]);
+      if (!tripRes.rows.length) return res.status(409).json({ error: "الرحلة غير متاحة أو سبق قبولها" });
+      const trip = tripRes.rows[0];
+      // تحديث الحالة
+      await query(`UPDATE transport_trips SET status='accepted', driver_id=$1 WHERE id=$2`, [driver.id, tripId]);
+      // إشعار صاحب الطلب
+      if (trip.user_id) {
+        void pushToUser(
+          trip.user_id as number,
+          "🚗 تم قبول طلبك",
+          `سائق يتجه إليك — ${trip.from_location || trip.from_neighborhood || ""}`,
+          { type: "trip_accepted", tripId, screen: "mytrips" },
+          "TRANSPORT",
+        );
+      }
+      void pushToAdmins("🚗 قُبلت رحلة", `السائق ${me.name} قبل رحلة #${tripId}`, { tripId }, "TRANSPORT");
+      res.json({ ok: true, driver_id: driver.id });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   app.get("/api/transport/drivers", async (_req, res) => {
@@ -5802,7 +5926,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     try {
       const { driver_id } = req.body;
-      await query(`UPDATE transport_trips SET driver_id=$1, status='assigned' WHERE id=$2`, [driver_id, parseInt(req.params.id)]);
+      const tripId = parseInt(req.params.id);
+      const tripRes = await query(`UPDATE transport_trips SET driver_id=$1, status='accepted' WHERE id=$2 RETURNING *`, [driver_id, tripId]);
+      const trip = tripRes.rows[0];
+      if (trip) {
+        // إشعار السائق الجديد
+        const driverRes = await query(`SELECT user_id FROM transport_drivers WHERE id=$1`, [driver_id]).catch(() => ({ rows: [] }));
+        if (driverRes.rows[0]?.user_id) {
+          void pushToUser(
+            driverRes.rows[0].user_id as number,
+            "🚗 تم إسناد رحلة إليك",
+            `${trip.from_location || trip.from_neighborhood || ""} ← ${trip.to_location || trip.to_neighborhood || ""}`,
+            { type: "trip_assigned", tripId, screen: "driver_trips" },
+            "TRANSPORT",
+          );
+        }
+        // إشعار صاحب الطلب
+        if (trip.user_id) {
+          void pushToUser(
+            trip.user_id as number,
+            "🚗 تم تعيين سائق لطلبك",
+            "سيتواصل معك السائق قريباً",
+            { type: "trip_assigned", tripId, screen: "mytrips" },
+            "TRANSPORT",
+          );
+        }
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  // ── إعادة إسناد رحلة لسائق آخر ─────────────────────────────────────────────
+  app.post("/api/admin/transport/trips/:id/reassign", async (req, res) => {
+    if (!await isAdminOrModRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    try {
+      const { driver_id } = req.body;
+      const tripId = parseInt(req.params.id);
+      const tripRes = await query(`SELECT * FROM transport_trips WHERE id=$1`, [tripId]);
+      const trip = tripRes.rows[0];
+      if (!trip) return res.status(404).json({ error: "الرحلة غير موجودة" });
+      // إشعار السائق القديم بالإلغاء
+      if (trip.driver_id) {
+        const oldDriverRes = await query(`SELECT user_id FROM transport_drivers WHERE id=$1`, [trip.driver_id]).catch(() => ({ rows: [] }));
+        if (oldDriverRes.rows[0]?.user_id) {
+          void pushToUser(
+            oldDriverRes.rows[0].user_id as number,
+            "🚗 تم تحويل الرحلة",
+            "أُعيد تعيين الرحلة لسائق آخر من قِبَل الإدارة",
+            { type: "trip_reassigned", tripId, screen: "driver_trips" },
+            "TRANSPORT",
+            false,
+          );
+        }
+      }
+      await query(`UPDATE transport_trips SET driver_id=$1, status='accepted' WHERE id=$2`, [driver_id, tripId]);
+      // إشعار السائق الجديد
+      const newDriverRes = await query(`SELECT user_id FROM transport_drivers WHERE id=$1`, [driver_id]).catch(() => ({ rows: [] }));
+      if (newDriverRes.rows[0]?.user_id) {
+        void pushToUser(
+          newDriverRes.rows[0].user_id as number,
+          "🚗 تم إسناد رحلة إليك",
+          `${trip.from_location || trip.from_neighborhood || ""} ← ${trip.to_location || trip.to_neighborhood || ""}`,
+          { type: "trip_assigned", tripId, screen: "driver_trips" },
+          "TRANSPORT",
+        );
+      }
+      // إشعار صاحب الطلب
+      if (trip.user_id) {
+        void pushToUser(
+          trip.user_id as number,
+          "🚗 تم تحويل رحلتك لسائق آخر",
+          "سيتواصل معك السائق الجديد قريباً",
+          { type: "trip_reassigned", tripId, screen: "mytrips" },
+          "TRANSPORT",
+        );
+      }
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -5830,6 +6027,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     try {
       await query(`UPDATE transport_trips SET status='cancelled' WHERE id=$1 AND user_id=$2`, [parseInt(req.params.id), me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  app.post("/api/transport/trips/:id/cancel", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      await query(`UPDATE transport_trips SET status='cancelled' WHERE id=$1 AND user_id=$2`, [parseInt(req.params.id), me.id]);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  // ── تقييم رحلة مكتملة ───────────────────────────────────────────────────────
+  app.patch("/api/transport/trips/:id", async (req, res) => {
+    const me = await getSessionUser(req).catch(() => null);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    try {
+      const { rating, rating_note } = req.body;
+      await query(`UPDATE transport_trips SET rating=$1, rating_note=$2 WHERE id=$3 AND user_id=$4`, [rating||null, rating_note||null, parseInt(req.params.id), me.id]);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
