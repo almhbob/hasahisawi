@@ -2952,7 +2952,7 @@ export default function SettingsScreen() {
                 </View>
                 <View style={sub_s.summaryDivider} />
                 <View style={sub_s.summaryItem}>
-                  <Text style={[sub_s.summaryNum, { color: "#3EFF9C" }]}>3</Text>
+                  <Text style={[sub_s.summaryNum, { color: "#3EFF9C" }]}>4</Text>
                   <Text style={sub_s.summaryLabel}>خدمات مجانية</Text>
                 </View>
                 <View style={sub_s.summaryDivider} />
@@ -3010,17 +3010,17 @@ export default function SettingsScreen() {
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
                   <Text style={sub_s.cardName}>Vercel + Railway</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#FBBF2420" }]}>
-                    <Text style={[sub_s.planText, { color: "#FBBF24" }]}>⚠ رصيد محدود</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#F9731620" }]}>
+                    <Text style={[sub_s.planText, { color: "#F97316" }]}>🚂 Hobby $5/شهر</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  الخادم (Express) على Vercel مجاناً — قاعدة البيانات (PostgreSQL) على Railway بـ $5 رصيد/شهر مجاني
+                  الخادم (Express) على Vercel مجاناً — قاعدة البيانات (PostgreSQL) على Railway بخطة Hobby بـ $5/شهر
                 </Text>
                 <View style={sub_s.tagRow}>
                   <View style={sub_s.tag}><Text style={sub_s.tagText}>▲ Vercel Free</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>🚂 Railway $5</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>60 جدول</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>🚂 Railway $5/شهر</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>125+ جدول</Text></View>
                 </View>
               </View>
               <TouchableOpacity
@@ -3039,29 +3039,61 @@ export default function SettingsScreen() {
               <Text style={sub_s.groupTitle}>الخدمات المجانية</Text>
             </View>
 
-            {/* Firebase */}
+            {/* Cloudflare Pages */}
             <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#FFCA2825" }]}>
-                <MaterialCommunityIcons name="firebase" size={22} color="#F57F17" />
+              <View style={[sub_s.iconBox, { backgroundColor: "#F6821F20" }]}>
+                <MaterialCommunityIcons name="web" size={22} color="#F6821F" />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
-                  <Text style={sub_s.cardName}>Firebase Auth</Text>
+                  <Text style={sub_s.cardName}>Cloudflare Pages</Text>
                   <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Spark مجاني</Text>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مجاني تماماً</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
-                  مصادقة المستخدمين — يدعم حتى 10,000 مستخدم/شهر مجاناً
+                  نشر الموقع الإلكتروني للتطبيق — CDN عالمي + SSL تلقائي + نطاق فرعي مجاني
                 </Text>
                 <View style={sub_s.tagRow}>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>OTP SMS</Text></View>
-                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Google Login</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Web Deploy</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>CDN</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>Free SSL</Text></View>
                 </View>
               </View>
               <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#F57F17" }]}
-                onPress={() => Linking.openURL("https://console.firebase.google.com/project/hasahisawi/authentication")}
+                style={[sub_s.payBtn, { backgroundColor: "#F6821F" }]}
+                onPress={() => Linking.openURL("https://dash.cloudflare.com")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={15} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* نظام المصادقة الذاتي */}
+            <View style={sub_s.card}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#009B6720" }]}>
+                <Ionicons name="shield-checkmark-outline" size={22} color="#009B67" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>نظام المصادقة الذاتي</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
+                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مدمج مجاناً</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  تسجيل الدخول عبر OTP + JWT مخزّن في PostgreSQL — بدون طرف ثالث، بيانات المستخدمين محلية 100%
+                </Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>OTP SMS</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>JWT</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>بيانات محلية</Text></View>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#009B67" }]}
+                onPress={() => Linking.openURL("https://railway.app")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={15} color="#fff" />
