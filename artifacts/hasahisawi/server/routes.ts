@@ -1034,6 +1034,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) { res.status(500).json({ error: "خطأ في الخادم" }); }
   });
 
+  // ── Men Services API ─────────────────────────────────────────────────────
+  await query(`CREATE TABLE IF NOT EXISTS men_services (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(200) NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'general',
+    address TEXT,
+    phone VARCHAR(20) NOT NULL,
+    hours VARCHAR(100) DEFAULT '٨ص–١٠م',
+    description TEXT,
+    rating NUMERIC(3,1) DEFAULT 0,
+    tags TEXT[] DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`).catch(() => {});
+  await query(`CREATE TABLE IF NOT EXISTS men_join_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    owner_name VARCHAR(200) NOT NULL,
+    service_type VARCHAR(50) NOT NULL DEFAULT 'general',
+    phone VARCHAR(20) NOT NULL,
+    address TEXT,
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`).catch(() => {});
+
+  app.get("/api/men-services", async (req: Request, res: Response) => {
+    try {
+      const type = req.query.type as string | undefined;
+      let sql = `SELECT * FROM men_services WHERE status='active'`;
+      const params: unknown[] = [];
+      if (type && type !== "all") { params.push(type); sql += ` AND type=$${params.length}`; }
+      sql += " ORDER BY created_at DESC LIMIT 200";
+      const result = await query(sql, params);
+      res.json({ services: result.rows });
+    } catch { res.json({ services: [] }); }
+  });
+
+  app.post("/api/men/join-request", async (req: Request, res: Response) => {
+    try {
+      const me = await getSessionUser(req).catch(() => null);
+      const { owner_name, service_type, phone, address, description } = req.body;
+      if (!owner_name || !phone) return res.status(400).json({ error: "الاسم ورقم الهاتف مطلوبان" });
+      const r = await query(
+        `INSERT INTO men_join_requests (user_id, owner_name, service_type, phone, address, description)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [me?.id ?? null, owner_name.trim(), service_type || "general", phone.trim(), address?.trim() || null, description?.trim() || null]
+      );
+      void pushToAdmins("👨 طلب انضمام قسم الرجال", `${owner_name} — ${service_type}`, { screen: "admin" });
+      res.json(r.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ── Organizations API ────────────────────────────────────────────────────
   app.get("/api/organizations", async (req: Request, res: Response) => {
     try {

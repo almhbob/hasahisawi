@@ -33,6 +33,7 @@ type Section = {
   soon?: boolean;
   isTransport?: boolean;
   femaleOnly?: boolean;
+  maleOnly?: boolean;
 };
 
 type Group = { label: string; items: Section[] };
@@ -60,6 +61,7 @@ const GROUPS: Group[] = [
       { title: "المجتمع",     icon: "chatbubbles-outline",route: "/(tabs)/social",      color: Colors.primary },
       { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
       { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC", femaleOnly: true },
+      { title: "قسم الرجال",  icon: "man-outline",        route: "/(tabs)/men",         color: "#38BDF8"      },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
       { title: "الجاليات",    icon: "earth-outline",      route: "/(tabs)/communities", color: Colors.cyber   },
       { title: "التقييمات",   icon: "star-outline",       route: "/(tabs)/ratings",     color: Colors.accent  },
@@ -71,6 +73,15 @@ const GROUPS: Group[] = [
       { title: "الطلاب",      icon: "school-outline",     route: "/(tabs)/student",     color: Colors.cyber   },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
       { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#06B6D4" },
+    ],
+  },
+  {
+    label: "تسوّق ومطاعم",
+    items: [
+      { title: "متاجر المجتمع",   icon: "bag-handle-outline",    route: "/stores",             color: Colors.accent  },
+      { title: "بوابة التاجر",    icon: "storefront-outline",    route: "/store-portal",       color: Colors.primary },
+      { title: "المطاعم والكافيهات", icon: "restaurant-outline", route: "/(tabs)/restaurants", color: "#F97316"      },
+      { title: "سوق المتاجر",     icon: "cart-outline",          route: "/(tabs)/product-showcase", color: Colors.cyber },
     ],
   },
   {
