@@ -4,7 +4,6 @@ import {
   Alert, Platform, Dimensions, Share, KeyboardAvoidingView, Image, Switch,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -165,7 +164,6 @@ function PreviewSection({ title, color, items }: { title: string; color: string;
 }
 
 export default function CVBuilderScreen() {
-  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<CVTemplate>(CV_TEMPLATES[0]);
   const [selectedColor, setSelectedColor] = useState(CV_TEMPLATES[0].primaryColor);
