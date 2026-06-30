@@ -113,6 +113,21 @@ async function broadcastPush(
   } catch (e) { console.error("broadcastPush error:", e); }
 }
 
+// حفظ إشعار في قاعدة البيانات (null=بث عام، userId=إشعار شخصي)
+async function saveUserNotif(
+  title: string,
+  body: string,
+  type: string = "general",
+  userId?: number,
+): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO notifications (title, body, type, user_id) VALUES ($1, $2, $3, $4)`,
+      [title.substring(0, 200), body.substring(0, 1000), type.substring(0, 50), userId ?? null],
+    );
+  } catch {}
+}
+
 // إرسال Push لمستخدم بعينه (بواسطة user_id)
 async function pushToUser(
   userId: number,
@@ -120,11 +135,13 @@ async function pushToUser(
   body: string,
   data: Record<string, unknown> = {},
   channel: keyof typeof PUSH_CHANNEL_IDS = "DEFAULT",
+  save = true,
 ): Promise<void> {
   try {
     const r = await query("SELECT token FROM push_tokens WHERE user_id = $1", [userId]);
     const tokens = r.rows.map((row: any) => row.token as string);
     await sendExpoPush(tokens, title, body, data, channel);
+    if (save) void saveUserNotif(title, body, (data.type as string) || channel.toLowerCase(), userId);
   } catch (e) { console.error("pushToUser error:", e); }
 }
 
@@ -331,6 +348,8 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // إضافة user_id للإشعارات الشخصية (null = بث عام)
+  await query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`).catch(() => {});
   // City news table
   await query(`
     CREATE TABLE IF NOT EXISTS city_news (
@@ -1366,10 +1385,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── GET /api/notifications ────────────────────────────────────────────────────────────────────────────────────
-  app.get("/api/notifications", async (_req: Request, res: Response) => {
+  app.get("/api/notifications", async (req: Request, res: Response) => {
     try {
+      const user = await getSessionUser(req).catch(() => null);
+      const userId = user?.id ?? null;
       const result = await query(
-        "SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50"
+        `SELECT * FROM notifications WHERE user_id IS NULL OR user_id = $1
+         ORDER BY created_at DESC LIMIT 80`,
+        [userId],
       );
       res.json(result.rows);
     } catch (err) {
@@ -1410,9 +1433,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── PUT /api/notifications/read-all ────────────────────────────────────────────────────────────────────────────────
-  app.put("/api/notifications/read-all", async (_req: Request, res: Response) => {
+  app.put("/api/notifications/read-all", async (req: Request, res: Response) => {
     try {
-      await query("UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE");
+      const user = await getSessionUser(req).catch(() => null);
+      const userId = user?.id ?? null;
+      await query(
+        `UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE AND (user_id IS NULL OR user_id = $1)`,
+        [userId],
+      );
       res.json({ success: true });
     } catch (err) {
       console.error(err);

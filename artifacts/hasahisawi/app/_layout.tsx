@@ -27,6 +27,8 @@ import { ActivityIndicator } from "react-native";
 import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
+import { vibrateForType } from "@/lib/sounds";
+import type { SoundType } from "@/lib/sounds";
 import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
@@ -116,7 +118,16 @@ function AuthGate() {
     if (!user || isGuest) return;
     registerForPushNotifications(user.uid ?? String(user.id), token ?? undefined).catch(() => {});
     const unsub = addNotificationListener(
-      (_n) => {},
+      (n) => {
+        // اهتزاز مخصص بحسب القناة عند وصول الإشعار في الـ Foreground
+        const channelId = (n.request.content.data as any)?.channelId as string | undefined;
+        const soundType: SoundType =
+          channelId === "hasahisawi-chat"      ? "message"
+          : (channelId === "hasahisawi-urgent" || channelId === "hasahisawi-transport") ? "alert"
+          : channelId === "hasahisawi-prayer"  ? "prayer"
+          : "success";
+        vibrateForType(soundType).catch(() => {});
+      },
       (data) => {
         const type = data?.type as string | undefined;
         const screen = data?.screen as string | undefined;
