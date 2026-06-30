@@ -11,7 +11,7 @@ interface LangContextType {
   lang: Lang;
   isRTL: boolean;
   setLanguage: (lang: Lang) => Promise<void>;
-  t: (section: keyof typeof translations.ar, key?: string) => any;
+  t: (section: string, key?: string) => any;
   tr: (ar: string, en: string) => string;
 }
 
@@ -36,8 +36,8 @@ export function LangProvider({ children, initialLang }: { children: React.ReactN
     await reloadAppAsync();
   };
 
-  const t = (section: keyof typeof translations.ar, key?: string): any => {
-    const sectionData = (translations[lang] as any)[section];
+  const t = (section: string, key?: string): any => {
+    const sectionData = ((translations as Record<string, any>)[lang] ?? translations.ar)[section];
     if (!key) return sectionData;
     return sectionData?.[key] ?? (translations.ar as any)[section]?.[key] ?? key;
   };

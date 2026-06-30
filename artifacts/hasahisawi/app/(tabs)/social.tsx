@@ -1396,9 +1396,9 @@ export default function SocialScreen() {
           ListHeaderComponent={
             <>
               {fromCache && (
-                <View style={styles.cacheBanner}>
+                <View style={cs.cacheBanner}>
                   <Ionicons name="cloud-offline-outline" size={14} color={Colors.textMuted} />
-                  <Text style={styles.cacheBannerText}>بيانات محفوظة · تحديث عند عودة الاتصال</Text>
+                  <Text style={cs.cacheBannerText}>بيانات محفوظة · تحديث عند عودة الاتصال</Text>
                 </View>
               )}
               {!auth.isGuest ? (
