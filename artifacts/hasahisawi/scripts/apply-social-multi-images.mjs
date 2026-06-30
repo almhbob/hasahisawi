@@ -7,6 +7,18 @@ const socialPath = resolve(__dirname, '../app/(tabs)/social.tsx');
 let source = readFileSync(socialPath, 'utf8');
 let changed = false;
 
+// All features are now integrated directly into social.tsx — this script is a no-op.
+if (
+  source.includes('function decodePostImages') &&
+  source.includes('async function pickImages') &&
+  source.includes('async function uploadImageList') &&
+  source.includes('function MultiMediaPreview') &&
+  source.includes('[imageItems, setImageItems]')
+) {
+  console.log('✅ Social multi-image publishing already integrated — no patch needed.');
+  process.exit(0);
+}
+
 function replaceOnce(from, to) {
   if (!source.includes(from)) return false;
   source = source.replace(from, to);
