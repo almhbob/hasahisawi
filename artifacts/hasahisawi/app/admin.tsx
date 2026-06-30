@@ -1741,7 +1741,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
 }
 
 // ─── Admin Join Requests Tab ─────────────────────────────────────────────────
-type JoinSub = "student_union" | "women" | "occasions" | "union_partner" | "union_manager" | "edu_reg" | "edu_transfer" | "travel_agency";
+type JoinSub = "student_union" | "women" | "occasions" | "union_partner" | "union_manager" | "edu_reg" | "edu_transfer" | "travel_agency" | "institution";
 function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: string }) {
   const [sub, setSub] = React.useState<JoinSub>("student_union");
   const [items, setItems] = React.useState<any[]>([]);
@@ -1887,6 +1887,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
     { key: "edu_reg",        label: "تسجيل طلاب" },
     { key: "edu_transfer",   label: "نقل قيد" },
     { key: "travel_agency",  label: "وكالات سفر" },
+    { key: "institution",    label: "انضمام مؤسسات" },
   ];
 
   const URL_MAP: Record<JoinSub, string> = {
@@ -1898,6 +1899,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
     edu_reg:       `${apiBase}/api/admin/education/registrations`,
     edu_transfer:  `${apiBase}/api/admin/education/transfers`,
     travel_agency: `${apiBase}/api/admin/travel-agencies/applications`,
+    institution:   `${apiBase}/api/admin/institution-applications`,
   };
 
   const load = React.useCallback(() => {
@@ -1959,6 +1961,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       edu_reg:       `${apiBase}/api/admin/education/registrations/${id}`,
       edu_transfer:  `${apiBase}/api/admin/education/transfers/${id}`,
       travel_agency: "",
+      institution:   `${apiBase}/api/admin/institution-applications/${id}`,
     };
     const url = patchMap[sub];
     if (!url) return;
@@ -2009,13 +2012,13 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
   function getTitle(item: any): string {
     return item.full_name ?? item.name ?? item.shop_name ?? item.agency_name ?? item.contact_name
-      ?? item.org_name ?? item.student_name ?? item.union_name ?? item.applicant_name ?? `#${item.id}`;
+      ?? item.org_name ?? item.student_name ?? item.union_name ?? item.institution_name ?? item.applicant_name ?? `#${item.id}`;
   }
   function getSub(item: any): string {
-    return item.phone ?? item.email ?? item.city ?? item.region ?? "";
+    return item.phone ?? item.applicant_phone ?? item.email ?? item.applicant_email ?? item.city ?? item.region ?? "";
   }
   function getDesc(item: any): string {
-    return item.description ?? item.cooperation_scope ?? item.notes ?? item.reason ?? item.target_routes ?? "";
+    return item.description ?? item.cooperation_scope ?? item.notes ?? item.reason ?? item.target_routes ?? item.institution_type ?? "";
   }
 
   return (
@@ -2055,7 +2058,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       <View style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 6, gap: 8 }}>
         <TouchableOpacity
           onPress={() => {
-            const LABELS: Record<JoinSub, string> = { student_union: "اتحاد_الطلاب", women: "النساء", occasions: "مناسبتي", union_partner: "شراكات_الاتحادات", union_manager: "مديرو_الاتحادات", edu_reg: "تسجيل_طلاب", edu_transfer: "نقل_قيد", travel_agency: "وكالات_سفر" };
+            const LABELS: Record<JoinSub, string> = { student_union: "اتحاد_الطلاب", women: "النساء", occasions: "مناسبتي", union_partner: "شراكات_الاتحادات", union_manager: "مديرو_الاتحادات", edu_reg: "تسجيل_طلاب", edu_transfer: "نقل_قيد", travel_agency: "وكالات_سفر", institution: "انضمام_مؤسسات" };
             const rows = items.map(x => ({ الاسم: x.full_name||x.contact_person||x.name||x.applicant_name||"", الهاتف: x.phone||"", البريد: x.email||"", الحالة: x.status||"", التاريخ: x.created_at ? new Date(x.created_at).toLocaleDateString("ar-SA") : "" }));
             exportToCSV(rows, `طلبات_${LABELS[sub]}.csv`);
           }}
@@ -2102,6 +2105,11 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 </View>
               </View>
               {!!getSub(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{getSub(item)}</Text>}
+              {sub === "institution" && !!item.applicant_name && (
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>
+                  {"المندوب: "}{item.applicant_name}
+                </Text>
+              )}
               {!!getDesc(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={3}>{getDesc(item)}</Text>}
               {item.created_at && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>}
               {/* أزرار قبول/رفض للمعلق */}

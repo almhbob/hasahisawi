@@ -7374,6 +7374,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `INSERT INTO institution_applications (applicant_name, applicant_email, applicant_phone, institution_name, institution_type, application_data) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
         [applicant_name, applicant_email||null, applicant_phone||null, institution_name, institution_type||null, JSON.stringify(rest)]
       );
+      sendAdminNotifEmail("🏢 طلب انضمام مؤسسة جديد", {
+        "المؤسسة": institution_name, "نوع المؤسسة": institution_type||"",
+        "المندوب": applicant_name, "الهاتف": applicant_phone||"",
+        "البريد الإلكتروني": applicant_email||"",
+      });
+      void pushToAdmins("🏢 طلب انضمام مؤسسة", `${institution_name} — ${applicant_name}`, { screen: "admin", tab: "join_requests" });
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
