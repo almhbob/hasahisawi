@@ -4715,6 +4715,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       expires_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    // Seed default manager on first run
+    const existing = await query(`SELECT id FROM zawajil_managers LIMIT 1`);
+    if (existing.rows.length === 0) {
+      const hash = await bcrypt.hash("2026", 10);
+      await query(
+        `INSERT INTO zawajil_managers (full_name, username, password_hash, email)
+         VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING`,
+        ["مدير زواجل", "almhbob.iii@gmail.com", hash, "almhbob.iii@gmail.com"]
+      );
+    }
   }
 
   async function getZawajilManager(req: Request): Promise<{ id: number; full_name: string; username: string } | null> {

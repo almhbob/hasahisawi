@@ -74,7 +74,7 @@ function LoginScreen({ onLogin }: { onLogin: (tok: string, mgr: Manager) => void
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${getApiUrl()}/zawajil-manager/login`, {
+      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), password }),
@@ -208,7 +208,7 @@ function OrderCard({
   const updateStatus = async (status: string, notes?: string) => {
     setActing(true);
     try {
-      const res = await fetch(`${getApiUrl()}/zawajil-manager/orders/${order.id}/status`, {
+      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status, admin_notes: notes }),
@@ -221,7 +221,7 @@ function OrderCard({
   const submitReview = async () => {
     setActing(true);
     try {
-      const res = await fetch(`${getApiUrl()}/zawajil-manager/orders/${order.id}/review`, {
+      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders/${order.id}/review`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -426,7 +426,7 @@ function OrdersTab({ token }: { token: string }) {
   const load = useCallback(async () => {
     try {
       const q = filter !== "all" ? `?status=${filter}` : "";
-      const res = await fetch(`${getApiUrl()}/zawajil-manager/orders${q}`, {
+      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders${q}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setOrders(await res.json());
@@ -498,7 +498,7 @@ function ProductsTab({ token }: { token: string }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/zawajil-manager/products`, {
+      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setProducts(await res.json());
@@ -527,8 +527,8 @@ function ProductsTab({ token }: { token: string }) {
     try {
       const body = { name: pName, description: pDesc, price: parseFloat(pPrice) || 0, category: pCategory, is_available: pAvailable };
       const url = editProduct
-        ? `${getApiUrl()}/zawajil-manager/products/${editProduct.id}`
-        : `${getApiUrl()}/zawajil-manager/products`;
+        ? `${getApiUrl()}/api/zawajil-manager/products/${editProduct.id}`
+        : `${getApiUrl()}/api/zawajil-manager/products`;
       const res = await fetch(url, {
         method: editProduct ? "PATCH" : "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -546,7 +546,7 @@ function ProductsTab({ token }: { token: string }) {
         text: "حذف", style: "destructive",
         onPress: async () => {
           try {
-            await fetch(`${getApiUrl()}/zawajil-manager/products/${p.id}`, {
+            await fetch(`${getApiUrl()}/api/zawajil-manager/products/${p.id}`, {
               method: "DELETE",
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -559,7 +559,7 @@ function ProductsTab({ token }: { token: string }) {
 
   const toggleAvailable = async (p: Product) => {
     try {
-      await fetch(`${getApiUrl()}/zawajil-manager/products/${p.id}`, {
+      await fetch(`${getApiUrl()}/api/zawajil-manager/products/${p.id}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ is_available: !p.is_available }),
@@ -711,7 +711,7 @@ export default function ZawajilManagerScreen() {
     if (!token) return;
     (async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/zawajil-manager/dashboard`, {
+        const res = await fetch(`${getApiUrl()}/api/zawajil-manager/dashboard`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -740,7 +740,7 @@ export default function ZawajilManagerScreen() {
         text: "خروج", style: "destructive",
         onPress: async () => {
           try {
-            await fetch(`${getApiUrl()}/zawajil-manager/logout`, {
+            await fetch(`${getApiUrl()}/api/zawajil-manager/logout`, {
               method: "POST",
               headers: { Authorization: `Bearer ${token}` },
             });
