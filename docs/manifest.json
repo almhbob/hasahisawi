@@ -2,18 +2,36 @@
   "name": "حصاحيصاوي",
   "short_name": "حصاحيصاوي",
   "description": "بوابتك المجتمعية لمدينة الحصاحيصا وقراها",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/hasahisawi/",
+  "scope": "/hasahisawi/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "browser"
+  ],
   "background_color": "#07110A",
   "theme_color": "#22C55E",
   "lang": "ar",
   "dir": "rtl",
-  "categories": ["social", "utilities", "lifestyle"],
+  "categories": [
+    "social",
+    "utilities",
+    "lifestyle"
+  ],
   "icons": [
-    { "src": "/icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/hasahisawi/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/hasahisawi/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "screenshots": [
     {
