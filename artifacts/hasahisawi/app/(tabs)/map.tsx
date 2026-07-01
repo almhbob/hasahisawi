@@ -161,26 +161,15 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 
 // ── iframe للويب (بديل WebView) ──────────────────────────────────────────────
 function WebMapFrame({ html, onReady }: { html: string; onReady: () => void }) {
-  const iframeRef = useRef<any>(null);
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const blob = new Blob([html], { type: "text/html" });
-    const url  = URL.createObjectURL(blob);
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
-      iframeRef.current.onload = onReady;
-    }
-    return () => URL.revokeObjectURL(url);
-  }, [html]);
-
-  return React.createElement("iframe", {
-    ref: iframeRef,
-    style: {
-      width: "100%", height: "100%", border: "none",
-      background: BG, display: "block",
-    },
-    sandbox: "allow-scripts allow-same-origin",
-  });
+  return React.createElement("div", {
+    style: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  }, React.createElement("iframe", {
+    srcDoc: html,
+    style: { width: "100%", height: "100%", border: "none", background: BG, display: "block" },
+    onLoad: onReady,
+    title: "خريطة المدينة",
+    allow: "geolocation",
+  }));
 }
 
 // ── الشاشة الرئيسية ──────────────────────────────────────────────────────────
@@ -348,7 +337,7 @@ const s = StyleSheet.create({
                   paddingVertical: 6, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER,
                   backgroundColor: CARD },
   chipTxt:      { fontFamily: "Cairo_500Medium", fontSize: 13, color: MUTED },
-  mapWrap:      { flex: 1 },
+  mapWrap:      { flex: 1, position: "relative" as any },
   webview:      { flex: 1, backgroundColor: BG },
   center:       { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadTxt:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: MUTED },
