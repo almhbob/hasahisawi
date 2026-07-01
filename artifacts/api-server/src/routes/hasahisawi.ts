@@ -3694,34 +3694,56 @@ router.post("/admin/sync-firebase-users", heavyWriteLimiter, async (req: Request
 router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Request, res: Response): Promise<any> => {
   try {
     if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
-    const { source_db_url } = req.body as { source_db_url?: string };
+    const { source_db_url, offset = 0, limit = 50 } = req.body as {
+      source_db_url?: string; offset?: number; limit?: number;
+    };
     if (!source_db_url || !source_db_url.startsWith("postgres"))
-      return res.status(400).json({ error: "source_db_url غير صالح" });
+      return res.status(400).json({ error: "source_db_url غير صالح — يجب أن يبدأ بـ postgres://" });
 
-    // Connect to source DB
+    const isRender = source_db_url.includes(".render.com");
+    const needsSsl = source_db_url.includes("sslmode=require") || isRender;
+
     const { Pool: PgPool } = await import("pg");
     const srcPool = new PgPool({
       connectionString: source_db_url,
-      connectionTimeoutMillis: 10_000,
-      max: 3,
-      ssl: source_db_url.includes("sslmode=require") || source_db_url.includes(".render.com")
-        ? { rejectUnauthorized: false } : false,
+      connectionTimeoutMillis: 12_000,
+      idleTimeoutMillis: 5_000,
+      max: 2,
+      ssl: needsSsl ? { rejectUnauthorized: false } : false,
     });
 
+    // أولاً: جلب إجمالي المستخدمين
+    let totalCount = 0;
     let srcUsers: any[];
     try {
+      const countRow = await srcPool.query(`SELECT COUNT(*)::int AS n FROM users`);
+      totalCount = countRow.rows[0]?.n ?? 0;
+
       const r = await srcPool.query(
         `SELECT id, name, phone, email, password_hash, role, neighborhood,
                 birth_date, national_id, firebase_uid, avatar_url, gender,
                 is_banned, created_at
-         FROM users ORDER BY id`
+         FROM users ORDER BY id
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
       );
       srcUsers = r.rows;
+    } catch (connErr: any) {
+      const msg = connErr?.message ?? "";
+      const hint =
+        msg.includes("timeout")   ? "تعذّر الاتصال: تحقق من أن قاعدة Render لم تُحذف أو منتهية الصلاحية" :
+        msg.includes("password")  ? "كلمة مرور خاطئة في رابط الاتصال" :
+        msg.includes("does not exist") ? "قاعدة البيانات غير موجودة — تحقق من اسم الـ database في الرابط" :
+        msg.includes("ENOTFOUND") ? "تعذّر الوصول للخادم — تحقق من hostname في الرابط" :
+        msg;
+      return res.status(502).json({ error: hint, raw: msg });
     } finally {
       await srcPool.end().catch(() => {});
     }
 
-    if (!srcUsers.length) return res.json({ migrated: 0, skipped: 0, errors: 0, total: 0 });
+    if (!srcUsers.length) {
+      return res.json({ migrated: 0, skipped: 0, errors: 0, total: totalCount, done: true });
+    }
 
     let migrated = 0, skipped = 0, errors = 0;
     for (const u of srcUsers) {
@@ -3731,7 +3753,7 @@ router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Reque
              (name, phone, email, password_hash, role, neighborhood, birth_date,
               national_id, firebase_uid, avatar_url, gender, is_banned, created_at)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-           ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING
+           ON CONFLICT (phone) WHERE phone IS NOT NULL DO NOTHING
            RETURNING id`,
           [u.name, u.phone, u.email, u.password_hash, u.role ?? "user",
            u.neighborhood, u.birth_date, u.national_id, u.firebase_uid,
@@ -3742,8 +3764,9 @@ router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Reque
       } catch { errors++; }
     }
 
-    logger.info({ total: srcUsers.length, migrated, skipped, errors }, "[migrate-users] done");
-    return res.json({ total: srcUsers.length, migrated, skipped, errors });
+    const done = (offset + srcUsers.length) >= totalCount;
+    logger.info({ total: totalCount, offset, batch: srcUsers.length, migrated, skipped, errors, done }, "[migrate-users] batch");
+    return res.json({ total: totalCount, migrated, skipped, errors, done, next_offset: offset + srcUsers.length });
   } catch (err: any) {
     logger.error({ err: err?.message }, "migrate-users-from-db error");
     return res.status(500).json({ error: err?.message ?? "Server error" });

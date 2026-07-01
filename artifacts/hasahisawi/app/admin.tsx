@@ -2790,24 +2790,43 @@ export default function AdminDashboard() {
     finally { setFbSyncing(false); }
   }, [token, loadStats, loadFirebaseHealth, loadUsers]);
 
+  const [migrateProgress, setMigrateProgress] = useState<{ done: number; total: number } | null>(null);
+
   const migrateFromDb = useCallback(async (sourceUrl: string) => {
     if (!sourceUrl.trim()) return;
     setMigrating(true);
     setMigrateResult(null);
+    setMigrateProgress(null);
+    let totalMigrated = 0, totalSkipped = 0, totalErrors = 0;
+    let offset = 0;
+    const BATCH = 50;
     try {
-      const res = await apiFetch("/api/admin/migrate-users-from-db", token, {
-        method: "POST",
-        body: JSON.stringify({ source_db_url: sourceUrl.trim() }),
-      }, 120000);
-      const d = await safeJson(res);
-      setMigrateResult(d);
-      if ((d as any).migrated > 0) {
-        await Promise.all([loadStats(), loadUsers()]);
+      while (true) {
+        const res = await apiFetch("/api/admin/migrate-users-from-db", token, {
+          method: "POST",
+          body: JSON.stringify({ source_db_url: sourceUrl.trim(), offset, limit: BATCH }),
+        }, 70000);
+        if (!res.ok) {
+          const err = await safeJson(res);
+          setMigrateResult({ error: (err as any).error ?? `خطأ ${res.status}` });
+          return;
+        }
+        const d = await safeJson(res) as any;
+        if (d?.error) { setMigrateResult({ error: d.error }); return; }
+        totalMigrated += d.migrated ?? 0;
+        totalSkipped  += d.skipped  ?? 0;
+        totalErrors   += d.errors   ?? 0;
+        setMigrateProgress({ done: offset + (d.next_offset - offset || BATCH), total: d.total ?? 0 });
+        if (d.done || !d.next_offset) break;
+        offset = d.next_offset;
       }
+      setMigrateResult({ migrated: totalMigrated, skipped: totalSkipped, errors: totalErrors, total: totalMigrated + totalSkipped + totalErrors });
+      if (totalMigrated > 0) await Promise.all([loadStats(), loadUsers()]);
     } catch (e: any) {
-      setMigrateResult({ error: e?.message ?? "فشل الاتصال" });
+      setMigrateResult({ error: e?.message ?? "فشل الاتصال بالخادم" });
     } finally {
       setMigrating(false);
+      setMigrateProgress(null);
     }
   }, [token, loadStats, loadUsers]);
 
@@ -4447,43 +4466,71 @@ export default function AdminDashboard() {
               {/* ── استيراد من DB القديمة ── */}
               <View style={{ width: "100%", backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.primary + "40" }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>
-                  📦 استيراد من قاعدة بيانات Render القديمة
+                  📦 استيراد من قاعدة بيانات أخرى
                 </Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
-                  من Render Dashboard ← Databases ← انسخ "External Database URL"
-                </Text>
+                <View style={{ backgroundColor: Colors.primary + "12", borderRadius: 10, padding: 10, gap: 4 }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary, textAlign: "right" }}>كيف أحصل على الرابط؟</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                    {"• Render: Dashboard → Databases → اختر قاعدة البيانات → \"External Database URL\""}
+                  </Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                    {"• تنبيه: قواعد Render المجانية تُحذف بعد 90 يوم من عدم الاستخدام"}
+                  </Text>
+                </View>
                 <TextInput
                   value={migrateUrl}
                   onChangeText={setMigrateUrl}
-                  placeholder="postgres://user:pass@host:5432/db"
+                  placeholder="postgres://user:pass@host.render.com:5432/dbname"
                   placeholderTextColor={Colors.textMuted}
                   style={{ backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 11, borderWidth: 1, borderColor: Colors.primary + "50" }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   multiline
                 />
+                {/* شريط التقدم */}
+                {migrating && migrateProgress && (
+                  <View style={{ gap: 4 }}>
+                    <View style={{ height: 6, backgroundColor: Colors.divider, borderRadius: 3, overflow: "hidden" }}>
+                      <View style={{ height: 6, backgroundColor: Colors.primary, borderRadius: 3,
+                        width: `${Math.round((migrateProgress.done / Math.max(migrateProgress.total, 1)) * 100)}%` as any }} />
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+                      {migrateProgress.done} / {migrateProgress.total} مستخدم
+                    </Text>
+                  </View>
+                )}
                 <TouchableOpacity
-                  style={{ backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, opacity: migrating ? 0.7 : 1 }}
+                  style={{ backgroundColor: migrating || !migrateUrl.trim() ? Colors.divider : Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
                   onPress={() => migrateFromDb(migrateUrl)}
                   disabled={migrating || !migrateUrl.trim()}
                 >
                   {migrating
-                    ? <ActivityIndicator color="#000" size="small" />
-                    : <Ionicons name="cloud-download-outline" size={16} color="#000" />
+                    ? <ActivityIndicator color={Colors.primary} size="small" />
+                    : <Ionicons name="cloud-download-outline" size={16} color={migrateUrl.trim() ? "#000" : Colors.textMuted} />
                   }
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" }}>
-                    {migrating ? "جاري النقل..." : "نقل المستخدمين الآن"}
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: migrating || !migrateUrl.trim() ? Colors.textMuted : "#000" }}>
+                    {migrating ? "جاري النقل…" : "نقل المستخدمين الآن"}
                   </Text>
                 </TouchableOpacity>
-                {migrateResult && !migrateResult.error && (
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
-                    ✅ نُقل: {migrateResult.migrated} · تجاهل: {migrateResult.skipped} · أخطاء: {migrateResult.errors} (من {migrateResult.total})
-                  </Text>
+                {migrateResult && !(migrateResult as any).error && (
+                  <View style={{ backgroundColor: Colors.primary + "15", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: Colors.primary + "30" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary, textAlign: "center" }}>
+                      ✅ اكتملت عملية النقل
+                    </Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 4 }}>
+                      نُقل: {(migrateResult as any).migrated} · تجاهل (موجود): {(migrateResult as any).skipped} · أخطاء: {(migrateResult as any).errors}
+                    </Text>
+                  </View>
                 )}
-                {migrateResult?.error && (
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", textAlign: "center" }}>
-                    ❌ {migrateResult.error}
-                  </Text>
+                {(migrateResult as any)?.error && (
+                  <View style={{ backgroundColor: "#EF444415", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#EF444430" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444", textAlign: "right", marginBottom: 4 }}>
+                      ❌ فشل الاتصال
+                    </Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#EF4444", textAlign: "right" }}>
+                      {(migrateResult as any).error}
+                    </Text>
+                  </View>
                 )}
               </View>
 
