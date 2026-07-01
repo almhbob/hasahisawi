@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const LOGO = require("@/assets/images/logo.png");
 
-function normalizeHomeGender(value) {
+function normalizeHomeGender(value: string | null | undefined) {
   const g = String(value ?? "").trim().toLowerCase();
   if (["male", "m", "man", "ذكر", "رجل", "ولد"].includes(g)) return "male";
   if (["female", "f", "woman", "أنثى", "انثى", "امرأة", "امراة", "بنت"].includes(g)) return "female";

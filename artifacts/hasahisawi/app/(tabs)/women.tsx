@@ -147,6 +147,13 @@ type WomenStore = {
   owner_name: string | null;
 };
 
+function normalizeWomenGender(value: string | null | undefined) {
+  const g = String(value ?? "").trim().toLowerCase();
+  if (["male", "m", "man", "ذكر", "رجل", "ولد"].includes(g)) return "male";
+  if (["female", "f", "woman", "أنثى", "انثى", "امرأة", "امراة", "بنت"].includes(g)) return "female";
+  return null;
+}
+
 export default function WomenScreen() {
   const { user, isGuest, setUserGender } = useAuth();
   const router = useRouter();
