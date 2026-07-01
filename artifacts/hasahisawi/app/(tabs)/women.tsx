@@ -157,6 +157,10 @@ export default function WomenScreen() {
   const [subTab, setSubTab] = useState<SubTab>("services");
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [expandedTip, setExpandedTip]       = useState<string | null>(null);
+  const womenGender = normalizeWomenGender(user?.gender);
+  const isWomenAdmin = user?.role === "admin";
+  const isMaleBlocked = womenGender === "male" && !isWomenAdmin;
+  const needsGenderForWomen = !womenGender && !isWomenAdmin;
   const [womenStores, setWomenStores]       = useState<WomenStore[]>([]);
   const [storesLoading, setStoresLoading]   = useState(false);
   const [storeSearch, setStoreSearch]       = useState("");
@@ -214,6 +218,7 @@ export default function WomenScreen() {
   }
 
   const load = async () => {
+    if (!user || isGuest || isMaleBlocked || needsGenderForWomen) return;
     try {
       const params = filter !== "all" ? `?type=${filter}` : "";
       const res = await fetch(`${getApiUrl()}/api/women-services${params}`);
@@ -272,14 +277,14 @@ export default function WomenScreen() {
   if (isGuest || !user) {
     return (
       <View style={s.root}>
-        <ModernHeader title="ركن المرأة" subtitle="خدمات · صحة · مطبخ سوداني" />
+        <ModernHeader title="قسم المرأة" subtitle="خدمات · صحة · مطبخ سوداني" />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <MaterialCommunityIcons name="lock-outline" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
             هذا القسم للأعضاء المسجّلات فقط
           </Text>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center", marginBottom: 28 }}>
-            يُرجى إنشاء حساب أو تسجيل الدخول للوصول إلى ركن المرأة
+            يُرجى إنشاء حساب أو تسجيل الدخول للوصول إلى قسم المرأة
           </Text>
           <TouchableOpacity
             onPress={() => router.push("/login")}
@@ -293,16 +298,16 @@ export default function WomenScreen() {
   }
 
   // ── حجب الذكور ────────────────────────────────────────────────────────────
-  if (user.gender === "male") {
+  if (isMaleBlocked) {
     return (
       <View style={s.root}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <MaterialCommunityIcons name="face-woman" size={64} color="#FF4FA3" style={{ marginBottom: 20 }} />
           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 10 }}>
-            ركن المرأة
+            قسم المرأة
           </Text>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "center" }}>
-            هذا القسم مخصّص للسيدات فقط — نحرص على توفير مساحة آمنة وخاصة لهن.
+            هذا القسم محجوب تلقائياً على حسابات الذكور، ولا يمكن الدخول إليه إلا بحساب إدارة.
           </Text>
         </View>
       </View>
@@ -310,7 +315,7 @@ export default function WomenScreen() {
   }
 
   // ── المستخدمة لم تحدّد جنسها بعد ──────────────────────────────────────────
-  if (!user.gender) {
+  if (needsGenderForWomen) {
     return (
       <View style={s.root}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
@@ -356,7 +361,7 @@ export default function WomenScreen() {
   return (
     <View style={s.root}>
       {/* ── Header ── */}
-      <ModernHeader title="ركن المرأة" subtitle="خدمات · صحة · مطبخ سوداني">
+      <ModernHeader title="قسم المرأة" subtitle="خدمات · صحة · مطبخ سوداني">
         {/* Stats */}
         <View style={s.statsRow}>
           {[
@@ -968,7 +973,7 @@ export default function WomenScreen() {
                 </TouchableOpacity>
                 <View style={jm.sheetTitleWrap}>
                   <MaterialCommunityIcons name="store-plus-outline" size={24} color="#FF4FA3" />
-                  <Text style={jm.sheetTitle}>طلب الانضمام لركن المرأة</Text>
+                  <Text style={jm.sheetTitle}>طلب الانضمام لقسم المرأة</Text>
                 </View>
               </View>
 

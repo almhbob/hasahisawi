@@ -7,8 +7,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
+import { useAuth } from "@/lib/auth-context";
 
 const LOGO = require("@/assets/images/logo.png");
+
+function normalizeHomeGender(value) {
+  const g = String(value ?? "").trim().toLowerCase();
+  if (["male", "m", "man", "ذكر", "رجل", "ولد"].includes(g)) return "male";
+  if (["female", "f", "woman", "أنثى", "انثى", "امرأة", "امراة", "بنت"].includes(g)) return "female";
+  return null;
+}
 
 type Service = {
   id: string;
@@ -23,6 +31,7 @@ type Service = {
 
 const SERVICES: Service[] = [
   { id: "medical", label: "الدليل الطبي", sub: "صيدليات · مستشفيات · عيادات", icon: "medkit", iconType: "ionicons", tone: "green", route: "/(tabs)/medical" },
+  { id: "lawyers", label: "المحامون والخدمات القانونية", sub: "محامون · استشارات · عقود", icon: "scale-balance", iconType: "material", tone: "gold", route: "/(tabs)/lawyers", badge: "قانون" },
   { id: "missing", label: "مفقودات", sub: "أعلن عن غرض مفقود أو موجود", icon: "search", iconType: "ionicons", tone: "gold", route: "/(tabs)/missing" },
   { id: "student", label: "الخدمات الطلابية", sub: "مدارس · معاهد · التعليم", icon: "school", iconType: "ionicons", tone: "green", route: "/(tabs)/student" },
   { id: "restaurants", label: "المطاعم والكافتريات", sub: "منيو مصور · كاشير · فواتير", icon: "restaurant-outline", iconType: "ionicons", tone: "gold", route: "/(tabs)/restaurants", badge: "جديد" },
@@ -85,6 +94,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 28 : insets.top + 12;
   const date = useMemo(() => new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" }), []);
+  const { user } = useAuth();
+  const visibleServices = useMemo(() => {
+    const gender = normalizeHomeGender(user?.gender);
+    if (gender === "male" && user?.role !== "admin") return SERVICES.filter(item => item.id !== "women");
+    return SERVICES;
+  }, [user?.gender, user?.role]);
 
   return (
     <View style={styles.container}>
@@ -99,7 +114,7 @@ export default function HomeScreen() {
               <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eyebrow}>منصة حصاحيصا المحلية</Text>
+              <Text style={styles.eyebrow}>منصة لخدمة مواطن المنطقة وضواحيها</Text>
               <Text style={styles.title}>حصاحيصاوي</Text>
               <Text style={styles.subtitle}>كل احتياجاتك اليومية في تجربة واحدة</Text>
             </View>
@@ -148,7 +163,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.grid}>
-            {SERVICES.map((item, index) => <ServiceCard key={item.id} item={item} index={index} />)}
+            {visibleServices.map((item, index) => <ServiceCard key={item.id} item={item} index={index} />)}
           </View>
         </View>
       </ScrollView>

@@ -9,6 +9,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { PLATFORM } from "@/constants/platform";
@@ -21,6 +22,34 @@ import { uploadFile } from "@/lib/firebase/storage";
 // ══════════════════════════════════════════════════════
 const COMMITMENT_VERSION = "v1.0";
 const COMMITMENT_DATE = "١ أبريل ٢٠٢٦";
+
+const REP_PHOTO_PENDING_URL = "https://almhbob.github.io/hasahisawi/privacy.html#identity-upload-pending";
+type RepPhotoAsset = { uri: string; name?: string | null; mimeType?: string | null; source: "library" | "camera" | "document" };
+
+function getIdentityExt(asset: RepPhotoAsset): string {
+  const value = asset.name || asset.uri || "";
+  const clean = value.split("?")[0].split("#")[0];
+  const match = clean.match(/\.([a-z0-9]+)$/i);
+  const ext = match?.[1]?.toLowerCase();
+  if (ext && ["jpg", "jpeg", "png", "webp", "heic", "heif", "pdf"].includes(ext)) return ext;
+  if (asset.mimeType === "application/pdf") return "pdf";
+  if (asset.mimeType === "image/png") return "png";
+  if (asset.mimeType === "image/webp") return "webp";
+  if (asset.mimeType === "image/heic") return "heic";
+  if (asset.mimeType === "image/heif") return "heif";
+  return "jpg";
+}
+
+function getIdentityMime(asset: RepPhotoAsset): string {
+  if (asset.mimeType && (asset.mimeType.startsWith("image/") || asset.mimeType === "application/pdf")) return asset.mimeType;
+  const ext = getIdentityExt(asset);
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "heic") return "image/heic";
+  if (ext === "heif") return "image/heif";
+  return "image/jpeg";
+}
 
 const INST_TYPES = [
   { key: "health",      label: "مستشفى / عيادة",       icon: "medical-bag",        color: "#E74C6F" },
@@ -235,6 +264,9 @@ export default function OrgJoinScreen() {
   const [repPhotoUploading, setRepPhotoUploading] = useState(false);
   const [repPhotoUrl, setRepPhotoUrl] = useState<string | null>(null);
   const [repPhotoUploadFailed, setRepPhotoUploadFailed] = useState(false);
+  const [repPhotoFileName, setRepPhotoFileName] = useState<string | null>(null);
+  const [repPhotoMimeType, setRepPhotoMimeType] = useState<string | null>(null);
+  const [repPhotoUploadError, setRepPhotoUploadError] = useState<string | null>(null);
 
   // جلب رقم واتساب العقود عند التحميل
   useEffect(() => {
@@ -265,52 +297,143 @@ export default function OrgJoinScreen() {
 
   const instTypeObj = INST_TYPES.find(t => t.key === instType);
 
-  // رفع صورة هوية الممثل
-  const doUploadRepPhoto = async (uri: string) => {
+  // رفع صورة هوية الممثل — لا نمنع اكتمال الطلب عند فشل الشبكة، بل نرسله كمراجعة هوية.
+  const doUploadRepPhoto = async (assetOrUri: RepPhotoAsset | string): Promise<string | null> => {
+    const asset: RepPhotoAsset = typeof assetOrUri === "string"
+      ? { uri: assetOrUri, name: repPhotoFileName, mimeType: repPhotoMimeType, source: "library" }
+      : assetOrUri;
+
     setRepPhotoUploading(true);
     setRepPhotoUploadFailed(false);
+    setRepPhotoUploadError(null);
+
     try {
-      const folder = auth.user ? `institution_applications/${auth.user.id}` : `institution_applications/guest`;
-      const name = `${Date.now()}_rep_id.jpg`;
-      const url = await uploadFile(`${folder}/${name}`, uri);
+      const userKey = auth.user?.id || repPhone.replace(/\D/g, "") || repNationalId.replace(/\D/g, "") || "guest";
+      const folder = `institution_applications/${userKey}/identity`;
+      const ext = getIdentityExt(asset);
+      const safeName = (asset.name || `${Date.now()}_rep_id.${ext}`).replace(/[\\/]+/g, "_");
+      const url = await uploadFile(`${folder}/${safeName}`, asset.uri, {
+        fileName: safeName,
+        mimeType: getIdentityMime(asset),
+      });
       setRepPhotoUrl(url);
       setRepPhotoUploadFailed(false);
-    } catch {
+      setRepPhotoUploadError(null);
+      return url;
+    } catch (error: any) {
+      const msg = error?.message || "تعذّر رفع صورة الهوية حالياً";
       setRepPhotoUploadFailed(true);
+      setRepPhotoUploadError(msg);
+      return null;
     } finally {
       setRepPhotoUploading(false);
     }
   };
 
-  const pickRepPhoto = async () => {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const setRepPhotoAsset = async (asset: RepPhotoAsset) => {
+    setRepPhotoUri(asset.uri);
+    setRepPhotoFileName(asset.name || null);
+    setRepPhotoMimeType(asset.mimeType || null);
+    setRepPhotoUrl(null);
+    await doUploadRepPhoto(asset);
+  };
+
+  const pickRepPhotoFromLibrary = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== "granted") {
       if (perm.canAskAgain === false) {
         Alert.alert(
           "الإذن مرفوض",
-          "قمت برفض إذن المعرض بشكل دائم. يرجى فتح إعدادات الجهاز والسماح للتطبيق بالوصول إلى الصور.",
+          "قمت برفض إذن المعرض بشكل دائم. يمكنك فتح الإعدادات أو اختيار ملف الهوية مباشرة.",
           [
+            { text: "اختيار ملف", onPress: pickRepPhotoAsDocument },
             { text: "فتح الإعدادات", onPress: () => Linking.openSettings() },
             { text: "إلغاء", style: "cancel" },
-          ]
+          ],
         );
       } else {
-        Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى المعرض لرفع صورة الهوية");
+        Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى المعرض أو اختر ملف الهوية من الجهاز");
       }
       return;
     }
+
+    const mediaTypes = (ImagePicker as any).MediaTypeOptions?.Images ?? ["images"];
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes,
       allowsEditing: true,
       aspect: [3, 2],
-      quality: 1.0,
+      quality: 0.82,
+      exif: false,
+      base64: false,
+    } as any);
+    if (result.canceled || !result.assets?.[0]) return;
+    const picked = result.assets[0];
+    await setRepPhotoAsset({
+      uri: picked.uri,
+      name: picked.fileName || `${Date.now()}_rep_id.jpg`,
+      mimeType: picked.mimeType || "image/jpeg",
+      source: "library",
+    });
+  };
+
+  const takeRepPhotoWithCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      Alert.alert("إذن الكاميرا مطلوب", "اسمح للتطبيق باستخدام الكاميرا لتصوير الهوية، أو اختر صورة/ملفاً من الجهاز.");
+      return;
+    }
+    const mediaTypes = (ImagePicker as any).MediaTypeOptions?.Images ?? ["images"];
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes,
+      allowsEditing: true,
+      aspect: [3, 2],
+      quality: 0.82,
+      exif: false,
+      base64: false,
+    } as any);
+    if (result.canceled || !result.assets?.[0]) return;
+    const picked = result.assets[0];
+    await setRepPhotoAsset({
+      uri: picked.uri,
+      name: picked.fileName || `${Date.now()}_rep_id.jpg`,
+      mimeType: picked.mimeType || "image/jpeg",
+      source: "camera",
+    });
+  };
+
+  const pickRepPhotoAsDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ["image/*", "application/pdf"],
+      multiple: false,
+      copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const uri = result.assets[0].uri;
-    setRepPhotoUri(uri);
-    setRepPhotoUrl(null);
-    await doUploadRepPhoto(uri);
+    const picked = result.assets[0];
+    await setRepPhotoAsset({
+      uri: picked.uri,
+      name: picked.name || `${Date.now()}_rep_id.jpg`,
+      mimeType: picked.mimeType || null,
+      source: "document",
+    });
+  };
+
+  const pickRepPhoto = async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === "web") {
+      await pickRepPhotoAsDocument();
+      return;
+    }
+
+    Alert.alert(
+      "إرفاق الهوية",
+      "اختر الطريقة المناسبة. إذا فشل الرفع بسبب الشبكة سيظل بإمكانك إرسال الطلب للمراجعة.",
+      [
+        { text: "المعرض", onPress: pickRepPhotoFromLibrary },
+        { text: "الكاميرا", onPress: takeRepPhotoWithCamera },
+        { text: "ملف / PDF", onPress: pickRepPhotoAsDocument },
+        { text: "إلغاء", style: "cancel" },
+      ],
+    );
   };
 
   // التحقق من حالة الطلب
@@ -417,7 +540,8 @@ export default function OrgJoinScreen() {
       if (!repNationalId.trim()) return Alert.alert("تنبيه", "يرجى إدخال الرقم الوطني للممثل");
       if (!repPhone.trim()) return Alert.alert("تنبيه", "يرجى إدخال رقم هاتف الممثل");
       if (!repPhotoUri && !repPhotoUrl) {
-        return Alert.alert("تنبيه", "يرجى إرفاق صورة هوية الممثل الرسمي");
+        setRepPhotoUploadFailed(true);
+        setRepPhotoUploadError("لم يتم إرفاق الهوية بعد؛ يمكنك المتابعة وسيُصنّف الطلب كمراجعة هوية يدوية.");
       }
     }
     if (step === 4) {
@@ -442,18 +566,21 @@ export default function OrgJoinScreen() {
     }
     setSubmitting(true);
 
-    // إعادة محاولة رفع صورة الهوية إذا فشلت سابقاً
+    // إعادة محاولة رفع الهوية. عند فشل الشبكة لا نسقط الطلب؛ نرسله للمراجعة اليدوية.
     let finalRepPhotoUrl = repPhotoUrl;
+    let identityUploadStatus: "uploaded" | "pending_manual_review" = finalRepPhotoUrl ? "uploaded" : "pending_manual_review";
     if (!finalRepPhotoUrl && repPhotoUri) {
-      try {
-        const folder = auth.user ? `institution_applications/${auth.user.id}` : `institution_applications/guest`;
-        const name = `${Date.now()}_rep_id.jpg`;
-        finalRepPhotoUrl = await uploadFile(`${folder}/${name}`, repPhotoUri);
-        setRepPhotoUrl(finalRepPhotoUrl);
-        setRepPhotoUploadFailed(false);
-      } catch {
-        // نستمر بدون صورة — يمكن للإدارة طلبها لاحقاً
-      }
+      finalRepPhotoUrl = await doUploadRepPhoto({
+        uri: repPhotoUri,
+        name: repPhotoFileName || `${Date.now()}_rep_id.jpg`,
+        mimeType: repPhotoMimeType,
+        source: "library",
+      });
+      identityUploadStatus = finalRepPhotoUrl ? "uploaded" : "pending_manual_review";
+    }
+    if (!finalRepPhotoUrl) {
+      finalRepPhotoUrl = REP_PHOTO_PENDING_URL;
+      identityUploadStatus = "pending_manual_review";
     }
 
     try {
@@ -483,7 +610,11 @@ export default function OrgJoinScreen() {
           rep_national_id: repNationalId.trim(),
           rep_phone: repPhone.trim(),
           rep_email: repEmail.trim() || undefined,
-          rep_photo_url: finalRepPhotoUrl || undefined,
+          rep_photo_url: finalRepPhotoUrl,
+          rep_photo_upload_status: identityUploadStatus,
+          rep_photo_upload_note: identityUploadStatus === "pending_manual_review"
+            ? "تعذر رفع صورة الهوية من جهاز المستخدم؛ يُرجى مراجعة الطلب والتواصل مع الممثل لإرسال الهوية عبر واتساب أو إعادة الرفع."
+            : undefined,
         }),
       });
 
@@ -815,18 +946,23 @@ export default function OrgJoinScreen() {
                           {repPhotoUploading
                             ? "جارٍ الرفع..."
                             : repPhotoUploadFailed
-                            ? "فشل الرفع"
-                            : "✓ تم رفع الصورة"}
+                            ? "تعذّر الرفع — سيُراجع يدوياً"
+                            : repPhotoUrl ? "✓ تم رفع الهوية" : "تم اختيار الهوية"}
                         </Text>
                       </View>
                       {repPhotoUploadFailed && !repPhotoUploading && (
-                        <TouchableOpacity
-                          style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}
-                          onPress={(e) => { e.stopPropagation?.(); doUploadRepPhoto(repPhotoUri!); }}
-                        >
-                          <Ionicons name="refresh" size={14} color={Colors.primary} />
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إعادة الرفع</Text>
-                        </TouchableOpacity>
+                        <View style={{ marginTop: 2, gap: 4 }}>
+                          <TouchableOpacity
+                            style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                            onPress={(e) => { e.stopPropagation?.(); doUploadRepPhoto(repPhotoUri!); }}
+                          >
+                            <Ionicons name="refresh" size={14} color={Colors.primary} />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إعادة الرفع</Text>
+                          </TouchableOpacity>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right" }}>
+                            {repPhotoUploadError || "يمكنك المتابعة وسيُراجع فريق الإدارة الهوية يدوياً."}
+                          </Text>
+                        </View>
                       )}
                       <Text style={s.photoPickerChange}>اضغط لتغيير الصورة</Text>
                     </View>
@@ -845,7 +981,7 @@ export default function OrgJoinScreen() {
                 )}
               </TouchableOpacity>
               <Text style={s.photoNote}>
-                ⚠ الصورة مشفّرة ومحمية — تُستخدم للتحقق من الهوية فقط ولا تُنشر علناً
+                ⚠ الهوية تُستخدم للتحقق فقط. إذا تعذر الرفع بسبب الشبكة سيكتمل الطلب كمراجعة هوية يدوية.
               </Text>
             </View>
 

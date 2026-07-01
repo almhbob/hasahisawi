@@ -138,6 +138,16 @@ function AuthGate() {
           return;
         }
 
+        // ── مشوارك علينا: السائقون والإدارة والمشرفون ──
+        if (type === "transport_admin_request" || screen === "admin-transport") {
+          router.push("/admin-transport" as any);
+          return;
+        }
+        if (type === "transport_request" || screen === "transport") {
+          router.push("/transport" as any);
+          return;
+        }
+
         // ── الإتحاد ──
         if (
           type === "student_union_application" ||

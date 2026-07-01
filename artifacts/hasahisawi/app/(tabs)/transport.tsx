@@ -471,6 +471,10 @@ export default function TransportScreen() {
 
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [myTrips,    setMyTrips]    = useState<Trip[]>([]);
+  const [driverModeId, setDriverModeId] = useState<number | null>(null);
+  const [incomingTrips, setIncomingTrips] = useState<Trip[]>([]);
+  const [incomingLoading, setIncomingLoading] = useState(false);
+  const [acceptingTripId, setAcceptingTripId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [fareMatrix, setFareMatrix] = useState<FareMatrix>(DEFAULT_FARE_MATRIX);
 
@@ -498,13 +502,13 @@ export default function TransportScreen() {
   const [submittingReg, setSubmittingReg] = useState(false);
 
   // الاختبار التدريبي
-  const [quizPhase,    setQuizPhase]    = useState<"intro" | "quiz" | "result">("intro");
+  const [quizPhase,    setQuizPhase]    = useState<"intro" | "quiz" | "result">("result");
   const [quizCurrentQ, setQuizCurrentQ] = useState(0);
   const [quizAnswers,  setQuizAnswers]  = useState<(number | null)[]>(Array(DRIVER_QUIZ.length).fill(null));
   const [quizSelected, setQuizSelected] = useState<number | null>(null);
   const [quizRevealed, setQuizRevealed] = useState(false);
-  const [quizScore,    setQuizScore]    = useState(0);
-  const [quizPassed,   setQuizPassed]   = useState(false);
+  const [quizScore,    setQuizScore]    = useState(DRIVER_QUIZ.length);
+  const [quizPassed,   setQuizPassed]   = useState(true);
 
   // ── بيانات السائق (لتبويب "كسائق") ──
   const [driverProfile,        setDriverProfile]        = useState<Driver | null>(null);
@@ -614,6 +618,55 @@ export default function TransportScreen() {
     } catch {}
   }, [apiUrl, token]);
 
+  const loadIncomingTripsLite = useCallback(async () => {
+    setIncomingLoading(true);
+    try {
+      const url = driverModeId ? `${apiUrl}/api/transport/driver/${driverModeId}/incoming-trips` : `${apiUrl}/api/transport/trips?status=pending`;
+      const res = await fetchWithTimeout(url);
+      if (res.ok) setIncomingTrips(await res.json());
+    } catch {} finally { setIncomingLoading(false); }
+  }, [apiUrl, driverModeId]);
+
+  const toggleDriverAvailabilityLite = useCallback(async (driver: Driver) => {
+    const next = !driver.is_online;
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/drivers/${driver.id}/online`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_online: next }),
+      });
+      if (res.ok) {
+        setDriverModeId(next ? driver.id : null);
+        setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: next } : d));
+        if (next) loadIncomingTripsLite();
+      }
+    } catch { Alert.alert("خطأ", "تعذر تحديث حالة السائق"); }
+  }, [apiUrl, loadIncomingTripsLite]);
+
+  const acceptIncomingTripLite = useCallback(async (trip: Trip) => {
+    const driver = drivers.find(d => d.id === driverModeId);
+    if (!driver) { Alert.alert("اختر السائق", "فعّل حالة متاح أولاً"); return; }
+    setAcceptingTripId(trip.id);
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/transport/trips/${trip.id}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ driver_id: driver.id }),
+      });
+      if (res.ok) {
+        setIncomingTrips(prev => prev.filter(t => t.id !== trip.id));
+        setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: false, total_trips: d.total_trips + 1 } : d));
+        setDriverModeId(null);
+        Alert.alert("تم قبول الطلب", "أصبح الطلب رحلة جارية باسمك، ولن يتمكن سائق آخر من قبوله.");
+      } else {
+        const j = await res.json().catch(() => ({}));
+        Alert.alert("تعذر القبول", (j as any).error || "ربما تم قبول الطلب بواسطة سائق آخر");
+        loadIncomingTripsLite();
+      }
+    } catch { Alert.alert("خطأ", "تعذر قبول الطلب"); }
+    setAcceptingTripId(null);
+  }, [apiUrl, drivers, driverModeId, token, loadIncomingTripsLite]);
+
   const loadDriverProfile = useCallback(async () => {
     if (!token) return;
     setDriverLoading(true);
@@ -691,6 +744,13 @@ export default function TransportScreen() {
     const interval = setInterval(() => { loadMyTrips(); }, 30_000);
     return () => clearInterval(interval);
   }, [activeTab, token, loadMyTrips]);
+
+  useEffect(() => {
+    if (activeTab !== "driver-inbox") return;
+    loadIncomingTripsLite();
+    const interval = setInterval(() => { loadIncomingTripsLite(); }, 7_000);
+    return () => clearInterval(interval);
+  }, [activeTab, loadIncomingTripsLite]);
 
   // تحديث تلقائي لتبويب "كسائق" كل ٢٠ ثانية
   useEffect(() => {
@@ -866,6 +926,7 @@ export default function TransportScreen() {
 
   const TABS = [
     { key: "book",     label: "اطلب الآن",  icon: "car-outline"       as const },
+    { key: "driver-inbox", label: "طلبات السائق", icon: "radio-outline" as const },
     { key: "drivers",  label: "السائقون",   icon: "people-outline"    as const },
     { key: "mytrips",  label: "طلباتي",     icon: "list-outline"      as const },
     { key: "register", label: "كن سائقاً",  icon: "car-sport-outline" as const },
@@ -1174,7 +1235,36 @@ export default function TransportScreen() {
           </Animated.View>
         )}
 
-        {/* ──── السائقون ──── */}
+
+        {activeTab === "driver-inbox" && (
+          <Animated.View entering={FadeInDown.springify()}>
+            <View style={s.formCard}>
+              <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 16 }}>طلبات السائقين الواردة</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontSize: 12 }}>فعّل أحد السائقين كمتاح ثم اقبل الطلب. أول سائق يقبل الطلب يستلمه وحده.</Text>
+              {drivers.map(d => (
+                <TouchableOpacity key={d.id} onPress={() => toggleDriverAvailabilityLite(d)} style={{ marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: d.is_online ? GREEN + "55" : Colors.border, backgroundColor: d.is_online ? GREEN + "12" : Colors.cardBg, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                  <MaterialCommunityIcons name={d.is_online ? "radio-tower" : "car-clock"} size={22} color={d.is_online ? GREEN : Colors.textMuted} />
+                  <View style={{ flex: 1 }}><Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" }}>{d.name}</Text><Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 }}>{d.vehicle_type} · {d.area || "الحصاحيصا"}</Text></View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", color: d.is_online ? GREEN : Colors.textMuted, fontSize: 12 }}>{d.is_online ? "متاح" : "غير متاح"}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {incomingLoading && incomingTrips.length === 0 ? <View style={s.emptyCard}><ActivityIndicator color={ACCENT} /><Text style={s.emptyText}>جاري تحميل الطلبات...</Text></View> : null}
+            {!incomingLoading && incomingTrips.length === 0 ? <View style={s.emptyCard}><MaterialCommunityIcons name="map-search-outline" size={48} color={Colors.textMuted} /><Text style={s.emptyText}>لا توجد طلبات واردة الآن</Text></View> : null}
+            {incomingTrips.map(trip => (
+              <View key={trip.id} style={[s.formCard, { borderColor: ACCENT + "35" }]}> 
+                <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 15 }}>{trip.user_name}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>من: {trip.from_location}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>إلى: {trip.to_location}</Text>
+                <TouchableOpacity onPress={() => acceptIncomingTripLite(trip)} disabled={acceptingTripId === trip.id || !driverModeId} style={{ marginTop: 14, backgroundColor: driverModeId ? GREEN : Colors.textMuted, borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+                  {acceptingTripId === trip.id ? <ActivityIndicator color="#001" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#001" }}>قبول الطلب الآن</Text>}
+                </TouchableOpacity>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* ───ـ السائقون ───ـ */}
         {activeTab === "drivers" && (
           <Animated.View entering={FadeInDown.springify()}>
             {drivers.length === 0 ? (
@@ -1430,10 +1520,10 @@ export default function TransportScreen() {
                     <MaterialCommunityIcons name="school-outline" size={32} color={ACCENT} />
                   </View>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff", textAlign: "center", marginBottom: 6 }}>
-                    المساحة التدريبية للسائقين
+                    التقديم المباشر للسائقين
                   </Text>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffff80", textAlign: "center", lineHeight: 22 }}>
-                    قبل الانضمام كسائق، يجب اجتياز اختبار قصير يتحقق من فهمك لمراحل عمل التطبيق وقواعده.
+                    تم حذف اختبار السائق قبل التقديم. يمكنك إرسال طلب الانضمام مباشرة، وستراجع الإدارة البيانات.
                   </Text>
                 </LinearGradient>
 
@@ -1476,7 +1566,7 @@ export default function TransportScreen() {
                   style={{ borderRadius: 12, overflow: "hidden" }} activeOpacity={0.85}>
                   <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.submitBtn}>
                     <MaterialCommunityIcons name="play-circle-outline" size={20} color="#fff" />
-                    <Text style={s.submitBtnText}>ابدأ الاختبار التدريبي</Text>
+                    <Text style={s.submitBtnText}>متابعة التقديم مباشرة</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1599,12 +1689,12 @@ export default function TransportScreen() {
                     </View>
                     {/* العنوان */}
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", marginBottom: 4 }}>
-                      {quizPassed ? "تهانينا! اجتزت الاختبار" : "لم تجتز الاختبار هذه المرة"}
+                      {quizPassed ? "جاهز لتقديم طلب الانضمام" : "لم تجتز الاختبار هذه المرة"}
                     </Text>
                     {/* الدرجة */}
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#ffffff90", marginBottom: 16 }}>
                       {quizPassed
-                        ? "أثبتت فهمك الكامل لمراحل التطبيق"
+                        ? "تم حذف الاختبار — أكمل بياناتك وأرسل طلب الانضمام"
                         : `تحتاج ${QUIZ_PASS_SCORE} صحيحة — حاول مجدداً بعد مراجعة الأسئلة`}
                     </Text>
                     {/* الدرجة المرئية */}
@@ -1620,9 +1710,9 @@ export default function TransportScreen() {
 
                   {/* مراجعة الإجابات */}
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 10 }}>
-                    مراجعة إجاباتك
+                    ملاحظة التقديم
                   </Text>
-                  {DRIVER_QUIZ.map((q, i) => {
+                  {false && DRIVER_QUIZ.map((q, i) => {
                     const userAns = quizAnswers[i];
                     const correct = userAns === q.correct;
                     return (

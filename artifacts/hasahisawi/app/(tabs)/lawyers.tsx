@@ -12,9 +12,11 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as DocumentPicker from "expo-document-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import { uploadFile } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
@@ -142,6 +144,10 @@ export default function LawyersScreen() {
     bar_card_url: "", agree: false,
   };
   const [appForm, setAppForm] = useState<typeof EMPTY_APP>(EMPTY_APP);
+  const [barCardUploading, setBarCardUploading] = useState(false);
+  const [barCardFileName, setBarCardFileName] = useState<string | null>(null);
+  const [barCardUploadFailed, setBarCardUploadFailed] = useState(false);
+  const [barCardUploadError, setBarCardUploadError] = useState<string | null>(null);
 
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadDirectory = useCallback(async () => {
@@ -180,6 +186,44 @@ export default function LawyersScreen() {
     } catch {} finally { setContractsLoading(false); }
   }, [deviceId, token]);
 
+  const pickBarCardFile = async () => {
+    try {
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "application/pdf"],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const picked = result.assets[0];
+      const safeName = (picked.name || `lawyer_bar_card_${Date.now()}.jpg`)
+        .replace(/[\/]+/g, "_")
+        .replace(/[^p{L}p{N}._-]+/gu, "_")
+        .slice(0, 120) || `lawyer_bar_card_${Date.now()}.jpg`;
+
+      setBarCardFileName(safeName);
+      setBarCardUploading(true);
+      setBarCardUploadFailed(false);
+      setBarCardUploadError(null);
+
+      const key = (deviceId || `guest_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const url = await uploadFile(`lawyer-applications/${key}/bar-card/${safeName}`, picked.uri, {
+        fileName: safeName,
+        mimeType: picked.mimeType || null,
+      });
+      setAppForm(f => ({ ...f, bar_card_url: url }));
+      setBarCardUploadFailed(false);
+      setBarCardUploadError(null);
+    } catch (e: any) {
+      const msg = e?.message || "تعذر رفع ملف الهوية حالياً";
+      setBarCardUploadFailed(true);
+      setBarCardUploadError(msg);
+      Alert.alert("تعذر الرفع", "يمكنك إرسال الطلب الآن وسيظهر للإدارة كمراجعة هوية يدوية.");
+    } finally {
+      setBarCardUploading(false);
+    }
+  };
+
   const submitJoinApplication = async () => {
     if (!appForm.full_name.trim() || !appForm.phone.trim() || !appForm.bar_number.trim() || !appForm.specialties.trim()) {
       Alert.alert("بيانات ناقصة", "الاسم والهاتف ورقم النقابة والتخصصات مطلوبة"); return;
@@ -197,6 +241,8 @@ export default function LawyersScreen() {
           experience_y: Number(appForm.experience_y) || 0,
           agree_terms: appForm.agree,
           device_id: deviceId,
+          bar_card_upload_status: appForm.bar_card_url ? "uploaded" : "pending_manual_review",
+          bar_card_upload_note: appForm.bar_card_url ? "" : "تعذر رفع صورة الهوية/كارنيه النقابة من جهاز المستخدم؛ يرجى مراجعة الطلب يدوياً.",
         }),
       });
       const d = await r.json();
@@ -1108,7 +1154,17 @@ export default function LawyersScreen() {
               <Field label="رقم النقابة *" value={appForm.bar_number} onChange={(v: string) => setAppForm(f => ({ ...f, bar_number: v }))} placeholder="BAR-YYYY-XXXX" />
               <Field label="سنوات الخبرة" value={appForm.experience_y} onChange={(v: string) => setAppForm(f => ({ ...f, experience_y: v.replace(/\D/g, "") }))} placeholder="0" keyboardType="number-pad" />
               <Field label="التخصصات *" value={appForm.specialties} onChange={(v: string) => setAppForm(f => ({ ...f, specialties: v }))} placeholder="مثال: تجاري, عقارات, أحوال شخصية" multiline />
-              <Field label="رابط صورة كرت النقابة (اختياري)" value={appForm.bar_card_url} onChange={(v: string) => setAppForm(f => ({ ...f, bar_card_url: v }))} placeholder="https://..." />
+              <View style={s.uploadBox}>
+                <Text style={s.joinSectionTitle}>الهوية المهنية / كارنيه النقابة</Text>
+                <Text style={s.uploadHelp}>إرفاق صورة أو PDF اختياري، لكن يسرّع المراجعة. إذا تعذر الرفع سيكتمل الطلب كمراجعة يدوية.</Text>
+                <TouchableOpacity onPress={pickBarCardFile} disabled={barCardUploading} style={[s.uploadBtn, barCardUploadFailed && s.uploadBtnWarn, appForm.bar_card_url && s.uploadBtnOk]}>
+                  {barCardUploading ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name={appForm.bar_card_url ? "check-decagram" : "card-account-details-outline"} size={18} color="#fff" />}
+                  <Text style={s.uploadBtnText}>{barCardUploading ? "جارٍ رفع الملف…" : appForm.bar_card_url ? "تم رفع ملف الهوية" : "إرفاق صورة/ملف الهوية"}</Text>
+                </TouchableOpacity>
+                {barCardFileName ? <Text style={s.uploadFileName}>الملف: {barCardFileName}</Text> : null}
+                {barCardUploadFailed ? <Text style={s.uploadWarn}>{barCardUploadError || "لم يكتمل الرفع، وسيظهر الطلب للإدارة كمراجعة يدوية."}</Text> : null}
+                <Field label="رابط يدوي للهوية (اختياري)" value={appForm.bar_card_url} onChange={(v: string) => setAppForm(f => ({ ...f, bar_card_url: v }))} placeholder="https://..." />
+              </View>
 
               <Text style={s.joinSectionTitle}>المكتب والعنوان</Text>
               <Field label="عنوان المكتب" value={appForm.office_addr} onChange={(v: string) => setAppForm(f => ({ ...f, office_addr: v }))} placeholder="العنوان التفصيلي" />
@@ -1345,6 +1401,14 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 
 // ─── styles ─────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
+  uploadBox: { borderWidth: 1, borderColor: "rgba(139,92,246,0.25)", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 14, padding: 12, gap: 8 },
+  uploadHelp: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18, textAlign: "right" },
+  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
+  uploadBtnOk: { backgroundColor: "#10B981" },
+  uploadBtnWarn: { backgroundColor: "#F59E0B" },
+  uploadBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  uploadFileName: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right" },
+  uploadWarn: { color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right", lineHeight: 17 },
   container: { flex: 1, backgroundColor: "#020C1B" },
   tabsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
