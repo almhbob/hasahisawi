@@ -2947,7 +2947,7 @@ export default function SettingsScreen() {
             <View style={sub_s.summaryBox}>
               <View style={sub_s.summaryRow}>
                 <View style={sub_s.summaryItem}>
-                  <Text style={sub_s.summaryNum}>1</Text>
+                  <Text style={sub_s.summaryNum}>2</Text>
                   <Text style={sub_s.summaryLabel}>خدمة مدفوعة</Text>
                 </View>
                 <View style={sub_s.summaryDivider} />
@@ -2996,6 +2996,30 @@ export default function SettingsScreen() {
               </View>
             )}
 
+            {/* ── روابط السداد السريع ── */}
+            <View style={[sub_s.groupHeader, { marginTop: 4 }]}>
+              <View style={[sub_s.groupDot, { backgroundColor: "#EF4444" }]} />
+              <Text style={sub_s.groupTitle}>سداد الاشتراكات</Text>
+            </View>
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 }}>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 12, backgroundColor: "#7C3AED", elevation: 2 }}
+                onPress={() => Linking.openURL("https://railway.app/account/billing")}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="train" size={16} color="#fff" />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>سداد Railway</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 12, backgroundColor: "#F22F46", elevation: 2 }}
+                onPress={() => Linking.openURL("https://console.twilio.com/billing")}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="message-text-outline" size={16} color="#fff" />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>شحن Twilio</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* ── قسم المدفوع ── */}
             <View style={sub_s.groupHeader}>
               <View style={[sub_s.groupDot, { backgroundColor: "#EF4444" }]} />
@@ -3026,6 +3050,45 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={[sub_s.payBtn, { backgroundColor: "#7C3AED" }]}
                 onPress={() => Linking.openURL("https://railway.app/project/4e3750d2")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={15} color="#fff" />
+                <Text style={sub_s.payBtnText}>إدارة</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Twilio SMS */}
+            <View style={[sub_s.card, sub_s.cardPaid]}>
+              <View style={[sub_s.iconBox, { backgroundColor: "#F22F4620" }]}>
+                <MaterialCommunityIcons name="message-text-outline" size={22} color="#F22F46" />
+              </View>
+              <View style={sub_s.cardBody}>
+                <View style={sub_s.cardTop}>
+                  <Text style={sub_s.cardName}>Twilio SMS</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#F22F4620" }]}>
+                    <Text style={[sub_s.planText, { color: "#F22F46" }]}>Pay-as-you-go</Text>
+                  </View>
+                </View>
+                <Text style={sub_s.cardDesc}>
+                  إرسال رموز OTP للمستخدمين — ~$0.05 لكل رسالة · يحتاج 3 متغيرات بيئة في Railway
+                </Text>
+                <View style={sub_s.tagRow}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>TWILIO_ACCOUNT_SID</Text></View>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>TWILIO_AUTH_TOKEN</Text></View>
+                </View>
+                <View style={[sub_s.tagRow, { marginTop: 4 }]}>
+                  <View style={sub_s.tag}><Text style={sub_s.tagText}>TWILIO_PHONE_FROM</Text></View>
+                  <TouchableOpacity
+                    style={[sub_s.tag, { backgroundColor: "#F22F4615", borderColor: "#F22F4640" }]}
+                    onPress={() => Linking.openURL("https://railway.app/project/4e3750d2")}
+                  >
+                    <Text style={[sub_s.tagText, { color: "#F22F46" }]}>أضفها في Railway</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[sub_s.payBtn, { backgroundColor: "#F22F46" }]}
+                onPress={() => Linking.openURL("https://console.twilio.com")}
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={15} color="#fff" />
