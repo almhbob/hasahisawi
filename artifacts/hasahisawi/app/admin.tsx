@@ -239,7 +239,7 @@ function StatCard({ icon, label, value, color }: { icon: keyof typeof Ionicons.g
         <View style={[s.statIcon, { backgroundColor: color + "25" }]}>
           <Ionicons name={icon} size={22} color={color} />
         </View>
-        <Text style={[s.statValue, { color }]}>{value.toLocaleString("ar-SA")}</Text>
+        <Text style={[s.statValue, { color }]}>{value.toLocaleString("en-US")}</Text>
         <Text style={s.statLabel}>{label}</Text>
       </LinearGradient>
     </Animated.View>
@@ -4445,11 +4445,11 @@ export default function AdminDashboard() {
               </Text>
 
               {/* ── استيراد من DB القديمة ── */}
-              <View style={{ width: "100%", backgroundColor: "#0d1f0d", borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.primary + "40" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>
+              <View style={{ width: "100%", backgroundColor: Colors.cardBg, borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.primary + "40" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>
                   📦 استيراد من قاعدة بيانات Render القديمة
                 </Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
                   من Render Dashboard ← Databases ← انسخ "External Database URL"
                 </Text>
                 <TextInput
@@ -4457,7 +4457,7 @@ export default function AdminDashboard() {
                   onChangeText={setMigrateUrl}
                   placeholder="postgres://user:pass@host:5432/db"
                   placeholderTextColor={Colors.textMuted}
-                  style={{ backgroundColor: "#162416", color: "#fff", borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 11, borderWidth: 1, borderColor: Colors.primary + "50" }}
+                  style={{ backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 11, borderWidth: 1, borderColor: Colors.primary + "50" }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   multiline
