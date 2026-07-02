@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// Hasahisawi Logo-Only Glass Design System
-// القاعدة: أخضر الشعار + ذهبي الشعار فقط، مع الأبيض/الشفافية للزجاج.
-// أي alias قديم أو لون قطاع يرجع لنفس لونَي الشعار حتى لا تظهر ألوان خارجية.
+// Hasahisawi Design System — Eye-Comfortable Palette
+// أخضر الشعار + ذهبي الشعار، خلفية محايدة، تباين مريح.
 // ═══════════════════════════════════════════════════════════════
 
 type SectionColor = {
@@ -12,76 +11,86 @@ type SectionColor = {
   grad: readonly [string, string];
 };
 
-// Logo colors
-const primary      = "#009B67"; // Hasahisawi logo green
-const primaryDeep  = "#006B48";
-const primaryDim   = "#00865B";
-const primaryLight = "#5FD6AA";
-const primarySoft  = "#E7FFF5";
-const primaryGlow  = "rgba(0,155,103,0.18)";
+// ── ألوان الشعار (مُخفَّفة قليلاً لتكون أقل إجهاداً) ──────────
+const primary      = "#00966A"; // أخضر الشعار — أهدأ بدرجة بسيطة
+const primaryDeep  = "#006B4A";
+const primaryDim   = "#008259";
+const primaryLight = "#4EC99D";
+const primarySoft  = "#EAF9F3";
+const primaryGlow  = "rgba(0,150,106,0.16)";
 
-const accent       = "#FFC20A"; // Hasahisawi logo gold
-const accentDeep   = "#B78200";
-const accentDim    = "#D99C00";
-const accentLight  = "#FFE38A";
-const accentSoft   = "#FFF8DA";
-const accentGlow   = "rgba(255,194,10,0.20)";
+const accent       = "#E8A900"; // ذهبي — مُخفَّف للعين
+const accentDeep   = "#AD7E00";
+const accentDim    = "#CB9200";
+const accentLight  = "#F7D76A";
+const accentSoft   = "#FFF7E0";
+const accentGlow   = "rgba(232,169,0,0.18)";
 
-// Neutral glass surfaces; not brand colors, only light/dark opacity support.
+// ── ألوان دلالية صحيحة ────────────────────────────────────────
+// الخطر يجب أن يكون أحمر لا ذهبياً
+const dangerColor  = "#D93636";
+const dangerSoftC  = "rgba(217,54,54,0.10)";
+
+// ── الخلفيات — محايدة لتريح العين ────────────────────────────
 const white        = "#FFFFFF";
-const ink          = "#14231D";
-const bg           = "#F7FFF9";
-const bgDeep       = "#EAF8F0";
+const ink          = "#1A2C25"; // نص داكن دافئ
+const bg           = "#F7F9F8"; // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
+const bgDeep       = "#EEF3F0";
 const bgAlt        = "#FFFFFF";
-const surface      = "rgba(255,255,255,0.86)";
-const surface1     = "rgba(255,255,255,0.72)";
-const surface2     = "rgba(255,255,255,0.84)";
-const surface3     = "rgba(255,255,255,0.94)";
+
+// بطاقات صلبة (solid) لوضوح أفضل — لا شفافية مُزعجة
+const surface      = "rgba(255,255,255,0.90)";
+const surface1     = "#F5F8F6";
+const surface2     = "#FFFFFF";        // cardBg — أبيض صلب واضح
+const surface3     = "#FFFFFF";
 const surface4     = "#FFFFFF";
-const cardBg       = surface2;
-const cardBgElevated = surface3;
-const glassCard    = "rgba(255,255,255,0.68)";
-const glassStrong  = "rgba(255,255,255,0.86)";
-const glassMuted   = "rgba(255,255,255,0.42)";
-const overlay      = "rgba(20,35,29,0.42)";
+const cardBg       = "#FFFFFF";        // أبيض صلب لبطاقات واضحة
+const cardBgElevated = "#FFFFFF";
+const glassCard    = "rgba(255,255,255,0.80)";
+const glassStrong  = "rgba(255,255,255,0.92)";
+const glassMuted   = "rgba(255,255,255,0.50)";
+const overlay      = "rgba(20,44,37,0.40)";
 
+// ── النصوص — تدرج هادئ ────────────────────────────────────────
 const textPrimary   = ink;
-const textSecondary = "rgba(20,35,29,0.72)";
-const textMuted     = "rgba(20,35,29,0.52)";
-const textSubtle    = "rgba(20,35,29,0.38)";
-const textDisabled  = "rgba(20,35,29,0.26)";
-const textOnDark    = "#F7FFF9";
+const textSecondary = "rgba(26,44,37,0.70)";
+const textMuted     = "rgba(26,44,37,0.50)";
+const textSubtle    = "rgba(26,44,37,0.35)";
+const textDisabled  = "rgba(26,44,37,0.25)";
+const textOnDark    = "#F4FBF8";
 
-const divider        = "rgba(0,155,103,0.12)";
-const dividerSoft    = "rgba(0,155,103,0.07)";
-const border         = "rgba(0,155,103,0.14)";
-const borderGlow     = "rgba(0,155,103,0.24)";
-const borderGoldGlow = "rgba(255,194,10,0.28)";
-const borderSubtle   = "rgba(0,155,103,0.10)";
-const borderStrong   = "rgba(0,155,103,0.34)";
+// ── الحدود — خفيفة لا مُزعجة ─────────────────────────────────
+const divider        = "rgba(0,150,106,0.10)";
+const dividerSoft    = "rgba(0,150,106,0.06)";
+const border         = "rgba(0,150,106,0.13)";
+const borderGlow     = "rgba(0,150,106,0.22)";
+const borderGoldGlow = "rgba(232,169,0,0.25)";
+const borderSubtle   = "rgba(0,150,106,0.08)";
+const borderStrong   = "rgba(0,150,106,0.28)";
 
-// Semantic names are preserved for compatibility, but still use logo colors only.
+// ── الدلالات — ألوان صحيحة للمعنى ────────────────────────────
 const success     = primary;
-const successSoft = "rgba(0,155,103,0.14)";
-const danger      = accentDeep;
-const dangerSoft  = "rgba(255,194,10,0.18)";
+const successSoft = "rgba(0,150,106,0.12)";
+const danger      = dangerColor;        // أحمر حقيقي للأخطاء
+const dangerSoft  = dangerSoftC;
 const warning     = accent;
-const warningSoft = "rgba(255,194,10,0.18)";
+const warningSoft = "rgba(232,169,0,0.14)";
 const info        = primary;
-const infoSoft    = "rgba(0,155,103,0.12)";
+const infoSoft    = "rgba(0,150,106,0.10)";
 
-// Legacy aliases kept for existing screens; no external hues.
+// ── aliases للتوافق مع الشاشات الموجودة ──────────────────────
 const cyber  = primary;
 const violet = accent;
 const teal   = primary;
 const indigo = primaryDeep;
-const rose   = accentDeep;
+const rose   = dangerColor;
 const amber  = accent;
-const neutral = "rgba(20,35,29,0.60)";
+const neutral = "rgba(26,44,37,0.55)";
 const neutralDeep = ink;
-const neutralLight = "rgba(20,35,29,0.26)";
-const neutralSoft = "rgba(255,255,255,0.72)";
+const neutralLight = "rgba(26,44,37,0.24)";
+const neutralSoft = "rgba(255,255,255,0.75)";
 
+// ── أقسام التطبيق ─────────────────────────────────────────────
 const greenSection: SectionColor = {
   primary,
   deep: primaryDeep,
@@ -102,7 +111,7 @@ const quietGreenSection: SectionColor = {
   primary: primaryDim,
   deep: primaryDeep,
   light: primaryLight,
-  soft: "rgba(0,155,103,0.08)",
+  soft: "rgba(0,150,106,0.08)",
   grad: [primaryDim, primaryDeep],
 };
 
@@ -145,45 +154,44 @@ const SECTIONS = {
 export type SectionKey = keyof typeof SECTIONS;
 
 const gradients = {
-  brand: [primary, primaryDeep] as [string, string],
-  brandSoft: ["rgba(0,155,103,0.16)", "rgba(255,255,255,0.34)"] as [string, string],
-  gold: [accent, accentDeep] as [string, string],
-  goldSoft: ["rgba(255,194,10,0.22)", "rgba(255,255,255,0.46)"] as [string, string],
-  hero: ["#FFFFFF", primarySoft, accentSoft] as [string, string, string],
-  appShell: [bg, "#FFFFFF", primarySoft] as [string, string, string],
-  surface: ["rgba(255,255,255,0.92)", "rgba(255,255,255,0.58)"] as [string, string],
-  glass: ["rgba(255,255,255,0.84)", "rgba(255,255,255,0.38)"] as [string, string],
-  logo: [primary, accent] as [string, string],
-  calm: ["rgba(0,155,103,0.10)", "rgba(255,194,10,0.10)"] as [string, string],
+  brand:     [primary, primaryDeep]                                   as [string, string],
+  brandSoft: ["rgba(0,150,106,0.14)", "rgba(255,255,255,0.30)"]      as [string, string],
+  gold:      [accent, accentDeep]                                     as [string, string],
+  goldSoft:  ["rgba(232,169,0,0.18)", "rgba(255,255,255,0.40)"]      as [string, string],
+  hero:      ["#FFFFFF", primarySoft, accentSoft]                     as [string, string, string],
+  appShell:  [bg, "#FFFFFF", primarySoft]                             as [string, string, string],
+  surface:   ["rgba(255,255,255,0.95)", "rgba(255,255,255,0.70)"]    as [string, string],
+  glass:     ["rgba(255,255,255,0.88)", "rgba(255,255,255,0.45)"]    as [string, string],
+  logo:      [primary, accent]                                        as [string, string],
+  calm:      ["rgba(0,150,106,0.08)", "rgba(232,169,0,0.08)"]        as [string, string],
 } as const;
 
 function section(key: string): typeof SECTIONS[SectionKey] {
   return (SECTIONS as Record<string, typeof SECTIONS[SectionKey]>)[key] || SECTIONS.settings;
 }
 
-// ── Modern flat design tokens (radius + soft shadow) ───────────
 const radius = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  sm:   10,
+  md:   14,
+  lg:   18,
+  xl:   24,
   pill: 999,
 } as const;
 
 const shadow = {
   card: {
-    shadowColor: "#0F3D27",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowColor: "#0A2218",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   raised: {
-    shadowColor: "#0F3D27",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    elevation: 6,
+    shadowColor: "#0A2218",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 5,
   },
   none: {
     shadowColor: "transparent",
