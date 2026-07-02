@@ -44,7 +44,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -2428,6 +2428,338 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   );
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// مكوّن إدارة متاجر ركن المرأة
+// ══════════════════════════════════════════════════════════════════════════════
+function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: string }) {
+  const [subView, setSubView] = React.useState<"stores" | "orders" | "requests">("stores");
+  const [stores, setStores] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [requests, setRequests] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [acting, setActing] = React.useState<number | null>(null);
+  const [expandedStore, setExpandedStore] = React.useState<number | null>(null);
+  const [products, setProducts] = React.useState<Record<number, any[]>>({});
+  const [addProductStore, setAddProductStore] = React.useState<any | null>(null);
+  const [newProdName, setNewProdName] = React.useState("");
+  const [newProdPrice, setNewProdPrice] = React.useState("");
+  const [newProdEmoji, setNewProdEmoji] = React.useState("🛍️");
+  const [newProdDesc, setNewProdDesc] = React.useState("");
+  const [addProdSending, setAddProdSending] = React.useState(false);
+
+  const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    const url = subView === "stores" ? `${apiBase}/api/admin/women/stores`
+              : subView === "orders" ? `${apiBase}/api/admin/women/orders`
+              : `${apiBase}/api/admin/women/product-requests`;
+    fetch(url, { headers: h })
+      .then(r => r.json())
+      .then(d => {
+        const arr = Array.isArray(d) ? d : [];
+        if (subView === "stores") setStores(arr);
+        else if (subView === "orders") setOrders(arr);
+        else setRequests(arr);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [subView, token, apiBase]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const loadProducts = (storeId: number) => {
+    fetch(`${apiBase}/api/women/stores/${storeId}/products`, { headers: h })
+      .then(r => r.json())
+      .then(d => setProducts(prev => ({ ...prev, [storeId]: d.products ?? [] })))
+      .catch(() => {});
+  };
+
+  async function updateStoreStatus(id: number, status: "approved" | "rejected") {
+    setActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/women/stores/${id}`, {
+        method: "PATCH", headers: h, body: JSON.stringify({ status }),
+      });
+      if (r.ok) setStores(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+      else { const d = await r.json(); Alert.alert("خطأ", d.error ?? "فشل التحديث"); }
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setActing(null); }
+  }
+
+  async function deleteStore(id: number, name: string) {
+    Alert.alert("تأكيد الحذف", `هل تريد حذف "${name}"؟`, [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: async () => {
+        setActing(id);
+        try {
+          const r = await fetch(`${apiBase}/api/admin/women/stores/${id}`, { method: "DELETE", headers: h });
+          if (r.ok) { setStores(prev => prev.filter(s => s.id !== id)); setExpandedStore(null); }
+          else { const d = await r.json(); Alert.alert("خطأ", d.error ?? "فشل الحذف"); }
+        } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setActing(null); }
+      }},
+    ]);
+  }
+
+  async function toggleFeatured(id: number, is_featured: boolean) {
+    setActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/women/stores/${id}`, {
+        method: "PATCH", headers: h, body: JSON.stringify({ is_featured }),
+      });
+      if (r.ok) setStores(prev => prev.map(s => s.id === id ? { ...s, is_featured } : s));
+    } catch { } finally { setActing(null); }
+  }
+
+  async function addProduct() {
+    if (!addProductStore || !newProdName.trim() || !newProdPrice.trim()) {
+      Alert.alert("بيانات ناقصة", "الاسم والسعر مطلوبان"); return;
+    }
+    setAddProdSending(true);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/women/stores/${addProductStore.id}/products`, {
+        method: "POST", headers: h,
+        body: JSON.stringify({ name: newProdName.trim(), price: parseFloat(newProdPrice), emoji: newProdEmoji, description: newProdDesc.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setProducts(prev => ({ ...prev, [addProductStore.id]: [...(prev[addProductStore.id] ?? []), d] }));
+        setNewProdName(""); setNewProdPrice(""); setNewProdEmoji("🛍️"); setNewProdDesc("");
+        setAddProductStore(null);
+        Alert.alert("تم ✅", "تم إضافة المنتج بنجاح");
+      } else Alert.alert("خطأ", d.error ?? "فشل الإضافة");
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setAddProdSending(false); }
+  }
+
+  async function deleteProduct(storeId: number, prodId: number) {
+    const r = await fetch(`${apiBase}/api/admin/women/products/${prodId}`, { method: "DELETE", headers: h });
+    if (r.ok) setProducts(prev => ({ ...prev, [storeId]: (prev[storeId] ?? []).filter(p => p.id !== prodId) }));
+  }
+
+  async function updateOrderStatus(id: number, status: string) {
+    setActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/women/orders/${id}`, {
+        method: "PATCH", headers: h, body: JSON.stringify({ status }),
+      });
+      if (r.ok) setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    } catch { } finally { setActing(null); }
+  }
+
+  async function updateRequestStatus(id: number, status: string) {
+    setActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/women/product-requests/${id}`, {
+        method: "PATCH", headers: h, body: JSON.stringify({ status }),
+      });
+      if (r.ok) setRequests(prev => prev.map(rq => rq.id === id ? { ...rq, status } : rq));
+    } catch { } finally { setActing(null); }
+  }
+
+  const STATUS_COLOR: Record<string,string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444", confirmed: "#3B82F6", preparing: "#F97316", delivered: "#10B981", cancelled: "#EF4444", seen: "#3B82F6", replied: "#10B981", closed: "#6B7280" };
+  const STATUS_AR: Record<string,string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", confirmed: "مؤكد", preparing: "قيد التحضير", delivered: "تم التوصيل", cancelled: "ملغى", seen: "مشاهَد", replied: "تم الرد", closed: "مغلق" };
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* مودال إضافة منتج */}
+      <Modal visible={!!addProductStore} transparent animationType="slide" onRequestClose={() => setAddProductStore(null)}>
+        <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "flex-end" }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setAddProductStore(null)} />
+          <View style={{ backgroundColor: Colors.cardBg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10, maxHeight: "80%" }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" }}>
+              إضافة منتج — {addProductStore?.name}
+            </Text>
+            {[
+              { label: "اسم المنتج *", val: newProdName, set: setNewProdName, ph: "حقيبة يد جلدية" },
+              { label: "السعر (جنيه) *", val: newProdPrice, set: setNewProdPrice, ph: "500", kb: "numeric" as const },
+              { label: "إيموجي", val: newProdEmoji, set: setNewProdEmoji, ph: "🛍️" },
+            ].map(f => (
+              <View key={f.label}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>{f.label}</Text>
+                <TextInput
+                  style={{ backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14, paddingHorizontal: 12, paddingVertical: 10, textAlign: "right" }}
+                  value={f.val} onChangeText={f.set} placeholder={f.ph} placeholderTextColor={Colors.textMuted} keyboardType={(f as any).kb ?? "default"}
+                />
+              </View>
+            ))}
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 6 }}>
+              <TouchableOpacity onPress={() => setAddProductStore(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.bg, alignItems: "center" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", color: Colors.textMuted }}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={addProdSending} onPress={addProduct} style={{ flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: "#A855F7", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                {addProdSending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#fff" }}>إضافة المنتج</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* تبويبات فرعية */}
+      <View style={{ flexDirection: "row-reverse", gap: 8, padding: 12 }}>
+        {([
+          ["stores",   "المتاجر",  stores.length],
+          ["orders",   "الطلبات",  orders.length],
+          ["requests", "طلبات منتجات", requests.length],
+        ] as [typeof subView, string, number][]).map(([k, label, cnt]) => (
+          <TouchableOpacity
+            key={k}
+            onPress={() => setSubView(k)}
+            style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", gap: 2,
+              backgroundColor: subView === k ? "#A855F7" : Colors.bg,
+              borderWidth: 1, borderColor: subView === k ? "#A855F7" : Colors.divider }}
+          >
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: subView === k ? "#fff" : Colors.textMuted }}>{label}</Text>
+            {cnt > 0 && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: subView === k ? "#ffffffCC" : Colors.textSubtle }}>{cnt}</Text>}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity onPress={load} style={{ alignSelf: "flex-end", marginHorizontal: 12, marginBottom: 4, padding: 6 }}>
+        <Ionicons name="refresh" size={16} color={Colors.textMuted} />
+      </TouchableOpacity>
+
+      <ScrollView contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        {loading && <ActivityIndicator color="#A855F7" style={{ marginTop: 30 }} />}
+
+        {/* ── المتاجر ── */}
+        {subView === "stores" && !loading && stores.map(store => (
+          <View key={store.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: "#A855F730", padding: 14, gap: 8 }}>
+            {/* رأس */}
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{store.name}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{store.owner_name} · {store.phone}</Text>
+              </View>
+              <View style={{ backgroundColor: (STATUS_COLOR[store.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[store.status] ?? "#6B7280" }}>{STATUS_AR[store.status] ?? store.status}</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }} numberOfLines={2}>{store.description || "—"}</Text>
+
+            {/* أزرار القبول/الرفض */}
+            {store.status === "pending" && (
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TouchableOpacity disabled={acting === store.id} onPress={() => updateStoreStatus(store.id, "approved")}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10B98120", borderWidth: 1, borderColor: "#10B981", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>قبول</Text>
+                </TouchableOpacity>
+                <TouchableOpacity disabled={acting === store.id} onPress={() => updateStoreStatus(store.id, "rejected")}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF4444", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#EF4444" }}>رفض</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* أزرار إضافية */}
+            <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
+              <TouchableOpacity onPress={() => toggleFeatured(store.id, !store.is_featured)}
+                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: store.is_featured ? "#F0A50020" : Colors.bg, borderWidth: 1, borderColor: store.is_featured ? "#F0A500" : Colors.divider }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: store.is_featured ? "#F0A500" : Colors.textMuted }}>{store.is_featured ? "⭐ مميز" : "☆ جعله مميزاً"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setExpandedStore(expandedStore === store.id ? null : store.id);
+                  if (expandedStore !== store.id && !products[store.id]) loadProducts(store.id);
+                }}
+                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#A855F710", borderWidth: 1, borderColor: "#A855F740" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" }}>{expandedStore === store.id ? "إخفاء المنتجات" : `المنتجات (${store.product_count})`}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setAddProductStore(store); setNewProdName(""); setNewProdPrice(""); setNewProdEmoji("🛍️"); setNewProdDesc(""); }}
+                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#10B98110", borderWidth: 1, borderColor: "#10B98140" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>+ منتج</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => deleteStore(store.id, store.name)}
+                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#EF444410", borderWidth: 1, borderColor: "#EF444430" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#EF4444" }}>حذف</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* قائمة منتجات */}
+            {expandedStore === store.id && (
+              <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 10 }}>
+                {(products[store.id] ?? []).length === 0 ? (
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>لا توجد منتجات</Text>
+                ) : (products[store.id] ?? []).map(prod => (
+                  <View key={prod.id} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 8, backgroundColor: Colors.bg, borderRadius: 8 }}>
+                    <Text style={{ fontSize: 20 }}>{prod.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{prod.name}</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#A855F7" }}>{prod.price.toLocaleString("en-US")} ج</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => deleteProduct(store.id, prod.id)}>
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ))}
+
+        {/* ── الطلبات ── */}
+        {subView === "orders" && !loading && orders.map(order => (
+          <View key={order.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLOR[order.status] ?? "#6B7280") + "40", padding: 14, gap: 8 }}>
+            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>طلب #{order.id}</Text>
+              <View style={{ backgroundColor: (STATUS_COLOR[order.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[order.status] ?? "#6B7280" }}>{STATUS_AR[order.status] ?? order.status}</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>🏪 {order.store_name}</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>👤 {order.customer_name} · {order.customer_phone}</Text>
+            {order.customer_address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>📍 {order.customer_address}</Text> : null}
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7", textAlign: "right" }}>الإجمالي: {Number(order.total).toLocaleString("en-US")} ج</Text>
+            {order.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>📝 {order.notes}</Text> : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {["pending","confirmed","preparing","delivered","cancelled"].map(s => (
+                <TouchableOpacity
+                  key={s}
+                  disabled={order.status === s || acting === order.id}
+                  onPress={() => updateOrderStatus(order.id, s)}
+                  style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: order.status === s ? (STATUS_COLOR[s] ?? "#6B7280") : (STATUS_COLOR[s] ?? "#6B7280") + "15", borderWidth: 1, borderColor: (STATUS_COLOR[s] ?? "#6B7280") + (order.status === s ? "FF" : "60") }}
+                >
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: order.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ))}
+
+        {/* ── طلبات المنتجات الخاصة ── */}
+        {subView === "requests" && !loading && requests.map(req => (
+          <View key={req.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: "#14B8A630", padding: 14, gap: 8 }}>
+            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>طلب #{req.id}</Text>
+              <View style={{ backgroundColor: (STATUS_COLOR[req.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[req.status] ?? "#6B7280" }}>{STATUS_AR[req.status] ?? req.status}</Text>
+              </View>
+            </View>
+            {req.store_name && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#14B8A6", textAlign: "right" }}>🏪 {req.store_name}</Text>}
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>👤 {req.customer_name} · {req.customer_phone}</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 }}>📋 {req.product_description}</Text>
+            {req.budget ? <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>💰 الميزانية: {req.budget}</Text> : null}
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              {["seen","replied","closed"].map(s => (
+                <TouchableOpacity
+                  key={s}
+                  disabled={req.status === s || acting === req.id}
+                  onPress={() => updateRequestStatus(req.id, s)}
+                  style={{ flex: 1, paddingVertical: 7, borderRadius: 8, backgroundColor: req.status === s ? (STATUS_COLOR[s] ?? "#6B7280") : (STATUS_COLOR[s] ?? "#6B7280") + "15", alignItems: "center", borderWidth: 1, borderColor: (STATUS_COLOR[s] ?? "#6B7280") + (req.status === s ? "FF" : "60") }}
+                >
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: req.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {!loading && (subView === "stores" ? stores : subView === "orders" ? orders : requests).length === 0 && (
+          <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد بيانات</Text>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
@@ -3960,8 +4292,9 @@ export default function AdminDashboard() {
     { key: "farmers_admin",    label: "السوق الزراعي",       icon: "leaf",               color: "#16A34A",      adminOnly: true },
     { key: "rentals_admin",    label: "الإيجارات",           icon: "home",               color: "#0EA5E9",      adminOnly: true },
     { key: "jobs_admin",       label: "الوظائف",             icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
-    { key: "ratings_admin",    label: "التقييمات",           icon: "star",               color: "#F59E0B",      adminOnly: true },
-    { key: "feedback_admin",   label: "الشكاوى والمقترحات",  icon: "chatbubbles",        color: "#06B6D4",      adminOnly: true },
+    { key: "ratings_admin",      label: "التقييمات",           icon: "star",               color: "#F59E0B",      adminOnly: true },
+    { key: "feedback_admin",     label: "الشكاوى والمقترحات",  icon: "chatbubbles",        color: "#06B6D4",      adminOnly: true },
+    { key: "women_stores_admin", label: "متاجر ركن المرأة",    icon: "bag-personal-outline" as any, color: "#A855F7", adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -7377,6 +7710,11 @@ export default function AdminDashboard() {
              })}
           </ScrollView>
         </View>
+      )}
+
+      {/* ══ متاجر ركن المرأة ══ */}
+      {tab === "women_stores_admin" && isAdmin && token && (
+        <WomenStoresAdminTab token={token} apiBase={getApiUrl()} />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════

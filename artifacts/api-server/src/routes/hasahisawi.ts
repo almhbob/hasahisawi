@@ -1836,6 +1836,81 @@ async function _doInitHasahisawiDb(): Promise<void> {
     }
   }
 
+  // ══ متاجر ركن المرأة ══
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_stores (
+      id                 SERIAL PRIMARY KEY,
+      name               VARCHAR(200)  NOT NULL,
+      category           VARCHAR(60)   NOT NULL DEFAULT 'accessories',
+      description        TEXT          NOT NULL DEFAULT '',
+      owner_name         VARCHAR(100)  NOT NULL,
+      phone              VARCHAR(25)   NOT NULL,
+      whatsapp           VARCHAR(25)   NOT NULL DEFAULT '',
+      address            VARCHAR(200)  NOT NULL DEFAULT '',
+      logo_url           TEXT,
+      cover_url          TEXT,
+      working_hours      VARCHAR(100)  NOT NULL DEFAULT '9:00 - 21:00',
+      delivery_available BOOLEAN       NOT NULL DEFAULT FALSE,
+      delivery_fee       NUMERIC(10,2) NOT NULL DEFAULT 0,
+      min_order          NUMERIC(10,2) NOT NULL DEFAULT 0,
+      status             VARCHAR(20)   NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending','approved','rejected')),
+      is_featured        BOOLEAN       NOT NULL DEFAULT FALSE,
+      admin_note         TEXT          NOT NULL DEFAULT '',
+      created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_products (
+      id             SERIAL PRIMARY KEY,
+      store_id       INTEGER       NOT NULL REFERENCES women_stores(id) ON DELETE CASCADE,
+      name           VARCHAR(200)  NOT NULL,
+      description    TEXT          NOT NULL DEFAULT '',
+      category       VARCHAR(80)   NOT NULL DEFAULT '',
+      price          NUMERIC(10,2) NOT NULL DEFAULT 0,
+      original_price NUMERIC(10,2),
+      image_url      TEXT,
+      emoji          VARCHAR(10)   NOT NULL DEFAULT '🛍️',
+      is_available   BOOLEAN       NOT NULL DEFAULT TRUE,
+      stock_count    INTEGER       NOT NULL DEFAULT 0,
+      sort_order     INTEGER       NOT NULL DEFAULT 0,
+      created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_orders (
+      id               SERIAL PRIMARY KEY,
+      user_id          INTEGER       REFERENCES users(id) ON DELETE SET NULL,
+      store_id         INTEGER       NOT NULL REFERENCES women_stores(id),
+      customer_name    VARCHAR(100)  NOT NULL,
+      customer_phone   VARCHAR(25)   NOT NULL,
+      customer_address TEXT          NOT NULL DEFAULT '',
+      items            JSONB         NOT NULL DEFAULT '[]',
+      subtotal         NUMERIC(10,2) NOT NULL DEFAULT 0,
+      delivery_fee     NUMERIC(10,2) NOT NULL DEFAULT 0,
+      total            NUMERIC(10,2) NOT NULL DEFAULT 0,
+      notes            TEXT          NOT NULL DEFAULT '',
+      status           VARCHAR(20)   NOT NULL DEFAULT 'pending'
+                         CHECK (status IN ('pending','confirmed','preparing','delivered','cancelled')),
+      created_at       TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS women_product_requests (
+      id                  SERIAL PRIMARY KEY,
+      user_id             INTEGER      REFERENCES users(id) ON DELETE SET NULL,
+      store_id            INTEGER      REFERENCES women_stores(id) ON DELETE SET NULL,
+      customer_name       VARCHAR(100) NOT NULL,
+      customer_phone      VARCHAR(25)  NOT NULL,
+      product_description TEXT         NOT NULL,
+      budget              VARCHAR(100) NOT NULL DEFAULT '',
+      status              VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending','seen','replied','closed')),
+      admin_note          TEXT         NOT NULL DEFAULT '',
+      created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // ══ جدول إعدادات مواقيت الآذان ══
   await query(`
     CREATE TABLE IF NOT EXISTS prayer_settings (
@@ -6646,6 +6721,277 @@ router.get("/women/join-requests", async (req: Request, res: Response) => {
     const r = await query(`SELECT * FROM women_join_requests ORDER BY created_at DESC`);
     return res.json(r.rows);
   } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ركن المرأة — المتاجر والمنتجات والطلبات
+// ══════════════════════════════════════════════════════════════════════════════
+
+// قائمة المتاجر المعتمدة
+router.get("/women/stores", async (req: Request, res: Response) => {
+  try {
+    const { category } = req.query as Record<string, string>;
+    let sql = `
+      SELECT ws.*,
+             (SELECT COUNT(*) FROM women_products wp WHERE wp.store_id=ws.id AND wp.is_available=TRUE)::int AS product_count
+      FROM women_stores ws
+      WHERE ws.status='approved'
+    `;
+    const params: unknown[] = [];
+    if (category && category !== "all") {
+      params.push(category);
+      sql += ` AND ws.category=$${params.length}`;
+    }
+    sql += ` ORDER BY ws.is_featured DESC, ws.created_at DESC`;
+    const { rows } = await query(sql, params);
+    return res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// منتجات متجر
+router.get("/women/stores/:id/products", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const storeRow = await query(`SELECT * FROM women_stores WHERE id=$1 AND status='approved'`, [id]);
+    if (!storeRow.rows.length) return res.status(404).json({ error: "المتجر غير موجود" });
+    const products = await query(
+      `SELECT * FROM women_products WHERE store_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, created_at DESC`,
+      [id]
+    );
+    return res.json({ store: storeRow.rows[0], products: products.rows });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// طلب فتح متجر
+router.post("/women/stores/apply", async (req: Request, res: Response) => {
+  try {
+    const { name, category, description, owner_name, phone, whatsapp, address, working_hours, delivery_available, delivery_fee, min_order } = req.body;
+    if (!name?.trim() || !owner_name?.trim() || !phone?.trim())
+      return res.status(400).json({ error: "اسم المتجر وصاحبته ورقم الهاتف مطلوبة" });
+    const existing = await query(`SELECT id FROM women_stores WHERE phone=$1`, [phone.trim()]);
+    if (existing.rows.length) return res.status(409).json({ error: "هذا الرقم مسجّل بالفعل" });
+    const r = await query(
+      `INSERT INTO women_stores (name,category,description,owner_name,phone,whatsapp,address,working_hours,delivery_available,delivery_fee,min_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      [name.trim(), category || "accessories", description?.trim() || "", owner_name.trim(), phone.trim(),
+       whatsapp?.trim() || phone.trim(), address?.trim() || "", working_hours?.trim() || "9:00 - 21:00",
+       delivery_available || false, delivery_fee || 0, min_order || 0]
+    );
+    return res.status(201).json({ ok: true, id: r.rows[0].id });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إنشاء طلب شراء
+router.post("/women/orders", async (req: Request, res: Response) => {
+  try {
+    const { store_id, customer_name, customer_phone, customer_address, items, subtotal, delivery_fee, total, notes } = req.body;
+    if (!store_id || !customer_name?.trim() || !customer_phone?.trim() || !items?.length)
+      return res.status(400).json({ error: "بيانات الطلب غير مكتملة" });
+    const me = await getSessionUser(req);
+    const r = await query(
+      `INSERT INTO women_orders (user_id,store_id,customer_name,customer_phone,customer_address,items,subtotal,delivery_fee,total,notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+      [me?.id ?? null, store_id, customer_name.trim(), customer_phone.trim(),
+       customer_address?.trim() || "", JSON.stringify(items), subtotal || 0, delivery_fee || 0, total || 0, notes?.trim() || ""]
+    );
+    return res.status(201).json({ ok: true, order_id: r.rows[0].id });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// طلب منتج خاص
+router.post("/women/product-requests", async (req: Request, res: Response) => {
+  try {
+    const { store_id, customer_name, customer_phone, product_description, budget } = req.body;
+    if (!customer_name?.trim() || !customer_phone?.trim() || !product_description?.trim())
+      return res.status(400).json({ error: "الاسم والهاتف ووصف المنتج مطلوبة" });
+    const me = await getSessionUser(req);
+    await query(
+      `INSERT INTO women_product_requests (user_id,store_id,customer_name,customer_phone,product_description,budget)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [me?.id ?? null, store_id ?? null, customer_name.trim(), customer_phone.trim(), product_description.trim(), budget?.trim() || ""]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── الإدارة ──────────────────────────────────────────────────────────────────
+
+// كل المتاجر (أي حالة)
+router.get("/admin/women/stores", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`
+      SELECT ws.*,
+             (SELECT COUNT(*) FROM women_products wp WHERE wp.store_id=ws.id)::int AS product_count
+      FROM women_stores ws ORDER BY ws.created_at DESC
+    `);
+    return res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة / بيانات متجر
+router.patch("/admin/women/stores/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { id } = req.params;
+    const allowed = ["status","admin_note","is_featured","name","category","description","working_hours","delivery_available","delivery_fee","min_order"];
+    const fields: string[] = [], vals: unknown[] = [];
+    let i = 1;
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) { fields.push(`${k}=$${i++}`); vals.push(req.body[k]); }
+    }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد بيانات للتحديث" });
+    vals.push(id);
+    const r = await query(`UPDATE women_stores SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
+    return res.json(r.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف متجر
+router.delete("/admin/women/stores/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM women_stores WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// إضافة منتج لمتجر
+router.post("/admin/women/stores/:id/products", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { name, description, category, price, original_price, image_url, emoji, is_available, stock_count, sort_order } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "اسم المنتج مطلوب" });
+    const r = await query(
+      `INSERT INTO women_products (store_id,name,description,category,price,original_price,image_url,emoji,is_available,stock_count,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.params.id, name.trim(), description?.trim() || "", category?.trim() || "", price || 0, original_price ?? null,
+       image_url?.trim() || null, emoji?.trim() || "🛍️", is_available ?? true, stock_count || 0, sort_order || 0]
+    );
+    return res.status(201).json(r.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تعديل منتج
+router.put("/admin/women/products/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const allowed = ["name","description","category","price","original_price","image_url","emoji","is_available","stock_count","sort_order"];
+    const fields: string[] = [], vals: unknown[] = [];
+    let i = 1;
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) { fields.push(`${k}=$${i++}`); vals.push(req.body[k]); }
+    }
+    if (!fields.length) return res.status(400).json({ error: "لا توجد بيانات للتحديث" });
+    vals.push(req.params.id);
+    const r = await query(`UPDATE women_products SET ${fields.join(",")} WHERE id=$${i} RETURNING *`, vals);
+    return res.json(r.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// حذف منتج
+router.delete("/admin/women/products/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM women_products WHERE id=$1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// طلبات الشراء (للإدارة)
+router.get("/admin/women/orders", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`
+      SELECT wo.*, ws.name AS store_name
+      FROM women_orders wo
+      LEFT JOIN women_stores ws ON ws.id=wo.store_id
+      ORDER BY wo.created_at DESC
+    `);
+    return res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة طلب
+router.patch("/admin/women/orders/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { status } = req.body;
+    const r = await query(`UPDATE women_orders SET status=$1 WHERE id=$2 RETURNING *`, [status, req.params.id]);
+    return res.json(r.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// طلبات المنتجات الخاصة (للإدارة)
+router.get("/admin/women/product-requests", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { rows } = await query(`
+      SELECT wpr.*, ws.name AS store_name
+      FROM women_product_requests wpr
+      LEFT JOIN women_stores ws ON ws.id=wpr.store_id
+      ORDER BY wpr.created_at DESC
+    `);
+    return res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "route error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// تحديث حالة طلب منتج خاص
+router.patch("/admin/women/product-requests/:id", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+    const { status, admin_note } = req.body;
+    const r = await query(
+      `UPDATE women_product_requests SET status=COALESCE($1,status), admin_note=COALESCE($2,admin_note) WHERE id=$3 RETURNING *`,
+      [status ?? null, admin_note ?? null, req.params.id]
+    );
+    return res.json(r.rows[0]);
+  } catch (err) {
+    logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });

@@ -23,6 +23,41 @@ import ModernHeader from "@/components/ui/ModernHeader";
 // ══════════════════════════════════════════════════════
 type ServiceType = "salon" | "sewing" | "health" | "cooking" | "childcare" | "tip" | "handmade";
 
+type WomenStoreProduct = {
+  id: number;
+  store_id: number;
+  name: string;
+  description: string;
+  category: string;
+  price: number;
+  original_price: number | null;
+  image_url: string | null;
+  emoji: string;
+  is_available: boolean;
+  stock_count: number;
+};
+
+type WomenShop = {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  owner_name: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  logo_url: string | null;
+  working_hours: string;
+  delivery_available: boolean;
+  delivery_fee: number;
+  min_order: number;
+  is_featured: boolean;
+  product_count: number;
+};
+
+type CartItem = { product: WomenStoreProduct; qty: number };
+type Cart = Map<number, CartItem>;
+
 type WomenService = {
   id: string;
   name: string;
@@ -129,7 +164,7 @@ const STORE_TYPE_LABELS: Record<string, string> = {
 // ══════════════════════════════════════════════════════
 // SCREEN
 // ══════════════════════════════════════════════════════
-type SubTab = "services" | "health" | "recipes" | "handmade" | "boutiques";
+type SubTab = "services" | "health" | "recipes" | "handmade" | "boutiques" | "shops";
 
 type WomenStore = {
   id: number;
@@ -171,6 +206,43 @@ export default function WomenScreen() {
   const [womenStores, setWomenStores]       = useState<WomenStore[]>([]);
   const [storesLoading, setStoresLoading]   = useState(false);
   const [storeSearch, setStoreSearch]       = useState("");
+
+  // ── متاجر ركن المرأة ────────────────────────────────────────────────────────
+  const [shops, setShops]                   = useState<WomenShop[]>([]);
+  const [shopsLoading, setShopsLoading]     = useState(false);
+  const [shopCategory, setShopCategory]     = useState("all");
+  const [shopSearch, setShopSearch]         = useState("");
+  const [selectedShop, setSelectedShop]     = useState<WomenShop | null>(null);
+  const [shopProducts, setShopProducts]     = useState<WomenStoreProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [cart, setCart]                     = useState<Cart>(new Map());
+  const [cartOpen, setCartOpen]             = useState(false);
+  const [checkoutOpen, setCheckoutOpen]     = useState(false);
+  const [checkoutName, setCheckoutName]     = useState("");
+  const [checkoutPhone, setCheckoutPhone]   = useState("");
+  const [checkoutAddress, setCheckoutAddress] = useState("");
+  const [checkoutNotes, setCheckoutNotes]   = useState("");
+  const [checkoutSending, setCheckoutSending] = useState(false);
+  const [orderDone, setOrderDone]           = useState(false);
+  const [applyShopModal, setApplyShopModal] = useState(false);
+  const [applyName, setApplyName]           = useState("");
+  const [applyCategory, setApplyCategory]   = useState("accessories");
+  const [applyOwner, setApplyOwner]         = useState("");
+  const [applyPhone, setApplyPhone]         = useState("");
+  const [applyAddress, setApplyAddress]     = useState("");
+  const [applyHours, setApplyHours]         = useState("9:00 - 21:00");
+  const [applyDelivery, setApplyDelivery]   = useState(false);
+  const [applyDesc, setApplyDesc]           = useState("");
+  const [applySending, setApplySending]     = useState(false);
+  const [applyDone, setApplyDone]           = useState(false);
+  const [reqModal, setReqModal]             = useState(false);
+  const [reqStore, setReqStore]             = useState<WomenShop | null>(null);
+  const [reqName, setReqName]               = useState("");
+  const [reqPhone, setReqPhone]             = useState("");
+  const [reqDesc, setReqDesc]               = useState("");
+  const [reqBudget, setReqBudget]           = useState("");
+  const [reqSending, setReqSending]         = useState(false);
+  const [reqDone, setReqDone]               = useState(false);
 
   // ── نموذج الانضمام ──────────────────────────────────────────────────────
   const [joinModal,    setJoinModal]   = useState(false);
@@ -223,6 +295,139 @@ export default function WomenScreen() {
       setJoinSending(false);
     }
   }
+
+  // ── دوال المتاجر ────────────────────────────────────────────────────────────
+  const loadShops = async (cat?: string) => {
+    setShopsLoading(true);
+    try {
+      const c = cat ?? shopCategory;
+      const params = c !== "all" ? `?category=${c}` : "";
+      const res = await fetch(`${getApiUrl()}/api/women/stores${params}`);
+      if (res.ok) setShops(await res.json());
+    } catch { /* offline */ } finally { setShopsLoading(false); }
+  };
+
+  const loadShopProducts = async (shopId: number) => {
+    setProductsLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/women/stores/${shopId}/products`);
+      if (res.ok) {
+        const d = await res.json();
+        setShopProducts(d.products ?? []);
+      }
+    } catch { /* offline */ } finally { setProductsLoading(false); }
+  };
+
+  function cartTotal(c: Cart): number {
+    let t = 0;
+    c.forEach(ci => { t += ci.product.price * ci.qty; });
+    return t;
+  }
+  function cartCount(c: Cart): number {
+    let n = 0;
+    c.forEach(ci => { n += ci.qty; });
+    return n;
+  }
+
+  function addToCart(product: WomenStoreProduct) {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCart(prev => {
+      const next = new Map(prev);
+      const existing = next.get(product.id);
+      next.set(product.id, { product, qty: (existing?.qty ?? 0) + 1 });
+      return next;
+    });
+  }
+  function removeFromCart(productId: number) {
+    setCart(prev => {
+      const next = new Map(prev);
+      const existing = next.get(productId);
+      if (!existing) return prev;
+      if (existing.qty <= 1) next.delete(productId);
+      else next.set(productId, { ...existing, qty: existing.qty - 1 });
+      return next;
+    });
+  }
+  function clearCart() { setCart(new Map()); }
+
+  async function submitOrder() {
+    if (!selectedShop) return;
+    if (!checkoutName.trim() || !checkoutPhone.trim())
+      return Alert.alert("بيانات ناقصة", "الاسم والهاتف مطلوبان");
+    if (!cart.size) return Alert.alert("السلة فارغة", "أضيفي منتجاً على الأقل");
+    Keyboard.dismiss();
+    setCheckoutSending(true);
+    const items: { id: number; name: string; price: number; qty: number; emoji: string }[] = [];
+    cart.forEach(ci => items.push({ id: ci.product.id, name: ci.product.name, price: ci.product.price, qty: ci.qty, emoji: ci.product.emoji }));
+    const subtotal = cartTotal(cart);
+    const deliveryFee = selectedShop.delivery_available && checkoutAddress.trim() ? selectedShop.delivery_fee : 0;
+    try {
+      const res = await fetch(`${getApiUrl()}/api/women/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: selectedShop.id,
+          customer_name: checkoutName.trim(),
+          customer_phone: checkoutPhone.trim(),
+          customer_address: checkoutAddress.trim(),
+          items, subtotal, delivery_fee: deliveryFee,
+          total: subtotal + deliveryFee,
+          notes: checkoutNotes.trim(),
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); return Alert.alert("خطأ", d.error ?? "فشل الإرسال"); }
+      clearCart();
+      setOrderDone(true);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setCheckoutSending(false); }
+  }
+
+  async function submitApplyShop() {
+    if (!applyName.trim() || !applyOwner.trim() || !applyPhone.trim())
+      return Alert.alert("بيانات ناقصة", "اسم المتجر وصاحبته والهاتف مطلوبة");
+    Keyboard.dismiss();
+    setApplySending(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/women/stores/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: applyName.trim(), category: applyCategory, description: applyDesc.trim(),
+          owner_name: applyOwner.trim(), phone: applyPhone.trim(),
+          address: applyAddress.trim(), working_hours: applyHours.trim(),
+          delivery_available: applyDelivery,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) return Alert.alert("خطأ", d.error ?? "فشل الإرسال");
+      setApplyDone(true);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setApplySending(false); }
+  }
+
+  async function submitProductRequest() {
+    if (!reqName.trim() || !reqPhone.trim() || !reqDesc.trim())
+      return Alert.alert("بيانات ناقصة", "الاسم والهاتف والوصف مطلوبة");
+    Keyboard.dismiss();
+    setReqSending(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/women/product-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: reqStore?.id ?? null,
+          customer_name: reqName.trim(), customer_phone: reqPhone.trim(),
+          product_description: reqDesc.trim(), budget: reqBudget.trim(),
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); return Alert.alert("خطأ", d.error ?? "فشل الإرسال"); }
+      setReqDone(true);
+    } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
+    finally { setReqSending(false); }
+  }
+
+  useEffect(() => { if (subTab === "shops") loadShops(); }, [subTab]);
+  useEffect(() => { if (selectedShop) loadShopProducts(selectedShop.id); }, [selectedShop]);
 
   const load = async () => {
     if (!user || isGuest || isMaleBlocked || needsGenderForWomen) return;
@@ -388,7 +593,8 @@ export default function WomenScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...s.subTabRow }}>
           {([
             ["services",   "الخدمات",      "storefront-outline",   "#FF4FA3"],
-            ["boutiques",  "بوتيكات",       "bag-personal-outline", "#A855F7"],
+            ["shops",      "المتاجر",       "shopping-outline",     "#A855F7"],
+            ["boutiques",  "بوتيكات",       "bag-personal-outline", "#8B5CF6"],
             ["handmade",   "يدوية",         "hand-heart-outline",   "#14B8A6"],
             ["health",     "صحة المرأة",   "heart-outline",        "#3E9CBF"],
             ["recipes",    "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
@@ -793,6 +999,241 @@ export default function WomenScreen() {
         </ScrollView>
       )}
 
+      {/* ══ TAB: SHOPS (متاجر ركن المرأة) ══ */}
+      {subTab === "shops" && (
+        <View style={{ flex: 1 }}>
+          {/* فلتر الفئات */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
+            {([
+              ["all",         "الكل",         "🛍️"],
+              ["accessories", "إكسسوارات",    "💍"],
+              ["perfumes",    "عطور",          "🌹"],
+              ["shoes",       "أحذية",         "👠"],
+              ["clothing",    "ملابس",         "👗"],
+              ["bags",        "حقائب",         "👜"],
+              ["jewelry",     "مجوهرات",       "✨"],
+              ["cosmetics",   "مستحضرات",     "💄"],
+              ["general",     "متنوع",         "🛒"],
+            ] as [string, string, string][]).map(([key, label, emoji]) => (
+              <TouchableOpacity
+                key={key}
+                style={[sp.catChip, shopCategory === key && { backgroundColor: "#A855F7", borderColor: "#A855F7" }]}
+                onPress={() => { setShopCategory(key); loadShops(key); }}
+              >
+                <Text style={{ fontSize: 14 }}>{emoji}</Text>
+                <Text style={[sp.catChipText, shopCategory === key && { color: "#fff" }]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* شريط البحث */}
+          <View style={[s.searchRow, { marginHorizontal: 16, marginBottom: 8 }]}>
+            <MaterialCommunityIcons name="magnify" size={18} color={Colors.textMuted} />
+            <TextInput
+              style={s.searchInput}
+              placeholder="ابحثي عن متجر..."
+              placeholderTextColor={Colors.textMuted}
+              value={shopSearch}
+              onChangeText={setShopSearch}
+              textAlign="right"
+            />
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+
+            {/* بانر إضافة متجر */}
+            <TouchableOpacity style={sp.addBanner} onPress={() => { setApplyDone(false); setApplyShopModal(true); }}>
+              <LinearGradient colors={["#A855F720", "#FF4FA310"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="store-plus-outline" size={26} color="#A855F7" />
+              <View style={{ flex: 1 }}>
+                <Text style={sp.addBannerTitle}>افتحي متجرك في ركن المرأة!</Text>
+                <Text style={sp.addBannerSub}>إكسسوارات، عطور، أحذية وأكثر — اعرضي منتجاتك لآلاف المستخدمات</Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color="#A855F7" />
+            </TouchableOpacity>
+
+            {/* زر طلب منتج خاص */}
+            <TouchableOpacity
+              style={sp.reqBanner}
+              onPress={() => { setReqStore(null); setReqDone(false); setReqModal(true); }}
+            >
+              <LinearGradient colors={["#14B8A615", "transparent"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="clipboard-text-search-outline" size={20} color="#14B8A6" />
+              <Text style={sp.reqBannerText}>طلب منتج خاص / مخصص</Text>
+              <Ionicons name="chevron-back" size={16} color="#14B8A6" />
+            </TouchableOpacity>
+
+            {shopsLoading ? (
+              <ActivityIndicator color="#A855F7" size="large" style={{ marginTop: 30 }} />
+            ) : shops.filter(sh => !shopSearch || sh.name.includes(shopSearch) || sh.description.includes(shopSearch)).length === 0 ? (
+              <View style={sp.emptyBox}>
+                <MaterialCommunityIcons name="store-off-outline" size={52} color="#A855F750" />
+                <Text style={sp.emptyTitle}>لا توجد متاجر بعد في هذه الفئة</Text>
+                <Text style={sp.emptySub}>كوني أول من تفتح متجرها هنا</Text>
+              </View>
+            ) : (
+              shops
+                .filter(sh => !shopSearch || sh.name.includes(shopSearch) || sh.description.includes(shopSearch))
+                .map((shop, idx) => (
+                  <Animated.View key={shop.id} entering={FadeInDown.delay(idx * 60).springify()}>
+                    <TouchableOpacity
+                      style={sp.shopCard}
+                      activeOpacity={0.88}
+                      onPress={() => { setSelectedShop(selectedShop?.id === shop.id ? null : shop); setShopProducts([]); }}
+                    >
+                      <LinearGradient colors={["#A855F70A", "transparent"]} style={StyleSheet.absoluteFill} />
+
+                      {/* رأس البطاقة */}
+                      <View style={sp.shopHeader}>
+                        <View style={sp.shopLogoWrap}>
+                          {shop.logo_url ? (
+                            <Image source={{ uri: shop.logo_url }} style={sp.shopLogo} />
+                          ) : (
+                            <Text style={{ fontSize: 28 }}>
+                              {shop.category === "perfumes" ? "🌹" : shop.category === "shoes" ? "👠" :
+                               shop.category === "jewelry" ? "✨" : shop.category === "cosmetics" ? "💄" :
+                               shop.category === "bags" ? "👜" : shop.category === "clothing" ? "👗" : "🛍️"}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                            <Text style={sp.shopName}>{shop.name}</Text>
+                            {shop.is_featured && (
+                              <View style={sp.featuredBadge}>
+                                <MaterialCommunityIcons name="star" size={10} color="#F0A500" />
+                                <Text style={sp.featuredText}>مميز</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={sp.shopMeta}>
+                            <View style={sp.catBadge}>
+                              <Text style={sp.catBadgeText}>
+                                {shop.category === "accessories" ? "إكسسوارات" : shop.category === "perfumes" ? "عطور" :
+                                 shop.category === "shoes" ? "أحذية" : shop.category === "clothing" ? "ملابس" :
+                                 shop.category === "bags" ? "حقائب" : shop.category === "jewelry" ? "مجوهرات" :
+                                 shop.category === "cosmetics" ? "مستحضرات" : "متنوع"}
+                              </Text>
+                            </View>
+                            {shop.delivery_available && (
+                              <View style={sp.deliveryBadge}>
+                                <MaterialCommunityIcons name="moped-outline" size={10} color={Colors.primary} />
+                                <Text style={sp.deliveryText}>توصيل</Text>
+                              </View>
+                            )}
+                            {shop.product_count > 0 && (
+                              <Text style={sp.productCount}>{shop.product_count} منتج</Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+
+                      {shop.description ? <Text style={sp.shopDesc} numberOfLines={2}>{shop.description}</Text> : null}
+
+                      <View style={sp.shopInfo}>
+                        {shop.address ? <><MaterialCommunityIcons name="map-marker-outline" size={13} color={Colors.textMuted} /><Text style={sp.shopInfoText}>{shop.address}</Text></> : null}
+                        <MaterialCommunityIcons name="clock-outline" size={13} color={Colors.textMuted} />
+                        <Text style={sp.shopInfoText}>{shop.working_hours}</Text>
+                      </View>
+
+                      {/* أزرار */}
+                      <View style={sp.shopActions}>
+                        <AnimatedPress style={{ flex: 1 }} onPress={() => { setSelectedShop(selectedShop?.id === shop.id ? null : shop); setShopProducts([]); }}>
+                          <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.shopBtn}>
+                            <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
+                            <Text style={sp.shopBtnText}>{selectedShop?.id === shop.id ? "إخفاء المنتجات" : "عرض المنتجات"}</Text>
+                          </LinearGradient>
+                        </AnimatedPress>
+                        <TouchableOpacity
+                          style={sp.reqBtn}
+                          onPress={() => { setReqStore(shop); setReqDone(false); setReqModal(true); }}
+                        >
+                          <MaterialCommunityIcons name="clipboard-edit-outline" size={16} color="#A855F7" />
+                        </TouchableOpacity>
+                        {shop.phone ? (
+                          <TouchableOpacity style={sp.callBtn} onPress={() => handleCall(shop.phone)}>
+                            <MaterialCommunityIcons name="phone-outline" size={16} color={Colors.primary} />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* المنتجات المنبثقة */}
+                    {selectedShop?.id === shop.id && (
+                      <Animated.View entering={FadeIn.duration(250)} style={sp.productsPanel}>
+                        {productsLoading ? (
+                          <ActivityIndicator color="#A855F7" style={{ padding: 20 }} />
+                        ) : shopProducts.length === 0 ? (
+                          <Text style={sp.noProductsText}>لا توجد منتجات متاحة حالياً</Text>
+                        ) : (
+                          <>
+                            <View style={sp.productsPanelHeader}>
+                              <Text style={sp.productsPanelTitle}>منتجات {shop.name}</Text>
+                              {cartCount(cart) > 0 && (
+                                <TouchableOpacity style={sp.cartBadgeBtn} onPress={() => setCartOpen(true)}>
+                                  <MaterialCommunityIcons name="cart-outline" size={16} color="#fff" />
+                                  <Text style={sp.cartBadgeText}>{cartCount(cart)}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 6, paddingTop: 4 }}>
+                              {shopProducts.map(prod => {
+                                const inCart = cart.get(prod.id);
+                                return (
+                                  <View key={prod.id} style={sp.productCard}>
+                                    {prod.image_url ? (
+                                      <Image source={{ uri: prod.image_url }} style={sp.productImage} />
+                                    ) : (
+                                      <View style={sp.productEmoji}><Text style={{ fontSize: 32 }}>{prod.emoji}</Text></View>
+                                    )}
+                                    <Text style={sp.productName} numberOfLines={2}>{prod.name}</Text>
+                                    <View style={sp.productPriceRow}>
+                                      <Text style={sp.productPrice}>{prod.price.toLocaleString("en-US")} ج</Text>
+                                      {prod.original_price && prod.original_price > prod.price ? (
+                                        <Text style={sp.productOriginalPrice}>{prod.original_price.toLocaleString("en-US")}</Text>
+                                      ) : null}
+                                    </View>
+                                    {inCart ? (
+                                      <View style={sp.qtyRow}>
+                                        <TouchableOpacity style={sp.qtyBtn} onPress={() => removeFromCart(prod.id)}>
+                                          <MaterialCommunityIcons name="minus" size={14} color="#A855F7" />
+                                        </TouchableOpacity>
+                                        <Text style={sp.qtyText}>{inCart.qty}</Text>
+                                        <TouchableOpacity style={sp.qtyBtn} onPress={() => addToCart(prod)}>
+                                          <MaterialCommunityIcons name="plus" size={14} color="#A855F7" />
+                                        </TouchableOpacity>
+                                      </View>
+                                    ) : (
+                                      <TouchableOpacity style={sp.addToCartBtn} onPress={() => addToCart(prod)}>
+                                        <MaterialCommunityIcons name="cart-plus" size={14} color="#fff" />
+                                        <Text style={sp.addToCartText}>أضيفي</Text>
+                                      </TouchableOpacity>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </ScrollView>
+                          </>
+                        )}
+
+                        {/* زر إتمام الشراء */}
+                        {cartCount(cart) > 0 && (
+                          <TouchableOpacity style={sp.checkoutBanner} onPress={() => setCartOpen(true)}>
+                            <LinearGradient colors={["#A855F7", "#7C3AED"]} style={StyleSheet.absoluteFill} />
+                            <MaterialCommunityIcons name="cart-check" size={18} color="#fff" />
+                            <Text style={sp.checkoutBannerText}>السلة ({cartCount(cart)} منتج) — {cartTotal(cart).toLocaleString("en-US")} ج</Text>
+                            <Ionicons name="chevron-back" size={16} color="#fff" />
+                          </TouchableOpacity>
+                        )}
+                      </Animated.View>
+                    )}
+                  </Animated.View>
+                ))
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {/* ══ TAB: BOUTIQUES ══ */}
       {subTab === "boutiques" && (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -959,6 +1400,260 @@ export default function WomenScreen() {
           <Text style={jm.fabText}>طلب الانضمام</Text>
         </LinearGradient>
       </TouchableOpacity>
+
+      {/* ══ مودال السلة ══════════════════════════════════════════════════════ */}
+      <Modal visible={cartOpen} animationType="slide" transparent onRequestClose={() => setCartOpen(false)}>
+        <View style={sp.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setCartOpen(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={sp.modalSheet}>
+            <LinearGradient colors={["#F8F3FF", "#FFFFFF"]} style={sp.modalInner}>
+              {/* رأس */}
+              <View style={sp.modalHeader}>
+                <TouchableOpacity onPress={() => setCartOpen(false)} style={sp.closeBtn}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={sp.modalTitle}>🛒 سلة التسوق</Text>
+              </View>
+
+              {orderDone ? (
+                <Animated.View entering={FadeIn} style={sp.successBox}>
+                  <LinearGradient colors={["#A855F720", "#7C3AED10"]} style={sp.successIcon}>
+                    <Ionicons name="checkmark-circle" size={56} color="#A855F7" />
+                  </LinearGradient>
+                  <Text style={sp.successTitle}>تم إرسال طلبك بنجاح!</Text>
+                  <Text style={sp.successSub}>ستتواصل معك صاحبة المتجر قريباً لتأكيد الطلب والتوصيل.</Text>
+                  <TouchableOpacity onPress={() => { setCartOpen(false); setOrderDone(false); setCheckoutOpen(false); }} style={sp.successBtn}>
+                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                      <Text style={sp.successBtnText}>حسناً، شكراً!</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : cartCount(cart) === 0 ? (
+                <View style={{ alignItems: "center", padding: 40, gap: 12 }}>
+                  <MaterialCommunityIcons name="cart-off" size={52} color="#A855F750" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary }}>السلة فارغة</Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {Array.from(cart.values()).map(ci => (
+                    <View key={ci.product.id} style={sp.cartItem}>
+                      <Text style={{ fontSize: 22 }}>{ci.product.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={sp.cartItemName}>{ci.product.name}</Text>
+                        <Text style={sp.cartItemPrice}>{(ci.product.price * ci.qty).toLocaleString("en-US")} ج</Text>
+                      </View>
+                      <View style={sp.qtyRow}>
+                        <TouchableOpacity style={sp.qtyBtn} onPress={() => removeFromCart(ci.product.id)}>
+                          <MaterialCommunityIcons name="minus" size={14} color="#A855F7" />
+                        </TouchableOpacity>
+                        <Text style={sp.qtyText}>{ci.qty}</Text>
+                        <TouchableOpacity style={sp.qtyBtn} onPress={() => addToCart(ci.product)}>
+                          <MaterialCommunityIcons name="plus" size={14} color="#A855F7" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+
+                  <View style={sp.cartTotal}>
+                    <Text style={sp.cartTotalLabel}>الإجمالي</Text>
+                    <Text style={sp.cartTotalValue}>{cartTotal(cart).toLocaleString("en-US")} ج</Text>
+                  </View>
+
+                  {/* بيانات الشراء */}
+                  <Text style={sp.fieldLabel}>اسمك الكامل *</Text>
+                  <TextInput style={sp.input} value={checkoutName} onChangeText={setCheckoutName} placeholder="فاطمة أحمد" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                  <Text style={sp.fieldLabel}>رقم الهاتف *</Text>
+                  <TextInput style={sp.input} value={checkoutPhone} onChangeText={setCheckoutPhone} placeholder="0912345678" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" textAlign="right" />
+                  <Text style={sp.fieldLabel}>العنوان للتوصيل (اختياري)</Text>
+                  <TextInput style={sp.input} value={checkoutAddress} onChangeText={setCheckoutAddress} placeholder="الحصاحيصا — الحي الشرقي" placeholderTextColor={Colors.textMuted} textAlign="right" />
+                  <Text style={sp.fieldLabel}>ملاحظات</Text>
+                  <TextInput style={[sp.input, { minHeight: 70, textAlignVertical: "top" }]} value={checkoutNotes} onChangeText={setCheckoutNotes} placeholder="أي طلبات خاصة..." placeholderTextColor={Colors.textMuted} multiline textAlign="right" />
+
+                  <TouchableOpacity
+                    style={[sp.submitBtn, checkoutSending && { opacity: 0.6 }]}
+                    onPress={submitOrder}
+                    disabled={checkoutSending}
+                  >
+                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                      {checkoutSending ? <ActivityIndicator color="#fff" /> : (
+                        <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال الطلب</Text></>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <View style={{ height: 20 }} />
+                </ScrollView>
+              )}
+            </LinearGradient>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ══ مودال طلب فتح متجر ════════════════════════════════════════════════ */}
+      <Modal visible={applyShopModal} animationType="slide" transparent onRequestClose={() => setApplyShopModal(false)}>
+        <View style={sp.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setApplyShopModal(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={sp.modalSheet}>
+            <LinearGradient colors={["#F8F3FF", "#FFFFFF"]} style={sp.modalInner}>
+              <View style={sp.modalHeader}>
+                <TouchableOpacity onPress={() => setApplyShopModal(false)} style={sp.closeBtn}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={sp.modalTitle}>🏪 فتح متجر في ركن المرأة</Text>
+              </View>
+
+              {applyDone ? (
+                <Animated.View entering={FadeIn} style={sp.successBox}>
+                  <LinearGradient colors={["#A855F720", "#7C3AED10"]} style={sp.successIcon}>
+                    <Ionicons name="checkmark-circle" size={56} color="#A855F7" />
+                  </LinearGradient>
+                  <Text style={sp.successTitle}>تم استلام طلبك!</Text>
+                  <Text style={sp.successSub}>ستتم مراجعة طلبك من الإدارة والتواصل معك خلال 24 ساعة.</Text>
+                  <TouchableOpacity onPress={() => { setApplyShopModal(false); setApplyDone(false); }} style={sp.successBtn}>
+                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                      <Text style={sp.successBtnText}>حسناً</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <Text style={sp.fieldLabel}>نوع المتجر *</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                    {[
+                      ["accessories","💍","إكسسوارات"], ["perfumes","🌹","عطور"], ["shoes","👠","أحذية"],
+                      ["clothing","👗","ملابس"], ["bags","👜","حقائب"], ["jewelry","✨","مجوهرات"],
+                      ["cosmetics","💄","مستحضرات"], ["general","🛒","متنوع"],
+                    ].map(([key, emoji, label]) => (
+                      <TouchableOpacity
+                        key={key}
+                        style={[sp.typeChip, applyCategory === key && { borderColor: "#A855F7", backgroundColor: "#A855F718" }]}
+                        onPress={() => setApplyCategory(key)}
+                      >
+                        <Text style={{ fontSize: 16 }}>{emoji}</Text>
+                        <Text style={[sp.typeChipText, applyCategory === key && { color: "#A855F7" }]}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {[
+                    { label: "اسم المتجر *", val: applyName, set: setApplyName, ph: "متجر لمياء" },
+                    { label: "اسمك الكامل *", val: applyOwner, set: setApplyOwner, ph: "فاطمة محمد" },
+                    { label: "رقم الهاتف *", val: applyPhone, set: setApplyPhone, ph: "0912345678", kb: "phone-pad" as const },
+                    { label: "العنوان / الحي", val: applyAddress, set: setApplyAddress, ph: "الحصاحيصا — الحي الشرقي" },
+                    { label: "ساعات العمل", val: applyHours, set: setApplyHours, ph: "9:00 - 21:00" },
+                  ].map(f => (
+                    <View key={f.label}>
+                      <Text style={sp.fieldLabel}>{f.label}</Text>
+                      <TextInput style={sp.input} value={f.val} onChangeText={f.set} placeholder={f.ph} placeholderTextColor={Colors.textMuted} keyboardType={(f as any).kb ?? "default"} textAlign="right" />
+                    </View>
+                  ))}
+
+                  <Text style={sp.fieldLabel}>وصف المتجر</Text>
+                  <TextInput style={[sp.input, { minHeight: 75, textAlignVertical: "top" }]} value={applyDesc} onChangeText={setApplyDesc} placeholder="اكتبي وصفاً مختصراً لمنتجاتك..." placeholderTextColor={Colors.textMuted} multiline textAlign="right" />
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <TouchableOpacity
+                      style={[sp.toggleBtn, applyDelivery && { backgroundColor: "#A855F720", borderColor: "#A855F7" }]}
+                      onPress={() => setApplyDelivery(!applyDelivery)}
+                    >
+                      <MaterialCommunityIcons name={applyDelivery ? "checkbox-marked" : "checkbox-blank-outline"} size={18} color={applyDelivery ? "#A855F7" : Colors.textMuted} />
+                      <Text style={[sp.toggleText, applyDelivery && { color: "#A855F7" }]}>خدمة التوصيل متاحة</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[sp.submitBtn, applySending && { opacity: 0.6 }]}
+                    onPress={submitApplyShop}
+                    disabled={applySending}
+                  >
+                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                      {applySending ? <ActivityIndicator color="#fff" /> : (
+                        <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال طلب فتح المتجر</Text></>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <View style={{ height: 24 }} />
+                </ScrollView>
+              )}
+            </LinearGradient>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ══ مودال طلب منتج خاص ════════════════════════════════════════════════ */}
+      <Modal visible={reqModal} animationType="slide" transparent onRequestClose={() => setReqModal(false)}>
+        <View style={sp.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setReqModal(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={sp.modalSheet}>
+            <LinearGradient colors={["#F0FDFA", "#FFFFFF"]} style={sp.modalInner}>
+              <View style={sp.modalHeader}>
+                <TouchableOpacity onPress={() => setReqModal(false)} style={sp.closeBtn}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={sp.modalTitle}>📋 طلب منتج خاص</Text>
+              </View>
+
+              {reqDone ? (
+                <Animated.View entering={FadeIn} style={sp.successBox}>
+                  <LinearGradient colors={["#14B8A620", "#0D948810"]} style={sp.successIcon}>
+                    <Ionicons name="checkmark-circle" size={56} color="#14B8A6" />
+                  </LinearGradient>
+                  <Text style={[sp.successTitle, { color: "#14B8A6" }]}>تم إرسال طلبك!</Text>
+                  <Text style={sp.successSub}>
+                    {reqStore ? `ستتواصل معك ${reqStore.name} قريباً.` : "ستتواصل معك الإدارة للمساعدة في إيجاد المنتج."}
+                  </Text>
+                  <TouchableOpacity onPress={() => { setReqModal(false); setReqDone(false); }} style={sp.successBtn}>
+                    <LinearGradient colors={["#14B8A6", "#0D9488"]} style={sp.successBtnGrad}>
+                      <Text style={sp.successBtnText}>حسناً</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {reqStore && (
+                    <View style={[sp.reqStoreBanner]}>
+                      <MaterialCommunityIcons name="store-outline" size={18} color="#14B8A6" />
+                      <Text style={sp.reqStoreText}>الطلب من: {reqStore.name}</Text>
+                    </View>
+                  )}
+
+                  {[
+                    { label: "اسمك الكامل *", val: reqName, set: setReqName, ph: "فاطمة أحمد" },
+                    { label: "رقم الهاتف *", val: reqPhone, set: setReqPhone, ph: "0912345678", kb: "phone-pad" as const },
+                  ].map(f => (
+                    <View key={f.label}>
+                      <Text style={sp.fieldLabel}>{f.label}</Text>
+                      <TextInput style={sp.input} value={f.val} onChangeText={f.set} placeholder={f.ph} placeholderTextColor={Colors.textMuted} keyboardType={(f as any).kb ?? "default"} textAlign="right" />
+                    </View>
+                  ))}
+
+                  <Text style={sp.fieldLabel}>وصف المنتج المطلوب *</Text>
+                  <TextInput
+                    style={[sp.input, { minHeight: 90, textAlignVertical: "top" }]}
+                    value={reqDesc} onChangeText={setReqDesc}
+                    placeholder="مثال: حذاء كعب أحمر مقاس 39، أو عطر برائحة زهر الياسمين..."
+                    placeholderTextColor={Colors.textMuted} multiline textAlign="right"
+                  />
+                  <Text style={sp.fieldLabel}>الميزانية المتوقعة</Text>
+                  <TextInput style={sp.input} value={reqBudget} onChangeText={setReqBudget} placeholder="مثال: 500 - 1000 جنيه" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+                  <TouchableOpacity
+                    style={[sp.submitBtn, reqSending && { opacity: 0.6 }]}
+                    onPress={submitProductRequest}
+                    disabled={reqSending}
+                  >
+                    <LinearGradient colors={["#14B8A6", "#0D9488"]} style={sp.submitBtnGrad}>
+                      {reqSending ? <ActivityIndicator color="#fff" /> : (
+                        <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال الطلب</Text></>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <View style={{ height: 24 }} />
+                </ScrollView>
+              )}
+            </LinearGradient>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* ══ مودال الانضمام ══════════════════════════════════════════════════ */}
       <Modal
@@ -1298,6 +1993,187 @@ const hm = StyleSheet.create({
     flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textSecondary, lineHeight: 22, textAlign: "right",
   },
+});
+
+// ── أنماط قسم المتاجر ────────────────────────────────────────────────────────
+const sp = StyleSheet.create({
+  // فلتر الفئات
+  catChip: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg,
+    borderWidth: 1, borderColor: Colors.divider,
+  },
+  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+
+  // بانرات
+  addBanner: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
+    borderWidth: 1.5, borderColor: "#A855F740", padding: 14, overflow: "hidden", ...Colors.shadow.card,
+  },
+  addBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A855F7", textAlign: "right" },
+  addBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  reqBanner: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#14B8A608", borderRadius: Colors.radius.md,
+    borderWidth: 1, borderColor: "#14B8A630", padding: 12, overflow: "hidden",
+  },
+  reqBannerText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#14B8A6", textAlign: "right" },
+
+  // بطاقة متجر
+  shopCard: {
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 10,
+    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+  },
+  shopHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  shopLogoWrap: {
+    width: 60, height: 60, borderRadius: Colors.radius.md,
+    backgroundColor: "#A855F710", borderWidth: 1, borderColor: "#A855F730",
+    justifyContent: "center", alignItems: "center", overflow: "hidden",
+  },
+  shopLogo: { width: 60, height: 60, borderRadius: Colors.radius.md },
+  shopName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  shopMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
+  featuredBadge: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#F0A50018", paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
+  },
+  featuredText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#F0A500" },
+  catBadge: { backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
+  catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" },
+  deliveryBadge: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: Colors.successSoft, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
+  },
+  deliveryText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  productCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  shopDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
+  shopInfo: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  shopInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  shopActions: { flexDirection: "row", gap: 8, alignItems: "center" },
+  shopBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, borderRadius: Colors.radius.md, paddingVertical: 11,
+  },
+  shopBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  reqBtn: {
+    width: 40, height: 40, borderRadius: Colors.radius.md,
+    borderWidth: 1.5, borderColor: "#A855F740", backgroundColor: "#A855F710",
+    justifyContent: "center", alignItems: "center",
+  },
+  callBtn: {
+    width: 40, height: 40, borderRadius: Colors.radius.md,
+    borderWidth: 1.5, borderColor: Colors.borderSubtle, backgroundColor: Colors.successSoft,
+    justifyContent: "center", alignItems: "center",
+  },
+
+  // لوحة المنتجات
+  productsPanel: {
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.lg,
+    borderWidth: 1, borderColor: "#A855F730", padding: 14, gap: 10,
+    marginTop: -6,
+  },
+  productsPanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  productsPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+  noProductsText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", padding: 20 },
+  cartBadgeBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "#A855F7", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  cartBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+
+  // بطاقة منتج
+  productCard: {
+    width: 130, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md,
+    padding: 10, gap: 6, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card,
+  },
+  productImage: { width: "100%", height: 90, borderRadius: Colors.radius.sm, resizeMode: "cover" },
+  productEmoji: {
+    width: "100%", height: 90, borderRadius: Colors.radius.sm,
+    backgroundColor: "#A855F710", justifyContent: "center", alignItems: "center",
+  },
+  productName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "right" },
+  productPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
+  productOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textDecorationLine: "line-through" },
+  qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#A855F710", borderRadius: Colors.radius.sm, padding: 4 },
+  qtyBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
+  qtyText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
+  addToCartBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
+    backgroundColor: "#A855F7", borderRadius: Colors.radius.sm, paddingVertical: 6,
+  },
+  addToCartText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+
+  // بانر الدفع
+  checkoutBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8, borderRadius: Colors.radius.md,
+    paddingHorizontal: 14, paddingVertical: 12, overflow: "hidden", ...Colors.shadow.card,
+  },
+  checkoutBannerText: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+
+  // empty
+  emptyBox: { alignItems: "center", gap: 10, paddingVertical: 40 },
+  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary },
+  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+
+  // مودالات
+  modalOverlay: { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
+  modalSheet: { maxHeight: "92%" },
+  modalInner: { borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 36 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+  closeBtn: { width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center" },
+
+  // عناصر السلة
+  cartItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginBottom: 8 },
+  cartItemName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  cartItemPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
+  cartTotal: { flexDirection: "row", justifyContent: "space-between", padding: 14, backgroundColor: "#A855F710", borderRadius: Colors.radius.md, marginBottom: 16 },
+  cartTotalLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary },
+  cartTotalValue: { fontFamily: "Cairo_800ExtraBold", fontSize: 16, color: "#A855F7" },
+
+  // حقول
+  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
+  input: {
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider,
+    color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+  },
+  typeChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
+    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
+  },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  toggleBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.md,
+    borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
+  },
+  toggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+
+  // زر الإرسال
+  submitBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 4 },
+  submitBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+
+  // نجاح
+  successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },
+  successIcon: { width: 100, height: 100, borderRadius: Colors.radius.xl, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#A855F740" },
+  successTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  successSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, paddingHorizontal: 16 },
+  successBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8, width: "80%" },
+  successBtnGrad: { paddingVertical: 14, alignItems: "center" },
+  successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+
+  // طلب متجر
+  reqStoreBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#14B8A610", borderRadius: Colors.radius.md, padding: 10, marginBottom: 12,
+  },
+  reqStoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#14B8A6", flex: 1, textAlign: "right" },
 });
 
 // ── أنماط قسم البوتيكات ───────────────────────────────────────────────────────
