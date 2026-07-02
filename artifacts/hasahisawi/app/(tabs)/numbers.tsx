@@ -98,8 +98,8 @@ async function safeCall(number: string) {
   }
 }
 
-function NumberCard({ entry, index, isAdmin, onDelete }: {
-  entry: NumberEntry; index: number; isAdmin: boolean; onDelete?: (id: string) => void
+function NumberCard({ entry, index, isAdmin, onDelete, onEdit }: {
+  entry: NumberEntry; index: number; isAdmin: boolean; onDelete?: (id: string) => void; onEdit?: (entry: NumberEntry) => void
 }) {
   const handleCall = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -118,10 +118,19 @@ function NumberCard({ entry, index, isAdmin, onDelete }: {
             <Text style={[styles.cardNumber, { color: entry.color || Colors.primary }]}>{entry.number}</Text>
             {entry.note ? <Text style={styles.cardNote}>{entry.note}</Text> : null}
           </View>
-          {isAdmin && onDelete ? (
-            <TouchableOpacity onPress={() => onDelete(entry.id)} hitSlop={10} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
+          {isAdmin ? (
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {onEdit && (
+                <TouchableOpacity onPress={() => onEdit(entry)} hitSlop={10} style={styles.editBtn}>
+                  <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+              )}
+              {onDelete && (
+                <TouchableOpacity onPress={() => onDelete(entry.id)} hitSlop={10} style={styles.deleteBtn}>
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
             <View style={[styles.callBtn, { backgroundColor: (entry.color || Colors.primary) + "18", borderColor: (entry.color || Colors.primary) + "50" }]}>
               <Ionicons name="call" size={18} color={entry.color || Colors.primary} />
@@ -134,8 +143,8 @@ function NumberCard({ entry, index, isAdmin, onDelete }: {
   );
 }
 
-function CategorySection({ cat, catIndex, isAdmin, onDelete }: {
-  cat: Category; catIndex: number; isAdmin: boolean; onDelete?: (id: string) => void
+function CategorySection({ cat, catIndex, isAdmin, onDelete, onEdit }: {
+  cat: Category; catIndex: number; isAdmin: boolean; onDelete?: (id: string) => void; onEdit?: (entry: NumberEntry) => void
 }) {
   const [expanded, setExpanded] = useState(true);
   const isEmergency = cat.id === "طوارئ";
@@ -179,6 +188,7 @@ function CategorySection({ cat, catIndex, isAdmin, onDelete }: {
               index={catIndex * 10 + idx}
               isAdmin={isAdmin}
               onDelete={onDelete}
+              onEdit={onEdit}
             />
           ))}
         </View>
@@ -271,6 +281,99 @@ function AddNumberModal({ visible, onClose, onSave, saving }: {
   );
 }
 
+function EditNumberModal({ visible, onClose, onSave, saving, initial }: {
+  visible: boolean; onClose: () => void; onSave: (e: NumberEntry) => void; saving: boolean; initial: NumberEntry | null
+}) {
+  const [name, setName] = useState("");
+  const [number, setNumber] = useState("");
+  const [note, setNote] = useState("");
+  const [category, setCategory] = useState("صحة");
+  const [color, setColor] = useState(COLOR_OPTIONS[1]);
+  const [icon, setIcon] = useState(ICON_OPTIONS[0]);
+
+  useEffect(() => {
+    if (initial) {
+      setName(initial.name);
+      setNumber(initial.number);
+      setNote(initial.note || "");
+      setCategory(initial.category || "صحة");
+      setColor(initial.color || COLOR_OPTIONS[1]);
+      setIcon(initial.icon || ICON_OPTIONS[0]);
+    }
+  }, [initial]);
+
+  const save = () => {
+    if (!name.trim() || !number.trim()) { Alert.alert("خطأ", "الاسم والرقم مطلوبان"); return; }
+    if (!initial) return;
+    onSave({ ...initial, name: name.trim(), number: number.trim(), note: note.trim() || undefined, category, color, icon });
+  };
+
+  const categoryKeys = ["طوارئ", "صحة", "خدمات", "حكومي", "قانوني", "other"];
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={modal.overlay}>
+          <View style={modal.sheet}>
+            <Text style={modal.title}>تعديل الرقم</Text>
+
+            <Text style={modal.label}>اسم الجهة *</Text>
+            <TextInput style={modal.input} value={name} onChangeText={setName} placeholder="مثال: مستشفى الحصاحيصا" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+            <Text style={modal.label}>رقم الهاتف *</Text>
+            <TextInput style={modal.input} value={number} onChangeText={setNumber} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" textAlign="right" />
+
+            <Text style={modal.label}>ملاحظة (اختياري)</Text>
+            <TextInput style={modal.input} value={note} onChangeText={setNote} placeholder="مثال: 7ص – 5م" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+            <Text style={modal.label}>التصنيف</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {categoryKeys.map((id) => {
+                const meta = CATEGORY_META[id] ?? CATEGORY_META.other;
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    style={[modal.catChip, category === id && { backgroundColor: meta.color + "30", borderColor: meta.color }]}
+                    onPress={() => setCategory(id)}
+                  >
+                    <Ionicons name={meta.icon as any} size={14} color={category === id ? meta.color : Colors.textSecondary} />
+                    <Text style={[modal.catChipText, category === id && { color: meta.color }]}>{meta.title}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={modal.label}>اللون</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {COLOR_OPTIONS.map(c => (
+                <TouchableOpacity key={c} onPress={() => setColor(c)} style={[modal.colorDot, { backgroundColor: c }, color === c && modal.colorDotActive]} />
+              ))}
+            </ScrollView>
+
+            <Text style={modal.label}>الأيقونة</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              {ICON_OPTIONS.map(ic => (
+                <TouchableOpacity key={ic} onPress={() => setIcon(ic)} style={[modal.iconBtn, icon === ic && { backgroundColor: color + "30", borderColor: color }]}>
+                  <Ionicons name={ic as any} size={18} color={icon === ic ? color : Colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={modal.actions}>
+              <TouchableOpacity style={modal.cancelBtn} onPress={onClose}>
+                <Text style={modal.cancelText}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[modal.saveBtn, { backgroundColor: Colors.primary, opacity: saving ? 0.6 : 1 }]} onPress={save} disabled={saving}>
+                {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={modal.saveText}>حفظ التعديلات</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export default function NumbersScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -280,6 +383,8 @@ export default function NumbersScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<NumberEntry | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState("");
   const [validatedPin, setValidatedPin] = useState<string | null>(null);
@@ -358,6 +463,41 @@ export default function NumbersScreen() {
         Alert.alert("خطأ", err.error || "تعذّر الحفظ");
       }
     } catch { Alert.alert("خطأ", "تعذّر الحفظ"); }
+    finally { setSaving(false); }
+  };
+
+  const openEdit = (entry: NumberEntry) => {
+    setEditingEntry(entry);
+    setShowEditModal(true);
+  };
+
+  const handleEdit = async (updated: NumberEntry) => {
+    setSaving(true);
+    try {
+      const base = getApiUrl();
+      if (!base) return;
+      const res = await fetch(`${base}/api/admin/emergency-numbers/${updated.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          name: updated.name,
+          number: updated.number,
+          note: updated.note,
+          category: updated.category,
+          icon: updated.icon,
+          color: updated.color,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setNumbers(prev => prev.map(n => n.id === saved.id ? saved : n));
+        setShowEditModal(false);
+        setEditingEntry(null);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert("خطأ", err.error || "تعذّر التعديل");
+      }
+    } catch { Alert.alert("خطأ", "تعذّر التعديل"); }
     finally { setSaving(false); }
   };
 
@@ -460,6 +600,7 @@ export default function NumbersScreen() {
               catIndex={idx}
               isAdmin={isAdmin}
               onDelete={handleDelete}
+              onEdit={openEdit}
             />
           ))}
 
@@ -486,6 +627,14 @@ export default function NumbersScreen() {
         onClose={() => setShowAddModal(false)}
         onSave={handleAdd}
         saving={saving}
+      />
+
+      <EditNumberModal
+        visible={showEditModal}
+        onClose={() => { setShowEditModal(false); setEditingEntry(null); }}
+        onSave={handleEdit}
+        saving={saving}
+        initial={editingEntry}
       />
 
       <Modal visible={showPinModal} transparent animationType="fade">
@@ -552,6 +701,7 @@ const styles = StyleSheet.create({
   cardNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   callBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, gap: 3, minWidth: 52 },
   callLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  editBtn: { backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm, padding: 8, borderWidth: 1, borderColor: Colors.primary + "30" },
   deleteBtn: { backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, padding: 8, borderWidth: 1, borderColor: "#EF444430" },
 
   emptyHint: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 32, gap: 10 },
