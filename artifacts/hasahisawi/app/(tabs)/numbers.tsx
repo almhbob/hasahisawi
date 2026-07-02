@@ -84,12 +84,26 @@ function groupByCategory(entries: NumberEntry[]): Category[] {
   });
 }
 
+async function safeCall(number: string) {
+  const url = `tel:${number.replace(/\s+/g, "")}`;
+  try {
+    const can = await Linking.canOpenURL(url);
+    if (!can) {
+      Alert.alert("تنبيه", "لا يمكن إجراء مكالمة على هذا الجهاز");
+      return;
+    }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("خطأ", "تعذّر الاتصال — تحقق من الرقم وأعد المحاولة");
+  }
+}
+
 function NumberCard({ entry, index, isAdmin, onDelete }: {
   entry: NumberEntry; index: number; isAdmin: boolean; onDelete?: (id: string) => void
 }) {
   const handleCall = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Linking.openURL(`tel:${entry.number}`);
+    safeCall(entry.number);
   };
 
   return (
@@ -402,24 +416,24 @@ export default function NumbersScreen() {
           <Ionicons name="alert-circle" size={16} color="#fff" />
           <Text style={styles.emergencyText}>طوارئ سريعة:</Text>
           {firstPolice && (
-            <TouchableOpacity onPress={() => Linking.openURL(`tel:${firstPolice.number}`)} style={styles.emergencyChip}>
+            <TouchableOpacity onPress={() => safeCall(firstPolice.number)} style={styles.emergencyChip}>
               <Ionicons name="shield" size={12} color="#3B82F6" />
               <Text style={[styles.emergencyChipText, { color: "#3B82F6" }]}>{firstPolice.name} {firstPolice.number}</Text>
             </TouchableOpacity>
           )}
           {firstAmbulance && (
-            <TouchableOpacity onPress={() => Linking.openURL(`tel:${firstAmbulance.number}`)} style={styles.emergencyChip}>
+            <TouchableOpacity onPress={() => safeCall(firstAmbulance.number)} style={styles.emergencyChip}>
               <Ionicons name="medkit" size={12} color="#EF4444" />
               <Text style={[styles.emergencyChipText, { color: "#EF4444" }]}>{firstAmbulance.name} {firstAmbulance.number}</Text>
             </TouchableOpacity>
           )}
           {!firstPolice && !firstAmbulance && (
             <>
-              <TouchableOpacity onPress={() => Linking.openURL("tel:999")} style={styles.emergencyChip}>
+              <TouchableOpacity onPress={() => safeCall("999")} style={styles.emergencyChip}>
                 <Ionicons name="shield" size={12} color="#3B82F6" />
                 <Text style={[styles.emergencyChipText, { color: "#3B82F6" }]}>شرطة 999</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => Linking.openURL("tel:1515")} style={styles.emergencyChip}>
+              <TouchableOpacity onPress={() => safeCall("1515")} style={styles.emergencyChip}>
                 <Ionicons name="medkit" size={12} color="#EF4444" />
                 <Text style={[styles.emergencyChipText, { color: "#EF4444" }]}>إسعاف 1515</Text>
               </TouchableOpacity>

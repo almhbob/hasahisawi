@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,29 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
+
+type OrgStatus = "none" | "pending" | "approved";
+
+async function fetchMyOrgStatus(token: string): Promise<OrgStatus> {
+  try {
+    const base = getApiUrl();
+    if (!base) return "none";
+    const res = await fetch(`${base}/api/institution-applications/mine/list`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return "none";
+    const rows: Array<{ status: string }> = await res.json();
+    if (!rows.length) return "none";
+    const s = rows[0].status;
+    if (s === "approved" || s === "signed") return "approved";
+    if (s === "pending" || s === "reviewing" || s === "under_review") return "pending";
+    return "none";
+  } catch {
+    return "none";
+  }
+}
 
 interface Props {
   delay?: number;
@@ -13,6 +36,17 @@ interface Props {
 
 export default function OrgInviteCard({ delay = 0 }: Props) {
   const router = useRouter();
+  const { token, isGuest } = useAuth();
+  const [status, setStatus] = useState<OrgStatus>("none");
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!token || isGuest) { setChecked(true); return; }
+    fetchMyOrgStatus(token).then(s => { setStatus(s); setChecked(true); });
+  }, [token, isGuest]);
+
+  // لا تظهر البطاقة إلا بعد الموافقة على الطلب واستيفاء المتطلبات
+  if (!checked || !token || isGuest || status !== "approved") return null;
 
   const handlePress = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -31,10 +65,10 @@ export default function OrgInviteCard({ delay = 0 }: Props) {
         <View style={styles.dot1} />
         <View style={styles.dot2} />
 
-        {/* شارة */}
+        {/* شارة التوثيق */}
         <View style={styles.badge}>
-          <Ionicons name="star" size={10} color={Colors.accent} />
-          <Text style={styles.badgeText}>للمؤسسات والجهات</Text>
+          <Ionicons name="shield-checkmark" size={10} color={Colors.primary} />
+          <Text style={styles.badgeText}>مؤسستك موثّقة ✓</Text>
         </View>
 
         {/* المحتوى */}
@@ -46,10 +80,10 @@ export default function OrgInviteCard({ delay = 0 }: Props) {
           </View>
 
           <View style={styles.textBlock}>
-            <Text style={styles.title}>سجِّل مؤسستك في حصاحيصاوي</Text>
-            <Text style={styles.sub}>الوصول لأكثر من ٥٠٠٠ مستخدم · التسجيل مجاني</Text>
+            <Text style={styles.title}>مؤسستك نشطة في حصاحيصاوي</Text>
+            <Text style={styles.sub}>يمكنك إدارة ملفك المؤسسي ومتابعة الطلبات والإشعارات</Text>
             <View style={styles.chips}>
-              {["المدارس", "المستشفيات", "الشركات", "الجمعيات"].map((t, i) => (
+              {["ملفك المؤسسي", "الطلبات", "الإشعارات", "الإحصاءات"].map((t, i) => (
                 <View key={i} style={styles.chip}>
                   <Text style={styles.chipText}>{t}</Text>
                 </View>
@@ -58,7 +92,7 @@ export default function OrgInviteCard({ delay = 0 }: Props) {
           </View>
         </View>
 
-        {/* زر */}
+        {/* زر الإدارة */}
         <TouchableOpacity onPress={handlePress} activeOpacity={0.82} style={styles.btn}>
           <LinearGradient
             colors={[Colors.primary, Colors.primary + "E0"]}
@@ -66,7 +100,7 @@ export default function OrgInviteCard({ delay = 0 }: Props) {
             end={{ x: 1, y: 0 }}
             style={styles.btnGrad}
           >
-            <Text style={styles.btnText}>قدّم طلب الانضمام</Text>
+            <Text style={styles.btnText}>إدارة مؤسستك</Text>
             <Ionicons name="arrow-back" size={16} color="#fff" />
           </LinearGradient>
         </TouchableOpacity>
@@ -105,10 +139,10 @@ const styles = StyleSheet.create({
   },
   badge: {
     flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end",
-    backgroundColor: Colors.accent + "1A", borderWidth: 1, borderColor: Colors.accent + "35",
+    backgroundColor: Colors.primary + "25", borderWidth: 1, borderColor: Colors.primary + "50",
     paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
   },
-  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.accent },
+  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primary },
 
   content: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
   iconWrap: {},

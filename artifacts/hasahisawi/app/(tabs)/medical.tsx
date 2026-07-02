@@ -1122,8 +1122,7 @@ export default function MedicalScreen() {
               <Text style={[tabSty.tabLabel, activeTab === tab.key && tabSty.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
-                <OrgInviteCard />
-</ScrollView>
+        </ScrollView>
       </View>
 
       {/* المحتوى */}
@@ -1165,6 +1164,7 @@ export default function MedicalScreen() {
         {activeTab === "appointments"  && <AppointmentsTab auth={auth} />}
         {activeTab === "consultations" && <ConsultationsTab auth={auth} />}
       </GuestGate>
+      <OrgInviteCard />
     </View>
   );
 }
