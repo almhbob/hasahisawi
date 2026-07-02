@@ -15,6 +15,17 @@ import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
+async function safeCall(number: string) {
+  const url = `tel:${number.replace(/\s+/g, "")}`;
+  try {
+    const can = await Linking.canOpenURL(url);
+    if (!can) { Alert.alert("تنبيه", "لا يمكن إجراء مكالمة على هذا الجهاز"); return; }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("خطأ", "تعذّر الاتصال — تحقق من الرقم وأعد المحاولة");
+  }
+}
+
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
 const BG     = Colors.bg   ?? "#0A1A10";
@@ -221,7 +232,7 @@ export default function MapScreen() {
       if (msg.type === "call" && msg.phone) {
         Alert.alert("اتصال", `هل تريد الاتصال بـ ${msg.phone}؟`, [
           { text: "إلغاء", style: "cancel" },
-          { text: "اتصال", onPress: () => Linking.openURL(`tel:${msg.phone}`) },
+          { text: "اتصال", onPress: () => safeCall(msg.phone) },
         ]);
       }
     } catch {}

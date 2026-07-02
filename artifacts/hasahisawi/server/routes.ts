@@ -7626,6 +7626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function ensureInstitutionApplicationsTables() {
     await query(`CREATE TABLE IF NOT EXISTS institution_applications (
       id SERIAL PRIMARY KEY,
+      user_id INTEGER,
       applicant_name VARCHAR(200) NOT NULL,
       applicant_email VARCHAR(200),
       applicant_phone VARCHAR(50),
@@ -7639,6 +7640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    await query(`ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS user_id INTEGER`).catch(() => {});
   }
 
   app.get("/api/institution-applications/contract-settings", async (_req, res) => {
@@ -7665,11 +7667,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/institution-applications", async (req, res) => {
     try {
       await ensureInstitutionApplicationsTables();
+      const sessionUser = await getSessionUser(req);
       const { applicant_name, applicant_email, applicant_phone, institution_name, institution_type, ...rest } = req.body;
       if (!applicant_name || !institution_name) return res.status(400).json({ error: "الاسم ومعلومات المؤسسة مطلوبة" });
       const r = await query(
-        `INSERT INTO institution_applications (applicant_name, applicant_email, applicant_phone, institution_name, institution_type, application_data) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [applicant_name, applicant_email||null, applicant_phone||null, institution_name, institution_type||null, JSON.stringify(rest)]
+        `INSERT INTO institution_applications (user_id, applicant_name, applicant_email, applicant_phone, institution_name, institution_type, application_data) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [sessionUser?.id || null, applicant_name, applicant_email||null, applicant_phone||null, institution_name, institution_type||null, JSON.stringify(rest)]
       );
       sendAdminNotifEmail("🏢 طلب انضمام مؤسسة جديد", {
         "المؤسسة": institution_name, "نوع المؤسسة": institution_type||"",
@@ -7679,6 +7682,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       void pushToAdmins("🏢 طلب انضمام مؤسسة", `${institution_name} — ${applicant_name}`, { screen: "admin", tab: "join_requests" });
       res.json(r.rows[0]);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/institution-applications/mine/list", async (req, res) => {
+    try {
+      await ensureInstitutionApplicationsTables();
+      const sessionUser = await getSessionUser(req);
+      if (!sessionUser?.id) return res.json([]);
+      const r = await query(
+        `SELECT id, institution_name AS inst_name, institution_type AS inst_type, status, signed_contract_url, created_at FROM institution_applications WHERE user_id=$1 ORDER BY created_at DESC`,
+        [sessionUser.id]
+      );
+      res.json(r.rows);
+    } catch { res.json([]); }
   });
 
   app.get("/api/institution-applications/:id", async (req, res) => {

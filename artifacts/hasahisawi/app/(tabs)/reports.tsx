@@ -446,6 +446,7 @@ export default function ReportsScreen() {
         await loadReports();
         resetForm();
         setTab("myReports");
+        setSubmitting(false);
         Alert.alert(
           "✅ تم إرسال البلاغ",
           `بلاغك بخصوص "${selectedIssue}" وصل للجهة المختصة\nسيتم التواصل معك على رقم ${phone.trim()} خلال 24-48 ساعة`,
