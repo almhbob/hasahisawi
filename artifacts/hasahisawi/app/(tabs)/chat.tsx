@@ -16,7 +16,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 import {
-  useApiChats, apiGetUsers, apiGetOrCreateChat,
+  useApiChats, apiGetUsers, apiGetOrCreateChat, apiMarkRead,
   getOtherUser, getMyUnread, ApiChat, ApiUser,
 } from "@/lib/api-chat";
 
@@ -35,13 +35,26 @@ function formatTime(ts: string | null): string {
 
 // ── بطاقة محادثة ─────────────────────────────────────────────────────────────
 
-function ChatCard({ chat, myId, onPress }: { chat: ApiChat; myId: number; onPress: () => void }) {
+function ChatCard({
+  chat, myId, onPress, onLongPress,
+}: {
+  chat: ApiChat;
+  myId: number;
+  onPress: () => void;
+  onLongPress?: () => void;
+}) {
   const other = getOtherUser(chat, myId);
   const unread = getMyUnread(chat, myId);
   const isMe = chat.last_sender_id === myId;
 
   return (
-    <TouchableOpacity style={styles.chatCard} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={styles.chatCard}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={0.75}
+      delayLongPress={400}
+    >
       <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
@@ -108,63 +121,75 @@ function NewChatModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalSheet}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>محادثة جديدة</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
-            </Pressable>
-          </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>محادثة جديدة</Text>
+              <Pressable onPress={onClose} hitSlop={12}>
+                <Ionicons name="close" size={22} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
 
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color={Colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="ابحث عن مستخدم..."
-              placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              cursorColor={Colors.primary}
-              selectionColor={Colors.primary + "60"}
-              autoCorrect={false}
-            />
-          </View>
-
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginTop: 32 }} />
-          ) : (
-            <FlatList
-              data={filtered}
-              keyExtractor={(i) => String(i.id)}
-              contentContainerStyle={{ paddingBottom: 32 }}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>لا يوجد مستخدمون</Text>
-              }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.userItem}
-                  onPress={() => startChat(item)}
-                  disabled={starting === item.id}
-                  activeOpacity={0.75}
-                >
-                  <UserAvatar name={item.name} avatarUrl={item.avatar_url} size={42} borderRadius={13} />
-                  <Text style={styles.userName}>{item.name}</Text>
-                  {starting === item.id ? (
-                    <ActivityIndicator size="small" color={Colors.primary} />
-                  ) : (
-                    <Ionicons name="chatbubble-outline" size={18} color={Colors.primary} />
-                  )}
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="ابحث عن مستخدم..."
+                placeholderTextColor={Colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+                cursorColor={Colors.primary}
+                selectionColor={Colors.primary + "60"}
+                autoCorrect={false}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               )}
-            />
-          )}
+            </View>
+
+            {loading ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginTop: 32 }} />
+            ) : (
+              <FlatList
+                data={filtered}
+                keyExtractor={(i) => String(i.id)}
+                contentContainerStyle={{ paddingBottom: 32 }}
+                ListEmptyComponent={
+                  <View style={styles.emptyWrap}>
+                    <Ionicons name="people-outline" size={42} color={Colors.textMuted} />
+                    <Text style={styles.emptyText}>لا يوجد مستخدمون</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.userItem}
+                    onPress={() => startChat(item)}
+                    disabled={starting === item.id}
+                    activeOpacity={0.75}
+                  >
+                    <UserAvatar name={item.name} avatarUrl={item.avatar_url} size={42} borderRadius={13} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.userName}>{item.name}</Text>
+                      <Text style={styles.userRole}>{item.role === "admin" ? "مدير" : "عضو"}</Text>
+                    </View>
+                    {starting === item.id ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <View style={styles.startChatBtn}>
+                        <Ionicons name="chatbubble-outline" size={15} color={Colors.primary} />
+                        <Text style={styles.startChatBtnText}>محادثة</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
         </View>
-      </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -176,11 +201,23 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { user, token, isGuest } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterTab, setFilterTab] = useState<"all" | "unread">("all");
 
   const myId = user?.id ?? 0;
   const { chats, loading, refresh } = useApiChats(isGuest ? null : token);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  const totalUnread = chats.reduce((sum, c) => sum + getMyUnread(c, myId), 0);
+
+  const filteredChats = chats.filter((c) => {
+    const other = getOtherUser(c, myId);
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q || other.name.toLowerCase().includes(q) || (c.last_message || "").toLowerCase().includes(q);
+    const matchTab = filterTab === "all" || getMyUnread(c, myId) > 0;
+    return matchSearch && matchTab;
+  });
 
   if (isGuest) {
     return <GuestGate title="سجّل الدخول للوصول إلى الدردشة والتواصل مع أهالي الحصاحيصا" />;
@@ -202,6 +239,19 @@ export default function ChatScreen() {
     } as any);
   }
 
+  function handleLongPress(chat: ApiChat) {
+    const other = getOtherUser(chat, myId);
+    const unread = getMyUnread(chat, myId);
+    Alert.alert(other.name, "خيارات المحادثة", [
+      { text: "فتح المحادثة", onPress: () => openConversation(chat) },
+      ...(unread > 0 ? [{
+        text: "تعليم كمقروء",
+        onPress: () => { apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
+      }] : []),
+      { text: "إلغاء", style: "cancel" as const },
+    ]);
+  }
+
   return (
     <View style={styles.container}>
       <ModernHeader
@@ -213,6 +263,55 @@ export default function ChatScreen() {
           </TouchableOpacity>
         }
       />
+
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+        <TextInput
+          style={styles.searchInputMain}
+          placeholder="بحث في المحادثات..."
+          placeholderTextColor={Colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          cursorColor={Colors.primary}
+          selectionColor={Colors.primary + "60"}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Filter tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, filterTab === "all" && styles.tabBtnActive]}
+          onPress={() => setFilterTab("all")}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.tabText, filterTab === "all" && styles.tabTextActive]}>الكل</Text>
+          {totalUnread > 0 && filterTab !== "all" && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{totalUnread > 99 ? "99+" : totalUnread}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, filterTab === "unread" && styles.tabBtnActive]}
+          onPress={() => setFilterTab("unread")}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.tabText, filterTab === "unread" && styles.tabTextActive]}>غير مقروء</Text>
+          {totalUnread > 0 && (
+            <View style={[styles.tabBadge, filterTab === "unread" && { backgroundColor: "rgba(255,255,255,0.3)" }]}>
+              <Text style={styles.tabBadgeText}>{totalUnread > 99 ? "99+" : totalUnread}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -228,15 +327,39 @@ export default function ChatScreen() {
             <Text style={styles.startBtnText}>ابدأ محادثة</Text>
           </TouchableOpacity>
         </View>
+      ) : filteredChats.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons
+            name={filterTab === "unread" ? "checkmark-done-outline" : "search-outline"}
+            size={56}
+            color={Colors.textMuted}
+          />
+          <Text style={styles.emptyTitle}>
+            {filterTab === "unread" ? "لا توجد رسائل غير مقروءة" : "لا توجد نتائج"}
+          </Text>
+          <Text style={styles.emptyText}>
+            {filterTab === "unread" ? "أنت على اطلاع تام!" : `لا يوجد ما يطابق "${search}"`}
+          </Text>
+          {filterTab === "unread" ? (
+            <TouchableOpacity style={styles.startBtn} onPress={() => setFilterTab("all")}>
+              <Text style={styles.startBtnText}>عرض الكل</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       ) : (
         <FlatList
-          data={chats}
+          data={filteredChats}
           keyExtractor={(c) => String(c.id)}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16, paddingTop: 8 }}
           ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
-              <ChatCard chat={item} myId={myId} onPress={() => openConversation(item)} />
+              <ChatCard
+                chat={item}
+                myId={myId}
+                onPress={() => openConversation(item)}
+                onLongPress={() => handleLongPress(item)}
+              />
             </Animated.View>
           )}
         />
@@ -275,7 +398,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
+  // Search bar
+  searchWrap: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: Colors.cardBg,
+    borderRadius: Colors.radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    ...Colors.shadow.card,
+  },
+  searchInputMain: {
+    flex: 1,
+    fontFamily: "Cairo_400Regular",
+    fontSize: 14,
+    color: Colors.textPrimary,
+    textAlign: "right",
+    includeFontPadding: false,
+  },
+
+  // Filter tabs
+  tabRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  tabBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  tabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  tabTextActive: { color: "#fff" },
+  tabBadge: {
+    backgroundColor: Colors.primary,
+    borderRadius: Colors.radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  tabBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
+
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
+
   chatCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -290,16 +476,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.divider,
     ...Colors.shadow.card,
   },
-  avatar: {
-    width: 48, height: 48,
-    borderRadius: Colors.radius.md,
-    backgroundColor: Colors.primary + "20",
-    borderWidth: 1.5,
-    borderColor: Colors.primary + "40",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.primary },
   chatInfo: { flex: 1 },
   chatRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
@@ -316,9 +492,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
-  separator: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 20 },
+
   emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary, textAlign: "center" },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
+  emptyWrap: { alignItems: "center", paddingVertical: 40, gap: 10 },
   startBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -330,6 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: Colors.radius.md,
   },
   startBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#fff" },
+
   fab: {
     position: "absolute",
     right: 20,
@@ -344,46 +522,58 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
+
+  // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: {
-    backgroundColor: "#0F1E16",
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: Colors.radius.xl,
     borderTopRightRadius: Colors.radius.xl,
-    maxHeight: "80%",
+    maxHeight: "82%",
     paddingTop: 8,
+  },
+  modalHandle: {
+    width: 44, height: 4, borderRadius: 2,
+    backgroundColor: Colors.divider,
+    alignSelf: "center",
+    marginTop: 8, marginBottom: 4,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   searchBar: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
-    margin: 16,
+    margin: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: Colors.cardBgElevated,
+    backgroundColor: Colors.bg,
     borderRadius: Colors.radius.md,
     borderWidth: 1,
-    borderColor: Colors.primary + "50",
+    borderColor: Colors.divider,
   },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", includeFontPadding: false },
-  userItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
-  userAvatar: {
-    width: 42, height: 42,
-    borderRadius: 21,
-    backgroundColor: Colors.primary + "20",
+  userItem: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  userName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  userRole: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  startChatBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.primary + "15",
     borderWidth: 1,
     borderColor: Colors.primary + "40",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  userName: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 15, color: Colors.textPrimary },
+  startChatBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -92,8 +92,9 @@ type MediaAsset = {
 const DEVICE_ID_KEY = "social_device_id";
 const USER_NAME_KEY = "social_user_name";
 const POSTS_CACHE_KEY = "social_posts";
+const BOOKMARKS_KEY = "social_bookmarks";
 
-const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر"];
+const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر", "صور", "طلب"];
 
 const CATEGORY_COLORS: Record<string, string> = {
   عام: Colors.primary,
@@ -102,6 +103,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   إعلان: "#E67E22",
   نقاش: "#C0392B",
   شكر: "#27AE60",
+  صور: "#16A085",
+  طلب: "#D35400",
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -111,6 +114,8 @@ const CATEGORY_ICONS: Record<string, string> = {
   إعلان: "megaphone-outline",
   نقاش: "chatbubbles-outline",
   شكر: "heart-outline",
+  صور: "images-outline",
+  طلب: "hand-right-outline",
 };
 
 const REACTIONS: { key: string; emoji: string; label: string; color: string }[] = [
@@ -958,7 +963,7 @@ function CommentsModal({
 // ─── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare,
+  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare, onBookmark, isBookmarked,
 }: {
   post: Post;
   index: number;
@@ -968,6 +973,8 @@ function PostCard({
   onComment: (post: Post) => void;
   onDelete: (id: number) => void;
   onShare: (post: Post) => void;
+  onBookmark: (id: number) => void;
+  isBookmarked: boolean;
 }) {
   const catColor = CATEGORY_COLORS[post.category] || Colors.primary;
   const catIcon = (CATEGORY_ICONS[post.category] || "globe-outline") as any;
@@ -1087,6 +1094,18 @@ function PostCard({
           <AnimatedPress style={styles.actionBtn} onPress={() => onShare(post)}>
             <Ionicons name="share-social-outline" size={16} color={Colors.textMuted} />
           </AnimatedPress>
+
+          {/* Bookmark */}
+          <AnimatedPress
+            style={[styles.actionBtn, isBookmarked && { backgroundColor: Colors.accent + "15", borderColor: Colors.accent + "50" }]}
+            onPress={() => onBookmark(post.id)}
+          >
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={16}
+              color={isBookmarked ? Colors.accent : Colors.textMuted}
+            />
+          </AnimatedPress>
         </View>
       </View>
     </Animated.View>
@@ -1117,10 +1136,15 @@ export default function SocialScreen() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
+  const [sortMode, setSortMode] = useState<"recent" | "popular">("recent");
+  const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
+  const [showSaved, setShowSaved] = useState(false);
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
     setDeviceId(id);
+    const bm = await AsyncStorage.getItem(BOOKMARKS_KEY);
+    if (bm) { try { setBookmarks(new Set(JSON.parse(bm))); } catch {} }
     if (auth.user?.name) {
       setUserName(auth.user.name);
       return;
@@ -1128,6 +1152,16 @@ export default function SocialScreen() {
     const saved = await AsyncStorage.getItem(USER_NAME_KEY);
     if (saved) setUserName(saved);
   }, [auth.user]);
+
+  const toggleBookmark = useCallback((postId: number) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId); else next.add(postId);
+      AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([...next])).catch(() => {});
+      return next;
+    });
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const loadPosts = useCallback(async (opts?: { quiet?: boolean; reset?: boolean; cat?: string }) => {
     const cat = opts?.cat ?? catFilter;
@@ -1284,6 +1318,12 @@ export default function SocialScreen() {
     loadPosts();
   };
 
+  const displayedPosts = useMemo(() => {
+    let ps = showSaved ? posts.filter(p => bookmarks.has(p.id)) : posts;
+    if (sortMode === "popular") ps = [...ps].sort((a, b) => b.likes_count - a.likes_count);
+    return ps;
+  }, [posts, sortMode, showSaved, bookmarks]);
+
   const handleComposePress = () => {
     if (auth.isGuest) {
       Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب للنشر في المجتمع.", [{ text: "حسناً" }]);
@@ -1327,6 +1367,30 @@ export default function SocialScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filters}
       >
+        {/* Sort toggle */}
+        <AnimatedPress
+          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#8E44AD", borderColor: "#8E44AD" }]}
+          onPress={() => setSortMode(s => s === "recent" ? "popular" : "recent")}
+          scaleDown={0.92}
+        >
+          <Ionicons
+            name={sortMode === "popular" ? "flame-outline" : "time-outline"}
+            size={12}
+            color={sortMode === "popular" ? "#fff" : Colors.textMuted}
+          />
+          <Text style={[styles.filterText, sortMode === "popular" && styles.filterTextActive]}>
+            {sortMode === "popular" ? "الأكثر إعجاباً" : "الأحدث"}
+          </Text>
+        </AnimatedPress>
+        {/* Bookmarks filter */}
+        <AnimatedPress
+          style={[styles.filterBtn, showSaved && { backgroundColor: Colors.accent, borderColor: Colors.accent }]}
+          onPress={() => setShowSaved(s => !s)}
+          scaleDown={0.92}
+        >
+          <Ionicons name="bookmark-outline" size={12} color={showSaved ? "#fff" : Colors.textMuted} />
+          <Text style={[styles.filterText, showSaved && styles.filterTextActive]}>المحفوظة</Text>
+        </AnimatedPress>
         {FILTERS.map((f) => {
           const active = catFilter === f;
           const color = f !== "الكل" ? (CATEGORY_COLORS[f] || Colors.primary) : Colors.primary;
@@ -1381,7 +1445,7 @@ export default function SocialScreen() {
         ]}
       >
         <FlatList
-          data={posts}
+          data={displayedPosts}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
@@ -1404,6 +1468,7 @@ export default function SocialScreen() {
               {!auth.isGuest ? (
                 <ComposeBar name={userName} onPress={handleComposePress} />
               ) : null}
+              {!showSaved && posts.length >= 3 && <StoriesRow posts={posts} />}
             </>
           }
           ListEmptyComponent={
@@ -1418,6 +1483,14 @@ export default function SocialScreen() {
                 <Text style={styles.emptyText}>{error}</Text>
                 <TouchableOpacity style={styles.emptyBtn} onPress={() => loadPosts({ reset: true })}>
                   <Text style={styles.emptyBtnText}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              </View>
+            ) : showSaved ? (
+              <View style={styles.empty}>
+                <Ionicons name="bookmark-outline" size={62} color={Colors.divider} />
+                <Text style={styles.emptyText}>لا توجد منشورات محفوظة</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowSaved(false)}>
+                  <Text style={styles.emptyBtnText}>تصفح المنشورات</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1445,6 +1518,8 @@ export default function SocialScreen() {
               onComment={openComments}
               onDelete={handleDelete}
               onShare={handleShare}
+              onBookmark={toggleBookmark}
+              isBookmarked={bookmarks.has(item.id)}
             />
           )}
         />
@@ -1475,6 +1550,55 @@ export default function SocialScreen() {
     </View>
   );
 }
+
+// ─── Stories Row ──────────────────────────────────────────────────────────────
+
+function StoriesRow({ posts }: { posts: Post[] }) {
+  const seen = new Set<string>();
+  const authors = posts
+    .filter(p => {
+      if (seen.has(p.author_name)) return false;
+      seen.add(p.author_name);
+      return true;
+    })
+    .slice(0, 9);
+
+  if (authors.length < 3) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={sr.row}
+    >
+      {authors.map((p, i) => {
+        const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+        return (
+          <View key={p.id} style={sr.item}>
+            <View style={[sr.ring, { borderColor: color }]}>
+              <UserAvatar name={p.author_name} avatarUrl={p.author_avatar} size={50} borderRadius={25} />
+            </View>
+            <Text style={sr.name} numberOfLines={1}>{p.author_name.split(" ")[0]}</Text>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const sr = StyleSheet.create({
+  row: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4, gap: 14, flexDirection: "row-reverse" },
+  item: { alignItems: "center", gap: 5, width: 64 },
+  ring: {
+    width: 58, height: 58, borderRadius: 29,
+    borderWidth: 2.5, alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.cardBg,
+  },
+  name: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary,
+    textAlign: "center", width: 64,
+  },
+});
 
 // ─── Compose Bar ──────────────────────────────────────────────────────────────
 
