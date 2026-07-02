@@ -21,6 +21,16 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
+async function safeCall(number: string) {
+  const url = `tel:${number.replace(/\s+/g, "")}`;
+  try {
+    const can = await Linking.canOpenURL(url);
+    if (!can) { Alert.alert("تنبيه", "لا يمكن إجراء مكالمة على هذا الجهاز"); return; }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("خطأ", "تعذّر الاتصال — تحقق من الرقم وأعد المحاولة");
+  }
+}
 
 // ══════════════════════════════════════════════════════
 // الأنواع
@@ -186,7 +196,7 @@ function DirectoryTab({ search, filter, facilities, t, isRTL, tr }: any) {
     Alert.alert(t("common", "contact"), t("common", "contact"), [
       { text: t("common", "cancel"), style: "cancel" },
       { text: "WhatsApp", onPress: () => Linking.openURL(`https://wa.me/${clean}`) },
-      { text: t("medical", "callPhone"), onPress: () => Linking.openURL(`tel:${phone}`) },
+      { text: t("medical", "callPhone"), onPress: () => safeCall(phone) },
     ]);
   };
 
@@ -939,7 +949,7 @@ function SpecialistsTab() {
                   </View>
                   <View style={spSty.callCol}>
                     {sp.phone && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${sp.phone}`)} style={spSty.callBtn}>
+                      <TouchableOpacity onPress={() => safeCall(sp.phone)} style={spSty.callBtn}>
                         <Ionicons name="call" size={18} color="#fff" />
                       </TouchableOpacity>
                     )}
@@ -999,7 +1009,7 @@ function SpecialistsTab() {
                 </View>
               ) : null; })()}
               {selected.phone && (
-                <TouchableOpacity onPress={() => Linking.openURL(`tel:${selected.phone}`)} style={spSty.callFullBtn}>
+                <TouchableOpacity onPress={() => safeCall(selected.phone)} style={spSty.callFullBtn}>
                   <Ionicons name="call" size={20} color="#fff" />
                   <Text style={spSty.callFullBtnText}>اتصل لحجز موعد — {selected.phone}</Text>
                 </TouchableOpacity>

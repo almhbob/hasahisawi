@@ -5925,7 +5925,7 @@ router.get("/institution-applications/mine/list", async (req: Request, res: Resp
     const user = await getSessionUser(req);
     if (!user) return res.json([]);
     const result = await query(
-      `SELECT id, inst_name, inst_type, status, created_at FROM institution_applications WHERE user_id = $1 ORDER BY created_at DESC`,
+      `SELECT id, inst_name, inst_type, status, signed_contract_url, created_at FROM institution_applications WHERE user_id = $1 ORDER BY created_at DESC`,
       [user.id]
     );
     return res.json(result.rows);

@@ -19,10 +19,12 @@ async function fetchMyOrgStatus(token: string): Promise<OrgStatus> {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return "none";
-    const rows: Array<{ status: string }> = await res.json();
+    const rows: Array<{ status: string; signed_contract_url?: string | null }> = await res.json();
     if (!rows.length) return "none";
-    const s = rows[0].status;
-    if (s === "approved" || s === "signed") return "approved";
+    const row = rows[0];
+    const s = row.status;
+    // المتطلبان: موافقة الإدارة + رفع العقد الموقع
+    if ((s === "approved") && row.signed_contract_url) return "approved";
     if (s === "pending" || s === "reviewing" || s === "under_review") return "pending";
     return "none";
   } catch {

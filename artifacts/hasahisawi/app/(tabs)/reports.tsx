@@ -242,6 +242,17 @@ type FeedbackItem = {
   created_at: string;
 };
 
+async function safeCall(number: string) {
+  const url = `tel:${number.replace(/\s+/g, "")}`;
+  try {
+    const can = await Linking.canOpenURL(url);
+    if (!can) { Alert.alert("تنبيه", "لا يمكن إجراء مكالمة على هذا الجهاز"); return; }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("خطأ", "تعذّر الاتصال — تحقق من الرقم وأعد المحاولة");
+  }
+}
+
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -518,7 +529,7 @@ export default function ReportsScreen() {
     Alert.alert(`تواصل مع ${agency.shortName}`, agency.phone, [
       { text: "إلغاء", style: "cancel" },
       agency.whatsapp ? { text: "واتساب", onPress: () => Linking.openURL(`https://wa.me/${agency.whatsapp!.replace(/\D/g, "")}`) } : null,
-      { text: "اتصال مباشر", onPress: () => Linking.openURL(`tel:${agency.phone}`) },
+      { text: "اتصال مباشر", onPress: () => safeCall(agency.phone) },
     ].filter(Boolean) as any);
   };
 
@@ -654,11 +665,11 @@ export default function ReportsScreen() {
                   <Text style={s.emergencyTitle}>حالات الطوارئ الفورية</Text>
                   <Text style={s.emergencySub}>للحرائق: 998 · للأمن: 999</Text>
                 </View>
-                <TouchableOpacity onPress={() => Linking.openURL("tel:999")} style={[s.emergencyCallBtn, { backgroundColor: "#3B82F6" }]}>
+                <TouchableOpacity onPress={() => safeCall("999")} style={[s.emergencyCallBtn, { backgroundColor: "#3B82F6" }]}>
                   <Ionicons name="call" size={16} color="#fff" />
                   <Text style={s.emergencyCallText}>999</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL("tel:998")} style={[s.emergencyCallBtn, { backgroundColor: "#EF4444" }]}>
+                <TouchableOpacity onPress={() => safeCall("998")} style={[s.emergencyCallBtn, { backgroundColor: "#EF4444" }]}>
                   <Ionicons name="call" size={16} color="#fff" />
                   <Text style={s.emergencyCallText}>998</Text>
                 </TouchableOpacity>
