@@ -23,8 +23,10 @@ import { LangProvider, getStoredLang } from "@/lib/lang-context";
 import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, Image } from "react-native";
 import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
+
+const APP_LOGO = require("@/assets/images/logo.png");
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { vibrateForType } from "@/lib/sounds";
@@ -325,8 +327,8 @@ export default function RootLayout() {
   // شاشة الانتظار أثناء صحوة الخادم (ثوانٍ فقط)
   if (!serverReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#070D0A", alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <Text style={{ fontSize: 32 }}>🌿</Text>
+      <View style={{ flex: 1, backgroundColor: "#070D0A", alignItems: "center", justifyContent: "center", gap: 20 }}>
+        <Image source={APP_LOGO} style={{ width: 110, height: 110, borderRadius: 24 }} resizeMode="contain" />
         <ActivityIndicator color="#2ECC71" size="large" />
         <Text style={{ color: "#2ECC71", fontFamily: "Cairo_600SemiBold", fontSize: 15 }}>
           جارٍ تحميل التطبيق...
