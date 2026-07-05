@@ -185,7 +185,8 @@ async function isAdminRequest(req: Request): Promise<boolean> {
   const submittedPin = pinHeader || pinBody;
   if (!submittedPin || submittedPin.length < 4 || submittedPin.length > 20) return false;
 
-  const { rows } = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
+  await ensureAdminSettings().catch(() => {});
+  const { rows } = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`).catch(() => ({ rows: [] as any[] }));
   const storedPin = rows[0]?.value || DEFAULT_ADMIN_PIN;
   return safeCompare(submittedPin, storedPin);
 }
@@ -195,7 +196,14 @@ function displayNameForFirebaseUser(user: FirebaseUserRecord): string {
   return user.displayName?.trim() || fromEmail || user.phoneNumber || "مستخدم";
 }
 
+async function ensureAdminSettings(): Promise<void> {
+  await query(`CREATE TABLE IF NOT EXISTS admin_settings (key VARCHAR(100) PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
+  const pin = process.env.DEFAULT_ADMIN_PIN || DEFAULT_ADMIN_PIN;
+  await query(`INSERT INTO admin_settings (key, value) VALUES ('admin_pin', $1) ON CONFLICT (key) DO NOTHING`, [pin]);
+}
+
 async function ensureUserColumns(): Promise<void> {
+  await ensureAdminSettings();
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
