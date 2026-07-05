@@ -62,6 +62,23 @@ export default function Users() {
     setSyncing(false);
   };
 
+  const saveSupervisorPermissions = async (u: User) => {
+    const raw = window.prompt("أدخل مسارات الأقسام التي يديرها المشرف مفصولة بفواصل. مثال: /transport, /lawyers, /medical", "/transport, /lawyers");
+    if (raw === null) return;
+    const sections = raw.split(/[\n,،]+/).map(x => x.trim()).filter(Boolean);
+    try {
+      const res = await apiFetch(`/admin/users/${u.id}/permissions`, {
+        method: "PUT",
+        body: JSON.stringify({ sections }),
+      });
+      if (!res.ok) throw new Error("فشل حفظ الصلاحيات");
+      alert("تم حفظ صلاحيات المشرف");
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: "moderator" } : x));
+    } catch (e: any) {
+      alert(e?.message || "تعذر حفظ الصلاحيات");
+    }
+  };
+
   useEffect(() => { load(); }, [load]);
 
   const executeAction = async () => {
@@ -317,6 +334,19 @@ export default function Users() {
                           }}
                         >
                           ⬇ تخفيض لعضو
+                        </button>
+                      )}
+
+                      {u.role !== "admin" && (
+                        <button
+                          onClick={() => saveSupervisorPermissions(u)}
+                          style={{
+                            padding: "5px 11px", borderRadius: 8, border: "1px solid rgba(96,165,250,0.35)",
+                            background: "rgba(96,165,250,0.08)", color: "#60a5fa",
+                            cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+                          }}
+                        >
+                          ⚙ صلاحيات الأقسام
                         </button>
                       )}
 
