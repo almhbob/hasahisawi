@@ -119,6 +119,7 @@ function AppRoutes() {
         <Route path="/medical-subscriptions" component={MedicalSubscriptions} />
         <Route path="/services"       component={Services} />
         <Route path="/lawyers"        component={LawyersAdmin} />
+        <Route path="/lawyer-applications" component={LawyersAdmin} />
         <Route path="/lawyer-subscriptions" component={LawyerSubscriptions} />
         <Route path="/app-version"    component={AppVersion} />
         <Route path="/activity-log"   component={ActivityLog} />

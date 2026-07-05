@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/Layout";
-import { apiJson } from "@/lib/api";
+import { apiFetch, apiJson } from "@/lib/api";
 import { toast } from "sonner";
 
 type ArchiveSource = "merchant" | "driver" | "travel_agency" | "women_service";
@@ -218,11 +218,12 @@ export default function ApplicationsArchive() {
   async function load() {
     setLoading(true);
     try {
-      const [merchantsRes, driversRes, travelRes, womenRes] = await Promise.allSettled([
+      const [merchantsRes, driversRes, travelRes, womenRes, archiveRes] = await Promise.allSettled([
         apiJson<any>("/admin/merchants"),
         apiJson<any[]>("/admin/transport/drivers"),
         apiJson<any>("/admin/travel-agencies/applications"),
         apiJson<any>("/admin/women-services"),
+        apiJson<any>("/admin/join-application-archives"),
       ]);
       const next: ApplicationRecord[] = [];
       if (merchantsRes.status === "fulfilled") {
@@ -241,6 +242,19 @@ export default function ApplicationsArchive() {
       }
       next.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       setRecords(next);
+      if (archiveRes.status === "fulfilled" && Array.isArray(archiveRes.value?.archives)) {
+        const serverSnapshots = archiveRes.value.archives.map((a: any) => ({
+          id: a.snapshot_id || String(a.id),
+          created_at: a.created_at,
+          count: Number(a.total_count || 0),
+          pending: Number(a.pending_count || 0),
+          records: [],
+        }));
+        const local = readSnapshots();
+        const merged = [...serverSnapshots, ...local].filter((v, i, arr) => arr.findIndex(x => x.id === v.id) === i).slice(0, 25);
+        setSnapshots(merged);
+        saveSnapshots(merged);
+      }
       toast.success(`تم تحميل ${next.length} استمارة`);
     } catch {
       toast.error("تعذر تحميل الأرشيف");
@@ -264,7 +278,7 @@ export default function ApplicationsArchive() {
 
   const pendingCount = records.filter(r => r.status_label.includes("انتظار") || r.status_label.includes("مراجعة") || r.status_label.includes("غير نشطة")).length;
 
-  function archiveCurrent() {
+  async function archiveCurrent() {
     const snapshot: Snapshot = {
       id: `archive-${Date.now()}`,
       created_at: new Date().toISOString(),
@@ -275,7 +289,16 @@ export default function ApplicationsArchive() {
     const next = [snapshot, ...snapshots];
     setSnapshots(next);
     saveSnapshots(next);
-    toast.success("تمت أرشفة لقطة جديدة داخل الإدارة");
+    try {
+      const res = await apiFetch("/admin/join-application-archives", {
+        method: "POST",
+        body: JSON.stringify({ snapshot_id: snapshot.id, records, note: "manual-dashboard-archive" }),
+      });
+      if (res.ok) toast.success("تمت أرشفة اللقطة في قاعدة البيانات");
+      else toast.warning("حُفظت اللقطة محلياً، وتعذر حفظها في الخادم");
+    } catch {
+      toast.warning("حُفظت اللقطة محلياً، وتعذر حفظها في الخادم");
+    }
   }
 
   function downloadAllJson() {

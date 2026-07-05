@@ -14,6 +14,7 @@ type Application = {
 };
 type Lawyer = {
   id: number; full_name: string; title: string; phone: string; specialties: string;
+  whatsapp?: string; email?: string; office_addr?: string; bar_number?: string; languages?: string; photo_url?: string;
   district: string; consult_fee: string; experience_y: number;
   is_featured: boolean; is_verified: boolean; is_active: boolean;
   contracts_count: number; created_at: string;
@@ -182,7 +183,10 @@ export default function Lawyers() {
 
   const loadLawyers = useCallback(async () => {
     setLoading(true);
-    try { setLawyers(Array.isArray(await apiJson<Lawyer[]>("/admin/lawyers")) ? await apiJson<Lawyer[]>("/admin/lawyers") : []); }
+    try {
+      const data = await apiJson<Lawyer[]>("/admin/lawyers");
+      setLawyers(Array.isArray(data) ? data : []);
+    }
     catch {} finally { setLoading(false); }
   }, []);
 
@@ -307,7 +311,7 @@ export default function Lawyers() {
     setLawyerEdit(l);
     setLawyerForm({
       full_name: l.full_name || "", title: l.title || "", specialties: l.specialties || "",
-      phone: l.phone || "", whatsapp: "", email: "", office_addr: "", district: l.district || "",
+      phone: l.phone || "", whatsapp: l.whatsapp || "", email: l.email || "", office_addr: l.office_addr || "", district: l.district || "",
       consult_fee: l.consult_fee || "", experience_y: l.experience_y || 0,
     });
   };

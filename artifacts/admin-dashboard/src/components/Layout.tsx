@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import AdminOrderAlerts from "@/components/AdminOrderAlerts";
+import AdminJoinRequestAlerts from "@/components/AdminJoinRequestAlerts";
 
 type NavItem = {
   path: string;
@@ -34,6 +35,8 @@ const NAV: NavItem[] = [
   { path: "/medical",               label: "الدليل الطبي",        icon: "🏥" },
   { path: "/medical-subscriptions", label: "اشتراكات العيادات",   icon: "🩺" },
   { path: "/lawyers",        label: "المحامون",            icon: "⚖️" },
+  { path: "/lawyer-subscriptions", label: "اشتراكات المحامين", icon: "💳" },
+  { path: "/lawyer-applications", label: "طلبات انضمام المحامين", icon: "📥" },
   { path: "/reports",        label: "بلاغات المواطنين",  icon: "📋" },
   { path: "/jobs",           label: "الوظائف",            icon: "💼" },
   { path: "/sports",         label: "الرياضة",            icon: "⚽" },
@@ -61,6 +64,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "hsl(222 47% 8%)" }}>
       <AdminOrderAlerts />
+      <AdminJoinRequestAlerts />
 
       {/* Sidebar */}
       <aside
