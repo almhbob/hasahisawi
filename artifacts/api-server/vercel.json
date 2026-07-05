@@ -10,16 +10,12 @@
   "ignoreCommand": "exit 0",
   "buildCommand": "node build.mjs",
   "installCommand": "corepack enable && corepack prepare pnpm@10 --activate && pnpm install --no-frozen-lockfile",
-  "functions": {
-    "api/**": {
-      "maxDuration": 60
-    }
-  },
   "builds": [
     {
       "src": "api/index.js",
       "use": "@vercel/node",
       "config": {
+        "maxDuration": 60,
         "maxLambdaSize": "50mb",
         "includeFiles": ["dist/**"]
       }
