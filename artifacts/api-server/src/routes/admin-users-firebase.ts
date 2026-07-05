@@ -210,11 +210,7 @@ async function ensureUserColumns(): Promise<void> {
 }
 
 function providerSummary(fu: FirebaseUserRecord): string[] {
-  const providers: string[] = Array.isArray((fu as any).providerData)
-    ? (fu as any).providerData
-        .map((p: any) => String(p?.providerId || ""))
-        .filter((providerId: string): providerId is string => providerId.length > 0)
-    : [];
+  const providers: string[] = Array.isArray(fu.providers) ? fu.providers.filter(Boolean) : [];
   if (!providers.length && fu.email) providers.push("password");
   if (!providers.length && fu.phoneNumber) providers.push("phone");
   return [...new Set<string>(providers)];
@@ -245,7 +241,8 @@ async function upsertFirebaseUser(fu: FirebaseUserRecord): Promise<"created" | "
       (!row.email && !!email) ||
       (!row.phone && !!phone) ||
       (!row.avatar_url && !!photo) ||
-      row.password_hash === "$firebase$";
+      row.password_hash === "$firebase$" ||
+      row.password_hash === FIREBASE_ONLY_PASSWORD_MARKER;
 
     if (!needsUpdate) return "skipped";
 
@@ -323,16 +320,20 @@ async function syncFirebaseUsersToPostgres(_detailLimit = 50): Promise<SyncSumma
       fu.photoURL || null,
     ]);
     try {
-      await query(
+      const result = await query(
         `INSERT INTO users (firebase_uid,name,email,phone,avatar_url,password_hash,role)
          VALUES ${placeholders}
-         ON CONFLICT (firebase_uid) DO UPDATE
+         ON CONFLICT (firebase_uid) WHERE firebase_uid IS NOT NULL DO UPDATE
            SET name=COALESCE(NULLIF(EXCLUDED.name,''),users.name),
                avatar_url=COALESCE(EXCLUDED.avatar_url,users.avatar_url),
-               email=COALESCE(EXCLUDED.email,users.email)`,
+               email=COALESCE(EXCLUDED.email,users.email)
+         RETURNING (xmax = 0) AS inserted`,
         params
       );
-      summary.updated += batch.length;
+      for (const row of result.rows) {
+        if (row.inserted) summary.created++;
+        else summary.updated++;
+      }
     } catch {
       // Fallback: process individually to handle email-conflict edge cases
       await Promise.allSettled(batch.map(async (fu) => {
