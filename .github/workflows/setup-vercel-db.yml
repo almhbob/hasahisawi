@@ -77,7 +77,7 @@ jobs:
           fi
 
           echo "🔍 Querying Railway for projects..."
-          PROJECTS_RAW=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+          PROJECTS_RAW=$(curl -s -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query":"{ projects { edges { node { id name environments { edges { node { id name } } } services { edges { node { id name } } } } } } }"}')
@@ -119,7 +119,7 @@ jobs:
               if variables:
                   payload["variables"] = variables
               req = urllib.request.Request(
-                  "https://backboard.railway.app/graphql/v2",
+                  "https://backboard.railway.com/graphql/v2",
                   data=json.dumps(payload).encode(),
                   headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
               )
@@ -141,9 +141,9 @@ jobs:
               proj = p_edge.get("node", {}) or {}
               proj_id = proj.get("id", "")
               proj_name = proj.get("name", "?")
-              # This is the Railway project linked from the Hasahisawi app settings.
-              # Never select an unrelated database (e.g. another app's Postgres).
-              if not str(proj_id).lower().startswith("4e3750d2"):
+              # Railway project containing the Hasahisawi API and its Postgres service.
+              # Never select an unrelated database from another app.
+              if str(proj_name).lower() != "sunny-peace":
                   continue
               envs = safe_edges(proj, "environments")
               svcs = safe_edges(proj, "services")
@@ -158,6 +158,8 @@ jobs:
                       svc = svc_edge.get("node", {}) or {}
                       svc_id = svc.get("id", "")
                       svc_name = svc.get("name", "?")
+                      if str(svc_name).lower() != "postgres":
+                          continue
 
                       for query_name in ["variables", "variablesForServiceDeployment"]:
                           try:
@@ -186,17 +188,25 @@ jobs:
             echo "⚠️  Not found via GraphQL — trying Railway CLI..."
             npm install -g @railway/cli@latest --quiet 2>/dev/null
 
-            PROJ_IDS=$(echo "$PROJECTS_RAW" | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          for p in ((d.get('data') or {}).get('projects') or {}).get('edges',[]):
-              pid=( p.get('node') or {}).get('id','')
-              if pid: print(pid)
-          " 2>/dev/null)
-
-            for PID in $PROJ_IDS; do
-              railway link --project "$PID" 2>/dev/null || true
-              DB_URL=$(railway variables --json 2>/dev/null | python3 -c "
+            TARGET=$(PROJECTS_RAW="$PROJECTS_RAW" python3 - <<'PYEOF'
+          import json, os
+          d=json.loads(os.environ["PROJECTS_RAW"])
+          for p in ((d.get("data") or {}).get("projects") or {}).get("edges", []):
+              proj=p.get("node") or {}
+              if str(proj.get("name", "")).lower() != "sunny-peace": continue
+              envs=((proj.get("environments") or {}).get("edges") or [])
+              svcs=((proj.get("services") or {}).get("edges") or [])
+              env=next(((e.get("node") or {}) for e in envs if str((e.get("node") or {}).get("name", "")).lower()=="production"), None)
+              svc=next(((s.get("node") or {}) for s in svcs if str((s.get("node") or {}).get("name", "")).lower()=="postgres"), None)
+              if env and svc:
+                  print("|".join([proj.get("id", ""), env.get("id", ""), svc.get("id", "")]))
+                  break
+          PYEOF
+            )
+            IFS='|' read -r PID EID SID <<< "$TARGET"
+            if [ -n "$PID" ] && [ -n "$EID" ] && [ -n "$SID" ]; then
+              railway link --project "$PID" --environment "$EID" --service "$SID" --json 2>/dev/null || true
+              DB_URL=$(railway variable list --json --service "$SID" --environment "$EID" 2>/dev/null | python3 -c "
           import json,sys
           try:
               d=json.load(sys.stdin)
@@ -205,8 +215,10 @@ jobs:
                   print(url)
           except: pass
           " 2>/dev/null)
-              [ -n "$DB_URL" ] && echo "✅ Found via CLI (project $PID)" && break
-            done
+              [ -n "$DB_URL" ] && echo "✅ Found DATABASE_URL via CLI in Hasahisawi Postgres service"
+            else
+              echo "❌ Could not resolve the sunny-peace/production/Postgres service IDs from Railway."
+            fi
           fi
 
           if [ -z "$DB_URL" ]; then
