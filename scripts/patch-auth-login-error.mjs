@@ -27,30 +27,17 @@ const firebaseExchangeRoute = `
 // يربط مستخدمي Firebase/Google بقاعدة Railway ويصدر backend token للتطبيق.
 router.post("/auth/firebase-exchange", authLimiter, async (req: Request, res: Response) => {
   try {
-    const { idToken, firebase_uid, name, email, role } = req.body as {
-      idToken?: string;
-      firebase_uid?: string;
-      name?: string;
-      email?: string | null;
-      role?: string;
-    };
+    const { idToken, name } = req.body as { idToken?: string; name?: string };
 
-    let uid = typeof firebase_uid === "string" ? firebase_uid.trim() : "";
-    let cleanEmail = typeof email === "string" && email.includes("@") ? email.trim().toLowerCase() : null;
-    let displayName = typeof name === "string" && name.trim() ? name.trim().slice(0, 100) : "مستخدم";
-
-    if (idToken) {
-      const decoded = await verifyIdToken(idToken).catch(() => null);
-      if (decoded?.uid) {
-        uid = decoded.uid;
-        cleanEmail = decoded.email ?? cleanEmail;
-        displayName = decoded.name || displayName;
-      }
+    // الهوية تُؤخذ فقط من idToken موقّع — لا نثق في firebase_uid/email/role القادمة من العميل.
+    const decoded = idToken ? await verifyIdToken(idToken).catch(() => null) : null;
+    if (!decoded?.uid) {
+      return res.status(401).json({ error: "رمز Firebase غير صالح أو منتهي" });
     }
-
-    if (!uid || uid.length < 6 || uid.length > 160) {
-      return res.status(400).json({ error: "رمز Firebase غير صالح" });
-    }
+    const uid = decoded.uid;
+    const cleanEmail = decoded.email && decoded.email_verified !== false ? decoded.email.toLowerCase() : null;
+    const displayName = decoded.name || (typeof name === "string" && name.trim() ? name.trim().slice(0, 100) : "مستخدم");
+    const role = "user";
 
     await query(\`ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128)\`);
     await query(\`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT\`);
