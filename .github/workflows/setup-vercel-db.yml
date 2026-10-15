@@ -175,6 +175,14 @@ jobs:
                                   print(f"  ✅ FOUND in {proj_name}/{env_name}/{svc_name} via {query_name}", file=sys.stderr)
                                   print(db)
                                   sys.exit(0)
+                          except urllib.error.HTTPError as ex:
+                              try:
+                                  payload = json.loads(ex.read())
+                                  errors = payload.get("errors") or []
+                                  message = errors[0].get("message", "") if errors else ""
+                              except Exception:
+                                  message = ""
+                              print(f"  skip {proj_name}/{env_name}/{svc_name}/{query_name}: HTTP {ex.code} {message[:180]}", file=sys.stderr)
                           except Exception as ex:
                               print(f"  skip {proj_name}/{env_name}/{svc_name}/{query_name}: {type(ex).__name__}", file=sys.stderr)
 
@@ -205,16 +213,33 @@ jobs:
             )
             IFS='|' read -r PID EID SID <<< "$TARGET"
             if [ -n "$PID" ] && [ -n "$EID" ] && [ -n "$SID" ]; then
-              railway link --project "$PID" --environment "$EID" --service "$SID" --json 2>/dev/null || true
-              DB_URL=$(railway variable list --json --service "$SID" --environment "$EID" 2>/dev/null | python3 -c "
+              if railway link --project "$PID" --environment "$EID" --service "$SID" --json >/dev/null 2>&1; then
+                echo "✅ Linked Railway CLI to Hasahisawi Postgres service"
+              else
+                echo "⚠️ Railway CLI could not link to the target service"
+              fi
+              VARS_RAW=$(railway variable list --json --service "$SID" --environment "$EID" 2>/dev/null || true)
+              DB_URL=$(printf '%s' "$VARS_RAW" | python3 -c "
           import json,sys
           try:
               d=json.load(sys.stdin)
-              url=d.get('DATABASE_URL','')
+              url=d.get('DATABASE_URL','') if isinstance(d,dict) else ''
+              if not url and isinstance(d,dict) and isinstance(d.get('variables'),dict):
+                  url=d['variables'].get('DATABASE_URL','')
+              if not url and isinstance(d,list):
+                  url=next((x.get('value','') for x in d if isinstance(x,dict) and x.get('name',x.get('key'))=='DATABASE_URL'), '')
               if url and ('postgres' in url.lower() or 'shortline' in url.lower()):
                   print(url)
           except: pass
           " 2>/dev/null)
+              printf '%s' "$VARS_RAW" | python3 -c "
+          import json,sys
+          try:
+              d=json.load(sys.stdin)
+              keys=sorted(d.keys()) if isinstance(d,dict) else sorted({str(x.get('name',x.get('key',''))) for x in d if isinstance(x,dict)}) if isinstance(d,list) else []
+              print('Railway variable names visible (values hidden): ' + ', '.join(k for k in keys if k))
+          except: print('Railway CLI returned no parseable variable list')
+          "
               [ -n "$DB_URL" ] && echo "✅ Found DATABASE_URL via CLI in Hasahisawi Postgres service"
             else
               echo "❌ Could not resolve the sunny-peace/production/Postgres service IDs from Railway."

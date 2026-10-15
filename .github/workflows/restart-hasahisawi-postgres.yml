@@ -1,0 +1,73 @@
+name: Recover Hasahisawi PostgreSQL
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recover-postgres:
+    name: Restart Hasahisawi PostgreSQL safely
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Restart the correct Railway Postgres service and verify API connectivity
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN is not configured in GitHub Actions."
+            exit 1
+          fi
+
+          PROJECTS_RAW=$(curl -fsS -X POST "https://backboard.railway.com/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ projects { edges { node { id name environments { edges { node { id name } } } services { edges { node { id name } } } } } } }"}')
+
+          TARGET=$(PROJECTS_RAW="$PROJECTS_RAW" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["PROJECTS_RAW"])
+          for edge in ((d.get("data") or {}).get("projects") or {}).get("edges", []):
+              project = edge.get("node") or {}
+              if str(project.get("name", "")).lower() != "sunny-peace":
+                  continue
+              environments = ((project.get("environments") or {}).get("edges") or [])
+              services = ((project.get("services") or {}).get("edges") or [])
+              environment = next(((x.get("node") or {}) for x in environments
+                                  if str((x.get("node") or {}).get("name", "")).lower() == "production"), None)
+              postgres = next(((x.get("node") or {}) for x in services
+                               if str((x.get("node") or {}).get("name", "")).lower() == "postgres"), None)
+              app = next(((x.get("node") or {}) for x in services
+                          if str((x.get("node") or {}).get("name", "")).lower() == "hasahisawi"), None)
+              if environment and postgres and app:
+                  print("|".join([project.get("id", ""), environment.get("id", ""), postgres.get("id", "")]))
+                  break
+          PY
+          )
+          IFS='|' read -r PROJECT_ID ENVIRONMENT_ID POSTGRES_ID <<< "$TARGET"
+          if [ -z "${PROJECT_ID:-}" ] || [ -z "${ENVIRONMENT_ID:-}" ] || [ -z "${POSTGRES_ID:-}" ]; then
+            echo "Could not uniquely identify sunny-peace/production/Postgres alongside the Hasahisawi service; no changes made."
+            exit 1
+          fi
+
+          npm install -g @railway/cli@latest --quiet
+          railway link --project "$PROJECT_ID" --environment "$ENVIRONMENT_ID" --service "$POSTGRES_ID" --json >/dev/null
+          echo "Restarting only the Postgres service in sunny-peace/production (no rebuild or data deletion)."
+          railway restart --service "$POSTGRES_ID" --yes --json >/dev/null
+
+          echo "Waiting for the API to reconnect to PostgreSQL..."
+          for i in $(seq 1 18); do
+            STATUS=$(curl -sS --max-time 15 "https://api-server-gilt-ten.vercel.app/api/readyz" || true)
+            DB_CONNECTED=$(printf '%s' "$STATUS" | python3 -c 'import json,sys; print(str(bool(json.load(sys.stdin).get("checks",{}).get("database"))).lower())' 2>/dev/null || echo false)
+            echo "[$i/18] database_connected=$DB_CONNECTED"
+            if [ "$DB_CONNECTED" = "true" ]; then
+              echo "PostgreSQL is reachable from the production API."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Postgres restart completed, but the production API still cannot connect. Check Railway deployment logs and DATABASE_URL."
+          exit 1
