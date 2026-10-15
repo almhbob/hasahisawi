@@ -54,7 +54,15 @@ jobs:
           fi
 
           npm install -g @railway/cli@latest --quiet
-          railway link --project "$PROJECT_ID" --environment "$ENVIRONMENT_ID" --service "$POSTGRES_ID" --json >/dev/null
+          if ! railway link --project "$PROJECT_ID" --environment "$ENVIRONMENT_ID" --service "$POSTGRES_ID" --json >/dev/null 2>&1; then
+            # Some Railway account/workspace tokens must be supplied via RAILWAY_API_TOKEN.
+            export RAILWAY_API_TOKEN="$RAILWAY_TOKEN"
+            unset RAILWAY_TOKEN
+            if ! railway link --project "$PROJECT_ID" --environment "$ENVIRONMENT_ID" --service "$POSTGRES_ID" --json >/dev/null 2>&1; then
+              echo "Railway rejected both project-token and account-token CLI modes; no restart was performed."
+              exit 1
+            fi
+          fi
           echo "Restarting only the Postgres service in sunny-peace/production (no rebuild or data deletion)."
           railway restart --service "$POSTGRES_ID" --yes --json >/dev/null
 
