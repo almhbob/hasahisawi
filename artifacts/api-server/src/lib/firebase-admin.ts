@@ -41,6 +41,7 @@ export function getFirebaseAdmin(): admin.app.App | null {
 export async function verifyIdToken(idToken: string): Promise<{
   uid: string;
   email?: string;
+  email_verified?: boolean;
   name?: string;
   phone?: string;
 } | null> {
@@ -51,6 +52,7 @@ export async function verifyIdToken(idToken: string): Promise<{
     return {
       uid: decoded.uid,
       email: decoded.email,
+      email_verified: decoded.email_verified,
       name: (decoded as { name?: string }).name,
       phone: decoded.phone_number,
     };

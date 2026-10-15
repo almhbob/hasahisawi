@@ -2782,39 +2782,13 @@ router.patch("/auth/me/complete-profile", async (req: Request, res: Response) =>
       const tok = req.headers.authorization?.slice(7) ?? "";
       const isJwt = tok.split(".").length === 3 && tok.startsWith("eyJ");
       if (isJwt) {
-        // 1. حاول التحقق الكامل عبر Firebase Admin
+        // الهوية تُقبل فقط من رمز Firebase تم التحقق من توقيعه عبر Firebase Admin.
+        // لا نفك تشفير JWT غير موقّع ولا نقبل firebase_uid من الـ body،
+        // لأن ذلك يسمح لأي شخص بانتحال حساب أي مستخدم ببريده فقط.
         const decoded = await verifyIdToken(tok).catch(() => null);
-        let uidToUse: string | undefined = decoded?.uid;
-
-        // 2. إذا فشل التحقق → فكّ تشفير الـ JWT بدون تحقق (آمن لهذا endpoint المنخفض الخطر)
-        //    Firebase JWTs تحمل UID في حقل user_id أو sub
-        if (!uidToUse) {
-          try {
-            const payload = JSON.parse(
-              Buffer.from(tok.split(".")[1], "base64url").toString("utf8")
-            );
-            uidToUse = (payload.user_id as string | undefined)
-                    || (payload.sub    as string | undefined);
-          } catch {}
-        }
-
-        // 3. fallback: firebase_uid من الـ body (الكود الجديد في التطبيق)
-        if (!uidToUse && typeof req.body.firebase_uid === "string") {
-          uidToUse = req.body.firebase_uid;
-        }
-
-        // ابحث أولاً بـ firebase_uid ثم بالبريد الإلكتروني من الـ JWT (لمستخدمي backend مع Firebase)
-        let jwtEmail: string | undefined;
-        if (uidToUse || !user) {
-          // استخرج email من payload الـ JWT لاستخدامه كـ fallback
-          try {
-            const parts = tok.split(".");
-            if (parts.length === 3) {
-              const p = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-              jwtEmail = (p.email as string | undefined) || undefined;
-            }
-          } catch {}
-        }
+        const uidToUse: string | undefined = decoded?.uid;
+        const jwtEmail: string | undefined =
+          decoded?.email && decoded.email_verified !== false ? decoded.email : undefined;
 
         if (uidToUse) {
           const r = await query(`SELECT * FROM users WHERE firebase_uid = $1`, [uidToUse]);
@@ -5333,25 +5307,24 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
       email?: string;
       role?: string;
     };
-    let { firebase_uid, name, email, role } = body;
+    let { name } = body;
 
-    // التحقق المُفضّل: idToken عبر Firebase Admin SDK
-    if (body.idToken) {
-      const verified = await verifyIdToken(body.idToken);
-      if (verified) {
-        firebase_uid = verified.uid;
-        if (!email && verified.email) email = verified.email;
-        if (!name && verified.name) name = verified.name;
-      } else if (!firebase_uid) {
-        return res.status(401).json({ error: "Invalid Firebase ID token" });
-      }
-    }
+    // الهوية والبريد يُؤخذان حصراً من idToken موقّع تم التحقق منه عبر Firebase Admin.
+    // قيم firebase_uid/email القادمة من الـ body تُتجاهل تماماً لمنع انتحال الحسابات
+    // (ومنها الحصول على صلاحية admin بإرسال بريد المطور).
+    if (!body.idToken) return res.status(400).json({ error: "idToken مطلوب" });
+    const verified = await verifyIdToken(body.idToken);
+    if (!verified) return res.status(401).json({ error: "رمز Firebase غير صالح أو منتهي" });
 
-    if (!firebase_uid) return res.status(400).json({ error: "firebase_uid أو idToken مطلوب" });
+    const firebase_uid = verified.uid;
+    const email: string | undefined =
+      verified.email && verified.email_verified !== false ? verified.email : undefined;
+    if (!name && verified.name) name = verified.name;
 
     // ترتيب الصلاحيات: منع تخفيض الدور
     const roleRank: Record<string, number> = { user: 0, moderator: 1, admin: 2 };
-    let requestedRole = ["user", "admin", "moderator"].includes(role ?? "") ? (role as string) : "user";
+    // الدور لا يُقبل من العميل أبداً — الترقية تتم فقط من لوحة الإدارة أو عبر قائمة المطور أدناه.
+    let requestedRole = "user";
 
     // المطور الرئيسي يحصل دائماً على صلاحية admin
     const ADMIN_EMAILS = ["almhbob.iii@gmail.com"];
