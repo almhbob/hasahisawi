@@ -1,0 +1,98 @@
+name: Backup Hasahisawi Database (encrypted)
+
+# نسخة احتياطية مشفّرة لقاعدة بيانات المستخدمين.
+# المستودع عام، لذلك لا يُرفع أي ملف إلا بعد تشفيره بـ GPG بعبارة سر من GitHub Secrets.
+#
+# الأسرار المطلوبة (Settings → Secrets and variables → Actions):
+#   DATABASE_URL        رابط Postgres العام (shortline.proxy.rlwy.net) من مشروع sunny-peace
+#   BACKUP_PASSPHRASE   عبارة سر طويلة لتشفير النسخة — احفظها في مكان آمن خارج GitHub
+#
+# فك التشفير والاسترجاع:
+#   gpg --batch --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+#       -d hasahisawi-YYYYMMDD-HHMM.dump.gpg > hasahisawi.dump
+#   pg_restore --no-owner --no-acl -d "$TARGET_DATABASE_URL" hasahisawi.dump
+
+on:
+  workflow_dispatch:
+  schedule:
+    # يومياً 03:17 بتوقيت السعودية (00:17 UTC)
+    - cron: '17 0 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hasahisawi-db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump → GPG → artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          missing=0
+          [ -n "$DATABASE_URL" ] || { echo "::error::DATABASE_URL secret is not set"; missing=1; }
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::BACKUP_PASSPHRASE secret is not set — refusing to upload an unencrypted dump from a public repository"
+            missing=1
+          elif [ "${#BACKUP_PASSPHRASE}" -lt 20 ]; then
+            echo "::error::BACKUP_PASSPHRASE must be at least 20 characters"
+            missing=1
+          fi
+          exit $missing
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          PGCONNECT_TIMEOUT: '20'
+        run: |
+          set -euo pipefail
+          umask 077
+          STAMP=$(date -u +%Y%m%d-%H%M)
+          OUT="hasahisawi-${STAMP}.dump.gpg"
+
+          # تأكيد أن القاعدة تعمل وتحتوي على المستخدمين قبل أخذ النسخة
+          USERS=$(/usr/lib/postgresql/17/bin/psql "$DATABASE_URL" -Atqc "SELECT count(*) FROM users" || echo "ERR")
+          if [ "$USERS" = "ERR" ]; then
+            echo "::error::Database is unreachable — nothing was backed up"
+            exit 1
+          fi
+          echo "users rows: $USERS"
+
+          # الملف الخام لا يُكتب على القرص — يُشفَّر مباشرة من الـ pipe
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl \
+            | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+                  --passphrase-fd 3 -o "$OUT" 3<<<"$BACKUP_PASSPHRASE"
+
+          # تحقق أن الملف المشفّر سليم ويُفك ويقرأه pg_restore
+          gpg --batch --pinentry-mode loopback --passphrase-fd 3 -d "$OUT" 3<<<"$BACKUP_PASSPHRASE" 2>/dev/null \
+            | /usr/lib/postgresql/17/bin/pg_restore --list >/dev/null
+          ls -lh "$OUT"
+          echo "BACKUP_FILE=$OUT" >> "$GITHUB_ENV"
+          echo "### ✅ Backup OK — $OUT ($USERS users)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error
