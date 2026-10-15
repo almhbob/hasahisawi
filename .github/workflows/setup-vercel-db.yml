@@ -107,10 +107,11 @@ jobs:
           echo ""
           echo "🔍 Scanning all project/environment/service variable combinations..."
 
-          DB_URL=$(echo "$PROJECTS_RAW" | python3 - <<'PYEOF'
+          DB_URL=$(PROJECTS_RAW="$PROJECTS_RAW" python3 - <<'PYEOF'
           import json, sys, os, urllib.request, urllib.error
 
-          data = json.loads(sys.stdin.read())
+          # A here-document owns stdin, so read the Railway response from env.
+          data = json.loads(os.environ.get("PROJECTS_RAW", ""))
           token = os.environ["RAILWAY_TOKEN"]
 
           def gql(query, variables=None):
@@ -140,6 +141,10 @@ jobs:
               proj = p_edge.get("node", {}) or {}
               proj_id = proj.get("id", "")
               proj_name = proj.get("name", "?")
+              # This is the Railway project linked from the Hasahisawi app settings.
+              # Never select an unrelated database (e.g. another app's Postgres).
+              if not str(proj_id).lower().startswith("4e3750d2"):
+                  continue
               envs = safe_edges(proj, "environments")
               svcs = safe_edges(proj, "services")
               print(f"  Project: {proj_name} ({len(envs)} envs, {len(svcs)} services)", file=sys.stderr)
