@@ -1,7 +1,4 @@
-providers = []
-
-[phases.setup]
-nixPkgs = ["nodejs_22"]
+providers = ["..."]
 
 [phases.install]
 cmds = ["corepack enable && corepack prepare pnpm@10 --activate && pnpm install --no-frozen-lockfile"]
