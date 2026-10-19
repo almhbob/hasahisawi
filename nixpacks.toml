@@ -1,10 +1,10 @@
 providers = ["..."]
 
 [phases.install]
-cmds = ["corepack enable && corepack prepare pnpm@10 --activate && pnpm install --no-frozen-lockfile"]
+cmds = ["pnpm install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = ["node artifacts/api-server/build.mjs"]
+cmds = ["pnpm --filter @workspace/api-server run build"]
 
 [start]
 cmd = "node --enable-source-maps artifacts/api-server/dist/index.mjs"
