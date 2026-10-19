@@ -1,10 +1,10 @@
 providers = ["..."]
 
 [phases.install]
-cmds = ["pnpm install --no-frozen-lockfile"]
+cmds = ["npm install -g pnpm@10.33.0 && pnpm install --filter @workspace/api-server... --ignore-scripts"]
 
 [phases.build]
-cmds = ["pnpm --filter @workspace/api-server run build"]
+cmds = ["cd artifacts/api-server && node build.mjs"]
 
 [start]
 cmd = "node --enable-source-maps artifacts/api-server/dist/index.mjs"

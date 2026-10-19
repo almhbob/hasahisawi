@@ -15,28 +15,33 @@ function applyPr2TypeFixes() {
   const adminPath = 'artifacts/api-server/src/routes/admin-users-firebase.ts';
   if (fs.existsSync(adminPath)) {
     let admin = fs.readFileSync(adminPath, 'utf8');
-    admin = replaceOrThrow(
-      admin,
-      `function providerSummary(fu: FirebaseUserRecord): string[] {
-  const providers = Array.isArray((fu as any).providerData)
-    ? (fu as any).providerData.map((p: any) => String(p?.providerId || "")).filter(Boolean)
-    : [];
-  if (!providers.length && fu.email) providers.push("password");
-  if (!providers.length && fu.phoneNumber) providers.push("phone");
-  return [...new Set(providers)];
-}`,
-      `function providerSummary(fu: FirebaseUserRecord): string[] {
-  const providers: string[] = Array.isArray((fu as any).providerData)
-    ? (fu as any).providerData
-        .map((p: any) => String(p?.providerId || ""))
-        .filter((providerId: string): providerId is string => providerId.length > 0)
-    : [];
-  if (!providers.length && fu.email) providers.push("password");
-  if (!providers.length && fu.phoneNumber) providers.push("phone");
-  return [...new Set<string>(providers)];
-}`,
-      'Firebase providerSummary typing',
-    );
+    const alreadyTypedProviderSummary =
+      admin.includes('const providers: string[] = Array.isArray(fu.providers)') &&
+      admin.includes('return [...new Set<string>(providers)];');
+    if (!alreadyTypedProviderSummary) {
+      admin = replaceOrThrow(
+        admin,
+        `function providerSummary(fu: FirebaseUserRecord): string[] {
+    const providers = Array.isArray((fu as any).providerData)
+      ? (fu as any).providerData.map((p: any) => String(p?.providerId || "")).filter(Boolean)
+      : [];
+    if (!providers.length && fu.email) providers.push("password");
+    if (!providers.length && fu.phoneNumber) providers.push("phone");
+    return [...new Set(providers)];
+  }`,
+        `function providerSummary(fu: FirebaseUserRecord): string[] {
+    const providers: string[] = Array.isArray((fu as any).providerData)
+      ? (fu as any).providerData
+          .map((p: any) => String(p?.providerId || ""))
+          .filter((providerId: string): providerId is string => providerId.length > 0)
+      : [];
+    if (!providers.length && fu.email) providers.push("password");
+    if (!providers.length && fu.phoneNumber) providers.push("phone");
+    return [...new Set<string>(providers)];
+  }`,
+        'Firebase providerSummary typing',
+      );
+    }
     fs.writeFileSync(adminPath, admin);
   }
 
