@@ -139,7 +139,7 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
 
-pnpmfileChecksum: sha256-/A7bTaxuUz/P5ylm/fLc5tAeJVwHhCo6crXfPO5c6JQ=
+pnpmfileChecksum: sha256-7Ob+LZJNRfZ9xG0vQmwPgE72tcq3UhifvFlTPH4uuKc=
 
 importers:
 
