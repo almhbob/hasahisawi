@@ -92,5 +92,8 @@
       "rollup>@rollup/rollup-win32-ia32-msvc": "-",
       "rollup>@rollup/rollup-win32-x64-msvc": "-"
     }
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
