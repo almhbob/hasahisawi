@@ -15,6 +15,10 @@ function applyPr2TypeFixes() {
   const adminPath = 'artifacts/api-server/src/routes/admin-users-firebase.ts';
   if (fs.existsSync(adminPath)) {
     let admin = fs.readFileSync(adminPath, 'utf8');
+    const alreadyTypedProviderSummary =
+      admin.includes('const providers: string[] = Array.isArray(fu.providers)') &&
+      admin.includes('return [...new Set<string>(providers)];');
+    if (!alreadyTypedProviderSummary) {
     admin = replaceOrThrow(
       admin,
       `function providerSummary(fu: FirebaseUserRecord): string[] {
@@ -37,6 +41,7 @@ function applyPr2TypeFixes() {
 }`,
       'Firebase providerSummary typing',
     );
+    }
     fs.writeFileSync(adminPath, admin);
   }
 
