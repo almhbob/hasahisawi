@@ -3,7 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { canQueueRequest, isOnline, queueOfflineRequest, syncOfflineQueue } from "@/lib/offline-queue";
 
-const USER_TOKEN_KEY = "auth_backend_token";
+// Must match TOKEN_KEY in lib/auth-context.tsx (the only key that is ever written on login)
+const USER_TOKEN_KEY = "auth_session_token";
 
 const DEFAULT_PRODUCTION_API_URL = "https://api-server-gilt-ten.vercel.app";
 

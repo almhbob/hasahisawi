@@ -141,7 +141,7 @@ export default function SickLeaveScreen() {
   // Check if user is doctor
   useEffect(() => {
     if (!token) return;
-    fetchWithTimeout(`${getApiUrl()}/medical/staff/profile`, {
+    fetchWithTimeout(`${getApiUrl()}/api/medical/staff/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(d => {
       if (d.profile?.staff_type === "doctor") setIsDoctor(true);
@@ -153,7 +153,7 @@ export default function SickLeaveScreen() {
     if (endDate < startDate) return Alert.alert("خطأ", "تاريخ الانتهاء قبل تاريخ البداية");
     setFormLoading(true);
     try {
-      const r = await fetchWithTimeout(`${getApiUrl()}/medical/sick-leaves`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/medical/sick-leaves`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ patient_user_id: parseInt(patientId), leave_type: leaveType, start_date: startDate, end_date: endDate, diagnosis: diagnosis.trim(), institution_name: institution.trim() }),

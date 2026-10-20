@@ -95,6 +95,8 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 28 : insets.top + 12;
   const date = useMemo(() => new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" }), []);
   const { user } = useAuth();
+  // First name of the signed-in user; guests see «زائر» (was hardcoded to the developer's name)
+  const displayName = (user?.name?.trim().split(/\s+/)[0]) || "زائر";
   const visibleServices = useMemo(() => {
     const gender = normalizeHomeGender(user?.gender);
     if (gender === "male" && user?.role !== "admin") return SERVICES.filter(item => item.id !== "women");
@@ -146,9 +148,9 @@ export default function HomeScreen() {
         <View style={styles.body}>
           <Animated.View entering={FadeInDown.delay(130).springify()} style={styles.greetingCard}>
             <LinearGradient colors={Colors.gradients.glass} style={StyleSheet.absoluteFill} />
-            <View style={styles.avatar}><Text style={styles.avatarText}>ع</Text></View>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>{greeting()}، عاصم</Text>
+              <Text style={styles.greeting}>{greeting()}، {displayName}</Text>
               <Text style={styles.dateText}>{date}</Text>
             </View>
             <View style={styles.onlineBadge}><Text style={styles.onlineText}>جاهز</Text></View>
@@ -157,7 +159,7 @@ export default function HomeScreen() {
           <View style={styles.sectionHead}>
             <View>
               <Text style={styles.sectionTitle}>الخدمات</Text>
-              <Text style={styles.sectionSub}>{SERVICES.length} خدمة في مكان واحد</Text>
+              <Text style={styles.sectionSub}>{visibleServices.length} خدمة في مكان واحد</Text>
             </View>
             <View style={styles.sectionMark} />
           </View>

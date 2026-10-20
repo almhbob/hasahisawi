@@ -172,7 +172,7 @@ function TicketCard({
           <View style={[styles.qrBox, { width:80, height:80, padding:6 }]}>
             {booking.verify_token ? (
               <QRCode
-                value={`${getApiUrl()}/travel/verify/${booking.verify_token}`}
+                value={`${getApiUrl()}/api/travel/verify/${booking.verify_token}`}
                 size={68}
                 backgroundColor="#ffffff"
                 color="#000000"
@@ -259,7 +259,7 @@ function PaymentInstructions({
 
   useEffect(() => {
     if (!route?.company_id) return;
-    fetchWithTimeout(`${getApiUrl()}/travel/companies/${route.company_id}/payment`)
+    fetchWithTimeout(`${getApiUrl()}/api/travel/companies/${route.company_id}/payment`)
       .then(r => r.json()).then(setPayInfo).catch(()=>{});
   }, [route]);
 
@@ -268,7 +268,7 @@ function PaymentInstructions({
     setSubmitting(true);
     try {
       const token = (user as any)?._token || "";
-      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${booking.id}/submit-payment`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings/${booking.id}/submit-payment`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
         body: JSON.stringify({ payment_ref: payRef }),
@@ -410,7 +410,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
   const [newBooking, setNewBooking]= useState<TravelBooking | null>(null);
 
   useEffect(() => {
-    fetchWithTimeout(`${getApiUrl()}/travel/companies`)
+    fetchWithTimeout(`${getApiUrl()}/api/travel/companies`)
       .then(r => r.json())
       .then(d => setCompanies(Array.isArray(d) ? d : []))
       .catch(() => {});
@@ -420,7 +420,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
     if (!fromCity || !toCity) { Alert.alert("تنبيه","اختر مدينة الانطلاق والوجهة"); return; }
     setLoading(true);
     try {
-      const url = `${getApiUrl()}/travel/routes?from_city=${encodeURIComponent(fromCity)}&to_city=${encodeURIComponent(toCity)}`;
+      const url = `${getApiUrl()}/api/travel/routes?from_city=${encodeURIComponent(fromCity)}&to_city=${encodeURIComponent(toCity)}`;
       const r   = await fetchWithTimeout(url);
       const data = await r.json();
       if (!r.ok) throw new Error();
@@ -436,7 +436,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
     setSubmitting(true);
     try {
       const token = (user as any)?._token || "";
-      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
         body: JSON.stringify({
@@ -690,7 +690,7 @@ function MyTickets({ user }: { user: any }) {
     setLoading(true);
     try {
       const token = (user as any)?._token || "";
-      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings`, {
         headers:{ Authorization:`Bearer ${token}` },
       });
       const data = await r.json();
@@ -707,7 +707,7 @@ function MyTickets({ user }: { user: any }) {
       { text:"إلغاء التذكرة", style:"destructive", onPress: async () => {
         try {
           const token = (user as any)?._token || "";
-          const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${booking.id}/cancel`, {
+          const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings/${booking.id}/cancel`, {
             method:"PATCH", headers:{ Authorization:`Bearer ${token}` },
           });
           if (r.ok) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); load(); }
@@ -721,7 +721,7 @@ function MyTickets({ user }: { user: any }) {
     if (!rescheduleModal || !newDate) return;
     try {
       const token = (user as any)?._token || "";
-      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${rescheduleModal.id}/reschedule`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings/${rescheduleModal.id}/reschedule`, {
         method:"PATCH",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
         body: JSON.stringify({ new_date: newDate }),
@@ -738,7 +738,7 @@ function MyTickets({ user }: { user: any }) {
     setSubmittingPay(true);
     try {
       const token = (user as any)?._token || "";
-      const r = await fetchWithTimeout(`${getApiUrl()}/travel/bookings/${payModal.id}/submit-payment`, {
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/travel/bookings/${payModal.id}/submit-payment`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
         body: JSON.stringify({ payment_ref: payRef }),
@@ -891,7 +891,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
   const [showContract, setShowContract] = useState(false);
 
   useEffect(() => {
-    fetchWithTimeout(`${getApiUrl()}/travel/companies`)
+    fetchWithTimeout(`${getApiUrl()}/api/travel/companies`)
       .then(r => r.json())
       .then(d => setCompanies(Array.isArray(d) ? d : []))
       .catch(() => {});

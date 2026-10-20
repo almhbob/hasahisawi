@@ -238,7 +238,8 @@ function AuthGate() {
 function RootLayoutNav() {
   return (
     <>
-      <StatusBar style="light" />
+      {/* Dark icons: most screens use the light #F7F9F8 background */}
+      <StatusBar style="dark" />
       <AuthGate />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }} />
