@@ -17,7 +17,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -341,8 +341,8 @@ export default function RatingsScreen() {
             if (isGuest) { Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب لإضافة جهة جديدة."); return; }
             setShowAddEntity(true);
           }}>
-            <View style={s.addBtn}>
-              <Ionicons name="add" size={22} color="#fff" />
+            <View style={headerUI.iconBtn}>
+              <Ionicons name="add" size={22} color={Colors.textPrimary} />
             </View>
           </AnimatedPress>
         }
@@ -363,17 +363,17 @@ export default function RatingsScreen() {
         </View>
 
         {/* Type tabs */}
-        <View style={s.tabRow}>
+        <View style={[headerUI.segmentWrap, s.tabRow]}>
           {TABS.map((tab) => {
             const tc = TYPE_CONFIG[tab.key];
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={[s.tabBtn, activeTab === tab.key && { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.22)" }]}
+                style={[headerUI.segment, s.tabBtn, activeTab === tab.key && headerUI.segmentActive]}
                 onPress={() => { setActiveTab(tab.key); setCatFilter("الكل"); setSearch(""); }}
               >
-                <MaterialCommunityIcons name={tc.icon as any} size={14} color={activeTab === tab.key ? "#fff" : "rgba(255,255,255,0.75)"} />
-                <Text style={[s.tabBtnText, activeTab === tab.key && { color: "#fff" }]}>{tab.label}</Text>
+                <MaterialCommunityIcons name={tc.icon as any} size={14} color={activeTab === tab.key ? Colors.primaryDeep : Colors.textSecondary} />
+                <Text style={[headerUI.segmentText, s.tabBtnText, activeTab === tab.key && headerUI.segmentTextActive]}>{tab.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -679,16 +679,16 @@ export default function RatingsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  addBtn: { width: 38, height: 38, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
 
   statsRow: { flexDirection: "row", justifyContent: "space-around" },
   statItem: { alignItems: "center" },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.78)", marginTop: 1 },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
 
-  tabRow: { flexDirection: "row", gap: 8 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.75)" },
+  // Layout-only overrides: keep the original "row" child order inside the header.
+  tabRow: { flexDirection: "row" },
+  tabBtn: { flexDirection: "row", gap: 5, paddingHorizontal: 6 },
+  tabBtnText: { fontSize: 12 },
 
   filterSection: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },

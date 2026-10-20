@@ -31,7 +31,7 @@ import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { LoadError } from "@/components/ui/LoadState";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 export type LostItem = {
@@ -459,14 +459,14 @@ export default function LostItemsScreen() {
         icon="search-outline"
         rightSlot={
           lostCount > 0 ? (
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{lostCount}</Text>
+            <View style={headerUI.badge}>
+              <Text style={headerUI.badgeText}>{lostCount}</Text>
             </View>
           ) : undefined
         }
       >
         <AnimatedPress
-          style={styles.addBtn}
+          style={[headerUI.primaryBtn, styles.addBtn]}
           onPress={() => {
             if (auth.isGuest) {
               Alert.alert("تسجيل مطلوب", "يجب إنشاء حساب للإبلاغ عن المفقودات.", [{ text: "حسناً" }]);
@@ -475,8 +475,8 @@ export default function LostItemsScreen() {
             setShowAddModal(true);
           }}
         >
-          <Ionicons name="add" size={20} color={Colors.cardBg} />
-          <Text style={styles.addBtnText}>إبلاغ عن مفقود</Text>
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={headerUI.primaryBtnText}>إبلاغ عن مفقود</Text>
         </AnimatedPress>
       </ModernHeader>
 
@@ -584,14 +584,7 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
-  countBadge: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
-  countText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
-  addBtn: {
-    backgroundColor: Colors.primaryDeep, borderRadius: Colors.radius.md,
-    paddingHorizontal: 14, paddingVertical: 9,
-    flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start",
-  },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.cardBg },
+  addBtn: { alignSelf: "flex-start" },
   filters: {
     flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16,
     paddingVertical: 10, backgroundColor: Colors.cardBg,

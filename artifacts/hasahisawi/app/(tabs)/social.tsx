@@ -22,7 +22,7 @@ import {
 import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -1341,22 +1341,22 @@ export default function SocialScreen() {
         title="المجتمع"
         icon="people-outline"
         rightSlot={
-          <TouchableOpacity style={styles.newPostFab} onPress={handleComposePress}>
-            <Ionicons name="create-outline" size={19} color="#fff" />
-            <Text style={styles.newPostFabText}>نشر</Text>
+          <TouchableOpacity style={headerUI.primaryBtn} onPress={handleComposePress}>
+            <Ionicons name="create-outline" size={18} color="#fff" />
+            <Text style={headerUI.primaryBtnText}>نشر</Text>
           </TouchableOpacity>
         }
       >
         <View style={styles.headerMeta}>
           {isAdmin && (
             <View style={styles.adminBadge}>
-              <Ionicons name="shield-checkmark" size={12} color={Colors.accentLight} />
+              <Ionicons name="shield-checkmark" size={12} color={Colors.textPrimary} />
               <Text style={styles.adminBadgeText}>مدير</Text>
             </View>
           )}
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>مباشر</Text>
+          <View style={headerUI.statusPill}>
+            <View style={headerUI.statusDot} />
+            <Text style={headerUI.statusText}>مباشر</Text>
           </View>
         </View>
       </ModernHeader>
@@ -1644,23 +1644,10 @@ const styles = StyleSheet.create({
 
   headerMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   adminBadge: {
-    backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: Colors.radius.sm, alignItems: "center", gap: 4, flexDirection: "row-reverse",
+    backgroundColor: Colors.header.control, height: 26, paddingHorizontal: 10,
+    borderRadius: 13, alignItems: "center", gap: 4, flexDirection: "row-reverse",
   },
-  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accentLight },
-  newPostFab: {
-    backgroundColor: "rgba(255,255,255,0.22)", paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: Colors.radius.pill, flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
-  },
-  newPostFabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  liveBadge: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
-  },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#fff" },
-  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary },
 
   filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
   filterBtn: {

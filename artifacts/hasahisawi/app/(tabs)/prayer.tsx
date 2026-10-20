@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal,
   ActivityIndicator, Platform, Switch,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -16,7 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 // ولا يُشغّل أي صوت من داخل التطبيق نفسه.
 import * as Notifications from "expo-notifications";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
@@ -578,10 +577,10 @@ export default function PrayerScreen() {
         icon="moon-outline"
         rightSlot={(
           <View style={s.headerActions}>
-            <Pressable style={s.settingsBtn} onPress={() => { setEditSettings(settings); setSettingsVisible(true); }}>
-              <Ionicons name="settings-outline" size={20} color="#fff" />
+            <Pressable style={headerUI.iconBtn} onPress={() => { setEditSettings(settings); setSettingsVisible(true); }}>
+              <Ionicons name="settings-outline" size={20} color={Colors.textPrimary} />
             </Pressable>
-            <Pressable style={s.fmtBtn} onPress={() => setFmt24(v => !v)}>
+            <Pressable style={headerUI.iconBtn} onPress={() => setFmt24(v => !v)}>
               <Text style={s.fmtBtnText}>{fmt24 ? "24" : "12"}</Text>
             </Pressable>
           </View>
@@ -590,11 +589,6 @@ export default function PrayerScreen() {
 
       {/* آية اليوم */}
       <Animated.View entering={FadeIn.duration(600)} style={s.verseCard}>
-        <LinearGradient
-          colors={["rgba(129,140,248,0.12)", "rgba(10,15,12,0.6)"]}
-          style={StyleSheet.absoluteFill as any}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        />
         <Text style={s.verseLabel}>✦ آية اليوم</Text>
         <Text style={s.verseText}>{dailyVerse.text}</Text>
         <Text style={s.verseSurah}>— {dailyVerse.surah}</Text>
@@ -1064,26 +1058,19 @@ export default function PrayerScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   headerActions: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  settingsBtn: {
-    width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center", justifyContent: "center",
-  },
-  fmtBtn: {
-    width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center", justifyContent: "center",
-  },
-  fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
 
   // ── آية اليوم ──
   verseCard: {
     marginHorizontal: 16, marginTop: 10, marginBottom: 2,
     borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: "rgba(129,140,248,0.22)",
+    backgroundColor: Colors.cardBg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
     overflow: "hidden", gap: 6,
   },
   verseLabel: {
     fontFamily: "Cairo_600SemiBold", fontSize: 11,
-    color: "#818CF8", textAlign: "right",
+    color: Colors.primaryDeep, textAlign: "right",
   },
   verseText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17,
@@ -1092,7 +1079,7 @@ const s = StyleSheet.create({
   },
   verseSurah: {
     fontFamily: "Cairo_400Regular", fontSize: 12,
-    color: "#818CF880", textAlign: "right",
+    color: Colors.textSecondary, textAlign: "right",
   },
 
   // ── شريط التبويبات القابل للتمرير ──
@@ -1361,10 +1348,10 @@ const ms = StyleSheet.create({
   overlay:  { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
   sheet: {
-    backgroundColor: "#0D1910",
+    backgroundColor: Colors.bg,
     borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     maxHeight: "88%", paddingHorizontal: 20, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: Colors.primary + "30",
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
   },
   handle: {
     width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.textMuted + "50",

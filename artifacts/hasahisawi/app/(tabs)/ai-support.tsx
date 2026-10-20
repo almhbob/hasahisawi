@@ -12,7 +12,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import BrandPattern from "@/components/BrandPattern";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const isRTL = I18nManager.isRTL;
@@ -175,14 +175,14 @@ export default function AiSupportScreen() {
         title="المساعد الذكي"
         icon={quotaExceeded ? "moon-outline" : "sparkles"}
         rightSlot={
-          <TouchableOpacity onPress={fetchStatus} style={s.refreshBtn}>
-            <Ionicons name="refresh-outline" size={18} color="#fff" />
+          <TouchableOpacity onPress={fetchStatus} style={headerUI.iconBtn}>
+            <Ionicons name="refresh-outline" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
         }
       >
-        <View style={s.statusRow}>
-          <View style={[s.statusDot, isOnline ? s.statusDotOnline : s.statusDotOffline]} />
-          <Text style={[s.statusTxt, isOnline ? s.statusTxtOnline : s.statusTxtOffline]}>
+        <View style={[headerUI.statusPill, s.statusRow, !isOnline && s.statusRowOffline]}>
+          <View style={[headerUI.statusDot, !isOnline && s.statusDotOffline]} />
+          <Text style={[headerUI.statusText, !isOnline && s.statusTxtOffline]}>
             {isOnline ? "متصل" : `مؤقتاً غير متاح${status?.resetIn ? ` — يعود ${status.resetIn}` : ""}`}
           </Text>
         </View>
@@ -284,14 +284,10 @@ const s = StyleSheet.create({
   aiAvatarSmall: { width: 26, height: 26, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center", marginLeft: 6 },
   aiAvatarSmallLocal: { backgroundColor: "#F5A623" },
 
-  statusRow:   { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  statusDot:   { width: 7, height: 7, borderRadius: Colors.radius.pill },
-  statusDotOnline:  { backgroundColor: "#fff" },
-  statusDotOffline: { backgroundColor: "#FFE38A" },
-  statusTxt:   { fontSize: 12, fontFamily: "Cairo_400Regular" },
-  statusTxtOnline:  { color: "rgba(255,255,255,0.92)" },
-  statusTxtOffline: { color: "#FFE38A" },
-  refreshBtn:  { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
+  statusRow:   { alignSelf: "flex-end" },
+  statusRowOffline: { backgroundColor: Colors.accentSoft },
+  statusDotOffline: { backgroundColor: Colors.accent },
+  statusTxtOffline: { color: Colors.accentDeep },
 
   quotaBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,

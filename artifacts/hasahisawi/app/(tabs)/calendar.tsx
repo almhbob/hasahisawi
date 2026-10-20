@@ -9,7 +9,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -197,8 +197,8 @@ export default function CalendarScreen() {
         title={t('calendar', 'title')}
         icon="calendar"
         rightSlot={(
-          <AnimatedPress onPress={goToday} style={s.todayBtn} scaleDown={0.92}>
-            <Text style={s.todayBtnText}>{t('calendar', 'today')}</Text>
+          <AnimatedPress onPress={goToday} style={headerUI.secondaryBtn} scaleDown={0.92}>
+            <Text style={headerUI.secondaryBtnText}>{t('calendar', 'today')}</Text>
           </AnimatedPress>
         )}
       />
@@ -365,12 +365,6 @@ const cal = StyleSheet.create({
 // ─── Page Styles ─────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  todayBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm,
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.28)",
-  },
-  todayBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
   monthNav: {
     alignItems: "center",
     justifyContent: "space-between", paddingHorizontal: 24, paddingVertical: 16,

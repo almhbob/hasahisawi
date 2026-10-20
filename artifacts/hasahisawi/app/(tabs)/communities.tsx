@@ -15,7 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -728,19 +728,19 @@ export default function CommunitiesScreen() {
         icon="people"
         rightSlot={
           <AnimatedPress
-            style={[styles.regBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+            style={[headerUI.primaryBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => setShowRegister(true)}
           >
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.regBtnText}>سجّل جاليتك</Text>
+            <Text style={headerUI.primaryBtnText}>سجّل جاليتك</Text>
           </AnimatedPress>
         }
       >
         {/* Search */}
-        <View style={[styles.searchBox, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[headerUI.search, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={headerUI.searchInput}
             placeholder="ابحث باسم الجالية أو المنطقة..."
             placeholderTextColor={Colors.textMuted}
             value={search}
@@ -840,18 +840,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
 
   // Header
-  regBtn: {
-    backgroundColor: "rgba(255,255,255,0.20)", borderRadius: Colors.radius.md,
-    paddingHorizontal: 14, paddingVertical: 9,
-    flexDirection: "row-reverse", alignItems: "center", gap: 6,
-  },
-  regBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff" },
-  searchBox: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(255,255,255,0.92)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)",
-    paddingHorizontal: 12, paddingVertical: 10,
-  },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
 
   // Filters
   filtersScroll: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.divider },
