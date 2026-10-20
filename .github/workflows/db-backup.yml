@@ -1,0 +1,61 @@
+name: DB Backup (in-server copies)
+
+# Copies each Hasahisawi Postgres database into a new database on the SAME
+# Railway server (e.g. backup_20261020_1630). Data never leaves Railway, so no
+# personal data is uploaded to this public repository. Verifies row counts.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.db-backup-trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: sunny,  project: 4e3750d2-5221-479b-8085-66d31758e83e, env: 28cc17ed-7b04-4e49-a284-ada04c98f3fb, svc: 87f54873-4dee-483a-ad03-a6803a3e277a }
+          - { name: lively, project: e82d86db-7b87-4446-9968-f60934f618b4, env: f708e9d6-bbfa-4562-9a58-3e41977b40ed, svc: 984dd90a-b068-4089-a823-859d353c02ca }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-18
+      - name: Copy ${{ matrix.target.name }} into an in-server backup database
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          BIN=/usr/lib/postgresql/18/bin
+          URL=$(bash scripts/ops/railway-db-url.sh ${{ matrix.target.project }} ${{ matrix.target.env }} ${{ matrix.target.svc }})
+          echo "::add-mask::$URL"
+          BK="backup_$(date -u +%Y%m%d_%H%M)"
+          BK_URL=$(printf '%s' "$URL" | sed -E "s#/([^/?]+)\?#/${BK}?#")
+          echo "::add-mask::$BK_URL"
+          $BIN/psql "$URL" -v ON_ERROR_STOP=1 -qc "CREATE DATABASE ${BK}"
+          $BIN/pg_dump "$URL" --format=custom --no-owner --no-acl -f /tmp/main.dump
+          $BIN/pg_restore --no-owner --no-acl -d "$BK_URL" /tmp/main.dump 2>/tmp/restore.err || echo "::warning title=pg_restore::$(grep -c ERROR /tmp/restore.err) non-fatal errors (verified by counts below)"
+          rm -f /tmp/main.dump
+          A=$($BIN/psql "$URL" -Atqc "select count(*) from users")
+          B=$($BIN/psql "$BK_URL" -Atqc "select count(*) from users")
+          T=$($BIN/psql "$BK_URL" -Atqc "select count(*) from information_schema.tables where table_schema='public'")
+          [ "$A" = "$B" ] || { echo "::error::user count mismatch main=$A backup=$B"; exit 1; }
+          MISMATCH=0
+          for t in $($BIN/psql "$URL" -Atqc "select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE'"); do
+            x=$($BIN/psql "$URL" -Atqc "select count(*) from \"$t\"")
+            y=$($BIN/psql "$BK_URL" -Atqc "select count(*) from \"$t\"" 2>/dev/null || echo missing)
+            [ "$x" = "$y" ] || { MISMATCH=$((MISMATCH+1)); echo "mismatch $t main=$x backup=$y"; }
+          done
+          [ "$MISMATCH" = 0 ] || { echo "::error::$MISMATCH tables differ between main and backup"; exit 1; }
+          echo "::notice title=backup ${{ matrix.target.name }}::database ${BK} created on the same server — users=${B}, tables=${T}"
