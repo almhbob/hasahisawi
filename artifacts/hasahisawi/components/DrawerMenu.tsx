@@ -57,7 +57,7 @@ const GROUPS: Group[] = [
     label: "خدمات مجتمعية",
     items: [
       { title: "بلاغات",      icon: "megaphone-outline",  route: "/(tabs)/reports",     color: Colors.accent  },
-      { title: "المفقودون",   icon: "eye-outline",        route: "/(tabs)/missing",     color: Colors.cyber   },
+      { title: "المفقودات",   icon: "eye-outline",        route: "/(tabs)/missing",     color: Colors.cyber   },
       { title: "المجتمع",     icon: "chatbubbles-outline",route: "/(tabs)/social",      color: Colors.primary },
       { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
       { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC", femaleOnly: true },
@@ -79,7 +79,6 @@ const GROUPS: Group[] = [
     label: "تسوّق ومطاعم",
     items: [
       { title: "متاجر المجتمع",   icon: "bag-handle-outline",    route: "/stores",             color: Colors.accent  },
-      { title: "بوابة التاجر",    icon: "storefront-outline",    route: "/store-portal",       color: Colors.primary },
       { title: "المطاعم والكافيهات", icon: "restaurant-outline", route: "/(tabs)/restaurants", color: "#F97316"      },
       { title: "سوق المتاجر",     icon: "cart-outline",          route: "/(tabs)/product-showcase", color: Colors.cyber },
     ],
@@ -102,19 +101,7 @@ const GROUPS: Group[] = [
       { title: "مساحة التهنئة",    icon: "sparkles-outline",  route: "/(tabs)/greetings", color: "#D4AF37"  },
       { title: "مناسبتي",          icon: "gift-outline",       route: "/(tabs)/occasions", color: "#D97706"  },
       { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#C084FC"  },
-    ],
-  },
-  {
-    label: "إبداع وتصميم",
-    items: [
-      { title: "معرض التصاميم", icon: "color-palette-outline", route: "/(tabs)/design-gallery", color: "#A855F7" },
-    ],
-  },
-  {
-    label: "هدايا وتواصل",
-    items: [
-      { title: "زواجل — أرسل هديتك", icon: "gift-outline", route: "/(tabs)/zawajil", color: "#EC4899" },
-      { title: "بوابة مدير زواجل", icon: "shield-outline", route: "/(tabs)/zawajil-manager", color: "#EC4899" },
+      { title: "زواجل — أرسل هديتك", icon: "gift-outline",    route: "/(tabs)/zawajil",   color: "#EC4899"  },
     ],
   },
   {
@@ -125,21 +112,21 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    label: "الاتصالات",
+    label: "دليل المدينة",
     items: [
       { title: "شركات الاتصالات", icon: "cellular-outline", route: "/(tabs)/telecom", color: "#0EA5E9" },
-    ],
-  },
-  {
-    label: "الصناعة والإنتاج",
-    items: [
       { title: "المصانع والإنتاج المحلي", icon: "hardware-chip-outline", route: "/(tabs)/factories", color: "#F97316" },
+      { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#8B5CF6" },
+      { title: "معرض التصاميم", icon: "color-palette-outline", route: "/(tabs)/design-gallery", color: "#A855F7" },
     ],
   },
   {
-    label: "النقابات والجمعيات",
+    // Partners sign in inside these portals with their own accounts, so they stay
+    // reachable — but grouped here instead of mixed into consumer services.
+    label: "بوابات الشركاء",
     items: [
-      { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#8B5CF6" },
+      { title: "بوابة التاجر",     icon: "storefront-outline", route: "/store-portal",           color: Colors.primary },
+      { title: "بوابة مدير زواجل", icon: "shield-outline",     route: "/(tabs)/zawajil-manager", color: "#EC4899" },
     ],
   },
   {
@@ -156,7 +143,7 @@ const GROUPS: Group[] = [
 ];
 
 const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  available:    { label: "متاح",   color: "#3EFF9C", bg: "#3EFF9C18", border: "#3EFF9C45" },
+  available:    { label: "متاح",   color: Colors.primaryDeep, bg: Colors.primary + "18", border: Colors.primary + "45" },
   soon:         { label: "قريباً", color: "#FBBF24", bg: "#FBBF2418", border: "#FBBF2445" },
   maintenance:  { label: "صيانة",  color: "#F87171", bg: "#F8717118", border: "#F8717145" },
 };
@@ -340,7 +327,7 @@ export default function DrawerMenu() {
             // فلتر العناصر النسائية — لا تظهر للرجال
             const visibleItems = group.items.filter(item => {
               if (!item.femaleOnly) return true;
-              return user?.gender !== "male";
+              return user?.gender !== "male" || user?.role === "admin";
             });
             if (visibleItems.length === 0) return null;
             return (
