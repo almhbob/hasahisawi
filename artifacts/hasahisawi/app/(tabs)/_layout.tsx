@@ -398,8 +398,8 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 10,
-    color: "rgba(74,106,140,0.85)",
+    fontSize: 11,
+    color: Colors.textSecondary, // was rgba(74,106,140,0.85) — 3.9:1; now 5.5:1
   },
   activeBar: {
     position: "absolute",
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   fabLabel: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.primary,
   },
 });

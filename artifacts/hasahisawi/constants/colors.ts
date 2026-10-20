@@ -20,7 +20,7 @@ const primarySoft  = "#EAF9F3";
 const primaryGlow  = "rgba(0,150,106,0.16)";
 
 const accent       = "#E8A900"; // ذهبي — مُخفَّف للعين
-const accentDeep   = "#AD7E00";
+const accentDeep   = "#946B00"; // was #AD7E00 (3.65:1) — now 4.8:1 on white, readable as text
 const accentDim    = "#CB9200";
 const accentLight  = "#F7D76A";
 const accentSoft   = "#FFF7E0";
@@ -54,7 +54,7 @@ const overlay      = "rgba(20,44,37,0.40)";
 // ── النصوص — تدرج هادئ ────────────────────────────────────────
 const textPrimary   = ink;
 const textSecondary = "rgba(26,44,37,0.70)";
-const textMuted     = "rgba(26,44,37,0.50)";
+const textMuted     = "rgba(26,44,37,0.65)"; // was 0.50 (3.0:1) — now 4.6:1 (WCAG AA)
 const textSubtle    = "rgba(26,44,37,0.35)";
 const textDisabled  = "rgba(26,44,37,0.25)";
 const textOnDark    = "#F4FBF8";

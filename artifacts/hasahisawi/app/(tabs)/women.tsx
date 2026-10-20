@@ -1939,7 +1939,7 @@ const jm = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: "#FF4FA340",
   },
-  successTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#FF4FA3", textAlign: "center" },
+  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FF4FA3", textAlign: "center" },
   successSub: {
     fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22, paddingHorizontal: 16,
@@ -1956,7 +1956,7 @@ const hm = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#14B8A630", overflow: "hidden",
     backgroundColor: Colors.cardBg, ...Colors.shadow.card,
   },
-  introTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#14B8A6", textAlign: "center" },
+  introTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#14B8A6", textAlign: "center" },
   introSub: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22,
@@ -2132,7 +2132,7 @@ const sp = StyleSheet.create({
   cartItemPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
   cartTotal: { flexDirection: "row", justifyContent: "space-between", padding: 14, backgroundColor: "#A855F710", borderRadius: Colors.radius.md, marginBottom: 16 },
   cartTotalLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary },
-  cartTotalValue: { fontFamily: "Cairo_800ExtraBold", fontSize: 16, color: "#A855F7" },
+  cartTotalValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#A855F7" },
 
   // حقول
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
@@ -2162,7 +2162,7 @@ const sp = StyleSheet.create({
   // نجاح
   successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },
   successIcon: { width: 100, height: 100, borderRadius: Colors.radius.xl, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#A855F740" },
-  successTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#A855F7", textAlign: "center" },
   successSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, paddingHorizontal: 16 },
   successBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8, width: "80%" },
   successBtnGrad: { paddingVertical: 14, alignItems: "center" },
@@ -2183,7 +2183,7 @@ const bt = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#A855F730", overflow: "hidden",
     backgroundColor: Colors.cardBg, ...Colors.shadow.card,
   },
-  introTitle: { fontFamily: "Cairo_800ExtraBold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  introTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#A855F7", textAlign: "center" },
   introSub: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22,
