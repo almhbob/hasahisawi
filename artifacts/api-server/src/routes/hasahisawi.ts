@@ -55,6 +55,76 @@ async function query(sql: string, params: unknown[] = []) {
   }
 }
 
+// ── Schema drift self-heal ────────────────────────────────────────────────
+// قاعدة الإنتاج أقدم من بعض تعريفات CREATE TABLE في الكود، و CREATE TABLE IF NOT EXISTS
+// لا يضيف الأعمدة الجديدة لجدول موجود. هذه الدالة تضيف الأعمدة الناقصة بشكل idempotent،
+// وكل عمود في استعلام مستقل حتى لا يُوقف فشلُ عمودٍ واحد بقيةَ التهيئة.
+async function addMissingColumns(table: string, columnDefs: string[]): Promise<void> {
+  for (const def of columnDefs) {
+    try {
+      await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${def}`);
+    } catch (e: any) {
+      logger.warn({ err: e?.message, table, def }, "[db] addMissingColumns failed");
+    }
+  }
+}
+
+// تعبير SQL آمن يحوّل (appointment_date, appointment_time) إلى timestamptz بتوقيت الخرطوم.
+// لا يرمي خطأ أبداً: أي تاريخ/وقت غير صالح يعطي NULL بدل فشل الاستعلام كله.
+// يدعم "14:00" و "4:00 م" و "9:30 ص" و "4:00 PM". الوقت الفارغ = 08:00.
+function apptTimestampSql(alias = "a"): string {
+  const d = `substr(${alias}.appointment_date::text, 1, 10)`;
+  const t = `COALESCE(NULLIF(btrim(${alias}.appointment_time::text), ''), '08:00')`;
+  const h = `split_part(${t}, ':', 1)::int`;
+  const m = `substr(split_part(${t}, ':', 2), 1, 2)::int`;
+  return `(CASE
+    WHEN ${d} ~ '^[12][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+     AND ${t} ~ '^([01]?[0-9]|2[0-3]):[0-5][0-9]'
+    THEN ((make_date(substr(${d},1,4)::int, substr(${d},6,2)::int, 1) + (substr(${d},9,2)::int - 1))
+          + make_interval(hours => (CASE
+              WHEN ${t} ~* '(م|pm)' AND ${h} < 12 THEN ${h} + 12
+              WHEN ${t} ~* '(ص|am)' AND ${h} = 12 THEN 0
+              ELSE ${h} END),
+            mins => ${m})) AT TIME ZONE 'Africa/Khartoum'
+  END)`;
+}
+
+// lawyer_subscription_plans: جدول الإنتاج القديم بدون price_sdg (وربما أعمدة أخرى).
+// ON CONFLICT (name) يحتاج فهرساً فريداً على name — نضيفه فقط إن لم يوجد.
+async function ensureLawyerPlanColumns(): Promise<void> {
+  await addMissingColumns("lawyer_subscription_plans", [
+    "name_ar VARCHAR(100)",
+    "price_sdg INTEGER NOT NULL DEFAULT 0",
+    "price_label VARCHAR(100) NOT NULL DEFAULT 'مجاناً'",
+    "monthly_contacts INTEGER NOT NULL DEFAULT 5",
+    "has_unlimited_contacts BOOLEAN NOT NULL DEFAULT FALSE",
+    "has_ads BOOLEAN NOT NULL DEFAULT FALSE",
+    "has_featured BOOLEAN NOT NULL DEFAULT FALSE",
+    "has_verified_badge BOOLEAN NOT NULL DEFAULT FALSE",
+    "has_priority BOOLEAN NOT NULL DEFAULT FALSE",
+    "commission_pct NUMERIC(5,2) NOT NULL DEFAULT 0",
+    "color VARCHAR(30) NOT NULL DEFAULT '#6B7280'",
+    "icon VARCHAR(10) NOT NULL DEFAULT '🔓'",
+    "sort_order INTEGER NOT NULL DEFAULT 99",
+    "is_active BOOLEAN NOT NULL DEFAULT TRUE",
+    "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+  ]);
+  try {
+    const u = await query(`
+      SELECT 1 FROM pg_index i
+      JOIN pg_class c ON c.oid = i.indrelid
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = i.indkey[0]
+      WHERE c.relname = 'lawyer_subscription_plans' AND pg_table_is_visible(c.oid)
+        AND i.indisunique AND i.indnatts = 1 AND a.attname = 'name'
+      LIMIT 1`);
+    if (!u.rowCount) {
+      await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_lawyer_subscription_plans_name ON lawyer_subscription_plans(name)`);
+    }
+  } catch (e: any) {
+    logger.warn({ err: e?.message }, "[db] lawyer_subscription_plans unique(name) check failed");
+  }
+}
+
 
 // ══════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════
@@ -217,6 +287,8 @@ async function _doInitHasahisawiDb(): Promise<void> {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE`);
+  // /users/:id/profile و /users/me/bio يقرآن/يكتبان users.bio ولا يوجد تعريف له
+  await addMissingColumns("users", ["bio TEXT"]);
 
   await query(`
     CREATE TABLE IF NOT EXISTS otp_codes (
@@ -583,6 +655,17 @@ async function _doInitHasahisawiDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // إصلاح انحراف المخطط: جداول rated_entities القديمة بدون subtitle وغيره
+  await addMissingColumns("rated_entities", [
+    "subtitle VARCHAR(300)",
+    "category VARCHAR(100)",
+    "phone VARCHAR(50)",
+    "district VARCHAR(100)",
+    "notes TEXT",
+    "submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL",
+    "is_verified BOOLEAN NOT NULL DEFAULT FALSE",
+    "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+  ]);
   await query(`
     CREATE TABLE IF NOT EXISTS ratings (
       id SERIAL PRIMARY KEY,
@@ -661,6 +744,30 @@ async function _doInitHasahisawiDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // إصلاح انحراف المخطط: جدول appointments في الإنتاج بدون appointment_time وأعمدة التذكير.
+  // كل الأعمدة هنا nullable أو بقيمة افتراضية حتى تنجح على جدول يحتوي بيانات.
+  await addMissingColumns("appointments", [
+    "target_type VARCHAR(50)",
+    "target_id VARCHAR(100)",
+    "appointment_time VARCHAR(20)",
+    "status VARCHAR(20) DEFAULT 'pending'",
+    "notes TEXT",
+    "created_at TIMESTAMPTZ DEFAULT NOW()",
+    "user_name VARCHAR(200)",
+    "user_phone VARCHAR(80)",
+    "facility_name VARCHAR(300)",
+    "cancelled_at TIMESTAMPTZ",
+    "payment_method VARCHAR(30)",
+    "payment_proof_url TEXT",
+    "institution_id INT",
+    "wa_confirm_sent BOOLEAN DEFAULT FALSE",
+    "reminder_sent BOOLEAN DEFAULT FALSE",
+    "reminder_sent_at TIMESTAMPTZ",
+    "reminder_sent_24h BOOLEAN DEFAULT FALSE",
+    "reminder_sent_2h BOOLEAN DEFAULT FALSE",
+    "confirmed_at TIMESTAMPTZ",
+    "service_fee NUMERIC(10,2)",
+  ]);
   await query(`
     CREATE TABLE IF NOT EXISTS women_services (
       id SERIAL PRIMARY KEY,
@@ -1149,6 +1256,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
       is_active        BOOLEAN      NOT NULL DEFAULT TRUE
     )
   `);
+  await ensureLawyerPlanColumns();
   await query(`
     CREATE TABLE IF NOT EXISTS lawyer_subscriptions (
       id               SERIAL PRIMARY KEY,
@@ -1492,6 +1600,8 @@ async function _doInitHasahisawiDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // PATCH /admin/lost-items/:id يكتب image_url ولم يكن معرّفاً
+  await addMissingColumns("lost_items", ["image_url TEXT"]);
 
   // ══ جدول الوظائف ══
   await query(`
@@ -14666,6 +14776,23 @@ const ensureClinicTables = (() => {
         password_hash VARCHAR(200), notes TEXT,
         is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW()
       )`);
+      // أعمدة تستخدمها مسارات المؤسسات/الاشتراكات/المشرفين ولم تكن في CREATE TABLE
+      await addMissingColumns("medical_institutions", [
+        "short_name VARCHAR(100)", "email VARCHAR(150)", "website TEXT",
+        "contact_person VARCHAR(150)", "working_hours VARCHAR(200)", "fees_range VARCHAR(100)",
+        "brand_color VARCHAR(20) DEFAULT '#2E7D9A'", "logo_initial VARCHAR(10) DEFAULT '🏥'",
+        "is_featured BOOLEAN DEFAULT FALSE", "is_verified BOOLEAN DEFAULT FALSE",
+        "sort_order INT DEFAULT 0", "subscription_tier VARCHAR(50)", "specialties TEXT",
+      ]);
+      await addMissingColumns("clinic_subscription_plans", [
+        "description TEXT", "color VARCHAR(20)", "icon VARCHAR(10)",
+        "has_whatsapp_confirm BOOLEAN DEFAULT FALSE", "has_reminder BOOLEAN DEFAULT FALSE",
+        "has_priority BOOLEAN DEFAULT FALSE", "has_featured_badge BOOLEAN DEFAULT FALSE",
+        "has_analytics BOOLEAN DEFAULT FALSE", "has_supervisor BOOLEAN DEFAULT FALSE",
+        "has_monthly_report BOOLEAN DEFAULT FALSE",
+      ]);
+      await addMissingColumns("clinic_subscriptions", ["amount_paid NUMERIC(12,2)"]);
+      await addMissingColumns("clinic_supervisors", ["email VARCHAR(150)", "assigned_plan VARCHAR(50) DEFAULT 'all'"]);
       await query(`CREATE TABLE IF NOT EXISTS clinic_supervisor_assignments (
         id SERIAL PRIMARY KEY, supervisor_id INT, institution_id INT,
         assigned_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(supervisor_id, institution_id)
@@ -15031,7 +15158,7 @@ router.get("/admin/appointments/reminders-due", async (req: Request, res: Respon
     // بناء الاستعلام حسب الأعمدة المتاحة
     let timeFilter = "";
     if (hasAppointmentDate && hasAppointmentTime) {
-      timeFilter = `AND (a.appointment_date::text || ' ' || a.appointment_time::text)::timestamptz
+      timeFilter = `AND ${apptTimestampSql("a")}
                     BETWEEN NOW() + INTERVAL '4 hours' AND NOW() + INTERVAL '6 hours'`;
     }
 
@@ -15124,7 +15251,7 @@ router.get("/supervisor/reminders-due", async (req: Request, res: Response) => {
     const hasAppointmentDate = cols.includes("appointment_date");
     let timeFilter = "";
     if (hasAppointmentDate && hasAppointmentTime) {
-      timeFilter = `AND (a.appointment_date::text || ' ' || a.appointment_time::text)::timestamptz
+      timeFilter = `AND ${apptTimestampSql("a")}
                     BETWEEN NOW() + INTERVAL '4 hours' AND NOW() + INTERVAL '7 hours'`;
     }
     const r = await query(`
@@ -16865,15 +16992,16 @@ router.patch("/admin/section-configs/:key", async (req: Request, res: Response) 
 // ── مجدوِل تذكيرات المواعيد (كل 10 دقائق) ─────────────────────────
 (function startAppointmentReminderScheduler() {
   const check = async () => {
+    if (!pool) return;
     try {
       const r24 = await query(`
         SELECT a.*, u.id AS uid FROM appointments a
         JOIN users u ON u.id = a.user_id
         WHERE a.status IN ('pending','confirmed')
           AND (a.reminder_sent_24h IS NULL OR a.reminder_sent_24h = FALSE)
-          AND (a.appointment_date::text || ' ' || COALESCE(a.appointment_time,'08:00'))::timestamptz
+          AND ${apptTimestampSql("a")}
               BETWEEN NOW() + INTERVAL '23 hours' AND NOW() + INTERVAL '25 hours'
-      `).catch(() => ({ rows: [] as any[] }));
+      `).catch((e: any) => { logger.warn({ err: e?.message }, "[appt-reminders] 24h query failed"); return { rows: [] as any[] }; });
 
       for (const appt of r24.rows) {
         await sendPushToUser(
@@ -16889,9 +17017,9 @@ router.patch("/admin/section-configs/:key", async (req: Request, res: Response) 
         JOIN users u ON u.id = a.user_id
         WHERE a.status IN ('pending','confirmed')
           AND (a.reminder_sent_2h IS NULL OR a.reminder_sent_2h = FALSE)
-          AND (a.appointment_date::text || ' ' || COALESCE(a.appointment_time,'08:00'))::timestamptz
+          AND ${apptTimestampSql("a")}
               BETWEEN NOW() + INTERVAL '1 hour 45 minutes' AND NOW() + INTERVAL '2 hours 15 minutes'
-      `).catch(() => ({ rows: [] as any[] }));
+      `).catch((e: any) => { logger.warn({ err: e?.message }, "[appt-reminders] 2h query failed"); return { rows: [] as any[] }; });
 
       for (const appt of r2.rows) {
         await sendPushToUser(
@@ -16901,7 +17029,7 @@ router.patch("/admin/section-configs/:key", async (req: Request, res: Response) 
         );
         await query(`UPDATE appointments SET reminder_sent_2h=TRUE WHERE id=$1`, [appt.id]).catch(() => {});
       }
-    } catch {}
+    } catch (e: any) { logger.warn({ err: e?.message }, "[appt-reminders] check failed"); }
   };
   setTimeout(check, 90_000);
   setInterval(check, 10 * 60_000);
@@ -17319,6 +17447,8 @@ async function ensureSickLeaveTables() {
   await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_patient   ON sick_leaves(patient_user_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_doctor    ON sick_leaves(doctor_user_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_sick_leaves_barcode   ON sick_leaves(barcode_token)`);
+  // PATCH /admin/sick-leaves/:id/status يكتب status و reviewed_at
+  await addMissingColumns("sick_leaves", ["status VARCHAR(20)", "admin_notes TEXT", "reviewed_at TIMESTAMPTZ"]);
 }
 
 ensureSickLeaveTables().catch(() => {});

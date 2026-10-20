@@ -25,6 +25,14 @@ async function query(sql: string, params: unknown[] = []) {
   finally { client.release(); }
 }
 
+// قاعدة الإنتاج أقدم من تعريفات CREATE TABLE هنا؛ نضيف الأعمدة الناقصة بشكل idempotent.
+async function addMissingColumns(table: string, columnDefs: string[]): Promise<void> {
+  for (const def of columnDefs) {
+    try { await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${def}`); }
+    catch (e: any) { logger.warn({ err: e?.message, table, def }, "[lawyers-db] addMissingColumns failed"); }
+  }
+}
+
 async function isAdminRequest(req: Request): Promise<boolean> {
   const pin = req.headers["x-admin-pin"];
   if (typeof pin === "string" && pin === DEFAULT_ADMIN_PIN) return true;
@@ -58,6 +66,15 @@ async function ensureLawyersDb(): Promise<void> {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await addMissingColumns("rated_entities", [
+      "subtitle VARCHAR(300)",
+      "category VARCHAR(100)",
+      "phone VARCHAR(50)",
+      "district VARCHAR(100)",
+      "notes TEXT",
+      "is_verified BOOLEAN NOT NULL DEFAULT FALSE",
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+    ]);
     await query(`
       CREATE TABLE IF NOT EXISTS lawyers (
         id SERIAL PRIMARY KEY,
@@ -110,6 +127,35 @@ async function ensureLawyersDb(): Promise<void> {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    // جدول الإنتاج القديم بدون price_sdg — يجب أن تُضاف الأعمدة قبل الـ upsert أدناه
+    await addMissingColumns("lawyer_subscription_plans", [
+      "name_ar VARCHAR(100)",
+      "price_sdg INTEGER NOT NULL DEFAULT 0",
+      "price_label VARCHAR(100) NOT NULL DEFAULT 'مجاني'",
+      "monthly_contacts INTEGER NOT NULL DEFAULT 5",
+      "has_unlimited_contacts BOOLEAN NOT NULL DEFAULT FALSE",
+      "has_ads BOOLEAN NOT NULL DEFAULT FALSE",
+      "has_featured BOOLEAN NOT NULL DEFAULT FALSE",
+      "has_verified_badge BOOLEAN NOT NULL DEFAULT FALSE",
+      "has_priority BOOLEAN NOT NULL DEFAULT FALSE",
+      "commission_pct NUMERIC(5,2) NOT NULL DEFAULT 0",
+      "color VARCHAR(30) NOT NULL DEFAULT '#8B5CF6'",
+      "icon VARCHAR(10) NOT NULL DEFAULT '⚖️'",
+      "sort_order INTEGER NOT NULL DEFAULT 99",
+      "is_active BOOLEAN NOT NULL DEFAULT TRUE",
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+    ]);
+    // ON CONFLICT (name) يتطلب فهرساً فريداً على name
+    try {
+      const u = await query(`
+        SELECT 1 FROM pg_index i
+        JOIN pg_class c ON c.oid = i.indrelid
+        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = i.indkey[0]
+        WHERE c.relname = 'lawyer_subscription_plans' AND pg_table_is_visible(c.oid)
+          AND i.indisunique AND i.indnatts = 1 AND a.attname = 'name'
+        LIMIT 1`);
+      if (!u.rowCount) await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_lawyer_subscription_plans_name ON lawyer_subscription_plans(name)`);
+    } catch (e: any) { logger.warn({ err: e?.message }, "[lawyers-db] unique(name) check failed"); }
     await query(`
       CREATE TABLE IF NOT EXISTS lawyer_subscriptions (
         id SERIAL PRIMARY KEY,
