@@ -35,6 +35,9 @@ jobs:
         run: node build.mjs
 
       - name: Deploy to Vercel
+        # Vercel CLI resolves the project's rootDirectory (artifacts/api-server)
+        # from the repository root, so it must run there, not inside the app folder.
+        working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_RTCz9oaxsbHBdJHrSJNyJr5q
