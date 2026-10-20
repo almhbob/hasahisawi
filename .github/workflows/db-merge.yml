@@ -1,0 +1,34 @@
+name: DB Merge (sunny-peace -> lively-mindfulness)
+
+# Copies data that exists only in sunny-peace into lively-mindfulness.
+# Mode comes from the first word of .db-merge-trigger: "dryrun" (default,
+# rolled back) or "apply" (committed). Prints counts only, never personal data.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.db-merge-trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  merge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency: db-merge
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          MODE=$(head -n1 .db-merge-trigger | awk '{print $1}')
+          [ "$MODE" = "apply" ] || MODE=dryrun
+          SRC_URL=$(bash scripts/ops/railway-db-url.sh 4e3750d2-5221-479b-8085-66d31758e83e 28cc17ed-7b04-4e49-a284-ada04c98f3fb 87f54873-4dee-483a-ad03-a6803a3e277a)
+          DST_URL=$(bash scripts/ops/railway-db-url.sh e82d86db-7b87-4446-9968-f60934f618b4 f708e9d6-bbfa-4562-9a58-3e41977b40ed 984dd90a-b068-4089-a823-859d353c02ca)
+          echo "::add-mask::$SRC_URL"; echo "::add-mask::$DST_URL"
+          pip install -q psycopg2-binary
+          MODE=$MODE SRC_URL=$SRC_URL DST_URL=$DST_URL python3 scripts/ops/merge_sunny_into_lively.py
