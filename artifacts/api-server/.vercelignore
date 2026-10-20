@@ -16,5 +16,6 @@
 **/android
 **/ios
 **/coverage
-**/dist
 **/build
+# Do NOT ignore **/dist: the API function is served from artifacts/api-server/dist
+# (vercel.json includeFiles: dist/**). Ignoring it breaks `vercel deploy --prebuilt`.
