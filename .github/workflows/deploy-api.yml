@@ -41,10 +41,26 @@ jobs:
           VERCEL_PROJECT_ID: prj_7NqIloolEKoPpF5JKr3KVWjapKVw
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
-            echo "⚠️  VERCEL_TOKEN not set — skipping"
+            echo "::error::VERCEL_TOKEN secret is not set"
             exit 1
           fi
-          npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx vercel@latest build --prod --token="$VERCEL_TOKEN"
-          npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN}"
+
+          # Run a Vercel CLI step; on failure surface the last lines as annotations
+          # (readable from the Checks API) so failures can be diagnosed without raw logs.
+          run_step() {
+            local label="$1"; shift
+            local log="/tmp/vercel-${label}.log"
+            if ! "$@" >"$log" 2>&1; then
+              cat "$log"
+              echo "::error title=vercel ${label} failed::$(tail -n 15 "$log" | sed 's/%/%25/g' | tr '\n' '|' | sed "s/${VERCEL_TOKEN}/***/g")"
+              exit 1
+            fi
+            cat "$log"
+          }
+
+          run_step whoami npx vercel@latest whoami --token="$VERCEL_TOKEN"
+          run_step pull   npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          run_step build  npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          run_step deploy npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
           echo "✅ API deployed to Vercel → https://api-server-gilt-ten.vercel.app"
