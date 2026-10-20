@@ -35,9 +35,6 @@ jobs:
         run: node build.mjs
 
       - name: Deploy to Vercel
-        # Vercel CLI resolves the project's rootDirectory (artifacts/api-server)
-        # from the repository root, so it must run there, not inside the app folder.
-        working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_RTCz9oaxsbHBdJHrSJNyJr5q
@@ -48,6 +45,9 @@ jobs:
             exit 1
           fi
           echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN}"
+          # Pinned: the last successful deploy (2026-07-05) used CLI 54.20.1;
+          # newer CLIs (64.x) break `deploy --prebuilt` for this legacy `builds` config.
+          VERCEL="npx --yes vercel@54.20.1"
 
           # Run a Vercel CLI step; on failure surface the last lines as annotations
           # (readable from the Checks API) so failures can be diagnosed without raw logs.
@@ -62,8 +62,8 @@ jobs:
             cat "$log"
           }
 
-          run_step whoami npx vercel@latest whoami --token="$VERCEL_TOKEN"
-          run_step pull   npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          run_step build  npx vercel@latest build --prod --token="$VERCEL_TOKEN"
-          run_step deploy npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          run_step whoami $VERCEL whoami --token="$VERCEL_TOKEN"
+          run_step pull   $VERCEL pull --yes --environment=production --token="$VERCEL_TOKEN"
+          run_step build  $VERCEL build --prod --token="$VERCEL_TOKEN"
+          run_step deploy $VERCEL deploy --prebuilt --prod --token="$VERCEL_TOKEN"
           echo "✅ API deployed to Vercel → https://api-server-gilt-ten.vercel.app"
