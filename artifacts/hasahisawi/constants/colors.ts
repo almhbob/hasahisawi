@@ -34,20 +34,20 @@ const dangerSoftC  = "rgba(217,54,54,0.10)";
 // ── الخلفيات — محايدة لتريح العين ────────────────────────────
 const white        = "#FFFFFF";
 const ink          = "#1A2C25"; // نص داكن دافئ
-const bg           = "#F7F9F8"; // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
+const bg           = "#F2F4F3"; // cool neutral (no cream, no mint wash) // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
 const bgDeep       = "#EEF3F0";
 const bgAlt        = "#FFFFFF";
 
 // بطاقات صلبة (solid) لوضوح أفضل — لا شفافية مُزعجة
-const surface      = "rgba(255,255,255,0.90)";
+const surface      = "#FFFFFF";
 const surface1     = "#F5F8F6";
 const surface2     = "#FFFFFF";        // cardBg — أبيض صلب واضح
 const surface3     = "#FFFFFF";
 const surface4     = "#FFFFFF";
 const cardBg       = "#FFFFFF";        // أبيض صلب لبطاقات واضحة
 const cardBgElevated = "#FFFFFF";
-const glassCard    = "rgba(255,255,255,0.80)";
-const glassStrong  = "rgba(255,255,255,0.92)";
+const glassCard    = "#FFFFFF"; // flat surfaces: no frosted glass
+const glassStrong  = "#FFFFFF";
 const glassMuted   = "rgba(255,255,255,0.50)";
 const overlay      = "rgba(20,44,37,0.40)";
 
@@ -60,13 +60,13 @@ const textDisabled  = "rgba(26,44,37,0.25)";
 const textOnDark    = "#F4FBF8";
 
 // ── الحدود — خفيفة لا مُزعجة ─────────────────────────────────
-const divider        = "rgba(0,150,106,0.10)";
-const dividerSoft    = "rgba(0,150,106,0.06)";
-const border         = "rgba(0,150,106,0.13)";
+const divider        = "#E3E8E6"; // neutral hairlines instead of green tints
+const dividerSoft    = "#EDF1EF";
+const border         = "#DCE3E0";
 const borderGlow     = "rgba(0,150,106,0.22)";
 const borderGoldGlow = "rgba(232,169,0,0.25)";
-const borderSubtle   = "rgba(0,150,106,0.08)";
-const borderStrong   = "rgba(0,150,106,0.28)";
+const borderSubtle   = "#E6EBE9";
+const borderStrong   = "#C3CEC9";
 
 // ── الدلالات — ألوان صحيحة للمعنى ────────────────────────────
 const success     = primary;
@@ -153,17 +153,21 @@ const SECTIONS = {
 
 export type SectionKey = keyof typeof SECTIONS;
 
+// Flat design: gradient tokens keep their shape (many screens pass them to
+// <LinearGradient>) but use a single color, so surfaces render as solid fills.
+const flat2 = (c: string) => [c, c] as [string, string];
+const flat3 = (c: string) => [c, c, c] as [string, string, string];
 const gradients = {
-  brand:     [primary, primaryDeep]                                   as [string, string],
-  brandSoft: ["rgba(0,150,106,0.14)", "rgba(255,255,255,0.30)"]      as [string, string],
-  gold:      [accent, accentDeep]                                     as [string, string],
-  goldSoft:  ["rgba(232,169,0,0.18)", "rgba(255,255,255,0.40)"]      as [string, string],
-  hero:      ["#FFFFFF", primarySoft, accentSoft]                     as [string, string, string],
-  appShell:  [bg, "#FFFFFF", primarySoft]                             as [string, string, string],
-  surface:   ["rgba(255,255,255,0.95)", "rgba(255,255,255,0.70)"]    as [string, string],
-  glass:     ["rgba(255,255,255,0.88)", "rgba(255,255,255,0.45)"]    as [string, string],
+  brand:     flat2(primaryDeep),
+  brandSoft: flat2(primarySoft),
+  gold:      flat2(accentDeep),
+  goldSoft:  flat2(accentSoft),
+  hero:      flat3(bg),
+  appShell:  flat3(bg),
+  surface:   flat2("#FFFFFF"),
+  glass:     flat2("#FFFFFF"),
   logo:      [primary, accent]                                        as [string, string],
-  calm:      ["rgba(0,150,106,0.08)", "rgba(232,169,0,0.08)"]        as [string, string],
+  calm:      flat2(bg),
 } as const;
 
 function section(key: string): typeof SECTIONS[SectionKey] {

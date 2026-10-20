@@ -45,10 +45,11 @@ type TabItem = {
 
 // ── تبويبات رئيسية (4 + زر مركزي) ────────────────────────────
 const TAB_ITEMS: TabItem[] = [
-  { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primary },
-  { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: "#818CF8"       },
-  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#38BDF8"       },
-  { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: "#F0A500" },
+  // One active color for every tab: position + filled icon carry the state.
+  { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primaryDeep },
+  { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: Colors.primaryDeep },
+  { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: Colors.primaryDeep },
+  { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: Colors.primaryDeep },
 ];
 
 // ── زر FAB مع نبض وتلميح أول مرة ────────────────────────────────
@@ -60,24 +61,7 @@ function FabMenuButton({ open }: { open: () => void }) {
   const [showHint, setShowHint] = useState(false);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // نبض مستمر لافت
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.08, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.00, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, true,
-    );
-    glow.value = withRepeat(
-      withSequence(
-        withTiming(0.28, { duration: 900 }),
-        withTiming(0.10, { duration: 900 }),
-      ),
-      -1, true,
-    );
-  }, []);
-
+  // No perpetual pulse/glow: constant motion drains attention and battery.
   // تلميح أول مرة
   useEffect(() => {
     AsyncStorage.getItem(HINT_KEY).then((val) => {
@@ -109,22 +93,15 @@ function FabMenuButton({ open }: { open: () => void }) {
       {/* تلميح أول مرة */}
       {showHint && (
         <View style={styles.hint} pointerEvents="none">
-          <Text style={styles.hintText}>كل الخدمات هنا ↓</Text>
+          <Text style={styles.hintText}>كل الخدمات هنا</Text>
         </View>
       )}
 
       <Animated.View style={fabAnimStyle}>
-        <LinearGradient
-          colors={[Colors.primary + "EE", Colors.primaryDeep]}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={styles.fabGradient}
-        >
-          <Ionicons name="grid-outline" size={23} color="#fff" />
-        </LinearGradient>
+        <View style={styles.fabGradient}>
+          <Ionicons name="grid" size={22} color="#fff" />
+        </View>
       </Animated.View>
-
-      <Animated.View style={[styles.fabGlow, glowAnimStyle]} />
       <Text style={styles.fabLabel}>القائمة</Text>
     </Pressable>
   );
@@ -142,29 +119,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
 
   return (
     <View style={[styles.tabBar, { paddingBottom: isWeb ? 10 : Math.max(insets.bottom, 10) }]}>
-
-        {/* طبقة الضبابية */}
-        {Platform.OS !== "web" && (
-          <BlurView
-            intensity={Platform.OS === "ios" ? 50 : 18}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-
-        {/* تدرج الخلفية */}
-        <LinearGradient
-          colors={[Colors.white + "FA", Colors.bg + "FA"]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* خط علوي متدرج */}
-        <LinearGradient
-          colors={["transparent", Colors.primary + "72", "transparent"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.topGradientLine}
-        />
 
         {/* تبويبتا اليسار */}
         {TAB_ITEMS.slice(0, 2).map((item) => {
@@ -190,7 +144,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#4A6A8C"}
+                  color={focused ? item.color : Colors.textSecondary}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>
@@ -236,7 +190,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#4A6A8C"}
+                  color={focused ? item.color : Colors.textSecondary}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>
@@ -367,8 +321,9 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.bg,
-    borderTopWidth: 0,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
     paddingTop: 8,
   },
   topGradientLine: {
@@ -436,16 +391,11 @@ const styles = StyleSheet.create({
   hint: {
     position: "absolute",
     bottom: 68,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.textPrimary,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: 8,
     zIndex: 99,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 6,
     minWidth: 110,
     alignItems: "center",
   },
@@ -471,11 +421,9 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 8,
+    backgroundColor: Colors.primaryDeep,
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
   },
   fabGlow: {
     position: "absolute",
@@ -491,6 +439,6 @@ const styles = StyleSheet.create({
   fabLabel: {
     fontFamily: "Cairo_700Bold",
     fontSize: 11,
-    color: Colors.primary,
+    color: Colors.primaryDeep,
   },
 });
