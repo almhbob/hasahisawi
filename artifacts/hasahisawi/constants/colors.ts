@@ -174,6 +174,13 @@ function section(key: string): typeof SECTIONS[SectionKey] {
   return (SECTIONS as Record<string, typeof SECTIONS[SectionKey]>)[key] || SECTIONS.settings;
 }
 
+// Light app-bar tokens (ModernHeader + headerUI)
+const header = {
+  bg: "#FFFFFF",
+  divider: "#E3E8E6",
+  control: "#EEF2F0", // neutral fill for chips, icon buttons, search
+} as const;
+
 const radius = {
   sm:   10,
   md:   14,
@@ -270,6 +277,7 @@ export default {
   sections: SECTIONS,
   section,
   gradients,
+  header,
   radius,
   shadow,
   light: {
