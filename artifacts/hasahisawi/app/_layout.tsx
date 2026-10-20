@@ -43,11 +43,11 @@ import OfflineQueueSync from "@/components/OfflineQueueSync";
 try {
   (Text as any).defaultProps = {
     ...((Text as any).defaultProps || {}),
-    maxFontSizeMultiplier: 1.12,
+    maxFontSizeMultiplier: 1.25, // was 1.12: too low for older users who enlarge system text
   };
   (TextInput as any).defaultProps = {
     ...((TextInput as any).defaultProps || {}),
-    maxFontSizeMultiplier: 1.08,
+    maxFontSizeMultiplier: 1.2,
   };
 } catch {}
 

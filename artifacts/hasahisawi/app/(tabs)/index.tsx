@@ -120,7 +120,13 @@ export default function HomeScreen() {
               <Text style={styles.title}>حصاحيصاوي</Text>
               <Text style={styles.subtitle}>كل احتياجاتك اليومية في تجربة واحدة</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/settings" as any)} style={styles.roundBtn}>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications" as any)}
+              style={styles.roundBtn}
+              accessibilityRole="button"
+              accessibilityLabel="الإشعارات"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
           </Animated.View>
@@ -202,7 +208,7 @@ const styles = StyleSheet.create({
   greeting: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 15 },
   dateText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11, marginTop: 3 },
   onlineBadge: { borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: Colors.primary + "12", borderWidth: 1, borderColor: Colors.primary + "30" },
-  onlineText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 10 },
+  onlineText: { fontFamily: "Cairo_700Bold", color: Colors.primaryDeep, fontSize: 11 },
   sectionHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 19, textAlign: "right" },
   sectionSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 2 },
@@ -212,8 +218,8 @@ const styles = StyleSheet.create({
   serviceCard: { minHeight: 122, borderRadius: Colors.radius.lg, overflow: "hidden", backgroundColor: Colors.glassCard, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 10, alignItems: "center", justifyContent: "center", ...Colors.shadow.card },
   iconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 8 },
   serviceLabel: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "center", fontSize: 11, lineHeight: 16 },
-  serviceSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", fontSize: 9, lineHeight: 13, marginTop: 4 },
+  serviceSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", fontSize: 10.5, lineHeight: 15, marginTop: 4 },
   badge: { position: "absolute", top: 6, right: 6, borderWidth: 1, borderRadius: Colors.radius.sm, paddingHorizontal: 5, paddingVertical: 2 },
-  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 8 },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9.5 },
   bottomLine: { position: "absolute", bottom: 0, left: 12, right: 12, height: 2, borderRadius: 3, opacity: 0.9 },
 });

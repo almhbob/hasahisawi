@@ -54,7 +54,13 @@ export default function ModernHeader({
       <StatusBar style="light" />
       <View style={styles.topRow}>
         {showBack ? (
-          <TouchableOpacity onPress={handleBack} style={styles.iconBtn} accessibilityRole="button">
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} // 36dp visual → 52dp touch target
+          >
             <Ionicons name="chevron-forward" size={20} color="#fff" />
           </TouchableOpacity>
         ) : (

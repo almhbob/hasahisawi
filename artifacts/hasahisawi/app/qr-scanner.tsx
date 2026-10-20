@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingBottom: 12, backgroundColor: "rgba(0,0,0,0.55)",
   },
-  topTitle:       { color: "#fff", fontSize: 17, fontFamily: "Cairo-SemiBold" },
+  topTitle:       { color: "#fff", fontSize: 17, fontFamily: "Cairo_600SemiBold" },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center", alignItems: "center",
@@ -219,22 +219,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   hintText: {
-    color: "#BAE6FD", fontSize: 13, fontFamily: "Cairo-Regular",
+    color: "#BAE6FD", fontSize: 13, fontFamily: "Cairo_400Regular",
     textAlign: "right", flex: 1,
   },
-  permTitle:   { color: Colors.textPrimary, fontSize: 20, fontFamily: "Cairo-Bold", marginTop: 16, textAlign: "center" },
-  permSub:     { color: Colors.textSecondary, fontSize: 14, fontFamily: "Cairo-Regular", textAlign: "center", marginTop: 6, marginBottom: 24 },
+  permTitle:   { color: Colors.textPrimary, fontSize: 20, fontFamily: "Cairo_700Bold", marginTop: 16, textAlign: "center" },
+  permSub:     { color: Colors.textSecondary, fontSize: 14, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 6, marginBottom: 24 },
   permBtn: {
     backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14,
     borderRadius: 14, marginTop: 8,
   },
-  permBtnTxt:  { color: "#fff", fontSize: 15, fontFamily: "Cairo-SemiBold" },
+  permBtnTxt:  { color: "#fff", fontSize: 15, fontFamily: "Cairo_600SemiBold" },
   backBtn:     { marginTop: 12 },
-  backTxt:     { color: Colors.textMuted, fontSize: 14, fontFamily: "Cairo-Regular" },
+  backTxt:     { color: Colors.textMuted, fontSize: 14, fontFamily: "Cairo_400Regular" },
   successCircle: {
     width: 96, height: 96, borderRadius: 48, backgroundColor: "#16A34A",
     justifyContent: "center", alignItems: "center", marginBottom: 20,
   },
-  successTitle: { color: Colors.textPrimary, fontSize: 22, fontFamily: "Cairo-Bold", textAlign: "center" },
-  successSub:   { color: Colors.textSecondary, fontSize: 14, fontFamily: "Cairo-Regular", textAlign: "center", marginTop: 6, marginBottom: 24 },
+  successTitle: { color: Colors.textPrimary, fontSize: 22, fontFamily: "Cairo_700Bold", textAlign: "center" },
+  successSub:   { color: Colors.textSecondary, fontSize: 14, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 6, marginBottom: 24 },
 });
