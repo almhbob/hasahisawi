@@ -778,24 +778,20 @@ export default function LoginScreen() {
             activeOpacity={0.88}
             style={{ opacity: loading ? 0.75 : 1, marginTop: 6 }}
           >
-            <LinearGradient
-              colors={[Colors.primary, Colors.primaryDim]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.submitBtn}
-            >
+            <View style={styles.submitBtn}>
               {loading || otpSending
-                ? <ActivityIndicator color="#000" size="small" />
+                ? <ActivityIndicator color="#fff" size="small" />
                 : <>
                     <Text style={styles.submitText}>
                       {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
                     </Text>
                     <Ionicons
                       name={mode === "login" ? "arrow-back" : "person-add-outline"}
-                      size={19} color="#000"
+                      size={19} color="#fff"
                     />
                   </>
               }
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
 
           {/* نسيت كلمة المرور */}
@@ -979,19 +975,15 @@ export default function LoginScreen() {
               activeOpacity={0.88}
               style={{ opacity: (otpVerifying || otpCode.length < 6) ? 0.55 : 1, marginTop: 8 }}
             >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDim]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={otpS.verifyBtn}
-              >
+              <View style={otpS.verifyBtn}>
                 {otpVerifying
-                  ? <ActivityIndicator color="#000" size="small" />
+                  ? <ActivityIndicator color="#fff" size="small" />
                   : <>
                       <Text style={otpS.verifyText}>تأكيد الرمز وإنشاء الحساب</Text>
-                      <Ionicons name="checkmark-circle" size={20} color="#000" />
+                      <Ionicons name="checkmark-circle" size={20} color="#fff" />
                     </>
                 }
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
 
             {/* إعادة الإرسال */}
@@ -1238,13 +1230,11 @@ const styles = StyleSheet.create({
 
   /* Submit */
   submitBtn: {
-    borderRadius: 18, paddingVertical: 15,
+    borderRadius: 14, height: 54, backgroundColor: Colors.primaryDeep,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
   },
   submitText: {
-    fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000",
+    fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff",
   },
 
   /* Biometric */
@@ -1390,13 +1380,11 @@ const otpS = StyleSheet.create({
     flex: 1, textAlign: "right",
   },
   verifyBtn: {
-    borderRadius: 18, paddingVertical: 15, width: SCREEN_W - 56,
+    borderRadius: 14, height: 54, width: SCREEN_W - 56, backgroundColor: Colors.primaryDeep,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
   },
   verifyText: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000",
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff",
   },
   resendBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,

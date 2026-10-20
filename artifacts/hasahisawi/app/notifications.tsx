@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import { useLang } from "@/lib/lang-context";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -164,28 +165,27 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <View style={[styles.container, { paddingTop: topPad }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {unreadCount > 0 && (
-            <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead} activeOpacity={0.7}>
-              <Text style={styles.markAllText}>{t("notifications", "markAllRead")}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{t("notifications", "title")}</Text>
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={22} color={Colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <ModernHeader
+        title={t("notifications", "title")}
+        showBack
+        onBack={() => router.back()}
+        rightSlot={
+          <>
+            {unreadCount > 0 && (
+              <View style={headerUI.badge}>
+                <Text style={headerUI.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
+            {unreadCount > 0 && (
+              <TouchableOpacity style={headerUI.secondaryBtn} onPress={markAllRead} activeOpacity={0.7}>
+                <Ionicons name="checkmark-done-outline" size={17} color={Colors.textPrimary} />
+                <Text style={headerUI.secondaryBtnText}>{t("notifications", "markAllRead")}</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        }
+      />
 
       {loading ? (
         <View style={styles.centered}>
