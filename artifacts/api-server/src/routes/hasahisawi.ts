@@ -2046,10 +2046,6 @@ async function _doInitHasahisawiDb(): Promise<void> {
   // ══ تشغيل إعداد جدول محلات الهواتف بعد اكتمال كل الجداول الأخرى ══
   await initPhoneShopsTables();
 
-  // ── ترقية حساب المطور الرئيسي لصلاحية admin ──────────────────────
-  await query(
-    `UPDATE users SET role='admin' WHERE LOWER(email)=LOWER('almhbob.iii@gmail.com') AND role != 'admin'`
-  );
 
   // ══ جداول تذاكر السفر بين المدن ══
   await query(`
