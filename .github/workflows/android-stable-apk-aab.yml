@@ -209,7 +209,7 @@ jobs:
             exit 1
           fi
           cp "$APK" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.apk"
-          cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.aab"
+          cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}-TEST-KEY-NOT-FOR-PLAY.aab"
           ls -lh release-artifacts
 
       - name: Verify real APK and AAB exist

@@ -207,7 +207,7 @@ jobs:
           APK=artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
           AAB=artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
           if [ -f "$APK" ]; then cp "$APK" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.apk"; fi
-          if [ -f "$AAB" ]; then cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.aab"; fi
+          if [ -f "$AAB" ]; then cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}-TEST-KEY-NOT-FOR-PLAY.aab"; fi
           ls -lh release-artifacts || true
 
       - name: Upload artifacts and logs

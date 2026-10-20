@@ -70,27 +70,26 @@ jobs:
           PROPS=artifacts/hasahisawi/android/gradle.properties
           mkdir -p artifacts/hasahisawi/android/app
 
-          if [ -n "$KEYSTORE_B64" ]; then
-            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
-            STORE_PASSWORD="$SECRET_KEYSTORE_PASSWORD"
-            KEY_ALIAS_VALUE="$SECRET_KEY_ALIAS"
-            KEY_PASSWORD_VALUE="$SECRET_KEY_PASSWORD"
-            echo "Using original release keystore from GitHub Secrets"
-          else
-            STORE_PASSWORD="Hasahisawi2026Secure"
-            KEY_ALIAS_VALUE="hasahisawi"
-            KEY_PASSWORD_VALUE="Hasahisawi2026Secure"
-            keytool -genkeypair -v \
-              -keystore "$KEYSTORE_DEST" \
-              -alias "$KEY_ALIAS_VALUE" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "$STORE_PASSWORD" \
-              -keypass "$KEY_PASSWORD_VALUE" \
-              -dname "CN=Hasahisawi, OU=Mobile, O=Hasahisawi, L=Hasahisa, ST=Gezira, C=SD"
-            echo "Generated current project signing key"
+          # Google Play only accepts AABs signed with the registered UPLOAD key.
+          # Never fall back to a generated key: that produces an AAB Play rejects.
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$SECRET_KEYSTORE_PASSWORD" ] || [ -z "$SECRET_KEY_ALIAS" ]; then
+            echo "::error::KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS secrets are missing — refusing to build with a throwaway key"
+            exit 1
           fi
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_DEST"
+          STORE_PASSWORD="$SECRET_KEYSTORE_PASSWORD"
+          KEY_ALIAS_VALUE="$SECRET_KEY_ALIAS"
+          KEY_PASSWORD_VALUE="${SECRET_KEY_PASSWORD:-$SECRET_KEYSTORE_PASSWORD}"
+          echo "Using original release keystore from GitHub Secrets"
+
+          # Verify it is the upload key registered in Google Play Console.
+          EXPECTED_SHA1="7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08"
+          ACTUAL_SHA1=$(keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" 2>/dev/null | awk -F': ' '/SHA1:/{print $2; exit}' | tr -d ' ')
+          if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+            echo "::error::Keystore SHA1 ($ACTUAL_SHA1) is not the Google Play upload key ($EXPECTED_SHA1)"
+            exit 1
+          fi
+          echo "::notice title=signing::Upload key verified (SHA1 $ACTUAL_SHA1)"
 
           test -s "$KEYSTORE_DEST"
           {
