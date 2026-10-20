@@ -195,7 +195,6 @@ export default function StorePortalScreen() {
           subtitle="سجّل متجرك الآن"
           showBack
           onBack={() => router.back()}
-          gradient={Colors.gradients.brand}
         />
         <RegisterStoreView
           apiBase={apiBase}
@@ -214,7 +213,6 @@ export default function StorePortalScreen() {
           subtitle="قيد المراجعة"
           showBack
           onBack={() => router.back()}
-          gradient={Colors.gradients.brand}
         />
         <PendingView store={store} onRefresh={() => { setRefreshing(true); fetchStore(); }} refreshing={refreshing} />
       </View>
@@ -235,7 +233,6 @@ export default function StorePortalScreen() {
         subtitle="لوحة التحكم"
         showBack
         onBack={() => router.back()}
-        gradient={Colors.gradients.brand}
       />
 
       {/* Tab Bar */}

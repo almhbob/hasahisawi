@@ -1154,12 +1154,11 @@ export default function TravelScreen() {
         title="السفريات"
         subtitle="حجوزات موثوقة عبر شركات ووكالات السفر"
         icon="bus-outline"
-        gradient={Colors.gradients.gold}
       >
         {/* حافلة متحركة */}
         <View style={styles.planeLine}>
           <Animated.View style={[styles.movingPlane, planeStyle]}>
-            <MaterialCommunityIcons name="bus" size={18} color="rgba(255,255,255,0.55)" />
+            <MaterialCommunityIcons name="bus" size={18} color={Colors.textMuted} />
           </Animated.View>
         </View>
       </ModernHeader>
