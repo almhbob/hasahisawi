@@ -1,9 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
+import { pinMatches } from "../lib/admin-pin";
 
 const router = Router();
-const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 const _dbUrl = process.env.DATABASE_URL ?? "";
 const _dbEnabled = _dbUrl.length > 0 && !_dbUrl.includes(".invalid") && !_dbUrl.includes("placeholder") && !_dbUrl.includes("nodb");
 
@@ -27,7 +27,7 @@ async function query(sql: string, params: unknown[] = []) {
 
 async function isAdminRequest(req: Request): Promise<boolean> {
   const pin = req.headers["x-admin-pin"];
-  if (typeof pin === "string" && pin === DEFAULT_ADMIN_PIN) return true;
+  if (pinMatches(pin)) return true;
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return false;
   const token = auth.slice(7);

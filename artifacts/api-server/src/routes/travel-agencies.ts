@@ -3,9 +3,9 @@ import { Pool } from "pg";
 import { timingSafeEqual } from "node:crypto";
 import { heavyWriteLimiter } from "../lib/rate-limiters";
 import { logger } from "../lib/logger";
+import { pinMatches } from "../lib/admin-pin";
 
 const router = Router();
-const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 const dbUrl = process.env.DATABASE_URL ?? "";
 const pool = dbUrl && !dbUrl.includes("placeholder") && !dbUrl.includes(".invalid") && !dbUrl.includes("nodb")
   ? new Pool({
@@ -22,13 +22,6 @@ if (pool) pool.on("error", err => logger.error({ err }, "travel agencies pg pool
 const AGENCY_TYPES = new Set(["local", "international", "hajj_umrah", "tourism", "corporate"]);
 const STATUSES = new Set(["pending", "approved", "rejected", "needs_info"]);
 
-function safeCompare(a: string, b: string) {
-  try {
-    const ba = Buffer.from(a.padEnd(64, "\0"));
-    const bb = Buffer.from(b.padEnd(64, "\0"));
-    return timingSafeEqual(ba, bb) && a.length === b.length;
-  } catch { return false; }
-}
 
 async function q(sql: string, params: unknown[] = []) {
   if (!pool) throw new Error("DATABASE_URL is not configured");
@@ -47,8 +40,7 @@ async function getSessionAdmin(req: Request): Promise<boolean> {
 
 async function isAdmin(req: Request) {
   if (await getSessionAdmin(req).catch(() => false)) return true;
-  const pin = req.headers["x-admin-pin"];
-  return typeof pin === "string" && pin.length >= 4 && pin.length <= 20 && safeCompare(pin, DEFAULT_ADMIN_PIN);
+  return pinMatches(req.headers["x-admin-pin"]);
 }
 
 function arr(v: unknown): string[] {

@@ -5,26 +5,14 @@ import crypto from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { v2 as cloudinary } from "cloudinary";
 import { logger } from "../lib/logger";
+import { pinMatches } from "../lib/admin-pin";
 
 const router = Router();
 const TMP_UPLOAD_DIR = "/tmp/uploads";
-const DEFAULT_ADMIN_PIN = process.env.DEFAULT_ADMIN_PIN ?? "4444";
 
-function safeCompare(a: string, b: string): boolean {
-  try {
-    const ba = Buffer.from(a.padEnd(64, "\0"));
-    const bb = Buffer.from(b.padEnd(64, "\0"));
-    return crypto.timingSafeEqual(ba, bb) && a.length === b.length;
-  } catch {
-    return false;
-  }
-}
 
 function isAdminPinRequest(req: Request): boolean {
-  const submittedPin = req.headers["x-admin-pin"];
-  if (typeof submittedPin !== "string") return false;
-  if (submittedPin.length < 4 || submittedPin.length > 20) return false;
-  return safeCompare(submittedPin, DEFAULT_ADMIN_PIN);
+  return pinMatches(req.headers["x-admin-pin"]);
 }
 
 try {
