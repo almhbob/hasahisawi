@@ -1,6 +1,6 @@
 name: Sync Vercel DATABASE_URL from Railway
 
-# Builds the PUBLIC connection URL of the Hasahisawi Postgres (sunny-peace) from
+# Builds the PUBLIC connection URL of the Hasahisawi Postgres (lively-mindfulness) from
 # Railway variables, proves it works with the same pg driver/config the API uses,
 # and only then writes it to the Vercel api-server project and redeploys.
 # If any check fails, Vercel is left untouched.
@@ -16,12 +16,18 @@ permissions:
   contents: read
 
 env:
-  RW_PROJECT: 4e3750d2-5221-479b-8085-66d31758e83e      # sunny-peace
-  RW_ENV: 28cc17ed-7b04-4e49-a284-ada04c98f3fb          # production
-  RW_POSTGRES: 87f54873-4dee-483a-ad03-a6803a3e277a     # Postgres
+  # Primary database since 2026-10-20 (merged): lively-mindfulness Postgres.
+  # sunny-peace Postgres is kept untouched as an archive.
+  RW_PROJECT: e82d86db-7b87-4446-9968-f60934f618b4      # lively-mindfulness
+  RW_ENV: f708e9d6-bbfa-4562-9a58-3e41977b40ed          # production
+  RW_POSTGRES: 984dd90a-b068-4089-a823-859d353c02ca     # Postgres
+  # Railway API service (lives in sunny-peace) that must use the same database
+  RW_API_PROJECT: 4e3750d2-5221-479b-8085-66d31758e83e
+  RW_API_ENV: 28cc17ed-7b04-4e49-a284-ada04c98f3fb
+  RW_API_SERVICE: 4296d176-326f-411f-8f3e-2a8536b23e43
   VC_TEAM: team_RTCz9oaxsbHBdJHrSJNyJr5q
   VC_PROJECT: prj_7NqIloolEKoPpF5JKr3KVWjapKVw          # api-server
-  MIN_USERS: '700'
+  MIN_USERS: '860'
 
 jobs:
   sync:
@@ -94,6 +100,19 @@ jobs:
           print("::error::Vercel env update failed: %s" % e.get("message")) if e else print("::notice title=vercel env::DATABASE_URL updated")
           sys.exit(1 if e else 0)'
 
+      - name: Point the Railway API service at the same database
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          DATABASE_URL: ${{ steps.db.outputs.url }}
+        run: |
+          set -euo pipefail
+          gql() { curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" -H "Authorization: Bearer $RAILWAY_TOKEN" -d "$1"; }
+          BODY=$(python3 -c 'import json,os; print(json.dumps({"query":"mutation($i: VariableUpsertInput!){ variableUpsert(input:$i) }","variables":{"i":{"projectId":os.environ["RW_API_PROJECT"],"environmentId":os.environ["RW_API_ENV"],"serviceId":os.environ["RW_API_SERVICE"],"name":"DATABASE_URL","value":os.environ["DATABASE_URL"]}}}))')
+          R=$(gql "$BODY"); printf '%s' "$R" | grep -q '"variableUpsert":true' || { echo "::error::Railway variableUpsert failed: $(printf '%s' "$R" | head -c 300)"; exit 1; }
+          echo "::notice title=railway env::DATABASE_URL of hasahisawi service updated"
+          R=$(gql "$(printf '{"query":"mutation { serviceInstanceRedeploy(environmentId: \"%s\", serviceId: \"%s\") }"}' "$RW_API_ENV" "$RW_API_SERVICE")")
+          echo "::notice title=railway redeploy::$(printf '%s' "$R" | head -c 200)"
+
       - name: Redeploy latest production build with the new env
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -117,3 +136,5 @@ jobs:
           S=$(curl -s --max-time 30 https://api-server-gilt-ten.vercel.app/api/stats)
           echo "::notice title=vercel /api/stats::$S"
           echo "$S" | grep -q '"users"' || { echo "::error::Vercel API still not reading the database"; exit 1; }
+          L=$(curl -s --max-time 30 https://api-server-gilt-ten.vercel.app/api/lawyers | python3 -c 'import json,sys; d=json.load(sys.stdin); d=d.get("lawyers",d) if isinstance(d,dict) else d; print(len(d))' 2>&1)
+          echo "::notice title=vercel /api/lawyers::count=$L"
