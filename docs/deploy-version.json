@@ -3,8 +3,8 @@
   "version": "6.5.6",
   "androidVersionCode": 256,
   "iosBuildNumber": "256",
-  "commit": "b2b6104c709cd6988f77ccfb14055f92a31214f8",
-  "deployedAt": "2026-10-20T08:55:14.274Z",
+  "commit": "d4536d575b06ba1a4e4cfa703a42a59cbf343764",
+  "deployedAt": "2026-10-20T15:40:08.078Z",
   "target": "github-pages",
   "source": "deploy-web"
 }
