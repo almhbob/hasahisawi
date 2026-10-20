@@ -28,7 +28,8 @@ import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import GuestGate from "@/components/GuestGate";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import { LoadError } from "@/components/ui/LoadState";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
@@ -355,22 +356,27 @@ export default function LostItemsScreen() {
   const [items, setItems] = useState<LostItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<"all" | "lost" | "found">("all");
   const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const base = getApiUrl();
       if (!base) return;
       const url = filterStatus !== "all" ? `${base}/api/lost-items?status=${filterStatus}` : `${base}/api/lost-items`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url); // plain fetch had no timeout and could hang forever
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);
+      } else {
+        setLoadFailed(true);
       }
     } catch (e) {
       console.error("Lost items load error:", e);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -528,6 +534,8 @@ export default function LostItemsScreen() {
             <ActivityIndicator size="large" color={Colors.primary} />
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, marginTop: 12 }}>جاري التحميل...</Text>
           </View>
+        ) : loadFailed && items.length === 0 ? (
+          <LoadError onRetry={load} message="تعذّر تحميل المفقودات" />
         ) : (
           <FlatList
             data={filtered}
