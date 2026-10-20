@@ -35,7 +35,6 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
-const DEFAULT_ADMIN_PIN = "4444";
 const ADMIN_PIN_KEY = "admin_pin";
 const ADMIN_NAME_KEY = "admin_name";
 const ADMIN_KEY = "admin_logged_in";
@@ -60,7 +59,7 @@ type ManagedUser = {
 
 export async function getAdminPin(): Promise<string> {
   const stored = await AsyncStorage.getItem(ADMIN_PIN_KEY);
-  return stored || DEFAULT_ADMIN_PIN;
+  return stored || ""; // no public default: the server rejects "4444"
 }
 
 

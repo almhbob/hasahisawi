@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { ModernCard } from "@/components/ui/ModernCard";
@@ -26,7 +27,6 @@ const INST_INIT_KEY  = "edu_institutions_initialized_v2";
 const REQ_KEY        = "edu_join_requests_v1";
 const ADMIN_KEY      = "admin_logged_in";
 const ADMIN_PIN_KEY  = "admin_pin";
-const DEFAULT_PIN    = "4444";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type InstType =
@@ -237,9 +237,6 @@ async function loadRequests(): Promise<JoinRequest[]> {
 }
 async function saveRequests(list: JoinRequest[]) {
   await AsyncStorage.setItem(REQ_KEY, JSON.stringify(list));
-}
-async function getAdminPin(): Promise<string> {
-  return DEFAULT_PIN;
 }
 
 // ─── Student Tools Data ───────────────────────────────────────────────────────
@@ -1910,6 +1907,16 @@ const LIB_SERVICES = [
 ];
 
 export default function StudentScreen() {
+  // Admin access = signed-in admin/moderator session, or a PIN verified by the server.
+  // (The old hardcoded "4444" is rejected by the server for security.)
+  const { user: authUser, token: authToken } = useAuth();
+  const isStaffSession = authUser?.role === "admin" || authUser?.role === "moderator";
+  const verifiedPinRef = useRef<string | null>(null);
+  const adminHeaders = (json = false): Record<string, string> => ({
+    ...(json ? { "Content-Type": "application/json" } : {}),
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(verifiedPinRef.current ? { "x-admin-pin": verifiedPinRef.current } : {}),
+  });
   const nav = useRouter();
 
   const [activeTab, setActiveTab]         = useState<Tab>("services");
@@ -1921,6 +1928,7 @@ export default function StudentScreen() {
 
   // Admin
   const [isAdmin, setIsAdmin]             = useState(false);
+  useEffect(() => { if (isStaffSession) setIsAdmin(true); }, [isStaffSession]);
   const [pinModal, setPinModal]           = useState(false);
   const [pinInput, setPinInput]           = useState("");
   const [pinError, setPinError]           = useState("");
@@ -1939,8 +1947,8 @@ export default function StudentScreen() {
     setFormsLoading(true);
     try {
       const [r1, r2] = await Promise.all([
-        fetchWithTimeout(`${getApiUrl()}/api/admin/education/registrations?status=${formsRegStatus}`, { headers:{ "x-admin-pin": DEFAULT_PIN } }),
-        fetchWithTimeout(`${getApiUrl()}/api/admin/education/transfers?status=${formsTrfStatus}`, { headers:{ "x-admin-pin": DEFAULT_PIN } }),
+        fetchWithTimeout(`${getApiUrl()}/api/admin/education/registrations?status=${formsRegStatus}`, { headers: adminHeaders() }),
+        fetchWithTimeout(`${getApiUrl()}/api/admin/education/transfers?status=${formsTrfStatus}`, { headers: adminHeaders() }),
       ]);
       if (r1.ok) { const d = await r1.json(); setAdminRegs(d.registrations || []); }
       if (r2.ok) { const d = await r2.json(); setAdminTrfs(d.transfers || []); }
@@ -1950,7 +1958,7 @@ export default function StudentScreen() {
   const updateRegStatus = async (id: number, status: string, admin_notes?: string) => {
     try {
       await fetchWithTimeout(`${getApiUrl()}/api/admin/education/registrations/${id}`, {
-        method:"PATCH", headers:{"Content-Type":"application/json","x-admin-pin":DEFAULT_PIN},
+        method:"PATCH", headers: adminHeaders(true),
         body:JSON.stringify({ status, admin_notes }),
       });
       setAdminRegs(prev => prev.map(r => r.id===id ? { ...r, status, admin_notes: admin_notes||r.admin_notes } : r));
@@ -1961,7 +1969,7 @@ export default function StudentScreen() {
   const updateTrfStatus = async (id: number, status: string, admin_notes?: string) => {
     try {
       await fetchWithTimeout(`${getApiUrl()}/api/admin/education/transfers/${id}`, {
-        method:"PATCH", headers:{"Content-Type":"application/json","x-admin-pin":DEFAULT_PIN},
+        method:"PATCH", headers: adminHeaders(true),
         body:JSON.stringify({ status, admin_notes }),
       });
       setAdminTrfs(prev => prev.map(t => t.id===id ? { ...t, status, admin_notes: admin_notes||t.admin_notes } : t));
@@ -2028,8 +2036,8 @@ export default function StudentScreen() {
     const [insts, reqs] = await Promise.all([loadInstitutions(), loadRequests()]);
     setInstitutions(insts);
     setRequests(reqs);
-    const adminStatus = await AsyncStorage.getItem(ADMIN_KEY);
-    setIsAdmin(adminStatus === "true");
+    await AsyncStorage.removeItem(ADMIN_KEY).catch(() => {}); // legacy flag no longer trusted
+    setIsAdmin(isStaffSession || !!verifiedPinRef.current);
   };
 
   useEffect(() => { load(); }, []);
@@ -2045,13 +2053,21 @@ export default function StudentScreen() {
 
   // ── Admin Login ──
   const handleAdminLogin = async () => {
-    const correct = await getAdminPin();
-    if (pinInput === correct) {
-      await AsyncStorage.setItem(ADMIN_KEY, "true");
-      setIsAdmin(true); setPinModal(false); setPinInput(""); setPinError("");
-      setActiveTab("admin");
-    } else {
-      setPinError("رمز PIN غير صحيح");
+    try {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/admin/validate-pin`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      const data = res.ok ? await res.json().catch(() => ({})) : {};
+      if (data?.valid === true) {
+        verifiedPinRef.current = pinInput;
+        setIsAdmin(true); setPinModal(false); setPinInput(""); setPinError("");
+        setActiveTab("admin");
+      } else {
+        setPinError("رمز PIN غير صحيح");
+      }
+    } catch {
+      setPinError("تعذّر الاتصال بالخادم");
     }
   };
 
@@ -2060,7 +2076,7 @@ export default function StudentScreen() {
     try {
       const res = await fetchWithTimeout(`${getApiUrl()}/api/admin/educational-institutions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
+        headers: adminHeaders(true),
         body: JSON.stringify({
           name: req.institutionName, type: req.instType,
           address: req.address, phone: req.phone,
@@ -2092,7 +2108,7 @@ export default function StudentScreen() {
         : `${getApiUrl()}/api/admin/educational-institutions/${inst.id}`;
       const res = await fetchWithTimeout(url, {
         method: isNew ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-pin": DEFAULT_PIN },
+        headers: adminHeaders(true),
         body: JSON.stringify({
           name: inst.name, type: inst.type, address: inst.address,
           phone: inst.phone, principal: inst.principal,
@@ -2115,7 +2131,7 @@ export default function StudentScreen() {
     try {
       await fetchWithTimeout(`${getApiUrl()}/api/admin/educational-institutions/${id}`, {
         method: "DELETE",
-        headers: { "x-admin-pin": DEFAULT_PIN },
+        headers: adminHeaders(),
       });
       setInstitutions(prev => prev.filter(i => i.id !== id));
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
