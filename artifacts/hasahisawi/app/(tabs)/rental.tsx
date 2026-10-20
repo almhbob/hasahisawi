@@ -458,7 +458,7 @@ export default function RentalScreen() {
 
   // ─── RENDER ────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       {/* Header */}
       <ModernHeader title="قسم التأجير" subtitle="عقارات · مناسبات · بناء" icon="home-outline">
         <View style={headerUI.segmentWrap}>

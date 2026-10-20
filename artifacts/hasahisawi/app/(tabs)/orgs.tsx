@@ -489,7 +489,7 @@ export default function OrgsScreen() {
 // ══════════════════════════════════════════════════════
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  statsRow: { flexDirection: "row", backgroundColor: Colors.header.control, borderRadius: Colors.radius.md, padding: 14, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: Colors.header.control, borderRadius: Colors.radius.md, padding: 14, gap: 8, marginBottom: 10 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },

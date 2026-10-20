@@ -1221,7 +1221,7 @@ export default function SportsScreen() {
           </View>
         }
       >
-        <View style={headerUI.search}>
+        <View style={[headerUI.search, { marginBottom: 10 }]}>
           <Ionicons name="search" size={16} color={Colors.textMuted} />
           <TextInput style={headerUI.searchInput} placeholder="ابحث عن خبر، لاعب..." placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} textAlign="right" />
           {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}

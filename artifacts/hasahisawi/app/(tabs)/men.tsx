@@ -330,7 +330,7 @@ export default function MenScreen() {
         <View style={jm.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setJoinModal(false)} />
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={jm.sheet}>
-            <LinearGradient colors={["#0A1A2A", "#0A1A10"]} style={jm.sheetInner}>
+            <View style={jm.sheetInner}>
 
               <View style={jm.sheetHeader}>
                 <TouchableOpacity onPress={() => setJoinModal(false)} style={jm.closeBtn}>
@@ -420,7 +420,7 @@ export default function MenScreen() {
                   <View style={{ height: 24 }} />
                 </ScrollView>
               )}
-            </LinearGradient>
+            </View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -493,9 +493,9 @@ const jm = StyleSheet.create({
 
   overlay: { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
   sheet: { maxHeight: "92%" },
-  sheetInner: { borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 36 },
+  sheetInner: { backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 36 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
-  closeBtn: { width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  closeBtn: { width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: Colors.header.control, alignItems: "center", justifyContent: "center" },
   sheetTitleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
 

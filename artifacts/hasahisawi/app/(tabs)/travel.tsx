@@ -7,7 +7,6 @@ import {
   ActivityIndicator, FlatList, Pressable, Dimensions,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   FadeInDown, FadeIn, useSharedValue, useAnimatedStyle,
   withRepeat, withTiming, Easing, ZoomIn, SlideInRight,
@@ -27,9 +26,9 @@ import ModernHeader from "@/components/ui/ModernHeader";
 // ═══════════════════════════════════════════════════════════════
 // الثوابت والأنواع
 // ═══════════════════════════════════════════════════════════════
-const ACCENT   = "#0EA5E9";
-const ACCENT2  = "#38BDF8";
-const GOLD     = "#F59E0B";
+const ACCENT   = Colors.primaryDeep;
+const ACCENT2  = Colors.primaryDeep;
+const GOLD     = Colors.accentDeep;
 const SCREEN_W = Dimensions.get("window").width;
 
 const SUDANESE_CITIES = [
@@ -106,11 +105,7 @@ function TicketCard({
 
   return (
     <Animated.View entering={FadeInDown.springify()} style={styles.ticketWrap}>
-      <LinearGradient
-        colors={booking.status === "cancelled" ? ["#1E293B","#334155"] : ["#0C1D3A","#1E3A5F","#0C4A6E"]}
-        start={{ x:0, y:0 }} end={{ x:1, y:1 }}
-        style={styles.ticketCard}
-      >
+      <View style={[styles.ticketCard, booking.status === "cancelled" && styles.ticketCardCancelled]}>
         {/* رأس التذكرة */}
         <View style={styles.ticketHeader}>
           <View style={styles.ticketHeaderLeft}>
@@ -184,11 +179,11 @@ function TicketCard({
           <View style={styles.ticketNumberBlock}>
             <Text style={styles.ticketNumberLabel}>رقم التذكرة</Text>
             <Text style={styles.ticketNumberValue}>{booking.ticket_number}</Text>
-            <Text style={{ fontSize:10, color:"#64748B", marginTop:3 }}>امسح الكود للتحقق من صحة التذكرة</Text>
+            <Text style={{ fontSize:10, color:Colors.textMuted, marginTop:3 }}>امسح الكود للتحقق من صحة التذكرة</Text>
             {booking.scan_count > 0 && (
               <View style={{ flexDirection:"row", alignItems:"center", marginTop:4, gap:4 }}>
-                <Ionicons name="checkmark-circle" size={12} color="#34D399" />
-                <Text style={{ fontSize:10, color:"#34D399" }}>
+                <Ionicons name="checkmark-circle" size={12} color={Colors.primaryDeep} />
+                <Text style={{ fontSize:10, color:Colors.primaryDeep }}>
                   تم فحصها {booking.scan_count} {booking.scan_count===1?"مرة":"مرات"}
                 </Text>
               </View>
@@ -219,7 +214,7 @@ function TicketCard({
             </>
           ) : null}
         </View>
-      </LinearGradient>
+      </View>
     </Animated.View>
   );
 }
@@ -227,7 +222,7 @@ function TicketCard({
 function TicketDetailItem({ label, value, icon }: { label:string; value:string; icon: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.detailRow}>
-      <Ionicons name={icon} size={14} color={ACCENT2 + "AA"} />
+      <Ionicons name={icon} size={14} color={Colors.primaryDeep} />
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
     </View>
@@ -285,11 +280,13 @@ function PaymentInstructions({
     <ScrollView contentContainerStyle={{ padding:16 }}>
       {/* ✅ تم الحجز */}
       <Animated.View entering={ZoomIn.springify()} style={{ marginBottom:16 }}>
-        <LinearGradient colors={["#064E3B","#065F46"]} style={{ borderRadius:20, padding:24, alignItems:"center" }}>
-          <Ionicons name="checkmark-circle" size={52} color="#34D399" />
-          <Text style={{ fontSize:22, fontWeight:"800", color:"#fff", marginTop:12 }}>تم الحجز بنجاح!</Text>
-          <Text style={{ fontSize:14, color:"#6EE7B7", marginTop:4 }}>تذكرة رقم: {booking.ticket_number}</Text>
-        </LinearGradient>
+        <View style={{ backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:24, alignItems:"center" }}>
+          <View style={{ width:64, height:64, borderRadius:32, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" }}>
+            <Ionicons name="checkmark-circle" size={40} color={Colors.primaryDeep} />
+          </View>
+          <Text style={{ fontSize:22, fontWeight:"800", color:Colors.textPrimary, marginTop:12 }}>تم الحجز بنجاح!</Text>
+          <Text style={{ fontSize:14, color:Colors.textSecondary, marginTop:4 }}>تذكرة رقم: {booking.ticket_number}</Text>
+        </View>
       </Animated.View>
 
       <TicketCard
@@ -301,21 +298,21 @@ function PaymentInstructions({
       {/* 💳 تعليمات الدفع */}
       {!submitted ? (
         <Animated.View entering={FadeInDown.delay(200).springify()}>
-          <LinearGradient colors={["#0C2A4A","#1A3D6B"]} style={{ borderRadius:18, padding:20, marginBottom:16 }}>
+          <View style={{ backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:20, marginBottom:16 }}>
             <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:16 }}>
-              <View style={{ width:40, height:40, borderRadius:12, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" }}>
-                <Ionicons name="wallet-outline" size={22} color={ACCENT} />
+              <View style={{ width:40, height:40, borderRadius:12, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" }}>
+                <Ionicons name="wallet-outline" size={22} color={Colors.primaryDeep} />
               </View>
               <View>
-                <Text style={{ fontSize:16, fontWeight:"800", color:"#fff" }}>تعليمات الدفع</Text>
-                <Text style={{ fontSize:12, color:"#93C5FD", marginTop:2 }}>أرسل قيمة التذكرة لإتمام الحجز</Text>
+                <Text style={{ fontSize:16, fontWeight:"800", color:Colors.textPrimary }}>تعليمات الدفع</Text>
+                <Text style={{ fontSize:12, color:Colors.textSecondary, marginTop:2 }}>أرسل قيمة التذكرة لإتمام الحجز</Text>
               </View>
             </View>
 
             {payInfo?.payment_account_number ? (
               <>
-                <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
-                  <Text style={{ fontSize:12, color:"#93C5FD", marginBottom:8 }}>ادفع عبر:</Text>
+                <View style={{ backgroundColor:Colors.surface1, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:12, padding:14, marginBottom:12 }}>
+                  <Text style={{ fontSize:12, color:Colors.textSecondary, marginBottom:8 }}>ادفع عبر:</Text>
                   {[
                     ["وسيلة الدفع", payInfo.payment_account_type],
                     ["اسم الحساب",  payInfo.payment_account_name],
@@ -323,54 +320,54 @@ function PaymentInstructions({
                     ["المبلغ",       `${booking.price} جنيه`],
                   ].map(([l,v]) => (
                     <View key={l} style={{ flexDirection:"row", justifyContent:"space-between", marginBottom:6 }}>
-                      <Text style={{ fontSize:12, color:"#93C5FD" }}>{l}</Text>
-                      <Text style={{ fontSize:13, color:"#fff", fontWeight:"700" }}>{v}</Text>
+                      <Text style={{ fontSize:12, color:Colors.textSecondary }}>{l}</Text>
+                      <Text style={{ fontSize:13, color:Colors.textPrimary, fontWeight:"700" }}>{v}</Text>
                     </View>
                   ))}
                 </View>
-                <View style={{ backgroundColor:"#F59E0B11", borderRadius:10, padding:12, marginBottom:14 }}>
+                <View style={{ backgroundColor:Colors.accentSoft, borderRadius:10, padding:12, marginBottom:14 }}>
                   <Text style={{ fontSize:12, color:GOLD }}>
                     ⏳ المهلة: {payInfo.payment_booking_timeout_hrs || 3} ساعات لإرسال الإيصال
                   </Text>
                 </View>
               </>
             ) : (
-              <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
-                <Text style={{ fontSize:13, color:"#93C5FD", textAlign:"center" }}>
+              <View style={{ backgroundColor:Colors.surface1, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:12, padding:14, marginBottom:12 }}>
+                <Text style={{ fontSize:13, color:Colors.textSecondary, textAlign:"center" }}>
                   📞 تواصل مع الشركة لمعرفة تفاصيل الدفع: {route?.company_phone || ""}
                 </Text>
               </View>
             )}
 
             {/* رقم المرجع */}
-            <Text style={{ fontSize:13, color:"#CBD5E1", marginBottom:8 }}>
+            <Text style={{ fontSize:13, color:Colors.textSecondary, marginBottom:8 }}>
               بعد الإرسال، أدخل رقم العملية/المرجع:
             </Text>
             <TextInput
               value={payRef}
               onChangeText={setPayRef}
               placeholder="مثال: TXN-123456789"
-              placeholderTextColor="#4B6A8A"
-              style={{ backgroundColor:"#0A1E38", borderRadius:10, padding:12, color:"#fff", fontSize:14,
-                borderWidth:1, borderColor:"#2D5A8A", marginBottom:12, textAlign:"right" }}
+              placeholderTextColor={Colors.textMuted}
+              style={{ backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.textPrimary, fontSize:14,
+                borderWidth:1, borderColor:Colors.border, marginBottom:12, textAlign:"right" }}
             />
             <TouchableOpacity onPress={submitProof} disabled={submitting}
-              style={{ backgroundColor:ACCENT, borderRadius:12, padding:14, alignItems:"center", opacity:submitting?0.6:1 }}>
+              style={{ backgroundColor:Colors.primaryDeep, borderRadius:12, padding:14, alignItems:"center", opacity:submitting?0.6:1 }}>
               <Text style={{ color:"#fff", fontWeight:"800", fontSize:15 }}>
                 {submitting ? "جاري الإرسال..." : "✓ أرسلت الدفعة — إبلاغ الإدارة"}
               </Text>
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
         </Animated.View>
       ) : (
         <Animated.View entering={ZoomIn.springify()}>
-          <LinearGradient colors={["#064E3B","#065F46"]} style={{ borderRadius:16, padding:18, marginBottom:16, alignItems:"center" }}>
-            <Ionicons name="checkmark-circle" size={36} color="#34D399" />
-            <Text style={{ fontSize:16, fontWeight:"700", color:"#fff", marginTop:8 }}>تم إرسال إشعار الدفع!</Text>
-            <Text style={{ fontSize:13, color:"#6EE7B7", marginTop:4, textAlign:"center" }}>
+          <View style={{ backgroundColor:Colors.primarySoft, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:18, marginBottom:16, alignItems:"center" }}>
+            <Ionicons name="checkmark-circle" size={36} color={Colors.primaryDeep} />
+            <Text style={{ fontSize:16, fontWeight:"700", color:Colors.textPrimary, marginTop:8 }}>تم إرسال إشعار الدفع!</Text>
+            <Text style={{ fontSize:13, color:Colors.textSecondary, marginTop:4, textAlign:"center" }}>
               سيتم تأكيد حجزك خلال دقائق بعد مراجعة الإدارة
             </Text>
-          </LinearGradient>
+          </View>
         </Animated.View>
       )}
 
@@ -544,7 +541,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>تأكيد الحجز</Text>
         </View>
-        <LinearGradient colors={["#0F2744","#1E3A5F"]} style={styles.confirmCard}>
+        <View style={styles.confirmCard}>
           <View style={styles.confirmRoute}>
             <Text style={styles.confirmCity}>{fromCity}</Text>
             <MaterialCommunityIcons name="bus" size={24} color={ACCENT2} />
@@ -553,7 +550,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
           <View style={styles.confirmCompanyBadge}><Ionicons name="business-outline" size={14} color={ACCENT2} /><Text style={styles.confirmCompanyBadgeText}>{selectedRoute?.company_name}</Text></View>
           <Text style={styles.confirmTime}>المغادرة: {selectedRoute?.departure_time}</Text>
           <Text style={styles.confirmPrice}>{Number(selectedRoute?.price||0).toLocaleString("ar")} ج.س</Text>
-        </LinearGradient>
+        </View>
 
         <Text style={styles.fieldLabel}>اسم الراكب *</Text>
         <TextInput style={styles.input} value={passengerName} onChangeText={setPassengerName} placeholder="الاسم الثلاثي" />
@@ -572,7 +569,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
             </TouchableOpacity>
           ))}
         </View>
-        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor="#4B6A8A" keyboardType="numbers-and-punctuation" maxLength={10} />
+        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor={Colors.textMuted} keyboardType="numbers-and-punctuation" maxLength={10} />
 
         <AnimatedPress onPress={submitBooking} style={[styles.bookBtn, submitting && { opacity:0.6 }]}>
           {submitting ? <ActivityIndicator color="#fff" />
@@ -620,13 +617,15 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
       </ScrollView>
 
       {/* بطاقة عملاء جدد */}
-      <LinearGradient colors={["#1E3A5F","#0C4A6E"]} style={styles.infoCard}>
-        <MaterialCommunityIcons name="shield-check" size={28} color={ACCENT2} />
+      <View style={styles.infoCard}>
+        <View style={styles.iconChip}>
+          <MaterialCommunityIcons name="shield-check" size={24} color={Colors.primaryDeep} />
+        </View>
         <View style={{ flex:1, marginStart:12 }}>
           <Text style={styles.infoCardTitle}>حجز آمن ومضمون</Text>
           <Text style={styles.infoCardSub}>تذاكرك محفوظة في التطبيق — مع تذكير قبل ساعتين من السفر</Text>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* منتقي المدن */}
       <Modal visible={!!cityPicker} animationType="slide" transparent>
@@ -662,12 +661,12 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 function PaymentBadge({ status }: { status: string }) {
   const MAP: Record<string, { label: string; color: string; bg: string }> = {
     pending_payment:  { label: "في انتظار الدفع",  color: GOLD,      bg: GOLD      + "22" },
-    proof_submitted:  { label: "إيصال مُرسَل",     color: "#38BDF8",  bg: "#38BDF822" },
-    verified:         { label: "✓ مدفوع ومؤكد",   color: "#34D399",  bg: "#34D39922" },
-    rejected:         { label: "✗ مرفوض",          color: "#F87171",  bg: "#F8717122" },
-    free:             { label: "بلا رسوم",         color: "#94A3B8",  bg: "#94A3B822" },
+    proof_submitted:  { label: "إيصال مُرسَل",     color: "#0369A1",  bg: "#0369A11A" },
+    verified:         { label: "✓ مدفوع ومؤكد",   color: Colors.primaryDeep,  bg: Colors.primarySoft },
+    rejected:         { label: "✗ مرفوض",          color: "#DC2626",  bg: "#DC26261A" },
+    free:             { label: "بلا رسوم",         color: "#475569",  bg: "#4755691A" },
   };
-  const m = MAP[status] ?? { label: status, color: "#94A3B8", bg: "#94A3B822" };
+  const m = MAP[status] ?? { label: status, color: "#475569", bg: "#4755691A" };
   return (
     <View style={{ backgroundColor: m.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
       borderWidth:1, borderColor: m.color + "44", alignSelf:"flex-start" }}>
@@ -809,7 +808,7 @@ function MyTickets({ user }: { user: any }) {
             onWhatsApp={()=>sendToWhatsApp(booking)}
           />
           {/* شريط حالة الدفع */}
-          <View style={{ backgroundColor:"#0F1F35", borderRadius:12, padding:12, marginTop:-12, marginBottom:16,
+          <View style={{ backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:12, padding:12, marginTop:-12, marginBottom:16,
             flexDirection:"row", alignItems:"center", justifyContent:"space-between" }}>
             <PaymentBadge status={booking.payment_status || "pending_payment"} />
             {(booking.payment_status === "pending_payment" || booking.payment_status === "rejected") && (
@@ -819,7 +818,7 @@ function MyTickets({ user }: { user: any }) {
               </TouchableOpacity>
             )}
             {booking.payment_status === "rejected" && booking.payment_rejection_reason ? (
-              <Text style={{ fontSize:11, color:"#F87171", flex:1, marginStart:8 }}>
+              <Text style={{ fontSize:11, color:"#DC2626", flex:1, marginStart:8 }}>
                 {booking.payment_rejection_reason}
               </Text>
             ) : null}
@@ -833,7 +832,7 @@ function MyTickets({ user }: { user: any }) {
           <View style={[styles.smallModal, { maxWidth:360 }]}>
             <Text style={styles.smallModalTitle}>إرسال إيصال الدفع</Text>
             <Text style={styles.smallModalSub}>التذكرة: {payModal?.ticket_number}</Text>
-            <Text style={{ fontSize:12, color:"#93C5FD", marginBottom:8, marginTop:4 }}>
+            <Text style={{ fontSize:12, color:Colors.textSecondary, marginBottom:8, marginTop:4 }}>
               المبلغ: {payModal?.price} جنيه
             </Text>
             <TextInput
@@ -841,10 +840,10 @@ function MyTickets({ user }: { user: any }) {
               value={payRef}
               onChangeText={setPayRef}
               placeholder="رقم العملية / المرجع (مثال: TXN-12345)"
-              placeholderTextColor="#4B6A8A"
+              placeholderTextColor={Colors.textMuted}
               keyboardType="default"
             />
-            <Text style={{ fontSize:11, color:"#64748B", marginBottom:12 }}>
+            <Text style={{ fontSize:11, color:Colors.textMuted, marginBottom:12 }}>
               * أدخل رقم العملية من تطبيق البنك أو شركة الاتصالات
             </Text>
             <View style={styles.modalBtns}>
@@ -901,23 +900,27 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
     <ScrollView contentContainerStyle={{ padding:16 }}>
       {/* وكالات السفر والسياحة */}
       <AnimatedPress onPress={() => router.push("/travel-agencies" as any)}>
-        <LinearGradient colors={["#0A1A2E","#1D4ED8"]} style={[styles.partnerBanner, { marginBottom:10 }]}>
-          <MaterialCommunityIcons name="bus" size={32} color="#93C5FD" />
+        <View style={[styles.partnerBanner, { marginBottom:10 }]}>
+          <View style={styles.iconChip}>
+            <MaterialCommunityIcons name="bus" size={24} color={Colors.primaryDeep} />
+          </View>
           <View style={{ flex:1, marginStart:12 }}>
             <Text style={styles.partnerBannerTitle}>وكالات السفر والسياحة</Text>
             <Text style={styles.partnerBannerSub}>دليل الوكالات المعتمدة — محلية ودولية — وسجّل وكالتك</Text>
           </View>
-          <Ionicons name="arrow-back" size={20} color="#60A5FA" />
-        </LinearGradient>
+          <Ionicons name="arrow-back" size={20} color={Colors.primaryDeep} />
+        </View>
       </AnimatedPress>
 
-      <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.partnerBanner}>
-        <MaterialCommunityIcons name="handshake" size={32} color={ACCENT2} />
+      <View style={[styles.partnerBanner, styles.partnerBannerGold]}>
+        <View style={[styles.iconChip, { backgroundColor:Colors.cardBg }]}>
+          <MaterialCommunityIcons name="handshake" size={24} color={Colors.accentDeep} />
+        </View>
         <View style={{ flex:1, marginStart:12 }}>
           <Text style={styles.partnerBannerTitle}>انضم كشريك في السفر</Text>
           <Text style={styles.partnerBannerSub}>وفّر خدمات نقل موثوقة لأهالي الحصاحيصا واكسب أكثر</Text>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* عقد الشراكة — حصري للمشرفين فقط */}
       {isAdmin ? (
@@ -938,7 +941,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
       <Text style={styles.sectionTitle}>مساحة وكالات السفر والسياحة</Text>
       <View style={styles.agencyPanel}>
         <View style={styles.agencyHeroIcon}>
-          <MaterialCommunityIcons name="office-building-marker-outline" size={30} color={ACCENT2} />
+          <MaterialCommunityIcons name="office-building-marker-outline" size={28} color={Colors.primaryDeep} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.agencyTitle}>بوابة احترافية للوكالات</Text>
@@ -980,8 +983,8 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
                   <Text style={styles.metaChipTxt}>عمولة {c.commission_pct}%</Text>
                 </View>
               ) : (
-                <View style={[styles.metaChip, {backgroundColor:"#1E3A5F"}]}>
-                  <Text style={styles.metaChipTxt}>{c.subscription_type === "annual" ? "اشتراك سنوي" : "اشتراك شهري"}</Text>
+                <View style={[styles.metaChip, {backgroundColor:Colors.accentSoft}]}>
+                  <Text style={[styles.metaChipTxt, {color:Colors.accentDeep}]}>{c.subscription_type === "annual" ? "اشتراك سنوي" : "اشتراك شهري"}</Text>
                 </View>
               )}
             </View>
@@ -1067,11 +1070,13 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={{ padding:20 }}>
-          <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.contractBadge}>
-            <Ionicons name="document-text" size={32} color={ACCENT2} />
+          <View style={styles.contractBadge}>
+            <View style={[styles.iconChip, { backgroundColor:Colors.cardBg }]}>
+              <Ionicons name="document-text" size={26} color={Colors.accentDeep} />
+            </View>
             <Text style={styles.contractBadgeTitle}>عقد شراكة رسمي</Text>
             <Text style={styles.contractBadgeSub}>تطبيق حصاحيصاوي — خدمة السفريات</Text>
-          </LinearGradient>
+          </View>
           <Text style={styles.contractBody}>{contractText}</Text>
           <AnimatedPress onPress={()=>{
             Share.share({ message: contractText, title:"عقد شراكة حصاحيصاوي" });
@@ -1212,40 +1217,41 @@ const styles = StyleSheet.create({
 
   tabBar:          { flexDirection:"row", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   tabItem:         { flex:1, alignItems:"center", paddingVertical:10, gap:3 },
-  tabItemActive:   { borderBottomWidth:2, borderBottomColor:Colors.accent },
+  tabItemActive:   { borderBottomWidth:2, borderBottomColor:Colors.primaryDeep },
   tabLabel:        { fontSize:11, color:Colors.textMuted, fontWeight:"500" },
-  tabLabelActive:  { color:Colors.accent, fontWeight:"700" },
+  tabLabelActive:  { color:Colors.primaryDeep, fontWeight:"700" },
 
   sectionTitle:    { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:12, marginTop:8 },
 
   cityPickerRow:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:12 },
   cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:12, gap:6, borderWidth:1, borderColor:Colors.borderSubtle },
   cityPickerTxt:   { flex:1, fontSize:13, color:Colors.text },
-  swapBtn:         { width:36, height:36, borderRadius:18, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" },
-  searchBtn:       { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  swapBtn:         { width:36, height:36, borderRadius:18, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" },
+  searchBtn:       { flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   searchBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:15 },
 
-  destChip:        { backgroundColor:Colors.cardBg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, marginEnd:8, borderWidth:1, borderColor:ACCENT+"44" },
+  destChip:        { backgroundColor:Colors.cardBg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, marginEnd:8, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border },
   destChipTxt:     { color:Colors.text, fontSize:13 },
 
-  infoCard:        { flexDirection:"row", borderRadius:16, padding:16, alignItems:"center", marginTop:8 },
-  infoCardTitle:   { color:"#fff", fontWeight:"700", fontSize:14, marginBottom:4 },
-  infoCardSub:     { color:"#93C5FD", fontSize:12, lineHeight:18 },
+  infoCard:        { flexDirection:"row", backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:16, alignItems:"center", marginTop:8 },
+  infoCardTitle:   { color:Colors.textPrimary, fontWeight:"700", fontSize:14, marginBottom:4 },
+  infoCardSub:     { color:Colors.textSecondary, fontSize:12, lineHeight:18 },
+  iconChip:        { width:44, height:44, borderRadius:Colors.radius.md, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" },
 
   fieldLabel:      { fontSize:13, color:Colors.textMuted, marginBottom:4, marginTop:12 },
   input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.borderSubtle },
   dateChipGrid:    { flexDirection:"row", flexWrap:"wrap", gap:8, marginBottom:10 },
   dateChip:        { minWidth:"30%", flexGrow:1, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, paddingVertical:10, paddingHorizontal:10, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"center", gap:3 },
-  dateChipActive:  { backgroundColor:Colors.primary, borderColor:Colors.primary },
+  dateChipActive:  { backgroundColor:Colors.primaryDeep, borderColor:Colors.primaryDeep },
   dateChipText:    { color:Colors.text, fontSize:12, fontWeight:"700" },
   dateChipSub:     { color:Colors.textMuted, fontSize:10, fontWeight:"600" },
   dateChipTextActive:{ color:"#fff" },
 
-  bookBtn:         { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.lg, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
+  bookBtn:         { flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.lg, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
   bookBtnText:     { color:"#fff", fontWeight:"700", fontSize:16 },
 
   sectionHeader:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:16 },
-  backBtn:         { width:36, height:36, borderRadius:Colors.radius.pill, backgroundColor:Colors.cardBg, justifyContent:"center", alignItems:"center" },
+  backBtn:         { width:36, height:36, borderRadius:Colors.radius.pill, backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, justifyContent:"center", alignItems:"center" },
 
   routeCard:       { backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, marginBottom:10, flexDirection:"row", borderWidth:1, borderColor:Colors.borderSubtle, ...Colors.shadow.card },
   routeCardSelected:{ borderColor:ACCENT, borderWidth:2 },
@@ -1256,71 +1262,72 @@ const styles = StyleSheet.create({
   routeCardCity:   { fontSize:13, color:Colors.textSecondary },
   routeCardTime:   { flexDirection:"row", alignItems:"center", gap:4 },
   routeCardTimeTxt:{ fontSize:12, color:Colors.textMuted },
-  routeCardPrice:  { fontSize:20, fontWeight:"800", color:GOLD },
+  routeCardPrice:  { fontSize:20, fontWeight:"800", color:Colors.primaryDeep },
   routeCardCurrency:{ fontSize:11, color:Colors.textMuted },
-  selectBtn:       { backgroundColor:ACCENT, borderRadius:8, paddingHorizontal:10, paddingVertical:4 },
+  selectBtn:       { backgroundColor:Colors.primaryDeep, borderRadius:8, paddingHorizontal:10, paddingVertical:4 },
   selectBtnTxt:    { color:"#fff", fontSize:12, fontWeight:"700" },
 
-  confirmCard:     { borderRadius:Colors.radius.lg, padding:20, marginBottom:16, alignItems:"center" },
+  confirmCard:     { backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:20, marginBottom:16, alignItems:"center" },
   confirmRoute:    { flexDirection:"row", alignItems:"center", gap:12, marginBottom:8 },
-  confirmCity:     { fontSize:18, fontWeight:"700", color:"#fff" },
-  confirmCompany:  { fontSize:14, color:"#93C5FD", marginBottom:4 },
-  confirmCompanyBadge:{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#ffffff12", borderWidth:1, borderColor:ACCENT2+"35", paddingHorizontal:12, paddingVertical:6, borderRadius:999, marginBottom:6 },
-  confirmCompanyBadgeText:{ fontSize:14, color:"#E0F2FE", fontWeight:"800" },
-  confirmTime:     { fontSize:13, color:"#CBD5E1" },
-  confirmPrice:    { fontSize:24, fontWeight:"800", color:GOLD, marginTop:8 },
+  confirmCity:     { fontSize:18, fontWeight:"700", color:Colors.textPrimary },
+  confirmCompany:  { fontSize:14, color:Colors.textSecondary, marginBottom:4 },
+  confirmCompanyBadge:{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:Colors.primarySoft, paddingHorizontal:12, paddingVertical:6, borderRadius:999, marginBottom:6 },
+  confirmCompanyBadgeText:{ fontSize:14, color:Colors.primaryDeep, fontWeight:"800" },
+  confirmTime:     { fontSize:13, color:Colors.textSecondary },
+  confirmPrice:    { fontSize:24, fontWeight:"800", color:Colors.primaryDeep, marginTop:8 },
 
   successHeader:   { marginBottom:16 },
   successBadge:    { borderRadius:20, padding:24, alignItems:"center" },
-  successTitle:    { fontSize:22, fontWeight:"800", color:"#fff", marginTop:12 },
-  successSub:      { fontSize:14, color:"#6EE7B7" },
-  newBookingBtn:   { backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, alignItems:"center", marginTop:16 },
+  successTitle:    { fontSize:22, fontWeight:"800", color:Colors.textPrimary, marginTop:12 },
+  successSub:      { fontSize:14, color:Colors.textSecondary },
+  newBookingBtn:   { backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:14, alignItems:"center", marginTop:16 },
   newBookingBtnText:{ color:"#fff", fontWeight:"700", fontSize:15 },
 
   // بطاقة التذكرة
   ticketWrap:      { marginBottom:20 },
-  ticketCard:      { borderRadius:20, overflow:"hidden", padding:0 },
+  ticketCard:      { backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, overflow:"hidden", padding:0 },
+  ticketCardCancelled:{ backgroundColor:Colors.surface1, opacity:0.85 },
   ticketHeader:    { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, paddingBottom:8 },
   ticketHeaderLeft:{ flexDirection:"row", alignItems:"center", gap:10 },
-  airlineLogoWrap: { width:36, height:36, borderRadius:18, backgroundColor:"#ffffff15", justifyContent:"center", alignItems:"center" },
-  ticketAirline:   { fontSize:14, fontWeight:"700", color:"#fff" },
-  ticketBookingRef:{ fontSize:11, color:"#93C5FD" },
+  airlineLogoWrap: { width:36, height:36, borderRadius:18, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" },
+  ticketAirline:   { fontSize:14, fontWeight:"700", color:Colors.textPrimary },
+  ticketBookingRef:{ fontSize:11, color:Colors.textMuted },
   statusBadge:     { borderRadius:8, paddingHorizontal:8, paddingVertical:3 },
   statusText:      { fontSize:11, fontWeight:"700" },
 
   routeRow:        { flexDirection:"row", alignItems:"center", paddingHorizontal:16, paddingVertical:8 },
   cityBlock:       { width:80, alignItems:"flex-end" },
-  cityCode:        { fontSize:28, fontWeight:"900", color:"#fff", letterSpacing:1 },
-  cityName:        { fontSize:11, color:"#93C5FD", marginTop:2, maxWidth:75, textAlign:"right" },
+  cityCode:        { fontSize:28, fontWeight:"900", color:Colors.textPrimary, letterSpacing:1 },
+  cityName:        { fontSize:11, color:Colors.textMuted, marginTop:2, maxWidth:75, textAlign:"right" },
   routeCenter:     { flex:1, flexDirection:"row", alignItems:"center" },
-  routeLine:       { flex:1, height:1, backgroundColor:"#ffffff30" },
+  routeLine:       { flex:1, height:1, backgroundColor:Colors.border },
   planIcon:        { marginHorizontal:4 },
 
   tearLine:        { flexDirection:"row", alignItems:"center", marginVertical:8 },
   tearCircleLeft:  { width:20, height:20, borderRadius:10, backgroundColor:Colors.bg, marginStart:-10 },
   tearCircleRight: { width:20, height:20, borderRadius:10, backgroundColor:Colors.bg, marginEnd:-10 },
   dashedRow:       { flex:1, flexDirection:"row", justifyContent:"space-between", paddingHorizontal:4 },
-  dashSegment:     { width:6, height:1, backgroundColor:"#ffffff30" },
+  dashSegment:     { width:6, height:1, backgroundColor:Colors.border },
 
   ticketDetails:   { paddingHorizontal:16, paddingVertical:8 },
   detailRow:       { flexDirection:"row", alignItems:"center", gap:8, marginBottom:6 },
-  detailLabel:     { fontSize:12, color:"#93C5FD", width:90 },
-  detailValue:     { fontSize:13, color:"#fff", fontWeight:"600", flex:1 },
+  detailLabel:     { fontSize:12, color:Colors.textMuted, width:90 },
+  detailValue:     { fontSize:13, color:Colors.textPrimary, fontWeight:"600", flex:1 },
 
   qrSection:       { flexDirection:"row", alignItems:"center", padding:16, gap:12 },
-  qrBox:           { width:64, height:64, backgroundColor:"#fff", borderRadius:8, justifyContent:"center", alignItems:"center", padding:4 },
+  qrBox:           { width:64, height:64, backgroundColor:"#fff", borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:8, justifyContent:"center", alignItems:"center", padding:4 },
   qrGrid:          { width:56, height:56, flexDirection:"row", flexWrap:"wrap" },
   qrCell:          { width:8, height:8 },
   qrFilled:        { backgroundColor:"#000" },
   qrEmpty:         { backgroundColor:"transparent" },
   ticketNumberBlock:{ flex:1 },
-  ticketNumberLabel:{ fontSize:11, color:"#93C5FD" },
-  ticketNumberValue:{ fontSize:13, color:"#fff", fontWeight:"700", marginTop:2 },
+  ticketNumberLabel:{ fontSize:11, color:Colors.textMuted },
+  ticketNumberValue:{ fontSize:13, color:Colors.textPrimary, fontWeight:"700", marginTop:2 },
 
-  ticketActions:   { flexDirection:"row", padding:12, gap:6, borderTopWidth:1, borderColor:"#ffffff20" },
+  ticketActions:   { flexDirection:"row", padding:12, gap:6, borderTopWidth:StyleSheet.hairlineWidth, borderColor:Colors.border },
   ticketBtn:       { flex:1, flexDirection:"row", justifyContent:"center", alignItems:"center", paddingVertical:8, borderRadius:8, gap:4 },
   ticketBtnText:   { fontSize:11, color:"#fff", fontWeight:"600" },
-  shareBtn:        { backgroundColor:"#0369A1" },
+  shareBtn:        { backgroundColor:Colors.primaryDeep },
   waBtn:           { backgroundColor:"#16A34A" },
   rescheduleBtn:   { backgroundColor:"#D97706" },
   cancelBtn:       { backgroundColor:"#DC2626" },
@@ -1328,7 +1335,7 @@ const styles = StyleSheet.create({
   // قوائم
   filterRow:       { flexDirection:"row", gap:8, marginBottom:16 },
   filterChip:      { flex:1, paddingVertical:7, borderRadius:Colors.radius.md, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.borderSubtle },
-  filterChipActive:{ backgroundColor:Colors.primary, borderColor:Colors.primary },
+  filterChipActive:{ backgroundColor:Colors.primaryDeep, borderColor:Colors.primaryDeep },
   filterChipTxt:   { fontSize:13, color:Colors.textMuted, fontWeight:"600" },
   filterChipTxtActive:{ color:Colors.white },
 
@@ -1337,30 +1344,31 @@ const styles = StyleSheet.create({
   emptySub:        { fontSize:13, color:Colors.textMuted, textAlign:"center", maxWidth:260 },
 
   // الشركاء
-  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.lg, borderWidth:1, borderColor:Colors.borderGlow, padding:16, marginBottom:12 },
-  agencyHeroIcon:   { width:56, height:56, borderRadius:Colors.radius.md, backgroundColor:Colors.primaryGlow, borderWidth:1, borderColor:Colors.borderGlow, justifyContent:"center", alignItems:"center" },
-  agencyTitle:      { color:"#fff", fontSize:16, fontWeight:"900", textAlign:"right", marginBottom:4 },
-  agencySub:        { color:"#93C5FD", fontSize:12, lineHeight:19, textAlign:"right" },
+  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:16, marginBottom:12 },
+  agencyHeroIcon:   { width:52, height:52, borderRadius:Colors.radius.md, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" },
+  agencyTitle:      { color:Colors.textPrimary, fontSize:16, fontWeight:"900", textAlign:"right", marginBottom:4 },
+  agencySub:        { color:Colors.textSecondary, fontSize:12, lineHeight:19, textAlign:"right" },
   agencyGrid:       { flexDirection:"row-reverse", flexWrap:"wrap", gap:10, marginBottom:18 },
-  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"flex-end", gap:6, ...Colors.shadow.card },
+  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:14, alignItems:"flex-end", gap:6, ...Colors.shadow.card },
   agencyFeatureTitle:{ color:Colors.text, fontSize:13, fontWeight:"800", textAlign:"right" },
   agencyFeatureSub: { color:Colors.textMuted, fontSize:11, lineHeight:17, textAlign:"right" },
 
-  partnerBanner:   { borderRadius:Colors.radius.lg, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
-  partnerBannerTitle:{ color:"#fff", fontWeight:"700", fontSize:15, marginBottom:4 },
-  partnerBannerSub:{ color:"#93C5FD", fontSize:12, lineHeight:18 },
+  partnerBanner:   { backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:Colors.radius.lg, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
+  partnerBannerGold:{ backgroundColor:Colors.accentSoft, borderColor:Colors.accentDeep + "33" },
+  partnerBannerTitle:{ color:Colors.textPrimary, fontWeight:"700", fontSize:15, marginBottom:4 },
+  partnerBannerSub:{ color:Colors.textSecondary, fontSize:12, lineHeight:18 },
   contractBtn:       { flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   contractBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:14 },
   contractLockedBox: { flexDirection:"row-reverse", alignItems:"flex-start", gap:10, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:14, marginBottom:20, borderWidth:1, borderColor:Colors.borderSubtle },
   contractLockedTxt: { flex:1, fontSize:13, color:Colors.textSecondary, textAlign:"right" as const, lineHeight:20 },
 
   companyCard:     { flexDirection:"row", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, marginBottom:10, alignItems:"center", gap:12, borderWidth:1, borderColor:Colors.borderSubtle, ...Colors.shadow.card },
-  companyCardIcon: { width:44, height:44, borderRadius:22, backgroundColor:ACCENT+"20", justifyContent:"center", alignItems:"center" },
+  companyCardIcon: { width:44, height:44, borderRadius:22, backgroundColor:Colors.primarySoft, justifyContent:"center", alignItems:"center" },
   companyCardName: { fontSize:15, fontWeight:"700", color:Colors.text },
   companyCardOwner:{ fontSize:12, color:Colors.textMuted, marginTop:2 },
   companyCardMeta: { flexDirection:"row", gap:6, marginTop:6 },
-  metaChip:        { backgroundColor:"#1E3A5F", borderRadius:6, paddingHorizontal:8, paddingVertical:3 },
-  metaChipTxt:     { fontSize:11, color:ACCENT2 },
+  metaChip:        { backgroundColor:Colors.primarySoft, borderRadius:6, paddingHorizontal:8, paddingVertical:3 },
+  metaChipTxt:     { fontSize:11, fontWeight:"700", color:Colors.primaryDeep },
   companyCardActions:{ gap:6 },
   callBtn:         { width:32, height:32, borderRadius:16, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center" },
   waCircleBtn:     { width:32, height:32, borderRadius:16, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center" },
@@ -1368,11 +1376,11 @@ const styles = StyleSheet.create({
   // عقد الشراكة
   contractHeader:  { flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, borderBottomWidth:1, borderColor:Colors.borderSubtle },
   contractHeaderTitle:{ fontSize:18, fontWeight:"700", color:Colors.text },
-  contractBadge:   { borderRadius:Colors.radius.lg, padding:20, alignItems:"center", marginBottom:16 },
-  contractBadgeTitle:{ color:"#fff", fontWeight:"700", fontSize:18, marginTop:8 },
-  contractBadgeSub:{ color:"#93C5FD", fontSize:13, marginTop:4 },
+  contractBadge:   { backgroundColor:Colors.accentSoft, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.accentDeep + "33", borderRadius:Colors.radius.lg, padding:20, alignItems:"center", marginBottom:16 },
+  contractBadgeTitle:{ color:Colors.textPrimary, fontWeight:"700", fontSize:18, marginTop:8 },
+  contractBadgeSub:{ color:Colors.textSecondary, fontSize:13, marginTop:4 },
   contractBody:    { fontSize:13, color:Colors.textSecondary, lineHeight:22, textAlign:"right" },
-  shareContractBtn:{ flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
+  shareContractBtn:{ flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
   shareContractBtnTxt:{ color:"#fff", fontWeight:"700", fontSize:14 },
 
   // موديالات
@@ -1387,8 +1395,8 @@ const styles = StyleSheet.create({
   smallModalTitle: { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:4 },
   smallModalSub:   { fontSize:12, color:Colors.textMuted, marginBottom:16 },
   modalBtns:       { flexDirection:"row", gap:10, marginTop:16 },
-  modalCancelBtn:  { flex:1, backgroundColor:Colors.cardBg, borderRadius:10, padding:12, alignItems:"center" },
+  modalCancelBtn:  { flex:1, backgroundColor:Colors.cardBg, borderWidth:StyleSheet.hairlineWidth, borderColor:Colors.border, borderRadius:10, padding:12, alignItems:"center" },
   modalCancelTxt:  { color:Colors.textMuted, fontWeight:"600" },
-  modalConfirmBtn: { flex:1, backgroundColor:ACCENT, borderRadius:10, padding:12, alignItems:"center" },
+  modalConfirmBtn: { flex:1, backgroundColor:Colors.primaryDeep, borderRadius:10, padding:12, alignItems:"center" },
   modalConfirmTxt: { color:"#fff", fontWeight:"700" },
 });

@@ -319,7 +319,7 @@ export default function CultureScreen() {
     <View style={styles.container}>
       {/* Header */}
       <ModernHeader title={t("culture", "title")} icon="globe-outline">
-        <View style={[headerUI.search, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[headerUI.search, { flexDirection: isRTL ? "row-reverse" : "row", marginBottom: 10 }]}>
           <Ionicons name="search" size={16} color={Colors.textMuted} />
           <TextInput
             style={[headerUI.searchInput, { textAlign: isRTL ? "right" : "left" }]}

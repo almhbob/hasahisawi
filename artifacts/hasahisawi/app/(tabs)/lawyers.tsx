@@ -969,7 +969,7 @@ export default function LawyersScreen() {
             );
           }}
           ListEmptyComponent={loading ? (
-            <View style={s.centerBox}><ActivityIndicator color=Colors.primaryDeep /></View>
+            <View style={s.centerBox}><ActivityIndicator color={Colors.primaryDeep} /></View>
           ) : (
             <View style={s.centerBox}>
               <MaterialCommunityIcons name="account-search" size={42} color={Colors.textSubtle} />
@@ -996,7 +996,7 @@ export default function LawyersScreen() {
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(30 * index).springify()}>
               <View style={s.formCard}>
-                <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-outline" size={24} color=Colors.primaryDeep /></View>
+                <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-outline" size={24} color={Colors.primaryDeep} /></View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <Text style={s.formTitle} numberOfLines={1}>{item.title}</Text>
@@ -1013,7 +1013,7 @@ export default function LawyersScreen() {
             </Animated.View>
           )}
           ListEmptyComponent={formsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color=Colors.primaryDeep /></View>
+            ? <View style={s.centerBox}><ActivityIndicator color={Colors.primaryDeep} /></View>
             : <View style={s.centerBox}><Text style={s.emptyText}>لا توجد استمارات</Text></View>}
         />
       )}
@@ -1102,7 +1102,7 @@ export default function LawyersScreen() {
                       <Ionicons name="call" size={13} color="#10B981" /><Text style={[s.miniBtnText, { color: "#10B981" }]}>اتصال</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={[s.miniBtn, { backgroundColor: Colors.primaryDeep + "22", borderColor: Colors.primaryDeep + "55" }]}>
-                      <Ionicons name="chatbubbles-outline" size={13} color=Colors.primaryDeep /><Text style={[s.miniBtnText, { color: Colors.primaryDeep }]}>دردشة</Text>
+                      <Ionicons name="chatbubbles-outline" size={13} color={Colors.primaryDeep} /><Text style={[s.miniBtnText, { color: Colors.primaryDeep }]}>دردشة</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => printContract(item)} style={[s.miniBtn, { backgroundColor: "#3B82F6" + "22", borderColor: "#3B82F6" + "55" }]}>
                       <Ionicons name="print-outline" size={13} color="#3B82F6" /><Text style={[s.miniBtnText, { color: "#3B82F6" }]}>طباعة</Text>
@@ -1113,7 +1113,7 @@ export default function LawyersScreen() {
             );
           }}
           ListEmptyComponent={contractsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color=Colors.primaryDeep /></View>
+            ? <View style={s.centerBox}><ActivityIndicator color={Colors.primaryDeep} /></View>
             : myApps.length === 0 ? (
               <View style={s.centerBox}>
                 <MaterialCommunityIcons name="handshake-outline" size={42} color={Colors.textSubtle} />
@@ -1275,7 +1275,7 @@ export default function LawyersScreen() {
                   {/* الخدمات */}
                   <View style={s.section}>
                     <Text style={s.sectionTitle}>الخدمات المتاحة</Text>
-                    {detailLoading ? <ActivityIndicator color=Colors.primaryDeep /> : services.length === 0 ? (
+                    {detailLoading ? <ActivityIndicator color={Colors.primaryDeep} /> : services.length === 0 ? (
                       <Text style={s.emptyInline}>لم يضِف المحامي خدمات بعد</Text>
                     ) : services.map(svc => (
                       <View key={svc.id} style={s.svcCard}>
@@ -1296,7 +1296,7 @@ export default function LawyersScreen() {
                     {/* تواصل عام */}
                     <TouchableOpacity onPress={() => setContractFor({ id: 0, lawyer_id: selected.id, title: "تواصل عام", description: "", price_text: "", duration: "" })}
                       style={s.contactGenBtn}>
-                      <MaterialCommunityIcons name="email-plus-outline" size={16} color=Colors.primaryDeep />
+                      <MaterialCommunityIcons name="email-plus-outline" size={16} color={Colors.primaryDeep} />
                       <Text style={s.contactGenText}>طلب خدمة أخرى / تواصل عام</Text>
                     </TouchableOpacity>
                   </View>
@@ -1328,7 +1328,7 @@ export default function LawyersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalOverlay2}>
           <View style={s.contractModal}>
             <View style={s.contractHeader}>
-              <MaterialCommunityIcons name="handshake" size={20} color=Colors.primaryDeep />
+              <MaterialCommunityIcons name="handshake" size={20} color={Colors.primaryDeep} />
               <Text style={s.contractTitle}>طلب: {contractFor?.title}</Text>
             </View>
             <Text style={s.contractSubt}>سيتواصل معك المحامي لتأكيد التفاصيل والموعد.</Text>
