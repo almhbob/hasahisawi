@@ -1,7 +1,7 @@
 name: API Health Report
 
-# Publishes /api/readyz from both API hosts as annotations so the database,
-# Firebase and upload status can be read without opening raw logs.
+# Publishes /api/readyz and /api/stats from both API hosts as annotations so the
+# database, Firebase and upload status can be read without opening raw logs.
 # The readiness payload contains no secrets (connection strings are never echoed).
 
 on:
@@ -21,18 +21,24 @@ jobs:
     steps:
       - name: Query readiness
         run: |
-          for host in https://api-server-gilt-ten.vercel.app https://hasahisawi-production.up.railway.app; do
-            body=$(curl -s --max-time 30 "$host/api/readyz" || echo '{"error":"unreachable"}')
-            stats=$(curl -s --max-time 30 "$host/api/stats" || echo 'unreachable')
-            echo "== $host"; echo "$body"; echo "$stats"
-            summary=$(printf '%s' "$body" | python3 -c '
-          import json,sys
+          cat > /tmp/summarize.py <<'PY'
+          import json, sys
+          raw = sys.stdin.read()
           try:
-              d=json.load(sys.stdin); c=d.get("details",{})
-              db=c.get("database",{}); fb=c.get("firebase",{})
-              print(f"ready={d.get(\"ready\")} | db.connected={db.get(\"connected\")} db.provider={db.get(\"provider_hint\")} db.reason={db.get(\"reason\")} | firebase={fb.get(\"configured\")} ({fb.get(\"reason\")}) | version={d.get(\"version\")}")
-          except Exception as e:
-              print("unparseable readyz: " + sys.stdin.read()[:200])
-          ')
-            echo "::notice title=$host::$summary | stats=$stats"
+              d = json.loads(raw)
+              c = d.get("details", {})
+              db = c.get("database", {})
+              fb = c.get("firebase", {})
+              print("ready=%s | db.connected=%s db.provider=%s db.reason=%s | firebase=%s (%s) | version=%s" % (
+                  d.get("ready"), db.get("connected"), db.get("provider_hint"), db.get("reason"),
+                  fb.get("configured"), fb.get("reason"), d.get("version")))
+          except Exception:
+              print("unparseable readyz: " + raw[:200].replace("\n", " "))
+          PY
+          for host in api-server-gilt-ten.vercel.app hasahisawi-production.up.railway.app; do
+            body=$(curl -s --max-time 30 "https://$host/api/readyz" || echo '{"error":"unreachable"}')
+            stats=$(curl -s --max-time 30 "https://$host/api/stats" || echo 'unreachable')
+            summary=$(printf '%s' "$body" | python3 /tmp/summarize.py || echo "summary failed")
+            echo "== $host"; echo "$body"; echo "$stats"
+            echo "::notice title=${host}::${summary} | stats=${stats}"
           done
