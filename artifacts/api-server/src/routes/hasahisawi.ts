@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
+import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
 import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 
@@ -2229,10 +2230,10 @@ async function isAdminRequest(req: Request): Promise<boolean> {
     const pinHeader = req.headers["x-admin-pin"] as string | undefined;
     const pinBody = req.body?.admin_pin as string | undefined;
     const submittedPin = pinHeader || pinBody;
-    if (submittedPin && submittedPin.length >= 4 && submittedPin.length <= 20) {
+    if (submittedPin) {
+      // PIN access only works with a strong PIN — the default "4444" is public.
       const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`).catch(() => ({ rows: [] as any[] }));
-      const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-      return safeCompare(submittedPin, storedPin);
+      return pinMatches(submittedPin, result.rows[0]?.value);
     }
     return false;
   } catch { return false; }
@@ -2403,13 +2404,12 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/auth/register-admin", async (req: Request, res: Response) => {
+router.post("/auth/register-admin", authLimiter, async (req: Request, res: Response) => {
   try {
     const { name, email, password, admin_code } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const settingResult = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-    const pin = settingResult.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    if (admin_code !== pin) return res.status(403).json({ error: "رمز المشرف غير صحيح" });
+    if (!pinMatches(admin_code, settingResult.rows[0]?.value)) return res.status(403).json({ error: "رمز المشرف غير صحيح" });
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
       `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'admin') RETURNING id, name, role`,
@@ -2636,7 +2636,7 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/auth/admin-login", async (req: Request, res: Response) => {
+router.post("/auth/admin-login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
@@ -2654,11 +2654,10 @@ router.post("/auth/admin-login", async (req: Request, res: Response) => {
     // محاولة 2: PIN المدير كبديل (للحسابات المرتبطة بـ Google بلا كلمة مرور)
     if (!valid) {
       const pinRow = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-      const storedPin = pinRow.rows[0]?.value || DEFAULT_ADMIN_PIN;
-      valid = safeCompare(password, storedPin);
+      valid = pinMatches(password, pinRow.rows[0]?.value);
     }
 
-    if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة. يمكنك استخدام PIN المدير كلمة مرور." });
+    if (!valid) return res.status(401).json({ error: "بيانات غير صحيحة" });
 
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
@@ -2849,29 +2848,27 @@ router.patch("/auth/me/complete-profile", async (req: Request, res: Response) =>
 router.post("/admin/validate-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { pin } = req.body;
-    if (!pin || typeof pin !== "string" || pin.length < 4 || pin.length > 20) {
+    if (!pin || typeof pin !== "string" || pin.length < 4 || pin.length > 64) {
       return res.status(400).json({ valid: false });
     }
     const result = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-    const storedPin = result.rows[0]?.value || DEFAULT_ADMIN_PIN;
-    return res.json({ valid: safeCompare(pin, storedPin) });
+    return res.json({ valid: pinMatches(pin, result.rows[0]?.value) });
   } catch (err) {
     logger.error({ err }, "route error");
     return res.status(500).json({ error: "Server error" });
   }
 });
 
-router.post("/admin/change-pin", async (req: Request, res: Response) => {
+router.post("/admin/change-pin", pinLimiter, async (req: Request, res: Response) => {
   try {
     const { new_pin, current_pin } = req.body;
+    // Only a signed-in admin, or someone who knows the current STRONG pin, may change it.
     const isAdmin = await isAdminRequest(req);
     if (!isAdmin) {
-      if (!current_pin) return res.status(403).json({ error: "غير مصرح" });
       const stored = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`);
-      const storedPin = stored.rows[0]?.value || DEFAULT_ADMIN_PIN;
-      if (current_pin !== storedPin) return res.status(403).json({ error: "الرمز الحالي غير صحيح" });
+      if (!pinMatches(current_pin, stored.rows[0]?.value)) return res.status(403).json({ error: "غير مصرح" });
     }
-    if (!new_pin || new_pin.length < 4) return res.status(400).json({ error: "يجب أن يكون الرمز الجديد 4 أرقام على الأقل" });
+    if (!isUsableAdminPin(new_pin)) return res.status(400).json({ error: WEAK_PIN_MESSAGE });
     await query(`UPDATE admin_settings SET value=$1 WHERE key='admin_pin'`, [new_pin]);
     return res.json({ success: true });
   } catch (err) {

@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { timingSafeEqual } from "node:crypto";
 import { listAllFirebaseUsers, verifyIdToken, type FirebaseUserRecord } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
+import { pinMatches } from "../lib/admin-pin";
 
 const router = Router();
 
@@ -183,12 +184,11 @@ async function isAdminRequest(req: Request): Promise<boolean> {
   const pinHeader = req.headers["x-admin-pin"] as string | undefined;
   const pinBody = (req.body as { admin_pin?: string } | undefined)?.admin_pin;
   const submittedPin = pinHeader || pinBody;
-  if (!submittedPin || submittedPin.length < 4 || submittedPin.length > 20) return false;
+  if (!submittedPin) return false;
 
   await ensureAdminSettings().catch(() => {});
   const { rows } = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`).catch(() => ({ rows: [] as any[] }));
-  const storedPin = rows[0]?.value || DEFAULT_ADMIN_PIN;
-  return safeCompare(submittedPin, storedPin);
+  return pinMatches(submittedPin, rows[0]?.value);
 }
 
 function displayNameForFirebaseUser(user: FirebaseUserRecord): string {
