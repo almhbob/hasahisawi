@@ -1,0 +1,57 @@
+name: DB Diagnostics (read-only counts)
+
+# Read-only: prints ONLY row counts and latest timestamps (no personal data) for
+# each Railway Postgres the Hasahisawi API may have used, to locate data.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.db-diagnostics-trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: sunny-peace,       project: 4e3750d2-5221-479b-8085-66d31758e83e, env: 28cc17ed-7b04-4e49-a284-ada04c98f3fb, svc: 87f54873-4dee-483a-ad03-a6803a3e277a }
+          - { name: lively-mindfulness, project: e82d86db-7b87-4446-9968-f60934f618b4, env: f708e9d6-bbfa-4562-9a58-3e41977b40ed, svc: 984dd90a-b068-4089-a823-859d353c02ca }
+    steps:
+      - name: Counts for ${{ matrix.target.name }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          P: ${{ matrix.target.project }}
+          E: ${{ matrix.target.env }}
+          S: ${{ matrix.target.svc }}
+          T: ${{ matrix.target.name }}
+        run: |
+          set -uo pipefail
+          Q=$(printf '{"query":"query { variables(projectId: \\"%s\\", environmentId: \\"%s\\", serviceId: \\"%s\\") }"}' "$P" "$E" "$S")
+          RAW=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" -H "Authorization: Bearer $RAILWAY_TOKEN" -d "$Q")
+          printf '%s' "$RAW" | grep -q '"variables"' || RAW=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" -H "Project-Access-Token: $RAILWAY_TOKEN" -d "$Q")
+          URL=$(printf '%s' "$RAW" | python3 -c '
+          import json,sys,urllib.parse as u
+          v=((json.load(sys.stdin).get("data") or {}).get("variables") or {})
+          h,p=v.get("RAILWAY_TCP_PROXY_DOMAIN"),v.get("RAILWAY_TCP_PROXY_PORT")
+          pw=v.get("POSTGRES_PASSWORD") or v.get("PGPASSWORD"); us=v.get("POSTGRES_USER") or v.get("PGUSER") or "postgres"
+          db=v.get("POSTGRES_DB") or v.get("PGDATABASE") or "railway"
+          print("postgresql://%s:%s@%s:%s/%s?sslmode=require"%(u.quote(us,safe=""),u.quote(pw,safe=""),h,p,db) if h and p and pw else "")')
+          [ -n "$URL" ] || { echo "::warning title=$T::could not build connection URL"; exit 0; }
+          echo "::add-mask::$URL"
+          sudo apt-get install -y -qq postgresql-client >/dev/null 2>&1 || true
+          run() { PGCONNECT_TIMEOUT=15 psql "$URL" -Atqc "$1" 2>&1 | head -c 300 | tr '\n' ' '; }
+          for t in users lawyers social_posts city_news lost_items appointments medical_institutions organizations; do
+            c=$(run "SELECT count(*) FROM $t")
+            echo "::notice title=$T $t::count=$c"
+          done
+          echo "::notice title=$T lawyers active::$(run "SELECT count(*) FILTER (WHERE is_active) || ' active / ' || count(*) FILTER (WHERE is_active IS NOT TRUE) || ' inactive-or-null' FROM lawyers")"
+          for t in users lawyers social_posts; do
+            echo "::notice title=$T $t latest::$(run "SELECT max(created_at)::date FROM $t")"
+          done
