@@ -1,0 +1,110 @@
+name: DB Compare (read-only, counts only)
+
+# Compares the two Railway Postgres databases (sunny-peace vs lively-mindfulness)
+# to plan a safe merge. Read-only. Outputs only counts/dates — never names,
+# emails, phones or content.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.db-compare-trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Resolve connection URLs
+        id: urls
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          build() {
+            Q=$(printf '{"query":"query { variables(projectId: \\"%s\\", environmentId: \\"%s\\", serviceId: \\"%s\\") }"}' "$1" "$2" "$3")
+            RAW=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" -H "Authorization: Bearer $RAILWAY_TOKEN" -d "$Q")
+            printf '%s' "$RAW" | python3 -c '
+          import json,sys,urllib.parse as u
+          v=((json.load(sys.stdin).get("data") or {}).get("variables") or {})
+          print("postgresql://%s:%s@%s:%s/%s?sslmode=require"%(u.quote(v.get("POSTGRES_USER") or "postgres",safe=""),u.quote(v["POSTGRES_PASSWORD"],safe=""),v["RAILWAY_TCP_PROXY_DOMAIN"],v["RAILWAY_TCP_PROXY_PORT"],v.get("POSTGRES_DB") or "railway"))'
+          }
+          A=$(build 4e3750d2-5221-479b-8085-66d31758e83e 28cc17ed-7b04-4e49-a284-ada04c98f3fb 87f54873-4dee-483a-ad03-a6803a3e277a)
+          B=$(build e82d86db-7b87-4446-9968-f60934f618b4 f708e9d6-bbfa-4562-9a58-3e41977b40ed 984dd90a-b068-4089-a823-859d353c02ca)
+          echo "::add-mask::$A"; echo "::add-mask::$B"
+          echo "a=$A" >> "$GITHUB_OUTPUT"; echo "b=$B" >> "$GITHUB_OUTPUT"
+
+      - name: Compare
+        env:
+          A: ${{ steps.urls.outputs.a }}
+          B: ${{ steps.urls.outputs.b }}
+        run: |
+          pip install -q psycopg2-binary
+          python3 - <<'PY'
+          import os, psycopg2
+          A=psycopg2.connect(os.environ["A"]); B=psycopg2.connect(os.environ["B"])
+          for c in (A,B): c.set_session(readonly=True)
+          def q(c,sql,args=None):
+              cur=c.cursor(); cur.execute(sql,args or ()); return cur.fetchall()
+          def note(title,msg): print(f"::notice title={title}::{msg}")
+
+          # 1) every table with row counts in both DBs
+          def tables(c):
+              return {r[0] for r in q(c,"select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")}
+          ta,tb=tables(A),tables(B)
+          rows=[]
+          for t in sorted(ta|tb):
+              ca=q(A,f'select count(*) from "{t}"')[0][0] if t in ta else None
+              cb=q(B,f'select count(*) from "{t}"')[0][0] if t in tb else None
+              if (ca or 0)!=(cb or 0): rows.append(f"{t}: sunny={ca} lively={cb}")
+          # print in chunks (annotation size limit)
+          for i in range(0,len(rows),25):
+              note(f"tables differing {i//25+1}", " | ".join(rows[i:i+25]))
+          note("table totals", f"sunny tables={len(ta)} lively tables={len(tb)} differing={len(rows)}")
+
+          # 2) users overlap by identity keys (no values printed)
+          def ids(c):
+              out=[]
+              for uid,fb,em,ph,ca in q(c,"select id, firebase_uid, lower(nullif(email,'')), nullif(phone,''), created_at from users"):
+                  out.append((uid,fb,em,ph,ca))
+              return out
+          ua,ub=ids(A),ids(B)
+          def keyset(u):
+              s=set()
+              for _,fb,em,ph,_ in u:
+                  if fb: s.add(("fb",fb))
+                  if em: s.add(("em",em))
+                  if ph: s.add(("ph",ph))
+              return s
+          ka,kb=keyset(ua),keyset(ub)
+          def matched(u,other):
+              return sum(1 for _,fb,em,ph,_ in u if (fb and ("fb",fb) in other) or (em and ("em",em) in other) or (ph and ("ph",ph) in other))
+          ma,mb=matched(ua,kb),matched(ub,ka)
+          note("users", f"sunny={len(ua)} (in lively too: {ma}, sunny-only: {len(ua)-ma}) | lively={len(ub)} (in sunny too: {mb}, lively-only: {len(ub)-mb})")
+          same_id=len({u[0] for u in ua} & {u[0] for u in ub})
+          note("users ids", f"ids present in both={same_id}; sunny id range {min(u[0] for u in ua)}-{max(u[0] for u in ua)}; lively id range {min(u[0] for u in ub)}-{max(u[0] for u in ub)}")
+          def rng(u):
+              d=sorted(x[4] for x in u if x[4]); return f"{d[0]:%Y-%m-%d}..{d[-1]:%Y-%m-%d}" if d else "-"
+          note("users created_at", f"sunny {rng(ua)} | lively {rng(ub)}")
+          import collections
+          def bymonth(u): return dict(sorted(collections.Counter(f"{x[4]:%Y-%m}" for x in u if x[4]).items()))
+          note("users by month sunny", str(bymonth(ua))); note("users by month lively", str(bymonth(ub)))
+
+          # 3) content tables: date ranges
+          for t in ["social_posts","lawyers","lost_items","user_sessions","chats","messages","appointments","medical_institutions","organizations"]:
+              parts=[]
+              for name,c,ts in (("sunny",A,ta),("lively",B,tb)):
+                  if t not in ts: parts.append(f"{name}: no table"); continue
+                  cols={r[0] for r in q(c,"select column_name from information_schema.columns where table_name=%s",(t,))}
+                  if "created_at" in cols:
+                      mn,mx,n=q(c,f'select min(created_at)::date,max(created_at)::date,count(*) from "{t}"')[0]
+                      parts.append(f"{name}: n={n} {mn}..{mx}")
+                  else:
+                      sql_n = 'select count(*) from "%s"' % t
+                      parts.append(f"{name}: n={q(c, sql_n)[0][0]}")
+              note(f"range {t}", " | ".join(parts))
+          PY
