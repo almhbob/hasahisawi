@@ -41,4 +41,8 @@ jobs:
             summary=$(printf '%s' "$body" | python3 /tmp/summarize.py || echo "summary failed")
             echo "== $host"; echo "$body"; echo "$stats"
             echo "::notice title=${host}::${summary} | stats=${stats}"
+            # Login probe with a non-existent account: 401 = login path healthy, 500 = broken
+            login=$(curl -s -o /tmp/login.json -w '%{http_code}' --max-time 30 -X POST "https://$host/api/auth/login" \
+              -H 'Content-Type: application/json' -d '{"phone_or_email":"healthcheck-nonexistent@example.invalid","password":"x"}')
+            echo "::notice title=${host} login probe::HTTP ${login} $(head -c 200 /tmp/login.json)"
           done
