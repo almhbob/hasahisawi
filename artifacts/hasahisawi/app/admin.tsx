@@ -3027,7 +3027,8 @@ export default function AdminDashboard() {
 
   // ── Admin PIN fallback (for silent re-auth when session is stale) ─────────
   // Stores the working PIN in memory so we never show a form unless truly needed
-  const adminPinRef = React.useRef<string>("4444");
+  // Only a PIN the admin actually entered/verified; never the public default.
+  const adminPinRef = React.useRef<string | null>(null);
 
   // ── Data fetchers ────────────────────────────────────────────────────────
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -3045,7 +3046,7 @@ export default function AdminDashboard() {
       }
 
       // 3. Still failing → silent PIN fallback (no UI prompt)
-      if ((res.status === 401 || res.status === 403)) {
+      if ((res.status === 401 || res.status === 403) && adminPinRef.current) {
         res = await apiFetch("/api/admin/dashboard-stats", token, {}, 30000, adminPinRef.current);
       }
 

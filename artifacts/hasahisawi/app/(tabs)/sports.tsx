@@ -26,7 +26,6 @@ const POSTS_KEY   = "koura_posts_v2";
 const PLAYERS_KEY = "koura_players_v2";
 const MATCHES_KEY = "koura_matches_v2";
 const ADMIN_KEY   = "koura_admin_v1";
-const KOURA_PIN   = "4444";
 
 // ─── Types (exported for other screens) ──────────────────────────────────────
 export type SportClub = {
@@ -1005,7 +1004,10 @@ export default function SportsScreen() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinInput }),
       });
-      if (res.ok) {
+      // validate-pin always answers 200 with { valid }; the old check only looked at res.ok,
+      // so ANY typed code unlocked the admin UI.
+      const data = res.ok ? await res.json().catch(() => ({})) : {};
+      if (data?.valid === true) {
         setIsAdmin(true); setValidatedPin(pinInput);
         setPinModal(false); setPinInput(""); setPinError("");
         if (Platform.OS!=="web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

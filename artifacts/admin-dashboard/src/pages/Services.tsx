@@ -571,7 +571,7 @@ export default function Services() {
           {[
             { label: "API Base URL",       value: API_URL,                  id: "ref-api"   },
             { label: "Admin Email",        value: "Hasahisawi@hotmail.com", id: "ref-email" },
-            { label: "Admin PIN",          value: "4444",                   id: "ref-pin"   },
+            { label: "Admin PIN",          value: "يُضبط من الإعدادات (8 خانات على الأقل)", id: "ref-pin"   },
             { label: "Firebase Project",   value: "hasahisawi",             id: "ref-fbp"   },
             { label: "Vercel Project ID",   value: "prj_h3HTgJKHTAsqBt6W2r93MhgDuJGm", id: "ref-vercel" },
             { label: "Railway Host",       value: "shortline.proxy.rlwy.net:28066", id: "ref-railway" },
