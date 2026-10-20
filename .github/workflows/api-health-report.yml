@@ -45,4 +45,7 @@ jobs:
             login=$(curl -s -o /tmp/login.json -w '%{http_code}' --max-time 30 -X POST "https://$host/api/auth/login" \
               -H 'Content-Type: application/json' -d '{"phone_or_email":"healthcheck-nonexistent@example.invalid","password":"x"}')
             echo "::notice title=${host} login probe::HTTP ${login} $(head -c 200 /tmp/login.json)"
+            # Security probe: the public default admin PIN must never be accepted
+            pinchk=$(curl -s --max-time 30 -X POST "https://$host/api/admin/validate-pin" -H 'Content-Type: application/json' -d '{"pin":"4444"}')
+            echo "::notice title=${host} default-PIN probe::${pinchk}"
           done
