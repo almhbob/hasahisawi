@@ -28,7 +28,7 @@ import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1671,12 +1671,12 @@ export default function MarketScreen() {
         icon="storefront-outline"
         rightSlot={
           <View style={[styles.headerRightRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-            <View style={styles.headerCountBadge}>
-              <Text style={styles.headerCountText}>{activeCount}</Text>
+            <View style={headerUI.badge}>
+              <Text style={headerUI.badgeText}>{activeCount}</Text>
             </View>
             <AnimatedPress
               style={[
-                styles.addBtn,
+                headerUI.primaryBtn,
                 tab === "auction" && { backgroundColor: Colors.violet },
                 tab === "carpentry" && { backgroundColor: CARPENTRY_ACCENT },
                 { flexDirection: isRTL ? "row-reverse" : "row" },
@@ -1696,8 +1696,8 @@ export default function MarketScreen() {
                 else { setMerchantRegSuccess(false); setMerchantRegModal(true); }
               }}
             >
-              <Ionicons name="add" size={20} color={Colors.cardBg} />
-              <Text style={styles.addBtnText}>{t("common", "add")}</Text>
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={headerUI.primaryBtnText}>{t("common", "add")}</Text>
             </AnimatedPress>
           </View>
         }
@@ -2805,17 +2805,6 @@ function EmptyState({ icon, text }: { icon: string; text: string }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   headerRightRow: { alignItems: "center", gap: 8 },
-  headerCountBadge: {
-    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm,
-    paddingHorizontal: 8, paddingVertical: 2,
-  },
-  headerCountText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
-  addBtn: {
-    backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.md,
-    paddingHorizontal: 14, paddingVertical: 9,
-    flexDirection: "row-reverse", alignItems: "center", gap: 6,
-  },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff" },
   tabSwitch: {
     flexDirection: "row-reverse",
     backgroundColor: Colors.cardBg,

@@ -18,7 +18,7 @@ import { getApiUrl } from "@/lib/query-client";
 import AnimatedPress from "@/components/AnimatedPress";
 import { uploadAdImage } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -886,26 +886,26 @@ export default function AdsScreen() {
         title="الإعلانات والمساحات"
         subtitle="إعلانات مؤسسات الحصاحيصا · تحت إشراف الإدارة"
         rightSlot={
-          <AnimatedPress style={s.addBtn} onPress={() => setShowModal(true)}>
+          <AnimatedPress style={headerUI.primaryBtn} onPress={() => setShowModal(true)}>
             <Ionicons name="add-circle-outline" size={18} color="#fff" />
-            <Text style={s.addBtnText}>أعلن معنا</Text>
+            <Text style={headerUI.primaryBtnText}>أعلن معنا</Text>
           </AnimatedPress>
         }
       >
         {/* Tabs */}
-        <View style={s.tabsRow}>
+        <View style={headerUI.segmentWrap}>
           {TABS.map(tab => (
             <TouchableOpacity
               key={tab.id}
-              style={[s.tab, activeTab === tab.id && s.tabActive]}
+              style={[headerUI.segment, activeTab === tab.id && headerUI.segmentActive]}
               onPress={() => setActiveTab(tab.id)}
             >
               <Ionicons
                 name={tab.icon}
                 size={14}
-                color={activeTab === tab.id ? EMERALD : "rgba(255,255,255,0.7)"}
+                color={activeTab === tab.id ? EMERALD : Colors.textMuted}
               />
-              <Text style={[s.tabText, activeTab === tab.id && s.tabTextActive]}>{tab.label}</Text>
+              <Text style={[headerUI.segmentText, activeTab === tab.id && headerUI.segmentTextActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -978,25 +978,6 @@ export default function AdsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
-
-  // Header
-  addBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md,
-    paddingHorizontal: 14, paddingVertical: 9,
-  },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-
-  // Tabs
-  tabsRow: { flexDirection: "row-reverse", gap: 8, paddingBottom: 0 },
-  tab: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.pill,
-    backgroundColor: "rgba(255,255,255,0.10)",
-  },
-  tabActive: { backgroundColor: "#fff" },
-  tabText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
-  tabTextActive: { color: EMERALD, fontFamily: "Cairo_700Bold" },
 
   // Loading
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -1088,7 +1069,7 @@ const s = StyleSheet.create({
   spacesContent: { paddingBottom: 40 },
   spaceHero: {
     margin: 14, borderRadius: Colors.radius.xl, overflow: "hidden",
-    backgroundColor: "#0C1E14", borderWidth: 1, borderColor: EMERALD + "30",
+    backgroundColor: CARD_BG, borderWidth: 1, borderColor: Colors.border,
     alignItems: "center", padding: 24, gap: 10,
   },
   spaceHeroAccent: { position: "absolute", top: 0, left: 0, right: 0, height: 3, backgroundColor: ACCENT },

@@ -20,7 +20,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -319,10 +319,10 @@ export default function CultureScreen() {
     <View style={styles.container}>
       {/* Header */}
       <ModernHeader title={t("culture", "title")} icon="globe-outline">
-        <View style={[styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[headerUI.search, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <Ionicons name="search" size={16} color={Colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[headerUI.searchInput, { textAlign: isRTL ? "right" : "left" }]}
             placeholder={t("culture", "search")}
             placeholderTextColor={Colors.textMuted}
             value={search}
@@ -335,22 +335,22 @@ export default function CultureScreen() {
             </AnimatedPress>
           )}
         </View>
-        <View style={[styles.tabSwitch, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <View style={[headerUI.segmentWrap, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           <AnimatedPress
-            style={[styles.switchBtn, activeTab === "centers" && styles.switchBtnActive, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+            style={[headerUI.segment, activeTab === "centers" && headerUI.segmentActive, { flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => setActiveTab("centers")}
             scaleDown={0.92}
           >
-            <Ionicons name="library-outline" size={14} color={activeTab === "centers" ? Colors.textPrimary : Colors.textOnDark} />
-            <Text style={[styles.switchBtnText, activeTab === "centers" && styles.switchBtnTextActive]}>{t("culture", "centers")}</Text>
+            <Ionicons name="library-outline" size={14} color={activeTab === "centers" ? Colors.textPrimary : Colors.textSecondary} />
+            <Text style={[headerUI.segmentText, activeTab === "centers" && headerUI.segmentTextActive]}>{t("culture", "centers")}</Text>
           </AnimatedPress>
           <AnimatedPress
-            style={[styles.switchBtn, activeTab === "events" && styles.switchBtnActive, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+            style={[headerUI.segment, activeTab === "events" && headerUI.segmentActive, { flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => setActiveTab("events")}
             scaleDown={0.92}
           >
-            <Ionicons name="sparkles-outline" size={14} color={activeTab === "events" ? Colors.textPrimary : Colors.textOnDark} />
-            <Text style={[styles.switchBtnText, activeTab === "events" && styles.switchBtnTextActive]}>{t("culture", "events")}</Text>
+            <Ionicons name="sparkles-outline" size={14} color={activeTab === "events" ? Colors.textPrimary : Colors.textSecondary} />
+            <Text style={[headerUI.segmentText, activeTab === "events" && headerUI.segmentTextActive]}>{t("culture", "events")}</Text>
           </AnimatedPress>
         </View>
       </ModernHeader>
@@ -434,22 +434,6 @@ export default function CultureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  searchRow: {
-    flexDirection: "row-reverse", alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: Colors.radius.md, paddingHorizontal: 12, gap: 8,
-  },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textOnDark, paddingVertical: 9 },
-  tabSwitch: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 3, gap: 2 },
-  switchBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: Colors.radius.sm,
-    alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
-  },
-  switchBtnActive: {
-    backgroundColor: Colors.cardBg,
-    ...Colors.shadow.card,
-  },
-  switchBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textOnDark },
-  switchBtnTextActive: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold" },
   filtersRow: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   filtersContent: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },

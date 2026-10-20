@@ -11,7 +11,6 @@ import Animated, {
   interpolateColor, withSpring, Easing,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -19,18 +18,16 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const { width: SW } = Dimensions.get("window");
 const CARD_W = SW - 32;
 
-// ─── ثوابت اللون ─────────────────────────────────────────────────────────────
-const GOLD   = "#D4AF37";
-const GOLD2  = "#F0C040";
-const BG     = "#06080A";
-const CARD   = "#0C0F12";
-const CARD2  = "#111519";
-const BORDER = "rgba(255,255,255,0.08)";
+// ─── ثوابت اللون (واجهة التطبيق الفاتحة؛ البطاقة المُصمَّمة تحتفظ بألوانها) ────
+const GOLD   = Colors.accentDeep;
+const GOLD_SOFT = Colors.accentSoft;
+const BORDER = Colors.border;
 
 // ─── التقويم الهجري ───────────────────────────────────────────────────────────
 const HIJRI_MONTHS = ["محرم","صفر","ربيع الأول","ربيع الثاني","جمادى الأولى","جمادى الثانية","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"];
@@ -406,23 +403,21 @@ function GreetingCardModal({
   return (
     <Modal visible={!!occ} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={cm.overlay}>
-        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={[StyleSheet.absoluteFill, cm.backdrop]} onPress={onClose} />
 
         <Animated.View entering={FadeInUp.springify().damping(20)} style={cm.sheet}>
-          <LinearGradient colors={["#0A0D10", "#060809"]} style={StyleSheet.absoluteFill} />
 
           {/* رأس المودال */}
           <View style={cm.sheetHeader}>
-            <TouchableOpacity onPress={onClose} style={cm.closeBtn}>
-              <Ionicons name="chevron-down" size={22} color="rgba(255,255,255,0.5)" />
+            <TouchableOpacity onPress={onClose} style={headerUI.iconBtn}>
+              <Ionicons name="chevron-down" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
             <View style={{ alignItems: "center" }}>
               <Text style={cm.sheetTitle}>بطاقة التهنئة</Text>
               <Text style={cm.sheetSub}>{occ.name}</Text>
             </View>
-            <TouchableOpacity onPress={shareCard} style={cm.headerShareBtn}>
-              <Ionicons name="share-outline" size={20} color={accent} />
+            <TouchableOpacity onPress={shareCard} style={headerUI.iconBtn}>
+              <Ionicons name="share-outline" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -489,10 +484,10 @@ function GreetingCardModal({
                   <TouchableOpacity
                     key={i}
                     onPress={() => { setSelectedStyle(i); if (Platform.OS !== "web") Haptics.selectionAsync(); }}
-                    style={[cm.stylePill, selectedStyle===i && { borderColor: cs2.accent, backgroundColor: cs2.accent + "15" }]}
+                    style={[headerUI.chip, selectedStyle===i && headerUI.chipActive]}
                   >
-                    <View style={[cm.styleColor, { backgroundColor: cs2.accent }]} />
-                    <Text style={[cm.stylePillText, selectedStyle===i && { color: cs2.accent }]}>{cs2.label}</Text>
+                    <View style={[cm.styleColor, { backgroundColor: cs2.grad[2], borderColor: cs2.accent }]} />
+                    <Text style={[headerUI.chipText, selectedStyle===i && headerUI.chipTextActive]}>{cs2.label}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -501,12 +496,12 @@ function GreetingCardModal({
             {/* اسم المرسِل */}
             <View style={cm.section}>
               <Text style={cm.sectionLabel}>✍️ اسم المُهنِّئ (اختياري)</Text>
-              <View style={[cm.inputRow, { borderColor: accent + "30" }]}>
-                <Ionicons name="person-outline" size={17} color={accent + "80"} style={{ marginHorizontal: 12 }} />
+              <View style={cm.inputRow}>
+                <Ionicons name="person-outline" size={17} color={Colors.textMuted} style={{ marginHorizontal: 12 }} />
                 <TextInput
                   style={cm.input} value={senderName} onChangeText={setSenderName}
                   placeholder={user?.name ?? "اكتب اسمك ليظهر في البطاقة..."}
-                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  placeholderTextColor={Colors.textMuted}
                   textAlign="right" maxLength={40}
                 />
               </View>
@@ -516,39 +511,37 @@ function GreetingCardModal({
             <View style={cm.actionsGrid}>
               {/* نشر في المجتمع */}
               <TouchableOpacity
-                style={[cm.actionCard, published && cm.actionCardPublished, { borderColor: "#10B981" + "40" }]}
+                style={[cm.actionCard, cm.actionCardPrimary, published && cm.actionCardPublished]}
                 onPress={publish} disabled={publishing || published} activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={published ? ["#10B98125","#10B98108"] : ["#10B98115","#10B98105"]}
-                  style={StyleSheet.absoluteFill}
-                />
                 {publishing
-                  ? <ActivityIndicator color="#10B981" size="small" />
-                  : <Ionicons name={published ? "checkmark-circle" : "globe-outline"} size={22} color="#10B981" />
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Ionicons name={published ? "checkmark-circle" : "globe-outline"} size={22} color="#fff" />
                 }
-                <Text style={[cm.actionLabel, { color: "#10B981" }]}>
+                <Text style={[cm.actionLabel, { color: "#fff" }]}>
                   {published ? "نُشرت ✓" : "نشر للمجتمع"}
                 </Text>
               </TouchableOpacity>
 
               {/* مشاركة */}
-              <TouchableOpacity style={[cm.actionCard, { borderColor: accent + "40" }]} onPress={shareCard} activeOpacity={0.8}>
-                <LinearGradient colors={[accent + "15", accent + "05"]} style={StyleSheet.absoluteFill} />
-                <Ionicons name="share-social-outline" size={22} color={accent} />
-                <Text style={[cm.actionLabel, { color: accent }]}>مشاركة</Text>
+              <TouchableOpacity style={cm.actionCard} onPress={shareCard} activeOpacity={0.8}>
+                <View style={cm.actionIcon}>
+                  <Ionicons name="share-social-outline" size={20} color={Colors.primaryDeep} />
+                </View>
+                <Text style={cm.actionLabel}>مشاركة</Text>
               </TouchableOpacity>
 
               {/* نسخ */}
-              <TouchableOpacity style={[cm.actionCard, { borderColor: "#F59E0B40" }]} onPress={copyText} activeOpacity={0.8}>
-                <LinearGradient colors={["#F59E0B15","#F59E0B05"]} style={StyleSheet.absoluteFill} />
-                <Ionicons name="copy-outline" size={22} color="#F59E0B" />
-                <Text style={[cm.actionLabel, { color: "#F59E0B" }]}>نسخ النص</Text>
+              <TouchableOpacity style={cm.actionCard} onPress={copyText} activeOpacity={0.8}>
+                <View style={cm.actionIcon}>
+                  <Ionicons name="copy-outline" size={20} color={Colors.primaryDeep} />
+                </View>
+                <Text style={cm.actionLabel}>نسخ النص</Text>
               </TouchableOpacity>
 
               {/* واتساب */}
               <TouchableOpacity
-                style={[cm.actionCard, { borderColor: "#25D36640" }]}
+                style={cm.actionCard}
                 onPress={() => {
                   const msg = encodeURIComponent(fullGreeting.substring(0, 500));
                   const url = `whatsapp://send?text=${msg}`;
@@ -556,9 +549,10 @@ function GreetingCardModal({
                 }}
                 activeOpacity={0.8}
               >
-                <LinearGradient colors={["#25D36615","#25D36605"]} style={StyleSheet.absoluteFill} />
-                <MaterialCommunityIcons name="whatsapp" size={22} color="#25D366" />
-                <Text style={[cm.actionLabel, { color: "#25D366" }]}>واتساب</Text>
+                <View style={[cm.actionIcon, { backgroundColor: "#25D36618" }]}>
+                  <MaterialCommunityIcons name="whatsapp" size={20} color="#1A9E4B" />
+                </View>
+                <Text style={cm.actionLabel}>واتساب</Text>
               </TouchableOpacity>
             </View>
 
@@ -581,63 +575,57 @@ function OccasionCard({ item, idx, onOpen }: {
   return (
     <Animated.View entering={FadeInDown.delay(idx * 60).springify()}>
       <TouchableOpacity activeOpacity={0.87} onPress={() => { onOpen(occ); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
-        <LinearGradient colors={[occ.gradients[0], occ.gradients[2]]} style={oc.card}>
-          {/* خط ملوّن علوي */}
-          <LinearGradient colors={[occ.accent, occ.color + "00"]} start={{x:0,y:0}} end={{x:1,y:0}} style={oc.topLine} />
-
-          {/* نجوم خلفية */}
-          <StarField color={occ.accent} />
-
+        <View style={oc.card}>
           {/* حالة اليوم */}
           {isToday && (
-            <View style={[oc.todayBadge, { backgroundColor: occ.color }]}>
-              <Animated.View style={[oc.pulse, { backgroundColor: "#fff" }]} />
+            <View style={oc.todayBadge}>
+              <View style={[oc.pulse, { backgroundColor: "#fff" }]} />
               <Text style={oc.todayText}>اليوم</Text>
             </View>
           )}
 
           <View style={oc.content}>
             {/* الأيقونة */}
-            <View style={[oc.iconBox, { backgroundColor: occ.color + "18", borderColor: occ.accent + "30" }]}>
+            <View style={oc.iconBox}>
               <Text style={oc.emoji}>{occ.emoji}</Text>
             </View>
 
             {/* المعلومات */}
             <View style={{ flex: 1 }}>
               <Text style={oc.name}>{occ.name}</Text>
-              <Text style={[oc.date, { color: occ.accent + "90" }]}>{dateStr}</Text>
+              <Text style={oc.date}>{dateStr}</Text>
 
               {item.daysLeft > 0 ? (
-                <View style={[oc.pill, { borderColor: occ.accent + "40", backgroundColor: occ.color + "10" }]}>
-                  <Ionicons name="time-outline" size={11} color={occ.accent} />
-                  <Text style={[oc.pillText, { color: occ.accent }]}>بعد {item.daysLeft} يوم</Text>
+                <View style={[oc.pill, { backgroundColor: GOLD_SOFT }]}>
+                  <Ionicons name="time-outline" size={11} color={GOLD} />
+                  <Text style={[oc.pillText, { color: GOLD }]}>بعد {item.daysLeft} يوم</Text>
                 </View>
               ) : (
-                <View style={[oc.pill, { borderColor: "#10B98145", backgroundColor: "#10B98110" }]}>
-                  <View style={[oc.dot, { backgroundColor: "#10B981" }]} />
-                  <Text style={[oc.pillText, { color: "#10B981" }]}>اليوم مبارك 🎉</Text>
+                <View style={[oc.pill, { backgroundColor: Colors.primarySoft }]}>
+                  <View style={[oc.dot, { backgroundColor: Colors.primary }]} />
+                  <Text style={[oc.pillText, { color: Colors.primaryDeep }]}>اليوم مبارك 🎉</Text>
                 </View>
               )}
             </View>
 
             {/* أيقونة البطاقة */}
-            <View style={[oc.cardIcon, { backgroundColor: occ.color + "15", borderColor: occ.accent + "30" }]}>
-              <MaterialCommunityIcons name="card-text" size={18} color={occ.accent} />
+            <View style={oc.cardIcon}>
+              <MaterialCommunityIcons name="card-text" size={18} color={Colors.primaryDeep} />
             </View>
           </View>
 
           {/* معاينة الآية */}
-          <View style={[oc.versePreview, { borderColor: occ.accent + "15" }]}>
-            <Text style={[oc.versePreviewText, { color: occ.accent + "70" }]} numberOfLines={1}>{occ.verse}</Text>
+          <View style={oc.versePreview}>
+            <Text style={oc.versePreviewText} numberOfLines={1}>{occ.verse}</Text>
           </View>
 
           {/* CTA */}
           <View style={oc.cta}>
-            <MaterialCommunityIcons name={"sparkles" as any} size={12} color={occ.accent + "80"} />
-            <Text style={[oc.ctaText, { color: occ.accent + "90" }]}>اضغط لإنشاء بطاقة تهنئة فاخرة</Text>
-            <Ionicons name="arrow-back" size={12} color={occ.accent + "50"} />
+            <MaterialCommunityIcons name={"sparkles" as any} size={12} color={Colors.primaryDeep} />
+            <Text style={oc.ctaText}>اضغط لإنشاء بطاقة تهنئة فاخرة</Text>
+            <Ionicons name="arrow-back" size={12} color={Colors.primaryDeep} />
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -658,19 +646,19 @@ function HijriCalendar({ today }: { today: Date }) {
     <View style={cal.wrap}>
       <View style={cal.header}>
         <TouchableOpacity onPress={()=>{if(hMonth===12){setHYear(y=>y+1);setHMonth(1);}else setHMonth(m=>m+1);}} style={cal.navBtn}>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={Colors.textPrimary} />
         </TouchableOpacity>
         <View style={{alignItems:"center"}}>
           <Text style={cal.monthName}>{HIJRI_MONTHS[hMonth-1]}</Text>
           <Text style={cal.year}>{hYear} هـ</Text>
         </View>
         <TouchableOpacity onPress={()=>{if(hMonth===1){setHYear(y=>y-1);setHMonth(12);}else setHMonth(m=>m-1);}} style={cal.navBtn}>
-          <Ionicons name="chevron-back" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-back" size={18} color={Colors.textPrimary} />
         </TouchableOpacity>
       </View>
       <View style={cal.weekRow}>
         {["أح","اث","ثل","أر","خم","جم","سب"].map(d=>(
-          <Text key={d} style={[cal.weekDay, d==="جم"&&{color:GOLD2}]}>{d}</Text>
+          <Text key={d} style={[cal.weekDay, d==="جم"&&{color:GOLD}]}>{d}</Text>
         ))}
       </View>
       <View style={cal.grid}>
@@ -680,9 +668,9 @@ function HijriCalendar({ today }: { today: Date }) {
           const isToday=hYear===todayH.year&&hMonth===todayH.month&&day===todayH.day;
           const isFri=(startWeekday+day-1)%7===5;
           return(
-            <View key={day} style={[cal.cell, isToday&&cal.todayCell, occ&&{backgroundColor:occ.color+"18"}]}>
-              <Text style={[cal.dayNum, isToday&&cal.todayNum, isFri&&{color:GOLD2}, occ&&{color:occ.accent}]}>{day}</Text>
-              {occ&&<View style={[cal.occDot,{backgroundColor:occ.color}]}/>}
+            <View key={day} style={[cal.cell, occ&&cal.occCell, isToday&&cal.todayCell]}>
+              <Text style={[cal.dayNum, isFri&&{color:GOLD}, occ&&cal.occNum, isToday&&cal.todayNum]}>{day}</Text>
+              {occ&&<View style={[cal.occDot,{backgroundColor:isToday?"#fff":Colors.accent}]}/>}
             </View>
           );
         })}
@@ -692,7 +680,7 @@ function HijriCalendar({ today }: { today: Date }) {
           <Text style={cal.occListTitle}>مناسبات {HIJRI_MONTHS[hMonth-1]}</Text>
           {monthOccs.map(o=>(
             <View key={o.key} style={cal.occRow}>
-              <View style={[cal.occDotSm,{backgroundColor:o.color}]}/>
+              <View style={[cal.occDotSm,{backgroundColor:Colors.accent}]}/>
               <Text style={cal.occName}>{o.emoji} {o.name}</Text>
               <Text style={cal.occDates}>{o.hDayStart===o.hDayEnd?`${o.hDayStart}`:`${o.hDayStart}–${o.hDayEnd}`}</Text>
             </View>
@@ -760,58 +748,51 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
   };
 
   const OCCASION_TAGS = ["تهنئة عامة","عيد مبارك","رمضان كريم","مولد النبي ﷺ","السنة الهجرية","يوم عرفة","أخرى"];
-  const OCC_COLORS: Record<string,string> = {
-    "عيد مبارك":"#F59E0B","رمضان كريم":"#10B981","مولد النبي ﷺ":"#34D399",
-    "السنة الهجرية":"#A78BFA","يوم عرفة":"#E2E8F0","أخرى":"#64748B","تهنئة عامة":GOLD,
-  };
 
   return (
     <View>
       {/* صندوق الكتابة */}
       <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":undefined}>
-        <LinearGradient colors={["#0E1A10","#0A0F0B"]} style={b.compose}>
-          <LinearGradient colors={[GOLD+"20","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.composeAccent}/>
+        <View style={b.compose}>
           <View style={b.composeHeader}>
-            <MaterialCommunityIcons name="feather" size={18} color={GOLD} />
+            <MaterialCommunityIcons name="feather" size={18} color={Colors.primaryDeep} />
             <Text style={b.composeTitle}>شارك تهنئتك مع أهل الحصاحيصا</Text>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={b.tagsRow}>
             {OCCASION_TAGS.map(o => (
               <TouchableOpacity key={o} onPress={()=>setOccasion(o)}
-                style={[b.tag, occasion===o&&{backgroundColor:(OCC_COLORS[o]||GOLD)+"20",borderColor:(OCC_COLORS[o]||GOLD)+"60"}]}>
-                <Text style={[b.tagText, occasion===o&&{color:OCC_COLORS[o]||GOLD}]}>{o}</Text>
+                style={[headerUI.chip, occasion===o&&headerUI.chipActive]}>
+                <Text style={[headerUI.chipText, occasion===o&&headerUI.chipTextActive]}>{o}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
           <TextInput style={b.composeInput} value={text} onChangeText={setText}
-            placeholder="اكتب كلمات تهنئتك من القلب..." placeholderTextColor="rgba(255,255,255,0.2)"
+            placeholder="اكتب كلمات تهنئتك من القلب..." placeholderTextColor={Colors.textMuted}
             multiline maxLength={400} textAlign="right" textAlignVertical="top" />
 
           <View style={b.composeBottom}>
             <Text style={b.charCount}>{text.length}/400</Text>
-            <TouchableOpacity style={[b.postBtn,(!text.trim()||sending)&&{opacity:0.4}]}
+            <TouchableOpacity style={[headerUI.primaryBtn,(!text.trim()||sending)&&{opacity:0.4}]}
               onPress={post} disabled={!text.trim()||sending}>
-              <LinearGradient colors={[GOLD,GOLD2]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postBtnGrad}>
-                {sending?<ActivityIndicator size={14} color="#000"/>:(
-                  <><Ionicons name="send" size={14} color="#000"/><Text style={b.postBtnText}>نشر</Text></>
-                )}
-              </LinearGradient>
+              {sending?<ActivityIndicator size={14} color="#fff"/>:(
+                <><Ionicons name="send" size={14} color="#fff"/><Text style={headerUI.primaryBtnText}>نشر</Text></>
+              )}
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </KeyboardAvoidingView>
 
       {/* القائمة */}
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>load(true)} tintColor={GOLD}/>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>load(true)} tintColor={Colors.primaryDeep}/>}
         scrollEnabled={false}
         contentContainerStyle={{gap:12}}
       >
         {loading?(
           <View style={{alignItems:"center",paddingVertical:50}}>
-            <ActivityIndicator color={GOLD} size="large"/>
+            <ActivityIndicator color={Colors.primaryDeep} size="large"/>
           </View>
         ):posts.length===0?(
           <View style={b.emptyBox}>
@@ -820,25 +801,23 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
             <Text style={b.emptySub}>كن أول من يُهنئ أهل الحصاحيصا 🌟</Text>
           </View>
         ):posts.map((p,i)=>{
-          const clr = OCC_COLORS[p.occasion_name] || GOLD;
           const isBig = p.is_pinned || p.likes_count > 2;
           return(
             <Animated.View key={p.id} entering={FadeInDown.delay(i*50).springify()}>
-              <LinearGradient colors={[CARD2, CARD]} style={[b.postCard, isBig&&b.postCardFeatured]}>
-                <LinearGradient colors={[clr+"10","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postAccent}/>
-                {isBig&&<View style={[b.featuredBadge,{backgroundColor:clr}]}>
-                  <Ionicons name="star" size={10} color="#000"/><Text style={b.featuredText}>مميّز</Text>
+              <View style={[b.postCard, isBig&&b.postCardFeatured]}>
+                {isBig&&<View style={b.featuredBadge}>
+                  <Ionicons name="star" size={10} color="#fff"/><Text style={b.featuredText}>مميّز</Text>
                 </View>}
 
                 <View style={b.postHeader}>
-                  <LinearGradient colors={[clr,clr+"AA"]} style={b.avatar}>
+                  <View style={b.avatar}>
                     <Text style={b.avatarText}>{p.author_name?.charAt(0)||"؟"}</Text>
-                  </LinearGradient>
+                  </View>
                   <View style={{flex:1}}>
                     <Text style={b.author}>{p.author_name}</Text>
                     <View style={b.postMeta}>
-                      <View style={[b.occTag,{backgroundColor:clr+"18"}]}>
-                        <Text style={[b.occTagText,{color:clr}]}>{p.occasion_name}</Text>
+                      <View style={b.occTag}>
+                        <Text style={b.occTagText}>{p.occasion_name}</Text>
                       </View>
                       <Text style={b.timeAgo}>{timeAgo(p.created_at)}</Text>
                     </View>
@@ -850,17 +829,17 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
                 <View style={b.postActions}>
                   <TouchableOpacity style={b.likeBtn} onPress={()=>like(p.id)} disabled={liking===p.id}>
                     {liking===p.id?(
-                      <ActivityIndicator size={14} color={clr}/>
+                      <ActivityIndicator size={14} color={Colors.primaryDeep}/>
                     ):(
-                      <><Ionicons name="heart-outline" size={16} color={clr}/>
-                      <Text style={[b.likeCount,{color:clr}]}>{p.likes_count||0}</Text></>
+                      <><Ionicons name="heart-outline" size={16} color={Colors.primaryDeep}/>
+                      <Text style={b.likeCount}>{p.likes_count||0}</Text></>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity style={b.sharePostBtn} onPress={()=>Share.share({message:p.text,title:p.occasion_name}).catch(()=>{})}>
-                    <Ionicons name="share-outline" size={15} color="rgba(255,255,255,0.3)"/>
+                    <Ionicons name="share-outline" size={15} color={Colors.textSecondary}/>
                   </TouchableOpacity>
                 </View>
-              </LinearGradient>
+              </View>
             </Animated.View>
           );
         })}
@@ -887,55 +866,46 @@ export default function GreetingsScreen() {
   const todayGreg  = today.toLocaleDateString("ar-SA",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 
   return (
-    <View style={[s.root,{paddingTop:insets.top}]}>
+    <View style={s.root}>
       {/* ── الرأس ── */}
-      <LinearGradient colors={["#0B1A0E","#08100A",BG]} style={s.header}>
-        {active ? (
-          <Animated.View entering={ZoomIn.springify()} style={[s.activeBanner,{borderColor:active.accent+"40"}]}>
-            <LinearGradient colors={[active.color+"20","transparent"]} style={StyleSheet.absoluteFill}/>
-            <StarField color={active.accent}/>
+      <ModernHeader
+        title="مساحة التهنئة"
+        subtitle={`${todayHijri} — ${todayGreg}`}
+        icon="sparkles-outline"
+      >
+        {active && (
+          <Animated.View entering={ZoomIn.springify()} style={s.activeBanner}>
             <View style={s.activeBannerLeft}>
               <Text style={s.activeBannerEmoji}>{active.emoji}</Text>
             </View>
             <View style={{flex:1}}>
-              <Text style={[s.activeBannerTitle,{color:active.accent}]}>{active.name}</Text>
+              <Text style={s.activeBannerTitle}>{active.name}</Text>
               <Text style={s.activeBannerSub}>اضغط لإنشاء بطاقة تهنئة فاخرة 🎊</Text>
             </View>
             <TouchableOpacity onPress={()=>{setSelectedOcc(active);if(Platform.OS!=="web")Haptics.selectionAsync();}}
-              style={[s.activeCTA,{backgroundColor:active.color}]}>
-              <MaterialCommunityIcons name="card-text" size={14} color="#000"/>
-              <Text style={s.activeCTAText}>بطاقة</Text>
+              style={headerUI.primaryBtn}>
+              <MaterialCommunityIcons name="card-text" size={14} color="#fff"/>
+              <Text style={headerUI.primaryBtnText}>بطاقة</Text>
             </TouchableOpacity>
           </Animated.View>
-        ):(
-          <View style={s.dateBox}>
-            <LinearGradient colors={[GOLD+"20","transparent"]} style={s.dateIconWrap}>
-              <Ionicons name="moon" size={18} color={GOLD}/>
-            </LinearGradient>
-            <View>
-              <Text style={s.hijriDate}>{todayHijri}</Text>
-              <Text style={s.gregDate}>{todayGreg}</Text>
-            </View>
-          </View>
         )}
-      </LinearGradient>
 
-      {/* ── التبويبات ── */}
-      <View style={s.tabs}>
-        {([
-          {key:"occasions",label:"المناسبات",icon:"calendar-outline",iconA:"calendar"},
-          {key:"calendar", label:"التقويم",  icon:"moon-outline",    iconA:"moon"},
-          {key:"board",    label:"المنبر",   icon:"chatbubbles-outline",iconA:"chatbubbles"},
-        ] as {key:TabKey;label:string;icon:any;iconA:any}[]).map(t=>(
-          <TouchableOpacity key={t.key}
-            style={[s.tabBtn,tab===t.key&&s.tabBtnActive]}
-            onPress={()=>{setTab(t.key);if(Platform.OS!=="web")Haptics.selectionAsync();}}>
-            {tab===t.key&&<LinearGradient colors={[GOLD+"15","transparent"]} style={StyleSheet.absoluteFill}/>}
-            <Ionicons name={tab===t.key?t.iconA:t.icon} size={16} color={tab===t.key?GOLD:Colors.textMuted}/>
-            <Text style={[s.tabLabel,tab===t.key&&{color:GOLD}]}>{t.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* ── التبويبات ── */}
+        <View style={headerUI.segmentWrap}>
+          {([
+            {key:"occasions",label:"المناسبات",icon:"calendar-outline",iconA:"calendar"},
+            {key:"calendar", label:"التقويم",  icon:"moon-outline",    iconA:"moon"},
+            {key:"board",    label:"المنبر",   icon:"chatbubbles-outline",iconA:"chatbubbles"},
+          ] as {key:TabKey;label:string;icon:any;iconA:any}[]).map(t=>(
+            <TouchableOpacity key={t.key}
+              style={[headerUI.segment,tab===t.key&&headerUI.segmentActive]}
+              onPress={()=>{setTab(t.key);if(Platform.OS!=="web")Haptics.selectionAsync();}}>
+              <Ionicons name={tab===t.key?t.iconA:t.icon} size={16} color={tab===t.key?Colors.primaryDeep:Colors.textMuted}/>
+              <Text style={[headerUI.segmentText,tab===t.key&&headerUI.segmentTextActive]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ModernHeader>
 
       {/* ── المحتوى ── */}
       <ScrollView style={{flex:1}}
@@ -945,7 +915,6 @@ export default function GreetingsScreen() {
         {tab==="occasions"&&(
           <View style={{gap:12}}>
             <Animated.View entering={FadeIn} style={s.hintCard}>
-              <LinearGradient colors={[GOLD+"15","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
               <MaterialCommunityIcons name={"sparkles" as any} size={15} color={GOLD}/>
               <Text style={s.hintText}>اضغط على أي مناسبة لإنشاء بطاقة تهنئة ملكية فاخرة قابلة للمشاركة والنشر</Text>
             </Animated.View>
@@ -974,89 +943,76 @@ export default function GreetingsScreen() {
 // الأنماط
 // ═══════════════════════════════════════════════════════════════════════════════
 const s = StyleSheet.create({
-  root:   {flex:1,backgroundColor:BG},
-  header: {paddingHorizontal:16,paddingVertical:14,gap:8},
+  root:   {flex:1,backgroundColor:Colors.bg},
 
   activeBanner: {
     flexDirection:"row-reverse",alignItems:"center",gap:12,
-    borderRadius:Colors.radius.xl,padding:16,borderWidth:1,overflow:"hidden",
+    borderRadius:Colors.radius.lg,padding:14,backgroundColor:GOLD_SOFT,
   },
   activeBannerLeft: {width:48,alignItems:"center"},
   activeBannerEmoji:{fontSize:36},
-  activeBannerTitle:{fontFamily:"Cairo_700Bold",fontSize:16,textAlign:"right"},
-  activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.5)",textAlign:"right",marginTop:2},
-  activeCTA:{flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingVertical:8,borderRadius:Colors.radius.sm},
-  activeCTAText:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#000"},
+  activeBannerTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:GOLD,textAlign:"right"},
+  activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textSecondary,textAlign:"right",marginTop:2},
 
-  dateBox:   {flexDirection:"row-reverse",alignItems:"center",gap:12},
-  dateIconWrap:{width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center"},
-  hijriDate: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD,textAlign:"right"},
-  gregDate:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.4)",textAlign:"right"},
-
-  tabs:      {flexDirection:"row-reverse",borderBottomWidth:1,borderBottomColor:BORDER},
-  tabBtn:    {flex:1,flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:5,paddingVertical:13,overflow:"hidden"},
-  tabBtnActive:{borderBottomWidth:2,borderBottomColor:GOLD},
-  tabLabel:  {fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.textMuted},
-
-  hintCard:  {flexDirection:"row-reverse",alignItems:"center",gap:8,borderRadius:Colors.radius.md,padding:12,borderWidth:1,borderColor:GOLD+"20",overflow:"hidden"},
-  hintText:  {fontFamily:"Cairo_400Regular",fontSize:12,color:GOLD+"BB",flex:1,textAlign:"right",lineHeight:20},
+  hintCard:  {flexDirection:"row-reverse",alignItems:"center",gap:8,borderRadius:Colors.radius.md,padding:12,backgroundColor:Colors.cardBg,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER},
+  hintText:  {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textSecondary,flex:1,textAlign:"right",lineHeight:20},
 });
 
 // بطاقات المناسبات
 const oc = StyleSheet.create({
-  card:        {borderRadius:Colors.radius.xl,overflow:"hidden",borderWidth:1,borderColor:BORDER},
-  topLine:     {height:2.5},
-  todayBadge:  {position:"absolute",top:14,left:14,flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:Colors.radius.sm,paddingHorizontal:8,paddingVertical:3},
+  card:        {borderRadius:Colors.radius.lg,overflow:"hidden",backgroundColor:Colors.cardBg,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER},
+  todayBadge:  {position:"absolute",top:14,left:14,zIndex:1,flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:Colors.radius.sm,paddingHorizontal:8,paddingVertical:3,backgroundColor:Colors.primaryDeep},
   todayText:   {fontFamily:"Cairo_700Bold",fontSize:10,color:"#fff"},
   pulse:       {width:5,height:5,borderRadius:2.5},
   content:     {flexDirection:"row-reverse",alignItems:"flex-start",gap:12,padding:16,paddingTop:14},
-  iconBox:     {width:56,height:56,borderRadius:Colors.radius.md,alignItems:"center",justifyContent:"center",borderWidth:1},
+  iconBox:     {width:56,height:56,borderRadius:Colors.radius.md,alignItems:"center",justifyContent:"center",backgroundColor:GOLD_SOFT},
   emoji:       {fontSize:28},
-  name:        {fontFamily:"Cairo_700Bold",fontSize:15,color:"#fff",textAlign:"right"},
-  date:        {fontFamily:"Cairo_400Regular",fontSize:12,textAlign:"right",marginTop:2},
-  pill:        {flexDirection:"row-reverse",alignItems:"center",gap:4,borderWidth:1,borderRadius:8,paddingHorizontal:8,paddingVertical:3,marginTop:6,alignSelf:"flex-end"},
+  name:        {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.textPrimary,textAlign:"right"},
+  date:        {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textMuted,textAlign:"right",marginTop:2},
+  pill:        {flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:8,paddingHorizontal:8,paddingVertical:3,marginTop:6,alignSelf:"flex-end"},
   pillText:    {fontFamily:"Cairo_600SemiBold",fontSize:11},
   dot:         {width:5,height:5,borderRadius:2.5},
-  cardIcon:    {width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center",borderWidth:1},
-  versePreview:{marginHorizontal:16,borderTopWidth:1,paddingTop:8},
-  versePreviewText:{fontFamily:"Cairo_400Regular",fontSize:11,textAlign:"right"},
+  cardIcon:    {width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center",backgroundColor:Colors.primarySoft},
+  versePreview:{marginHorizontal:16,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:BORDER,paddingTop:8},
+  versePreviewText:{fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textSecondary,textAlign:"right"},
   cta:         {flexDirection:"row-reverse",alignItems:"center",gap:5,padding:14,paddingTop:6},
-  ctaText:     {fontFamily:"Cairo_600SemiBold",fontSize:12,flex:1},
+  ctaText:     {fontFamily:"Cairo_600SemiBold",fontSize:12,color:Colors.primaryDeep,flex:1,textAlign:"right"},
 });
 
 // التقويم
 const cal = StyleSheet.create({
-  wrap:      {backgroundColor:CARD,borderRadius:Colors.radius.xl,padding:16,borderWidth:1,borderColor:BORDER},
+  wrap:      {backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,padding:16,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER},
   header:    {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:14},
-  navBtn:    {width:36,height:36,borderRadius:Colors.radius.sm,backgroundColor:CARD2,alignItems:"center",justifyContent:"center"},
-  monthName: {fontFamily:"Cairo_700Bold",fontSize:17,color:GOLD,textAlign:"center"},
-  year:      {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center"},
+  navBtn:    {width:36,height:36,borderRadius:18,backgroundColor:Colors.header.control,alignItems:"center",justifyContent:"center"},
+  monthName: {fontFamily:"Cairo_700Bold",fontSize:17,color:Colors.textPrimary,textAlign:"center"},
+  year:      {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textMuted,textAlign:"center"},
   weekRow:   {flexDirection:"row-reverse",marginBottom:4},
-  weekDay:   {flex:1,fontFamily:"Cairo_600SemiBold",fontSize:11,color:"rgba(255,255,255,0.3)",textAlign:"center"},
+  weekDay:   {flex:1,fontFamily:"Cairo_600SemiBold",fontSize:11,color:Colors.textMuted,textAlign:"center"},
   grid:      {flexDirection:"row-reverse",flexWrap:"wrap"},
   cell:      {width:`${100/7}%` as any,aspectRatio:1,alignItems:"center",justifyContent:"center",borderRadius:8},
-  todayCell: {backgroundColor:GOLD+"22",borderWidth:1.5,borderColor:GOLD},
-  dayNum:    {fontFamily:"Cairo_500Medium",fontSize:13,color:"rgba(255,255,255,0.5)"},
-  todayNum:  {color:GOLD,fontFamily:"Cairo_700Bold"},
+  occCell:   {backgroundColor:GOLD_SOFT},
+  occNum:    {color:GOLD,fontFamily:"Cairo_700Bold"},
+  todayCell: {backgroundColor:Colors.primaryDeep},
+  dayNum:    {fontFamily:"Cairo_500Medium",fontSize:13,color:Colors.textPrimary},
+  todayNum:  {color:"#fff",fontFamily:"Cairo_700Bold"},
   occDot:    {width:4,height:4,borderRadius:2,marginTop:2},
-  occList:   {marginTop:12,gap:7,borderTopWidth:1,borderTopColor:BORDER,paddingTop:10},
-  occListTitle:{fontFamily:"Cairo_700Bold",fontSize:13,color:"rgba(255,255,255,0.8)",textAlign:"right",marginBottom:4},
+  occList:   {marginTop:12,gap:7,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:BORDER,paddingTop:10},
+  occListTitle:{fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.textPrimary,textAlign:"right",marginBottom:4},
   occRow:    {flexDirection:"row-reverse",alignItems:"center",gap:8},
   occDotSm:  {width:8,height:8,borderRadius:4},
-  occName:   {fontFamily:"Cairo_500Medium",fontSize:13,color:"rgba(255,255,255,0.8)",flex:1,textAlign:"right"},
-  occDates:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.4)"},
+  occName:   {fontFamily:"Cairo_500Medium",fontSize:13,color:Colors.textPrimary,flex:1,textAlign:"right"},
+  occDates:  {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
 });
 
 // المودال
 const cm = StyleSheet.create({
   overlay:  {flex:1,justifyContent:"flex-end"},
-  sheet:    {borderTopLeftRadius:Colors.radius.xl,borderTopRightRadius:Colors.radius.xl,overflow:"hidden",maxHeight:"94%",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
-  sheetHeader:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",padding:20,paddingBottom:12},
-  closeBtn: {width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
-  headerShareBtn:{width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
-  sheetTitle:{fontFamily:"Cairo_700Bold",fontSize:18,color:"#fff"},
-  sheetSub:  {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center",marginTop:2},
-  scrollContent:{padding:20,paddingTop:4,gap:20,paddingBottom:30},
+  backdrop: {backgroundColor:Colors.overlay},
+  sheet:    {borderTopLeftRadius:Colors.radius.xl,borderTopRightRadius:Colors.radius.xl,overflow:"hidden",maxHeight:"94%",backgroundColor:Colors.bg},
+  sheetHeader:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",padding:16,paddingBottom:12,backgroundColor:Colors.cardBg,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:BORDER},
+  sheetTitle:{fontFamily:"Cairo_700Bold",fontSize:18,color:Colors.textPrimary},
+  sheetSub:  {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textMuted,textAlign:"center",marginTop:2},
+  scrollContent:{padding:16,paddingTop:16,gap:20,paddingBottom:30},
 
   // البطاقة
   cardWrap:  {borderRadius:Colors.radius.xl,overflow:"hidden",borderWidth:1},
@@ -1088,58 +1044,51 @@ const cm = StyleSheet.create({
   bottomGlow:{position:"absolute",bottom:0,left:0,right:0,height:60},
 
   section:   {gap:10},
-  sectionLabel:{fontFamily:"Cairo_700Bold",fontSize:13,color:"rgba(255,255,255,0.8)",textAlign:"right"},
+  sectionLabel:{fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.textPrimary,textAlign:"right"},
   styleRow:  {gap:8,paddingVertical:2},
-  stylePill: {flexDirection:"row-reverse",alignItems:"center",gap:7,paddingHorizontal:14,paddingVertical:9,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.06)",borderWidth:1,borderColor:"rgba(255,255,255,0.1)"},
-  styleColor:{width:10,height:10,borderRadius:5},
-  stylePillText:{fontFamily:"Cairo_600SemiBold",fontSize:13,color:"rgba(255,255,255,0.5)"},
+  styleColor:{width:12,height:12,borderRadius:6,borderWidth:2},
 
-  inputRow:  {flexDirection:"row-reverse",alignItems:"center",backgroundColor:"rgba(255,255,255,0.05)",borderRadius:Colors.radius.md,borderWidth:1,height:52},
-  input:     {flex:1,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff",paddingHorizontal:6},
+  inputRow:  {flexDirection:"row-reverse",alignItems:"center",backgroundColor:Colors.cardBg,borderRadius:Colors.radius.md,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER,height:52},
+  input:     {flex:1,fontFamily:"Cairo_400Regular",fontSize:14,color:Colors.textPrimary,paddingHorizontal:6},
 
   actionsGrid:{flexDirection:"row-reverse",flexWrap:"wrap",gap:10},
-  actionCard: {width:"47%",aspectRatio:1.8,borderRadius:Colors.radius.md,borderWidth:1,alignItems:"center",justifyContent:"center",gap:6,overflow:"hidden"},
+  actionCard: {width:"47%",aspectRatio:1.8,borderRadius:Colors.radius.lg,backgroundColor:Colors.cardBg,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER,alignItems:"center",justifyContent:"center",gap:6,overflow:"hidden"},
+  actionCardPrimary:{backgroundColor:Colors.primaryDeep,borderColor:Colors.primaryDeep},
   actionCardPublished:{opacity:0.7},
-  actionLabel:{fontFamily:"Cairo_700Bold",fontSize:13},
+  actionIcon: {width:36,height:36,borderRadius:18,backgroundColor:Colors.primarySoft,alignItems:"center",justifyContent:"center"},
+  actionLabel:{fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.textPrimary},
 });
 
 // المنبر
 const b = StyleSheet.create({
-  compose:     {borderRadius:Colors.radius.xl,padding:16,gap:10,borderWidth:1,borderColor:BORDER,marginBottom:16,overflow:"hidden"},
-  composeAccent:{position:"absolute",top:0,left:0,right:0,height:4},
+  compose:     {borderRadius:Colors.radius.lg,padding:16,gap:10,backgroundColor:Colors.cardBg,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER,marginBottom:16},
   composeHeader:{flexDirection:"row-reverse",alignItems:"center",gap:8},
-  composeTitle: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD},
+  composeTitle: {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.textPrimary,textAlign:"right"},
   tagsRow:     {gap:8,paddingBottom:4},
-  tag:         {paddingHorizontal:12,paddingVertical:5,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.05)",borderWidth:1,borderColor:BORDER},
-  tagText:     {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.4)"},
-  composeInput:{backgroundColor:"rgba(255,255,255,0.05)",borderRadius:Colors.radius.md,borderWidth:1,borderColor:BORDER,minHeight:88,padding:14,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff"},
+  composeInput:{backgroundColor:Colors.bg,borderRadius:Colors.radius.md,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER,minHeight:88,padding:14,fontFamily:"Cairo_400Regular",fontSize:14,color:Colors.textPrimary},
   composeBottom:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between"},
-  charCount:   {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.3)"},
-  postBtn:     {borderRadius:Colors.radius.sm,overflow:"hidden"},
-  postBtnGrad: {flexDirection:"row-reverse",alignItems:"center",gap:6,paddingHorizontal:16,paddingVertical:9},
-  postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:"#000"},
+  charCount:   {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
 
   emptyBox:  {alignItems:"center",paddingVertical:50,gap:8},
-  emptyTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:"rgba(255,255,255,0.6)"},
-  emptySub:  {fontFamily:"Cairo_400Regular",fontSize:13,color:"rgba(255,255,255,0.3)"},
+  emptyTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:Colors.textPrimary},
+  emptySub:  {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textMuted},
 
-  postCard:  {borderRadius:Colors.radius.lg,padding:16,borderWidth:1,borderColor:BORDER,overflow:"hidden",gap:10},
-  postCardFeatured:{borderColor:GOLD+"30"},
-  postAccent:{position:"absolute",top:0,left:0,right:0,height:3},
-  featuredBadge:{position:"absolute",top:12,left:12,flexDirection:"row-reverse",alignItems:"center",gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:8},
-  featuredText: {fontFamily:"Cairo_700Bold",fontSize:10,color:"#000"},
+  postCard:  {borderRadius:Colors.radius.lg,padding:16,backgroundColor:Colors.cardBg,borderWidth:StyleSheet.hairlineWidth,borderColor:BORDER,overflow:"hidden",gap:10},
+  postCardFeatured:{borderWidth:1,borderColor:Colors.accent},
+  featuredBadge:{position:"absolute",top:12,left:12,zIndex:1,flexDirection:"row-reverse",alignItems:"center",gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:8,backgroundColor:GOLD},
+  featuredText: {fontFamily:"Cairo_700Bold",fontSize:10,color:"#fff"},
 
   postHeader:{flexDirection:"row-reverse",alignItems:"center",gap:10},
-  avatar:    {width:40,height:40,borderRadius:13,alignItems:"center",justifyContent:"center"},
-  avatarText:{fontFamily:"Cairo_700Bold",fontSize:17,color:"#fff"},
-  author:    {fontFamily:"Cairo_700Bold",fontSize:14,color:"#fff",textAlign:"right"},
+  avatar:    {width:40,height:40,borderRadius:20,alignItems:"center",justifyContent:"center",backgroundColor:Colors.primarySoft},
+  avatarText:{fontFamily:"Cairo_700Bold",fontSize:17,color:Colors.primaryDeep},
+  author:    {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.textPrimary,textAlign:"right"},
   postMeta:  {flexDirection:"row-reverse",alignItems:"center",gap:8,marginTop:3},
-  occTag:    {borderRadius:7,paddingHorizontal:7,paddingVertical:2},
-  occTagText:{fontFamily:"Cairo_600SemiBold",fontSize:11},
-  timeAgo:   {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.3)"},
-  postText:  {fontFamily:"Cairo_400Regular",fontSize:13,color:"rgba(255,255,255,0.75)",textAlign:"right",lineHeight:23},
-  postActions:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",paddingTop:4,borderTopWidth:1,borderTopColor:BORDER},
+  occTag:    {borderRadius:7,paddingHorizontal:7,paddingVertical:2,backgroundColor:GOLD_SOFT},
+  occTagText:{fontFamily:"Cairo_600SemiBold",fontSize:11,color:GOLD},
+  timeAgo:   {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
+  postText:  {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textSecondary,textAlign:"right",lineHeight:23},
+  postActions:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",paddingTop:8,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:BORDER},
   likeBtn:   {flexDirection:"row-reverse",alignItems:"center",gap:5},
-  likeCount: {fontFamily:"Cairo_600SemiBold",fontSize:13},
-  sharePostBtn:{width:32,height:32,borderRadius:10,backgroundColor:"rgba(255,255,255,0.05)",alignItems:"center",justifyContent:"center"},
+  likeCount: {fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.primaryDeep},
+  sharePostBtn:{width:32,height:32,borderRadius:16,backgroundColor:Colors.header.control,alignItems:"center",justifyContent:"center"},
 });

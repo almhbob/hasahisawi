@@ -15,7 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "expo-router";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ══════════════════════════════════════════════════════
@@ -599,10 +599,9 @@ export default function WomenScreen() {
             ["health",     "صحة المرأة",   "heart-outline",        "#3E9CBF"],
             ["recipes",    "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
           ] as [SubTab, string, string, string][]).map(([k, label, icon, color]) => (
-            <TouchableOpacity key={k} style={[s.subTab, subTab === k && s.subTabActive]} onPress={() => setSubTab(k)}>
-              {subTab === k && <LinearGradient colors={[color + "30", color + "10"]} style={StyleSheet.absoluteFill} />}
-              <MaterialCommunityIcons name={icon as any} size={14} color={subTab === k ? color : Colors.textMuted} />
-              <Text style={[s.subTabText, subTab === k && { color }]}>{label}</Text>
+            <TouchableOpacity key={k} style={[headerUI.chip, subTab === k && headerUI.chipActive]} onPress={() => setSubTab(k)}>
+              <MaterialCommunityIcons name={icon as any} size={14} color={subTab === k ? "#fff" : Colors.textSecondary} />
+              <Text style={[headerUI.chipText, subTab === k && headerUI.chipTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1139,10 +1138,10 @@ export default function WomenScreen() {
                       {/* أزرار */}
                       <View style={sp.shopActions}>
                         <AnimatedPress style={{ flex: 1 }} onPress={() => { setSelectedShop(selectedShop?.id === shop.id ? null : shop); setShopProducts([]); }}>
-                          <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.shopBtn}>
+                          <View style={[sp.shopBtn, { backgroundColor: Colors.primaryDeep }]}>
                             <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
                             <Text style={sp.shopBtnText}>{selectedShop?.id === shop.id ? "إخفاء المنتجات" : "عرض المنتجات"}</Text>
-                          </LinearGradient>
+                          </View>
                         </AnimatedPress>
                         <TouchableOpacity
                           style={sp.reqBtn}
@@ -1219,7 +1218,7 @@ export default function WomenScreen() {
                         {/* زر إتمام الشراء */}
                         {cartCount(cart) > 0 && (
                           <TouchableOpacity style={sp.checkoutBanner} onPress={() => setCartOpen(true)}>
-                            <LinearGradient colors={["#A855F7", "#7C3AED"]} style={StyleSheet.absoluteFill} />
+                            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.primaryDeep }]} />
                             <MaterialCommunityIcons name="cart-check" size={18} color="#fff" />
                             <Text style={sp.checkoutBannerText}>السلة ({cartCount(cart)} منتج) — {cartTotal(cart).toLocaleString("en-US")} ج</Text>
                             <Ionicons name="chevron-back" size={16} color="#fff" />
@@ -1277,10 +1276,10 @@ export default function WomenScreen() {
                   style={bt.openStoreBtn}
                   onPress={() => router.push("/store-portal" as any)}
                 >
-                  <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.openStoreBtnGrad}>
+                  <View style={[bt.openStoreBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                     <MaterialCommunityIcons name="store-plus-outline" size={18} color="#fff" />
                     <Text style={bt.openStoreBtnText}>فتح بوتيكي</Text>
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </View>
             </Animated.View>
@@ -1356,10 +1355,10 @@ export default function WomenScreen() {
                         style={{ flex: 1 }}
                         onPress={() => router.push({ pathname: "/stores", params: { openStoreId: String(store.id) } } as any)}
                       >
-                        <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.actionBtn}>
+                        <View style={[bt.actionBtn, { backgroundColor: Colors.primaryDeep }]}>
                           <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
                           <Text style={bt.actionBtnText}>تسوّقي الآن</Text>
-                        </LinearGradient>
+                        </View>
                       </AnimatedPress>
                       {store.phone ? (
                         <AnimatedPress
@@ -1395,10 +1394,10 @@ export default function WomenScreen() {
         activeOpacity={0.88}
         onPress={() => { setJoinDone(false); setJoinModal(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
       >
-        <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jm.fabGrad}>
+        <View style={[jm.fabGrad, { backgroundColor: Colors.primaryDeep }]}>
           <MaterialCommunityIcons name="store-plus-outline" size={20} color="#fff" />
           <Text style={jm.fabText}>طلب الانضمام</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
 
       {/* ══ مودال السلة ══════════════════════════════════════════════════════ */}
@@ -1423,9 +1422,9 @@ export default function WomenScreen() {
                   <Text style={sp.successTitle}>تم إرسال طلبك بنجاح!</Text>
                   <Text style={sp.successSub}>ستتواصل معك صاحبة المتجر قريباً لتأكيد الطلب والتوصيل.</Text>
                   <TouchableOpacity onPress={() => { setCartOpen(false); setOrderDone(false); setCheckoutOpen(false); }} style={sp.successBtn}>
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                    <View style={[sp.successBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       <Text style={sp.successBtnText}>حسناً، شكراً!</Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               ) : cartCount(cart) === 0 ? (
@@ -1474,11 +1473,11 @@ export default function WomenScreen() {
                     onPress={submitOrder}
                     disabled={checkoutSending}
                   >
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                    <View style={[sp.submitBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       {checkoutSending ? <ActivityIndicator color="#fff" /> : (
                         <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال الطلب</Text></>
                       )}
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                   <View style={{ height: 20 }} />
                 </ScrollView>
@@ -1509,9 +1508,9 @@ export default function WomenScreen() {
                   <Text style={sp.successTitle}>تم استلام طلبك!</Text>
                   <Text style={sp.successSub}>ستتم مراجعة طلبك من الإدارة والتواصل معك خلال 24 ساعة.</Text>
                   <TouchableOpacity onPress={() => { setApplyShopModal(false); setApplyDone(false); }} style={sp.successBtn}>
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                    <View style={[sp.successBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       <Text style={sp.successBtnText}>حسناً</Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               ) : (
@@ -1565,11 +1564,11 @@ export default function WomenScreen() {
                     onPress={submitApplyShop}
                     disabled={applySending}
                   >
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                    <View style={[sp.submitBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       {applySending ? <ActivityIndicator color="#fff" /> : (
                         <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال طلب فتح المتجر</Text></>
                       )}
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                   <View style={{ height: 24 }} />
                 </ScrollView>
@@ -1666,7 +1665,7 @@ export default function WomenScreen() {
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setJoinModal(false)} />
 
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={jm.sheet}>
-            <LinearGradient colors={["#1A0830", "#0A1A10"]} style={jm.sheetInner}>
+            <View style={jm.sheetInner}>
 
               {/* رأس المودال */}
               <View style={jm.sheetHeader}>
@@ -1693,9 +1692,9 @@ export default function WomenScreen() {
                     style={jm.successBtn}
                     onPress={() => { setJoinModal(false); setJoinDone(false); }}
                   >
-                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.successBtnGrad}>
+                    <View style={[jm.successBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       <Text style={jm.successBtnText}>حسناً، شكراً!</Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               ) : (
@@ -1755,7 +1754,7 @@ export default function WomenScreen() {
                     onPress={submitJoinRequest}
                     disabled={joinSending}
                   >
-                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.sendBtnGrad}>
+                    <View style={[jm.sendBtnGrad, { backgroundColor: Colors.primaryDeep }]}>
                       {joinSending ? (
                         <ActivityIndicator color="#fff" />
                       ) : (
@@ -1764,14 +1763,14 @@ export default function WomenScreen() {
                           <Text style={jm.sendBtnText}>إرسال طلب الانضمام</Text>
                         </>
                       )}
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
 
                   <View style={{ height: 24 }} />
                         <OrgInviteCard />
 </ScrollView>
               )}
-            </LinearGradient>
+            </View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -1788,15 +1787,12 @@ const s = StyleSheet.create({
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
 
-  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: Colors.header.control, borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
 
   subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 4, paddingHorizontal: 0 },
-  subTab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", overflow: "hidden" },
-  subTabActive: { borderColor: "#FF4FA360" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8, ...Colors.shadow.card },
@@ -1878,7 +1874,6 @@ const jm = StyleSheet.create({
     position: "absolute", bottom: 24, alignSelf: "center",
     borderRadius: Colors.radius.pill, overflow: "hidden",
     ...Colors.shadow.raised,
-    shadowColor: "#FF4FA3",
   },
   fabGrad: {
     flexDirection: "row", alignItems: "center", gap: 8,
@@ -1893,6 +1888,7 @@ const jm = StyleSheet.create({
   },
   sheet: { maxHeight: "92%" },
   sheetInner: {
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     padding: 20, paddingBottom: 36,
   },
@@ -1902,7 +1898,7 @@ const jm = StyleSheet.create({
   },
   closeBtn: {
     width: 36, height: 36, borderRadius: Colors.radius.sm,
-    backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.header.control, alignItems: "center", justifyContent: "center",
   },
   sheetTitleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },

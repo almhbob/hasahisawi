@@ -9,7 +9,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
@@ -329,13 +329,13 @@ export default function RestaurantsScreen() {
           subtitle="مؤسسات · منيو مصور · أسعار · سلة · كاشير · فواتير · تقارير"
           icon="restaurant-outline"
         >
-          <View style={s.searchBox}>
+          <View style={headerUI.search}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
             <TextInput
               value={query} onChangeText={setQuery}
               placeholder="ابحث عن مطعم أو منتج..."
               placeholderTextColor={Colors.textMuted}
-              style={s.searchInput}
+              style={headerUI.searchInput}
             />
           </View>
         </ModernHeader>
@@ -710,8 +710,6 @@ const s = StyleSheet.create({
   body:       { padding: 18, gap: 14 },
 
   // Search
-  searchBox:  { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
-  searchInput: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
 
   // Tabs
   tabs:        { flexDirection: "row-reverse", gap: 8 },

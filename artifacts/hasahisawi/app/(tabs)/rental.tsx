@@ -11,7 +11,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const API = () => getApiUrl();
@@ -461,10 +461,10 @@ export default function RentalScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       {/* Header */}
       <ModernHeader title="قسم التأجير" subtitle="عقارات · مناسبات · بناء" icon="home-outline">
-        <View style={styles.tabs}>
+        <View style={headerUI.segmentWrap}>
           {(["browse","post","contracts"] as const).map(t => (
-            <TouchableOpacity key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+            <TouchableOpacity key={t} style={[headerUI.segment, tab === t && headerUI.segmentActive]} onPress={() => setTab(t)}>
+              <Text style={[headerUI.segmentText, { fontSize: 12 }, tab === t && headerUI.segmentTextActive]}>
                 {t === "browse" ? "🏠 عروض" : t === "post" ? "➕ أضف عرضاً" : "📄 عقودي"}
               </Text>
             </TouchableOpacity>
@@ -828,11 +828,6 @@ export default function RentalScreen() {
 // ─── Styles ────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: Colors.bg },
-  tabs:            { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4 },
-  tabBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: Colors.radius.sm },
-  tabBtnActive:    { backgroundColor: "rgba(255,255,255,0.92)" },
-  tabText:         { fontSize: 12, color: "rgba(255,255,255,0.85)" },
-  tabTextActive:   { color: Colors.primaryDeep, fontWeight: "600" },
   scrollContent:   { padding: 12, paddingBottom: 100 },
   filterBar:       { marginBottom: 10 },
   filterChip:      { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.borderSubtle, marginLeft: 8, backgroundColor: Colors.surface2 },

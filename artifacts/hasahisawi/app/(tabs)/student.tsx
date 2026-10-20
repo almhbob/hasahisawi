@@ -15,7 +15,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import { ModernCard } from "@/components/ui/ModernCard";
 
 
@@ -2209,22 +2209,22 @@ export default function StudentScreen() {
         icon="school"
         rightSlot={
           <AnimatedPress onPress={()=>{ if (!isAdmin) { setPinModal(true); } else { setActiveTab("admin"); } }}>
-            <View style={[s.adminBtn, isAdmin && { backgroundColor: "rgba(255,255,255,0.25)", borderColor: "rgba(255,255,255,0.5)" }]}>
-              <Ionicons name={isAdmin ? "shield-checkmark" : "shield-checkmark-outline"} size={18} color="#fff" />
+            <View style={[headerUI.iconBtn, isAdmin && { backgroundColor: Colors.primarySoft }]}>
+              <Ionicons name={isAdmin ? "shield-checkmark" : "shield-checkmark-outline"} size={20} color={isAdmin ? Colors.primaryDeep : Colors.textPrimary} />
             </View>
           </AnimatedPress>
         }
       >
         {/* Stats */}
         <View style={s.statsRow}>
-          <View style={[s.statPill, { backgroundColor:"rgba(255,255,255,0.18)", borderColor:"rgba(255,255,255,0.28)" }]}>
-            <MaterialCommunityIcons name="office-building" size={13} color="#fff" />
-            <Text style={[s.statText, { color:"#fff" }]}>{activeInsts.length} مؤسسة</Text>
+          <View style={[headerUI.statusPill, { gap:4 }]}>
+            <MaterialCommunityIcons name="office-building" size={13} color={Colors.primaryDeep} />
+            <Text style={headerUI.statusText}>{activeInsts.length} مؤسسة</Text>
           </View>
           {pendingReqs.length > 0 && isAdmin && (
-            <View style={[s.statPill, { backgroundColor:"rgba(255,255,255,0.14)", borderColor:"rgba(255,255,255,0.22)" }]}>
-              <Ionicons name="time-outline" size={13} color="#fff" />
-              <Text style={[s.statText, { color:"#fff" }]}>{pendingReqs.length} طلب معلق</Text>
+            <View style={[headerUI.statusPill, { gap:4, backgroundColor: Colors.header.control }]}>
+              <Ionicons name="time-outline" size={13} color={Colors.textSecondary} />
+              <Text style={[headerUI.statusText, { color: Colors.textSecondary }]}>{pendingReqs.length} طلب معلق</Text>
             </View>
           )}
         </View>
@@ -2233,16 +2233,15 @@ export default function StudentScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.tabsContent}>
           {TAB_OPTIONS.map(tab => (
-            <AnimatedPress key={tab.key} style={[s.tabBtn, activeTab===tab.key && s.tabBtnActive]}
+            <AnimatedPress key={tab.key} style={[headerUI.chip, activeTab===tab.key && headerUI.chipActive]}
               onPress={() => {
                 if (tab.key === "admin" && !isAdmin) { setPinModal(true); return; }
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActiveTab(tab.key);
               }}>
-              {activeTab===tab.key && <View style={[s.tabActiveLine, { backgroundColor:"#fff" }]} />}
-              <Ionicons name={tab.icon as any} size={16} color={activeTab===tab.key ? "#fff" : "rgba(255,255,255,0.62)"} />
-              <Text style={[s.tabBtnText, activeTab===tab.key && s.tabBtnTextActive]}>{tab.label}</Text>
-              {tab.key==="admin" && !isAdmin && <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.62)" />}
+              <Ionicons name={tab.icon as any} size={16} color={activeTab===tab.key ? "#fff" : Colors.textSecondary} />
+              <Text style={[headerUI.chipText, activeTab===tab.key && headerUI.chipTextActive]}>{tab.label}</Text>
+              {tab.key==="admin" && !isAdmin && <Ionicons name="lock-closed" size={10} color={Colors.textMuted} />}
               {tab.key==="admin" && pendingReqs.length>0 && isAdmin && (
                 <View style={s.tabBadge}><Text style={s.tabBadgeText}>{pendingReqs.length}</Text></View>
               )}
@@ -3093,17 +3092,9 @@ const s = StyleSheet.create({
   headerIcon:  { width:44, height:44, borderRadius:14, backgroundColor:Colors.primary+"15", justifyContent:"center", alignItems:"center" },
   headerTitle: { fontFamily:"Cairo_700Bold", fontSize:20, color:Colors.textPrimary, flex:1, textAlign:"right" },
   headerSub:   { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right" },
-  adminBtn:    { width:40, height:40, borderRadius:Colors.radius.md, backgroundColor:"rgba(255,255,255,0.14)", justifyContent:"center", alignItems:"center", borderWidth:1, borderColor:"rgba(255,255,255,0.28)" },
   statsRow:    { flexDirection:"row-reverse", gap:8, marginBottom:4 },
-  statPill:    { flexDirection:"row-reverse", alignItems:"center", gap:4, backgroundColor:Colors.primary+"15", borderRadius:8, paddingHorizontal:10, paddingVertical:4, borderWidth:1, borderColor:Colors.primary+"30" },
-  statText:    { fontFamily:"Cairo_500Medium", fontSize:11, color:Colors.primary },
 
-  tabsContent: { flexDirection:"row-reverse", paddingHorizontal:0, gap:4, paddingBottom:2 },
-  tabBtn:      { flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:14, paddingVertical:8, borderRadius:Colors.radius.md, backgroundColor:"transparent", position:"relative" },
-  tabBtnActive:{ backgroundColor:"rgba(255,255,255,0.18)" },
-  tabBtnText:  { fontFamily:"Cairo_500Medium", fontSize:13, color:"rgba(255,255,255,0.62)" },
-  tabBtnTextActive:{ color:"#fff", fontFamily:"Cairo_600SemiBold" },
-  tabActiveLine:{ position:"absolute", bottom:0, left:8, right:8, height:2, borderRadius:1 },
+  tabsContent: { flexDirection:"row-reverse", paddingHorizontal:0, gap:8, paddingBottom:2 },
   tabBadge:    { backgroundColor:Colors.danger, borderRadius:10, paddingHorizontal:5, paddingVertical:1, minWidth:16, alignItems:"center" },
   tabBadgeText:{ fontFamily:"Cairo_700Bold", fontSize:9, color:"#fff" },
 

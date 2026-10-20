@@ -13,7 +13,7 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -178,11 +178,11 @@ export default function MenScreen() {
           {([["all", "الكل", "apps-outline", "#aaa"], ...Object.entries(TYPE_CONFIG).map(([k, v]) => [k, v.label, v.icon, v.color])] as [string, string, string, string][]).map(([k, label, icon, color]) => (
             <TouchableOpacity
               key={k}
-              style={[s.chip, filter === k && { borderColor: color, backgroundColor: color + "20" }]}
+              style={[headerUI.chip, filter === k && headerUI.chipActive]}
               onPress={() => setFilter(k as ServiceType | "all")}
             >
-              <MaterialCommunityIcons name={icon as any} size={13} color={filter === k ? color : Colors.textMuted} />
-              <Text style={[s.chipText, filter === k && { color }]}>{label}</Text>
+              <MaterialCommunityIcons name={icon as any} size={13} color={filter === k ? "#fff" : Colors.textSecondary} />
+              <Text style={[headerUI.chipText, filter === k && headerUI.chipTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -432,10 +432,10 @@ export default function MenScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: Colors.header.control, borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
 
   chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.bg },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },

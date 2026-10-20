@@ -10,7 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 type TemplateId = "sidebar" | "executive" | "classic" | "minimal" | "modern" | "clean" | "ats" | "creative";
 
@@ -225,8 +225,8 @@ export default function CVBuilderScreen() {
           showBack
           onBack={() => router.back()}
           rightSlot={
-            <TouchableOpacity onPress={handleShare} style={s.shareBtn} hitSlop={12}>
-              <Ionicons name="share-outline" size={20} color="#fff" />
+            <TouchableOpacity onPress={handleShare} style={headerUI.iconBtn} hitSlop={12}>
+              <Ionicons name="share-outline" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           }
         />
@@ -296,7 +296,6 @@ function ListEditor({ title, field, items, update, add }: { title: string; field
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  shareBtn: { width: 36, height: 36, borderRadius: Colors.radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
   stepsBar: { flexDirection: "row-reverse", paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bg },
   stepItem: { flex: 1, alignItems: "center", gap: 4 },
   stepCircle: { width: 29, height: 29, borderRadius: 15, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },

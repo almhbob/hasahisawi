@@ -13,7 +13,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
@@ -30,8 +30,8 @@ async function safeCall(number: string) {
 // ── الألوان ──────────────────────────────────────────────────────────────────
 const BG     = Colors.bg   ?? "#0A1A10";
 const CYBER  = Colors.cyber ?? "#3EFF9C";
-const CARD   = "#0F2318";
-const BORDER = "#1A3A22";
+const CARD   = Colors.cardBg;
+const BORDER = Colors.border;
 const MUTED  = Colors.textMuted ?? "#4A7A5A";
 
 // ── أنواع الفئات ─────────────────────────────────────────────────────────────
@@ -76,23 +76,22 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 <script>${LEAFLET_JS}</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #map { width:100%; height:100%; background:#0A1A10; }
+  html, body, #map { width:100%; height:100%; background:${Colors.bg}; }
   .leaflet-popup-content-wrapper {
-    background:#0F2318; border:1px solid #1A3A22;
-    border-radius:14px; color:#fff; font-family:Cairo,Arial,sans-serif;
-    box-shadow:0 4px 24px #000a;
+    background:#fff; border:1px solid ${Colors.border};
+    border-radius:14px; color:${Colors.textPrimary}; font-family:Cairo,Arial,sans-serif;
+    box-shadow:0 4px 16px rgba(0,0,0,0.12);
   }
-  .leaflet-popup-tip { background:#0F2318; }
+  .leaflet-popup-tip { background:#fff; }
   .leaflet-popup-content { margin:12px 14px; min-width:160px; }
-  .popup-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; }
-  .popup-addr { font-size:12px; color:#4A7A5A; margin-bottom:8px; }
+  .popup-name { font-size:15px; font-weight:700; color:${Colors.textPrimary}; margin-bottom:4px; }
+  .popup-addr { font-size:12px; color:${Colors.textSecondary}; margin-bottom:8px; }
   .popup-call {
-    display:inline-block; background:#3EFF9C22; border:1px solid #3EFF9C55;
-    color:#3EFF9C; padding:5px 12px; border-radius:8px; font-size:13px;
+    display:inline-block; background:${Colors.primary}1A; border:1px solid ${Colors.primary}55;
+    color:${Colors.primaryDeep}; padding:5px 12px; border-radius:8px; font-size:13px;
     cursor:pointer; text-decoration:none; margin-top:2px;
   }
   .leaflet-control-attribution { display:none!important; }
-  .leaflet-tile { filter: brightness(0.85) saturate(0.9); }
 </style>
 </head>
 <body>
@@ -135,7 +134,7 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
   if (user) {
     var userIcon = L.divIcon({
       className: '',
-      html: '<div style="width:20px;height:20px;border-radius:50%;background:#3EFF9C;border:3px solid #fff;box-shadow:0 0 0 6px #3EFF9C33"></div>',
+      html: '<div style="width:20px;height:20px;border-radius:50%;background:${Colors.primary};border:3px solid #fff;box-shadow:0 0 0 6px ${Colors.primary}33"></div>',
       iconSize: [20, 20],
       iconAnchor: [10, 10],
     });
@@ -261,8 +260,8 @@ export default function MapScreen() {
         rightSlot={
           <View style={s.headerRight}>
             <Text style={s.placeCount}>{filteredCount} مكان</Text>
-            <TouchableOpacity style={s.locBtn} onPress={goToUser}>
-              <Ionicons name="locate" size={18} color="#fff" />
+            <TouchableOpacity style={headerUI.iconBtn} onPress={goToUser}>
+              <Ionicons name="locate" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
         }
@@ -339,9 +338,7 @@ export default function MapScreen() {
 const s = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
   headerRight:  { flexDirection: "row", alignItems: "center", gap: 10 },
-  placeCount:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
-  locBtn:       { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)",
-                  alignItems: "center", justifyContent: "center" },
+  placeCount:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   filterWrap:   { borderBottomWidth: 1, borderBottomColor: BORDER },
   filterScroll: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   chip:         { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12,
