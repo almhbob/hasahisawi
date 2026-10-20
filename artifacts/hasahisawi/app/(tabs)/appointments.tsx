@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 
 
 // ══════════════════════════════════════════════════════════
@@ -197,6 +198,7 @@ export default function AppointmentsScreen() {
 
   // My appointments
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [apptStatus, setApptStatus] = useState<"loading" | "error" | "ok">("loading");
   const [apptFilter, setApptFilter] = useState<AppStatus | "all">("all");
 
   const authHeaders = (): Record<string, string> => ({
@@ -205,7 +207,8 @@ export default function AppointmentsScreen() {
   });
 
   const loadAppointments = async () => {
-    if (!user) { setAppointments([]); return; }
+    if (!user) { setAppointments([]); setApptStatus("ok"); return; }
+    setApptStatus("loading");
     try {
       const res = await fetchWithTimeout(`${getApiUrl()}/api/appointments/mine`, {
         headers: authHeaders(),
@@ -213,10 +216,12 @@ export default function AppointmentsScreen() {
       if (res.ok) {
         const data = await res.json();
         setAppointments(data.appointments ?? []);
+        setApptStatus("ok");
       } else {
-        setAppointments([]);
+        // keep whatever we had; tell the user instead of showing "no appointments"
+        setApptStatus("error");
       }
-    } catch { setAppointments([]); }
+    } catch { setApptStatus("error"); }
   };
 
   useEffect(() => { loadAppointments(); }, []);
@@ -670,7 +675,9 @@ export default function AppointmentsScreen() {
           </ScrollView>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-            {filteredAppts.length === 0 && (
+            {filteredAppts.length === 0 && apptStatus === "loading" && <LoadingBlock label="جارٍ تحميل مواعيدك…" />}
+            {filteredAppts.length === 0 && apptStatus === "error" && <LoadError onRetry={loadAppointments} message="تعذّر تحميل مواعيدك" />}
+            {filteredAppts.length === 0 && apptStatus === "ok" && (
               <Animated.View entering={FadeIn.duration(400)} style={s.emptyState}>
                 <Ionicons name="calendar-outline" size={56} color={Colors.primary + "60"} />
                 <Text style={s.emptyTitle}>لا توجد مواعيد</Text>

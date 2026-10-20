@@ -20,6 +20,7 @@ import GuestGate from "@/components/GuestGate";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import { LoadError } from "@/components/ui/LoadState";
 
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
@@ -283,6 +284,7 @@ function DirectoryTab({ search, filter, facilities, t, isRTL, tr }: any) {
 function AppointmentsTab({ auth }: { auth: any }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showBook, setShowBook] = useState(false);
   // نموذج الحجز
   const [facilityName, setFacilityName] = useState("");
@@ -302,10 +304,12 @@ function AppointmentsTab({ auth }: { auth: any }) {
 
   const loadAppointments = async () => {
     if (!auth.token || !base) { setLoading(false); return; }
+    setLoadFailed(false);
     try {
       const res = await fetchWithTimeout(`${base}/api/appointments/mine`, { headers: { Authorization: `Bearer ${auth.token}` } });
       if (res.ok) { const d = await res.json() as any; setAppointments(d.appointments || []); }
-    } catch {} finally { setLoading(false); }
+      else setLoadFailed(true);
+    } catch { setLoadFailed(true); } finally { setLoading(false); }
   };
 
   useEffect(() => { loadAppointments(); }, []);
@@ -428,6 +432,8 @@ function AppointmentsTab({ auth }: { auth: any }) {
 
         {loading ? (
           <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+        ) : appointments.length === 0 && loadFailed ? (
+          <LoadError onRetry={() => { setLoading(true); loadAppointments(); }} message="تعذّر تحميل مواعيدك" />
         ) : appointments.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="calendar-blank-outline" size={48} color={Colors.textMuted} />
@@ -633,6 +639,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
 function ConsultationsTab({ auth }: { auth: any }) {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [filterSpec, setFilterSpec] = useState<string>("الكل");
   const [showAsk, setShowAsk] = useState(false);
   const [selectedConsult, setSelectedConsult] = useState<Consultation | null>(null);
@@ -652,9 +659,11 @@ function ConsultationsTab({ auth }: { auth: any }) {
     if (!base) { setLoading(false); return; }
     try {
       const url = filterSpec !== "الكل" ? `${base}/api/medical-consultations?specialty=${encodeURIComponent(filterSpec)}` : `${base}/api/medical-consultations`;
+      setLoadFailed(false);
       const res = await fetchWithTimeout(url);
       if (res.ok) { const d = await res.json() as any; setConsultations(d.consultations || []); }
-    } catch {} finally { setLoading(false); }
+      else setLoadFailed(true);
+    } catch { setLoadFailed(true); } finally { setLoading(false); }
   };
 
   useEffect(() => { setLoading(true); loadConsultations(); }, [filterSpec]);
@@ -735,6 +744,8 @@ function ConsultationsTab({ auth }: { auth: any }) {
 
         {loading ? (
           <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+        ) : consultations.length === 0 && loadFailed ? (
+          <LoadError onRetry={() => { setLoading(true); loadConsultations(); }} message="تعذّر تحميل الاستشارات" />
         ) : consultations.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="comment-question-outline" size={48} color={Colors.textMuted} />
@@ -868,6 +879,8 @@ function ConsultationsTab({ auth }: { auth: any }) {
 function SpecialistsTab() {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [loadFailed, setLoadFailed]   = useState(false);
+  const [reloadKey, setReloadKey]     = useState(0);
   const [filterSpec, setFilterSpec]   = useState("الكل");
   const [selected, setSelected]       = useState<Specialist | null>(null);
 
@@ -876,12 +889,14 @@ function SpecialistsTab() {
   useEffect(() => {
     (async () => {
       if (!base) { setLoading(false); return; }
+      setLoadFailed(false);
       try {
         const res = await fetchWithTimeout(`${base}/api/specialists`);
         if (res.ok) { const d = await res.json() as any; setSpecialists(d.specialists || []); }
-      } catch {} finally { setLoading(false); }
+        else setLoadFailed(true);
+      } catch { setLoadFailed(true); } finally { setLoading(false); }
     })();
-  }, []);
+  }, [reloadKey]);
 
   const specs = ["الكل", ...Array.from(new Set(specialists.map(s => s.specialty)))];
   const filtered = filterSpec === "الكل" ? specialists : specialists.filter(s => s.specialty === filterSpec);
@@ -899,6 +914,8 @@ function SpecialistsTab() {
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
+      ) : filtered.length === 0 && loadFailed ? (
+        <LoadError onRetry={() => { setLoading(true); setReloadKey(k => k + 1); }} message="تعذّر تحميل قائمة الأخصائيين" />
       ) : filtered.length === 0 ? (
         <View style={[styles.emptyState, { marginTop: 60 }]}>
           <MaterialCommunityIcons name="stethoscope" size={56} color={Colors.textMuted} />

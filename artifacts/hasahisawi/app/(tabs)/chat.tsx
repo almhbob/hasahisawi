@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import { LoadError } from "@/components/ui/LoadState";
 
 import {
   useApiChats, apiGetUsers, apiGetOrCreateChat, apiMarkRead,
@@ -89,15 +90,18 @@ function NewChatModal({
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [starting, setStarting] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (!visible) return;
     setLoading(true);
+    setLoadFailed(false);
     apiGetUsers(token)
       .then((u) => { setUsers(u); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [visible, token]);
+      .catch(() => { setLoadFailed(true); setLoading(false); });
+  }, [visible, token, reloadKey]);
 
   const filtered = users.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()),
@@ -153,6 +157,8 @@ function NewChatModal({
 
             {loading ? (
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 32 }} />
+            ) : loadFailed && users.length === 0 ? (
+              <LoadError onRetry={() => setReloadKey(k => k + 1)} message="تعذّر تحميل قائمة المستخدمين" />
             ) : (
               <FlatList
                 data={filtered}

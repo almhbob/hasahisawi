@@ -13,7 +13,8 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
 import JoinOrgBanner from "@/components/JoinOrgBanner";
 import ExternalPartnershipBanner from "@/components/ExternalPartnershipBanner";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 // ══════════════════════════════════════════════════════
@@ -129,6 +130,7 @@ export default function OrgsScreen() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<OrgType | "all">("all");
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [orgsStatus, setOrgsStatus] = useState<"loading" | "error" | "ok">("loading");
   const [subTab, setSubTab] = useState<SubTab>("orgs");
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [volunteerModal, setVolunteerModal] = useState<Organization | null>(null);
@@ -140,15 +142,22 @@ export default function OrgsScreen() {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("type", filter);
       if (search) params.set("search", search);
-      const res = await fetch(`${getApiUrl()}/api/organizations?${params}`);
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/organizations?${params}`);
       if (res.ok) {
         const data = await res.json();
         setOrgs((data.organizations || []).map(mapOrg));
+        setOrgsStatus("ok");
+      } else {
+        setOrgsStatus("error");
       }
-    } catch { /* ignore offline */ }
+    } catch { setOrgsStatus("error"); }
   };
 
-  useEffect(() => { load(); }, [filter, search]);
+  // Debounce: previously a request was sent on every typed letter.
+  useEffect(() => {
+    const t = setTimeout(() => { load(); }, search ? 400 : 0);
+    return () => clearTimeout(t);
+  }, [filter, search]);
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const filtered = orgs.filter(o => {
@@ -240,6 +249,15 @@ export default function OrgsScreen() {
             {/* ── دعوة المؤسسات للانضمام ── */}
             <JoinOrgBanner />
 
+            {filtered.length === 0 && orgsStatus === "loading" && <LoadingBlock label="جارٍ تحميل المنظمات…" />}
+            {filtered.length === 0 && orgsStatus === "error" && (
+              <LoadError onRetry={() => { setOrgsStatus("loading"); load(); }} message="تعذّر تحميل المنظمات" />
+            )}
+            {filtered.length === 0 && orgsStatus === "ok" && (
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary, textAlign: "center", paddingVertical: 32 }}>
+                {search ? "لا توجد نتائج مطابقة لبحثك" : "لا توجد منظمات بعد"}
+              </Text>
+            )}
             {filtered.map((org, i) => {
               const cfg = TYPE_CONFIG[org.type];
               const isExpanded = expandedOrg === org.id;
