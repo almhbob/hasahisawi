@@ -12,7 +12,8 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BACKEND_TOKEN_KEY = "auth_backend_token";
+// Must match TOKEN_KEY in lib/auth-context.tsx
+const BACKEND_TOKEN_KEY = "auth_session_token";
 
 export default function QRScannerScreen() {
   const insets = useSafeAreaInsets();

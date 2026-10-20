@@ -163,7 +163,7 @@ export default function LoginScreen() {
         promptEnableBiometrics(id);
 
         if (feedback.trim()) {
-          fetch(`${getApiUrl()}/feedback`, {
+          fetch(`${getApiUrl()}/api/feedback`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -383,7 +383,7 @@ export default function LoginScreen() {
       await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined, otpCode);
       promptEnableBiometrics(id);
       if (feedback.trim()) {
-        fetch(`${getApiUrl()}/feedback`, {
+        fetch(`${getApiUrl()}/api/feedback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "suggestion", title: "اقتراح عند التسجيل", body: feedback.trim(), sender_name: name.trim(), phone: !isEmail ? id : undefined, category: "تسجيل" }),

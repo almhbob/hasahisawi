@@ -12,7 +12,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
-const BACKEND_TOKEN_KEY = "auth_backend_token";
+// Must match TOKEN_KEY in lib/auth-context.tsx
+const BACKEND_TOKEN_KEY = "auth_session_token";
 
 type StaffType = "doctor" | "lab" | "pharmacist" | "nurse";
 type Staff = { id: number; staff_type: StaffType; full_name: string; specialty?: string; facility?: string; is_verified: boolean };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { getApiUrl } from "./query-client";
 
 // ── الأنواع ───────────────────────────────────────────────────────────────────
@@ -192,26 +193,65 @@ export function useApiMessages(token: string | null, chatId: number | null) {
 
 // ── Hook: إجمالي الرسائل غير المقروءة ────────────────────────────────────────
 
-export function useApiUnread(token: string | null): number {
-  const [count, setCount] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+// One shared poller for every component that shows the unread badge.
+// Previously each caller (root layout, tabs layout, drawer) ran its own 10s
+// interval that never paused in the background: ~3 requests every 10s per user,
+// enough to hit the server's per-IP rate limit and block login for that user.
+const UNREAD_POLL_MS = 30_000;
+const unreadSubscribers = new Set<(n: number) => void>();
+let unreadToken: string | null = null;
+let unreadTimer: ReturnType<typeof setInterval> | null = null;
+let unreadAppState: AppStateStatus = AppState.currentState;
+let unreadLast = 0;
+let unreadInFlight = false;
 
-  const fetch_ = useCallback(async () => {
-    if (!token) return;
-    try {
-      const data = await apiFetch("/chats/unread", token);
-      setCount(data.total ?? 0);
-    } catch {}
-  }, [token]);
+async function pollUnreadOnce() {
+  if (!unreadToken || unreadInFlight || unreadAppState !== "active") return;
+  unreadInFlight = true;
+  try {
+    const data = await apiFetch("/chats/unread", unreadToken);
+    unreadLast = data?.total ?? 0;
+    unreadSubscribers.forEach(fn => fn(unreadLast));
+  } catch {
+    // keep the last known count
+  } finally {
+    unreadInFlight = false;
+  }
+}
+
+function restartUnreadTimer() {
+  if (unreadTimer) { clearInterval(unreadTimer); unreadTimer = null; }
+  if (!unreadToken || unreadSubscribers.size === 0 || unreadAppState !== "active") return;
+  pollUnreadOnce();
+  unreadTimer = setInterval(pollUnreadOnce, UNREAD_POLL_MS);
+}
+
+AppState.addEventListener("change", (next) => {
+  const wasActive = unreadAppState === "active";
+  unreadAppState = next;
+  if (wasActive !== (next === "active")) restartUnreadTimer();
+});
+
+export function useApiUnread(token: string | null): number {
+  const [count, setCount] = useState(token ? unreadLast : 0);
 
   useEffect(() => {
-    if (!token) return;
-    fetch_();
-    intervalRef.current = setInterval(fetch_, 10000);
+    if (!token) { setCount(0); return; }
+    unreadSubscribers.add(setCount);
+    if (unreadToken !== token) {
+      unreadToken = token;
+      unreadLast = 0;
+      restartUnreadTimer();
+    } else if (!unreadTimer) {
+      restartUnreadTimer();
+    } else {
+      setCount(unreadLast);
+    }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      unreadSubscribers.delete(setCount);
+      if (unreadSubscribers.size === 0 && unreadTimer) { clearInterval(unreadTimer); unreadTimer = null; }
     };
-  }, [token, fetch_]);
+  }, [token]);
 
   return count;
 }

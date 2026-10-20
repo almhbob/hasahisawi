@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import Colors from "@/constants/colors";
 
 interface ModernHeaderProps {
@@ -48,6 +49,9 @@ export default function ModernHeader({
       end={{ x: 1, y: 1 }}
       style={[styles.wrap, { paddingTop: insets.top + 12 }, style]}
     >
+      {/* This header is a dark brand gradient drawn under the status bar → light icons here.
+          The app default is dark icons (light screens); this override is removed on unmount. */}
+      <StatusBar style="light" />
       <View style={styles.topRow}>
         {showBack ? (
           <TouchableOpacity onPress={handleBack} style={styles.iconBtn} accessibilityRole="button">
