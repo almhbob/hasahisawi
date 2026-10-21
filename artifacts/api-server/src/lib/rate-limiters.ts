@@ -1,6 +1,14 @@
 import { rateLimit } from "express-rate-limit";
+import type { RequestHandler } from "express";
 
-export const authLimiter = rateLimit({
+// express-rate-limit resolves Express types from the workspace root, which can be a
+// different @types/express major than this server uses. Typing every limiter as this
+// server's own RequestHandler keeps router.use()/route handlers type-compatible.
+// Runtime behaviour is unchanged.
+const limiter = (options: Parameters<typeof rateLimit>[0]): RequestHandler =>
+  rateLimit(options) as unknown as RequestHandler;
+
+export const authLimiter = limiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -9,7 +17,7 @@ export const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-export const registerLimiter = rateLimit({
+export const registerLimiter = limiter({
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -18,7 +26,7 @@ export const registerLimiter = rateLimit({
   skipSuccessfulRequests: false,
 });
 
-export const pinLimiter = rateLimit({
+export const pinLimiter = limiter({
   windowMs: 10 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -27,7 +35,7 @@ export const pinLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-export const writeLimiter = rateLimit({
+export const writeLimiter = limiter({
   windowMs: 5 * 60 * 1000,
   max: 60,
   standardHeaders: true,
@@ -36,7 +44,7 @@ export const writeLimiter = rateLimit({
   skip: (req) => req.method === "GET" || req.method === "OPTIONS",
 });
 
-export const heavyWriteLimiter = rateLimit({
+export const heavyWriteLimiter = limiter({
   windowMs: 10 * 60 * 1000,
   max: 15,
   standardHeaders: true,
@@ -44,7 +52,7 @@ export const heavyWriteLimiter = rateLimit({
   message: { error: "محاولات كثيرة، يرجى الانتظار قليلاً" },
 });
 
-export const globalLimiter = rateLimit({
+export const globalLimiter = limiter({
   windowMs: 15 * 60 * 1000,
   max: 600,
   standardHeaders: true,
