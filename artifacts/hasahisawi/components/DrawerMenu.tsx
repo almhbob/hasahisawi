@@ -145,8 +145,8 @@ const GROUPS: Group[] = [
 
 const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
   available:    { label: "متاح",   color: Colors.primaryDeep, bg: Colors.primary + "18", border: Colors.primary + "45" },
-  soon:         { label: "قريباً", color: "#FBBF24", bg: "#FBBF2418", border: "#FBBF2445" },
-  maintenance:  { label: "صيانة",  color: "#F87171", bg: "#F8717118", border: "#F8717145" },
+  soon:         { label: "قريباً", color: "#946B00", bg: "#FFF7E0", border: "#E8A90055" },
+  maintenance:  { label: "صيانة",  color: "#B42323", bg: "#FDECEC", border: "#D9363640" },
 };
 
 export default function DrawerMenu() {
@@ -255,14 +255,14 @@ export default function DrawerMenu() {
             {...closePan.panHandlers}
           >
         {/* زجاج خلفي */}
-        <BlurView intensity={Platform.OS === "ios" ? 80 : 25} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={Platform.OS === "ios" ? 60 : 20} tint="light" style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={["rgba(8,22,13,0.96)", "rgba(4,9,6,0.98)"]}
+          colors={["#FFFFFF", Colors.bg]}
           style={StyleSheet.absoluteFill}
         />
         {/* ── رأس الدرج ── */}
         <View style={[styles.header, { overflow: "hidden" }]}>
-          <BrandPattern variant="header" opacity={0.06} />
+          <BrandPattern variant="header" opacity={0.04} />
 
           {/* زر الإغلاق */}
           <Pressable onPress={close} style={styles.closeBtn} hitSlop={12}>
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(20,44,37,0.35)",
   },
   drawer: {
     position: "absolute",
@@ -420,12 +420,12 @@ const styles = StyleSheet.create({
     ...(DRAWER_IS_RTL ? { left: 0 } : { right: 0 }),
     width: DRAWER_W,
     overflow: "hidden",
-    borderLeftWidth: 0.5,
-    borderLeftColor: "rgba(255,255,255,0.09)",
-    shadowColor: "#000",
-    shadowOffset: { width: -10, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 30,
+    borderLeftWidth: 1,
+    borderLeftColor: Colors.border,
+    shadowColor: "#0F2A20",
+    shadowOffset: { width: -8, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
     elevation: 32,
   },
   header: {
@@ -435,9 +435,9 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     width: 34, height: 34, borderRadius: 11,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: Colors.bgDeep ?? "#EEF3F0",
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
@@ -450,6 +450,8 @@ const styles = StyleSheet.create({
   logo: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   appName: {
     fontFamily: "Cairo_700Bold",
@@ -467,15 +469,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 11,
     borderRadius: 18, overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: "rgba(34,197,94,0.20)",
+    borderWidth: 1,
+    borderColor: Colors.border,
     paddingHorizontal: 14, paddingVertical: 13,
-    backgroundColor: "rgba(34,197,94,0.06)",
+    backgroundColor: "#FFFFFF",
   },
   avatar: {
     width: 44, height: 44, borderRadius: 14,
-    backgroundColor: "rgba(34,197,94,0.15)",
-    borderWidth: 1.5, borderColor: "rgba(34,197,94,0.45)",
+    backgroundColor: Colors.primary + "14",
+    borderWidth: 1.5, borderColor: Colors.primary + "40",
     alignItems: "center", justifyContent: "center",
   },
   avatarText: {
@@ -522,11 +524,11 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 10, color: "#000",
+    fontSize: 10, color: "#fff",
   },
   divider: {
-    height: 0.5,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    height: 1,
+    backgroundColor: Colors.divider,
     marginHorizontal: 10,
     marginBottom: 6,
   },
@@ -538,7 +540,7 @@ const styles = StyleSheet.create({
   groupLabel: {
     fontFamily: "Cairo_500Medium",
     fontSize: 10,
-    color: "rgba(110,231,183,0.45)",
+    color: Colors.primaryDeep ?? "#006B4A",
     letterSpacing: 1.0,
     textTransform: "uppercase",
     marginBottom: 4,
@@ -554,33 +556,31 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   adminItem: {
-    borderColor: "rgba(231,76,60,0.20)",
-    borderWidth: 0.5,
+    borderColor: "rgba(217,54,54,0.25)",
+    borderWidth: 1,
     borderRadius: 13,
     marginBottom: 2,
     backgroundColor: "rgba(231,76,60,0.04)",
   },
   itemPressed: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: Colors.primary + "10",
+    borderWidth: 0,
   },
   iconBox: {
     width: 36, height: 36,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 0,
   },
   itemLabel: {
     flex: 1,
     fontFamily: "Cairo_500Medium",
     fontSize: 13.5,
-    color: "rgba(240,253,244,0.88)",
+    color: Colors.textPrimary,
   },
   chevron: {
-    opacity: 0.3,
+    opacity: 0.45,
   },
   drawerBadge: {
     minWidth: 20,
@@ -599,9 +599,9 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   soonChip: {
-    backgroundColor: "#FBBF2418",
+    backgroundColor: "#FFF7E0",
     borderWidth: 1,
-    borderColor: "#FBBF2445",
+    borderColor: "#E8A90055",
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -610,6 +610,6 @@ const styles = StyleSheet.create({
   soonChipText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 10,
-    color: "#FBBF24",
+    color: "#946B00",
   },
 });
