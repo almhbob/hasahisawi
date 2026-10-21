@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
-import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
+import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
 
@@ -6357,13 +6357,20 @@ router.post("/auth/forgot-password", authLimiter, async (req: Request, res: Resp
     const { id: tokenId, identifier } = tokenR.rows[0];
     const isEmail = identifier.includes("@");
     const userR = isEmail
-      ? await query(`SELECT id FROM users WHERE email=$1`, [identifier])
-      : await query(`SELECT id FROM users WHERE phone=$1`, [identifier]);
+      ? await query(`SELECT id, email, firebase_uid FROM users WHERE LOWER(email)=$1`, [identifier])
+      : await query(`SELECT id, email, firebase_uid FROM users WHERE phone=$1`, [identifier]);
     if (!userR.rows.length) return res.status(404).json({ error: "الحساب غير موجود" });
+    const account = userR.rows[0];
 
     const hashed = await bcrypt.hash(new_password, 10);
-    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, userR.rows[0].id]);
+    await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, account.id]);
     await query(`UPDATE password_reset_tokens SET used=TRUE WHERE id=$1`, [tokenId]);
+    // أنهِ الجلسات القديمة بعد تغيير كلمة المرور
+    await query(`DELETE FROM user_sessions WHERE user_id=$1`, [account.id]).catch(() => {});
+    // أبقِ كلمة مرور Firebase متطابقة (أفضل جهد — لا يُفشل العملية)
+    if (account.firebase_uid && account.email) {
+      ensureEmailPasswordProvider(String(account.firebase_uid), String(account.email), new_password).catch(() => {});
+    }
 
     return res.json({ ok: true, message: "تم تغيير كلمة المرور بنجاح" });
   } catch (err) {
@@ -6437,6 +6444,13 @@ router.post("/auth/check-phone", authLimiter, async (req: Request, res: Response
 // ══════════════════════════════════════════════════════════════════════════════
 // OTP — إرسال وتحقق رمز التحقق
 // ══════════════════════════════════════════════════════════════════════════════
+
+function maskEmail(email: string): string {
+  const [user, domain] = email.split("@");
+  if (!domain) return email;
+  const shown = user.length <= 2 ? user.slice(0, 1) : user.slice(0, 2);
+  return `${shown}${"*".repeat(Math.max(2, user.length - shown.length))}@${domain}`;
+}
 
 function generateOTP(): string {
   // Use crypto.randomBytes for cryptographically secure 6-digit OTP
@@ -6609,7 +6623,19 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
       [identifier, code, type, expiresAt]
     );
 
-    const sentVia = await sendOTPDelivery(identifier, code, type);
+    let sentVia = await sendOTPDelivery(identifier, code, type);
+    let sentTo: string | undefined;
+
+    // استعادة كلمة المرور برقم الهاتف دون بوابة SMS: أرسل الرمز إلى بريد الحساب المسجّل.
+    // الرمز يبقى مرتبطاً بالرقم، فخطوة التحقق لا تتغير.
+    if (sentVia === "none" && type === "password_reset" && !identifier.includes("@")) {
+      const acc = await query(`SELECT email FROM users WHERE phone=$1 AND email IS NOT NULL AND email <> '' LIMIT 1`, [identifier]);
+      const accEmail = String(acc.rows[0]?.email || "").trim().toLowerCase();
+      if (accEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accEmail) && !accEmail.endsWith("@hasahisawi.local")) {
+        const via = await sendOTPDelivery(accEmail, code, type);
+        if (via === "email") { sentVia = "email"; sentTo = maskEmail(accEmail); }
+      }
+    }
     const delivered = sentVia !== "none";
 
     // لاستعادة كلمة المرور: يجب أن يصل الرمز فعلاً — أعد خطأ صريحاً إن لم يُرسَل
@@ -6617,12 +6643,13 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
       const isEmailId = identifier.includes("@");
       const msg = isEmailId
         ? "خدمة البريد الإلكتروني غير مُهيَّأة. استخدم رابط Firebase لإعادة التعيين عبر التطبيق."
-        : "خدمة الرسائل القصيرة غير مُهيَّأة حالياً. يرجى التواصل مع الدعم أو استخدام بريدك الإلكتروني إن كان مسجّلاً.";
+        : "تعذّر إرسال الرمز: لا يوجد بريد إلكتروني مسجّل لهذا الرقم. أدخل بريدك الإلكتروني بدلاً من الرقم، أو تواصل مع الدعم.";
       return res.status(503).json({ error: msg, no_delivery: true });
     }
 
-    const exposeOtp = !delivered || process.env.SHOW_DEV_OTP === "true";
-    return res.json({ sent: true, delivered, sent_via: sentVia, expires_in: 600, channel: identifier.includes("@") ? "email" : "sms", ...(exposeOtp ? { dev_otp: code } : {}) });
+    // Never expose a password-reset code in the response.
+    const exposeOtp = type !== "password_reset" && (!delivered || process.env.SHOW_DEV_OTP === "true");
+    return res.json({ sent: true, delivered, sent_via: sentVia, expires_in: 600, channel: sentVia === "email" ? "email" : "sms", ...(sentTo ? { sent_to: sentTo } : {}), ...(exposeOtp ? { dev_otp: code } : {}) });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[send-otp]");
     return res.status(500).json({ error: "فشل إرسال رمز التحقق" });

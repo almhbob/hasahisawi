@@ -11,7 +11,6 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
-import { firebaseSendPasswordReset, isFirebaseAuthAvailable } from "@/lib/firebase/auth";
 
 // ── المسارات ──────────────────────────────────────────────────────────────────
 // email  → Firebase sendPasswordResetEmail (لا يحتاج SMTP)
@@ -40,6 +39,8 @@ export default function ForgotPasswordScreen() {
   const [showConfirm,    setShowConfirm]     = useState(false);
   const [loading,        setLoading]         = useState(false);
   const [error,          setError]           = useState("");
+  const [sentChannel,    setSentChannel]     = useState<"email" | "sms">("sms");
+  const [sentTo,         setSentTo]          = useState("");
 
   const isEmail = identifier.includes("@");
   const base    = getApiUrl();
@@ -72,26 +73,20 @@ export default function ForgotPasswordScreen() {
       }
       setUserName(data.name || "");
 
-      if (isEmail) {
-        // ── مسار البريد الإلكتروني: Firebase يرسل رابط الإعادة ──────────────
-        if (!isFirebaseAuthAvailable()) {
-          setError("خدمة إعادة كلمة المرور غير متاحة حالياً. تواصل مع الدعم.");
-          return;
-        }
-        await firebaseSendPasswordReset(id.toLowerCase());
-        setStep("email_sent");
-      } else {
-        // ── مسار الهاتف: إرسال OTP عبر الخادم ───────────────────────────────
-        const otpRes  = await fetchWithTimeout(`${base}/api/auth/send-otp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone_or_email: id, type: "password_reset" }),
-        }, 20000);
-        const otpData = await otpRes.json();
-        if (!otpRes.ok) { setError(otpData.error || "تعذّر إرسال رمز التحقق"); return; }
-        setOtpTimer(120);
-        setStep("otp");
-      }
+      // ── رمز تحقق من الخادم (بريد أو هاتف) ─────────────────────────────────
+      // يغيّر كلمة المرور التي يستخدمها تسجيل الدخول فعلاً. رابط Firebase كان
+      // يغيّر كلمة مرور Firebase فقط فتبقى القديمة هي الصالحة للدخول.
+      const otpRes  = await fetchWithTimeout(`${base}/api/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_or_email: id, type: "password_reset" }),
+      }, 20000);
+      const otpData = await otpRes.json();
+      if (!otpRes.ok) { setError(otpData.error || "تعذّر إرسال رمز التحقق"); return; }
+      setSentChannel(otpData.channel === "email" ? "email" : "sms");
+      setSentTo(otpData.sent_to || id);
+      setOtpTimer(120);
+      setStep("otp");
     } catch (e: any) {
       if (e?.code === "auth/user-not-found") {
         setError("لا يوجد حساب Firebase مرتبط بهذا البريد. جرّب مع رقم الهاتف.");
@@ -118,6 +113,7 @@ export default function ForgotPasswordScreen() {
       }, 20000);
       const data = await res.json();
       if (!res.ok) { setError(data.error || "تعذّر إعادة الإرسال"); return; }
+      if (data.sent_to) setSentTo(data.sent_to);
       setOtpDigits(["","","","","",""]);
       setOtpTimer(120);
     } catch { setError("تعذّر إرسال الرمز"); }
@@ -335,7 +331,7 @@ export default function ForgotPasswordScreen() {
             <Animated.View entering={FadeInDown.springify()} style={styles.card}>
               <View style={styles.iconWrap}>
                 <LinearGradient colors={[Colors.primaryDeep + "66", Colors.primaryDeep + "22"]} style={styles.iconCircle}>
-                  <Ionicons name="phone-portrait-outline" size={34} color={Colors.primary} />
+                  <Ionicons name={sentChannel === "email" ? "mail-outline" : "phone-portrait-outline"} size={34} color={Colors.primary} />
                 </LinearGradient>
               </View>
 
@@ -358,8 +354,8 @@ export default function ForgotPasswordScreen() {
 
               <Text style={styles.cardTitle}>أدخل رمز التحقق</Text>
               <Text style={styles.cardSub}>
-                أرسلنا رمزاً مكوّناً من 6 أرقام عبر SMS إلى{"\n"}
-                <Text style={{ color: Colors.primary, fontWeight: "700" }}>{identifier}</Text>
+                {sentChannel === "email" ? "أرسلنا رمزاً مكوّناً من 6 أرقام إلى بريدك الإلكتروني" : "أرسلنا رمزاً مكوّناً من 6 أرقام عبر SMS إلى"}{"\n"}
+                <Text style={{ color: Colors.primary, fontWeight: "700" }}>{sentTo || identifier}</Text>
                 {"\n"}صالح لمدة 5 دقائق
               </Text>
 
