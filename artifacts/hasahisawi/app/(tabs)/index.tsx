@@ -94,7 +94,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 28 : insets.top + 12;
   const date = useMemo(() => new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" }), []);
-  const { user } = useAuth();
+  const { user, isGuest, logout } = useAuth();
   // First name of the signed-in user; guests see «زائر» (was hardcoded to the developer's name)
   const displayName = (user?.name?.trim().split(/\s+/)[0]) || "زائر";
   const visibleServices = useMemo(() => {
@@ -159,7 +159,20 @@ export default function HomeScreen() {
               <Text style={styles.greeting}>{greeting()}، {displayName}</Text>
               <Text style={styles.dateText}>{date}</Text>
             </View>
-            <View style={styles.onlineBadge}><Text style={styles.onlineText}>جاهز</Text></View>
+            {isGuest ? (
+              <TouchableOpacity
+                style={styles.loginBtn}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="تسجيل الدخول"
+                onPress={() => { logout(); }}
+              >
+                <Ionicons name="log-in-outline" size={15} color="#fff" />
+                <Text style={styles.loginBtnText}>تسجيل الدخول</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.onlineBadge}><Text style={styles.onlineText}>جاهز</Text></View>
+            )}
           </Animated.View>
 
           <View style={styles.sectionHead}>
@@ -209,6 +222,8 @@ const styles = StyleSheet.create({
   dateText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11, marginTop: 3 },
   onlineBadge: { borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: Colors.primary + "12", borderWidth: 1, borderColor: Colors.primary + "30" },
   onlineText: { fontFamily: "Cairo_700Bold", color: Colors.primaryDeep, fontSize: 11 },
+  loginBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: Colors.primary },
+  loginBtnText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
   sectionHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 19, textAlign: "right" },
   sectionSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 2 },
