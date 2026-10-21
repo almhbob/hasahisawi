@@ -2540,6 +2540,12 @@ async function handleUpdateProfile(req: Request, res: Response): Promise<Respons
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     const { name, avatar_url, gender, neighborhood, birth_date, bio } = req.body;
+    if (name !== undefined && (typeof name !== "string" || name.trim().length > 60)) return res.status(400).json({ error: "الاسم طويل جداً (60 حرفاً كحد أقصى)" });
+    if (bio !== undefined && bio !== null && (typeof bio !== "string" || bio.length > 300)) return res.status(400).json({ error: "النبذة طويلة جداً (300 حرف كحد أقصى)" });
+    if (neighborhood !== undefined && neighborhood !== null && (typeof neighborhood !== "string" || neighborhood.length > 60)) return res.status(400).json({ error: "اسم الحي طويل جداً" });
+    if (avatar_url && (typeof avatar_url !== "string" || !/^https:\/\//.test(avatar_url) || avatar_url.length > 1000)) return res.status(400).json({ error: "رابط الصورة غير صالح" });
+    if (gender && !["male", "female"].includes(gender)) return res.status(400).json({ error: "قيمة الجنس غير صالحة" });
+    if (birth_date && !/^\d{4}-\d{2}-\d{2}$/.test(String(birth_date))) return res.status(400).json({ error: "تاريخ الميلاد غير صالح" });
     const updates: string[] = [];
     const params: unknown[] = [];
     if (name?.trim()) { updates.push(`name=$${params.length + 1}`); params.push(name.trim()); }
@@ -6311,8 +6317,9 @@ router.get("/search", async (req: Request, res: Response) => {
 router.get("/users/:id/profile", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!/^\d+$/.test(String(id))) return res.status(404).json({ error: "المستخدم غير موجود" });
     const userR = await query(
-      `SELECT id, name, role, avatar_url, created_at, bio FROM users WHERE id=$1`,
+      `SELECT id, name, role, avatar_url, created_at, bio FROM users WHERE id=$1 AND COALESCE(is_banned,false)=false`,
       [id]
     );
     if (!userR.rows.length) return res.status(404).json({ error: "المستخدم غير موجود" });
@@ -19102,3 +19109,249 @@ ${body}
 <p class="foot">لا تعرض هذه الصفحة رقم الهاتف ولا الرقم الوطني.</p>
 </body></html>`;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// المكتبة المنهجية — المنهج السوداني (السلّم التعليمي 6-3-3 + رياض الأطفال)
+// يرفع المعلمون والطلاب الكتب والمواد (مراجعة من الإدارة قبل النشر) ويُحمّلها الجميع.
+// الملفات تُرفع مباشرة من الجهاز إلى Cloudinary بتوقيع من الخادم (تجاوز حد حجم الطلب)،
+// أو تُضاف كرابط خارجي (Google Drive / Telegram ...).
+// ══════════════════════════════════════════════════════════════════════════════
+const CURRICULUM_STAGES = [
+  { key: "kg",           label: "رياض الأطفال",   grades: [{ n: 1, label: "المستوى الأول" }, { n: 2, label: "المستوى الثاني" }] },
+  { key: "primary",      label: "المرحلة الابتدائية", grades: [1, 2, 3, 4, 5, 6].map((n) => ({ n, label: `الصف ${["الأول","الثاني","الثالث","الرابع","الخامس","السادس"][n - 1]}` })) },
+  { key: "intermediate", label: "المرحلة المتوسطة",  grades: [1, 2, 3].map((n) => ({ n, label: `الصف ${["الأول","الثاني","الثالث"][n - 1]} المتوسط` })) },
+  { key: "secondary",    label: "المرحلة الثانوية",  grades: [1, 2, 3].map((n) => ({ n, label: `الصف ${["الأول","الثاني","الثالث"][n - 1]} الثانوي` })) },
+] as const;
+const CURRICULUM_TRACKS = ["عام", "علمي", "أدبي"] as const;
+const CURRICULUM_KINDS: Record<string, string> = {
+  textbook: "كتاب مدرسي",
+  teacher_guide: "دليل المعلم",
+  exam: "امتحانات سابقة",
+  summary: "ملخصات ومذكرات",
+  worksheet: "أوراق عمل وتمارين",
+  lesson_plan: "تحضير وخطط دروس",
+};
+const CURRICULUM_SUBJECTS: Record<string, string[]> = {
+  kg: ["القرآن الكريم", "اللغة العربية", "الحساب", "اللغة الإنجليزية", "أنشطة وألعاب تعليمية"],
+  primary: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "الدراسات الاجتماعية", "التربية الفنية", "الحاسوب"],
+  intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
+  secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
+};
+const CURRICULUM_MAX_FILE_MB = 100;
+
+let _curriculumReady: Promise<void> | null = null;
+function ensureCurriculumTables(): Promise<void> {
+  return (_curriculumReady ??= (async () => {
+    await query(`
+      CREATE TABLE IF NOT EXISTS curriculum_books (
+        id SERIAL PRIMARY KEY,
+        stage VARCHAR(20) NOT NULL,
+        grade SMALLINT NOT NULL,
+        track VARCHAR(10) NOT NULL DEFAULT 'عام',
+        subject VARCHAR(80) NOT NULL,
+        kind VARCHAR(20) NOT NULL DEFAULT 'textbook',
+        title VARCHAR(160) NOT NULL,
+        description TEXT,
+        file_url TEXT NOT NULL,
+        source VARCHAR(10) NOT NULL DEFAULT 'upload',
+        file_size BIGINT,
+        file_format VARCHAR(10),
+        school_year VARCHAR(20),
+        uploader_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        uploader_name VARCHAR(120),
+        status VARCHAR(12) NOT NULL DEFAULT 'pending',
+        review_note TEXT,
+        reviewed_by INTEGER,
+        downloads INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reviewed_at TIMESTAMPTZ
+      )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_curriculum_browse ON curriculum_books (status, stage, grade, subject)`);
+  })().catch((e) => { _curriculumReady = null; throw e; }));
+}
+
+function isCurriculumModerator(u: Record<string, any> | null): boolean {
+  return !!u && (u.role === "admin" || u.role === "moderator");
+}
+
+function cloudinaryCloudName(): string {
+  return (process.env.CLOUDINARY_CLOUD_NAME ?? "").replace(/^CLOUDINARY_URL\s*=\s*/i, "").replace(/cloudinary:\/\/[^@]*@/i, "").trim();
+}
+
+// Accept our own signed Cloudinary uploads, or an external https link.
+function classifyCurriculumUrl(raw: unknown): { url: string; source: "upload" | "link" } | null {
+  const s = String(raw ?? "").trim();
+  if (!s || s.length > 1000) return null;
+  let u: URL;
+  try { u = new URL(s); } catch { return null; }
+  if (u.protocol !== "https:") return null;
+  const cloud = cloudinaryCloudName();
+  if (u.hostname === "res.cloudinary.com" && cloud && u.pathname.startsWith(`/${cloud}/`) && u.pathname.includes("/hasahisawi/curriculum/")) {
+    return { url: u.toString(), source: "upload" };
+  }
+  if (u.hostname === "res.cloudinary.com") return null; // someone else's cloud / folder
+  return { url: u.toString(), source: "link" };
+}
+
+function curriculumRow(r: Record<string, any>, viewer: Record<string, any> | null) {
+  return {
+    id: r.id, stage: r.stage, grade: r.grade, track: r.track, subject: r.subject,
+    kind: r.kind, kind_label: CURRICULUM_KINDS[r.kind] || r.kind,
+    title: r.title, description: r.description || "", source: r.source,
+    file_size: r.file_size ? Number(r.file_size) : null, file_format: r.file_format,
+    school_year: r.school_year, uploader_name: r.uploader_name || "عضو",
+    downloads: r.downloads, created_at: r.created_at, status: r.status,
+    ...(isCurriculumModerator(viewer) || (viewer && viewer.id === r.uploader_id) ? { review_note: r.review_note } : {}),
+  };
+}
+
+// GET /api/curriculum/meta — المراحل والصفوف والمواد وأنواع المواد مع عدد المنشور
+router.get("/curriculum/meta", async (_req: Request, res: Response) => {
+  try {
+    await ensureCurriculumTables();
+    const { rows } = await query(`SELECT stage, grade, COUNT(*)::int AS n FROM curriculum_books WHERE status='approved' GROUP BY stage, grade`);
+    const counts: Record<string, number> = {};
+    for (const r of rows) counts[`${r.stage}:${r.grade}`] = r.n;
+    return res.json({
+      stages: CURRICULUM_STAGES.map((s) => ({ ...s, grades: s.grades.map((g) => ({ ...g, count: counts[`${s.key}:${g.n}`] || 0 })) })),
+      tracks: CURRICULUM_TRACKS, kinds: CURRICULUM_KINDS, subjects: CURRICULUM_SUBJECTS,
+      max_file_mb: CURRICULUM_MAX_FILE_MB,
+    });
+  } catch (err) { logger.error({ err }, "curriculum/meta"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/curriculum/books?stage=&grade=&subject=&kind=&track=&q=&status=&mine=1
+router.get("/curriculum/books", async (req: Request, res: Response) => {
+  try {
+    await ensureCurriculumTables();
+    const viewer = await getSessionUser(req) as Record<string, any> | null;
+    const q = req.query as Record<string, string | undefined>;
+    const where: string[] = []; const params: unknown[] = [];
+    const add = (sql: string, v: unknown) => { params.push(v); where.push(sql.replace("?", `$${params.length}`)); };
+    if (q.mine === "1") {
+      if (!viewer) return res.status(401).json({ error: "سجّل الدخول" });
+      add("uploader_id=?", viewer.id);
+    } else if (q.status && isCurriculumModerator(viewer) && ["pending", "approved", "rejected"].includes(q.status)) {
+      add("status=?", q.status);
+    } else {
+      where.push("status='approved'");
+    }
+    if (q.stage && CURRICULUM_STAGES.some((s) => s.key === q.stage)) add("stage=?", q.stage);
+    if (q.grade && /^\d{1,2}$/.test(q.grade)) add("grade=?", Number(q.grade));
+    if (q.track && (CURRICULUM_TRACKS as readonly string[]).includes(q.track)) add("track=?", q.track);
+    if (q.subject && q.subject.length <= 80) add("subject=?", q.subject);
+    if (q.kind && CURRICULUM_KINDS[q.kind]) add("kind=?", q.kind);
+    if (q.q && q.q.trim()) { const term = `%${q.q.trim().slice(0, 60).replace(/[%_\\]/g, "\\$&")}%`; params.push(term); where.push(`(title ILIKE $${params.length} OR subject ILIKE $${params.length} OR description ILIKE $${params.length})`); }
+    const limit = Math.min(Math.max(parseInt(q.limit || "60", 10) || 60, 1), 200);
+    const { rows } = await query(
+      `SELECT * FROM curriculum_books ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY (kind='textbook') DESC, downloads DESC, created_at DESC LIMIT ${limit}`,
+      params,
+    );
+    return res.json({ books: rows.map((r: any) => curriculumRow(r, viewer)) });
+  } catch (err) { logger.error({ err }, "curriculum/books"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/curriculum/upload-signature — توقيع رفع مباشر إلى Cloudinary (لمستخدم مسجّل)
+router.post("/curriculum/upload-signature", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!user) return res.status(401).json({ error: "سجّل الدخول لرفع الملفات" });
+    if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const { v2: cloudinary } = await import("cloudinary");
+    const cfg = cloudinary.config();
+    if (!cfg.cloud_name || !cfg.api_key || !cfg.api_secret) return res.status(503).json({ error: "خدمة رفع الملفات غير مهيأة. أضف الكتاب كرابط بدلاً من ذلك." });
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `hasahisawi/curriculum/${user.id}`;
+    const signature = cloudinary.utils.api_sign_request({ timestamp, folder }, cfg.api_secret);
+    return res.json({ cloud_name: cfg.cloud_name, api_key: cfg.api_key, timestamp, folder, signature, resource_type: "raw", max_file_mb: CURRICULUM_MAX_FILE_MB });
+  } catch (err) { logger.error({ err }, "curriculum/upload-signature"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/curriculum/books — إضافة كتاب/مادة (تُنشر بعد المراجعة؛ المشرفون تُنشر مباشرة)
+router.post("/curriculum/books", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureCurriculumTables();
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!user) return res.status(401).json({ error: "سجّل الدخول لإضافة كتاب" });
+    if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const b = req.body || {};
+    const stage = CURRICULUM_STAGES.find((s) => s.key === b.stage);
+    if (!stage) return res.status(400).json({ error: "اختر المرحلة" });
+    const grade = Number(b.grade);
+    if (!stage.grades.some((g) => g.n === grade)) return res.status(400).json({ error: "اختر الصف" });
+    const track = (CURRICULUM_TRACKS as readonly string[]).includes(b.track) ? b.track : "عام";
+    const subject = String(b.subject || "").trim().slice(0, 80);
+    if (subject.length < 2) return res.status(400).json({ error: "اكتب اسم المادة" });
+    const kind = CURRICULUM_KINDS[b.kind] ? b.kind : "textbook";
+    const title = String(b.title || "").trim().slice(0, 160);
+    if (title.length < 3) return res.status(400).json({ error: "اكتب عنواناً واضحاً للكتاب" });
+    const description = String(b.description || "").trim().slice(0, 1000) || null;
+    const file = classifyCurriculumUrl(b.file_url);
+    if (!file) return res.status(400).json({ error: "رابط الملف غير صالح. ارفع الملف أو ضع رابطاً يبدأ بـ https" });
+    const size = Number(b.file_size);
+    const fileSize = Number.isFinite(size) && size > 0 ? Math.round(size) : null;
+    const fmt = String(b.file_format || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10) || null;
+    const schoolYear = String(b.school_year || "").trim().slice(0, 20) || null;
+    for (const text of [title, description || ""]) {
+      if (!text) continue;
+      const mod = await checkContent(text);
+      if (!mod.allowed) return res.status(400).json({ error: mod.reason || "المحتوى غير مسموح" });
+    }
+    const status = isCurriculumModerator(user) ? "approved" : "pending";
+    const { rows } = await query(
+      `INSERT INTO curriculum_books (stage, grade, track, subject, kind, title, description, file_url, source, file_size, file_format, school_year, uploader_id, uploader_name, status, reviewed_at, reviewed_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15='approved' THEN NOW() END, CASE WHEN $15='approved' THEN $13::int END) RETURNING *`,
+      [stage.key, grade, track, subject, kind, title, description, file.url, file.source, fileSize, fmt, schoolYear, user.id, user.name || null, status],
+    );
+    return res.status(201).json({ book: curriculumRow(rows[0], user), message: status === "approved" ? "تم النشر" : "تم الاستلام — سيُنشر بعد مراجعة الإدارة" });
+  } catch (err) { logger.error({ err }, "curriculum/books POST"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/curriculum/books/:id — مراجعة (مشرف): {status: approved|rejected, review_note}
+router.patch("/curriculum/books/:id", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    if (!/^\d+$/.test(String(req.params.id))) return res.status(404).json({ error: "غير موجود" });
+    await ensureCurriculumTables();
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!isCurriculumModerator(user)) return res.status(403).json({ error: "للمشرفين فقط" });
+    const status = String(req.body?.status || "");
+    if (!["approved", "rejected", "pending"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const note = String(req.body?.review_note || "").trim().slice(0, 300) || null;
+    const { rows } = await query(
+      `UPDATE curriculum_books SET status=$1, review_note=$2, reviewed_by=$3, reviewed_at=NOW() WHERE id=$4 RETURNING *`,
+      [status, note, user!.id, Number(req.params.id)],
+    );
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    return res.json({ book: curriculumRow(rows[0], user) });
+  } catch (err) { logger.error({ err }, "curriculum/books PATCH"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/curriculum/books/:id — المشرف أو صاحب الملف
+router.delete("/curriculum/books/:id", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    if (!/^\d+$/.test(String(req.params.id))) return res.status(404).json({ error: "غير موجود" });
+    await ensureCurriculumTables();
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!user) return res.status(401).json({ error: "سجّل الدخول" });
+    const { rows } = await query(`SELECT uploader_id FROM curriculum_books WHERE id=$1`, [Number(req.params.id)]);
+    if (!rows.length) return res.status(404).json({ error: "غير موجود" });
+    if (!isCurriculumModerator(user) && rows[0].uploader_id !== user.id) return res.status(403).json({ error: "غير مسموح" });
+    await query(`DELETE FROM curriculum_books WHERE id=$1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "curriculum/books DELETE"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/curriculum/books/:id/download — يحسب التنزيل ويحوّل إلى الملف (المنشور فقط)
+router.get("/curriculum/books/:id/download", async (req: Request, res: Response) => {
+  try {
+    if (!/^\d+$/.test(String(req.params.id))) return res.status(404).json({ error: "غير موجود" });
+    await ensureCurriculumTables();
+    const { rows } = await query(
+      `UPDATE curriculum_books SET downloads=downloads+1 WHERE id=$1 AND status='approved' RETURNING file_url`,
+      [Number(req.params.id)],
+    );
+    if (!rows.length) return res.status(404).json({ error: "الكتاب غير متاح" });
+    if (req.query.format === "json") return res.json({ url: rows[0].file_url });
+    return res.redirect(302, rows[0].file_url);
+  } catch (err) { logger.error({ err }, "curriculum/download"); return res.status(500).json({ error: "Server error" }); }
+});

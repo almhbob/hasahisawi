@@ -37,7 +37,7 @@ import Animated, {
   withSequence,
 } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, router } from "expo-router";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
@@ -53,10 +53,16 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const IMG_MAX_W = SCREEN_W - 28;
 const IMG_MAX_H = SCREEN_W * 1.25;
 
+function openAuthorProfile(authorId?: number | null) {
+  if (!authorId) return;
+  router.push({ pathname: "/profile" as any, params: { id: String(authorId) } });
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Post = {
   id: number;
+  author_id?: number | null;
   author_name: string;
   author_avatar?: string | null;
   content: string;
@@ -1028,9 +1034,21 @@ function PostCard({
 
         {/* Header */}
         <View style={styles.cardHeader}>
-          <UserAvatar name={post.author_name} avatarUrl={post.author_avatar} size={44} borderRadius={14} />
+          <TouchableOpacity
+            onPress={() => openAuthorProfile(post.author_id)}
+            disabled={!post.author_id}
+            activeOpacity={0.75}
+            accessibilityRole={post.author_id ? "button" : undefined}
+            accessibilityLabel={post.author_id ? `الملف الشخصي لـ ${post.author_name}` : undefined}
+          >
+            <UserAvatar name={post.author_name} avatarUrl={post.author_avatar} size={44} borderRadius={14} />
+          </TouchableOpacity>
           <View style={{ flex: 1, marginHorizontal: 10 }}>
-            <Text style={styles.authorName}>{post.author_name}</Text>
+            <Text
+              style={[styles.authorName, post.author_id ? { textDecorationLine: "none" } : null]}
+              onPress={post.author_id ? () => openAuthorProfile(post.author_id) : undefined}
+              suppressHighlighting
+            >{post.author_name}</Text>
             <View style={styles.metaRow}>
               <Text style={styles.cardTime}>{timeAgo(post.created_at)}</Text>
               {post.views_count > 0 && (
@@ -1574,12 +1592,12 @@ function StoriesRow({ posts }: { posts: Post[] }) {
       {authors.map((p, i) => {
         const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
         return (
-          <View key={p.id} style={sr.item}>
+          <TouchableOpacity key={p.id} style={sr.item} onPress={() => openAuthorProfile(p.author_id)} disabled={!p.author_id} activeOpacity={0.8}>
             <View style={[sr.ring, { borderColor: color }]}>
               <UserAvatar name={p.author_name} avatarUrl={p.author_avatar} size={50} borderRadius={25} />
             </View>
             <Text style={sr.name} numberOfLines={1}>{p.author_name.split(" ")[0]}</Text>
-          </View>
+          </TouchableOpacity>
         );
       })}
     </ScrollView>

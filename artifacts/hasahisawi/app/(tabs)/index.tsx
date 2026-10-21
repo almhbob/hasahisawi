@@ -154,11 +154,24 @@ export default function HomeScreen() {
         <View style={styles.body}>
           <Animated.View entering={FadeInDown.delay(130).springify()} style={styles.greetingCard}>
             <LinearGradient colors={Colors.gradients.glass} style={StyleSheet.absoluteFill} />
-            <View style={styles.avatar}><Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>{greeting()}، {displayName}</Text>
-              <Text style={styles.dateText}>{date}</Text>
-            </View>
+            <TouchableOpacity
+              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}
+              activeOpacity={isGuest ? 1 : 0.8}
+              disabled={isGuest}
+              onPress={() => router.push("/profile" as any)}
+              accessibilityRole={isGuest ? undefined : "button"}
+              accessibilityLabel={isGuest ? undefined : "ملفي الشخصي"}
+            >
+              <View style={[styles.avatar, { overflow: "hidden" }]}>
+                {!isGuest && user?.avatar_url
+                  ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                  : <Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.greeting}>{greeting()}، {displayName}</Text>
+                <Text style={styles.dateText}>{isGuest ? date : "اضغط لعرض ملفك الشخصي"}</Text>
+              </View>
+            </TouchableOpacity>
             {isGuest ? (
               <TouchableOpacity
                 style={styles.loginBtn}

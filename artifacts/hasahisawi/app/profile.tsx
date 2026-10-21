@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Platform, Image,
+  TextInput, ActivityIndicator, Platform, Image,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -14,9 +14,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import UserAvatar from "@/components/UserAvatar";
-import AnimatedPress from "@/components/AnimatedPress";
-import { uploadAvatar } from "@/lib/firebase/storage";
-import { isFirebaseAvailable } from "@/lib/firebase/auth";
+import { notify, confirmAction, uploadProfilePhoto } from "@/lib/xplatform";
 
 type UserProfile = {
   id: number;
@@ -24,7 +22,7 @@ type UserProfile = {
   role: string;
   avatar_url: string | null;
   created_at: string;
-  bio: string;
+  bio: string | null;
   posts_count: number;
   reports_count: number;
 };
@@ -35,69 +33,68 @@ type Post = {
   image_url?: string | null;
   created_at: string;
   likes_count: number;
+  comments_count?: number;
 };
 
-const ROLE_MAP: Record<string, { label: string; color: string; icon: string }> = {
-  admin:     { label: "مشرف",    color: "#E05567", icon: "shield-checkmark" },
-  moderator: { label: "مشرف",    color: "#E05567", icon: "shield-checkmark" },
-  org:       { label: "مؤسسة",   color: Colors.accent, icon: "business" },
-  user:      { label: "مواطن",   color: Colors.primary, icon: "person-circle" },
+const ROLE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  admin:     { label: "الإدارة",  color: "#B4232F", icon: "shield-checkmark" },
+  moderator: { label: "مشرف",     color: "#2A6FA8", icon: "shield-half" },
+  org:       { label: "مؤسسة",    color: Colors.accentDeep, icon: "business" },
+  user:      { label: "عضو",      color: Colors.primary, icon: "person-circle" },
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" });
+const BIO_MAX = 300;
+const NAME_MAX = 60;
+
+function memberSince(iso: string) {
+  try { return new Date(iso).toLocaleDateString("ar", { year: "numeric", month: "long" }); } catch { return ""; }
 }
 
-function formatTime(iso: string) {
+function timeAgo(iso: string) {
   const d = new Date(iso);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
+  const diff = Date.now() - d.getTime();
   if (diff < 60_000) return "الآن";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} د`;
-  if (diff < 86_400_000) return d.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("ar", { day: "numeric", month: "short" });
+  if (diff < 3_600_000) return `منذ ${Math.floor(diff / 60_000)} د`;
+  if (diff < 86_400_000) return `منذ ${Math.floor(diff / 3_600_000)} س`;
+  return d.toLocaleDateString("ar", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { user, token } = useAuth();
+  const { user, token, isGuest, logout, refreshUser } = useAuth();
 
-  const profileId = id ? Number(id) : user?.id;
-  const isOwn = !id || Number(id) === user?.id;
+  const viewingId = id && /^\d+$/.test(String(id)) ? Number(id) : null;
+  const profileId = viewingId ?? (isGuest ? null : user?.id ?? null);
+  const isOwn = !!user && !isGuest && (viewingId === null || viewingId === user.id);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingBio, setEditingBio] = useState(false);
-  const [bioText, setBioText] = useState("");
-  const [savingBio, setSavingBio] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: "", bio: "", neighborhood: "" });
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
-    if (!profileId) return;
+    if (!profileId) { setLoading(false); return; }
+    setLoading(true); setFailed(false);
     try {
-      setLoading(true);
       const base = getApiUrl();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [profRes, postsRes] = await Promise.all([
         fetch(`${base}/api/users/${profileId}/profile`, { headers }),
-        fetch(`${base}/api/posts?user_id=${profileId}&limit=10`, { headers }),
+        fetch(`${base}/api/posts?user_id=${profileId}&limit=20`, { headers }),
       ]);
-
-      if (profRes.ok) {
-        const data = await profRes.json();
-        setProfile(data);
-        setBioText(data.bio || "");
-      }
+      if (profRes.ok) setProfile(await profRes.json());
+      else { setProfile(null); setFailed(profRes.status !== 404); }
       if (postsRes.ok) {
         const data = await postsRes.json();
-        setPosts(Array.isArray(data) ? data.slice(0, 10) : (data.posts ?? []).slice(0, 10));
+        setPosts(Array.isArray(data) ? data : data.posts ?? []);
       }
-    } catch (e) {
-      console.error("Profile fetch error:", e);
+    } catch {
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -105,93 +102,92 @@ export default function ProfileScreen() {
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
-  const handlePickAvatar = async () => {
-    if (!isOwn || !token || !user) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور");
-      return;
+  const startEdit = () => {
+    setForm({
+      name: profile?.name || user?.name || "",
+      bio: profile?.bio || "",
+      neighborhood: user?.neighborhood || "",
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!token) return;
+    const name = form.name.trim();
+    if (name.length < 2) { notify("الاسم مطلوب", "اكتب اسمك (حرفان على الأقل)."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/auth/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, bio: form.bio.trim(), neighborhood: form.neighborhood.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "تعذّر حفظ البيانات");
+      setProfile((p) => (p ? { ...p, name, bio: form.bio.trim() } : p));
+      await refreshUser();
+      setEditing(false);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e: any) {
+      notify("تعذّر الحفظ", e?.message || "حاول مرة أخرى");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pickAvatar = async () => {
+    if (!isOwn || !token || uploading) return;
+    if (Platform.OS !== "web") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { notify("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور"); return; }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1.0,
+      quality: 0.7,
     });
     if (result.canceled || !result.assets[0]) return;
-    const uri = result.assets[0].uri;
-    setUploadingAvatar(true);
+    setUploading(true);
     try {
-      let avatarUrl: string;
-      if (isFirebaseAvailable()) {
-        avatarUrl = await uploadAvatar(String(user.id), uri);
-      } else {
-        const base = getApiUrl();
-        const form = new FormData();
-        form.append("file", { uri, type: "image/jpeg", name: "avatar.jpg" } as any);
-        const res = await fetch(`${base}/api/auth/upload-avatar`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` },
-          body: form,
-        });
-        if (!res.ok) throw new Error("Upload failed");
-        const data = await res.json();
-        avatarUrl = data.url;
-      }
-      const base = getApiUrl();
-      const res = await fetch(`${base}/api/auth/profile`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ avatar_url: avatarUrl }),
-      });
-      if (res.ok) {
-        setProfile((p) => p ? { ...p, avatar_url: avatarUrl } : p);
-        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Alert.alert("خطأ", "تعذّر تحديث صورة الملف الشخصي");
-      }
-    } catch (e) {
-      Alert.alert("خطأ", "حدث خطأ أثناء رفع الصورة");
+      const url = await uploadProfilePhoto(result.assets[0].uri, token);
+      setProfile((p) => (p ? { ...p, avatar_url: url } : p));
+      await refreshUser();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e: any) {
+      notify("تعذّر رفع الصورة", e?.message || "حاول بصورة أصغر حجماً");
     } finally {
-      setUploadingAvatar(false);
+      setUploading(false);
     }
   };
 
-  const saveBio = async () => {
-    if (!token) return;
-    setSavingBio(true);
-    try {
-      const base = getApiUrl();
-      const res = await fetch(`${base}/api/users/me/bio`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ bio: bioText }),
-      });
-      if (res.ok) {
-        setProfile((p) => p ? { ...p, bio: bioText } : p);
-        setEditingBio(false);
-        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch {
-      Alert.alert("خطأ", "تعذّر حفظ السيرة الذاتية");
-    } finally {
-      setSavingBio(false);
-    }
+  const signOut = async () => {
+    if (await confirmAction("تسجيل الخروج", "هل تريد تسجيل الخروج من حسابك؟", "خروج", true)) await logout();
   };
 
-  if (loading) {
+  // ── زائر / بلا حساب ──────────────────────────────────────────
+  if (!profileId) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-forward" size={24} color={Colors.textPrimary} />
+        <Header title="الملف الشخصي" />
+        <View style={styles.centerBox}>
+          <View style={styles.emptyIcon}><Ionicons name="person-outline" size={40} color={Colors.primary} /></View>
+          <Text style={styles.emptyTitle}>أنشئ ملفك الشخصي</Text>
+          <Text style={styles.emptyText}>سجّل الدخول لإضافة صورتك وبياناتك، ونشر المنشورات، والحصول على بطاقة العضوية.</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => logout()} accessibilityRole="button">
+            <Ionicons name="log-in-outline" size={18} color="#fff" />
+            <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>الملف الشخصي</Text>
-          <View style={{ width: 40 }} />
         </View>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
+      </View>
+    );
+  }
+
+  if (loading && !profile) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <Header title={isOwn ? "ملفي الشخصي" : "الملف الشخصي"} />
+        <View style={styles.centerBox}><ActivityIndicator size="large" color={Colors.primary} /></View>
       </View>
     );
   }
@@ -199,443 +195,284 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-forward" size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>الملف الشخصي</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <Ionicons name="person-circle-outline" size={64} color={Colors.textMuted} />
-          <Text style={{ fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 16 }}>المستخدم غير موجود</Text>
+        <Header title="الملف الشخصي" />
+        <View style={styles.centerBox}>
+          <Ionicons name={failed ? "cloud-offline-outline" : "person-remove-outline"} size={56} color={Colors.textMuted} />
+          <Text style={styles.emptyTitle}>{failed ? "تعذّر تحميل الملف" : "المستخدم غير موجود"}</Text>
+          {failed && (
+            <TouchableOpacity style={styles.primaryBtn} onPress={fetchProfile} accessibilityRole="button">
+              <Text style={styles.primaryBtnText}>إعادة المحاولة</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   }
 
   const roleInfo = ROLE_MAP[profile.role] ?? ROLE_MAP.user;
+  const avatarUrl = isOwn ? (user?.avatar_url ?? profile.avatar_url) : profile.avatar_url;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-forward" size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isOwn ? "ملفي الشخصي" : "الملف الشخصي"}</Text>
-        {isOwn ? (
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.push("/(tabs)/settings" as any)}
-          >
-            <Ionicons name="settings-outline" size={22} color={Colors.textMuted} />
+      <Header
+        title={isOwn ? "ملفي الشخصي" : "الملف الشخصي"}
+        right={isOwn ? (
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/(tabs)/settings" as any)} accessibilityLabel="الإعدادات">
+            <Ionicons name="settings-outline" size={21} color={Colors.textSecondary} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.backBtn}
+            style={styles.iconBtn}
             onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}
+            accessibilityLabel="مراسلة"
           >
-            <Ionicons name="chatbubble-outline" size={22} color={Colors.primary} />
+            <Ionicons name="chatbubble-ellipses-outline" size={21} color={Colors.primary} />
           </TouchableOpacity>
         )}
-      </View>
+      />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {isOwn && (
-          <TouchableOpacity
-            onPress={() => router.push("/member-card" as any)}
-            accessibilityRole="button"
-            accessibilityLabel="عرض بطاقة العضوية"
-            activeOpacity={0.9}
-            style={{ marginHorizontal: 16, marginTop: 12 }}
-          >
-            <LinearGradient
-              colors={["#012E22", "#00684B", "#013D2D"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ borderRadius: 18, paddingVertical: 14, paddingHorizontal: 18, flexDirection: "row-reverse", alignItems: "center", gap: 12, borderWidth: 1, borderColor: "rgba(233,201,120,0.45)" }}
-            >
-              <Ionicons name="card" size={26} color="#E9C978" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", color: "#F5F1E4", fontSize: 15, textAlign: "right" }}>بطاقة العضوية</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", color: "rgba(245,241,228,0.75)", fontSize: 12, textAlign: "right" }}>بطاقتك الرقمية الموثّقة برمز تحقّق</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+        {/* ── البطاقة الرئيسية ── */}
+        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.hero}>
+          <LinearGradient colors={[Colors.primaryDeep, Colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
+            <View style={styles.coverRing} />
+            <View style={[styles.coverRing, { width: 120, height: 120, left: -30, top: 40, opacity: 0.08 }]} />
+          </LinearGradient>
+
+          <View style={styles.avatarWrap}>
+            <TouchableOpacity onPress={isOwn ? pickAvatar : undefined} activeOpacity={isOwn ? 0.8 : 1} disabled={!isOwn || uploading} accessibilityRole={isOwn ? "button" : undefined} accessibilityLabel={isOwn ? "تغيير الصورة الشخصية" : undefined}>
+              <View style={styles.avatarFrame}>
+                <UserAvatar name={profile.name} avatarUrl={avatarUrl} size={100} borderRadius={32} />
               </View>
-              <Ionicons name="chevron-back" size={20} color="#E9C978" />
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-        {/* Hero Card */}
-        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.heroCard}>
-          <LinearGradient
-            colors={[Colors.primary + "18", Colors.cardBg]}
-            style={StyleSheet.absoluteFill}
-          />
-
-          {/* Avatar */}
-          <View style={styles.avatarContainer}>
-            <TouchableOpacity
-              onPress={isOwn ? handlePickAvatar : undefined}
-              activeOpacity={isOwn ? 0.75 : 1}
-              disabled={uploadingAvatar}
-              style={styles.avatarBtn}
-            >
-              <UserAvatar
-                name={profile.name}
-                avatarUrl={profile.avatar_url}
-                size={96}
-                borderRadius={30}
-              />
               {isOwn && (
-                <View style={styles.avatarEditOverlay}>
-                  {uploadingAvatar ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons name="camera" size={20} color="#fff" />
-                  )}
+                <View style={styles.cameraBadge}>
+                  {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={16} color="#fff" />}
                 </View>
               )}
             </TouchableOpacity>
-            <View style={[styles.rolePill, { backgroundColor: roleInfo.color + "20", borderColor: roleInfo.color + "40" }]}>
-              <Ionicons name={roleInfo.icon as any} size={12} color={roleInfo.color} />
+          </View>
+
+          <Text style={styles.name}>{profile.name}</Text>
+          <View style={styles.metaRow}>
+            <View style={[styles.rolePill, { backgroundColor: roleInfo.color + "14", borderColor: roleInfo.color + "40" }]}>
+              <Ionicons name={roleInfo.icon} size={12} color={roleInfo.color} />
               <Text style={[styles.rolePillText, { color: roleInfo.color }]}>{roleInfo.label}</Text>
             </View>
+            <Text style={styles.metaText}>عضو منذ {memberSince(profile.created_at)}</Text>
           </View>
-
-          {/* Name */}
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <Text style={styles.joinDate}>عضو منذ {formatDate(profile.created_at)}</Text>
-
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{profile.posts_count}</Text>
-              <Text style={styles.statLabel}>منشور</Text>
+          {isOwn && user?.neighborhood ? (
+            <View style={styles.locRow}>
+              <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
+              <Text style={styles.metaText}>{user.neighborhood} · الحصاحيصا</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{profile.reports_count}</Text>
-              <Text style={styles.statLabel}>بلاغ</Text>
-            </View>
-          </View>
-        </Animated.View>
+          ) : null}
 
-        {/* Bio Section */}
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                if (isOwn) {
-                  setEditingBio(!editingBio);
-                  if (!editingBio) setBioText(profile.bio || "");
-                }
-              }}
-              style={styles.sectionAction}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              {isOwn && (
-                <Ionicons
-                  name={editingBio ? "close-circle-outline" : "pencil-outline"}
-                  size={18}
-                  color={Colors.textMuted}
-                />
-              )}
-            </TouchableOpacity>
-            <Text style={styles.sectionTitle}>نبذة تعريفية</Text>
-          </View>
-
-          {editingBio ? (
-            <View style={styles.bioEditWrap}>
-              <TextInput
-                style={styles.bioInput}
-                value={bioText}
-                onChangeText={setBioText}
-                placeholder="اكتب نبذة قصيرة عن نفسك..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                numberOfLines={4}
-                textAlign="right"
-                maxLength={200}
-              />
-              <View style={styles.bioEditActions}>
-                <Text style={styles.bioCharCount}>{bioText.length}/200</Text>
-                <TouchableOpacity
-                  onPress={saveBio}
-                  disabled={savingBio}
-                  style={[styles.bioSaveBtn, { backgroundColor: Colors.primary }]}
-                >
-                  {savingBio
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <Text style={styles.bioSaveBtnText}>حفظ</Text>}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.bioText}>
-              {profile.bio?.trim()
-                ? profile.bio
-                : isOwn
-                  ? "اضغط على ✏️ لإضافة نبذة تعريفية عنك"
-                  : "لم يُضف هذا المستخدم نبذة تعريفية بعد"}
+          {!editing && (
+            <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
+              {profile.bio || (isOwn ? "أضف نبذة قصيرة عنك ليتعرّف عليك الآخرون." : "لا توجد نبذة.")}
             </Text>
           )}
-        </Animated.View>
 
-        {/* Posts Section */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View />
-            <Text style={styles.sectionTitle}>المنشورات الأخيرة</Text>
+          <View style={styles.stats}>
+            <Stat value={profile.posts_count} label="منشور" />
+            <View style={styles.statDivider} />
+            <Stat value={profile.reports_count} label="بلاغ للمدينة" />
           </View>
 
-          {posts.length === 0 ? (
-            <View style={styles.emptyPosts}>
-              <Ionicons name="document-text-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyPostsText}>لا توجد منشورات بعد</Text>
-            </View>
-          ) : (
-            <View style={styles.postsList}>
-              {posts.map((post, i) => (
-                <Animated.View key={post.id} entering={FadeInDown.delay(120 + i * 40).springify()}>
-                  <AnimatedPress onPress={() => router.push("/(tabs)/social" as any)}>
-                    <View style={styles.postCard}>
-                      {post.image_url && (
-                        <Image
-                          source={{ uri: post.image_url }}
-                          style={styles.postImage}
-                          resizeMode="cover"
-                        />
-                      )}
-                      <Text style={styles.postContent} numberOfLines={3}>{post.content}</Text>
-                      <View style={styles.postMeta}>
-                        <View style={styles.postLikes}>
-                          <Ionicons name="heart" size={12} color={Colors.danger} />
-                          <Text style={styles.postMetaText}>{post.likes_count}</Text>
-                        </View>
-                        <Text style={styles.postTime}>{formatTime(post.created_at)}</Text>
-                      </View>
-                    </View>
-                  </AnimatedPress>
-                </Animated.View>
-              ))}
-              {profile.posts_count > 10 && (
-                <TouchableOpacity
-                  style={styles.viewAllBtn}
-                  onPress={() => router.push("/(tabs)/social" as any)}
-                >
-                  <Text style={styles.viewAllText}>عرض كل المنشورات ({profile.posts_count})</Text>
-                  <Ionicons name="chevron-back" size={14} color={Colors.primary} />
-                </TouchableOpacity>
-              )}
+          {isOwn && !editing && (
+            <View style={styles.heroActions}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={startEdit} accessibilityRole="button">
+                <Ionicons name="create-outline" size={17} color="#fff" />
+                <Text style={styles.primaryBtnText}>تعديل البيانات</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.ghostBtn} onPress={pickAvatar} disabled={uploading} accessibilityRole="button">
+                <Ionicons name="image-outline" size={17} color={Colors.primaryDeep} />
+                <Text style={styles.ghostBtnText}>{avatarUrl ? "تغيير الصورة" : "إضافة صورة"}</Text>
+              </TouchableOpacity>
             </View>
           )}
         </Animated.View>
 
-        {/* Chat Button (for others) */}
-        {!isOwn && (
-          <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: 8 }}>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDim]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={styles.chatBtn}
-              >
-                <Ionicons name="chatbubble" size={18} color="#fff" />
-                <Text style={styles.chatBtnText}>مراسلة {profile.name.split(" ")[0]}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+        {/* ── نموذج التعديل ── */}
+        {isOwn && editing && (
+          <Animated.View entering={FadeInDown.springify()} style={styles.card}>
+            <Text style={styles.cardTitle}>بياناتي</Text>
+            <Field label="الاسم" value={form.name} max={NAME_MAX} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="اسمك الكامل" />
+            <Field label="الحي" value={form.neighborhood} max={60} onChange={(v) => setForm((f) => ({ ...f, neighborhood: v }))} placeholder="مثال: حي الشرقي" />
+            <Field label="نبذة عنك" value={form.bio} max={BIO_MAX} multiline onChange={(v) => setForm((f) => ({ ...f, bio: v }))} placeholder="عملك، اهتماماتك، ما تقدّمه للمجتمع…" />
+            {(user?.phone || user?.email) ? (
+              <View style={styles.privateBox}>
+                <Ionicons name="lock-closed-outline" size={14} color={Colors.textMuted} />
+                <Text style={styles.privateText}>
+                  {[user?.phone, user?.email].filter(Boolean).join(" · ")} — لا تظهر للآخرين
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.formActions}>
+              <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={saveEdit} disabled={saving} accessibilityRole="button">
+                {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="checkmark" size={18} color="#fff" />}
+                <Text style={styles.primaryBtnText}>حفظ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.ghostBtn} onPress={() => setEditing(false)} disabled={saving} accessibilityRole="button">
+                <Text style={styles.ghostBtnText}>إلغاء</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
-        <View style={{ height: 40 }} />
+        {/* ── اختصارات صاحب الملف ── */}
+        {isOwn && !editing && (
+          <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.quickGrid}>
+            <Quick icon="card" label="بطاقة العضوية" sub="بطاقتك الموثّقة" color="#21423A" onPress={() => router.push("/member-card" as any)} />
+            <Quick icon="library" label="المكتبة المنهجية" sub="كتب المنهج السوداني" color="#2A6FA8" onPress={() => router.push("/curriculum" as any)} />
+            <Quick icon="create" label="منشور جديد" sub="شارك مجتمعك" color={Colors.accentDeep} onPress={() => router.push("/(tabs)/social" as any)} />
+            <Quick icon="log-out" label="تسجيل الخروج" sub="من هذا الجهاز" color="#B4232F" onPress={signOut} />
+          </Animated.View>
+        )}
+
+        {/* ── المنشورات ── */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle}>{isOwn ? "منشوراتي" : "المنشورات"}</Text>
+            <Text style={styles.cardCount}>{profile.posts_count}</Text>
+          </View>
+          {posts.length === 0 ? (
+            <View style={styles.noPosts}>
+              <Ionicons name="newspaper-outline" size={30} color={Colors.textSubtle} />
+              <Text style={styles.noPostsText}>{isOwn ? "لم تنشر بعد — شارك أول منشور لك." : "لا توجد منشورات بعد."}</Text>
+            </View>
+          ) : posts.map((post) => (
+            <TouchableOpacity key={post.id} style={styles.post} activeOpacity={0.85} onPress={() => router.push("/(tabs)/social" as any)}>
+              {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.postImg} resizeMode="cover" /> : null}
+              <View style={{ flex: 1 }}>
+                {post.content ? <Text style={styles.postText} numberOfLines={3}>{post.content}</Text> : null}
+                <View style={styles.postMeta}>
+                  <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
+                  <View style={styles.postStat}><Ionicons name="heart-outline" size={13} color={Colors.textMuted} /><Text style={styles.postTime}>{post.likes_count ?? 0}</Text></View>
+                  {post.comments_count != null && <View style={styles.postStat}><Ionicons name="chatbubble-outline" size={12} color={Colors.textMuted} /><Text style={styles.postTime}>{post.comments_count}</Text></View>}
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
       </ScrollView>
+    </View>
+  );
+}
+
+function Header({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} accessibilityLabel="رجوع">
+        <Ionicons name="chevron-forward" size={22} color={Colors.textPrimary} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{title}</Text>
+      {right ?? <View style={{ width: 40 }} />}
+    </View>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statNum}>{value ?? 0}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function Quick({ icon, label, sub, color, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; color: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.quick} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={label}>
+      <View style={[styles.quickIcon, { backgroundColor: color + "14" }]}><Ionicons name={icon} size={20} color={color} /></View>
+      <Text style={styles.quickLabel}>{label}</Text>
+      <Text style={styles.quickSub}>{sub}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, max, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; max: number; multiline?: boolean }) {
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <View style={styles.fieldHead}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={styles.fieldCount}>{value.length}/{max}</Text>
+      </View>
+      <TextInput
+        value={value}
+        onChangeText={(v) => onChange(v.slice(0, max))}
+        placeholder={placeholder}
+        placeholderTextColor={Colors.textSubtle}
+        multiline={multiline}
+        style={[styles.input, multiline && { minHeight: 90, textAlignVertical: "top" }]}
+        textAlign="right"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  scroll: { padding: 16, gap: 16 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
+  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
 
-  heroCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    padding: 24,
-    alignItems: "center",
-    gap: 8,
-    overflow: "hidden",
-  },
-  avatarContainer: { alignItems: "center", marginBottom: 4 },
-  avatarBtn: { position: "relative" },
-  avatarEditOverlay: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.cardBg,
-  },
-  rolePill: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  rolePillText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  profileName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 22,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginTop: 4,
-  },
-  joinDate: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: "center",
-  },
-  statsRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 24,
-    marginTop: 12,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    width: "100%",
-    justifyContent: "center",
-  },
-  statItem: { alignItems: "center", gap: 2 },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
+  centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+  emptyIcon: { width: 84, height: 84, borderRadius: 28, backgroundColor: Colors.primary + "12", alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
+  emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+
+  hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
+  cover: { alignSelf: "stretch", height: 96, overflow: "hidden" },
+  coverRing: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 26, borderColor: "#fff", opacity: 0.07, right: -40, top: -60 },
+  avatarWrap: { marginTop: -54 },
+  avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: "#fff" },
+  cameraBadge: { position: "absolute", bottom: 2, left: 2, width: 32, height: 32, borderRadius: 11, backgroundColor: Colors.primary, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 21, color: Colors.textPrimary, marginTop: 8, textAlign: "center", paddingHorizontal: 16 },
+  metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap", justifyContent: "center" },
+  rolePill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
+  rolePillText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  metaText: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted },
+  locRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
+  bio: { fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 23, color: Colors.textSecondary, textAlign: "center", marginTop: 10, paddingHorizontal: 22 },
+  bioEmpty: { color: Colors.textSubtle, fontStyle: "italic" },
+  stats: { flexDirection: "row-reverse", alignItems: "center", marginTop: 14, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 16, backgroundColor: Colors.bg },
+  stat: { alignItems: "center", minWidth: 90 },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.primaryDeep },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  statDivider: { width: 1, height: 32, backgroundColor: Colors.divider },
+  statDivider: { width: 1, height: 28, backgroundColor: Colors.border },
+  heroActions: { flexDirection: "row-reverse", gap: 10, marginTop: 14, paddingHorizontal: 16, alignSelf: "stretch" },
 
-  section: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    padding: 18,
-    gap: 12,
-  },
-  sectionHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
-  sectionAction: { padding: 4 },
-  bioText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "right",
-    lineHeight: 24,
-  },
-  bioEditWrap: { gap: 8 },
-  bioInput: {
-    backgroundColor: Colors.bg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    padding: 12,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-  bioEditActions: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  bioCharCount: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  bioSaveBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 60,
-  },
-  bioSaveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  primaryBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, paddingHorizontal: 18, height: 46, borderRadius: 14, flexGrow: 1 },
+  primaryBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  ghostBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary + "0F", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 16, height: 46, borderRadius: 14 },
+  ghostBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primaryDeep },
 
-  emptyPosts: { alignItems: "center", gap: 8, paddingVertical: 20 },
-  emptyPostsText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },
-  postsList: { gap: 10 },
-  postCard: {
-    backgroundColor: Colors.bg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    padding: 14,
-    gap: 8,
-  },
-  postImage: {
-    width: "100%",
-    height: 140,
-    borderRadius: 10,
-  },
-  postContent: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: "right",
-    lineHeight: 22,
-  },
-  postMeta: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  postLikes: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  postMetaText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  postTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  viewAllBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    marginTop: 4,
-  },
-  viewAllText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
-  chatBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 16,
-  },
-  chatBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+  card: { marginHorizontal: 16, marginTop: 14, backgroundColor: "#fff", borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
+  cardHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 8 },
+  cardCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+
+  fieldHead: { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 5 },
+  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  fieldCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSubtle },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 13, backgroundColor: Colors.bg, paddingHorizontal: 13, paddingVertical: Platform.OS === "web" ? 11 : 9, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
+  privateBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: Colors.bg, borderRadius: 12, padding: 10, marginBottom: 12 },
+  privateText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  formActions: { flexDirection: "row-reverse", gap: 10 },
+
+  quickGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginHorizontal: 16, marginTop: 14 },
+  quick: { width: "48%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
+  quickIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", marginBottom: 6 },
+  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+  quickSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
+
+  noPosts: { alignItems: "center", gap: 6, paddingVertical: 20 },
+  noPostsText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  post: { flexDirection: "row-reverse", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: Colors.divider },
+  postImg: { width: 64, height: 64, borderRadius: 12, backgroundColor: Colors.bg },
+  postText: { fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 22, color: Colors.textPrimary, textAlign: "right" },
+  postMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 4 },
+  postStat: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
+  postTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
 });
