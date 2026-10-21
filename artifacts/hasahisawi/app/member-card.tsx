@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
-import { captureRef } from "react-native-view-shot";
+import { capturePoster } from "@/lib/poster-capture";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeInDown } from "react-native-reanimated";
 import Svg, { Circle, Path, Rect, Polygon, Defs, Text as SvgText, TextPath } from "react-native-svg";
 import QRCode from "react-native-qrcode-svg";
@@ -337,8 +337,7 @@ export default function MemberCardScreen() {
     setBusy("share");
     try {
       if (Platform.OS === "web") {
-        const dataUri: string = await captureRef(posterRef, { format: "png", quality: 1, result: "data-uri" } as any);
-        const blob = await (await fetch(dataUri)).blob();
+        const { blob } = await capturePoster(posterRef) as { uri: string; blob: Blob };
         const file = new File([blob], "hasahisawi-card.png", { type: "image/png" });
         const nav: any = typeof navigator !== "undefined" ? navigator : null;
         if (nav?.canShare?.({ files: [file] })) {
@@ -351,7 +350,7 @@ export default function MemberCardScreen() {
           notify("تم حفظ صورة البطاقة", "انشرها على مواقع التواصل مع رابط بطاقتك.");
         }
       } else {
-        const uri = await captureRef(posterRef, { format: "png", quality: 1, result: "tmpfile", width: 1080, height: 1350 });
+        const { uri } = await capturePoster(posterRef);
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "مشاركة بطاقتي" });
         } else {
@@ -360,7 +359,7 @@ export default function MemberCardScreen() {
       }
     } catch (e: any) {
       const msg = String(e?.message || "");
-      if (!/cancel|abort/i.test(msg)) notify("تعذّرت مشاركة الصورة", "استخدم أزرار مواقع التواصل أو انسخ الرابط.");
+      if (/cancel|abort/i.test(msg)) { /* user dismissed */ } else { console.warn("[card] image share failed:", msg); notify("تعذّرت مشاركة الصورة", "استخدم أزرار مواقع التواصل أو انسخ الرابط."); }
     }
     finally { setBusy(null); }
   };
