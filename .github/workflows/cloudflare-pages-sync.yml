@@ -112,6 +112,7 @@ jobs:
           echo '/hasahisawi/* /:splat 302' > cf-dist/_redirects
           echo '/hasahisawi / 302' >> cf-dist/_redirects
           echo '/* /index.html 200' >> cf-dist/_redirects
+          cp scripts/web-vercel.json cf-dist/vercel.json
           node <<'NODE'
           const fs = require('fs');
           const app = JSON.parse(fs.readFileSync('artifacts/hasahisawi/app.json', 'utf8'));
@@ -132,6 +133,7 @@ jobs:
           test -f cf-dist/index.html
           test -f cf-dist/404.html
           test -f cf-dist/_redirects
+          test -f cf-dist/vercel.json
           test -f cf-dist/deploy-version.json
           node -e "const fs=require('fs'); const v=JSON.parse(fs.readFileSync('cf-dist/deploy-version.json','utf8')); if(v.target!=='cloudflare-pages') process.exit(1); console.log(v);"
           du -sh cf-dist
