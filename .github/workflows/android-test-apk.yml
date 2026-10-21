@@ -121,6 +121,22 @@ jobs:
             fi
           done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
+      - name: Create Android debug keystore
+        run: |
+          KEYSTORE="artifacts/hasahisawi/android/app/debug.keystore"
+          if [ ! -s "$KEYSTORE" ]; then
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE" \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000
+          fi
+          test -s "$KEYSTORE"
+
       - name: Build debug APK
         working-directory: artifacts/hasahisawi/android
         env:
