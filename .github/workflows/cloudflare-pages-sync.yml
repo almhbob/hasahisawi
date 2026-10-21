@@ -164,6 +164,30 @@ jobs:
             done
           fi
 
+      - name: Deploy web app to Vercel (sawihasa.digital)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_RTCz9oaxsbHBdJHrSJNyJr5q
+          VERCEL_PROJECT_ID: prj_3ILAiSvcf301EBwFrl8Y46Am45Av
+        working-directory: cf-dist
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN not set — skipped Vercel web deploy"
+            exit 0
+          fi
+          VERCEL="npx --yes vercel@54.20.1"
+          ok=1
+          $VERCEL pull --yes --environment=production --token="$VERCEL_TOKEN" \
+            && $VERCEL build --prod --token="$VERCEL_TOKEN" \
+            && $VERCEL deploy --prebuilt --prod --token="$VERCEL_TOKEN" | tee /tmp/vercel-url.txt \
+            || ok=0
+          if [ "$ok" = 1 ]; then
+            echo "✅ Web app deployed → https://hasahisawi-web.vercel.app"
+          else
+            echo "::warning title=Vercel web deploy failed::See the step log; GitHub Pages and the API are unaffected."
+          fi
+
       - name: Deploy with Wrangler when configured
         if: ${{ github.event_name != 'pull_request' }}
         env:
