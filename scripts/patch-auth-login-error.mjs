@@ -116,7 +116,9 @@ const newBlock = `    // مستخدم تم إنشاؤه/استيراده من Fi
       return res.status(401).json({ error: "بيانات غير صحيحة" });
     }`;
 
-if (!src.includes(newBlock)) {
+// Only rewrite the original legacy block; newer login code (e.g. Firebase-verified
+// passwords) already handles invalid hashes and must be left alone.
+if (!src.includes(newBlock) && src.includes(oldBlock)) {
   replaceOnce(oldBlock, newBlock);
 }
 

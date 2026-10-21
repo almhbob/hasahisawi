@@ -2724,15 +2724,26 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
     // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
     // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.
-    if (!isValidBcryptHashForLogin(user.password_hash)) {
-      return res.status(401).json({
-        error: user.firebase_uid
-          ? "هذا الحساب مرتبط بـ Google/Firebase. استخدم زر Google أو أعد تعيين كلمة المرور."
-          : "هذا الحساب يحتاج إعادة تعيين كلمة المرور قبل الدخول."
-      });
+    const hasHash = isValidBcryptHashForLogin(user.password_hash);
+    let valid = hasHash ? await bcrypt.compare(password, user.password_hash) : false;
+    // كلمة مرور غُيّرت عبر رابط Firebase: نقبلها فقط إن أكّدها حساب Firebase المرتبط بهذا المستخدم نفسه
+    // (مطابقة firebase_uid تمنع الاستيلاء عبر إنشاء حساب Firebase جديد ببريد شخص آخر).
+    if (!valid && user.firebase_uid && user.email) {
+      const fbUid = await verifyFirebasePassword(String(user.email).toLowerCase(), String(password));
+      if (fbUid && fbUid === user.firebase_uid) {
+        valid = true;
+        const hashed = await bcrypt.hash(String(password), 10);
+        await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [hashed, user.id]);
+      }
     }
-    const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
+      if (!hasHash) {
+        return res.status(401).json({
+          error: user.firebase_uid
+            ? "هذا الحساب مرتبط بـ Google/Firebase. استخدم زر Google أو أعد تعيين كلمة المرور."
+            : "هذا الحساب يحتاج إعادة تعيين كلمة المرور قبل الدخول."
+        });
+      }
       return res.status(401).json({ error: "بيانات غير صحيحة" });
     }
     const token = randomBytes(32).toString("hex");
@@ -6446,6 +6457,37 @@ router.post("/auth/check-phone", authLimiter, async (req: Request, res: Response
 // OTP — إرسال وتحقق رمز التحقق
 // ══════════════════════════════════════════════════════════════════════════════
 
+const FIREBASE_WEB_API_KEY = (process.env.FIREBASE_WEB_API_KEY || "AIzaSyC0o8hr3Dp0hgqKovIDUM0PSCbqgBABvx8").trim();
+
+// Verifies email+password against Firebase Auth. Returns the Firebase uid on success.
+async function verifyFirebasePassword(email: string, password: string): Promise<string | null> {
+  if (!FIREBASE_WEB_API_KEY) return null;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: false }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json().catch(() => null) as { localId?: string } | null;
+    return data?.localId || null;
+  } catch { return null; }
+}
+
+// Asks Firebase to email its own password-reset link (Firebase delivers the email).
+async function sendFirebaseResetLink(email: string): Promise<boolean> {
+  if (!FIREBASE_WEB_API_KEY) return false;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestType: "PASSWORD_RESET", email }),
+    });
+    if (!r.ok) logger.warn({ status: r.status, body: await r.text() }, "[reset] Firebase sendOobCode failed");
+    return r.ok;
+  } catch (e: any) { logger.warn({ err: e?.message }, "[reset] Firebase sendOobCode error"); return false; }
+}
+
 function maskEmail(email: string): string {
   const [user, domain] = email.split("@");
   if (!domain) return email;
@@ -6579,11 +6621,13 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
   }
 
   // Email via SMTP
-  if (process.env.SMTP_HOST) {
+  const smtpFrom = (process.env.EMAIL_FROM || (process.env.SMTP_USER?.includes("@") ? process.env.SMTP_USER : "") || "").trim();
+  if (process.env.SMTP_HOST && !smtpFrom) logger.warn("[OTP] SMTP skipped — set EMAIL_FROM to a valid sender address");
+  if (process.env.SMTP_HOST && smtpFrom) {
     try {
       {
         const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
-        await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط.</p></div>` });
+        await t.sendMail({ from: `"حصاحيصاوي" <${smtpFrom}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط.</p></div>` });
         logger.info("[OTP] Email sent via SMTP");
         return "email";
       }
@@ -6637,11 +6681,24 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
     }
     const delivered = sentVia !== "none";
 
+    // لم يصل الرمز: إن كان الحساب مرتبطاً بـ Firebase، يرسل Firebase رابط إعادة التعيين بنفسه.
+    // تسجيل الدخول يقبل كلمة المرور الجديدة لاحقاً بعد التحقق منها لدى Firebase.
+    if (!delivered && type === "password_reset") {
+      const acc = identifier.includes("@")
+        ? await query(`SELECT email, firebase_uid FROM users WHERE LOWER(email)=$1 LIMIT 1`, [identifier])
+        : await query(`SELECT email, firebase_uid FROM users WHERE phone=$1 LIMIT 1`, [identifier]);
+      const a = acc.rows[0];
+      const accEmail = String(a?.email || "").trim().toLowerCase();
+      if (a?.firebase_uid && accEmail && !accEmail.endsWith("@hasahisawi.local") && await sendFirebaseResetLink(accEmail)) {
+        return res.json({ sent: true, delivered: true, method: "firebase_link", sent_via: "email", channel: "email", sent_to: maskEmail(accEmail) });
+      }
+    }
+
     // لاستعادة كلمة المرور: يجب أن يصل الرمز فعلاً — أعد خطأ صريحاً إن لم يُرسَل
     if (!delivered && type === "password_reset") {
       const isEmailId = identifier.includes("@");
       const msg = isEmailId
-        ? "خدمة البريد الإلكتروني غير مُهيَّأة. استخدم رابط Firebase لإعادة التعيين عبر التطبيق."
+        ? "تعذّر إرسال رسالة الاستعادة حالياً. حاول لاحقاً أو تواصل مع الدعم."
         : "تعذّر إرسال الرمز: لا يوجد بريد إلكتروني مسجّل لهذا الرقم. أدخل بريدك الإلكتروني بدلاً من الرقم، أو تواصل مع الدعم.";
       return res.status(503).json({ error: msg, no_delivery: true });
     }
