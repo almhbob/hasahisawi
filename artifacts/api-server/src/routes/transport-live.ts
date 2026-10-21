@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const _dbEnabled =
 
 const pool: Pool | null = _dbEnabled
   ? new Pool({
-      connectionString: _dbUrl,
+      connectionString: stripSslParams(_dbUrl),
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
       max: 10,

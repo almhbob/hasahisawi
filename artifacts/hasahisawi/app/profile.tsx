@@ -242,6 +242,29 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {isOwn && (
+          <TouchableOpacity
+            onPress={() => router.push("/member-card" as any)}
+            accessibilityRole="button"
+            accessibilityLabel="عرض بطاقة العضوية"
+            activeOpacity={0.9}
+            style={{ marginHorizontal: 16, marginTop: 12 }}
+          >
+            <LinearGradient
+              colors={["#012E22", "#00684B", "#013D2D"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 18, paddingVertical: 14, paddingHorizontal: 18, flexDirection: "row-reverse", alignItems: "center", gap: 12, borderWidth: 1, borderColor: "rgba(233,201,120,0.45)" }}
+            >
+              <Ionicons name="card" size={26} color="#E9C978" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", color: "#F5F1E4", fontSize: 15, textAlign: "right" }}>بطاقة العضوية</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", color: "rgba(245,241,228,0.75)", fontSize: 12, textAlign: "right" }}>بطاقتك الرقمية الموثّقة برمز تحقّق</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#E9C978" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
         {/* Hero Card */}
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.heroCard}>
           <LinearGradient

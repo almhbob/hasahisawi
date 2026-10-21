@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
 import { pinMatches } from "../lib/admin-pin";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 const _dbUrl = process.env.DATABASE_URL ?? "";
@@ -9,7 +10,7 @@ const _dbEnabled = _dbUrl.length > 0 && !_dbUrl.includes(".invalid") && !_dbUrl.
 
 const pool: Pool | null = _dbEnabled
   ? new Pool({
-      connectionString: _dbUrl,
+      connectionString: stripSslParams(_dbUrl),
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
       max: 10,

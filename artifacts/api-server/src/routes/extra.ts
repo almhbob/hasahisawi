@@ -3,11 +3,12 @@ import { Pool } from "pg";
 import a, { initStabilizationDb } from "./stabilization";
 import b, { initFoodPosDb } from "./food-pos";
 import c, { initJoinRequestsDb } from "./join-requests";
+import { stripSslParams } from "../lib/pg-url";
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 const pool = dbUrl && !dbUrl.includes(".invalid") && !dbUrl.includes("placeholder") && !dbUrl.includes("nodb")
   ? new Pool({
-      connectionString: dbUrl,
+      connectionString: stripSslParams(dbUrl),
       connectionTimeoutMillis: 8000,
       idleTimeoutMillis: 30000,
       max: 10,

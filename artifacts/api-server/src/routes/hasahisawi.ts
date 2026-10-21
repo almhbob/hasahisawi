@@ -10,6 +10,7 @@ import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimit
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
 import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 
@@ -29,7 +30,7 @@ const _dbEnabled =
 
 const pool: Pool | null = _dbEnabled
   ? new Pool({
-      connectionString: _dbUrl,
+      connectionString: stripSslParams(_dbUrl),
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
       max: 15,
@@ -3865,7 +3866,7 @@ router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Reque
 
     const { Pool: PgPool } = await import("pg");
     const srcPool = new PgPool({
-      connectionString: source_db_url,
+      connectionString: stripSslParams(source_db_url),
       connectionTimeoutMillis: 12_000,
       idleTimeoutMillis: 5_000,
       max: 2,
@@ -18700,3 +18701,317 @@ router.post("/admin/send-invitations", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// بطاقة العضوية الرقمية
+// الفئة تُحدَّد على الخادم فقط: الإدارة ← المشرفون ← أصحاب المؤسسات المعتمدة ← عضوة / عضو.
+// رمز QR يحمل رمز تحقّق عشوائياً لا يمكن تخمينه (وليس رقم العضوية) حتى لا تُستعرض بيانات
+// الأعضاء بالتسلسل. الصفحة العامة لا تعرض الهاتف ولا البريد ولا الرقم الوطني.
+// ════════════════════════════════════════════════════════════════════════════
+type MemberCardTier = "admin" | "moderator" | "business" | "female" | "male";
+
+// خامات مطفأة لكل فئة — مطابقة لتصميم التطبيق
+const MEMBER_CARD_TIERS: Record<MemberCardTier, { label: string; en: string; code: string; bg: [string, string]; accent: string; text: string; muted: string; photoBg: string; light: boolean }> = {
+  male:      { label: "عضو",           en: "MEMBER",    code: "HSW", bg: ["#21423A", "#1A352E"], accent: "#C9B68C", text: "#F1EEE6", muted: "rgba(241,238,230,0.6)", photoBg: "#17302A", light: false },
+  female:    { label: "عضوة",          en: "MEMBER",    code: "HSW", bg: ["#F4EFE9", "#E8E0D7"], accent: "#96685A", text: "#2F2624", muted: "rgba(47,38,36,0.6)",    photoBg: "#E3D9CF", light: true },
+  business:  { label: "عضوية الأعمال", en: "BUSINESS",  code: "HSB", bg: ["#34363A", "#27292C"], accent: "#CDB98F", text: "#EFECE6", muted: "rgba(239,236,230,0.6)", photoBg: "#222427", light: false },
+  moderator: { label: "مشرف",          en: "MODERATOR", code: "HSS", bg: ["#2A3848", "#1F2B38"], accent: "#B7C1CC", text: "#EEF1F4", muted: "rgba(238,241,244,0.6)", photoBg: "#1B2631", light: false },
+  admin:     { label: "الإدارة",        en: "EXECUTIVE", code: "HSX", bg: ["#1A1A1A", "#0E0E0E"], accent: "#C9A45C", text: "#F3EFE6", muted: "rgba(243,239,230,0.6)", photoBg: "#141414", light: false },
+};
+
+// الصور الرمزية المتاحة بدل الصورة الشخصية (نفس القائمة في التطبيق)
+const MEMBER_CARD_PRESETS: Record<string, { label: string; bg: string; ink: string; svg: string }> = {
+  palm:     { label: "نخلة",  bg: "#21423A", ink: "#C9B68C", svg: '<path d="M12 22V11"/><path d="M12 11C11 8 8 6 4 7"/><path d="M12 11c1-3 4-5 8-4"/><path d="M12 11c-3-1-6 0-8 3"/><path d="M12 11c3-1 6 0 8 3"/>' },
+  nile:     { label: "النيل", bg: "#2A3848", ink: "#B7C1CC", svg: '<path d="M2 9c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6 0"/><path d="M2 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6 0"/>' },
+  star:     { label: "نجمة",  bg: "#EAE2D8", ink: "#A97D6E", svg: '<polygon points="12 3 14.6 9 21 9.3 16 13.4 17.8 20 12 16.3 6.2 20 8 13.4 3 9.3 9.4 9"/>' },
+  crescent: { label: "هلال",  bg: "#1F2B38", ink: "#B7C1CC", svg: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>' },
+  sun:      { label: "شمس",   bg: "#8C6B4A", ink: "#F4EDE2", svg: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' },
+  diamond:  { label: "ماسة",  bg: "#34363A", ink: "#CDB98F", svg: '<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/>' },
+  bolt:     { label: "برق",   bg: "#5E6B5A", ink: "#EDEBE3", svg: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
+  heart:    { label: "قلب",   bg: "#7A4E4A", ink: "#F3E6E1", svg: '<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/>' },
+};
+
+// صور البطاقة تُقبل فقط من خدمات الرفع المعتمدة في التطبيق، حتى لا تُعرض صور من مواقع أخرى في الصفحة العامة
+const MEMBER_CARD_PHOTO_HOSTS = ["res.cloudinary.com", "firebasestorage.googleapis.com", "storage.googleapis.com"];
+function isAllowedCardPhoto(url: unknown): url is string {
+  if (typeof url !== "string" || url.length > 1000) return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && MEMBER_CARD_PHOTO_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h));
+  } catch { return false; }
+}
+
+let memberCardsReady: Promise<void> | null = null;
+function ensureMemberCardsTable(): Promise<void> {
+  if (!memberCardsReady) {
+    memberCardsReady = (async () => {
+      await query(`CREATE TABLE IF NOT EXISTS member_cards (
+        user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        verify_token VARCHAR(64) UNIQUE NOT NULL,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        rotated_at   TIMESTAMPTZ
+      )`);
+      await query(`ALTER TABLE member_cards ADD COLUMN IF NOT EXISTS photo_preset VARCHAR(20)`);
+      await query(`ALTER TABLE member_cards ADD COLUMN IF NOT EXISTS photo_url TEXT`);
+    })().catch((err) => { memberCardsReady = null; throw err; });
+  }
+  return memberCardsReady;
+}
+
+function isFemaleGender(g: unknown): boolean {
+  const v = String(g ?? "").trim().toLowerCase();
+  return v === "female" || v === "f" || v === "أنثى" || v === "انثى";
+}
+
+type MemberCardRow = { verify_token: string; photo_preset: string | null; photo_url: string | null };
+
+async function memberCardRowFor(userId: number, rotate = false): Promise<MemberCardRow> {
+  await ensureMemberCardsTable();
+  if (rotate) {
+    await query(
+      `INSERT INTO member_cards (user_id, verify_token) VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET verify_token=EXCLUDED.verify_token, rotated_at=NOW()`,
+      [userId, randomBytes(24).toString("hex")],
+    );
+  } else {
+    await query(
+      `INSERT INTO member_cards (user_id, verify_token) VALUES ($1,$2) ON CONFLICT (user_id) DO NOTHING`,
+      [userId, randomBytes(24).toString("hex")],
+    );
+  }
+  const r = await query(`SELECT verify_token, photo_preset, photo_url FROM member_cards WHERE user_id=$1`, [userId]);
+  return r.rows[0];
+}
+
+type MemberCardPhoto = { type: "photo"; url: string } | { type: "preset"; preset: string } | { type: "none" };
+
+function memberCardPhoto(user: Record<string, any>, row: MemberCardRow | null): MemberCardPhoto {
+  if (row?.photo_preset && MEMBER_CARD_PRESETS[row.photo_preset]) return { type: "preset", preset: row.photo_preset };
+  if (row?.photo_url && isAllowedCardPhoto(row.photo_url)) return { type: "photo", url: row.photo_url };
+  if (user.avatar_url && /^https:\/\//.test(String(user.avatar_url))) return { type: "photo", url: String(user.avatar_url) };
+  return { type: "none" };
+}
+
+async function buildMemberCard(user: Record<string, any>, row: MemberCardRow | null) {
+  const role = String(user.role || "user");
+  let tier: MemberCardTier;
+  let roleLabel = "";
+  if (role === "admin") { tier = "admin"; roleLabel = "مدير المنصة"; }
+  else if (role === "moderator" || role === "transport_supervisor") {
+    tier = "moderator"; roleLabel = role === "transport_supervisor" ? "مشرف النقل" : "مشرف المجتمع";
+  } else {
+    const inst = await query(
+      `SELECT inst_name FROM institution_applications WHERE user_id=$1 AND status='approved' ORDER BY id DESC LIMIT 1`,
+      [user.id],
+    ).catch(() => ({ rows: [] as any[] }));
+    if (inst.rows[0]?.inst_name) { tier = "business"; roleLabel = `مالك · ${inst.rows[0].inst_name}`; }
+    else tier = isFemaleGender(user.gender) ? "female" : "male";
+  }
+  const since = user.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear();
+  const neighborhood = user.neighborhood ? String(user.neighborhood) : "";
+  const number = `HS-${since}-${String(user.id).padStart(6, "0")}`;
+  return {
+    number,
+    mrz: `${MEMBER_CARD_TIERS[tier].code}<${number.replace(/-/g, "")}<<HASAHISA<IS<HOME<<<<<<<<<<`,
+    tier,
+    tier_label: MEMBER_CARD_TIERS[tier].label,
+    tier_en: MEMBER_CARD_TIERS[tier].en,
+    name: String(user.name || "عضو حصاحيصاوي"),
+    photo: memberCardPhoto(user, row),
+    role_label: roleLabel || (neighborhood ? `${neighborhood} · الحصاحيصا` : "الحصاحيصا"),
+    member_since: since,
+    verified: Boolean(user.phone_verified) || tier === "admin" || tier === "moderator" || tier === "business",
+  };
+}
+
+function memberCardBase(req: Request): string {
+  return (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+}
+
+async function memberCardResponse(req: Request, user: Record<string, any>, row: MemberCardRow) {
+  const card = await buildMemberCard(user, row);
+  const verifyUrl = `${memberCardBase(req)}/api/member-card/v/${row.verify_token}`;
+  return {
+    ...card,
+    verify_url: verifyUrl,
+    share_text: `بطاقتي في حصاحيصاوي — ${card.tier_label}\nالحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا\nاحصل على بطاقتك: ${verifyUrl}`,
+    presets: Object.keys(MEMBER_CARD_PRESETS),
+  };
+}
+
+function escapeCardHtml(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+async function requireCardUser(req: Request, res: Response): Promise<Record<string, any> | null> {
+  const user = await getSessionUser(req) as Record<string, any> | null;
+  if (!user) { res.status(401).json({ error: "سجّل الدخول لعرض بطاقتك" }); return null; }
+  if (user.is_banned) { res.status(403).json({ error: "الحساب موقوف" }); return null; }
+  return user;
+}
+
+// GET /api/member-card/me — بطاقة العضو الحالي
+router.get("/member-card/me", async (req: Request, res: Response) => {
+  try {
+    const user = await requireCardUser(req, res); if (!user) return;
+    const row = await memberCardRowFor(Number(user.id));
+    return res.json({ card: await memberCardResponse(req, user, row) });
+  } catch (err) { logger.error({ err }, "member-card/me"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/member-card/me/photo — صورة البطاقة: صورة مرفوعة أو صورة رمزية أو الرجوع لصورة الحساب
+router.patch("/member-card/me/photo", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const user = await requireCardUser(req, res); if (!user) return;
+    const { preset, photo_url } = req.body ?? {};
+    let newPreset: string | null = null;
+    let newUrl: string | null = null;
+    if (preset != null) {
+      if (!MEMBER_CARD_PRESETS[String(preset)]) return res.status(400).json({ error: "صورة رمزية غير معروفة" });
+      newPreset = String(preset);
+    } else if (photo_url != null) {
+      if (!isAllowedCardPhoto(photo_url)) return res.status(400).json({ error: "رابط الصورة غير مقبول" });
+      newUrl = photo_url;
+    }
+    await memberCardRowFor(Number(user.id));
+    await query(`UPDATE member_cards SET photo_preset=$1, photo_url=$2 WHERE user_id=$3`, [newPreset, newUrl, user.id]);
+    const row = await memberCardRowFor(Number(user.id));
+    return res.json({ card: await memberCardResponse(req, user, row) });
+  } catch (err) { logger.error({ err }, "member-card/photo"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/member-card/me/rotate — إصدار رمز تحقّق جديد (يُبطل الرمز القديم إن شاركه العضو)
+router.post("/member-card/me/rotate", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const user = await requireCardUser(req, res); if (!user) return;
+    const row = await memberCardRowFor(Number(user.id), true);
+    return res.json({ card: await memberCardResponse(req, user, row) });
+  } catch (err) { logger.error({ err }, "member-card/rotate"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/member-card/v/:token — صفحة التحقّق العامة (HTML مع معاينة مواقع التواصل) أو JSON مع ?format=json
+router.get("/member-card/v/:token", async (req: Request, res: Response) => {
+  const wantsJson = req.query.format === "json";
+  try {
+    const token = String(req.params.token || "");
+    let user: Record<string, any> | null = null;
+    let row: MemberCardRow | null = null;
+    if (/^[0-9a-f]{48}$/.test(token)) {
+      await ensureMemberCardsTable();
+      const r = await query(
+        `SELECT u.*, mc.verify_token, mc.photo_preset, mc.photo_url AS card_photo_url
+         FROM member_cards mc JOIN users u ON u.id = mc.user_id WHERE mc.verify_token=$1`, [token],
+      );
+      if (r.rows[0]) {
+        user = r.rows[0];
+        row = { verify_token: r.rows[0].verify_token, photo_preset: r.rows[0].photo_preset, photo_url: r.rows[0].card_photo_url };
+      }
+    }
+    const valid = Boolean(user) && !user!.is_banned;
+    const card = valid ? await buildMemberCard(user!, row) : null;
+    const publicCard = card && {
+      number: card.number, mrz: card.mrz, tier: card.tier, tier_label: card.tier_label, tier_en: card.tier_en,
+      name: card.name, photo: card.photo, role_label: card.role_label, member_since: card.member_since, verified: card.verified,
+    };
+    if (wantsJson) return res.status(valid ? 200 : 404).json(valid ? { valid: true, card: publicCard } : { valid: false });
+
+    res.setHeader("Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    const base = memberCardBase(req);
+    return res.status(valid ? 200 : 404).send(renderMemberCardPage(publicCard, base, `${base}/api/member-card/v/${token}`));
+  } catch (err) {
+    logger.error({ err }, "member-card/verify");
+    return wantsJson ? res.status(500).json({ error: "Server error" }) : res.status(500).send("خطأ في الخادم");
+  }
+});
+
+const FERRIS_WHEEL_SVG = '<circle cx="75" cy="68" r="56"/><circle cx="75" cy="68" r="52"/><circle cx="75" cy="68" r="22"/><circle cx="75" cy="68" r="4"/><path d="M75 68L131 68M75 68L123.5 96M75 68L103 116.5M75 68L75 124M75 68L47 116.5M75 68L26.5 96M75 68L19 68M75 68L26.5 40M75 68L47 19.5M75 68L75 12M75 68L103 19.5M75 68L123.5 40"/><rect x="131" y="66" width="8" height="7" rx="2"/><rect x="123" y="96" width="8" height="7" rx="2"/><rect x="101" y="118" width="8" height="7" rx="2"/><rect x="19" y="96" width="8" height="7" rx="2"/><rect x="11" y="66" width="8" height="7" rx="2"/><rect x="19" y="36" width="8" height="7" rx="2"/><rect x="41" y="14" width="8" height="7" rx="2"/><rect x="71" y="6" width="8" height="7" rx="2"/><rect x="101" y="14" width="8" height="7" rx="2"/><rect x="123" y="36" width="8" height="7" rx="2"/>';
+const SUDAN_FLAG_SVG = '<svg role="img" aria-label="علم السودان" width="18" height="12" viewBox="0 0 18 12" class="flag"><rect width="18" height="4" fill="#D21034"/><rect y="4" width="18" height="4" fill="#FFFFFF"/><rect y="8" width="18" height="4" fill="#000000"/><polygon points="0,0 7,6 0,12" fill="#007229"/></svg>';
+
+type PublicMemberCard = {
+  number: string; mrz: string; tier: MemberCardTier; tier_label: string; tier_en: string; name: string;
+  photo: MemberCardPhoto; role_label: string; member_since: number; verified: boolean;
+};
+
+function renderMemberCardPage(card: PublicMemberCard | null, base: string, pageUrl: string): string {
+  const e = escapeCardHtml;
+  const t = MEMBER_CARD_TIERS[card?.tier ?? "male"];
+  const ogImage = `${base}/member-card/og.png`;
+  const title = card ? `${card.name} · ${card.tier_label} في حصاحيصاوي` : "بطاقة عضوية حصاحيصاوي";
+  const desc = "الحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا. احصل على بطاقتك الرقمية الموثّقة في تطبيق حصاحيصاوي.";
+  let photo = "";
+  if (card) {
+    if (card.photo.type === "photo") photo = `<img src="${e(card.photo.url)}" alt="" class="ph-img">`;
+    else {
+      const p = MEMBER_CARD_PRESETS[card.photo.type === "preset" ? card.photo.preset : "palm"];
+      photo = `<div class="ph-preset" style="background:${p.bg}"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${p.ink}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">${p.svg}</svg></div>`;
+    }
+  }
+  const body = card ? `
+  <p class="status ok"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 10"/></svg>${card.verified ? "عضوية موثّقة وسارية" : "عضوية سارية"}</p>
+  <div class="card-wrap"><div class="card">
+    <svg aria-hidden="true" class="ferris" viewBox="0 0 150 170" fill="none" stroke="${t.accent}" stroke-width="0.7" stroke-linecap="round">${FERRIS_WHEEL_SVG}</svg>
+    <div class="inner">
+      <div class="row top">
+        <div><div class="brand"><span class="logo"></span>حصاحيصاوي</div><div class="en">HASAHISAWI</div></div>
+        <div class="tier"><div>${e(card.tier_label)}</div><div class="en">${e(card.tier_en)}</div></div>
+      </div>
+      <div class="row mid">
+        <div class="who"><div class="name">${e(card.name)}</div><div class="muted small">${e(card.role_label)}</div>
+          <div class="grid"><div><div class="k">رقم العضوية</div><div class="mono" dir="ltr">${e(card.number)}</div></div><div><div class="k">منذ</div><div class="mono" dir="ltr">${e(card.member_since)}</div></div><div><div class="k">الحالة</div><div class="acc">${card.verified ? (card.tier === "female" ? "موثّقة" : "موثّق") : "سارية"}</div></div></div>
+        </div>
+        <div class="photo">${photo}</div>
+      </div>
+      <div class="row phrase"><div class="acc">الحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا</div><div class="country"><span dir="ltr">SUDAN</span>${SUDAN_FLAG_SVG}</div></div>
+      <div class="mrz" dir="ltr">${e(card.mrz)}</div>
+    </div>
+    <div class="seal" aria-hidden="true"><svg viewBox="0 0 64 64" width="100%" height="100%"><defs><path id="sa" d="M32 32 m-24 0 a24 24 0 1 1 48 0 a24 24 0 1 1 -48 0"/></defs><circle cx="32" cy="32" r="31" fill="none" stroke="${t.accent}" stroke-width="1.1"/><circle cx="32" cy="32" r="29" fill="none" stroke="${t.accent}" stroke-width="0.5"/><circle cx="32" cy="32" r="18" fill="none" stroke="${t.accent}" stroke-width="0.6"/><text font-family="Inter, sans-serif" font-size="5.6" font-weight="600" letter-spacing="1.1" fill="${t.accent}"><textPath href="#sa">HASAHISAWI · VERIFIED · 2026 ·</textPath></text></svg><span class="seal-logo"></span></div>
+  </div></div>
+  <div class="details">
+    <div class="drow"><span>الفئة</span><b>${e(card.tier_label)}</b></div>
+    <div class="drow"><span>رقم العضوية</span><b class="mono" dir="ltr">${e(card.number)}</b></div>
+    <div class="drow last"><span>تاريخ التحقّق</span><b>${e(new Date().toLocaleString("ar-EG", { timeZone: "Africa/Khartoum", dateStyle: "medium", timeStyle: "short" }))}</b></div>
+  </div>` : `
+  <p class="status bad">رمز البطاقة غير صالح أو أُعيد إصداره</p>
+  <p class="hint">اطلب من صاحب البطاقة فتحها من التطبيق وعرض الرمز الحالي.</p>`;
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>${e(title)}</title>
+<meta name="description" content="${e(desc)}">
+<meta property="og:type" content="website"><meta property="og:site_name" content="حصاحيصاوي"><meta property="og:locale" content="ar_AR">
+<meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}">
+<meta property="og:url" content="${e(pageUrl)}"><meta property="og:image" content="${e(ogImage)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="بطاقة عضوية حصاحيصاوي"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${e(title)}"><meta name="twitter:description" content="${e(desc)}"><meta name="twitter:image" content="${e(ogImage)}">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Inter:wght@500;600&family=IBM+Plex+Mono&display=swap">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#ECEAE5;color:#1E1E1C;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:20px;padding:40px 16px 32px}
+.top-brand{display:flex;align-items:center;gap:8px;color:#21423A;font-size:17px;font-weight:600}.top-brand .logo{width:26px;height:25px}
+.logo,.seal-logo{display:inline-block;background-color:currentColor;-webkit-mask:url(/member-card/logo.png) center/contain no-repeat;mask:url(/member-card/logo.png) center/contain no-repeat}
+.status{margin:0;display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:600}.ok{background:#DDE7E1;color:#1A352E}.bad{background:#F3E3D6;color:#7A3E16}.hint{margin:0;color:#6B675F;font-size:14px;text-align:center}
+.card-wrap{width:min(428px,100%);aspect-ratio:428/270;container-type:inline-size}
+.card{position:relative;width:100%;height:100%;border-radius:4.7cqw;overflow:hidden;background:linear-gradient(160deg,${t.bg[0]} 0%,${t.bg[1]} 100%);color:${t.text};box-shadow:0 18px 40px rgba(20,20,20,.18),0 2px 6px rgba(20,20,20,.12);${t.light ? "border:1px solid rgba(0,0,0,.06);" : ""}font-size:2.8cqw}
+.ferris{position:absolute;left:-14.5cqw;bottom:-22.4cqw;width:56cqw;opacity:${t.light ? .26 : .2}}
+.inner{position:relative;height:100%;padding:5.1cqw 5.6cqw 3.3cqw;display:flex;flex-direction:column;justify-content:space-between}
+.row{display:flex;justify-content:space-between;align-items:center;gap:2.8cqw}.top{align-items:flex-start}
+.brand{display:flex;align-items:center;gap:1.9cqw;font-size:3.5cqw;font-weight:600}.brand .logo{width:5.1cqw;height:4.9cqw}
+.en{font-family:Inter,sans-serif;font-size:2cqw;font-weight:600;letter-spacing:.8cqw;color:${t.accent}}.tier{display:flex;flex-direction:column;align-items:flex-end;font-size:2.8cqw;font-weight:500}
+.mid{gap:4.2cqw}.who{flex:1;min-width:0;display:flex;flex-direction:column;gap:.6cqw}.name{font-size:4.9cqw;font-weight:600;line-height:1.3}.muted{color:${t.muted}}.small{font-size:2.6cqw}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.9cqw;margin-top:2.2cqw}.k{font-size:2cqw;color:${t.muted}}.mono{font-family:'IBM Plex Mono',monospace;font-size:2.45cqw;text-align:right}.acc{color:${t.accent}}
+.photo{width:19.6cqw;height:24.3cqw;border-radius:2.8cqw;border:1px solid ${t.accent}8C;background:${t.photoBg};flex-shrink:0;overflow:hidden}
+.ph-img{width:100%;height:100%;object-fit:cover;display:block}.ph-preset{width:100%;height:100%;display:flex;align-items:center;justify-content:center}.ph-preset svg{width:45%;height:auto}
+.phrase{font-size:2.7cqw}.country{display:flex;align-items:center;gap:1.4cqw;flex-shrink:0;font-family:Inter,sans-serif;font-size:1.9cqw;font-weight:600;letter-spacing:.6cqw;color:${t.accent}}.flag{width:4.2cqw;height:auto;border-radius:2px;outline:1px solid ${t.light ? "rgba(0,0,0,.12)" : "rgba(255,255,255,.25)"}}
+.mrz{font-family:'IBM Plex Mono',monospace;font-size:2cqw;letter-spacing:.35cqw;color:${t.muted};opacity:.55;white-space:nowrap;overflow:hidden}
+.seal{position:absolute;left:17.3cqw;top:35cqw;width:13.6cqw;height:13.6cqw;transform:rotate(-14deg);opacity:.85;color:${t.accent}}.seal-logo{position:absolute;left:34%;top:34%;width:32%;height:30%}
+.details{width:min(428px,100%);padding:6px 16px;border-radius:16px;background:#F6F5F1}.drow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:14px}.drow span{color:#6B675F}.drow b{font-weight:600}.drow .mono{font-size:13px}.last{border-bottom:none}
+.love{display:flex;flex-direction:column;align-items:center;gap:4px}.love .ar{font-size:18px;font-weight:600;color:#21423A}.love .en{color:#8A8478;letter-spacing:3px;font-size:9px}
+.cta{width:min(428px,100%);height:52px;border-radius:14px;background:#21423A;color:#F1EEE6;text-decoration:none;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center}.cta:hover{background:#1A352E}
+.foot{margin:0;color:#8A8478;font-size:12px;text-align:center}
+</style></head><body>
+<div class="top-brand"><span class="logo"></span>حصاحيصاوي</div>
+${body}
+<div class="love"><div class="ar">الحصاحيصا… في القلب دائماً</div><div class="en" dir="ltr">HASAHISA · FOREVER IN OUR HEARTS</div></div>
+<a class="cta" href="https://sawihasa.digital">انضم إلى حصاحيصاوي واحصل على بطاقتك</a>
+<p class="foot">لا تعرض هذه الصفحة رقم الهاتف ولا الرقم الوطني.</p>
+</body></html>`;
+}

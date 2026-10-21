@@ -44,6 +44,7 @@ const GROUPS: Group[] = [
     items: [
       { title: "الرئيسية",    icon: "home-outline",       route: "/(tabs)/",            color: Colors.primary },
       { title: "البحث",       icon: "search-outline",     route: "/(tabs)/search",      color: Colors.cyber   },
+      { title: "بطاقة العضوية", icon: "card-outline",      route: "/member-card",        color: Colors.accent  },
     ],
   },
   {
