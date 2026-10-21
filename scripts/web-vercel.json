@@ -5,31 +5,58 @@
   "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
   "redirects": [
-    { "source": "/hasahisawi", "destination": "/", "permanent": false },
-    { "source": "/hasahisawi/:path*", "destination": "/:path*", "permanent": false }
+    {
+      "source": "/hasahisawi",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/hasahisawi/:path*",
+      "destination": "/:path*",
+      "permanent": false
+    }
   ],
   "rewrites": [
-    { "source": "/((?!_expo/|assets/|splash/|.*\\..*).*)", "destination": "/index.html" }
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
       ]
     },
     {
       "source": "/_expo/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
       ]
     }
   ]
