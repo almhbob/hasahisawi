@@ -3099,6 +3099,9 @@ router.put("/admin/prayer-settings", async (req: Request, res: Response) => {
 // ── Proxy مواقيت الآذان — يُجلب من aladhan.com ويُخزَّن cache يومياً ──────────
 const _prayerCache = new Map<string, { data: unknown; fetchedAt: number }>();
 
+const HASAHISA_LAT = "14.7486";
+const HASAHISA_LNG = "33.2992";
+
 router.get("/prayer-times", async (req: Request, res: Response) => {
   const { date, latitude, longitude, method, school, tune, city, country } = req.query as Record<string, string>;
 
@@ -3118,9 +3121,14 @@ router.get("/prayer-times", async (req: Request, res: Response) => {
   }
 
   const urls: string[] = [];
-  if (latitude && longitude) {
+  // بدون إحداثيات أو مدينة نستخدم إحداثيات الحصاحيصا مباشرة: البحث بالاسم في aladhan غير مستقر
+  // (يعيد 503)، بينما الطلب بالإحداثيات موثوق. البحث بالمدينة يبقى احتياطياً بعده.
+  const useDefaultCoords = !(latitude && longitude) && !city;
+  const lat = latitude || (useDefaultCoords ? HASAHISA_LAT : "");
+  const lng = longitude || (useDefaultCoords ? HASAHISA_LNG : "");
+  if (lat && lng) {
     const tuneParam = tune ? `&tune=${tune}` : "";
-    urls.push(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${latitude}&longitude=${longitude}&method=${method||5}&school=${school||1}${tuneParam}`);
+    urls.push(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=${method||5}&school=${school||1}${tuneParam}`);
   }
   const cityParam = city || "Hasahisa";
   const countryParam = country || "SD";
@@ -11879,7 +11887,9 @@ router.get("/unions", async (req: Request, res: Response) => {
 });
 
 // GET /api/unions/:id
-router.get("/unions/:id", async (req: Request, res: Response) => {
+router.get("/unions/:id", async (req: Request, res: Response, next: NextFunction) => {
+  // Only numeric ids belong here; named paths (e.g. /laws, /portal) are handled by later routes.
+  if (!/^\d+$/.test(String(req.params.id))) return next();
   try {
     await ensureUnionsTables();
     const r = await query(`SELECT * FROM unions WHERE id=$1`, [req.params.id]);
@@ -14298,7 +14308,9 @@ router.get("/factories/:id", async (req: Request, res: Response) => {
 });
 
 // GET /api/factories/:id/products
-router.get("/factories/:id/products", async (req: Request, res: Response) => {
+router.get("/factories/:id/products", async (req: Request, res: Response, next: NextFunction) => {
+  // Only numeric ids belong here; named paths (e.g. /laws, /portal) are handled by later routes.
+  if (!/^\d+$/.test(String(req.params.id))) return next();
   try {
     await ensureFactoriesTables();
     const r = await query(
