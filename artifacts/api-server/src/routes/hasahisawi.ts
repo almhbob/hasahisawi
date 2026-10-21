@@ -9,6 +9,7 @@ import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
 import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider } from "../lib/firebase-admin";
+import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
 
@@ -6580,9 +6581,7 @@ async function sendOTPDelivery(identifier: string, code: string, type: string): 
   // Email via SMTP
   if (process.env.SMTP_HOST) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const nodemailer = await (Function('return import("nodemailer")')().catch(() => null)) as any;
-      if (nodemailer) {
+      {
         const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
         await t.sendMail({ from: `"حصاحيصاوي" <${process.env.SMTP_USER}>`, to: identifier, subject: `رمز تحقق حصاحيصاوي: ${code}`, text: `رمز التحقق الخاص بك هو: ${code}\n\nصالح لمدة 10 دقائق فقط. لا تشاركه مع أحد.`, html: `<div dir="rtl" style="font-family:Arial;font-size:16px"><p>رمز التحقق الخاص بك:</p><h1 style="letter-spacing:8px;color:#16a34a">${code}</h1><p style="color:#666">صالح لمدة 10 دقائق فقط.</p></div>` });
         logger.info("[OTP] Email sent via SMTP");
