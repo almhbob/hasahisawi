@@ -22,7 +22,7 @@ const ORG_TYPES = [
 
 // مميزات الانضمام
 const BENEFITS = [
-  { icon: "people-outline",   text: "الوصول لأكثر من ٥٠٠٠ مستخدم من أبناء الحصاحيصا", color: Colors.primary },
+  { icon: "people-outline",   text: "الوصول لأكثر من ٨٠٠ مستخدم من أبناء الحصاحيصا", color: Colors.primary },
   { icon: "megaphone-outline", text: "نشر فعالياتك وأنشطتك ومناسباتك مجاناً للمجتمع", color: Colors.accent },
   { icon: "shield-checkmark-outline", text: "ختم التحقق الرسمي وشارة الموثوقية على صفحتك", color: "#3E9CBF" },
   { icon: "bar-chart-outline", text: "إحصائيات مفصّلة عن التفاعل مع صفحة مؤسستك",  color: "#9B59B6" },
@@ -65,13 +65,10 @@ export default function JoinOrgBanner() {
     <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.wrapper}>
       {/* ── الرأس المتدرج ── */}
       <LinearGradient
-        colors={["#0B2A1A", "#0D3520", "#0F3D24"]}
+        colors={[Colors.primarySoft, Colors.primarySoft]} // was a dark green gradient behind dark text
         style={styles.topSection}
       >
         {/* نمط خلفي زخرفي */}
-        <View style={styles.bgDot1} />
-        <View style={styles.bgDot2} />
-        <View style={styles.bgDot3} />
 
         {/* شارة */}
         <View style={styles.badge}>
@@ -89,7 +86,7 @@ export default function JoinOrgBanner() {
         {/* إحصائيات */}
         <View style={styles.statsRow}>
           {[
-            { num: "٥٠٠٠+", label: "مستخدم نشط",   color: Colors.primary },
+            { num: "٨٠٠+", label: "مستخدم مسجّل",   color: Colors.primary },
             { num: "٦+",    label: "منظمة مسجّلة", color: Colors.accent },
             { num: "٢٤س",   label: "وقت الموافقة", color: "#3E9CBF" },
           ].map((st, i) => (

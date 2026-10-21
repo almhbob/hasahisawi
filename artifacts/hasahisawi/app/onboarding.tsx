@@ -8,8 +8,7 @@ import Animated, {
   FadeInDown, FadeInUp, useSharedValue, useAnimatedStyle,
   withTiming, interpolate, Extrapolation,
 } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,59 +19,61 @@ const { width, height } = Dimensions.get("window");
 
 export const ONBOARDING_KEY = "@hasahisawi_onboarding_done";
 
+type Tile = { icon: keyof typeof Ionicons.glyphMap; ink: string; tint: string };
 type Slide = {
   id: string;
-  icon: string;
-  iconLib: "ionicons" | "mci";
-  color: string;
-  bg: string;
+  tiles: Tile[];
   title: string;
   subtitle: string;
 };
 
+// Same four service families as the home screen, so onboarding previews the real app.
+const HEALTH    = { ink: "#B42318", tint: "#FCEBE9" };
+const COMMUNITY = { ink: "#00664A", tint: "#E3F2EC" };
+const MARKET    = { ink: "#8A6400", tint: "#FAF1D8" };
+const MOVE      = { ink: "#1D5C8C", tint: "#E5EFF7" };
+const NEUTRAL   = { ink: "#3D4F48", tint: "#E9EEEC" };
+
 const SLIDES: Slide[] = [
   {
     id: "welcome",
-    icon: "home-city",
-    iconLib: "mci",
-    color: Colors.primary,
-    bg: Colors.primary + "18",
+    tiles: [
+      { icon: "medkit-outline", ...HEALTH }, { icon: "people-outline", ...COMMUNITY },
+      { icon: "storefront-outline", ...MARKET }, { icon: "bus-outline", ...MOVE },
+    ],
     title: "مرحباً بك في حصاحيصاوي",
     subtitle: "بوابتك الذكية لمدينة الحصاحيصا — ربط المجتمع بخدماته في مكان واحد",
   },
   {
     id: "services",
-    icon: "grid",
-    iconLib: "ionicons",
-    color: Colors.accent,
-    bg: Colors.accent + "18",
+    tiles: [
+      { icon: "calendar-outline", ...HEALTH }, { icon: "school-outline", ...COMMUNITY },
+      { icon: "briefcase-outline", ...MARKET }, { icon: "airplane-outline", ...MOVE },
+    ],
     title: "خدمات متكاملة بين يديك",
     subtitle: "دليل طبي، مواعيد، وظائف، سوق، تعليم، رياضة، ثقافة — كل ما تحتاجه في تطبيق واحد",
   },
   {
     id: "community",
-    icon: "people",
-    iconLib: "ionicons",
-    color: "#8B72BE",
-    bg: "#8B72BE18",
+    tiles: [
+      { icon: "chatbubbles-outline", ...COMMUNITY }, { icon: "newspaper-outline", ...COMMUNITY },
+      { icon: "heart-outline", ...COMMUNITY }, { icon: "people-circle-outline", ...COMMUNITY },
+    ],
     title: "مجتمع نابض بالتواصل",
     subtitle: "تواصل مع أبناء مدينتك، شارك المنشورات، تراسل في الخاص، وكن جزءاً من المجتمع",
   },
   {
     id: "reports",
-    icon: "megaphone",
-    iconLib: "ionicons",
-    color: Colors.danger,
-    bg: Colors.danger + "18",
+    tiles: [
+      { icon: "flash-outline", ...MARKET }, { icon: "water-outline", ...MOVE },
+      { icon: "construct-outline", ...NEUTRAL }, { icon: "megaphone-outline", ...HEALTH },
+    ],
     title: "صوتك يُغيّر المدينة",
     subtitle: "بلّغ عن مشاكل الكهرباء والمياه والطرق، وقدّم مقترحاتك لتطوير مدينتك",
   },
   {
     id: "disclaimer",
-    icon: "information-circle",
-    iconLib: "ionicons",
-    color: "#6B7280",
-    bg: "#6B728018",
+    tiles: [{ icon: "information-circle-outline", ...NEUTRAL }],
     title: "منصة مجتمعية مستقلة",
     subtitle: "حصاحيصاوي منصة أهلية مستقلة من أبناء المدينة، وليست تابعة لأي جهة حكومية أو رسمية. المعلومات المتوفرة للإرشاد فقط.",
   },
@@ -112,7 +113,7 @@ export default function OnboardingScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* شريط أعلى الشاشة: زر تخطّ + محدد اللغة */}
       <View style={styles.topBar}>
@@ -144,25 +145,16 @@ export default function OnboardingScreen() {
 
       {/* Content */}
       <Animated.View key={slide.id} entering={FadeInDown.springify().damping(18)} style={styles.slideContent}>
-        {/* Icon Circle */}
-        <View style={[styles.iconCircleOuter, { backgroundColor: slide.bg }]}>
-          <LinearGradient
-            colors={[slide.color + "20", slide.color + "08"]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          />
-          <View style={[styles.iconCircleInner, { backgroundColor: slide.color + "22", borderColor: slide.color + "40" }]}>
-            {slide.iconLib === "ionicons" ? (
-              <Ionicons name={slide.icon as any} size={56} color={slide.color} />
-            ) : (
-              <MaterialCommunityIcons name={slide.icon as any} size={56} color={slide.color} />
-            )}
-          </View>
+        <View style={styles.tileGrid}>
+          {slide.tiles.map((t, i) => (
+            <View
+              key={i}
+              style={[styles.tile, slide.tiles.length === 1 && styles.tileSolo, { backgroundColor: t.tint }]}
+            >
+              <Ionicons name={t.icon} size={slide.tiles.length === 1 ? 56 : 40} color={t.ink} />
+            </View>
+          ))}
         </View>
-
-        {/* Decorative ring */}
-        <View style={[styles.ring, { borderColor: slide.color + "20" }]} />
-        <View style={[styles.ring2, { borderColor: slide.color + "10" }]} />
 
         {/* Text */}
         <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.textBlock}>
@@ -180,7 +172,6 @@ export default function OnboardingScreen() {
               <View style={[
                 styles.dot,
                 i === current && styles.dotActive,
-                i === current && { backgroundColor: slide.color },
               ]} />
             </TouchableOpacity>
           ))}
@@ -198,14 +189,10 @@ export default function OnboardingScreen() {
           )}
 
           <TouchableOpacity onPress={goNext} activeOpacity={0.85}>
-            <LinearGradient
-              colors={isLast ? [Colors.primary, Colors.primaryDim] : [slide.color, slide.color + "CC"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.nextBtn}
-            >
+            <View style={styles.nextBtn}>
               <Text style={styles.nextText}>{isLast ? "ابدأ الآن" : "التالي"}</Text>
               <Ionicons name={isLast ? "checkmark" : "chevron-back"} size={20} color="#fff" />
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -241,7 +228,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   langOptionActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDeep,
   },
   langOptionText: {
     fontFamily: "Cairo_600SemiBold",
@@ -268,39 +255,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     position: "relative",
   },
-  iconCircleOuter: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+  tileGrid: {
+    width: 216,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 44,
+  },
+  tile: {
+    width: 102,
+    height: 102,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 48,
-    overflow: "hidden",
   },
-  iconCircleInner: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ring: {
-    position: "absolute",
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    borderWidth: 1,
-    top: height * 0.12,
-  },
-  ring2: {
-    position: "absolute",
-    width: 290,
-    height: 290,
-    borderRadius: 145,
-    borderWidth: 1,
-    top: height * 0.095,
-  },
+  tileSolo: { width: 140, height: 140, borderRadius: 40 },
   textBlock: {
     alignItems: "center",
     gap: 14,
@@ -340,6 +310,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 8,
     borderRadius: 4,
+    backgroundColor: Colors.primaryDeep,
   },
   navRow: {
     flexDirection: "row-reverse",
@@ -363,8 +334,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 16,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryDeep,
   },
   nextText: {
     fontFamily: "Cairo_700Bold",

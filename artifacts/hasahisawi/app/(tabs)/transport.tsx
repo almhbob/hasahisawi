@@ -16,7 +16,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 import {
   TRANSPORT_ZONES, DEFAULT_FARE_MATRIX,
@@ -24,10 +24,12 @@ import {
   formatFare,
 } from "@/constants/transport-zones";
 
-const ACCENT  = "#F97316";
-const ACCENT2 = "#FBBF24";
-const GREEN   = "#3EFF9C";
-const BLUE    = "#3E9CBF";
+// Light system: brand green for primary/active, gold only for rating stars.
+const ACCENT  = Colors.primaryDeep;
+const ACCENT2 = Colors.primaryDeep;
+const GREEN   = Colors.primary;
+const BLUE    = Colors.primaryDeep;
+const STAR    = Colors.accent;
 
 // ─── بيانات الاختبار التدريبي للسائقين ───────────────────────────────────────
 type QuizQuestion = {
@@ -182,21 +184,21 @@ function ComingSoonScreen({ note }: { note?: string }) {
   return (
     <View style={cs.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={["#081A0E", "#0D2B17", "#112E1B"]} style={[cs.hero, { paddingTop: topPad + 16 }]}>
+        <View style={[cs.hero, { paddingTop: topPad + 16 }]}>
           <Animated.View entering={FadeIn.delay(100).duration(600)} style={cs.iconCluster}>
             <View style={cs.pulseWrap}>
-              <Animated.View style={[{ position: "absolute", width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: ACCENT }, pulseStyle]} />
-              <LinearGradient colors={[ACCENT + "30", ACCENT2 + "20"]} style={cs.iconCircle}>
+              <Animated.View style={[{ position: "absolute", width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: Colors.primaryLight }, pulseStyle]} />
+              <View style={cs.iconCircle}>
                 <MaterialCommunityIcons name="car-side" size={36} color={ACCENT} />
-              </LinearGradient>
+              </View>
             </View>
             <View style={cs.smallIconRow}>
               {[
                 { icon: "rickshaw", color: BLUE },
-                { icon: "package-variant", color: "#A855F7" },
+                { icon: "package-variant", color: ACCENT },
                 { icon: "map-marker-radius", color: GREEN },
               ].map((ic, i) => (
-                <View key={i} style={[cs.smallIcon, { backgroundColor: ic.color + "20", borderColor: ic.color + "40" }]}>
+                <View key={i} style={cs.smallIcon}>
                   <MaterialCommunityIcons name={ic.icon as any} size={22} color={ic.color} />
                 </View>
               ))}
@@ -222,7 +224,7 @@ function ComingSoonScreen({ note }: { note?: string }) {
               </View>
             ))}
           </Animated.View>
-        </LinearGradient>
+        </View>
 
         <View style={cs.body}>
           {note ? (
@@ -252,11 +254,11 @@ function ComingSoonScreen({ note }: { note?: string }) {
           </View>
 
           <Animated.View entering={FadeInDown.delay(460).springify()} style={cs.ctaCard}>
-            <LinearGradient colors={[ACCENT + "20", ACCENT2 + "10"]} style={cs.ctaGrad}>
+            <View style={cs.ctaGrad}>
               <MaterialCommunityIcons name="clock-time-four-outline" size={36} color={ACCENT} style={{ marginBottom: 10 }} />
               <Text style={cs.ctaTitle}>الخدمة قيد التجهيز</Text>
               <Text style={cs.ctaSub}>فريقنا يعمل على إطلاق الخدمة.{"\n"}سيتم إشعارك فور التفعيل الرسمي.</Text>
-            </LinearGradient>
+            </View>
           </Animated.View>
         </View>
       </ScrollView>
@@ -278,20 +280,20 @@ function MaintenanceScreen({ note }: { note?: string }) {
   return (
     <View style={cs.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={["#1A1200", "#2B1E00", "#2E2000"]} style={[cs.hero, { paddingTop: topPad + 16 }]}>
+        <View style={[cs.hero, { paddingTop: topPad + 16 }]}>
           <Animated.View entering={FadeIn.delay(100).duration(600)} style={cs.iconCluster}>
             <View style={cs.pulseWrap}>
-              <LinearGradient colors={["#F59E0B30", "#F59E0B10"]} style={cs.iconCircle}>
+              <View style={[cs.iconCircle, { backgroundColor: Colors.accentSoft }]}>
                 <Animated.View style={spinStyle}>
-                  <MaterialCommunityIcons name="cog" size={38} color="#F59E0B" />
+                  <MaterialCommunityIcons name="cog" size={38} color={Colors.accentDeep} />
                 </Animated.View>
-              </LinearGradient>
+              </View>
             </View>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(200).springify()} style={cs.soonBadgeWrap}>
-            <View style={[cs.soonBadge, { backgroundColor: "#F59E0B20", borderColor: "#F59E0B40" }]}>
-              <MaterialCommunityIcons name="wrench-clock" size={13} color="#F59E0B" />
-              <Text style={[cs.soonBadgeText, { color: "#F59E0B" }]}>قيد الصيانة</Text>
+            <View style={[cs.soonBadge, { backgroundColor: Colors.accentSoft, borderColor: Colors.borderGoldGlow }]}>
+              <MaterialCommunityIcons name="wrench-clock" size={13} color={Colors.accentDeep} />
+              <Text style={[cs.soonBadgeText, { color: Colors.accentDeep }]}>قيد الصيانة</Text>
             </View>
           </Animated.View>
           <Animated.Text entering={FadeInDown.delay(280).springify()} style={cs.heroTitle}>
@@ -300,15 +302,15 @@ function MaintenanceScreen({ note }: { note?: string }) {
           <Animated.Text entering={FadeInDown.delay(340).springify()} style={cs.heroSub}>
             نعمل على تحسين تجربتك — نعود بشكل أفضل
           </Animated.Text>
-        </LinearGradient>
+        </View>
         <Animated.View entering={FadeInDown.delay(400).springify()} style={{ marginHorizontal: 20, marginTop: 20 }}>
-          <LinearGradient colors={["#F59E0B18", "#F59E0B08"]} style={{ borderRadius: 18, padding: 20, borderWidth: 1, borderColor: "#F59E0B30" }}>
-            <MaterialCommunityIcons name="information-outline" size={22} color="#F59E0B" style={{ marginBottom: 8 }} />
-            <Text style={[cs.ctaTitle, { color: "#F59E0B" }]}>جارٍ العمل على التحسين</Text>
+          <View style={{ borderRadius: Colors.radius.lg, padding: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg }}>
+            <MaterialCommunityIcons name="information-outline" size={22} color={Colors.accentDeep} style={{ marginBottom: 8 }} />
+            <Text style={[cs.ctaTitle, { color: Colors.accentDeep }]}>جارٍ العمل على التحسين</Text>
             <Text style={[cs.ctaSub, { marginTop: 6 }]}>
               {note || "نقوم بصيانة الخدمة لضمان أفضل تجربة ممكنة لك.\nشكراً لصبرك — ستعود الخدمة بشكل أفضل."}
             </Text>
-          </LinearGradient>
+          </View>
         </Animated.View>
       </ScrollView>
     </View>
@@ -412,18 +414,18 @@ function FareEstimateCard({
     { key: "car"        as const, icon: "car-side",           label: "سيارة",       color: BLUE,      fare: (fares as any).car        },
     { key: "rickshaw"   as const, icon: "rickshaw",            label: "ركشة",        color: ACCENT,    fare: (fares as any).rickshaw   },
     { key: "motorcycle" as const, icon: "motorcycle",          label: "دراجة نارية", color: GREEN,     fare: (fares as any).motorcycle },
-    { key: "delivery"   as const, icon: "package-variant",    label: "توصيل طلب",   color: "#A855F7", fare: (fares as any).delivery   },
+    { key: "delivery"   as const, icon: "package-variant",    label: "توصيل طلب",   color: ACCENT,    fare: (fares as any).delivery   },
   ];
 
   return (
     <Animated.View entering={ZoomIn.springify().damping(18)} style={fe.card}>
-      <LinearGradient colors={[ACCENT + "15", ACCENT2 + "08"]} style={fe.header}>
+      <View style={fe.header}>
         <MaterialCommunityIcons name="calculator-variant" size={18} color={ACCENT2} />
         <Text style={fe.headerTitle}>التعرفة التقديرية</Text>
         <View style={fe.routeBadge}>
           <Text style={fe.routeText}>{fromZ?.name} ← {toZ?.name}</Text>
         </View>
-      </LinearGradient>
+      </View>
       <View style={fe.vehicleRow}>
         {vehicles.map(v => (
           <TouchableOpacity key={v.key} onPress={() => onVehicleChange(v.key)}
@@ -467,7 +469,7 @@ export default function TransportScreen() {
   const [note,       setNote]      = useState("");
   const [neighborhoodsByZone, setNeighborhoodsByZone] = useState<Record<number, string[]>>({});
   const [loading,    setLoading]   = useState(true);
-  const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register" | "driver">("book");
+  const [activeTab,  setActiveTab] = useState<"book" | "driver-inbox" | "drivers" | "mytrips" | "register" | "driver">("book");
 
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [myTrips,    setMyTrips]    = useState<Trip[]>([]);
@@ -944,11 +946,10 @@ export default function TransportScreen() {
       <ModernHeader
         title="مشوارك علينا"
         subtitle="مشاويرك علينا · ٥ مناطق تغطية"
-        gradient={Colors.gradients.brand}
         rightSlot={
-          <View style={s.liveBadge}>
-            <View style={s.liveDot} />
-            <Text style={s.liveText}>مفعّل</Text>
+          <View style={headerUI.statusPill}>
+            <View style={headerUI.statusDot} />
+            <Text style={headerUI.statusText}>مفعّل</Text>
           </View>
         }
       >
@@ -972,9 +973,9 @@ export default function TransportScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsScroll}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key as any)}
-              style={[s.tabBtn, activeTab === t.key && s.tabBtnActive]}>
+              style={[headerUI.chip, activeTab === t.key && headerUI.chipActive]}>
               <Ionicons name={t.icon} size={14} color={activeTab === t.key ? "#fff" : Colors.textSecondary} />
-              <Text style={[s.tabLabel, activeTab === t.key && s.tabLabelActive]}>{t.label}</Text>
+              <Text style={[headerUI.chipText, activeTab === t.key && headerUI.chipTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1040,12 +1041,9 @@ export default function TransportScreen() {
 
             {/* بطاقة الخريطة المجتمعية */}
             <TouchableOpacity onPress={() => { setShowCommunityModal(true); loadCommunityStats(); }} activeOpacity={0.85}>
-              <LinearGradient
-                colors={[ACCENT + "18", BLUE + "12"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ borderRadius: 18, padding: 16, borderWidth: 1, borderColor: ACCENT + "30" }}>
+              <View style={{ borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg }}>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: ACCENT + "22", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: ACCENT + "35" }}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
                     <MaterialCommunityIcons name="map-marker-multiple-outline" size={24} color={ACCENT} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -1075,7 +1073,7 @@ export default function TransportScreen() {
                     })}
                   </View>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
 
             {/* بطاقة التعرفة */}
@@ -1154,7 +1152,7 @@ export default function TransportScreen() {
 
             {/* بيانات الطلب */}
             <View style={s.sectionHeader}>
-              <LinearGradient colors={[BLUE, GREEN]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
+              <LinearGradient colors={[ACCENT, ACCENT2]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.secBar} />
               <Text style={s.secTitle}>بيانات التواصل</Text>
             </View>
             <View style={s.formCard}>
@@ -1189,7 +1187,7 @@ export default function TransportScreen() {
                 style={{ marginTop: 8, borderRadius: 12, overflow: "hidden", opacity: termsAccepted ? 1 : 0.45 }}
                 activeOpacity={0.85}>
                 <LinearGradient
-                  colors={termsAccepted ? [ACCENT, ACCENT2] : ["#666", "#888"]}
+                  colors={termsAccepted ? [ACCENT, ACCENT2] : [Colors.borderStrong, Colors.borderStrong]}
                   start={{ x:0,y:0 }} end={{ x:1,y:0 }}
                   style={s.submitBtn}>
                   {submitting
@@ -1256,8 +1254,8 @@ export default function TransportScreen() {
                 <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 15 }}>{trip.user_name}</Text>
                 <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>من: {trip.from_location}</Text>
                 <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", lineHeight: 22 }}>إلى: {trip.to_location}</Text>
-                <TouchableOpacity onPress={() => acceptIncomingTripLite(trip)} disabled={acceptingTripId === trip.id || !driverModeId} style={{ marginTop: 14, backgroundColor: driverModeId ? GREEN : Colors.textMuted, borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
-                  {acceptingTripId === trip.id ? <ActivityIndicator color="#001" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#001" }}>قبول الطلب الآن</Text>}
+                <TouchableOpacity onPress={() => acceptIncomingTripLite(trip)} disabled={acceptingTripId === trip.id || !driverModeId} style={{ marginTop: 14, backgroundColor: driverModeId ? Colors.primaryDeep : Colors.borderStrong, borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+                  {acceptingTripId === trip.id ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#fff" }}>قبول الطلب الآن</Text>}
                 </TouchableOpacity>
               </View>
             ))}
@@ -1357,10 +1355,10 @@ export default function TransportScreen() {
                     ? <ActivityIndicator color={ACCENT} size="small" style={{ paddingHorizontal: 16 }} />
                     : (
                       <LinearGradient
-                        colors={driverProfile.is_online ? [GREEN, "#22C55E"] : [Colors.divider, Colors.cardBg]}
+                        colors={driverProfile.is_online ? [Colors.primaryDeep, Colors.primaryDeep] : [Colors.header.control, Colors.header.control]}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, borderWidth: 1, borderColor: driverProfile.is_online ? GREEN + "60" : Colors.divider }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: driverProfile.is_online ? "#000" : Colors.textMuted }}>
+                        style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, borderWidth: 1, borderColor: driverProfile.is_online ? Colors.primaryDeep : Colors.border }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: driverProfile.is_online ? "#fff" : Colors.textSecondary }}>
                           {driverProfile.is_online ? "⏸ توقف" : "▶ ابدأ"}
                         </Text>
                       </LinearGradient>
@@ -1422,11 +1420,11 @@ export default function TransportScreen() {
               return (
                 <Animated.View key={trip.id} entering={FadeInDown.springify()} style={{
                   backgroundColor: Colors.cardBg, borderRadius: 18, overflow: "hidden",
-                  borderWidth: 1, borderColor: ACCENT + "30",
+                  borderWidth: 1, borderColor: Colors.border,
                 }}>
                   {/* شريط الأولوية */}
-                  <LinearGradient colors={[ACCENT + "30", ACCENT2 + "10"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }}
-                    style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                  <View
+                    style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.primarySoft }}>
                     <MaterialCommunityIcons name={vcIcon as any} size={18} color={ACCENT} />
                     <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: ACCENT, flex: 1, textAlign: "right" }}>
                       {trip.vehicle_preference === "rickshaw" ? "ركشة" :
@@ -1440,7 +1438,7 @@ export default function TransportScreen() {
                         </Text>
                       </View>
                     ) : null}
-                  </LinearGradient>
+                  </View>
 
                   <View style={{ padding: 14, gap: 10 }}>
                     {/* المسار */}
@@ -1487,12 +1485,12 @@ export default function TransportScreen() {
                       disabled={isAccepting || accepting !== null}
                       activeOpacity={0.85}
                       style={{ borderRadius: 12, overflow: "hidden", opacity: (accepting !== null && !isAccepting) ? 0.5 : 1 }}>
-                      <LinearGradient colors={[GREEN, "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
+                      <LinearGradient colors={[Colors.primaryDeep, Colors.primaryDeep]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
                         {isAccepting
-                          ? <ActivityIndicator color="#000" size="small" />
+                          ? <ActivityIndicator color="#fff" size="small" />
                           : <>
-                              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#000" />
-                              <Text style={[s.submitBtnText, { color: "#000" }]}>قبول المشوار</Text>
+                              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#fff" />
+                              <Text style={[s.submitBtnText, { color: "#fff" }]}>قبول المشوار</Text>
                             </>}
                       </LinearGradient>
                     </TouchableOpacity>
@@ -1513,19 +1511,19 @@ export default function TransportScreen() {
             {quizPhase === "intro" && (
               <View style={s.formCard}>
                 {/* الرأس */}
-                <LinearGradient colors={["#0D2B17", "#081A0E"]}
-                  style={{ borderRadius: 12, padding: 20, marginBottom: 16, alignItems: "center" }}>
+                <View
+                  style={{ borderRadius: 12, padding: 20, marginBottom: 16, alignItems: "center", backgroundColor: Colors.primarySoft }}>
                   <View style={{ width: 64, height: 64, borderRadius: 32,
-                    backgroundColor: ACCENT + "20", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                    backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
                     <MaterialCommunityIcons name="school-outline" size={32} color={ACCENT} />
                   </View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff", textAlign: "center", marginBottom: 6 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 6 }}>
                     التقديم المباشر للسائقين
                   </Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffff80", textAlign: "center", lineHeight: 22 }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 }}>
                     تم حذف اختبار السائق قبل التقديم. يمكنك إرسال طلب الانضمام مباشرة، وستراجع الإدارة البيانات.
                   </Text>
-                </LinearGradient>
+                </View>
 
                 {/* ماذا ستتعلم؟ */}
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 10, textAlign: "right" }}>
@@ -1613,7 +1611,7 @@ export default function TransportScreen() {
                     let iconColor = Colors.textMuted;
                     if (quizRevealed) {
                       if (isCorrect) {
-                        bg = "#3EFF9C15"; border = "#3EFF9C60"; textColor = GREEN;
+                        bg = Colors.primarySoft; border = Colors.borderGlow; textColor = Colors.primaryDeep;
                         iconName = "check-circle"; iconColor = GREEN;
                       } else if (isSelected) {
                         bg = "#E0556715"; border = "#E0556760"; textColor = "#E05567";
@@ -1640,8 +1638,8 @@ export default function TransportScreen() {
                   {/* تلميح بعد الكشف */}
                   {quizRevealed && (
                     <Animated.View entering={FadeIn.duration(300)}
-                      style={{ backgroundColor: "#FBBF2412", borderRadius: 10, padding: 12, marginTop: 6,
-                        borderWidth: 1, borderColor: "#FBBF2430", flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" }}>
+                      style={{ backgroundColor: Colors.primarySoft, borderRadius: 10, padding: 12, marginTop: 6,
+                        borderWidth: 1, borderColor: Colors.borderGlow, flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" }}>
                       <MaterialCommunityIcons name="lightbulb-outline" size={16} color={ACCENT2} />
                       <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 }}>
                         {q.hint}
@@ -1676,23 +1674,22 @@ export default function TransportScreen() {
               <Animated.View entering={ZoomIn.springify()}>
                 {/* بطاقة النتيجة */}
                 <View style={s.formCard}>
-                  <LinearGradient
-                    colors={quizPassed ? ["#0D2B17", "#052010"] : ["#1A0707", "#0D0404"]}
-                    style={{ borderRadius: 14, padding: 24, alignItems: "center", marginBottom: 16 }}>
+                  <View
+                    style={{ borderRadius: 14, padding: 24, alignItems: "center", marginBottom: 16, backgroundColor: quizPassed ? Colors.primarySoft : Colors.dangerSoft }}>
                     {/* الأيقونة */}
                     <View style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12,
-                      backgroundColor: (quizPassed ? GREEN : "#E05567") + "20",
+                      backgroundColor: Colors.cardBg,
                       alignItems: "center", justifyContent: "center" }}>
                       <MaterialCommunityIcons
                         name={quizPassed ? "check-decagram" : "close-octagon-outline"}
                         size={42} color={quizPassed ? GREEN : "#E05567"} />
                     </View>
                     {/* العنوان */}
-                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", marginBottom: 4 }}>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, marginBottom: 4 }}>
                       {quizPassed ? "جاهز لتقديم طلب الانضمام" : "لم تجتز الاختبار هذه المرة"}
                     </Text>
                     {/* الدرجة */}
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#ffffff90", marginBottom: 16 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, marginBottom: 16 }}>
                       {quizPassed
                         ? "تم حذف الاختبار — أكمل بياناتك وأرسل طلب الانضمام"
                         : `تحتاج ${QUIZ_PASS_SCORE} صحيحة — حاول مجدداً بعد مراجعة الأسئلة`}
@@ -1702,11 +1699,11 @@ export default function TransportScreen() {
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 48, color: quizPassed ? GREEN : "#E05567" }}>
                         {quizScore}
                       </Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 22, color: "#ffffff60" }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 22, color: Colors.textMuted }}>
                         / {DRIVER_QUIZ.length}
                       </Text>
                     </View>
-                  </LinearGradient>
+                  </View>
 
                   {/* مراجعة الإجابات */}
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 10 }}>
@@ -1718,8 +1715,8 @@ export default function TransportScreen() {
                     return (
                       <View key={i} style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
                         padding: 10, borderRadius: 10, marginBottom: 6,
-                        backgroundColor: correct ? "#3EFF9C10" : "#E0556710",
-                        borderWidth: 1, borderColor: correct ? "#3EFF9C30" : "#E0556730" }}>
+                        backgroundColor: correct ? Colors.primarySoft : "#E0556710",
+                        borderWidth: 1, borderColor: correct ? Colors.borderGlow : "#E0556730" }}>
                         <MaterialCommunityIcons
                           name={correct ? "check-circle" : "close-circle"}
                           size={16} color={correct ? GREEN : "#E05567"}
@@ -1914,8 +1911,8 @@ export default function TransportScreen() {
                 {/* المادة الرابعة */}
                 <View style={lm.article}>
                   <View style={lm.articleHeader}>
-                    <MaterialCommunityIcons name="shield-check" size={18} color="#3EFF9C" />
-                    <Text style={[lm.articleTitle, { color: "#3EFF9C" }]}>رابعاً — حقوق المستخدم</Text>
+                    <MaterialCommunityIcons name="shield-check" size={18} color={Colors.primaryDeep} />
+                    <Text style={[lm.articleTitle, { color: Colors.primaryDeep }]}>رابعاً — حقوق المستخدم</Text>
                   </View>
                   <Text style={lm.articleBody}>
                     في حال وقوع نزاع، يحق للمستخدم التواصل مع إدارة المنصة لتقديم روايته وأدلته. تلتزم المنصة بالحياد التام والتحقيق في كلا الطرفين قبل اتخاذ أي قرار نهائي.
@@ -1932,7 +1929,7 @@ export default function TransportScreen() {
                   onPress={() => { setTermsAccepted(true); setShowLegalModal(false); }}
                   style={lm.acceptBtn}
                   activeOpacity={0.85}>
-                  <LinearGradient colors={["#16A34A", "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={lm.acceptGrad}>
+                  <LinearGradient colors={[Colors.primaryDeep, Colors.primaryDeep]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={lm.acceptGrad}>
                     <Ionicons name="checkmark-circle" size={18} color="#fff" />
                     <Text style={lm.acceptText}>قرأت وأوافق على الشروط</Text>
                   </LinearGradient>
@@ -1952,9 +1949,8 @@ export default function TransportScreen() {
           <Pressable style={{ flex: 1 }} onPress={() => setShowCommunityModal(false)} />
           <View style={{ backgroundColor: Colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%", flex: 0 }}>
             {/* Hero Header */}
-            <LinearGradient
-              colors={[ACCENT + "22", BLUE + "14", Colors.bg]}
-              style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 14, paddingBottom: 20, paddingHorizontal: 20 }}>
+            <View
+              style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 14, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: Colors.cardBg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border }}>
               <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 16 }} />
               <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <View style={{ flex: 1 }}>
@@ -1963,7 +1959,7 @@ export default function TransportScreen() {
                     أبناء الحصاحيصا يبنون خريطتهم معاً — أضف حيّك وساهم في تسهيل التنقّل للجميع
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+                <TouchableOpacity onPress={() => setShowCommunityModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.header.control, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
                   <MaterialCommunityIcons name="close" size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -1973,7 +1969,7 @@ export default function TransportScreen() {
                 {[
                   { val: statsLoading ? "…" : String(communityStats?.total ?? allNeighborhoods.length), label: "حي مُسجَّل", color: ACCENT },
                   { val: statsLoading ? "…" : String(communityStats?.contributors ?? 0), label: "مساهم", color: BLUE },
-                  { val: "٥", label: "مناطق", color: "#A855F7" },
+                  { val: "٥", label: "مناطق", color: ACCENT },
                 ].map(s => (
                   <View key={s.label} style={{ flex: 1, backgroundColor: s.color + "12", borderRadius: 14, borderWidth: 1, borderColor: s.color + "25", padding: 12, alignItems: "center" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: s.color }}>{s.val}</Text>
@@ -1981,9 +1977,9 @@ export default function TransportScreen() {
                   </View>
                 ))}
               </View>
-            </LinearGradient>
+            </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 110 }}>
 
               {/* آخر الإضافات */}
               {communityStats?.recent && communityStats.recent.length > 0 && (
@@ -2255,7 +2251,7 @@ function DriverCard({ driver }: { driver: Driver }) {
       <View style={dc.footer}>
         <View style={{ flexDirection: "row-reverse", gap: 2 }}>
           {[1,2,3,4,5].map(i => (
-            <Ionicons key={i} name={i <= stars ? "star" : "star-outline"} size={13} color={ACCENT2} />
+            <Ionicons key={i} name={i <= stars ? "star" : "star-outline"} size={13} color={STAR} />
           ))}
           <Text style={dc.ratingText}>{driver.rating > 0 ? driver.rating.toFixed(1) : "—"}</Text>
         </View>
@@ -2407,13 +2403,13 @@ function TripCard({
         <Text style={tc.dateText}>{new Date(trip.created_at).toLocaleDateString("ar-SD")}</Text>
         {localStatus === "completed" && !localRating ? (
           <TouchableOpacity onPress={() => setShowRating(p => !p)} style={tc.rateBtn}>
-            <Ionicons name="star-outline" size={13} color={ACCENT2} />
+            <Ionicons name="star-outline" size={13} color={STAR} />
             <Text style={tc.rateBtnText}>قيّم رحلتك</Text>
           </TouchableOpacity>
         ) : localRating ? (
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 3 }}>
             {[1,2,3,4,5].map(i => (
-              <Ionicons key={i} name={i <= (localRating ?? 0) ? "star" : "star-outline"} size={13} color={ACCENT2} />
+              <Ionicons key={i} name={i <= (localRating ?? 0) ? "star" : "star-outline"} size={13} color={STAR} />
             ))}
             <Text style={tc.ratedText}>قيّمت</Text>
           </View>
@@ -2431,7 +2427,7 @@ function TripCard({
               <TouchableOpacity key={i} onPress={() => setSelectedStars(i)}>
                 <Ionicons
                   name={i <= selectedStars ? "star" : "star-outline"}
-                  size={30} color={i <= selectedStars ? ACCENT2 : Colors.divider}
+                  size={30} color={i <= selectedStars ? STAR : Colors.borderStrong}
                 />
               </TouchableOpacity>
             ))}
@@ -2470,26 +2466,26 @@ function TripCard({
 
 const cs = StyleSheet.create({
   container:     { flex: 1, backgroundColor: Colors.bg },
-  hero:          { paddingHorizontal: 20, paddingBottom: 24, alignItems: "center" },
+  hero:          { paddingHorizontal: 20, paddingBottom: 24, alignItems: "center", backgroundColor: Colors.cardBg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
   body:          { padding: 16, paddingBottom: 40 },
   dot1:          { position: "absolute", width: 120, height: 120, borderRadius: 60, backgroundColor: ACCENT + "08", top: 30, left: -20 },
   dot2:          { position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: ACCENT2 + "10", top: 80, right: 10 },
   dot3:          { position: "absolute", width: 60, height: 60, borderRadius: 30, backgroundColor: GREEN + "08", bottom: 20, left: 60 },
   iconCluster:   { alignItems: "center", marginBottom: 14 },
   pulseWrap:     { alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  iconCircle:    { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+  iconCircle:    { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primarySoft },
   smallIconRow:  { flexDirection: "row-reverse", gap: 10 },
-  smallIcon:     { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  smallIcon:     { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primarySoft },
   soonBadgeWrap: { marginBottom: 8 },
   soonBadge:     { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: ACCENT2 + "15", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: ACCENT2 + "30" },
   soonBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ACCENT2 },
-  heroTitle:     { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#fff", textAlign: "center", marginBottom: 8, lineHeight: 36 },
-  heroSub:       { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffff90", textAlign: "center", lineHeight: 22 },
-  statsRow:      { flexDirection: "row-reverse", gap: 20, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#ffffff15" },
+  heroTitle:     { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center", marginBottom: 8, lineHeight: 36 },
+  heroSub:       { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+  statsRow:      { flexDirection: "row-reverse", gap: 20, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.divider },
   statItem:      { alignItems: "center" },
   statNum:       { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  statLabel:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
-  noteCard:      { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", backgroundColor: ACCENT2 + "12", borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: ACCENT2 + "30" },
+  statLabel:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  noteCard:      { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", backgroundColor: Colors.primarySoft, borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: Colors.borderGlow },
   noteText:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 },
   secRow:        { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
   secBar:        { width: 3, height: 18, borderRadius: 2 },
@@ -2499,8 +2495,8 @@ const cs = StyleSheet.create({
   zonePreviewNum:   { fontFamily: "Cairo_700Bold", fontSize: 13 },
   zonePreviewName:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   zonePreviewDesc:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" },
-  ctaCard:       { borderRadius: 16, overflow: "hidden", marginTop: 8 },
-  ctaGrad:       { padding: 24, alignItems: "center" },
+  ctaCard:       { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8, borderWidth: 1, borderColor: Colors.border },
+  ctaGrad:       { padding: 24, alignItems: "center", backgroundColor: Colors.cardBg },
   ctaTitle:      { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, marginBottom: 6 },
   ctaSub:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 });
@@ -2525,8 +2521,8 @@ const zp = StyleSheet.create({
 const fe = StyleSheet.create({
   placeholder:     { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 16, marginVertical: 12, borderWidth: 1, borderColor: Colors.divider, borderStyle: "dashed" },
   placeholderText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 20 },
-  card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30", ...Colors.shadow.card },
-  header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, flexWrap: "wrap" },
+  card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, ...Colors.shadow.card },
+  header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, flexWrap: "wrap", backgroundColor: Colors.primarySoft },
   headerTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 },
   routeBadge:      { flex: 1, alignItems: "flex-start" },
   routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
@@ -2540,19 +2536,12 @@ const fe = StyleSheet.create({
 
 const s = StyleSheet.create({
   container:      { flex: 1, backgroundColor: Colors.bg },
-  liveBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "20", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: GREEN + "40" },
-  liveDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: GREEN },
-  liveText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
-  quickStats:     { flexDirection: "row-reverse", justifyContent: "space-around", marginBottom: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#ffffff12" },
+  quickStats:     { flexDirection: "row-reverse", justifyContent: "space-around", marginBottom: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Colors.divider },
   quickStat:      { alignItems: "center" },
   quickStatNum:   { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
-  quickStatDiv:   { width: 1, backgroundColor: "#ffffff15" },
-  tabsScroll:     { paddingHorizontal: 4, paddingBottom: 10, gap: 6, flexDirection: "row-reverse" },
-  tabBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: "#ffffff10", borderWidth: 1, borderColor: "#ffffff15" },
-  tabBtnActive:   { backgroundColor: ACCENT, borderColor: ACCENT },
-  tabLabel:       { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  tabLabelActive: { color: "#fff" },
+  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  quickStatDiv:   { width: StyleSheet.hairlineWidth, backgroundColor: Colors.divider },
+  tabsScroll:     { paddingHorizontal: 4, gap: 6, flexDirection: "row-reverse" },
 
   sectionHeader:  { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 6 },
   secBar:         { width: 3, height: 18, borderRadius: 2 },
@@ -2582,7 +2571,7 @@ const s = StyleSheet.create({
   howRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 10, position: "relative" },
   howBubble:      { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 2 },
   howStep:        { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
-  howLine:        { position: "absolute", width: 2, height: 20, backgroundColor: ACCENT + "40", right: 13, top: 30 },
+  howLine:        { position: "absolute", width: 2, height: 20, backgroundColor: Colors.primaryLight, right: 13, top: 30 },
   howText:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
 
   emptyCard:      { alignItems: "center", paddingVertical: 48, gap: 12 },
@@ -2630,7 +2619,7 @@ const tc = StyleSheet.create({
   footerRow:       { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
   dateText:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   driverText:      { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
-  rateBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: ACCENT2 + "20", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  rateBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primarySoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   rateBtnText:     { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT2 },
   ratedText:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginLeft: 4 },
   ratingPanel:     { marginTop: 10, padding: 12, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },

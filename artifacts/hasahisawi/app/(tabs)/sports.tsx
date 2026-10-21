@@ -15,7 +15,7 @@ import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
@@ -1199,41 +1199,40 @@ export default function SportsScreen() {
           <View style={{flexDirection:"row-reverse",gap:8,alignItems:"center"}}>
             {isAdmin ? (
               <>
-                <TouchableOpacity style={s.adminBadge} onPress={logout}>
-                  <Ionicons name="log-out-outline" size={13} color="#fff" />
-                  <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>خروج</Text>
+                <TouchableOpacity style={headerUI.secondaryBtn} onPress={logout}>
+                  <Ionicons name="log-out-outline" size={16} color={Colors.textPrimary} />
+                  <Text style={headerUI.secondaryBtnText}>خروج</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.fabAdd} onPress={()=>{
+                <TouchableOpacity style={[headerUI.iconBtn,{backgroundColor:Colors.primaryDeep}]} onPress={()=>{
                   if (tab==="news") setAddPost(true);
                   else if (tab==="players") setAddPlayer(true);
                   else if (tab==="matches") setAddMatch(true);
                   else setAddClub(true);
                 }}>
-                  <Ionicons name="add" size={18} color="#000" />
+                  <Ionicons name="add" size={20} color="#fff" />
                 </TouchableOpacity>
               </>
             ) : (
-              <TouchableOpacity style={[s.adminBadge,{borderColor:"rgba(255,255,255,0.28)"}]} onPress={()=>setPinModal(true)}>
-                <Ionicons name="lock-closed-outline" size={13} color="rgba(255,255,255,0.82)" />
-                <Text style={[s.adminBadgeTxt,{color:"rgba(255,255,255,0.82)"}]}>إدارة</Text>
+              <TouchableOpacity style={headerUI.secondaryBtn} onPress={()=>setPinModal(true)}>
+                <Ionicons name="lock-closed-outline" size={16} color={Colors.textPrimary} />
+                <Text style={headerUI.secondaryBtnText}>إدارة</Text>
               </TouchableOpacity>
             )}
           </View>
         }
       >
-        <View style={s.searchRow}>
-          <Ionicons name="search" size={15} color="rgba(255,255,255,0.7)" />
-          <TextInput style={s.searchInput} placeholder="ابحث عن خبر، لاعب..." placeholderTextColor="rgba(255,255,255,0.55)" value={search} onChangeText={setSearch} textAlign="right" />
-          {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.7)" /></TouchableOpacity>}
+        <View style={[headerUI.search, { marginBottom: 10 }]}>
+          <Ionicons name="search" size={16} color={Colors.textMuted} />
+          <TextInput style={headerUI.searchInput} placeholder="ابحث عن خبر، لاعب..." placeholderTextColor={Colors.textMuted} value={search} onChangeText={setSearch} textAlign="right" />
+          {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
           {TABS.map(t=>(
-            <TouchableOpacity key={t.key} style={[s.tabBtn,tab===t.key&&s.tabBtnActive]}
+            <TouchableOpacity key={t.key} style={[headerUI.chip,tab===t.key&&headerUI.chipActive]}
               onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(t.key); }}>
-              {tab===t.key && <View style={s.tabLine} />}
-              <Ionicons name={t.icon as any} size={15} color={tab===t.key?"#fff":"rgba(255,255,255,0.62)"} />
-              <Text style={[s.tabTxt,tab===t.key&&s.tabTxtActive]}>{t.label}</Text>
+              <Ionicons name={t.icon as any} size={15} color={tab===t.key?"#fff":Colors.textSecondary} />
+              <Text style={[headerUI.chipText,tab===t.key&&headerUI.chipTextActive]}>{t.label}</Text>
               {t.badge&&t.badge>0 ? (
                 <View style={[s.badge,{backgroundColor:t.key==="players"?"#F0A500":Colors.danger}]}>
                   <Text style={s.badgeTxt}>{t.badge}</Text>
@@ -1395,17 +1394,7 @@ export default function SportsScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container:   {flex:1,backgroundColor:Colors.bg},
-  adminBadge:  {flexDirection:"row-reverse",alignItems:"center",gap:5,backgroundColor:"rgba(255,255,255,0.18)",borderRadius:Colors.radius.md,paddingHorizontal:10,paddingVertical:6,borderWidth:1,borderColor:"rgba(255,255,255,0.28)"},
-  adminBadgeTxt:{fontFamily:"Cairo_600SemiBold",fontSize:12,color:"#fff"},
-  fabAdd:      {width:34,height:34,borderRadius:Colors.radius.sm,backgroundColor:"rgba(255,255,255,0.92)",justifyContent:"center",alignItems:"center"},
-  searchRow:   {flexDirection:"row-reverse",alignItems:"center",backgroundColor:"rgba(255,255,255,0.18)",borderRadius:Colors.radius.md,paddingHorizontal:12,gap:8,borderWidth:1,borderColor:"rgba(255,255,255,0.22)"},
-  searchInput: {flex:1,fontFamily:"Cairo_400Regular",fontSize:13,color:"#fff",paddingVertical:9},
-  tabsRow:     {flexDirection:"row-reverse",paddingBottom:0,gap:4,paddingRight:0},
-  tabBtn:      {flexDirection:"row-reverse",alignItems:"center",gap:5,paddingHorizontal:12,paddingVertical:10,borderRadius:Colors.radius.sm,position:"relative"},
-  tabBtnActive:{backgroundColor:"rgba(255,255,255,0.18)"},
-  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:"#fff"},
-  tabTxt:      {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.62)"},
-  tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#fff"},
+  tabsRow:     {flexDirection:"row-reverse",paddingBottom:0,gap:8,paddingRight:0},
   badge:       {borderRadius:8,paddingHorizontal:5,paddingVertical:1,minWidth:16,alignItems:"center"},
   badgeTxt:    {fontFamily:"Cairo_700Bold",fontSize:9,color:"#fff"},
   scroll:      {flex:1},

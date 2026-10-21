@@ -12,15 +12,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const PINK = "#EC4899";
 const PINK2 = "#F472B6";
-const BG = "#070D0A";
-const CARD = "#0D1F12";
-const CARD2 = "#0A1A10";
-const BORDER = "#1A3020";
+const BG = Colors.bg;
+const CARD = Colors.cardBg;
+const CARD2 = Colors.surface1;
+const BORDER = Colors.border;
 
 const TOKEN_KEY = "zawajil_manager_token";
 const MANAGER_KEY = "zawajil_manager_info";
@@ -392,7 +392,7 @@ function OrderCard({
                 </View>
 
                 <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 16 }}>
-                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: "#FFFFFF0A" }]} onPress={() => setReviewModal(false)}>
+                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: Colors.bg }]} onPress={() => setReviewModal(false)}>
                     <Text style={[s.modalBtnText, { color: Colors.textMuted }]}>إلغاء</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -667,7 +667,7 @@ function ProductsTab({ token }: { token: string }) {
                 </View>
 
                 <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 16 }}>
-                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: "#FFFFFF0A" }]} onPress={() => setAddModal(false)}>
+                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: Colors.bg }]} onPress={() => setAddModal(false)}>
                     <Text style={[s.modalBtnText, { color: Colors.textMuted }]}>إلغاء</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.modalBtn, { flex: 2, backgroundColor: PINK }]} onPress={saveProduct} disabled={acting}>
@@ -766,9 +766,9 @@ export default function ZawajilManagerScreen() {
   }
 
   const logoutSlot = (
-    <TouchableOpacity onPress={handleLogout} style={s.logoutBtn}>
+    <TouchableOpacity onPress={handleLogout} style={[headerUI.secondaryBtn, s.logoutBtn]}>
       <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-      <Text style={s.logoutText}>خروج</Text>
+      <Text style={[headerUI.secondaryBtnText, s.logoutText]}>خروج</Text>
     </TouchableOpacity>
   );
 
@@ -792,15 +792,15 @@ export default function ZawajilManagerScreen() {
         )}
 
         {/* أزرار التبويبات */}
-        <View style={s.tabBtns}>
+        <View style={headerUI.segmentWrap}>
           {([["orders", "الطلبات", "receipt-outline"], ["products", "المنتجات", "cube-outline"]] as const).map(([k, lbl, icon]) => (
             <TouchableOpacity
               key={k}
-              style={[s.tabBtn, activeTab === k && { backgroundColor: "rgba(255,255,255,0.20)", borderColor: "rgba(255,255,255,0.45)" }]}
+              style={[headerUI.segment, activeTab === k && headerUI.segmentActive]}
               onPress={() => setActiveTab(k)}
             >
-              <Ionicons name={icon} size={15} color={activeTab === k ? "#fff" : "rgba(255,255,255,0.60)"} />
-              <Text style={[s.tabBtnText, activeTab === k && { color: "#fff" }]}>{lbl}</Text>
+              <Ionicons name={icon} size={15} color={activeTab === k ? Colors.textPrimary : Colors.textSecondary} />
+              <Text style={[headerUI.segmentText, activeTab === k && headerUI.segmentTextActive]}>{lbl}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -821,15 +821,15 @@ const s = StyleSheet.create({
   loginContainer: { alignItems: "center", padding: 24, paddingBottom: 48 },
   loginIconWrap: { marginBottom: 20 },
   loginIconBg: { width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center" },
-  loginTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", textAlign: "center", marginBottom: 4 },
+  loginTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "center", marginBottom: 4 },
   loginSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginBottom: 28 },
   loginCard: { width: "100%", backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 20 },
 
   // حقول الإدخال
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, textAlign: "right", marginBottom: 6 },
-  inputWrap: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF0A", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, height: 48 },
+  inputWrap: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, height: 48 },
   inputIcon: { marginLeft: 8 },
-  input: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: "#fff" },
+  input: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary },
 
   // خطأ
   errorBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, padding: 10, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
@@ -841,8 +841,8 @@ const s = StyleSheet.create({
   loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
   // رأس الصفحة — يستخدم الآن ModernHeader
-  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, padding: 8, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
-  logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" },
+  logoutBtn: { backgroundColor: "#EF444415" },
+  logoutText: { color: "#EF4444" },
 
   // إحصائيات
   statsRow: { flexDirection: "row-reverse", gap: 8, marginBottom: 14 },
@@ -851,15 +851,10 @@ const s = StyleSheet.create({
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 15 },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, textAlign: "center" },
 
-  // تبويبات
-  tabBtns: { flexDirection: "row-reverse", gap: 8 },
-  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", backgroundColor: "rgba(255,255,255,0.08)" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.60)" },
-
   // فلاتر
   filterScroll: { maxHeight: 50 },
   filterRow: { flexDirection: "row-reverse", paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: BORDER },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
 
   // محتوى القائمة
@@ -873,7 +868,7 @@ const s = StyleSheet.create({
   orderCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, ...Colors.shadow.card },
   orderRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8 },
   orderNumber: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, marginBottom: 2 },
-  orderRecipient: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", marginBottom: 2 },
+  orderRecipient: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 2 },
   orderService: { fontFamily: "Cairo_500Medium", fontSize: 12, color: PINK },
   orderCost: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#22C55E" },
   orderDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
@@ -895,10 +890,10 @@ const s = StyleSheet.create({
 
   // بطاقة منتج
   productCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10, ...Colors.shadow.card },
-  productName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" },
+  productName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   productDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#22C55E" },
-  categoryChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
+  categoryChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, borderWidth: 1, borderColor: BORDER },
   categoryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   productActions: { flexDirection: "column", alignItems: "center", gap: 8 },
   iconBtn: { padding: 6 },
@@ -911,9 +906,9 @@ const s = StyleSheet.create({
 
   // مودال
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#0D1F12", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 32, borderTopWidth: 1, borderColor: BORDER },
+  modalSheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 32, borderTopWidth: 1, borderColor: BORDER },
   modalHandle: { width: 40, height: 4, backgroundColor: BORDER, borderRadius: Colors.radius.pill, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right", marginBottom: 16 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 16 },
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center" },
   modalBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

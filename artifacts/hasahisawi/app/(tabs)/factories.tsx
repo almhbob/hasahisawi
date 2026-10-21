@@ -12,7 +12,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -89,7 +89,7 @@ function SponsorBanner({ sponsor }: { sponsor: Sponsor }) {
   const co = sponsor.brand_color || FAC;
   return (
     <Animated.View entering={FadeIn.delay(100).duration(700)} style={[styles.sponsorBanner, { borderColor: co + "50" }]}>
-      <LinearGradient colors={[co + "20", co + "08", "#020C1B"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[co + "20", co + "08", Colors.cardBg]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={[styles.sponsorIcon, { backgroundColor: co + "25", borderColor: co + "60" }]}>
         <Text style={{ fontSize: 22 }}>🏆</Text>
       </View>
@@ -450,38 +450,37 @@ export default function FactoriesScreen() {
         icon="business-outline"
         rightSlot={
           <TouchableOpacity
-            style={styles.pkgBtn}
+            style={headerUI.secondaryBtn}
             onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setPkgModal(true); }}>
-            <Ionicons name="pricetags-outline" size={13} color="#fff" />
-            <Text style={styles.pkgBtnText}>الباقات</Text>
+            <Ionicons name="pricetags-outline" size={16} color={Colors.textPrimary} />
+            <Text style={headerUI.secondaryBtnText}>الباقات</Text>
           </TouchableOpacity>
         }
       >
         {/* Search */}
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.75)" />
+        <View style={headerUI.search}>
+          <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={headerUI.searchInput}
             placeholder="ابحث عن مصنع أو منتج…"
-            placeholderTextColor="rgba(255,255,255,0.6)"
+            placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
           {search !== "" && (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.75)" />
+              <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabBar}>
+        <View style={[headerUI.segmentWrap, styles.tabBar]}>
           {TABS.map(t => (
-            <TouchableOpacity key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+            <TouchableOpacity key={t.key} style={[headerUI.segment, tab === t.key && headerUI.segmentActive]}
               onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setTab(t.key as any); }} activeOpacity={0.8}>
-              {tab === t.key && <View style={[StyleSheet.absoluteFill, styles.tabBtnActiveBg]} />}
-              <Ionicons name={t.icon} size={13} color={tab === t.key ? FAC : "#fff"} />
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Ionicons name={t.icon} size={13} color={tab === t.key ? FAC : Colors.textMuted} />
+              <Text style={[headerUI.segmentText, tab === t.key && headerUI.segmentTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -588,16 +587,7 @@ export default function FactoriesScreen() {
 // ════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  pkgBtn:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)" },
-  pkgBtnText:   { fontSize: 11, fontFamily: "Cairo_600SemiBold", color: "#fff" },
-  searchWrap:   { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", paddingHorizontal: 12, paddingVertical: 8 },
-  searchInput:  { flex: 1, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13 },
-  tabBar:       { flexDirection: "row", gap: 6, marginTop: 10 },
-  tabBtn:       { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" },
-  tabBtnActive: { overflow: "hidden" },
-  tabBtnActiveBg:{ backgroundColor: "#fff" },
-  tabLabel:     { fontSize: 12, fontFamily: "Cairo_600SemiBold", color: "#fff" },
-  tabLabelActive:{ color: FAC },
+  tabBar:       { marginTop: 10 },
   catScroll:    { marginBottom: 12 },
   catPill:      { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border },
   catLabel:     { fontSize: 11, fontFamily: "Cairo_500Medium", color: Colors.textMuted },

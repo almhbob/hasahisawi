@@ -127,8 +127,8 @@ router.patch("/admin/join-requests/:id", async (req, res) => {
     const note = req.body?.review_note ? String(req.body.review_note) : null;
     const r = await query(`UPDATE join_requests SET status=$1,review_note=$2,reviewed_by=$3,reviewed_at=NOW(),updated_at=NOW() WHERE id=$4 RETURNING *`, [status, note, admin.id, req.params.id]);
     if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
-    res.json(r.rows[0]);
-  } catch (e:any) { res.status(500).json({ error: e?.message || "Server error" }); }
+    return res.json(r.rows[0]);
+  } catch (e:any) { return res.status(500).json({ error: e?.message || "Server error" }); }
 });
 
 router.get("/admin/attention-events", async (req, res) => {

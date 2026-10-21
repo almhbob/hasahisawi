@@ -997,7 +997,6 @@ export default function StoresScreen() {
         subtitle="تسوق، أطلب، استلم"
         showBack
         onBack={() => router.back()}
-        gradient={Colors.gradients.brand}
       />
 
       {/* Tabs */}

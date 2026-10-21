@@ -15,7 +15,7 @@ import JoinOrgBanner from "@/components/JoinOrgBanner";
 import ExternalPartnershipBanner from "@/components/ExternalPartnershipBanner";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 // ══════════════════════════════════════════════════════
 // TYPES
@@ -207,12 +207,11 @@ export default function OrgsScreen() {
         </View>
 
         {/* Sub tabs */}
-        <View style={s.subTabRow}>
+        <View style={headerUI.segmentWrap}>
           {([["orgs", "المنظمات", "business-outline"], ["events", "الفعاليات", "calendar-outline"], ["campaigns", "حملات التبرع", "heart-outline"]] as [SubTab, string, string][]).map(([k, label, icon]) => (
-            <TouchableOpacity key={k} style={[s.subTab, subTab === k && s.subTabActive]} onPress={() => setSubTab(k)}>
-              {subTab === k && <View style={[StyleSheet.absoluteFill, s.subTabActiveFill]} />}
-              <Ionicons name={icon as any} size={14} color={subTab === k ? "#fff" : "rgba(255,255,255,0.75)"} />
-              <Text style={[s.subTabText, subTab === k && { color: "#fff" }]}>{label}</Text>
+            <TouchableOpacity key={k} style={[headerUI.segment, subTab === k && headerUI.segmentActive]} onPress={() => setSubTab(k)}>
+              <Ionicons name={icon as any} size={14} color={subTab === k ? Colors.textPrimary : Colors.textSecondary} />
+              <Text style={[headerUI.segmentText, subTab === k && headerUI.segmentTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -490,16 +489,11 @@ export default function OrgsScreen() {
 // ══════════════════════════════════════════════════════
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 14, gap: 8 },
+  statsRow: { flexDirection: "row", backgroundColor: Colors.header.control, borderRadius: Colors.radius.md, padding: 14, gap: 8, marginBottom: 10 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
 
-  subTabRow: { flexDirection: "row", gap: 8 },
-  subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", overflow: "hidden" },
-  subTabActive: { borderColor: "rgba(255,255,255,0.5)" },
-  subTabActiveFill: { backgroundColor: "rgba(255,255,255,0.22)" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },

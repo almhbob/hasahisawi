@@ -1,11 +1,11 @@
 import Colors from "@/constants/colors";
+import { useFonts } from "@expo-google-fonts/cairo";
 import {
-  Cairo_400Regular,
-  Cairo_500Medium,
-  Cairo_600SemiBold,
-  Cairo_700Bold,
-  useFonts,
-} from "@expo-google-fonts/cairo";
+  IBMPlexSansArabic_400Regular,
+  IBMPlexSansArabic_500Medium,
+  IBMPlexSansArabic_600SemiBold,
+  IBMPlexSansArabic_700Bold,
+} from "@expo-google-fonts/ibm-plex-sans-arabic";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -283,11 +283,14 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // App typeface: IBM Plex Sans Arabic. It is registered under the historical
+  // "Cairo_*" family names that ~3,500 styles reference, so every screen switches
+  // typeface without touching each style. New code may use either name.
   const [fontsLoaded, fontError] = useFonts({
-    Cairo_400Regular,
-    Cairo_500Medium,
-    Cairo_600SemiBold,
-    Cairo_700Bold,
+    Cairo_400Regular: IBMPlexSansArabic_400Regular,
+    Cairo_500Medium: IBMPlexSansArabic_500Medium,
+    Cairo_600SemiBold: IBMPlexSansArabic_600SemiBold,
+    Cairo_700Bold: IBMPlexSansArabic_700Bold,
     ...MaterialCommunityIcons.font,
     ...Ionicons.font,
   });

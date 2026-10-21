@@ -6,13 +6,12 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const { width } = Dimensions.get("window");
@@ -56,44 +55,32 @@ const CAT_LABEL: Record<string, string> = {
   marbled: "ورق مروس", logos: "لوجوهات", social: "سوشيال ميديا", banners: "لافتات",
 };
 
-// ── تدرجات الفئات ────────────────────────────────────────────────
-const CAT_GRAD: Record<string, [string,string]> = {
-  invitations:  ["#EC4899","#BE185D"],
-  certificates: ["#F59E0B","#D97706"],
-  marbled:      ["#8B5CF6","#6D28D9"],
-  logos:        ["#06B6D4","#0891B2"],
-  social:       ["#F97316","#C2410C"],
-  banners:      ["#EF4444","#B91C1C"],
-  all:          ["#22C55E","#15803D"],
-};
-
 // ── مكوّن بطاقة المنتج ───────────────────────────────────────────
 function ProductCard({ item, index, onOrder }: { item: Product; index: number; onOrder: (p: Product) => void }) {
   const cat = item.category;
-  const grad = CAT_GRAD[cat] ?? ["#22C55E","#15803D"];
   const catObj = CATEGORIES.find(c => c.key === cat);
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify().damping(14)} style={styles.productCard}>
       <AnimatedPress onPress={() => onOrder(item)} style={{ flex: 1 }}>
         {/* صورة / غلاف */}
-        <LinearGradient colors={[grad[0]+"30", grad[1]+"18"]} style={styles.productThumb}>
-          <LinearGradient colors={[grad[0]+"80", grad[1]]} style={styles.productThumbInner}>
-            <Ionicons name={(catObj?.icon ?? "color-palette") as any} size={32} color="#fff" />
-          </LinearGradient>
+        <View style={styles.productThumb}>
+          <View style={styles.productThumbInner}>
+            <Ionicons name={(catObj?.icon ?? "color-palette") as any} size={30} color={Colors.primaryDeep} />
+          </View>
           {item.is_custom && (
             <View style={styles.customBadge}>
               <Text style={styles.customBadgeText}>مخصّص</Text>
             </View>
           )}
-        </LinearGradient>
+        </View>
 
         {/* معلومات */}
         <View style={styles.productInfo}>
           <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.productMeta}>
-            <View style={[styles.catChip, { backgroundColor: grad[0]+"20", borderColor: grad[0]+"40" }]}>
-              <Text style={[styles.catChipText, { color: grad[0] }]}>{CAT_LABEL[cat] ?? cat}</Text>
+            <View style={styles.catChip}>
+              <Text style={styles.catChipText}>{CAT_LABEL[cat] ?? cat}</Text>
             </View>
             <View style={styles.deliveryInfo}>
               <Ionicons name="time-outline" size={11} color={Colors.textMuted} />
@@ -109,7 +96,7 @@ function ProductCard({ item, index, onOrder }: { item: Product; index: number; o
             <Text style={styles.designerName} numberOfLines={1}>{item.shop_name}</Text>
             {item.rating > 0 && (
               <View style={styles.ratingRow}>
-                <Ionicons name="star" size={10} color="#F59E0B" />
+                <Ionicons name="star" size={10} color={Colors.accent} />
                 <Text style={styles.ratingText}>{Number(item.rating).toFixed(1)}</Text>
               </View>
             )}
@@ -121,10 +108,10 @@ function ProductCard({ item, index, onOrder }: { item: Product; index: number; o
               {item.price > 0 ? (
                 <Text style={styles.priceText}>{item.price.toLocaleString()} ج.س</Text>
               ) : (
-                <Text style={[styles.priceText, { color: Colors.primary }]}>بالتفاوض</Text>
+                <Text style={[styles.priceText, { color: Colors.primaryDeep }]}>بالتفاوض</Text>
               )}
             </View>
-            <Pressable style={[styles.orderBtn, { backgroundColor: grad[0] }]} onPress={() => onOrder(item)}>
+            <Pressable style={styles.orderBtn} onPress={() => onOrder(item)}>
               <Ionicons name="send" size={13} color="#fff" />
               <Text style={styles.orderBtnText}>اطلب</Text>
             </Pressable>
@@ -137,23 +124,21 @@ function ProductCard({ item, index, onOrder }: { item: Product; index: number; o
 
 // ── مكوّن بطاقة المصمم ───────────────────────────────────────────
 function DesignerCard({ member, index, onContact }: { member: Member; index: number; onContact: (m: Member) => void }) {
-  const pkgColor = member.pkg_color ?? Colors.primary;
+  const pkgColor = Colors.primaryDeep;
   const initial  = member.shop_name?.charAt(0) ?? "م";
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(14)} style={styles.designerCard}>
-      <LinearGradient colors={[pkgColor+"18", pkgColor+"08"]} style={StyleSheet.absoluteFill} />
-      <View style={[styles.designerCardBorder, { borderColor: pkgColor+"30" }]} />
 
       {/* أيقونة الباقة */}
       {member.is_featured && (
-        <View style={[styles.featuredBadge, { backgroundColor: pkgColor }]}>
+        <View style={styles.featuredBadge}>
           <Text style={styles.featuredBadgeText}>{member.pkg_icon ?? "⭐"}</Text>
         </View>
       )}
 
       {/* أفاتار */}
-      <View style={[styles.designerCardAvatar, { backgroundColor: pkgColor+"30", borderColor: pkgColor+"60" }]}>
+      <View style={styles.designerCardAvatar}>
         {member.avatar_url ? (
           <Text style={[styles.designerCardAvatarText, { color: pkgColor }]}>{initial}</Text>
         ) : (
@@ -167,7 +152,7 @@ function DesignerCard({ member, index, onContact }: { member: Member; index: num
       {member.rating > 0 && (
         <View style={styles.designerRatingRow}>
           {[1,2,3,4,5].map(s => (
-            <Ionicons key={s} name={s <= Math.round(Number(member.rating)) ? "star" : "star-outline"} size={12} color="#F59E0B" />
+            <Ionicons key={s} name={s <= Math.round(Number(member.rating)) ? "star" : "star-outline"} size={12} color={Colors.accent} />
           ))}
           <Text style={styles.designerRatingCount}>({member.rating_count})</Text>
         </View>
@@ -188,13 +173,13 @@ function DesignerCard({ member, index, onContact }: { member: Member; index: num
 
       {/* الباقة */}
       {member.package_name && (
-        <View style={[styles.pkgBadge, { backgroundColor: pkgColor+"20", borderColor: pkgColor+"40" }]}>
-          <Text style={[styles.pkgBadgeText, { color: pkgColor }]}>{member.package_name}</Text>
+        <View style={styles.pkgBadge}>
+          <Text style={styles.pkgBadgeText}>{member.package_name}</Text>
         </View>
       )}
 
       {/* التواصل */}
-      <Pressable style={[styles.contactBtn, { borderColor: pkgColor+"50" }]} onPress={() => onContact(member)}>
+      <Pressable style={styles.contactBtn} onPress={() => onContact(member)}>
         <Ionicons name="chatbubble-ellipses-outline" size={14} color={pkgColor} />
         <Text style={[styles.contactBtnText, { color: pkgColor }]}>تواصل</Text>
       </Pressable>
@@ -209,20 +194,19 @@ function PackageCard({
   return (
     <Pressable onPress={onSelect}>
       <Animated.View entering={FadeInDown.delay(pkg.sort_order * 80).springify()}>
-        <View style={[styles.pkgCard, selected && { borderColor: pkg.color, borderWidth: 2 }]}>
+        <View style={[styles.pkgCard, selected && styles.pkgCardSelected]}>
           {selected && (
-            <View style={[styles.pkgSelectedRibbon, { backgroundColor: pkg.color }]}>
+            <View style={styles.pkgSelectedRibbon}>
               <Text style={styles.pkgSelectedRibbonText}>محدّد ✓</Text>
             </View>
           )}
-          <LinearGradient colors={[pkg.color+"28", pkg.color+"0A"]} style={StyleSheet.absoluteFill} />
 
           <Text style={styles.pkgIcon}>{pkg.icon}</Text>
-          <Text style={[styles.pkgName, { color: pkg.color }]}>{pkg.name}</Text>
+          <Text style={styles.pkgName}>{pkg.name}</Text>
           <Text style={styles.pkgDesc}>{pkg.description}</Text>
 
           <View style={styles.pkgPriceRow}>
-            <Text style={[styles.pkgPrice, { color: pkg.color }]}>
+            <Text style={styles.pkgPrice}>
               {pkg.price_monthly.toLocaleString()}
             </Text>
             <Text style={styles.pkgPriceSuffix}> ج.س / شهر</Text>
@@ -232,13 +216,13 @@ function PackageCard({
 
           {pkg.features.map((f, i) => (
             <View key={i} style={styles.pkgFeatureRow}>
-              <Ionicons name="checkmark-circle" size={16} color={pkg.color} />
+              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
               <Text style={styles.pkgFeatureText}>{f}</Text>
             </View>
           ))}
 
-          <View style={[styles.pkgSelectBtn, { backgroundColor: selected ? pkg.color : pkg.color+"20", borderColor: pkg.color }]}>
-            <Text style={[styles.pkgSelectBtnText, { color: selected ? "#fff" : pkg.color }]}>
+          <View style={[styles.pkgSelectBtn, selected && styles.pkgSelectBtnActive]}>
+            <Text style={[styles.pkgSelectBtnText, selected && { color: "#fff" }]}>
               {selected ? "✓ محدّد" : "اختر هذه الباقة"}
             </Text>
           </View>
@@ -252,9 +236,7 @@ function PackageCard({
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
 export default function DesignGalleryScreen() {
-  const insets = useSafeAreaInsets();
   const { user, token, isGuest } = useAuth();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   // تبويبات
   const [activeTab, setActiveTab] = useState<"gallery"|"designers"|"subscribe">("gallery");
@@ -398,64 +380,49 @@ export default function DesignGalleryScreen() {
 
   // ── Render ────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topPad }]}>
-      {/* ═══ Hero ═══ */}
-      <LinearGradient
-        colors={["#1B0533","#0D1A2E","#0A0F0C"]}
-        style={styles.hero}
+    <View style={styles.container}>
+      {/* ═══ Header ═══ */}
+      <ModernHeader
+        title="معرض التصاميم"
+        subtitle="ابحث عن مصممك المثالي · اطلب تصميمك المخصص"
+        icon="color-palette-outline"
       >
-        {/* خلفية زخرفية */}
-        <View style={styles.heroBubble1} />
-        <View style={styles.heroBubble2} />
-
-        <Animated.View entering={FadeIn.delay(100).duration(600)} style={styles.heroContent}>
-          <View style={styles.heroIconRow}>
-            <LinearGradient colors={["#A855F7","#EC4899"]} style={styles.heroIconWrap}>
-              <MaterialCommunityIcons name="palette-swatch" size={28} color="#fff" />
-            </LinearGradient>
+        {/* إحصائيات */}
+        <Animated.View entering={FadeIn.delay(100).duration(600)} style={styles.heroStats}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatNum}>{members.length}</Text>
+            <Text style={styles.heroStatLabel}>مصمم</Text>
           </View>
-          <Text style={styles.heroTitle}>معرض التصاميم</Text>
-          <Text style={styles.heroSub}>
-            ابحث عن مصممك المثالي · اطلب تصميمك المخصص
-          </Text>
-
-          {/* إحصائيات */}
-          <View style={styles.heroStats}>
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>{members.length}</Text>
-              <Text style={styles.heroStatLabel}>مصمم</Text>
-            </View>
-            <View style={styles.heroStatDivider} />
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>{products.length}</Text>
-              <Text style={styles.heroStatLabel}>تصميم</Text>
-            </View>
-            <View style={styles.heroStatDivider} />
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>{packages.length}</Text>
-              <Text style={styles.heroStatLabel}>باقة</Text>
-            </View>
+          <View style={styles.heroStatDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatNum}>{products.length}</Text>
+            <Text style={styles.heroStatLabel}>تصميم</Text>
+          </View>
+          <View style={styles.heroStatDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatNum}>{packages.length}</Text>
+            <Text style={styles.heroStatLabel}>باقة</Text>
           </View>
         </Animated.View>
-      </LinearGradient>
 
-      {/* ═══ تبويبات ═══ */}
-      <View style={styles.tabBar}>
-        {[
-          { key: "gallery",    label: "المعرض",     icon: "grid-outline" },
-          { key: "designers",  label: "المصممون",   icon: "people-outline" },
-          { key: "subscribe",  label: "اشتراك المصممين", icon: "ribbon-outline" },
-        ].map(t => (
-          <Pressable key={t.key} style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
-            onPress={() => setActiveTab(t.key as any)}>
-            <Ionicons name={t.icon as any} size={18}
-              color={activeTab === t.key ? "#A855F7" : Colors.textMuted} />
-            <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>
-              {t.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        {/* ═══ تبويبات ═══ */}
+        <View style={headerUI.segmentWrap}>
+          {[
+            { key: "gallery",    label: "المعرض",     icon: "grid-outline" },
+            { key: "designers",  label: "المصممون",   icon: "people-outline" },
+            { key: "subscribe",  label: "اشتراك المصممين", icon: "ribbon-outline" },
+          ].map(t => (
+            <Pressable key={t.key} style={[headerUI.segment, activeTab === t.key && headerUI.segmentActive]}
+              onPress={() => setActiveTab(t.key as any)}>
+              <Ionicons name={t.icon as any} size={15}
+                color={activeTab === t.key ? Colors.primaryDeep : Colors.textMuted} />
+              <Text numberOfLines={1} style={[headerUI.segmentText, styles.segmentLabel, activeTab === t.key && headerUI.segmentTextActive]}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ModernHeader>
 
       {/* ═══ محتوى التبويبات ═══ */}
 
@@ -466,18 +433,18 @@ export default function DesignGalleryScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             style={styles.catsScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
             {CATEGORIES.map(cat => (
-              <Pressable key={cat.key} style={[styles.catBtn, selCat === cat.key && { backgroundColor: cat.color, borderColor: cat.color }]}
+              <Pressable key={cat.key} style={[headerUI.chip, selCat === cat.key && headerUI.chipActive]}
                 onPress={() => handleCatChange(cat.key)}>
                 <Ionicons name={cat.icon as any} size={14}
-                  color={selCat === cat.key ? "#fff" : cat.color} />
-                <Text style={[styles.catBtnText, selCat === cat.key && { color: "#fff" }]}>{cat.label}</Text>
+                  color={selCat === cat.key ? "#fff" : Colors.textSecondary} />
+                <Text style={[headerUI.chipText, selCat === cat.key && headerUI.chipTextActive]}>{cat.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
 
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator color="#A855F7" size="large" />
+              <ActivityIndicator color={Colors.primaryDeep} size="large" />
             </View>
           ) : products.length === 0 ? (
             <View style={styles.emptyWrap}>
@@ -526,12 +493,12 @@ export default function DesignGalleryScreen() {
       {activeTab === "subscribe" && (
         <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
           {/* لافتة تحفيزية */}
-          <LinearGradient colors={["#4C1D95","#1B0533"]} style={styles.subscribeHero}>
+          <View style={styles.subscribeHero}>
             <Text style={styles.subscribeHeroTitle}>انضم لمعرض التصاميم 🎨</Text>
             <Text style={styles.subscribeHeroSub}>
               عرّف بنفسك · ابعت تصاميمك · استقبل طلبات من الزبائن
             </Text>
-          </LinearGradient>
+          </View>
 
           {/* كيف يعمل المعرض */}
           <View style={styles.howSection}>
@@ -543,9 +510,9 @@ export default function DesignGalleryScreen() {
               { n: "4", t: "استقبل الطلبات", s: "يتواصل معك الزبائن مباشرة" },
             ].map((s, i) => (
               <Animated.View key={i} entering={FadeInDown.delay(i * 80)} style={styles.howStep}>
-                <LinearGradient colors={["#A855F7","#6D28D9"]} style={styles.howNum}>
+                <View style={styles.howNum}>
                   <Text style={styles.howNumText}>{s.n}</Text>
-                </LinearGradient>
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.howTitle}>{s.t}</Text>
                   <Text style={styles.howSub}>{s.s}</Text>
@@ -619,7 +586,7 @@ export default function DesignGalleryScreen() {
                 onPress={submitSubscription}
                 disabled={subLoading}
               >
-                <LinearGradient colors={["#A855F7","#7C3AED"]} style={styles.submitBtnGrad}>
+                <View style={styles.submitBtnGrad}>
                   {subLoading
                     ? <ActivityIndicator color="#fff" />
                     : <>
@@ -627,7 +594,7 @@ export default function DesignGalleryScreen() {
                         <Text style={styles.submitBtnText}>أرسل طلب الاشتراك</Text>
                       </>
                   }
-                </LinearGradient>
+                </View>
               </Pressable>
             </Animated.View>
           )}
@@ -635,13 +602,13 @@ export default function DesignGalleryScreen() {
           {/* رسالة النجاح */}
           {subDone && (
             <Animated.View entering={FadeIn} style={styles.successCard}>
-              <LinearGradient colors={["#A855F7","#4C1D95"]} style={styles.successGrad}>
+              <View style={styles.successGrad}>
                 <Text style={styles.successIcon}>🎉</Text>
                 <Text style={styles.successTitle}>تم إرسال طلبك!</Text>
                 <Text style={styles.successText}>
                   سيتم مراجعة طلبك وتفعيل حسابك خلال 24 ساعة
                 </Text>
-              </LinearGradient>
+              </View>
             </Animated.View>
           )}
         </ScrollView>
@@ -652,18 +619,14 @@ export default function DesignGalleryScreen() {
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOrderModal(false)} />
           <View style={styles.modalSheet}>
-            <LinearGradient colors={["#0F1814","#0A0F0C"]} style={StyleSheet.absoluteFill} />
             <View style={styles.modalHandle} />
 
             <Text style={styles.modalTitle}>🎨 اطلب تصميمك</Text>
             {orderProduct && (
               <View style={styles.orderProductInfo}>
-                <LinearGradient
-                  colors={CAT_GRAD[orderProduct.category] ?? ["#A855F7","#6D28D9"]}
-                  style={styles.orderProductGrad}
-                >
-                  <Ionicons name={(CATEGORIES.find(c=>c.key===orderProduct.category)?.icon ?? "color-palette") as any} size={22} color="#fff" />
-                </LinearGradient>
+                <View style={styles.orderProductGrad}>
+                  <Ionicons name={(CATEGORIES.find(c=>c.key===orderProduct.category)?.icon ?? "color-palette") as any} size={22} color={Colors.primaryDeep} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.orderProductName} numberOfLines={1}>{orderProduct.title}</Text>
                   <Text style={styles.orderProductDesigner}>{orderProduct.shop_name}</Text>
@@ -692,7 +655,7 @@ export default function DesignGalleryScreen() {
 
             <Pressable style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
               onPress={submitOrder} disabled={submitting}>
-              <LinearGradient colors={["#A855F7","#7C3AED"]} style={styles.submitBtnGrad}>
+              <View style={styles.submitBtnGrad}>
                 {submitting
                   ? <ActivityIndicator color="#fff" />
                   : <>
@@ -700,7 +663,7 @@ export default function DesignGalleryScreen() {
                       <Text style={styles.submitBtnText}>أرسل الطلب</Text>
                     </>
                 }
-              </LinearGradient>
+              </View>
             </Pressable>
           </View>
         </View>
@@ -711,7 +674,6 @@ export default function DesignGalleryScreen() {
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setContactModal(false)} />
           <View style={[styles.modalSheet, { maxHeight: 380 }]}>
-            <LinearGradient colors={["#0F1814","#0A0F0C"]} style={StyleSheet.absoluteFill} />
             <View style={styles.modalHandle} />
 
             {contactMember && (
@@ -720,16 +682,16 @@ export default function DesignGalleryScreen() {
                 <View style={{ gap: 12 }}>
                   {contactMember.whatsapp ? (
                     <Pressable
-                      style={[styles.contactOptionBtn, { backgroundColor: "#25D36620", borderColor: "#25D36650" }]}
+                      style={[styles.contactOptionBtn, { backgroundColor: "#25D36614", borderColor: "#25D36640" }]}
                       onPress={() => Linking.openURL(`https://wa.me/${contactMember.whatsapp?.replace(/\D/g,"")}`)}
                     >
-                      <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-                      <Text style={[styles.contactOptionText, { color: "#25D366" }]}>واتساب</Text>
+                      <Ionicons name="logo-whatsapp" size={22} color="#1A9E4B" />
+                      <Text style={[styles.contactOptionText, { color: "#1A9E4B" }]}>واتساب</Text>
                     </Pressable>
                   ) : null}
                   {contactMember.instagram ? (
                     <Pressable
-                      style={[styles.contactOptionBtn, { backgroundColor: "#E1306C20", borderColor: "#E1306C50" }]}
+                      style={[styles.contactOptionBtn, { backgroundColor: "#E1306C12", borderColor: "#E1306C40" }]}
                       onPress={() => Linking.openURL(`https://instagram.com/${contactMember.instagram?.replace("@","")}`)}
                     >
                       <Ionicons name="logo-instagram" size={22} color="#E1306C" />
@@ -755,78 +717,36 @@ export default function DesignGalleryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
 
-  /* ── Hero ── */
-  hero: { paddingBottom: 16, overflow: "hidden" },
-  heroBubble1: {
-    position: "absolute", width: 200, height: 200, borderRadius: 100,
-    backgroundColor: "#A855F720", top: -60, right: -60,
-  },
-  heroBubble2: {
-    position: "absolute", width: 150, height: 150, borderRadius: 75,
-    backgroundColor: "#EC489920", bottom: -30, left: -30,
-  },
-  heroContent: { paddingHorizontal: 20, paddingTop: 10 },
-  heroIconRow: { alignItems: "center", marginBottom: 12 },
-  heroIconWrap: {
-    width: 60, height: 60, borderRadius: 18,
-    alignItems: "center", justifyContent: "center",
-  },
-  heroTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary,
-    textAlign: "center", marginBottom: 4,
-  },
-  heroSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
-    textAlign: "center", lineHeight: 20, marginBottom: 16,
-  },
+  /* ── Header stats ── */
   heroStats: {
     flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.xl,
-    paddingVertical: 12, paddingHorizontal: 20, gap: 0,
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: Colors.bg, borderRadius: Colors.radius.md,
+    paddingVertical: 10, paddingHorizontal: 16,
   },
   heroStat: { alignItems: "center", flex: 1 },
-  heroStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#A855F7" },
+  heroStatNum: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   heroStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  heroStatDivider: { width: 1, height: 30, backgroundColor: "rgba(255,255,255,0.10)" },
-
-  /* ── تبويبات ── */
-  tabBar: {
-    flexDirection: "row", backgroundColor: "rgba(255,255,255,0.04)",
-    borderBottomWidth: 0.5, borderBottomColor: "rgba(255,255,255,0.08)",
-  },
-  tabItem: {
-    flex: 1, alignItems: "center", paddingVertical: 10, gap: 3,
-    borderBottomWidth: 2, borderBottomColor: "transparent",
-  },
-  tabItemActive: { borderBottomColor: "#A855F7" },
-  tabLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted },
-  tabLabelActive: { color: "#A855F7", fontFamily: "Cairo_700Bold" },
+  heroStatDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: Colors.border },
+  segmentLabel: { fontSize: 12 },
 
   /* ── فئات ── */
   catsScroll: { flexGrow: 0 },
-  catBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  catBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
 
   /* ── بطاقة منتج ── */
   productCard: {
-    flex: 1, backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: Colors.radius.lg, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.09)",
+    flex: 1, backgroundColor: Colors.cardBg,
+    borderRadius: Colors.radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
     overflow: "hidden",
   },
-  productThumb: { height: 130, alignItems: "center", justifyContent: "center" },
+  productThumb: { height: 130, alignItems: "center", justifyContent: "center", backgroundColor: Colors.surface1 },
   productThumbInner: {
     width: 60, height: 60, borderRadius: 18,
     alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primarySoft,
   },
   customBadge: {
     position: "absolute", top: 8, right: 8,
-    backgroundColor: "rgba(168,85,247,0.85)", borderRadius: 8,
+    backgroundColor: Colors.primaryDeep, borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3,
   },
   customBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
@@ -834,45 +754,49 @@ const styles = StyleSheet.create({
   productTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, lineHeight: 18 },
   productMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   catChip: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 0.5,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    backgroundColor: Colors.header.control,
   },
-  catChipText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
+  catChipText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.textSecondary },
   deliveryInfo: { flexDirection: "row", alignItems: "center", gap: 3 },
   deliveryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   designerRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   designerAvatar: {
-    width: 20, height: 20, borderRadius: 7, backgroundColor: "#A855F730",
+    width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.primarySoft,
     alignItems: "center", justifyContent: "center",
   },
-  designerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#A855F7" },
+  designerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.primaryDeep },
   designerName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, flex: 1 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 2 },
-  ratingText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#F59E0B" },
+  ratingText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.accentDeep },
   productFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
   priceText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
   orderBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.primaryDeep,
   },
   orderBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
 
   /* ── بطاقة مصمم ── */
   designersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   designerCard: {
-    width: (width - 44) / 2, borderRadius: Colors.radius.xl,
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    width: (width - 44) / 2, borderRadius: Colors.radius.lg,
+    backgroundColor: Colors.cardBg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
     padding: 14, alignItems: "center", gap: 8, overflow: "hidden",
   },
-  designerCardBorder: { position: "absolute", inset: 0, borderRadius: Colors.radius.xl, borderWidth: 1 },
   featuredBadge: {
     position: "absolute", top: 10, right: 10,
-    width: 24, height: 24, borderRadius: 8,
+    width: 24, height: 24, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.accentSoft,
   },
   featuredBadgeText: { fontSize: 14 },
   designerCardAvatar: {
-    width: 56, height: 56, borderRadius: 18,
-    alignItems: "center", justifyContent: "center", borderWidth: 2,
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primarySoft,
   },
   designerCardAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 22 },
   designerCardName: {
@@ -884,54 +808,63 @@ const styles = StyleSheet.create({
   designerStat: { alignItems: "center" },
   designerStatNum: { fontFamily: "Cairo_700Bold", fontSize: 16 },
   designerStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  designerStatDivider: { width: 1, height: 20, backgroundColor: "rgba(255,255,255,0.10)" },
+  designerStatDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.border },
   pkgBadge: {
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 0.5,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10,
+    backgroundColor: Colors.accentSoft,
   },
-  pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
+  pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.accentDeep },
   contactBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, borderWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.04)", width: "100%", justifyContent: "center",
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.header.control, width: "100%", justifyContent: "center",
   },
   contactBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   /* ── باقات ── */
   pkgCard: {
-    width: 240, borderRadius: Colors.radius.xl, padding: 20, gap: 10,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    width: 240, borderRadius: Colors.radius.lg, padding: 20, gap: 10,
+    backgroundColor: Colors.cardBg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
     overflow: "hidden",
   },
+  pkgCardSelected: { borderWidth: 2, borderColor: Colors.primaryDeep },
   pkgSelectedRibbon: {
     position: "absolute", top: 14, left: -30,
     paddingHorizontal: 30, paddingVertical: 4, transform: [{ rotate: "40deg" }],
+    backgroundColor: Colors.primaryDeep,
   },
   pkgSelectedRibbonText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
   pkgIcon: { fontSize: 36, textAlign: "center" },
-  pkgName: { fontFamily: "Cairo_700Bold", fontSize: 20, textAlign: "center" },
+  pkgName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center" },
   pkgDesc: {
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center",
   },
   pkgPriceRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center" },
-  pkgPrice: { fontFamily: "Cairo_700Bold", fontSize: 28 },
+  pkgPrice: { fontFamily: "Cairo_700Bold", fontSize: 28, color: Colors.primaryDeep },
   pkgPriceSuffix: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
-  pkgDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
+  pkgDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border, marginVertical: 4 },
   pkgFeatureRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   pkgFeatureText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1 },
   pkgSelectBtn: {
-    paddingVertical: 10, borderRadius: 12, alignItems: "center",
-    borderWidth: 1, marginTop: 6,
+    paddingVertical: 10, borderRadius: Colors.radius.pill, alignItems: "center",
+    marginTop: 6, backgroundColor: Colors.primarySoft,
   },
-  pkgSelectBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  pkgSelectBtnActive: { backgroundColor: Colors.primaryDeep },
+  pkgSelectBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primaryDeep },
 
   /* ── اشتراك ── */
-  subscribeHero: { paddingHorizontal: 20, paddingVertical: 24, marginBottom: 4 },
+  subscribeHero: {
+    marginHorizontal: 16, marginTop: 16, marginBottom: 4,
+    paddingHorizontal: 20, paddingVertical: 20,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
+  },
   subscribeHeroTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff", textAlign: "center", marginBottom: 6,
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 6,
   },
   subscribeHeroSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.70)", textAlign: "center",
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center",
   },
   howSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, gap: 12 },
   sectionTitle: {
@@ -940,11 +873,14 @@ const styles = StyleSheet.create({
   },
   howStep: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "rgba(255,255,255,0.04)", borderRadius: Colors.radius.lg,
-    padding: 14, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
+    padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
   },
-  howNum: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  howNumText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+  howNum: {
+    width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primarySoft,
+  },
+  howNumText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.primaryDeep },
   howTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   howSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   subscribeForm: { paddingHorizontal: 16, paddingTop: 8, gap: 0 },
@@ -953,8 +889,8 @@ const styles = StyleSheet.create({
   formField: { marginBottom: 14 },
   formLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 6 },
   formInput: {
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.md,
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.borderStrong,
     paddingHorizontal: 14, paddingVertical: 12,
     fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary,
     height: 48,
@@ -962,29 +898,32 @@ const styles = StyleSheet.create({
   submitBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8 },
   submitBtnGrad: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 10, paddingVertical: 16,
+    gap: 10, paddingVertical: 16, backgroundColor: Colors.primaryDeep,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
-  successCard: { marginHorizontal: 16, marginTop: 16, borderRadius: Colors.radius.xl, overflow: "hidden" },
+  successCard: {
+    marginHorizontal: 16, marginTop: 16, borderRadius: Colors.radius.lg, overflow: "hidden",
+    backgroundColor: Colors.cardBg, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
+  },
   successGrad: { padding: 28, alignItems: "center", gap: 10 },
   successIcon: { fontSize: 48 },
-  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  successText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "rgba(255,255,255,0.80)", textAlign: "center" },
+  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.primaryDeep },
+  successText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center" },
 
   /* ── Modal ── */
   modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.70)",
+    flex: 1, backgroundColor: Colors.overlay,
     justifyContent: "flex-end",
   },
   modalSheet: {
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     padding: 22, paddingBottom: 36, overflow: "hidden",
-    borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: Colors.bg,
     maxHeight: "90%",
   },
   modalHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.20)", alignSelf: "center", marginBottom: 18,
+    backgroundColor: Colors.borderStrong, alignSelf: "center", marginBottom: 18,
   },
   modalTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary,
@@ -992,11 +931,14 @@ const styles = StyleSheet.create({
   },
   orderProductInfo: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.lg,
+    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     padding: 12, marginBottom: 16,
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
   },
-  orderProductGrad: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  orderProductGrad: {
+    width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primarySoft,
+  },
   orderProductName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   orderProductDesigner: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   contactOptionBtn: {

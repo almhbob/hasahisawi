@@ -14,7 +14,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -262,8 +262,6 @@ export default function ZawajilScreen() {
       {/* ══ Intro Carousel Modal ══ */}
       <Modal visible={showIntro} animationType="fade" statusBarTranslucent>
         <View style={styles.introRoot}>
-          <LinearGradient colors={["#1A0A14", "#0D0614", "#070D0A"]} style={StyleSheet.absoluteFill} />
-
           <FlatList
             ref={flatRef}
             data={INTRO_SLIDES}
@@ -330,18 +328,17 @@ export default function ZawajilScreen() {
         title="زواجل"
         subtitle="هدايا ورسائل توصيل بلمسة خاصة"
         icon="gift-outline"
-        gradient={[PINK, "#BE185D", "#1F0D18"]}
         rightSlot={
-          <View style={[styles.statusBadge, { backgroundColor: SERVICE_ACTIVE ? "#22C55E18" : "#F9731618", borderColor: SERVICE_ACTIVE ? "#22C55E44" : "#F9731644" }]}>
-            <View style={[styles.statusDot, { backgroundColor: SERVICE_ACTIVE ? "#22C55E" : "#F97316" }]} />
-            <Text style={[styles.statusTxt, { color: SERVICE_ACTIVE ? "#86EFAC" : "#FED7AA" }]}>
+          <View style={[headerUI.statusPill, !SERVICE_ACTIVE && { backgroundColor: Colors.accentSoft }]}>
+            <View style={[headerUI.statusDot, !SERVICE_ACTIVE && { backgroundColor: Colors.accent }]} />
+            <Text style={[headerUI.statusText, !SERVICE_ACTIVE && { color: Colors.accentDeep }]}>
               {SERVICE_ACTIVE ? "متاحة" : "قريباً"}
             </Text>
           </View>
         }
       >
         {/* Tabs */}
-        <View style={styles.tabRow}>
+        <View style={headerUI.segmentWrap}>
           {([
             { key: "send",   label: "إرسال هدية",  icon: "gift-outline"     },
             { key: "orders", label: "طلباتي",       icon: "list-outline"     },
@@ -349,14 +346,11 @@ export default function ZawajilScreen() {
           ] as const).map(t => (
             <TouchableOpacity
               key={t.key}
-              style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+              style={[headerUI.segment, tab === t.key && headerUI.segmentActive]}
               onPress={() => setTab(t.key)}
             >
-              {tab === t.key && (
-                <LinearGradient colors={[PINK, "#BE185D"]} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:0 }} />
-              )}
-              <Ionicons name={t.icon} size={14} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Ionicons name={t.icon} size={14} color={tab === t.key ? Colors.textPrimary : Colors.textSecondary} />
+              <Text style={[headerUI.segmentText, tab === t.key && headerUI.segmentTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -365,11 +359,10 @@ export default function ZawajilScreen() {
       {/* ── Order Success Banner ── */}
       {orderSuccess && (
         <Animated.View entering={FadeInUp} style={styles.successBanner}>
-          <LinearGradient colors={["#14532D","#166534"]} style={StyleSheet.absoluteFill} />
-          <Ionicons name="checkmark-circle" size={22} color="#3EFF9C" />
+          <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
           <View style={{ flex: 1 }}>
             <Text style={styles.successTitle}>تم إرسال طلبك بنجاح! 🎉</Text>
-            <Text style={styles.successNum}>رقم الطلب: <Text style={{ color: "#3EFF9C", fontFamily: "Cairo_700Bold" }}>{orderSuccess}</Text></Text>
+            <Text style={styles.successNum}>رقم الطلب: <Text style={{ color: Colors.primaryDeep, fontFamily: "Cairo_700Bold" }}>{orderSuccess}</Text></Text>
           </View>
         </Animated.View>
       )}
@@ -532,9 +525,9 @@ export default function ZawajilScreen() {
                           {order.delivery_location === "outside_city" && <View style={[styles.tagChip, { backgroundColor: "#F9731618", borderColor: "#F9731633" }]}><Ionicons name="location-outline" size={11} color="#F97316" /><Text style={[styles.tagText, { color: "#F97316" }]}>خارج المدينة</Text></View>}
                         </View>
                         {order.estimated_cost > 0 && <View style={styles.costRow}><Ionicons name="pricetag-outline" size={13} color={GOLD} /><Text style={styles.costText}>التكلفة: <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold" }}>{Number(order.estimated_cost).toLocaleString()} SDG</Text></Text></View>}
-                        {order.modification_request && <View style={styles.alertBox}><Ionicons name="create-outline" size={13} color="#F97316" /><Text style={[styles.alertText, { color: "#FED7AA" }]}>{order.modification_request}</Text></View>}
-                        {order.rejection_reason && <View style={[styles.alertBox, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}><Ionicons name="close-circle-outline" size={13} color="#EF4444" /><Text style={[styles.alertText, { color: "#FCA5A5" }]}>{order.rejection_reason}</Text></View>}
-                        {order.admin_notes && order.status === "approved" && <View style={[styles.alertBox, { backgroundColor: "#22C55E15", borderColor: "#22C55E30" }]}><Ionicons name="checkmark-circle-outline" size={13} color="#22C55E" /><Text style={[styles.alertText, { color: "#86EFAC" }]}>{order.admin_notes}</Text></View>}
+                        {order.modification_request && <View style={styles.alertBox}><Ionicons name="create-outline" size={13} color="#F97316" /><Text style={[styles.alertText, { color: "#9A3412" }]}>{order.modification_request}</Text></View>}
+                        {order.rejection_reason && <View style={[styles.alertBox, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}><Ionicons name="close-circle-outline" size={13} color="#EF4444" /><Text style={[styles.alertText, { color: "#B42318" }]}>{order.rejection_reason}</Text></View>}
+                        {order.admin_notes && order.status === "approved" && <View style={[styles.alertBox, { backgroundColor: "#22C55E15", borderColor: "#22C55E30" }]}><Ionicons name="checkmark-circle-outline" size={13} color="#22C55E" /><Text style={[styles.alertText, { color: "#00664A" }]}>{order.admin_notes}</Text></View>}
                       </View>
                     </View>
                   </Animated.View>
@@ -554,7 +547,6 @@ export default function ZawajilScreen() {
         >
           {/* Hero */}
           <Animated.View entering={FadeInDown.springify()} style={styles.joinHero}>
-            <LinearGradient colors={["#1F0D18", "#0D0614"]} style={StyleSheet.absoluteFill} />
             <Text style={{ fontSize: 44, marginBottom: 8 }}>✨</Text>
             <Text style={styles.joinHeroTitle}>انضم لفريق زواجل</Text>
             <Text style={styles.joinHeroSub}>
@@ -915,7 +907,7 @@ export default function ZawajilScreen() {
 
                   {joinError ? (
                     <Animated.View entering={FadeIn} style={styles.errorBox}>
-                      <Ionicons name="alert-circle-outline" size={15} color="#FCA5A5" />
+                      <Ionicons name="alert-circle-outline" size={15} color="#B42318" />
                       <Text style={styles.errorText}>{joinError}</Text>
                     </Animated.View>
                   ) : null}
@@ -995,7 +987,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
   // ── Intro ──
-  introRoot: { flex: 1, alignItems: "center" },
+  introRoot: { flex: 1, alignItems: "center", backgroundColor: Colors.bg },
   introSlide: {
     paddingHorizontal: 32, paddingTop: 80,
     alignItems: "center", justifyContent: "center", gap: 20,
@@ -1016,23 +1008,13 @@ const styles = StyleSheet.create({
   introSkipTxt: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary },
 
   // ── Header (handled by ModernHeader) ──
-  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
-  statusDot:   { width: 7, height: 7, borderRadius: 4 },
-  statusTxt:   { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-
-  // ── Tabs ──
-  tabRow:       { flexDirection: "row-reverse", gap: 8 },
-  tabBtn:       { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 8, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
-  tabBtnActive: { borderColor: "rgba(255,255,255,0.6)" },
-  tabLabel:     { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)" },
-  tabLabelActive: { color: "#fff" },
 
   // ── Banners ──
-  successBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 10, margin: 12, borderRadius: Colors.radius.md, padding: 14, overflow: "hidden", borderWidth: 1, borderColor: "#22C55E33" },
+  successBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 10, margin: 12, borderRadius: Colors.radius.md, padding: 14, overflow: "hidden", borderWidth: 1, borderColor: Colors.borderGlow, backgroundColor: Colors.successSoft },
   successTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   successNum:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
   comingSoonBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 14, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#F9731633", overflow: "hidden" },
-  comingSoonTitle:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FED7AA", textAlign: "right" },
+  comingSoonTitle:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#9A3412", textAlign: "right" },
   comingSoonSub:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#FCD34D99", textAlign: "right", marginTop: 2 },
 
   // ── Services ──
@@ -1080,7 +1062,7 @@ const styles = StyleSheet.create({
   alertText:{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18, textAlign: "right" },
 
   // ── Join tab ──
-  joinHero:      { borderRadius: Colors.radius.xl, padding: 24, alignItems: "center", marginBottom: 16, overflow: "hidden", borderWidth: 1, borderColor: PINK + "22", ...Colors.shadow.card },
+  joinHero:      { borderRadius: Colors.radius.xl, padding: 24, alignItems: "center", marginBottom: 16, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg, ...Colors.shadow.card },
   joinHeroTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center" },
   joinHeroSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginTop: 4 },
   joinRoleCard:  { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, flexDirection: "row-reverse", ...Colors.shadow.card },
@@ -1150,5 +1132,5 @@ const styles = StyleSheet.create({
   pledgeAcceptBtn:  { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 16, overflow: "hidden" },
 
   errorBox:  { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, backgroundColor: "#EF444415", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#EF444433", marginBottom: 12 },
-  errorText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#FCA5A5", textAlign: "right", lineHeight: 20 },
+  errorText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#B42318", textAlign: "right", lineHeight: 20 },
 });

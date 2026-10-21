@@ -13,17 +13,17 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 export type NumberEntry = {
@@ -375,8 +375,6 @@ function EditNumberModal({ visible, onClose, onSave, saving, initial }: {
 }
 
 export default function NumbersScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const auth = useAuth();
 
   const [numbers, setNumbers] = useState<NumberEntry[]>([]);
@@ -523,37 +521,29 @@ export default function NumbersScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={Colors.gradients.brand}
-        style={[styles.header, { paddingTop: topPad + 16 }]}
-      >
-        <Animated.View entering={FadeIn.delay(60).duration(500)} style={styles.headerContent}>
-          <View style={styles.headerIconWrap}>
-            <Ionicons name="call" size={26} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>الأرقام المهمة</Text>
-            <Text style={styles.headerSub}>{total} رقم — اضغط للاتصال المباشر</Text>
-          </View>
-          {isAdmin ? (
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
-              <Ionicons name="add" size={20} color="#fff" />
+      <ModernHeader
+        title="الأرقام المهمة"
+        subtitle={`${total} رقم — اضغط للاتصال المباشر`}
+        rightSlot={
+          isAdmin ? (
+            <TouchableOpacity style={headerUI.iconBtn} onPress={() => setShowAddModal(true)}>
+              <Ionicons name="add" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.adminBtn} onPress={() => setShowPinModal(true)}>
-              <Ionicons name="settings-outline" size={18} color="#fff" />
+            <TouchableOpacity style={headerUI.iconBtn} onPress={() => setShowPinModal(true)}>
+              <Ionicons name="settings-outline" size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
-          )}
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={{ backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" }}>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#fff", textAlign: "right" }}>
+          )
+        }
+      >
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.disclaimer}>
+          <Text style={styles.disclaimerText}>
             الأرقام متاحة للعامة — المنصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.emergencyStrip}>
-          <Ionicons name="alert-circle" size={16} color="#fff" />
+          <Ionicons name="alert-circle" size={16} color={Colors.danger} />
           <Text style={styles.emergencyText}>طوارئ سريعة:</Text>
           {firstPolice && (
             <TouchableOpacity onPress={() => safeCall(firstPolice.number)} style={styles.emergencyChip}>
@@ -580,7 +570,7 @@ export default function NumbersScreen() {
             </>
           )}
         </Animated.View>
-      </LinearGradient>
+      </ModernHeader>
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -669,16 +659,11 @@ export default function NumbersScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
-  headerContent: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 14 },
-  headerIconWrap: { width: 52, height: 52, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#fff" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.82)", marginTop: 2 },
-  addBtn: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.sm, padding: 10 },
-  adminBtn: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, padding: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  disclaimer: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border, marginBottom: 8 },
+  disclaimerText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" },
 
-  emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
-  emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
+  emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.border, gap: 8, flexWrap: "wrap" },
+  emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
   emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
   emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 

@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Linking, Image, ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +20,7 @@ import { useFeatureFlags } from "@/lib/feature-flags-context";
 import GuestGate from "@/components/GuestGate";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 // ══════════════════════════════════════════════════════
@@ -254,8 +254,6 @@ async function safeCall(number: string) {
 }
 
 export default function ReportsScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { isRTL, tr } = useLang();
   const auth = useAuth();
   const { gov_reports_enabled } = useFeatureFlags();
@@ -545,43 +543,37 @@ export default function ReportsScreen() {
   return (
     <View style={s.root}>
       {/* ── Header ── */}
-      <LinearGradient colors={Colors.gradients.brand} style={[s.header, { paddingTop: topPad + 12 }]}>
-        <View style={s.headerTop}>
-          <View style={s.headerIcon}>
-            <MaterialCommunityIcons name="bullhorn" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
-            <Text style={s.headerTitle}>التبليغ السريع</Text>
-            <Text style={s.headerSub}>منصة مجتمعية مستقلة · غير تابعة لأي جهة حكومية</Text>
-          </View>
-          {step !== "agency" && tab === "report" && (
-            <TouchableOpacity onPress={resetForm} style={s.resetBtn}>
-              <Ionicons name="refresh-outline" size={18} color="#fff" />
-              <Text style={s.resetText}>بداية</Text>
+      <ModernHeader
+        title="التبليغ السريع"
+        subtitle="منصة مجتمعية مستقلة · غير تابعة لأي جهة حكومية"
+        rightSlot={
+          step !== "agency" && tab === "report" ? (
+            <TouchableOpacity onPress={resetForm} style={headerUI.secondaryBtn}>
+              <Ionicons name="refresh-outline" size={18} color={Colors.textPrimary} />
+              <Text style={headerUI.secondaryBtnText}>بداية</Text>
             </TouchableOpacity>
-          )}
-        </View>
-
+          ) : undefined
+        }
+      >
         {/* Tabs */}
-        <View style={s.tabRow}>
+        <View style={headerUI.segmentWrap}>
           {([
             ["report",    "إرسال بلاغ",       "megaphone-outline"],
             ["myReports", "بلاغاتي",           "list-outline"],
             ["feedback",  "مقترحات وشكاوى",   "chatbubble-ellipses-outline"],
           ] as [Tab, string, string][]).map(([k, label, icon]) => (
-            <TouchableOpacity key={k} style={[s.tabBtn, tab === k && s.tabBtnActive]} onPress={() => setTab(k)}>
-              {tab === k && <View style={[StyleSheet.absoluteFill, s.tabBtnActiveFill]} />}
+            <TouchableOpacity key={k} style={[headerUI.segment, tab === k && headerUI.segmentActive]} onPress={() => setTab(k)}>
               <View style={{ position: "relative" }}>
-                <Ionicons name={icon as any} size={16} color={tab === k ? Colors.primary : "rgba(255,255,255,0.85)"} />
+                <Ionicons name={icon as any} size={16} color={tab === k ? Colors.primaryDeep : Colors.textSecondary} />
                 {k === "myReports" && pendingCount > 0 && (
                   <View style={s.badge}><Text style={s.badgeText}>{pendingCount}</Text></View>
                 )}
               </View>
-              <Text style={[s.tabBtnText, tab === k && { color: Colors.primary }]} numberOfLines={1}>{label}</Text>
+              <Text style={[headerUI.segmentText, tab === k && headerUI.segmentTextActive]} numberOfLines={1}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </LinearGradient>
+      </ModernHeader>
 
       {/* ════════ GOV REPORTS DISABLED ════════ */}
       {!gov_reports_enabled && !auth.isGuest && (
@@ -1272,19 +1264,6 @@ export default function ReportsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  header: { paddingHorizontal: 16, paddingBottom: 18, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
-  headerTop: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  headerIcon: { width: 46, height: 46, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.82)" },
-  resetBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  resetText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-
-  tabRow: { flexDirection: "row", gap: 10 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.20)" },
-  tabBtnActive: { borderColor: "#fff" },
-  tabBtnActiveFill: { backgroundColor: "#fff" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.85)" },
   badge: { position: "absolute", top: -5, right: -8, backgroundColor: Colors.accentDeep, borderRadius: 8, width: 16, height: 16, justifyContent: "center", alignItems: "center" },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
 

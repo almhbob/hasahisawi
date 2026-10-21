@@ -9,7 +9,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/lib/auth-context";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
-import BrandPattern from "@/components/BrandPattern";
 
 type Feature = { icon: keyof typeof Ionicons.glyphMap; text: string };
 
@@ -47,7 +46,6 @@ export default function GuestGate({ children, preview, title, features }: Props)
   return (
     <View style={styles.root}>
       {/* علامة مائية بنمط الشعار */}
-      <BrandPattern variant="diagonal" opacity={0.035} />
 
       {/* ──── معاينة خافتة للمحتوى ──────────────────────── */}
       {preview ? (
@@ -70,8 +68,7 @@ export default function GuestGate({ children, preview, title, features }: Props)
 
           {/* أيقونة القفل مع توهج */}
           <View style={styles.lockIconWrap}>
-            <View style={styles.lockGlow} />
-            <Ionicons name="lock-closed" size={32} color={Colors.accent} />
+            <Ionicons name="lock-closed-outline" size={26} color={Colors.primaryDeep} />
           </View>
 
           {/* عنوان وتفاصيل */}
@@ -91,7 +88,7 @@ export default function GuestGate({ children, preview, title, features }: Props)
                 style={[styles.featureRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
               >
                 <View style={styles.featureIconBox}>
-                  <Ionicons name={f.icon} size={16} color={Colors.primary} />
+                  <Ionicons name={f.icon} size={16} color={Colors.primaryDeep} />
                 </View>
                 <Text style={styles.featureText}>{f.text}</Text>
               </View>
@@ -104,17 +101,12 @@ export default function GuestGate({ children, preview, title, features }: Props)
             onPress={handleRegister}
             activeOpacity={0.88}
           >
-            <LinearGradient
-              colors={[Colors.primary, Colors.primaryDim]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.registerGradient}
-            >
-              <Ionicons name="person-add-outline" size={20} color="#000" />
+            <View style={styles.registerGradient}>
+              <Ionicons name="person-add-outline" size={19} color="#fff" />
               <Text style={styles.registerText}>
                 {tr("إنشاء حساب مجاني", "Create Free Account")}
               </Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
 
           {/* رابط تسجيل الدخول */}
@@ -158,35 +150,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 28,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: Colors.primary + "25",
+    borderRadius: Colors.radius.xl,
+    padding: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     alignItems: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 10,
   },
 
   /* أيقونة */
   lockIconWrap: {
-    width: 72, height: 72,
-    borderRadius: 22,
-    backgroundColor: Colors.accent + "18",
-    borderWidth: 1.5,
-    borderColor: Colors.accent + "40",
+    width: 56, height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-  },
-  lockGlow: {
-    position: "absolute",
-    width: 72, height: 72,
-    borderRadius: 22,
-    backgroundColor: Colors.accent,
-    opacity: 0.08,
+    marginBottom: 16,
   },
 
   /* نصوص */
@@ -219,8 +197,8 @@ const styles = StyleSheet.create({
   },
   featureIconBox: {
     width: 32, height: 32,
-    borderRadius: 10,
-    backgroundColor: Colors.primary + "18",
+    borderRadius: 16,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -234,22 +212,18 @@ const styles = StyleSheet.create({
   /* زر التسجيل */
   registerBtn: { width: "100%", marginBottom: 16 },
   registerGradient: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: "row",
+    borderRadius: 14,
+    height: 52,
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: 8,
+    backgroundColor: Colors.primaryDeep,
   },
   registerText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: "#000",
+    color: "#fff",
   },
 
   /* رابط الدخول */
@@ -262,6 +236,6 @@ const styles = StyleSheet.create({
   },
   loginLinkHighlight: {
     fontFamily: "Cairo_700Bold",
-    color: Colors.primary,
+    color: Colors.primaryDeep,
   },
 });

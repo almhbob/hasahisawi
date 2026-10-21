@@ -12,7 +12,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const { width: W } = Dimensions.get("window");
@@ -75,7 +75,7 @@ function ServiceCard({ svc, index }: { svc: Service; index: number }) {
           else if (svc.description) Alert.alert(svc.title, svc.description);
         }}
       >
-        <LinearGradient colors={[color + "18", "#0A1628"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[color + "18", Colors.cardBg]} style={StyleSheet.absoluteFill} />
         <View style={[styles.svcIcon, { backgroundColor: color + "25", borderColor: color + "40" }]}>
           <Ionicons name={svc.icon as any || cat.icon as any} size={20} color={color} />
         </View>
@@ -377,13 +377,12 @@ export default function TelecomScreen() {
         subtitle="مساحات إعلانية · خدمات · عروض"
         icon="wifi"
       >
-        <View style={styles.tabBar}>
+        <View style={headerUI.segmentWrap}>
           {TABS.map(t => (
-            <TouchableOpacity key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+            <TouchableOpacity key={t.key} style={[headerUI.segment, tab === t.key && headerUI.segmentActive]}
               onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setTab(t.key as any); }} activeOpacity={0.8}>
-              {tab === t.key && <LinearGradient colors={[TC, TC2]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />}
-              <Ionicons name={t.icon} size={13} color={tab === t.key ? "#fff" : Colors.textMuted} />
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Ionicons name={t.icon} size={13} color={tab === t.key ? Colors.textPrimary : Colors.textSecondary} />
+              <Text style={[headerUI.segmentText, tab === t.key && headerUI.segmentTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -402,7 +401,7 @@ export default function TelecomScreen() {
               {/* بانرات بروميوم */}
               {promos.filter(p => p.package_type === "premium" && (p.promo_tagline || p.promo_badge)).map((promo, i) => (
                 <Animated.View key={promo.id} entering={FadeInDown.delay(i * 60).springify()}>
-                  <LinearGradient colors={[promo.brand_color + "35", promo.brand_color + "10", "#050E08"]} style={styles.promoBanner}>
+                  <LinearGradient colors={[promo.brand_color + "35", promo.brand_color + "10", Colors.cardBg]} style={styles.promoBanner}>
                     <View style={[styles.promoBannerLogo, { backgroundColor: promo.brand_color }]}>
                       <Text style={styles.promoBannerLogoText}>{promo.logo_initial}</Text>
                     </View>
@@ -442,7 +441,7 @@ export default function TelecomScreen() {
               {/* ستاندرد taglines */}
               {promos.filter(p => p.package_type === "standard" && p.promo_tagline).map((promo, i) => (
                 <Animated.View key={promo.id} entering={FadeInDown.delay(350 + i * 60).springify()}>
-                  <LinearGradient colors={[TC + "12", "#050E08"]} style={[styles.promoBanner, { paddingVertical: 10 }]}>
+                  <LinearGradient colors={[TC + "12", Colors.cardBg]} style={[styles.promoBanner, { paddingVertical: 10 }]}>
                     <View style={[styles.promoBannerLogo, { backgroundColor: promo.brand_color, width: 34, height: 34, borderRadius: 17 }]}>
                       <Text style={[styles.promoBannerLogoText, { fontSize: 14 }]}>{promo.logo_initial}</Text>
                     </View>
@@ -480,7 +479,7 @@ export default function TelecomScreen() {
               {/* ── قسم التعاقد والرعاية ── */}
               <Animated.View entering={FadeInDown.delay(480).springify().damping(14)}>
                 <View style={[styles.contractSection, { borderColor: TC + "40", backgroundColor: TC + "08" }]}>
-                  <LinearGradient colors={[TC + "20", TC2 + "10", "#050E08"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                  <LinearGradient colors={[TC + "20", TC2 + "10", Colors.cardBg]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                   <View style={styles.contractHeader}>
                     <View style={[styles.contractIconWrap, { backgroundColor: TC + "25", borderColor: TC + "50" }]}>
                       <Ionicons name="ribbon" size={22} color={TC} />
@@ -600,11 +599,6 @@ export default function TelecomScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  tabBar: { flexDirection: "row", gap: 6, paddingTop: 10, paddingBottom: 4 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
-  tabBtnActive: { borderColor: TC + "60" },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
-  tabLabelActive: { color: "#fff" },
   scrollContent: { paddingHorizontal: 16, paddingTop: 12 },
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   loadingText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 14 },

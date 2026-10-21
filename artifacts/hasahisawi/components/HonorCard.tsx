@@ -1,24 +1,11 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
   Image,
   StyleSheet,
-  Dimensions,
-  Platform,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
-  interpolate,
-  ZoomIn,
-} from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 
@@ -32,13 +19,6 @@ export type HonoredFigure = {
   start_date: string;
   end_date: string;
 };
-
-const { width } = Dimensions.get("window");
-
-const GOLD      = "#D4AF37";
-const GOLD_LITE = "#F5C842";
-const GOLD_DIM  = "#A08820";
-const AMBER     = "#F59E0B";
 
 function daysLeft(end: string): number {
   const now = new Date();
@@ -56,249 +36,118 @@ function formatArabicDate(dateStr: string) {
 type Props = { figure: HonoredFigure };
 
 export default function HonorCard({ figure }: Props) {
-  const shimmer = useSharedValue(0);
-  const pulse   = useSharedValue(1);
-
-  useEffect(() => {
-    shimmer.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.06, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.00, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-  }, []);
-
-  const borderStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(shimmer.value, [0, 1], [0.55, 1]),
-  }));
-
-  const badgeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pulse.value, [1, 1.06], [1, 1.06]) }],
-  }));
-
   const days = daysLeft(figure.end_date);
 
   return (
-    <Animated.View entering={FadeInDown.delay(80).springify().damping(16)} style={s.outerWrap}>
-      {/* ── Gold shimmer border ── */}
-      <Animated.View style={[StyleSheet.absoluteFill, s.borderWrap, borderStyle]} pointerEvents="none">
-        <LinearGradient
-          colors={[GOLD_DIM, GOLD, GOLD_LITE, AMBER, GOLD_DIM]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
+    <Animated.View entering={FadeInDown.delay(80).springify().damping(16)} style={s.card}>
+      {/* ── Photo ── */}
+      <View style={s.photoWrap}>
+        <Image
+          source={{ uri: figure.photo_url }}
+          style={s.photo}
+          resizeMode="cover"
         />
-      </Animated.View>
-
-      {/* ── Inner card ── */}
-      <View style={s.card}>
-        {/* ── Photo section ── */}
-        <View style={s.photoWrap}>
-          <Image
-            source={{ uri: figure.photo_url }}
-            style={s.photo}
-            resizeMode="cover"
-          />
-          {/* Top vignette */}
-          <LinearGradient
-            colors={["rgba(10,20,8,0.15)", "transparent"]}
-            locations={[0, 0.4]}
-            style={[StyleSheet.absoluteFill, { borderRadius: 0 }]}
-          />
-          {/* Bottom overlay: name + title */}
-          <LinearGradient
-            colors={["transparent", "rgba(6,14,5,0.65)", "rgba(6,14,5,0.93)", "#060E05"]}
-            locations={[0.28, 0.58, 0.78, 1]}
-            style={s.photoOverlay}
-          >
-            {/* Badge */}
-            <Animated.View style={[s.badge, badgeStyle]}>
-              <LinearGradient
-                colors={[GOLD, AMBER, GOLD_DIM]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.badgeGrad}
-              >
-                <Ionicons name="star" size={10} color="#1A0F00" />
-                <Text style={s.badgeText}>شخصية المدينة</Text>
-                <Ionicons name="star" size={10} color="#1A0F00" />
-              </LinearGradient>
-            </Animated.View>
-
-            {/* Name */}
-            <Text style={s.name}>{figure.name}</Text>
-            {/* Title */}
-            {!!figure.title && (
-              <View style={s.titleRow}>
-                <View style={s.titleLine} />
-                <Text style={s.title}>{figure.title}</Text>
-                <View style={s.titleLine} />
-              </View>
-            )}
-            {!!figure.city_role && (
-              <Text style={s.role}>{figure.city_role}</Text>
-            )}
-          </LinearGradient>
+        <View style={s.badge}>
+          <Ionicons name="star" size={10} color="#fff" />
+          <Text style={s.badgeText}>شخصية المدينة</Text>
+          <Ionicons name="star" size={10} color="#fff" />
         </View>
+      </View>
 
-        {/* ── Content section ── */}
-        <LinearGradient
-          colors={["#060E05", "#091409", "#0A1A10"]}
-          style={s.content}
-        >
-          {/* Tribute / testimonial */}
-          {!!figure.tribute && (
-            <View style={s.tributeBox}>
-              <View style={s.tributeAccent} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.quoteIcon}>"</Text>
-                <Text style={s.tribute}>{figure.tribute}</Text>
-              </View>
+      {/* ── Content ── */}
+      <View style={s.content}>
+        <View style={s.nameBlock}>
+          <Text style={s.name}>{figure.name}</Text>
+          {!!figure.title && (
+            <View style={s.titleRow}>
+              <View style={s.titleLine} />
+              <Text style={s.title}>{figure.title}</Text>
+              <View style={s.titleLine} />
             </View>
           )}
+          {!!figure.city_role && (
+            <Text style={s.role}>{figure.city_role}</Text>
+          )}
+        </View>
 
-          {/* Footer row */}
-          <View style={s.footer}>
-            <View style={s.footerLeft}>
-              <LinearGradient
-                colors={[GOLD + "28", GOLD + "10"]}
-                style={s.daysChip}
-              >
-                <Ionicons name="time-outline" size={12} color={GOLD} />
-                <Text style={s.daysText}>
-                  {days > 0 ? `يتبقى ${days} ${days === 1 ? "يوم" : "أيام"}` : "آخر يوم"}
-                </Text>
-              </LinearGradient>
+        {/* Tribute / testimonial */}
+        {!!figure.tribute && (
+          <View style={s.tributeBox}>
+            <View style={s.tributeAccent} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.quoteIcon}>"</Text>
+              <Text style={s.tribute}>{figure.tribute}</Text>
             </View>
+          </View>
+        )}
 
-            <View style={s.hallLabel}>
-              <Ionicons name="trophy" size={13} color={GOLD} />
-              <Text style={s.hallText}>قاعة التكريم</Text>
+        {/* Footer row */}
+        <View style={s.footer}>
+          <View style={s.footerLeft}>
+            <View style={s.daysChip}>
+              <Ionicons name="time-outline" size={12} color={Colors.accentDeep} />
+              <Text style={s.daysText}>
+                {days > 0 ? `يتبقى ${days} ${days === 1 ? "يوم" : "أيام"}` : "آخر يوم"}
+              </Text>
             </View>
           </View>
 
-          {/* Date range */}
-          <Text style={s.dateRange}>
-            {formatArabicDate(figure.start_date)} — {formatArabicDate(figure.end_date)}
-          </Text>
-        </LinearGradient>
+          <View style={s.hallLabel}>
+            <Ionicons name="trophy" size={13} color={Colors.accentDeep} />
+            <Text style={s.hallText}>قاعة التكريم</Text>
+          </View>
+        </View>
+
+        {/* Date range */}
+        <Text style={s.dateRange}>
+          {formatArabicDate(figure.start_date)} — {formatArabicDate(figure.end_date)}
+        </Text>
       </View>
     </Animated.View>
   );
 }
 
-const CARD_W = width - 32;
-
 const s = StyleSheet.create({
-  outerWrap: {
-    marginHorizontal: 16,
-    borderRadius: 22,
-    padding: 2,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: GOLD,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.32,
-        shadowRadius: 18,
-      },
-      android: { elevation: 12 },
-    }),
-  },
-  borderWrap: {
-    borderRadius: 22,
-    overflow: "hidden",
-  },
   card: {
-    borderRadius: 20,
+    marginHorizontal: 16,
+    borderRadius: Colors.radius.lg,
     overflow: "hidden",
-    backgroundColor: "#060E05",
+    backgroundColor: Colors.cardBg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   /* Photo */
   photoWrap: {
-    width: CARD_W - 4,
+    width: "100%",
     height: 260,
     position: "relative",
     overflow: "hidden",
+    backgroundColor: Colors.bg,
   },
   photo: {
     width: "100%",
     height: "100%",
   },
-  photoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingBottom: 18,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
 
   /* Badge */
   badge: {
-    marginBottom: 4,
-    borderRadius: 20,
-    overflow: "hidden",
+    position: "absolute",
+    top: 14,
     alignSelf: "center",
-  },
-  badgeGrad: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.accentDeep,
   },
   badgeText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 11,
-    color: "#1A0F00",
+    color: "#fff",
     letterSpacing: 0.5,
-  },
-
-  /* Name + Title */
-  name: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 24,
-    color: "#FFFFFF",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.7)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-    lineHeight: 32,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 2,
-  },
-  titleLine: {
-    height: 1,
-    flex: 1,
-    backgroundColor: GOLD + "60",
-  },
-  title: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: GOLD_LITE,
-    textAlign: "center",
-  },
-  role: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: "center",
-    marginTop: 2,
   },
 
   /* Content section */
@@ -307,6 +156,39 @@ const s = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 16,
     gap: 12,
+  },
+
+  /* Name + Title */
+  nameBlock: { alignItems: "center", gap: 4 },
+  name: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+    color: Colors.textPrimary,
+    textAlign: "center",
+    lineHeight: 32,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "stretch",
+  },
+  titleLine: {
+    height: StyleSheet.hairlineWidth,
+    flex: 1,
+    backgroundColor: Colors.border,
+  },
+  title: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 13,
+    color: Colors.accentDeep,
+    textAlign: "center",
+  },
+  role: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: "center",
   },
 
   /* Tribute */
@@ -318,15 +200,14 @@ const s = StyleSheet.create({
   tributeAccent: {
     width: 3,
     borderRadius: 2,
-    backgroundColor: GOLD,
+    backgroundColor: Colors.accent,
     alignSelf: "stretch",
     minHeight: 36,
-    opacity: 0.8,
   },
   quoteIcon: {
     fontFamily: "Cairo_700Bold",
     fontSize: 28,
-    color: GOLD + "50",
+    color: Colors.accentDeep,
     lineHeight: 22,
     marginBottom: -4,
     textAlign: "right",
@@ -357,14 +238,13 @@ const s = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: GOLD + "30",
+    borderRadius: Colors.radius.pill,
+    backgroundColor: Colors.accentSoft,
   },
   daysText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: GOLD,
+    color: Colors.accentDeep,
   },
   hallLabel: {
     flexDirection: "row-reverse",
@@ -374,17 +254,16 @@ const s = StyleSheet.create({
   hallText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 12,
-    color: GOLD,
+    color: Colors.accentDeep,
     letterSpacing: 0.3,
   },
 
   /* Date range */
   dateRange: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textMuted,
     textAlign: "center",
-    opacity: 0.7,
     marginTop: -4,
   },
 });

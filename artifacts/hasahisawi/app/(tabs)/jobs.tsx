@@ -29,7 +29,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { checkConnected } from "@/lib/network";
 import { cacheGet, cacheSet } from "@/lib/offline-cache";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 export type Job = {
@@ -459,18 +459,18 @@ export default function JobsScreen() {
             }
             setShowModal(true);
           }}>
-            <View style={[styles.addBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Ionicons name="add" size={20} color={Colors.primary} />
-              <Text style={styles.addBtnText}>{t("jobs", "postJob")}</Text>
+            <View style={[headerUI.primaryBtn, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={headerUI.primaryBtnText}>{t("jobs", "postJob")}</Text>
             </View>
           </AnimatedPress>
         }
       >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={styles.filtersContent}>
           {TYPE_OPTIONS.map((opt) => (
             <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
-              <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
-                <Text style={[styles.filterChipText, filter === opt.key && styles.filterChipTextActive]}>{opt.label}</Text>
+              <View style={[headerUI.chip, filter === opt.key && headerUI.chipActive]}>
+                <Text style={[headerUI.chipText, filter === opt.key && headerUI.chipTextActive]}>{opt.label}</Text>
               </View>
             </AnimatedPress>
           ))}
@@ -634,35 +634,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
-  addBtn: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: Colors.radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-  },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
   filtersRow: {
-    marginHorizontal: -18,
+    marginHorizontal: -16,
   },
   filtersContent: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
   },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: Colors.radius.pill,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  filterChipActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
-  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#FFFFFF" },
-  filterChipTextActive: { color: Colors.primary },
   listContent: { padding: 14, gap: 12 },
   emptyState: { alignItems: "center", paddingTop: 80, gap: 12 },
   emptyTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 18, color: Colors.textSecondary },

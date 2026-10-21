@@ -4,7 +4,6 @@ import {
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
   KeyboardAvoidingView, ActivityIndicator,
 } from "react-native";
-import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,7 +31,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 
 const ADMIN_PIN_KEY = "admin_pin";
@@ -2120,16 +2119,6 @@ export default function SettingsScreen() {
             activeOpacity={0.85}
             style={devCardBtnSty.card}
           >
-            <LinearGradient
-              colors={["#0D1B4B", "#091230"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <LinearGradient
-              colors={["#2563EB55", "transparent"]}
-              start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }}
-              style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
-            />
             <View style={devCardBtnSty.row}>
               <View style={devCardBtnSty.iconWrap}>
                 <Text style={{ fontSize: 28 }}>👨‍💻</Text>
@@ -2138,7 +2127,7 @@ export default function SettingsScreen() {
                 <Text style={devCardBtnSty.title}>معلومات المطور</Text>
                 <Text style={devCardBtnSty.sub}>الفريق التقني وراء حصاحيصاوي</Text>
               </View>
-              <Ionicons name="chevron-back" size={18} color="#2563EB" />
+              <Ionicons name="chevron-back" size={18} color={Colors.primaryDeep} />
             </View>
             <View style={devCardBtnSty.footer}>
               <View style={devCardBtnSty.dot} />
@@ -2345,14 +2334,14 @@ export default function SettingsScreen() {
         title={t("admin", "overview")}
         icon={isModerator ? "shield-half-outline" : "shield-checkmark-outline"}
         rightSlot={
-          <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutBtn}>
-            <Ionicons name="log-out-outline" size={22} color="rgba(255,255,255,0.85)" />
+          <TouchableOpacity onPress={handleLogout} style={headerUI.iconBtn}>
+            <Ionicons name="log-out-outline" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
         }
       >
-        <View style={[styles.adminBadge, isModerator && { backgroundColor: Colors.accent + "28" }]}>
-          <Ionicons name={isModerator ? "shield-half-outline" : "shield-checkmark"} size={13} color={isModerator ? Colors.accent : "rgba(255,255,255,0.9)"} />
-          <Text style={[styles.adminBadgeText, isModerator && { color: Colors.accent }]}>{isModerator ? t("admin", "moderatorBadge") : adminName}</Text>
+        <View style={[styles.adminBadge, isModerator && { backgroundColor: Colors.accentSoft }]}>
+          <Ionicons name={isModerator ? "shield-half-outline" : "shield-checkmark"} size={13} color={isModerator ? Colors.accentDeep : Colors.primaryDeep} />
+          <Text style={[styles.adminBadgeText, isModerator && { color: Colors.accentDeep }]}>{isModerator ? t("admin", "moderatorBadge") : adminName}</Text>
         </View>
       </ModernHeader>
 
@@ -3027,8 +3016,8 @@ export default function SettingsScreen() {
 
             {/* Vercel + Railway — الخادم الفعلي */}
             <View style={[sub_s.card, sub_s.cardPaid]}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#FFFFFF12" }]}>
-                <Ionicons name="server-outline" size={22} color="#E0E0E0" />
+              <View style={[sub_s.iconBox, { backgroundColor: Colors.bg }]}>
+                <Ionicons name="server-outline" size={22} color={Colors.textSecondary} />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
@@ -3195,8 +3184,8 @@ export default function SettingsScreen() {
 
             {/* GitHub Actions */}
             <View style={sub_s.card}>
-              <View style={[sub_s.iconBox, { backgroundColor: "#FFFFFF10" }]}>
-                <MaterialCommunityIcons name="github" size={22} color="#E0E0E0" />
+              <View style={[sub_s.iconBox, { backgroundColor: Colors.bg }]}>
+                <MaterialCommunityIcons name="github" size={22} color={Colors.textSecondary} />
               </View>
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
@@ -3273,15 +3262,15 @@ export default function SettingsScreen() {
 
             {/* iOS */}
             <View style={sub_s.devCard}>
-              <View style={[sub_s.devIcon, { backgroundColor: "#FFFFFF10" }]}>
-                <MaterialCommunityIcons name="apple" size={18} color="#E0E0E0" />
+              <View style={[sub_s.devIcon, { backgroundColor: Colors.bg }]}>
+                <MaterialCommunityIcons name="apple" size={18} color={Colors.textSecondary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={sub_s.devTitle}>إصدار iOS (آيفون)</Text>
                 <Text style={sub_s.devDesc}>نشر التطبيق على App Store — يتطلب اشتراك Apple Developer ($99/سنة)</Text>
               </View>
-              <View style={[sub_s.devBadge, { backgroundColor: "#FFFFFF15" }]}>
-                <Text style={[sub_s.devBadgeText, { color: "#999" }]}>مستقبلي</Text>
+              <View style={[sub_s.devBadge, { backgroundColor: Colors.bg }]}>
+                <Text style={[sub_s.devBadgeText, { color: Colors.textMuted }]}>مستقبلي</Text>
               </View>
             </View>
 
@@ -3393,15 +3382,6 @@ export default function SettingsScreen() {
           onPress={() => setShowDevCard(false)}>
           <Pressable onPress={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380 }}>
             <View style={devModalSty.card}>
-              <BlurView intensity={Platform.OS === "ios" ? 90 : 30} tint="dark" style={StyleSheet.absoluteFill} />
-              <LinearGradient
-                colors={["rgba(30,60,100,0.85)", "rgba(5,12,28,0.92)"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              {/* الحد المتدرج */}
-              <View style={devModalSty.borderGlow} />
-
               {/* الرأس */}
               <View style={devModalSty.header}>
                 <View style={devModalSty.avatarWrap}>
@@ -3414,17 +3394,17 @@ export default function SettingsScreen() {
                   <Text style={devModalSty.name}>عاصم عبد الرحمن محمد</Text>
                   <Text style={devModalSty.role}>مطوّر البرمجيات · Full-Stack Engineer</Text>
                   <View style={devModalSty.locationRow}>
-                    <Ionicons name="location" size={11} color="#2563EB" />
+                    <Ionicons name="location" size={11} color={Colors.primaryDeep} />
                     <Text style={devModalSty.location}>الحصاحيصا، ولاية الجزيرة — السودان 🇸🇩</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => setShowDevCard(false)} style={devModalSty.closeBtn}>
-                  <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
+                  <Ionicons name="close" size={18} color={Colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
               {/* الفاصل */}
-              <LinearGradient colors={["transparent","rgba(37,99,235,0.4)","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={devModalSty.dividerLine} />
+              <View style={devModalSty.dividerLine} />
 
               {/* المعلومات */}
               <View style={devModalSty.infoGrid}>
@@ -3436,7 +3416,7 @@ export default function SettingsScreen() {
                 ].map(({ icon, label, value }) => (
                   <View key={label} style={devModalSty.infoRow}>
                     <View style={devModalSty.infoIconWrap}>
-                      <Ionicons name={icon as any} size={15} color="#2563EB" />
+                      <Ionicons name={icon as any} size={15} color={Colors.primaryDeep} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={devModalSty.infoLabel}>{label}</Text>
@@ -3447,7 +3427,7 @@ export default function SettingsScreen() {
               </View>
 
               {/* الفاصل */}
-              <LinearGradient colors={["transparent","rgba(37,99,235,0.25)","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={devModalSty.dividerLine} />
+              <View style={devModalSty.dividerLine} />
 
               {/* التواصل */}
               <View style={devModalSty.contactRow}>
@@ -3456,8 +3436,8 @@ export default function SettingsScreen() {
                   <Text style={[devModalSty.contactBtnText, { color: "#25D366" }]}>واتساب</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => Linking.openURL(PLATFORM.mailLink("تواصل مع المطور"))} style={devModalSty.contactBtn}>
-                  <Ionicons name="mail-outline" size={18} color="#2563EB" />
-                  <Text style={[devModalSty.contactBtnText, { color: "#2563EB" }]}>إيميل</Text>
+                  <Ionicons name="mail-outline" size={18} color={Colors.primaryDeep} />
+                  <Text style={[devModalSty.contactBtnText, { color: Colors.primaryDeep }]}>إيميل</Text>
                 </TouchableOpacity>
               </View>
 
@@ -3479,18 +3459,13 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  headerLogoutBtn: {
-    width: 36, height: 36, borderRadius: Colors.radius.pill,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center", justifyContent: "center",
-  },
   adminBadge: {
     alignSelf: "flex-end",
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md,
+    backgroundColor: Colors.primarySoft, borderRadius: Colors.radius.md,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.92)" },
+  adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primaryDeep },
   langToggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   langBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary, alignItems: "center" },
   langBtnActive: { backgroundColor: Colors.primary },
@@ -3818,12 +3793,12 @@ const profileSty = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: "#0F1E16",
+    backgroundColor: Colors.cardBg,
     borderRadius: 24,
     padding: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: Colors.border,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -3845,7 +3820,7 @@ const profileSty = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#0F1E16",
+    borderColor: Colors.cardBg,
   },
   name: {
     fontFamily: "Cairo_700Bold",
@@ -4180,32 +4155,30 @@ const linkPcSty = StyleSheet.create({
 const devCardBtnSty = StyleSheet.create({
   card: {
     borderRadius: 18, overflow: "hidden",
-    borderWidth: 1, borderColor: "rgba(37,99,235,0.35)",
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1, borderColor: Colors.border,
     padding: 16, gap: 8, marginBottom: 4,
   },
   row: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 50, height: 50, borderRadius: 14,
-    backgroundColor: "rgba(37,99,235,0.15)",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center", justifyContent: "center",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" },
-  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.55)", textAlign: "right", marginTop: 2 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   footer: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#10B981" },
-  footerText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.4)" },
+  footerText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 });
 
 // ─── مودال بطاقة المطور ───────────────────────────────────────────────────────
 const devModalSty = StyleSheet.create({
   card: {
     borderRadius: 24, overflow: "hidden",
-    borderWidth: 1, borderColor: "rgba(37,99,235,0.4)",
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1, borderColor: Colors.border,
     padding: 20, gap: 14,
-  },
-  borderGlow: {
-    position: "absolute", inset: 0, borderRadius: 24,
-    borderWidth: 1.5, borderColor: "rgba(37,99,235,0.25)",
   },
   header: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
@@ -4220,38 +4193,38 @@ const devModalSty = StyleSheet.create({
     position: "absolute", bottom: 3, right: 3,
     width: 12, height: 12, borderRadius: 6,
     backgroundColor: "#10B981",
-    borderWidth: 2, borderColor: "rgba(5,12,28,0.9)",
+    borderWidth: 2, borderColor: Colors.cardBg,
   },
-  name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
-  role: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#2563EB", textAlign: "right", marginTop: 2 },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
+  role: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primaryDeep, textAlign: "right", marginTop: 2 },
   locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 },
-  location: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.5)" },
+  location: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   closeBtn: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: Colors.bg,
     alignItems: "center", justifyContent: "center",
   },
-  dividerLine: { height: 1 },
+  dividerLine: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.divider },
   infoGrid: { gap: 10 },
   infoRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 },
   infoIconWrap: {
     width: 32, height: 32, borderRadius: 9,
-    backgroundColor: "rgba(37,99,235,0.15)",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center", justifyContent: "center",
   },
-  infoLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "right" },
-  infoValue: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.85)", textAlign: "right", marginTop: 1 },
+  infoLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  infoValue: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginTop: 1 },
   contactRow: { flexDirection: "row-reverse", gap: 10 },
   contactBtn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 7, paddingVertical: 12, borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.border,
   },
   contactBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
   footer: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   footerTag: {
-    fontFamily: "Cairo_500Medium", fontSize: 11, color: "#2563EB",
-    backgroundColor: "rgba(37,99,235,0.12)", borderRadius: 8,
+    fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primaryDeep,
+    backgroundColor: Colors.primarySoft, borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3,
   },
 });

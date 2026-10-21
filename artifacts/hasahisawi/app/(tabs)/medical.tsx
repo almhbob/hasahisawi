@@ -4,7 +4,6 @@ import {
   TextInput, Linking, Platform, Alert, Modal,
   KeyboardAvoidingView, ActivityIndicator, Switch, Image,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -21,6 +20,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import { LoadError } from "@/components/ui/LoadState";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
@@ -99,15 +99,14 @@ function MedicalJoinBanner() {
   const waLink = `https://wa.me/249597083352?text=${encodeURIComponent("مرحباً، أريد تسجيل منشأتي الطبية في حصاحيصاوي")}`;
   return (
     <Animated.View entering={FadeIn.delay(150).duration(400)} style={mj.wrapper}>
-      <LinearGradient colors={["#0E2B18", "#0B2215", "#091C12"]} style={mj.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <View style={mj.dot1} /><View style={mj.dot2} />
+      <View style={mj.bg}>
         <View style={mj.topRow}>
           <View style={mj.iconBox}>
-            <MaterialCommunityIcons name="hospital-building" size={28} color="#E74C6F" />
+            <MaterialCommunityIcons name="hospital-building" size={28} color={Colors.primaryDeep} />
           </View>
           <View style={{ flex: 1, alignItems: "flex-end" }}>
             <View style={mj.badge}>
-              <Ionicons name="shield-checkmark" size={11} color="#E74C6F" />
+              <Ionicons name="shield-checkmark" size={11} color={Colors.primaryDeep} />
               <Text style={mj.badgeText}>انضمام رسمي موثّق</Text>
             </View>
             <Text style={mj.title}>سجِّل منشأتك الطبية{"\n"}في حصاحيصاوي</Text>
@@ -121,14 +120,14 @@ function MedicalJoinBanner() {
             { icon: "logo-whatsapp" as any,     text: "تأكيد المواعيد فوراً عبر واتساب" },
           ].map((f, i) => (
             <View key={i} style={mj.featureRow}>
-              <Ionicons name={f.icon as any} size={15} color="#E74C6F" />
+              <Ionicons name={f.icon as any} size={15} color={Colors.primaryDeep} />
               <Text style={mj.featureText}>{f.text}</Text>
             </View>
           ))}
         </View>
 
         {/* باقات الاشتراك */}
-        <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: "#9CA3AF", fontFamily: "Cairo_700Bold" }]}>
+        <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: Colors.textSecondary, fontFamily: "Cairo_700Bold" }]}>
           اختر الباقة المناسبة لمنشأتك:
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingHorizontal: 2 }}>
@@ -160,23 +159,23 @@ function MedicalJoinBanner() {
         {/* أزرار الانضمام */}
         <View style={{ gap: 8, marginTop: 4 }}>
           <TouchableOpacity onPress={() => router.push("/org-join" as any)} activeOpacity={0.85} style={mj.joinBtnWrap}>
-            <LinearGradient colors={["#E74C6F", "#C43057"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <View style={[mj.joinBtn, { backgroundColor: Colors.primaryDeep }]}>
               <Ionicons name="arrow-back" size={18} color="#fff" />
               <Text style={mj.joinBtnText}>قدّم طلب انضمام منشأتك</Text>
               <View style={mj.joinBtnIcon}>
-                <MaterialCommunityIcons name="domain-plus" size={18} color="#E74C6F" />
+                <MaterialCommunityIcons name="domain-plus" size={18} color={Colors.primaryDeep} />
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => Linking.openURL(waLink)} activeOpacity={0.85} style={mj.joinBtnWrap}>
-            <View style={[mj.joinBtn, { backgroundColor: "#1e3a1e", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }]}>
-              <Ionicons name="logo-whatsapp" size={18} color="#3EFF9C" />
-              <Text style={[mj.joinBtnText, { color: "#3EFF9C" }]}>تواصل معنا عبر واتساب</Text>
+            <View style={[mj.joinBtn, { backgroundColor: Colors.primarySoft, borderWidth: 1, borderColor: Colors.border, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }]}>
+              <Ionicons name="logo-whatsapp" size={18} color={Colors.primaryDeep} />
+              <Text style={[mj.joinBtnText, { color: Colors.primaryDeep }]}>تواصل معنا عبر واتساب</Text>
             </View>
           </TouchableOpacity>
         </View>
         <Text style={mj.freeNote}>الباقة المجانية متاحة دائماً · موافقة خلال ٣-٥ أيام · عقد رسمي موثّق</Text>
-      </LinearGradient>
+      </View>
     </Animated.View>
   );
 }
@@ -735,11 +734,11 @@ function ConsultationsTab({ auth }: { auth: any }) {
       <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* زر طرح سؤال */}
         <TouchableOpacity onPress={() => setShowAsk(true)} activeOpacity={0.85}>
-          <LinearGradient colors={["#2E7D9A", "#1A4F6B"]} style={cSty.askBtn}>
+          <View style={[cSty.askBtn, { backgroundColor: Colors.primaryDeep }]}>
             <MaterialCommunityIcons name="comment-question-outline" size={20} color="#fff" />
             <Text style={cSty.askBtnText}>اطرح سؤالاً طبياً</Text>
             <Ionicons name="add" size={20} color="#fff" />
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
 
         {loading ? (
@@ -810,12 +809,12 @@ function ConsultationsTab({ auth }: { auth: any }) {
               <Text style={aptSty.fieldLabel}>النشر بشكل مجهول</Text>
             </View>
             <TouchableOpacity onPress={submitQuestion} disabled={sending} activeOpacity={0.85}>
-              <LinearGradient colors={sending ? [Colors.divider, Colors.divider] : ["#2E7D9A", "#1A4F6B"]} style={aptSty.submitBtn}>
+              <View style={[aptSty.submitBtn, { backgroundColor: sending ? Colors.divider : Colors.primaryDeep }]}>
                 {sending ? <ActivityIndicator color="#fff" /> : <>
                   <Ionicons name="send" size={18} color="#fff" />
                   <Text style={aptSty.submitBtnText}>إرسال الاستشارة</Text>
                 </>}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -966,7 +965,7 @@ function SpecialistsTab() {
                   </View>
                   <View style={spSty.callCol}>
                     {sp.phone && (
-                      <TouchableOpacity onPress={() => safeCall(sp.phone)} style={spSty.callBtn}>
+                      <TouchableOpacity onPress={() => safeCall(sp.phone ?? "")} style={spSty.callBtn}>
                         <Ionicons name="call" size={18} color="#fff" />
                       </TouchableOpacity>
                     )}
@@ -983,7 +982,7 @@ function SpecialistsTab() {
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
         {selected && (
           <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-            <LinearGradient colors={["#0B2B18", Colors.bg]} style={spSty.detailHero}>
+            <View style={spSty.detailHero}>
               <TouchableOpacity onPress={() => setSelected(null)} style={{ alignSelf: "flex-end", marginBottom: 16 }}>
                 <Ionicons name="close-circle" size={26} color={Colors.textSecondary} />
               </TouchableOpacity>
@@ -995,7 +994,7 @@ function SpecialistsTab() {
                 <MaterialCommunityIcons name="stethoscope" size={15} color="#2E7D9A" />
                 <Text style={[spSty.specLabel, { fontSize: 14 }]}>{selected.specialty}</Text>
               </View>
-            </LinearGradient>
+            </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
               {selected.bio && (
                 <View style={spSty.detailSection}>
@@ -1026,7 +1025,7 @@ function SpecialistsTab() {
                 </View>
               ) : null; })()}
               {selected.phone && (
-                <TouchableOpacity onPress={() => safeCall(selected.phone)} style={spSty.callFullBtn}>
+                <TouchableOpacity onPress={() => safeCall(selected.phone ?? "")} style={spSty.callFullBtn}>
                   <Ionicons name="call" size={20} color="#fff" />
                   <Text style={spSty.callFullBtnText}>اتصل لحجز موعد — {selected.phone}</Text>
                 </TouchableOpacity>
@@ -1089,8 +1088,6 @@ function PatientServicesTab() {
 export default function MedicalScreen() {
   const { t, isRTL, lang, tr } = useLang();
   const auth = useAuth();
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -1111,25 +1108,23 @@ export default function MedicalScreen() {
   return (
     <View style={styles.container}>
       {/* الرأس */}
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={[styles.headerTitle, { textAlign: isRTL ? "right" : "left" }]}>{t("medical", "title")}</Text>
-
+      <ModernHeader title={t("medical", "title")}>
         {/* شريط البحث — فقط في الدليل */}
         {activeTab === "directory" && (
           <>
-            <View style={[styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <Ionicons name="search" size={18} color={Colors.textMuted} style={styles.searchIcon} />
+            <View style={[headerUI.search, styles.searchRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+              <Ionicons name="search" size={18} color={Colors.textMuted} />
               <TextInput
-                style={[styles.searchInput, { textAlign: isRTL ? "right" : "left" }]}
+                style={[headerUI.searchInput, { textAlign: isRTL ? "right" : "left" }]}
                 placeholder={t("medical", "search")} placeholderTextColor={Colors.textMuted}
                 value={search} onChangeText={setSearch}
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={styles.filtersContent}>
               {FILTER_OPTIONS.map((opt) => (
                 <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
-                  <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
-                    <Text style={[styles.filterChipText, filter === opt.key && styles.filterChipTextActive]}>{opt.label}</Text>
+                  <View style={[headerUI.chip, filter === opt.key && headerUI.chipActive]}>
+                    <Text style={[headerUI.chipText, filter === opt.key && headerUI.chipTextActive]}>{opt.label}</Text>
                   </View>
                 </AnimatedPress>
               ))}
@@ -1143,14 +1138,14 @@ export default function MedicalScreen() {
             <TouchableOpacity
               key={tab.key}
               onPress={() => { setActiveTab(tab.key); if (Platform.OS !== "web") Haptics.selectionAsync(); }}
-              style={[tabSty.tab, activeTab === tab.key && tabSty.tabActive]}
+              style={[headerUI.chip, activeTab === tab.key && headerUI.chipActive]}
             >
-              <MaterialCommunityIcons name={tab.icon as any} size={15} color={activeTab === tab.key ? "#fff" : Colors.textMuted} />
-              <Text style={[tabSty.tabLabel, activeTab === tab.key && tabSty.tabLabelActive]}>{tab.label}</Text>
+              <MaterialCommunityIcons name={tab.icon as any} size={15} color={activeTab === tab.key ? "#fff" : Colors.textSecondary} />
+              <Text style={[headerUI.chipText, activeTab === tab.key && headerUI.chipTextActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </ModernHeader>
 
       {/* المحتوى */}
       <GuestGate
@@ -1201,24 +1196,9 @@ export default function MedicalScreen() {
 // ══════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl,
-    ...Colors.shadow.card,
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "right", marginBottom: 14 },
-  searchRow: {
-    flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg,
-    borderRadius: Colors.radius.md, paddingHorizontal: 12, gap: 8, marginBottom: 12,
-  },
-  searchIcon: { marginLeft: 4 },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11 },
-  filtersRow: { flexDirection: "row" },
-  filtersContent: { flexDirection: "row-reverse", gap: 8, paddingLeft: 4 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
-  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
-  filterChipTextActive: { color: "#FFFFFF" },
+  searchRow: { marginBottom: 12 },
+  filtersRow: { flexDirection: "row", marginBottom: 10 },
+  filtersContent: { flexDirection: "row", gap: 8, paddingLeft: 4 },
   listContent: { padding: 14, gap: 12 },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
@@ -1247,30 +1227,17 @@ const styles = StyleSheet.create({
   specialtyText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
 });
 
-const tabSty = StyleSheet.create({
-  tab: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: Colors.radius.pill,
-    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
-  },
-  tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
-  tabLabelActive: { color: "#fff" },
-});
-
 const mj = StyleSheet.create({
   wrapper: {
     borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 4,
-    borderWidth: 1, borderColor: "#E74C6F30",
-    shadowColor: "#E74C6F", shadowOpacity: 0.12, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 5,
+    borderWidth: 1, borderColor: Colors.border,
+    ...Colors.shadow.card,
   },
-  bg: { padding: 18, gap: 14, position: "relative", overflow: "hidden" },
-  dot1: { position: "absolute", width: 160, height: 160, borderRadius: 80, backgroundColor: "#E74C6F08", top: -50, left: -50 },
-  dot2: { position: "absolute", width: 100, height: 100, borderRadius: 50, backgroundColor: "#3E9CBF06", bottom: -20, right: 20 },
+  bg: { padding: 18, gap: 14, backgroundColor: Colors.cardBg },
   topRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
-  iconBox: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30", justifyContent: "center", alignItems: "center" },
-  badge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30", paddingHorizontal: 9, paddingVertical: 3, borderRadius: Colors.radius.pill, marginBottom: 8, alignSelf: "flex-end" },
-  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#E74C6F" },
+  iconBox: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: Colors.primarySoft, justifyContent: "center", alignItems: "center" },
+  badge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primarySoft, paddingHorizontal: 9, paddingVertical: 3, borderRadius: Colors.radius.pill, marginBottom: 8, alignSelf: "flex-end" },
+  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primaryDeep },
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right", lineHeight: 27 },
   featuresList: { gap: 8, paddingRight: 4 },
   featureRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
@@ -1281,12 +1248,12 @@ const mj = StyleSheet.create({
   joinBtnWrap: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 2 },
   joinBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", paddingVertical: 15, paddingHorizontal: 20, gap: 10 },
   joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
-  joinBtnIcon: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" },
+  joinBtnIcon: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
   freeNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center", marginTop: -4 },
-  planCard:  { width: 130, backgroundColor: "#0B1E12", borderRadius: Colors.radius.md, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
+  planCard:  { width: 130, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
   planName:  { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
-  planPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9CA3AF", textAlign: "center" },
-  planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6EE7B7", textAlign: "center", width: "100%" },
+  planPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center" },
+  planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.primaryDeep, textAlign: "center", width: "100%" },
 });
 
 const aptSty = StyleSheet.create({
@@ -1363,7 +1330,7 @@ const aptSty = StyleSheet.create({
 
 const cSty = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
-  chipActive: { backgroundColor: "#2E7D9A", borderColor: "#2E7D9A" },
+  chipActive: { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep },
   chipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   askBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 15, borderRadius: Colors.radius.md },
   askBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
@@ -1387,7 +1354,7 @@ const cSty = StyleSheet.create({
   replyMeta: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
   replyBar: { flexDirection: "row-reverse", alignItems: "flex-end", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
   replyInput: { flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, maxHeight: 100 },
-  sendBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: "#2E7D9A", justifyContent: "center", alignItems: "center" },
+  sendBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: Colors.primaryDeep, justifyContent: "center", alignItems: "center" },
 });
 
 const spSty = StyleSheet.create({
@@ -1404,7 +1371,7 @@ const spSty = StyleSheet.create({
   dayText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.primary },
   callCol: { alignItems: "center", gap: 4 },
   callBtn: { width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center" },
-  detailHero: { padding: 20, alignItems: "center", gap: 10 },
+  detailHero: { padding: 20, alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.border },
   detailAvatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: Colors.primary + "15", justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: Colors.primary + "40" },
   detailName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   detailSection: { gap: 10 },

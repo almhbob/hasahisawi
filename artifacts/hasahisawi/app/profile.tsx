@@ -4,7 +4,6 @@ import {
   TextInput, ActivityIndicator, Alert, Platform, Image,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -244,11 +243,6 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Hero Card */}
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.heroCard}>
-          <LinearGradient
-            colors={[Colors.primary + "18", Colors.cardBg]}
-            style={StyleSheet.absoluteFill}
-          />
-
           {/* Avatar */}
           <View style={styles.avatarContainer}>
             <TouchableOpacity
@@ -261,7 +255,7 @@ export default function ProfileScreen() {
                 name={profile.name}
                 avatarUrl={profile.avatar_url}
                 size={96}
-                borderRadius={30}
+                borderRadius={48}
               />
               {isOwn && (
                 <View style={styles.avatarEditOverlay}>
@@ -415,14 +409,10 @@ export default function ProfileScreen() {
               onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDim]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={styles.chatBtn}
-              >
+              <View style={[styles.chatBtn, { backgroundColor: Colors.primaryDeep }]}>
                 <Ionicons name="chatbubble" size={18} color="#fff" />
                 <Text style={styles.chatBtnText}>مراسلة {profile.name.split(" ")[0]}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -450,9 +440,9 @@ const styles = StyleSheet.create({
 
   heroCard: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    borderRadius: Colors.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: 24,
     alignItems: "center",
     gap: 8,
@@ -466,7 +456,7 @@ const styles = StyleSheet.create({
     right: 0,
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",

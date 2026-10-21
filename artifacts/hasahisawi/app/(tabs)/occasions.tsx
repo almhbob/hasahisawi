@@ -18,8 +18,8 @@ import ModernHeader from "@/components/ui/ModernHeader";
 const GOLD   = "#D97706";
 const GOLD2  = "#F59E0B";
 const PURPLE = "#7C3AED";
-const BG     = "#0A1A10";
-const CARD   = "#0E2318";
+const BG     = Colors.bg;
+const CARD   = Colors.cardBg;
 
 // ── أنواع الأصناف ────────────────────────────────────────────────────────────
 type Category = {
@@ -108,7 +108,7 @@ function HeroSection() {
           { icon: "checkmark-circle-outline" as const, label: "أصناف",sub: "متوفرة"  },
         ].map((s, i) => (
           <View key={i} style={h.statCard}>
-            <Ionicons name={s.icon} size={20} color="#fff" />
+            <Ionicons name={s.icon} size={20} color={Colors.primaryDeep} />
             <Text style={h.statLabel}>{s.label}</Text>
             <Text style={h.statSub}>{s.sub}</Text>
           </View>
@@ -142,7 +142,7 @@ function ShopCard({ shop, index }: { shop: OccasionShop; index: number }) {
         }}
       >
         {/* ── رأس الكرت ── */}
-        <LinearGradient colors={["#1C0C00", CARD]} style={s.shopHeader}>
+        <View style={s.shopHeader}>
           <View style={s.shopAvatar}>
             <MaterialCommunityIcons name="storefront" size={26} color={GOLD} />
           </View>
@@ -159,7 +159,7 @@ function ShopCard({ shop, index }: { shop: OccasionShop; index: number }) {
             </View>
             <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={Colors.textMuted} />
           </View>
-        </LinearGradient>
+        </View>
 
         {/* ── وصف المحل ── */}
         {shop.description ? (
@@ -695,12 +695,11 @@ export default function OccasionsScreen() {
 const h = StyleSheet.create({
   statsRow: { flexDirection: "row", gap: 10 },
   statCard: {
-    flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+    flex: 1, backgroundColor: Colors.header.control, borderRadius: Colors.radius.md,
     alignItems: "center", paddingVertical: 10, gap: 2,
   },
-  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
-  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.78)" },
+  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textPrimary },
+  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary },
 });
 
 // شاشة

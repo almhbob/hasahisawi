@@ -13,7 +13,7 @@ import GuestGate from "@/components/GuestGate";
 import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import { LoadError } from "@/components/ui/LoadState";
 
 import {
@@ -252,7 +252,7 @@ export default function ChatScreen() {
       { text: "فتح المحادثة", onPress: () => openConversation(chat) },
       ...(unread > 0 ? [{
         text: "تعليم كمقروء",
-        onPress: () => { apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
+        onPress: () => { if (token) apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
       }] : []),
       { text: "إلغاء", style: "cancel" as const },
     ]);
@@ -264,8 +264,8 @@ export default function ChatScreen() {
         title="الدردشة"
         icon="chatbubbles-outline"
         rightSlot={
-          <TouchableOpacity style={styles.newBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
-            <Ionicons name="create-outline" size={20} color="#fff" />
+          <TouchableOpacity style={headerUI.iconBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+            <Ionicons name="create-outline" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
         }
       />
@@ -397,13 +397,6 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  newBtn: {
-    width: 38, height: 38,
-    borderRadius: Colors.radius.pill,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   // Search bar
   searchWrap: {

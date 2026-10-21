@@ -15,7 +15,7 @@ import GuestGate from "@/components/GuestGate";
 import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
-import ModernHeader from "@/components/ui/ModernHeader";
+import ModernHeader, { headerUI } from "@/components/ui/ModernHeader";
 import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 
 
@@ -318,41 +318,35 @@ export default function AppointmentsScreen() {
         icon="calendar"
         rightSlot={
           tab === "book" && step !== "category" ? (
-            <TouchableOpacity onPress={resetBooking} style={s.resetBtn}>
-              <Ionicons name="refresh-outline" size={18} color={Colors.accent} />
-              <Text style={s.resetBtnText}>بداية</Text>
+            <TouchableOpacity onPress={resetBooking} style={[headerUI.secondaryBtn, s.resetBtn]}>
+              <Ionicons name="refresh-outline" size={18} color={Colors.textPrimary} />
+              <Text style={headerUI.secondaryBtnText}>بداية</Text>
             </TouchableOpacity>
           ) : undefined
         }
       >
         {/* Tabs */}
-        <View style={s.tabRow}>
+        <View style={[headerUI.segmentWrap, s.tabRow]}>
           <TouchableOpacity
-            style={[s.tabBtn, tab === "book" && s.tabBtnActive]}
+            style={[headerUI.segment, s.tabBtn, tab === "book" && headerUI.segmentActive]}
             onPress={() => setTab("book")}
           >
-            {tab === "book" && (
-              <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={StyleSheet.absoluteFill} />
-            )}
-            <Ionicons name="add-circle-outline" size={16} color={tab === "book" ? "#000" : "rgba(255,255,255,0.85)"} />
-            <Text style={[s.tabBtnText, tab === "book" && { color: "#000" }]}>حجز جديد</Text>
+            <Ionicons name="add-circle-outline" size={16} color={tab === "book" ? Colors.primaryDeep : Colors.textSecondary} />
+            <Text style={[headerUI.segmentText, tab === "book" && headerUI.segmentTextActive]}>حجز جديد</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.tabBtn, tab === "my" && s.tabBtnActive]}
+            style={[headerUI.segment, s.tabBtn, tab === "my" && headerUI.segmentActive]}
             onPress={() => setTab("my")}
           >
-            {tab === "my" && (
-              <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={StyleSheet.absoluteFill} />
-            )}
             <View style={{ position: "relative" }}>
-              <Ionicons name="calendar-outline" size={16} color={tab === "my" ? "#000" : "rgba(255,255,255,0.85)"} />
+              <Ionicons name="calendar-outline" size={16} color={tab === "my" ? Colors.primaryDeep : Colors.textSecondary} />
               {appointments.filter(a => a.status === "pending").length > 0 && (
                 <View style={s.badge}>
                   <Text style={s.badgeText}>{appointments.filter(a => a.status === "pending").length}</Text>
                 </View>
               )}
             </View>
-            <Text style={[s.tabBtnText, tab === "my" && { color: "#000" }]}>مواعيدي</Text>
+            <Text style={[headerUI.segmentText, tab === "my" && headerUI.segmentTextActive]}>مواعيدي</Text>
           </TouchableOpacity>
         </View>
       </ModernHeader>
@@ -739,16 +733,10 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
   // Header
-  resetBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  resetBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-  tabRow: { flexDirection: "row", gap: 10 },
-  tabBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-    paddingVertical: 11, borderRadius: Colors.radius.md, overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
-  },
-  tabBtnActive: { borderColor: "rgba(255,255,255,0.7)" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.85)" },
+  // Layout-only overrides: keep the original "row" child order inside the header.
+  resetBtn: { flexDirection: "row" },
+  tabRow: { flexDirection: "row" },
+  tabBtn: { flexDirection: "row" },
   badge: { position: "absolute", top: -5, right: -8, backgroundColor: Colors.danger, borderRadius: Colors.radius.sm, width: 16, height: 16, justifyContent: "center", alignItems: "center" },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
 
