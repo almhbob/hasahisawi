@@ -148,7 +148,6 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: keyof ty
 const MODERATOR_SECTIONS = [
   { key: "members",     label: "متابعة الأعضاء",   icon: "people-outline"       as const },
   { key: "communities", label: "موافقات المؤسسات",  icon: "business-outline"     as const },
-  { key: "partners_admin", label: "إدارة الشركاء", icon: "briefcase-outline" as const },
   { key: "ads",         label: "الإعلانات",         icon: "megaphone-outline"    as const },
   { key: "landmarks",   label: "المعالم",           icon: "location-outline"     as const },
   { key: "medical",     label: "الطب والصحة",      icon: "medkit-outline"       as const },
