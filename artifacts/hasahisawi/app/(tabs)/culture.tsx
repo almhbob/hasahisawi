@@ -358,7 +358,7 @@ export default function CultureScreen() {
       {/* Filter Bar */}
       <ScrollView
         horizontal showsHorizontalScrollIndicator={false}
-        style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+        style={styles.filtersRow} contentContainerStyle={styles.filtersContent}
       >
         {(activeTab === "centers" ? CENTER_FILTERS : EVENT_FILTERS).map(f => (
           <AnimatedPress
@@ -435,11 +435,11 @@ export default function CultureScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   filtersRow: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  filtersContent: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
-  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
-  filterChipTextActive: { color: "#FFFFFF" },
+  filtersContent: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  filterChip: headerUI.chip,
+  filterChipActive: headerUI.chipActive,
+  filterChipText: headerUI.chipText,
+  filterChipTextActive: headerUI.chipTextActive,
   scroll: { flex: 1 },
   scrollContent: { padding: 14, gap: 12 },
   emptyState: { alignItems: "center", paddingTop: 70, gap: 10 },

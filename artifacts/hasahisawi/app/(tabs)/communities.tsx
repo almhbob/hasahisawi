@@ -759,7 +759,7 @@ export default function CommunitiesScreen() {
       <ScrollView
         horizontal showsHorizontalScrollIndicator={false}
         style={styles.filtersScroll}
-        contentContainerStyle={[styles.filtersRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+        contentContainerStyle={styles.filtersRow}
       >
         {FILTERS.map(f => {
           const color = f.key === "all" ? Colors.primary : (CATEGORIES[f.key as CatKey]?.color ?? Colors.primary);
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
 
   // Filters
   filtersScroll: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  filtersRow: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  filtersRow: { flexDirection: "row", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
   filterBtn: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,

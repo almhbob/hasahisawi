@@ -1752,7 +1752,7 @@ export default function MarketScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.filterBar}
-        contentContainerStyle={[styles.filterBarContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+        contentContainerStyle={styles.filterBarContent}
       >
         {tab !== "merchants" && tab !== "phones" && (tab === "family" ? FAMILY_CATS : tab === "auction" ? AUCTION_CATS : CARP_CATS).map((c) => {
           const active = tab === "family" ? familyCat === c.key : tab === "auction" ? auctionCat === c.key : carpEntryCat === c.key;
@@ -2821,7 +2821,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
   filterBarContent: {
-    flexDirection: "row-reverse", gap: 8,
+    flexDirection: "row", gap: 8,
     paddingHorizontal: 16, paddingVertical: 10,
   },
   filterChip: {

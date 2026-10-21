@@ -466,7 +466,7 @@ export default function JobsScreen() {
           </AnimatedPress>
         }
       >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={styles.filtersContent}>
           {TYPE_OPTIONS.map((opt) => (
             <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
               <View style={[headerUI.chip, filter === opt.key && headerUI.chipActive]}>
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
   },
   filtersContent: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     gap: 8,
     paddingHorizontal: 16,
   },

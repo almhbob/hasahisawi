@@ -1120,7 +1120,7 @@ export default function MedicalScreen() {
                 value={search} onChangeText={setSearch}
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={styles.filtersContent}>
               {FILTER_OPTIONS.map((opt) => (
                 <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
                   <View style={[headerUI.chip, filter === opt.key && headerUI.chipActive]}>
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   searchRow: { marginBottom: 12 },
   filtersRow: { flexDirection: "row", marginBottom: 10 },
-  filtersContent: { flexDirection: "row-reverse", gap: 8, paddingLeft: 4 },
+  filtersContent: { flexDirection: "row", gap: 8, paddingLeft: 4 },
   listContent: { padding: 14, gap: 12 },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 16, color: Colors.textMuted },
