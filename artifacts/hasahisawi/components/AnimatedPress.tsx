@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, Platform, ViewStyle, StyleProp } from "react-native";
+import { Pressable, Platform, ViewStyle, StyleProp, StyleSheet } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -36,10 +36,19 @@ export default function AnimatedPress({
     transform: [{ scale: scale.value }],
   }));
 
+  // Flex sizing must live on the outer animated wrapper, otherwise a child
+  // styled `flex: 1` (segments, equal-width buttons) collapses to its content.
+  const flat = (StyleSheet.flatten(style) || {}) as ViewStyle;
+  const outer: ViewStyle = {};
+  for (const k of ["flex", "flexGrow", "flexShrink", "flexBasis", "alignSelf"] as const) {
+    if (flat[k] !== undefined) (outer as any)[k] = flat[k];
+  }
+  const fillInner = outer.flex !== undefined || outer.flexGrow !== undefined;
+
   return (
-    <Animated.View style={animStyle}>
+    <Animated.View style={[outer, animStyle]}>
       <Pressable
-        style={style}
+        style={fillInner ? [style, { flexGrow: 1 }] : style}
         hitSlop={hitSlop}
         onPressIn={() => {
           if (disabled) return;
