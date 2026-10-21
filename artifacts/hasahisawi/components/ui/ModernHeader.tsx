@@ -44,8 +44,9 @@ export default function ModernHeader({
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + 10 }, style]}>
-      {/* Child order matches the previous header (back · title · actions) so
-          placement stays identical under both forced-RTL native and web. */}
+      {/* Logical order back · title · actions with flexDirection "row": the layout
+          engine mirrors it, so in Arabic (RTL) back sits at the right edge, the
+          title starts on the right and actions sit on the left; English mirrors. */}
       <View style={styles.topRow}>
         {showBack && (
           <TouchableOpacity
@@ -149,26 +150,24 @@ const styles = StyleSheet.create({
     borderBottomColor: H.divider,
   },
   topRow: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     alignItems: "center",
     gap: 10,
     minHeight: 44,
   },
-  titleBlock: { flex: 1, alignItems: "flex-end", gap: 2 },
+  titleBlock: { flex: 1, alignItems: "flex-start", gap: 2 },
   title: {
     fontFamily: "Cairo_700Bold",
     fontSize: 24,
     lineHeight: 34,
     color: Colors.textPrimary,
-    textAlign: "right",
   },
   subtitle: {
     fontFamily: "Cairo_400Regular",
     fontSize: 13,
     lineHeight: 19,
     color: Colors.textSecondary,
-    textAlign: "right",
   },
-  actions: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   childrenWrap: {},
 });
