@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import multer from "multer";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
@@ -15577,47 +15577,78 @@ router.get("/travel/routes", async (req: Request, res: Response) => {
 router.post("/travel/bookings", async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
-    const {
-      company_id, route_id, from_city, to_city, travel_date,
-      departure_time, passenger_name, passenger_phone, price, notes
-    } = req.body;
-    if (!from_city || !to_city || !travel_date || !passenger_name)
+    const { route_id, travel_date, passenger_name, passenger_phone, notes } = req.body;
+    let { company_id, from_city, to_city, departure_time } = req.body;
+    if (!travel_date || !String(passenger_name || "").trim())
       return res.status(400).json({ error: "بيانات ناقصة" });
 
-    // رقم تذكرة فريد
-    const dateStr = new Date(travel_date).toISOString().slice(0,10).replace(/-/g,"");
-    const rand    = Math.floor(Math.random()*9000+1000);
-    const ticketNumber = `TKT-${dateStr}-${rand}`;
-    const bookingRef   = `BK${rand}${Math.floor(Math.random()*100)}`;
+    // التاريخ: صالح وليس في الماضي (نسمح بيوم واحد لفروق التوقيت)
+    const travelDay = new Date(travel_date);
+    if (Number.isNaN(travelDay.getTime()))
+      return res.status(400).json({ error: "تاريخ السفر غير صالح" });
+    if (travelDay.getTime() < Date.now() - 24 * 60 * 60 * 1000)
+      return res.status(400).json({ error: "لا يمكن الحجز لتاريخ مضى" });
 
-    // اسم الشركة
+    // السعر والمسار يُؤخذان من قاعدة البيانات وليس من التطبيق، حتى لا يُرسل أحد سعراً مخفّضاً.
+    let price = 0;
     let companyName = "";
-    if (company_id) {
-      const cr = await query(`SELECT name FROM travel_companies WHERE id=$1`, [company_id]);
-      companyName = cr.rows[0]?.name || "";
+    if (route_id) {
+      const rr = await query(
+        `SELECT tr.*, tc.name AS company_name FROM travel_routes tr
+         JOIN travel_companies tc ON tc.id=tr.company_id
+         WHERE tr.id=$1 AND tr.active=TRUE AND tc.active=TRUE`, [route_id]
+      );
+      const route = rr.rows[0];
+      if (!route) return res.status(400).json({ error: "هذا المسار غير متاح" });
+      company_id = route.company_id; from_city = route.from_city; to_city = route.to_city;
+      departure_time = route.departure_time; price = Number(route.price) || 0;
+      companyName = route.company_name || "";
+
+      // عدم تجاوز عدد مقاعد الرحلة في نفس اليوم
+      const taken = await query(
+        `SELECT COUNT(*)::int AS n FROM travel_bookings
+         WHERE route_id=$1 AND travel_date=$2 AND status <> 'cancelled'`, [route_id, travel_date]
+      );
+      if (Number(route.seats_total) > 0 && taken.rows[0].n >= Number(route.seats_total))
+        return res.status(409).json({ error: "اكتملت مقاعد هذه الرحلة في هذا التاريخ" });
+    } else {
+      // طلب بدون مسار محدد: السعر تحدده الشركة لاحقاً
+      if (!from_city || !to_city) return res.status(400).json({ error: "بيانات ناقصة" });
+      if (company_id) {
+        const cr = await query(`SELECT name FROM travel_companies WHERE id=$1`, [company_id]);
+        companyName = cr.rows[0]?.name || "";
+      }
     }
 
-    // رقم المقعد
-    const seatLetter = String.fromCharCode(65 + Math.floor(Math.random()*4));
-    const seatNum    = Math.floor(Math.random()*15)+1;
-    const seatNumber = `${seatLetter}${seatNum}`;
+    const dateStr = travelDay.toISOString().slice(0,10).replace(/-/g,"");
+    const seatLetter = String.fromCharCode(65 + randomInt(4));
+    const seatNumber = `${seatLetter}${randomInt(1, 16)}`;
 
-    // رمز التحقق المشفّر (SHA-256)
-    const rawToken  = `${ticketNumber}:${bookingRef}:${Date.now()}:${Math.random()}`;
-    const verifyTok = require("crypto").createHash("sha256").update(rawToken).digest("hex");
-
-    const r = await query(
-      `INSERT INTO travel_bookings
-         (user_id, company_id, route_id, company_name, from_city, to_city, travel_date,
-          departure_time, passenger_name, passenger_phone, seat_number, price, ticket_number, booking_ref, notes, verify_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-      [user?.id||null, company_id||null, route_id||null, companyName,
-       from_city, to_city, travel_date, departure_time||"", passenger_name,
-       passenger_phone||"", seatNumber, price||0, ticketNumber, bookingRef, notes||"", verifyTok]
-    );
-    return res.status(201).json(r.rows[0]);
+    // رقم التذكرة عشوائي بستة أرقام، مع إعادة المحاولة عند التكرار النادر
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const rand = randomInt(100000, 1000000);
+      const ticketNumber = `TKT-${dateStr}-${rand}`;
+      const bookingRef   = `BK${randomInt(10000000, 100000000)}`;
+      const verifyTok    = randomBytes(32).toString("hex");
+      try {
+        const r = await query(
+          `INSERT INTO travel_bookings
+             (user_id, company_id, route_id, company_name, from_city, to_city, travel_date,
+              departure_time, passenger_name, passenger_phone, seat_number, price, ticket_number, booking_ref, notes, verify_token)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+          [user?.id||null, company_id||null, route_id||null, companyName,
+           from_city, to_city, travel_date, departure_time||"", String(passenger_name).trim(),
+           passenger_phone||"", seatNumber, price, ticketNumber, bookingRef, notes||"", verifyTok]
+        );
+        return res.status(201).json(r.rows[0]);
+      } catch (err: any) {
+        if (err?.code !== "23505" || attempt === 3) throw err;
+      }
+    }
+    return res.status(500).json({ error: "Server error" });
   } catch (err: any) {
-    if (err?.code === "23505") return res.status(409).json({ error: "تذكرة مكررة" });
+    if (err?.code === "23505") return res.status(409).json({ error: "تذكرة مكررة، أعد المحاولة" });
+    logger.error({ err }, "travel/bookings");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -16135,6 +16166,7 @@ router.get("/travel/verify/:token", async (req: Request, res: Response) => {
 
     if (b.status === "cancelled") { verdict = "invalid"; reasons.push("التذكرة ملغاة"); }
     if (b.payment_status === "pending_payment") { verdict = "warning"; reasons.push("لم يُسدَّد الدفع بعد"); }
+    if (b.payment_status === "proof_submitted") { verdict = "warning"; reasons.push("إيصال الدفع لم يُراجَع بعد"); }
     if (b.payment_status === "rejected") { verdict = "invalid"; reasons.push("الدفع مرفوض"); }
     if (b.scan_count >= 1 && verdict !== "invalid") { verdict = "warning"; reasons.push(`تم فحص هذه التذكرة ${b.scan_count} مرة من قبل`); }
 

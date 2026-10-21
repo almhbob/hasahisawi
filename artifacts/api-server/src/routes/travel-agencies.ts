@@ -180,6 +180,15 @@ router.post("/travel-agencies/apply", heavyWriteLimiter, async (req, res) => {
         arr(b.specialties), arr(b.destinations), arr(b.services_offered), bookingProducts, str(b.target_routes, 800),
         str(b.description, 1600), workspaceSettings,
       ]);
+    // ربط الطلب برابط الدعوة إن وُجد، حتى تظهر الدعوة "مُستخدمة" في لوحة الإدارة.
+    const inviteToken = str(b.invite_token, 64);
+    if (inviteToken) {
+      await q(
+        `UPDATE travel_agency_invitations SET status='applied', application_id=$1, applied_at=NOW()
+         WHERE token=$2 AND status IN ('pending','opened')`,
+        [rows[0].id, inviteToken],
+      ).catch((err) => logger.warn({ err }, "travel agency invitation link failed"));
+    }
     return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلب انضمام الوكالة. سنراجع البيانات ونجهّز مساحة الوكالة ولوحة إدارتها خلال 48 ساعة." });
   } catch (err) {
     logger.error({ err }, "travel agency application failed");

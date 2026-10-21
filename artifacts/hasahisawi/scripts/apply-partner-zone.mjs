@@ -10,7 +10,8 @@ src = src.replace(oldTabType, newTabType);
 
 const permAnchor = '  { key: "communities", label: "موافقات المؤسسات",  icon: "business-outline"     as const },';
 const permLine = '  { key: "partners_admin", label: "إدارة الشركاء", icon: "briefcase-outline" as const },';
-if (!src.includes('key: "partners_admin"')) src = src.replace(permAnchor, `${permAnchor}\n${permLine}`);
+// Moderator permission intentionally not added: partner management uses admin-only APIs,
+// so a moderator granted it would only see an empty screen. Admins use the "partners" tab.
 
 const tabAnchor = '{ key: "communities", label: "المؤسسات", icon: "business-outline", adminOnly: false },';
 const tabLine = '{ key: "partners_admin", label: "الشركاء", icon: "briefcase-outline", adminOnly: false },';
