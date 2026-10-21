@@ -83,6 +83,12 @@ export default function ForgotPasswordScreen() {
       }, 20000);
       const otpData = await otpRes.json();
       if (!otpRes.ok) { setError(otpData.error || "تعذّر إرسال رمز التحقق"); return; }
+      if (otpData.method === "firebase_link") {
+        // أرسل Firebase رابط إعادة التعيين إلى بريد الحساب
+        setSentTo(otpData.sent_to || id);
+        setStep("email_sent");
+        return;
+      }
       setSentChannel(otpData.channel === "email" ? "email" : "sms");
       setSentTo(otpData.sent_to || id);
       setOtpTimer(120);
@@ -289,7 +295,7 @@ export default function ForgotPasswordScreen() {
 
               <Text style={styles.successSub}>
                 أرسلنا رابطاً لإعادة تعيين كلمة المرور إلى{"\n"}
-                <Text style={{ color: Colors.primary, fontWeight: "700" }}>{identifier}</Text>
+                <Text style={{ color: Colors.primary, fontWeight: "700" }}>{sentTo || identifier}</Text>
               </Text>
 
               <View style={styles.tipBox}>
@@ -299,6 +305,7 @@ export default function ForgotPasswordScreen() {
                   <Text style={styles.tipText}>• اضغط على الرابط لتعيين كلمة مرور جديدة</Text>
                   <Text style={styles.tipText}>• تحقق من مجلد البريد المزعج إن لم تجده</Text>
                   <Text style={styles.tipText}>• الرابط صالح لمدة ساعة واحدة</Text>
+                  <Text style={styles.tipText}>• بعدها سجّل الدخول هنا بكلمة المرور الجديدة مباشرة</Text>
                 </View>
               </View>
 
