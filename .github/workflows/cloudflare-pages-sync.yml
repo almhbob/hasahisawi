@@ -155,8 +155,11 @@ jobs:
             echo "No cf-dist changes"
           else
             git commit -m "deploy: cloudflare pages latest [auto]"
-            git pull --rebase origin master || true
-            git push origin master || (git pull --rebase origin master && git push origin master)
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase --autostash origin master && git push origin master && break
+              echo "Push attempt $attempt failed; retrying"
+              sleep $((attempt * 5))
+            done
           fi
 
       - name: Deploy with Wrangler when configured
@@ -169,4 +172,6 @@ jobs:
             echo "Cloudflare API secrets are not configured. cf-dist was committed for Cloudflare Git integration."
             exit 0
           fi
-          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
+          if ! npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master; then
+            echo "::warning title=Cloudflare deploy skipped::Cloudflare rejected the API token (renew CLOUDFLARE_API_TOKEN with 'Cloudflare Pages: Edit' permission). GitHub Pages deploy is unaffected."
+          fi
