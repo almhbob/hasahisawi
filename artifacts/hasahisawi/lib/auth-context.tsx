@@ -101,11 +101,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (t && u) {
           setToken(t);
           setUser(JSON.parse(u));
+          validateStoredSession(t);
         }
       } catch {}
       setIsLoading(false);
     })();
   }, []);
+
+  // A stored token can outlive its server session (expired, revoked, or the
+  // user logged out elsewhere). Without this check the app looks signed in
+  // while every authenticated call fails with 401. Only an explicit 401 ends
+  // the session — network errors (offline, server down) keep it.
+  async function validateStoredSession(storedToken: string) {
+    const base = getApiUrl();
+    if (!base) return;
+    try {
+      const r = await fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${storedToken}` } });
+      if (r.status === 401) {
+        setUser(null); setToken(null); setIsGuest(false);
+        await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, GUEST_KEY]);
+        return;
+      }
+      if (r.ok) {
+        const data = await r.json().catch(() => null);
+        if (data?.user) {
+          setUser(data.user);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        }
+      }
+    } catch { /* offline — keep the stored session */ }
+  }
 
   async function saveSession(authUser: AuthUser, authToken: string | null) {
     setUser(authUser);
