@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { listAllFirebaseUsers, verifyIdToken, type FirebaseUserRecord } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 import { pinMatches } from "../lib/admin-pin";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 
@@ -16,7 +17,7 @@ const dbEnabled =
 
 const pool: Pool | null = dbEnabled
   ? new Pool({
-      connectionString: dbUrl,
+      connectionString: stripSslParams(dbUrl),
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
       max: 12,

@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 const dbUrl = process.env.DATABASE_URL ?? "";
 const pool = dbUrl && !dbUrl.includes(".invalid") && !dbUrl.includes("placeholder") && !dbUrl.includes("nodb")
-  ? new Pool({ connectionString: dbUrl, connectionTimeoutMillis: 8000, idleTimeoutMillis: 30000, max: 10, allowExitOnIdle: false, ssl: dbUrl.includes("sslmode=require") || dbUrl.includes("ssl=true") ? { rejectUnauthorized: false } : false })
+  ? new Pool({ connectionString: stripSslParams(dbUrl), connectionTimeoutMillis: 8000, idleTimeoutMillis: 30000, max: 10, allowExitOnIdle: false, ssl: dbUrl.includes("sslmode=require") || dbUrl.includes("ssl=true") ? { rejectUnauthorized: false } : false })
   : null;
 
 async function query(sql: string, params: unknown[] = []) {

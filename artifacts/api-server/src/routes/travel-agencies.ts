@@ -4,12 +4,13 @@ import { timingSafeEqual } from "node:crypto";
 import { heavyWriteLimiter } from "../lib/rate-limiters";
 import { logger } from "../lib/logger";
 import { pinMatches } from "../lib/admin-pin";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 const dbUrl = process.env.DATABASE_URL ?? "";
 const pool = dbUrl && !dbUrl.includes("placeholder") && !dbUrl.includes(".invalid") && !dbUrl.includes("nodb")
   ? new Pool({
-      connectionString: dbUrl,
+      connectionString: stripSslParams(dbUrl),
       max: 10,
       connectionTimeoutMillis: 8000,
       idleTimeoutMillis: 30000,

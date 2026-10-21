@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Pool } from "pg";
+import { stripSslParams } from "../lib/pg-url";
 
 const router: IRouter = Router();
 const HEALTH_ROUTE_VERSION = "2026-05-18-api-health-v7";
@@ -40,7 +41,7 @@ async function databaseStatus() {
 
   const started = Date.now();
   const pool = new Pool({
-    connectionString: dbUrl,
+    connectionString: stripSslParams(dbUrl),
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: 1_000,
     max: 1,

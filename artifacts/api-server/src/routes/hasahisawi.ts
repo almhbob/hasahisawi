@@ -10,6 +10,7 @@ import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimit
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
 import { verifyIdToken, listAllFirebaseUsers } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
+import { stripSslParams } from "../lib/pg-url";
 
 const router = Router();
 
@@ -29,7 +30,7 @@ const _dbEnabled =
 
 const pool: Pool | null = _dbEnabled
   ? new Pool({
-      connectionString: _dbUrl,
+      connectionString: stripSslParams(_dbUrl),
       connectionTimeoutMillis: 8_000,
       idleTimeoutMillis: 30_000,
       max: 15,
@@ -3865,7 +3866,7 @@ router.post("/admin/migrate-users-from-db", heavyWriteLimiter, async (req: Reque
 
     const { Pool: PgPool } = await import("pg");
     const srcPool = new PgPool({
-      connectionString: source_db_url,
+      connectionString: stripSslParams(source_db_url),
       connectionTimeoutMillis: 12_000,
       idleTimeoutMillis: 5_000,
       max: 2,
@@ -18668,3 +18669,206 @@ router.post("/admin/send-invitations", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// بطاقة العضوية الرقمية
+// الفئة تُحدَّد على الخادم فقط: الإدارة ← المشرفون ← أصحاب المؤسسات المعتمدة ← عضوة / عضو.
+// رمز QR يحمل رمز تحقّق عشوائياً لا يمكن تخمينه (وليس رقم العضوية) حتى لا تُستعرض بيانات
+// الأعضاء بالتسلسل. الصفحة العامة لا تعرض الهاتف ولا البريد ولا الرقم الوطني.
+// ════════════════════════════════════════════════════════════════════════════
+type MemberCardTier = "admin" | "moderator" | "business" | "female" | "male";
+
+const MEMBER_CARD_TIERS: Record<MemberCardTier, { label: string; bg: string; foil: string; ink: string; text: string; deep: string }> = {
+  male:      { label: "عضو",           bg: "linear-gradient(135deg,#012E22 0%,#00684B 52%,#013D2D 100%)", foil: "linear-gradient(120deg,#F7E3A1 0%,#D9AE4F 45%,#A97C25 100%)", ink: "#E9C978", text: "#F5F1E4", deep: "#013526" },
+  female:    { label: "عضوة",          bg: "linear-gradient(135deg,#2E0C26 0%,#6B2450 52%,#3D1131 100%)", foil: "linear-gradient(120deg,#FBE1D6 0%,#E3A894 45%,#B8735E 100%)", ink: "#EFC1AE", text: "#FCEFF2", deep: "#3A0F2E" },
+  business:  { label: "عضوية الأعمال", bg: "linear-gradient(135deg,#121314 0%,#2B2C2F 52%,#18191B 100%)", foil: "linear-gradient(120deg,#F3E6C1 0%,#CDB57A 45%,#8F7440 100%)", ink: "#DCC793", text: "#F2EFE8", deep: "#1A1B1D" },
+  moderator: { label: "مشرف",          bg: "linear-gradient(135deg,#07142A 0%,#173E73 52%,#0B2143 100%)", foil: "linear-gradient(120deg,#FFFFFF 0%,#C9D4E2 45%,#8695AA 100%)", ink: "#D7E0EC", text: "#EEF3FA", deep: "#0B1F3E" },
+  admin:     { label: "الإدارة",        bg: "linear-gradient(135deg,#000000 0%,#16130B 52%,#050505 100%)", foil: "linear-gradient(120deg,#FFF0B8 0%,#E6B84A 40%,#9C6B12 100%)", ink: "#F0CB6A", text: "#FBF6E8", deep: "#0D0B06" },
+};
+
+let memberCardsReady: Promise<void> | null = null;
+function ensureMemberCardsTable(): Promise<void> {
+  if (!memberCardsReady) {
+    memberCardsReady = (async () => {
+      await query(`CREATE TABLE IF NOT EXISTS member_cards (
+        user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        verify_token VARCHAR(64) UNIQUE NOT NULL,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        rotated_at   TIMESTAMPTZ
+      )`);
+    })().catch((err) => { memberCardsReady = null; throw err; });
+  }
+  return memberCardsReady;
+}
+
+function isFemaleGender(g: unknown): boolean {
+  const v = String(g ?? "").trim().toLowerCase();
+  return v === "female" || v === "f" || v === "أنثى" || v === "انثى";
+}
+
+async function memberCardTokenFor(userId: number, rotate = false): Promise<string> {
+  await ensureMemberCardsTable();
+  if (rotate) {
+    const token = randomBytes(24).toString("hex");
+    await query(
+      `INSERT INTO member_cards (user_id, verify_token) VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET verify_token=EXCLUDED.verify_token, rotated_at=NOW()`,
+      [userId, token],
+    );
+    return token;
+  }
+  const existing = await query(`SELECT verify_token FROM member_cards WHERE user_id=$1`, [userId]);
+  if (existing.rows[0]) return existing.rows[0].verify_token;
+  await query(
+    `INSERT INTO member_cards (user_id, verify_token) VALUES ($1,$2) ON CONFLICT (user_id) DO NOTHING`,
+    [userId, randomBytes(24).toString("hex")],
+  );
+  const created = await query(`SELECT verify_token FROM member_cards WHERE user_id=$1`, [userId]);
+  return created.rows[0].verify_token;
+}
+
+async function buildMemberCard(user: Record<string, any>) {
+  const role = String(user.role || "user");
+  let tier: MemberCardTier;
+  let roleLabel = "";
+  if (role === "admin") { tier = "admin"; roleLabel = "مدير المنصة"; }
+  else if (role === "moderator" || role === "transport_supervisor") {
+    tier = "moderator"; roleLabel = role === "transport_supervisor" ? "مشرف النقل" : "مشرف المجتمع";
+  } else {
+    const inst = await query(
+      `SELECT inst_name FROM institution_applications WHERE user_id=$1 AND status='approved' ORDER BY id DESC LIMIT 1`,
+      [user.id],
+    ).catch(() => ({ rows: [] as any[] }));
+    if (inst.rows[0]?.inst_name) { tier = "business"; roleLabel = `مالك · ${inst.rows[0].inst_name}`; }
+    else tier = isFemaleGender(user.gender) ? "female" : "male";
+  }
+  const since = user.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear();
+  const neighborhood = user.neighborhood ? String(user.neighborhood) : "";
+  return {
+    number: `HS-${since}-${String(user.id).padStart(6, "0")}`,
+    tier,
+    tier_label: MEMBER_CARD_TIERS[tier].label,
+    name: String(user.name || "عضو حصاحيصاوي"),
+    avatar_url: user.avatar_url || null,
+    role_label: roleLabel || (neighborhood ? `${neighborhood} · الحصاحيصا` : "الحصاحيصا"),
+    neighborhood,
+    member_since: since,
+    verified: Boolean(user.phone_verified) || tier === "admin" || tier === "moderator" || tier === "business",
+  };
+}
+
+function memberCardVerifyUrl(req: Request, token: string): string {
+  const base = (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+  return `${base}/api/member-card/v/${token}`;
+}
+
+function escapeCardHtml(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]).join(" ") || "ح";
+}
+
+// GET /api/member-card/me — بطاقة العضو الحالي
+router.get("/member-card/me", async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!user) return res.status(401).json({ error: "سجّل الدخول لعرض بطاقتك" });
+    if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const card = await buildMemberCard(user);
+    const token = await memberCardTokenFor(Number(user.id));
+    return res.json({ card: { ...card, verify_url: memberCardVerifyUrl(req, token) } });
+  } catch (err) { logger.error({ err }, "member-card/me"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/member-card/me/rotate — إصدار رمز تحقّق جديد (يُبطل الرمز القديم إن شاركه العضو)
+router.post("/member-card/me/rotate", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req) as Record<string, any> | null;
+    if (!user) return res.status(401).json({ error: "سجّل الدخول أولاً" });
+    if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const card = await buildMemberCard(user);
+    const token = await memberCardTokenFor(Number(user.id), true);
+    return res.json({ card: { ...card, verify_url: memberCardVerifyUrl(req, token) } });
+  } catch (err) { logger.error({ err }, "member-card/rotate"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/member-card/v/:token — صفحة التحقّق العامة (HTML) أو JSON مع ?format=json
+router.get("/member-card/v/:token", async (req: Request, res: Response) => {
+  const wantsJson = req.query.format === "json";
+  try {
+    const token = String(req.params.token || "");
+    let user: Record<string, any> | null = null;
+    if (/^[0-9a-f]{48}$/.test(token)) {
+      await ensureMemberCardsTable();
+      const r = await query(
+        `SELECT u.* FROM member_cards mc JOIN users u ON u.id = mc.user_id WHERE mc.verify_token=$1`, [token],
+      );
+      user = r.rows[0] || null;
+    }
+    const valid = Boolean(user) && !user!.is_banned;
+    const card = valid ? await buildMemberCard(user!) : null;
+    const publicCard = card && {
+      number: card.number, tier: card.tier, tier_label: card.tier_label, name: card.name,
+      avatar_url: card.avatar_url, role_label: card.role_label, member_since: card.member_since, verified: card.verified,
+    };
+    if (wantsJson) return res.status(valid ? 200 : 404).json(valid ? { valid: true, card: publicCard } : { valid: false });
+
+    res.setHeader("Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(valid ? 200 : 404).send(renderMemberCardPage(publicCard));
+  } catch (err) {
+    logger.error({ err }, "member-card/verify");
+    return wantsJson ? res.status(500).json({ error: "Server error" }) : res.status(500).send("خطأ في الخادم");
+  }
+});
+
+function renderMemberCardPage(card: null | { number: string; tier: MemberCardTier; tier_label: string; name: string; avatar_url: string | null; role_label: string; member_since: number; verified: boolean }): string {
+  const t = MEMBER_CARD_TIERS[card?.tier ?? "male"];
+  const e = escapeCardHtml;
+  const avatar = card?.avatar_url && /^https:\/\//.test(card.avatar_url)
+    ? `<img src="${e(card.avatar_url)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+    : `<span>${e(initialsOf(card?.name ?? ""))}</span>`;
+  const body = card ? `
+  <p class="status ok"><span class="dot"></span>${card.verified ? "عضوية موثّقة وسارية" : "عضوية سارية"}</p>
+  <div class="card">
+    <div class="pattern"></div><div class="sheen"></div><div class="frame"></div>
+    <div class="inner">
+      <div class="row top"><div><div class="brand">حصاحيصاوي</div><div class="sub">بطاقة العضوية الرقمية</div></div><div class="tier">${e(card.tier_label)}</div></div>
+      <div class="row mid"><div class="avatar"><div class="avatar-in">${avatar}</div></div>
+        <div class="who"><div class="name">${e(card.name)}${card.verified ? '<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="' + t.ink + '"/><path d="M7.5 12.5l3 3 6-6" fill="none" stroke="' + t.deep + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ""}</div><div class="role">${e(card.role_label)}</div></div>
+        <div class="chip" aria-hidden="true"></div></div>
+      <div class="row bottom"><div><div class="k">رقم العضوية</div><div class="num" dir="ltr">${e(card.number)}</div></div><div class="end"><div class="k">منذ</div><div class="v">${e(card.member_since)}</div></div></div>
+    </div>
+  </div>` : `
+  <p class="status bad"><span class="dot"></span>رمز البطاقة غير صالح أو أُعيد إصداره</p>
+  <p class="hint">اطلب من صاحب البطاقة فتحها من التطبيق وعرض الرمز الحالي.</p>`;
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>${card ? e(card.name) + " · " : ""}بطاقة عضوية حصاحيصاوي</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0C0D0D;color:#F2EFE8;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:32px 16px}
+.status{margin:0;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}.status .dot{width:10px;height:10px;border-radius:50%}.ok .dot{background:#3DDC97}.bad .dot{background:#F2994A}.hint{margin:0;color:#A9A79F;font-size:14px;text-align:center}
+.card{position:relative;width:min(428px,100%);aspect-ratio:428/270;border-radius:22px;overflow:hidden;background:${t.bg};color:${t.text};box-shadow:0 24px 48px rgba(0,0,0,.5)}
+.pattern{position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 1px,transparent 1px 14px)}.sheen{position:absolute;inset:0;background:radial-gradient(circle at 12% -10%,rgba(255,255,255,.2),transparent 46%)}
+.frame{position:absolute;inset:10px;border-radius:15px;border:1px solid ${t.ink}73}
+.inner{position:relative;height:100%;padding:6% 6.5%;display:flex;flex-direction:column;justify-content:space-between}
+.row{display:flex;justify-content:space-between;align-items:center;gap:14px}.top{align-items:flex-start}.bottom{align-items:flex-end}
+.brand{font-size:clamp(16px,4.6vw,20px);font-weight:700;background:${t.foil};-webkit-background-clip:text;background-clip:text;color:transparent}.sub,.k{font-size:11px;opacity:.72}
+.tier{font-size:12px;font-weight:600;padding:5px 14px;border-radius:999px;border:1px solid ${t.ink}8C;color:${t.ink};white-space:nowrap}
+.avatar{width:clamp(52px,15vw,68px);aspect-ratio:1;border-radius:50%;padding:2px;background:${t.foil};flex-shrink:0}.avatar-in{width:100%;height:100%;border-radius:50%;background:${t.deep};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:${t.ink}}
+.who{flex:1;min-width:0}.name{display:flex;align-items:center;gap:6px;font-size:clamp(17px,5vw,21px);font-weight:700}.role{font-size:12px;opacity:.82;margin-top:4px}
+.chip{width:46px;height:36px;border-radius:7px;background:${t.foil};flex-shrink:0}
+.num{font-family:'IBM Plex Mono',monospace;font-size:clamp(12px,3.6vw,15px);letter-spacing:2px;color:${t.ink}}.end{text-align:left}.v{font-size:14px;font-weight:600}
+.cta{display:inline-block;margin-top:4px;padding:12px 22px;border-radius:999px;background:linear-gradient(120deg,#F7E3A1,#D9AE4F 45%,#A97C25);color:#1A1405;font-weight:700;text-decoration:none}
+.foot{margin:0;color:#8C8A83;font-size:13px;text-align:center}
+</style></head><body>
+${body}
+<p class="foot">بطاقة رقمية لكل عضو في مجتمع الحصاحيصا</p>
+<a class="cta" href="https://sawihasa.digital">انضم إلى حصاحيصاوي واحصل على بطاقتك</a>
+</body></html>`;
+}
