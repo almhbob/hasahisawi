@@ -337,7 +337,8 @@ export default function MemberCardScreen() {
     setBusy("share");
     try {
       if (Platform.OS === "web") {
-        const { blob } = await capturePoster(posterRef) as { uri: string; blob: Blob };
+        const { blob } = await capturePoster(posterRef);
+        if (!blob) throw new Error("capture failed");
         const file = new File([blob], "hasahisawi-card.png", { type: "image/png" });
         const nav: any = typeof navigator !== "undefined" ? navigator : null;
         if (nav?.canShare?.({ files: [file] })) {
