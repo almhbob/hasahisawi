@@ -24,6 +24,15 @@ if (!existsSync(src)) {
 rmSync(out, { recursive: true, force: true });
 cpSync(src, out, { recursive: true });
 
+// 0) Vercel also skips the `__node_modules` / `.pnpm` prefix Expo uses, so move
+//    the whole tree to a plain path: assets/__node_modules/.pnpm → assets/_nm/pnpm
+const legacyRoot = join(out, "assets", "__node_modules");
+if (existsSync(legacyRoot)) {
+  const target = join(out, "assets", "_nm");
+  renameSync(legacyRoot, target);
+  if (existsSync(join(target, ".pnpm"))) renameSync(join(target, ".pnpm"), join(target, "pnpm"));
+}
+
 // 1) Rename nested node_modules dirs (deepest first so parent paths stay valid).
 const renamed = [];
 function collect(dir) {
@@ -48,11 +57,11 @@ function rewrite(dir) {
     if (st.isDirectory()) { rewrite(p); continue; }
     if (!TEXT.test(name)) continue;
     const before = readFileSync(p, "utf8");
-    if (!before.includes("/node_modules/")) continue;
+    if (!before.includes("assets/__node_modules/")) continue;
     // Only touch asset URLs under /assets/__node_modules/… so unrelated strings stay intact.
-    const after = before.replace(/(assets\/__node_modules\/[^"'`\s)]*?)\/node_modules\//g, (_m, head) => {
+    const after = before.replace(/assets\/__node_modules\/(\.pnpm\/)?([^"'`\s)]*)/g, (_m, pnpm, rest) => {
       replacements++;
-      return `${head}/nm/`;
+      return `assets/_nm/${pnpm ? "pnpm/" : ""}${rest.replace(/\/node_modules\//g, "/nm/")}`;
     });
     if (after !== before) {
       writeFileSync(p, after);
@@ -69,7 +78,7 @@ function verify(dir) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) { verify(p); continue; }
     if (!TEXT.test(name)) continue;
-    const m = readFileSync(p, "utf8").match(/assets\/__node_modules\/[^"'`\s)]*\/node_modules\//g);
+    const m = readFileSync(p, "utf8").match(/assets\/(__node_modules\/|_nm\/[^"'`\s)]*\/node_modules\/)/g);
     if (m) leftovers += m.length;
   }
 }
