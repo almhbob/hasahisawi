@@ -53,7 +53,7 @@ for (const route of [
   ok(`travel agency API route present: ${route}`, travelApi.includes(route));
 }
 ok('travel agency apply uses write limiter', travelApi.includes('heavyWriteLimiter'));
-ok('travel agency admin accepts Bearer admin session', travelApi.includes('Authorization') && travelApi.includes('user_sessions'));
+ok('travel agency admin accepts Bearer admin session', /authorization/i.test(travelApi) && travelApi.includes('user_sessions'));
 
 const agencyPage = read(adminAgencyPagePath);
 ok('admin agency page calls applications endpoint', agencyPage.includes('/admin/travel-agencies/applications'));
