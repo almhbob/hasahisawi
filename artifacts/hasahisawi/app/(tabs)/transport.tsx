@@ -469,7 +469,7 @@ export default function TransportScreen() {
   const [note,       setNote]      = useState("");
   const [neighborhoodsByZone, setNeighborhoodsByZone] = useState<Record<number, string[]>>({});
   const [loading,    setLoading]   = useState(true);
-  const [activeTab,  setActiveTab] = useState<"book" | "drivers" | "mytrips" | "register" | "driver">("book");
+  const [activeTab,  setActiveTab] = useState<"book" | "driver-inbox" | "drivers" | "mytrips" | "register" | "driver">("book");
 
   const [drivers,    setDrivers]    = useState<Driver[]>([]);
   const [myTrips,    setMyTrips]    = useState<Trip[]>([]);

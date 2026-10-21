@@ -6,7 +6,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
@@ -237,7 +236,6 @@ function PackageCard({
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
 export default function DesignGalleryScreen() {
-  const insets = useSafeAreaInsets();
   const { user, token, isGuest } = useAuth();
 
   // تبويبات
