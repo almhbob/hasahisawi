@@ -18824,6 +18824,10 @@ async function buildMemberCard(user: Record<string, any>, row: MemberCardRow | n
   };
 }
 
+// Public landing page for the app (where "get your card" links point).
+// Override with PUBLIC_APP_URL once the branded domain serves the web app again.
+const MEMBER_CARD_APP_URL = (process.env.PUBLIC_APP_URL || "https://almhbob.github.io/hasahisawi/").trim();
+
 function memberCardBase(req: Request): string {
   return (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
 }
@@ -18834,7 +18838,7 @@ async function memberCardResponse(req: Request, user: Record<string, any>, row: 
   return {
     ...card,
     verify_url: verifyUrl,
-    share_text: `بطاقتي في حصاحيصاوي — ${card.tier_label}\nالحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا\nاحصل على بطاقتك: ${verifyUrl}`,
+    share_text: `بطاقتي في حصاحيصاوي — ${card.tier_label}\nالحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا\nشاهد بطاقتي: ${verifyUrl}\nحمّل التطبيق واحصل على بطاقتك: ${MEMBER_CARD_APP_URL}`,
     presets: Object.keys(MEMBER_CARD_PRESETS),
   };
 }
@@ -19011,7 +19015,7 @@ function renderMemberCardPage(card: PublicMemberCard | null, base: string, pageU
 <div class="top-brand"><span class="logo"></span>حصاحيصاوي</div>
 ${body}
 <div class="love"><div class="ar">الحصاحيصا… في القلب دائماً</div><div class="en" dir="ltr">HASAHISA · FOREVER IN OUR HEARTS</div></div>
-<a class="cta" href="https://sawihasa.digital">انضم إلى حصاحيصاوي واحصل على بطاقتك</a>
+<a class="cta" href="${escapeCardHtml(MEMBER_CARD_APP_URL)}">انضم إلى حصاحيصاوي واحصل على بطاقتك</a>
 <p class="foot">لا تعرض هذه الصفحة رقم الهاتف ولا الرقم الوطني.</p>
 </body></html>`;
 }

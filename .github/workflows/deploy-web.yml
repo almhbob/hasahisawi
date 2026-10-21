@@ -156,8 +156,11 @@ jobs:
             echo "No docs changes"
           else
             git commit -m "deploy: web PWA docs latest [auto]"
-            git pull --rebase origin master || true
-            git push origin master
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase --autostash origin master && git push origin master && break
+              echo "Push attempt $attempt failed; retrying"
+              sleep $((attempt * 5))
+            done
           fi
 
       - name: Build Cloudflare root export
@@ -213,7 +216,9 @@ jobs:
             echo "Cloudflare secrets are not configured — skipped Cloudflare deploy"
             exit 0
           fi
-          npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master
+          if ! npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master; then
+            echo "::warning title=Cloudflare deploy skipped::Cloudflare rejected the API token (renew CLOUDFLARE_API_TOKEN with 'Cloudflare Pages: Edit' permission). GitHub Pages deploy is unaffected."
+          fi
 
       - run: |
           echo "GitHub Pages: https://almhbob.github.io/hasahisawi/"
