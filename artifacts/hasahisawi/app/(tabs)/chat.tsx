@@ -252,7 +252,7 @@ export default function ChatScreen() {
       { text: "فتح المحادثة", onPress: () => openConversation(chat) },
       ...(unread > 0 ? [{
         text: "تعليم كمقروء",
-        onPress: () => { apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
+        onPress: () => { if (token) apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
       }] : []),
       { text: "إلغاء", style: "cancel" as const },
     ]);

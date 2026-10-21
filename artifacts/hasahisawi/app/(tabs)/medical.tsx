@@ -965,7 +965,7 @@ function SpecialistsTab() {
                   </View>
                   <View style={spSty.callCol}>
                     {sp.phone && (
-                      <TouchableOpacity onPress={() => safeCall(sp.phone)} style={spSty.callBtn}>
+                      <TouchableOpacity onPress={() => safeCall(sp.phone ?? "")} style={spSty.callBtn}>
                         <Ionicons name="call" size={18} color="#fff" />
                       </TouchableOpacity>
                     )}
@@ -1025,7 +1025,7 @@ function SpecialistsTab() {
                 </View>
               ) : null; })()}
               {selected.phone && (
-                <TouchableOpacity onPress={() => safeCall(selected.phone)} style={spSty.callFullBtn}>
+                <TouchableOpacity onPress={() => safeCall(selected.phone ?? "")} style={spSty.callFullBtn}>
                   <Ionicons name="call" size={20} color="#fff" />
                   <Text style={spSty.callFullBtnText}>اتصل لحجز موعد — {selected.phone}</Text>
                 </TouchableOpacity>
