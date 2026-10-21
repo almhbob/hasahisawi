@@ -83,3 +83,4 @@ docs/assets/__node_modules/
 *keystore_base64*
 *service-account*.json
 *firebase-adminsdk*.json
+vercel-dist/
