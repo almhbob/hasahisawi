@@ -170,12 +170,14 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_RTCz9oaxsbHBdJHrSJNyJr5q
           VERCEL_PROJECT_ID: prj_3ILAiSvcf301EBwFrl8Y46Am45Av
-        working-directory: cf-dist
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::warning::VERCEL_TOKEN not set — skipped Vercel web deploy"
             exit 0
           fi
+          # Vercel drops directories named node_modules (where Expo puts icon/Cairo fonts).
+          node scripts/prepare-vercel-web.mjs cf-dist vercel-dist
+          cd vercel-dist
           VERCEL="npx --yes vercel@54.20.1"
           ok=1
           $VERCEL pull --yes --environment=production --token="$VERCEL_TOKEN" \
