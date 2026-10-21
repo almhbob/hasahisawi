@@ -235,10 +235,11 @@ function SharePoster({ card, width }: { card: MemberCard; width: number }) {
 export default function MemberCardScreen() {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [card, setCard] = useState<MemberCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [showBack, setShowBack] = useState(false);
   const [posterOpen, setPosterOpen] = useState(false);
@@ -252,6 +253,7 @@ export default function MemberCardScreen() {
   const call = useCallback(async (path: string, init?: RequestInit) => {
     const r = await fetch(`${api}${path}`, { ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init?.headers || {}) } });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 401) setSessionExpired(true);
     if (!r.ok) throw new Error(data.error || "حدث خطأ، حاول مرة أخرى");
     return data;
   }, [api, token]);
@@ -371,6 +373,15 @@ export default function MemberCardScreen() {
           <View style={[styles.stateBox, { height: cardW * RATIO + 100 }]}>
             <ActivityIndicator color="#21423A" />
             <Text style={styles.stateText}>جارٍ إصدار بطاقتك…</Text>
+          </View>
+        ) : sessionExpired ? (
+          <View style={styles.stateBox}>
+            <Ionicons name="log-in-outline" size={38} color="#21423A" />
+            <Text style={styles.stateTitle}>انتهت جلستك</Text>
+            <Text style={styles.stateText}>سجّل الدخول من جديد لعرض بطاقة عضويتك.</Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => { logout(); }} accessibilityRole="button">
+              <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
+            </TouchableOpacity>
           </View>
         ) : error || !card ? (
           <View style={styles.stateBox}>
