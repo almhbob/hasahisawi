@@ -1,6 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const file = 'artifacts/api-server/src/routes/hasahisawi.ts';
+// Resolve relative to this script so it works from the repo root and from artifacts/api-server (prebuild).
+const file = fileURLToPath(new URL('../artifacts/api-server/src/routes/hasahisawi.ts', import.meta.url));
 let src = readFileSync(file, 'utf8');
 let changed = false;
 

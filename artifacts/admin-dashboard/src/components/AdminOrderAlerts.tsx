@@ -158,6 +158,7 @@ export default function AdminOrderAlerts() {
       }, 30_000);
       return () => window.clearInterval(id);
     }
+    return undefined;
   }, [pending.length, soundEnabled, dismissedUntilChange]);
 
   function toggleSound() {
