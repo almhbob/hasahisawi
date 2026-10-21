@@ -19300,8 +19300,9 @@ router.post("/curriculum/books", writeLimiter, async (req: Request, res: Respons
     const status = isCurriculumModerator(user) ? "approved" : "pending";
     const { rows } = await query(
       `INSERT INTO curriculum_books (stage, grade, track, subject, kind, title, description, file_url, source, file_size, file_format, school_year, uploader_id, uploader_name, status, reviewed_at, reviewed_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15='approved' THEN NOW() END, CASE WHEN $15='approved' THEN $13::int END) RETURNING *`,
-      [stage.key, grade, track, subject, kind, title, description, file.url, file.source, fileSize, fmt, schoolYear, user.id, user.name || null, status],
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+      [stage.key, grade, track, subject, kind, title, description, file.url, file.source, fileSize, fmt, schoolYear, user.id, user.name || null, status,
+       status === "approved" ? new Date() : null, status === "approved" ? user.id : null],
     );
     return res.status(201).json({ book: curriculumRow(rows[0], user), message: status === "approved" ? "تم النشر" : "تم الاستلام — سيُنشر بعد مراجعة الإدارة" });
   } catch (err) { logger.error({ err }, "curriculum/books POST"); return res.status(500).json({ error: "Server error" }); }
