@@ -151,7 +151,7 @@ const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string
 
 export default function DrawerMenu() {
   const { isOpen, close, open } = useDrawer();
-  const { user, token, isGuest } = useAuth();
+  const { user, token, isGuest, logout } = useAuth();
   const { ride_status } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const unreadCount = useApiUnread(isGuest ? null : (token ?? null));
@@ -309,9 +309,15 @@ export default function DrawerMenu() {
               </View>
             )}
             {isGuest && (
-              <View style={[styles.roleBadge, { backgroundColor: Colors.textMuted + "30" }]}>
-                <Text style={[styles.roleBadgeText, { color: Colors.textMuted }]}>زائر</Text>
-              </View>
+              <Pressable
+                style={({ pressed }) => [styles.guestLoginBtn, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityLabel="تسجيل الدخول أو إنشاء حساب"
+                onPress={() => { close(); setTimeout(() => { logout(); }, 120); }}
+              >
+                <Ionicons name="log-in-outline" size={14} color="#fff" />
+                <Text style={styles.guestLoginText}>تسجيل الدخول</Text>
+              </Pressable>
             )}
           </View>
         </View>
@@ -492,6 +498,20 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular",
     fontSize: 11,
     color: Colors.textMuted,
+  },
+  guestLoginBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
+  },
+  guestLoginText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 12,
+    color: "#fff",
   },
   roleBadge: {
     flexDirection: "row",
