@@ -68,7 +68,7 @@ export default function CurriculumScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : {}), [token]);
+  const headers = useMemo<Record<string, string>>(() => (token ? { Authorization: `Bearer ${token}` } : {}), [token]);
 
   useEffect(() => {
     fetch(`${api}/api/curriculum/meta`).then((r) => r.json()).then(setMeta).catch(() => notify("تعذّر تحميل المكتبة", "تحقق من اتصالك بالإنترنت."));
