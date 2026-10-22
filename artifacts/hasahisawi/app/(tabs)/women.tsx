@@ -190,7 +190,10 @@ function normalizeWomenGender(value: string | null | undefined) {
 }
 
 export default function WomenScreen() {
-  const { user, isGuest, setUserGender } = useAuth();
+  const { user, isGuest, setUserGender, token } = useAuth();
+  // ركن المرأة معزول على الخادم: كل طلب يجب أن يحمل جلسة المستخدمة.
+  const wFetch = (url: string, init: RequestInit = {}) =>
+    fetch(url, { ...init, headers: { ...((init.headers as Record<string, string>) || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   const router = useRouter();
   const [settingGender, setSettingGender] = useState(false);
   const [search, setSearch] = useState("");
@@ -274,7 +277,7 @@ export default function WomenScreen() {
     setJoinSending(true);
     try {
       const base = getApiUrl().replace(/\/$/, "");
-      const res = await fetch(`${base}/api/women/join-request`, {
+      const res = await wFetch(`${base}/api/women/join-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -302,7 +305,7 @@ export default function WomenScreen() {
     try {
       const c = cat ?? shopCategory;
       const params = c !== "all" ? `?category=${c}` : "";
-      const res = await fetch(`${getApiUrl()}/api/women/stores${params}`);
+      const res = await wFetch(`${getApiUrl()}/api/women/stores${params}`);
       if (res.ok) setShops(await res.json());
     } catch { /* offline */ } finally { setShopsLoading(false); }
   };
@@ -310,7 +313,7 @@ export default function WomenScreen() {
   const loadShopProducts = async (shopId: number) => {
     setProductsLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/women/stores/${shopId}/products`);
+      const res = await wFetch(`${getApiUrl()}/api/women/stores/${shopId}/products`);
       if (res.ok) {
         const d = await res.json();
         setShopProducts(d.products ?? []);
@@ -362,7 +365,7 @@ export default function WomenScreen() {
     const subtotal = cartTotal(cart);
     const deliveryFee = selectedShop.delivery_available && checkoutAddress.trim() ? selectedShop.delivery_fee : 0;
     try {
-      const res = await fetch(`${getApiUrl()}/api/women/orders`, {
+      const res = await wFetch(`${getApiUrl()}/api/women/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -388,7 +391,7 @@ export default function WomenScreen() {
     Keyboard.dismiss();
     setApplySending(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/women/stores/apply`, {
+      const res = await wFetch(`${getApiUrl()}/api/women/stores/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -411,7 +414,7 @@ export default function WomenScreen() {
     Keyboard.dismiss();
     setReqSending(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/women/product-requests`, {
+      const res = await wFetch(`${getApiUrl()}/api/women/product-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -433,7 +436,7 @@ export default function WomenScreen() {
     if (!user || isGuest || isMaleBlocked || needsGenderForWomen) return;
     try {
       const params = filter !== "all" ? `?type=${filter}` : "";
-      const res = await fetch(`${getApiUrl()}/api/women-services${params}`);
+      const res = await wFetch(`${getApiUrl()}/api/women-services${params}`);
       if (res.ok) {
         const data = await res.json();
         setServices((data.services || []).map((s: Record<string,unknown>) => ({
@@ -454,7 +457,7 @@ export default function WomenScreen() {
   const loadWomenStores = async () => {
     setStoresLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/stores?women_only=true`);
+      const res = await wFetch(`${getApiUrl()}/api/stores?women_only=true`);
       if (res.ok) {
         const data = await res.json();
         setWomenStores(data);

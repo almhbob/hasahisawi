@@ -1,3 +1,4 @@
+import { useAdminUnread } from "@/lib/admin-alerts-store";
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, Pressable,
@@ -73,6 +74,7 @@ const GROUPS: Group[] = [
     label: "تعليم وعمل",
     items: [
       { title: "المكتبة المنهجية", icon: "library-outline", route: "/curriculum",          color: "#2A6FA8"      },
+      { title: "مساحة الطالب والمعلم", icon: "school-outline", route: "/edu-hub",          color: "#2F7D6D"      },
       { title: "الطلاب والمعلمون", icon: "school-outline", route: "/(tabs)/student",     color: Colors.cyber   },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
       { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#06B6D4" },
@@ -225,6 +227,7 @@ export default function DrawerMenu() {
 
   const displayName = isGuest ? "زائر" : (user?.name ?? "");
   const initial     = isGuest ? "ز" : (user?.name?.charAt(0) || "؟");
+  const adminUnread = useAdminUnread();
   const roleLabel   = user?.role === "admin" ? "مسؤول" : user?.role === "moderator" ? "مشرف" : null;
 
   const EDGE_ZONE = 28;
@@ -407,6 +410,21 @@ export default function DrawerMenu() {
                 </View>
                 <Text style={[styles.itemLabel, { color: "#E74C3C" }]}>لوحة الإدارة</Text>
                 <Ionicons name="chevron-back" size={16} color="#E74C3C88" style={styles.chevron} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                onPress={() => navigate("/admin-requests")}
+              >
+                <View style={[styles.iconBox, { backgroundColor: "#E8A9001F" }]}>
+                  <Ionicons name="notifications" size={20} color="#B78200" />
+                </View>
+                <Text style={[styles.itemLabel, { color: "#7A5A00" }]}>مركز الطلبات</Text>
+                {adminUnread > 0 && (
+                  <View style={{ minWidth: 22, height: 22, borderRadius: 11, backgroundColor: "#D93636", alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
+                    <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 }}>{adminUnread > 99 ? "99+" : adminUnread}</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-back" size={16} color="#B7820088" style={styles.chevron} />
               </Pressable>
             </View>
           )}

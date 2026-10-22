@@ -6,8 +6,9 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router , useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { uploadToTarget } from "@/lib/big-upload";
 import * as DocumentPicker from "expo-document-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
@@ -57,7 +58,8 @@ export default function CurriculumScreen() {
   const signedIn = !!token && !!user && !isGuest;
 
   const [meta, setMeta] = useState<Meta | null>(null);
-  const [tab, setTab] = useState<Tab>("browse");
+  const qp = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(qp.tab === "upload" ? "upload" : "browse");
   const [stage, setStage] = useState<string>("primary");
   const [grade, setGrade] = useState<number | null>(null);
   const [track, setTrack] = useState<string | null>(null);
@@ -374,7 +376,7 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
   const showTrack = stage === "secondary" && grade >= 2;
 
   const pick = async () => {
-    const r = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "image/*"], copyToCacheDirectory: true, multiple: false });
+    const r = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/epub+zip", "application/zip", "audio/*", "video/mp4", "image/*"], copyToCacheDirectory: true, multiple: false });
     if (r.canceled || !r.assets?.[0]) return;
     const a = r.assets[0];
     if (a.size && a.size > meta.max_file_mb * 1024 * 1024) { notify("الملف كبير جداً", `الحد الأقصى ${meta.max_file_mb} م.ب. يمكنك إضافته كرابط (Google Drive مثلاً).`); return; }
@@ -383,6 +385,17 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
   };
 
   const uploadToCloud = async (a: DocumentPicker.DocumentPickerAsset): Promise<string> => {
+    // الملفات الكبيرة تذهب مباشرةً إلى التخزين السحابي الكبير (حتى 300MB).
+    const tr = await fetch(`${api}/api/curriculum/upload-target`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ file_name: a.name, size: a.size ?? 0, content_type: a.mimeType || "" }),
+    }).catch(() => null);
+    const target = tr ? await tr.json().catch(() => ({})) : {};
+    if (tr && !tr.ok && tr.status === 413) throw new Error(target.error || "الملف أكبر من المسموح");
+    if (tr?.ok && target.provider === "blob") {
+      return uploadToTarget(target, { uri: a.uri, file: (a as any).file, mimeType: a.mimeType, size: a.size }, setProgress);
+    }
     const sr = await fetch(`${api}/api/curriculum/upload-signature`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     const sig = await sr.json().catch(() => ({}));
     if (!sr.ok) throw new Error(sig.error || "تعذّر بدء الرفع");

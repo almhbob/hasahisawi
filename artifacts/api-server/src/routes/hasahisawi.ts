@@ -5961,7 +5961,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
       ]
     );
 
-    void sendPushToAdmins("🏢 طلب انضمام مؤسسة جديد", `${inst_name} — ${inst_type}`, { type: "institution_application", id: result.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.json({ application: result.rows[0] });
   } catch (err) {
     logger.error({ err: err }, "POST /institution-applications error");
@@ -9800,7 +9800,7 @@ router.post("/external-partnerships/apply", async (req: Request, res: Response) 
         services, (target_audience || "").trim(),
       ]
     );
-    void sendPushToAdmins("🤝 طلب شراكة خارجية جديد", `${org_name.trim()} — ${(sector || "").trim() || org_type || ""}`, { type: "external_partnership", id: rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
   } catch (e) { logger.error({ err: e }, "external-partnerships/apply"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -10676,7 +10676,7 @@ router.post("/lawyer-applications", async (req: Request, res: Response) => {
         userId,
       ]
     );
-    void sendPushToAdmins("⚖️ طلب انضمام محامٍ جديد", `${String(b.full_name).slice(0,60)} — ${String(b.specialties).slice(0,60)}`, { type: "lawyer_application", id: ins.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -16325,7 +16325,9 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
 // اتحاد الطلاب — Student Union Applications & Partnership
 // ══════════════════════════════════════════════════════════════════
 
-(async () => {
+let _unionTablesReady: Promise<void> | null = null;
+function ensureUnionTables(): Promise<void> {
+  if (!_unionTablesReady) _unionTablesReady = (async () => {
   try {
     // جدول طلبات العضوية الطلابية — الاستمارة الرسمية ذات السبعة أقسام
     await query(`
@@ -16415,11 +16417,15 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_upa_status ON union_partnership_applications(status)`);
   } catch (e: any) { logger.warn({ err: e?.message }, "[union-partnership] table init failed"); }
-})();
+  })().catch((e) => { _unionTablesReady = null; throw e; });
+  return _unionTablesReady;
+}
+ensureUnionTables().catch(() => {});
 
 // POST /api/student-union/apply
 router.post("/student-union/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
+    _unionTablesReady = null; await ensureUnionTables().catch(() => {});
     const user = await getSessionUser(req);
     const b = req.body as Record<string, any>;
 
@@ -16597,6 +16603,7 @@ router.patch("/admin/student-union/managers/reset-password", async (req: Request
 // POST /api/union-partnership/apply — طلب انضمام اتحاد لخدمات التطبيق
 router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
+    _unionTablesReady = null; await ensureUnionTables().catch(() => {});
     const b = req.body as Record<string, any>;
     if (!b.union_name?.trim())     return res.status(400).json({ error: "اسم الاتحاد مطلوب" });
     if (!b.contact_person?.trim()) return res.status(400).json({ error: "اسم المسؤول مطلوب" });
@@ -18185,7 +18192,7 @@ router.post("/union-manager/apply", writeLimiter, async (req: Request, res: Resp
        can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
        other_commits||null,pledge_name||null]
     );
-    void sendPushToAdmins("🎓 طلب تولي إدارة اتحاد جديد", `${full_name} — ${institution||""}`.trim().replace(/\s*—\s*$/, ""), { type: "union_manager_application", id: r.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.status(201).json({ success: true, application: r.rows[0] });
   } catch (e: any) { logger.error({ err: e }, "union-manager/apply"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -19137,7 +19144,7 @@ const CURRICULUM_SUBJECTS: Record<string, string[]> = {
   intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
   secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
 };
-const CURRICULUM_MAX_FILE_MB = 100;
+const CURRICULUM_MAX_FILE_MB = 300;
 
 let _curriculumReady: Promise<void> | null = null;
 function ensureCurriculumTables(): Promise<void> {
@@ -19190,6 +19197,9 @@ function classifyCurriculumUrl(raw: unknown): { url: string; source: "upload" | 
     return { url: u.toString(), source: "upload" };
   }
   if (u.hostname === "res.cloudinary.com") return null; // someone else's cloud / folder
+  if (/\.public\.blob\.vercel-storage\.com$/.test(u.hostname) && u.pathname.startsWith("/curriculum/")) {
+    return { url: u.toString(), source: "upload" };
+  }
   return { url: u.toString(), source: "link" };
 }
 

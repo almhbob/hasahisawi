@@ -1,3 +1,4 @@
+import { filePart } from "@/lib/xplatform";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -349,7 +350,7 @@ function RegisterStoreView({
       form.append("delivery_fee", deliveryFee || "0");
       form.append("women_only", womenOnly ? "true" : "false");
       if (logoUri) {
-        form.append("logo", { uri: logoUri, name: "logo.jpg", type: "image/jpeg" } as any);
+        form.append("logo", await filePart(logoUri, "logo.jpg", "image/jpeg"));
       }
       const res = await fetch(`${apiBase}/api/store/register`, {
         method: "POST",
@@ -1011,7 +1012,7 @@ function ProductModal({
       if (categoryId !== null) form.append("category_id", categoryId.toString());
       form.append("is_available", isAvailable.toString());
       if (imageUri) {
-        form.append("image", { uri: imageUri, name: "product.jpg", type: "image/jpeg" } as any);
+        form.append("image", await filePart(imageUri, "product.jpg", "image/jpeg"));
       }
       const url = product
         ? `${apiBase}/api/store/my/products/${product.id}`
@@ -1481,10 +1482,10 @@ function SettingsTab({
       form.append("delivery_fee", deliveryFee || "0");
       form.append("min_order", minOrder || "0");
       if (logoUri) {
-        form.append("logo", { uri: logoUri, name: "logo.jpg", type: "image/jpeg" } as any);
+        form.append("logo", await filePart(logoUri, "logo.jpg", "image/jpeg"));
       }
       if (coverUri) {
-        form.append("cover", { uri: coverUri, name: "cover.jpg", type: "image/jpeg" } as any);
+        form.append("cover", await filePart(coverUri, "cover.jpg", "image/jpeg"));
       }
       const res = await fetch(`${apiBase}/api/store/my`, {
         method: "PUT",

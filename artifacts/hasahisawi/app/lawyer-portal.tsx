@@ -12,7 +12,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { fetch } from "expo/fetch";
+import { fetch } from "@/lib/net-fetch";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";

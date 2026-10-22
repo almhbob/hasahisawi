@@ -2,14 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, FlatList, Alert, Platform, ActivityIndicator, Pressable, Linking,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Image,
 } from "react-native";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
-import { fetch } from "expo/fetch";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
+import { fetch } from "@/lib/net-fetch";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
@@ -19,6 +17,8 @@ import { useAuth } from "@/lib/auth-context";
 import { uploadFile } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import { paperDocument, printPaper, esc, blank } from "@/lib/paper";
+import { notify } from "@/lib/xplatform";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,6 +41,27 @@ type LegalFormFull = LegalForm & { content_html: string };
 type Contract      = { id: number; lawyer_id: number; lawyer_name: string; lawyer_phone: string; service_title: string; status: string; contract_no: string; created_at: string; preferred_date: string | null; details: string };
 type MyApp         = { id: number; full_name: string; status: "pending"|"approved"|"rejected"; admin_note: string; lawyer_id: number | null; created_at: string; reviewed_at?: string };
 
+const LEGAL_SERVICES: { title: string; icon: string; spec: string }[] = [
+  { title: "أحوال شخصية وأسرة", icon: "account-group-outline", spec: "أحوال شخصية" },
+  { title: "عقارات وإيجارات", icon: "home-city-outline", spec: "عقارات" },
+  { title: "صياغة العقود", icon: "file-sign", spec: "عقود" },
+  { title: "قضايا جنائية", icon: "gavel", spec: "جنائية" },
+  { title: "العمل والعمّال", icon: "briefcase-account-outline", spec: "عمل" },
+  { title: "شركات وتجارة", icon: "domain", spec: "تجارية" },
+  { title: "تحكيم وفضّ نزاعات", icon: "scale-balance", spec: "تحكيم" },
+  { title: "اعرف حقوقك", icon: "shield-check-outline", spec: "rights" },
+  { title: "استمارات جاهزة", icon: "file-document-multiple-outline", spec: "forms" },
+];
+
+const RIGHTS_GUIDE: { title: string; icon: string; points: string[] }[] = [
+  { title: "قبل توقيع أي عقد", icon: "file-sign", points: ["اقرأ جميع البنود كاملة قبل التوقيع، ولا توقّع على ورقة فيها فراغات.", "تأكّد من هوية الطرف الآخر وصفته في التعاقد.", "احصل على نسخة موقّعة من العقد واحتفظ بها في مكان آمن.", "إذا كان المبلغ كبيراً فاستشر محامياً قبل التوقيع."] },
+  { title: "عقود الإيجار", icon: "home-outline", points: ["وثّق الإيجار كتابةً مع تحديد المدة والأجرة وموعد الدفع.", "اتفق كتابةً على مبلغ التأمين وشروط استرداده.", "احتفظ بإيصالات كل دفعة، ويفضَّل التحويل البنكي.", "سجّل حالة العقار عند الاستلام بالصور."] },
+  { title: "الشيكات والديون", icon: "cash-check", points: ["لا تحرّر شيكاً بلا رصيد كافٍ — قد يعرّضك ذلك لمساءلة قانونية.", "احتفظ بصورة من أي شيك تحرّره أو تستلمه.", "وثّق أي دين بإقرار مكتوب وموقّع وبحضور شهود."] },
+  { title: "حقوق العامل", icon: "briefcase-outline", points: ["احتفظ بنسخة من عقد العمل وكشوف المرتب.", "لا توقّع على مخالصة نهائية قبل التأكد من استلام كامل مستحقاتك.", "وثّق الإنذارات والخطابات الرسمية بتواريخها."] },
+  { title: "الميراث والتركات", icon: "family-tree", points: ["ابدأ باستخراج الإعلام الشرعي من المحكمة المختصة قبل التصرف في التركة.", "حصر أموال التركة وديونها كتابةً بحضور الورثة.", "النزاع بين الورثة يُحسم ودياً أو أمام المحكمة — استشر محامياً مختصاً."] },
+  { title: "عند الاستدعاء أو القبض", icon: "shield-account-outline", points: ["من حقك معرفة سبب الاستدعاء أو القبض.", "من حقك الاستعانة بمحامٍ والتواصل مع أسرتك.", "لا توقّع على أقوال لم تقرأها أو لم تفهمها."] },
+];
+
 const SPECIALTIES = ["الكل","تجارية","عقارات","شركات","أحوال شخصية","ميراث","نفقة","حضانة","جنائية","عمل","تحكيم","عقود"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,7 +81,7 @@ async function getDeviceId(): Promise<string> {
 const STATUS_AR: Record<string,{label:string;color:string}> = {
   pending:     { label: "قيد المراجعة", color: "#F59E0B" },
   accepted:    { label: "مقبول",         color: "#3B82F6" },
-  in_progress: { label: "قيد التنفيذ",  color: "#8B5CF6" },
+  in_progress: { label: "قيد التنفيذ",  color: "#14213D" },
   completed:   { label: "مكتمل",         color: "#10B981" },
   rejected:    { label: "مرفوض",         color: "#EF4444" },
   cancelled:   { label: "ملغي",          color: "#6B7280" },
@@ -73,7 +94,7 @@ function Stars({ value, size = 13, color = "#F59E0B" }: { value: number; size?: 
     <View style={{ flexDirection: "row", gap: 1 }}>
       {[1,2,3,4,5].map(s => (
         <Ionicons key={s} name={s <= Math.round(value) ? "star" : "star-outline"} size={size}
-          color={s <= Math.round(value) ? color : "#4A5568"} />
+          color={s <= Math.round(value) ? color : "#D6CFC0"} />
       ))}
     </View>
   );
@@ -83,7 +104,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>
     <View style={{ flexDirection: "row", gap: 10, justifyContent: "center" }}>
       {[1,2,3,4,5].map(s => (
         <Pressable key={s} onPress={() => { onChange(s); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
-          <Ionicons name={s <= value ? "star" : "star-outline"} size={42} color={s <= value ? "#F59E0B" : "#4A5568"} />
+          <Ionicons name={s <= value ? "star" : "star-outline"} size={42} color={s <= value ? "#F59E0B" : "#D6CFC0"} />
         </Pressable>
       ))}
     </View>
@@ -126,7 +147,10 @@ export default function LawyersScreen() {
   const [rateComment, setRateComment] = useState("");
 
   // forms
+  const [rightsOpen, setRightsOpen] = useState(false);
   const [forms, setForms] = useState<LegalForm[]>([]);
+  const [formQ, setFormQ] = useState("");
+  const [formCat, setFormCat] = useState("الكل");
   const [formsLoading, setFormsLoading] = useState(false);
 
   // my contracts
@@ -316,100 +340,57 @@ export default function LawyersScreen() {
 
   // ── طباعة بطاقة المحامي ──
   const printLawyerCard = async (lw: Lawyer, svcs: LawyerService[]) => {
-    const svcHtml = svcs.map((sv) => {
-      const desc = sv.description ? '<div class="svc-desc">' + sv.description + '</div>' : '';
-      const dur  = sv.duration ? ' · ⏱ ' + sv.duration : '';
-      return '<div class="svc"><div class="svc-title">' + sv.title + '</div>' + desc +
-             '<div class="svc-price">💰 ' + (sv.price_text || '—') + dur + '</div></div>';
-    }).join('');
-    const html = `
-      <html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
-      <style>
-        body { font-family: -apple-system, "Helvetica Neue", Arial; padding: 32px; color: #1a1a1a; }
-        .card { border: 2px solid #8B5CF6; border-radius: 14px; padding: 24px; max-width: 720px; margin: 0 auto; }
-        h1 { color: #8B5CF6; margin: 0 0 4px; font-size: 26px; }
-        .title { color: #555; font-size: 15px; margin-bottom: 16px; }
-        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
-        .label { color: #666; font-size: 13px; } .val { color: #111; font-weight: 600; font-size: 13px; }
-        h3 { color: #8B5CF6; margin-top: 22px; border-right: 4px solid #8B5CF6; padding-right: 10px; }
-        .svc { padding: 10px 14px; background: #f7f5ff; border-radius: 8px; margin-bottom: 8px; }
-        .svc-title { font-weight: 700; color: #6D28D9; }
-        .svc-desc  { font-size: 12px; color: #555; margin-top: 4px; }
-        .svc-price { font-size: 13px; color: #047857; font-weight: 700; margin-top: 6px; }
-        .footer { margin-top: 24px; text-align: center; color: #888; font-size: 11px; }
-      </style></head>
-      <body><div class="card">
-        <h1>${lw.full_name}</h1>
-        <div class="title">${lw.title}${lw.is_verified ? " · ✓ موثّق" : ""}</div>
-        <div class="row"><span class="label">التخصصات</span><span class="val">${lw.specialties}</span></div>
-        <div class="row"><span class="label">الهاتف / واتساب</span><span class="val">${lw.phone || "—"}</span></div>
-        <div class="row"><span class="label">العنوان</span><span class="val">${lw.office_addr || lw.district || "—"}</span></div>
-        <div class="row"><span class="label">رقم النقابة</span><span class="val">${lw.bar_number || "—"}</span></div>
-        <div class="row"><span class="label">الخبرة</span><span class="val">${lw.experience_y} سنة</span></div>
-        <div class="row"><span class="label">اللغات</span><span class="val">${lw.languages}</span></div>
-        <div class="row"><span class="label">رسوم الاستشارة</span><span class="val">${lw.consult_fee || "—"}</span></div>
-        <div class="row"><span class="label">التقييم</span><span class="val">${lw.avg_rating} / 5 (${lw.review_count} مراجعة)</span></div>
-        ${lw.bio ? '<h3>نبذة</h3><p style="font-size:13px;line-height:1.8;">' + lw.bio + '</p>' : ""}
-        ${svcs.length ? '<h3>الخدمات المتاحة</h3>' + svcHtml : ""}
-        <div class="footer">بطاقة محامي — تطبيق حصاحيصاوي · ${new Date().toLocaleDateString("ar-SD")}</div>
-      </div></body></html>`;
-    try {
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "حفظ / طباعة بطاقة المحامي" });
-      else await Print.printAsync({ html });
-    } catch (e:any) { Alert.alert("تعذّر الطباعة", e?.message || "حاول مرة أخرى"); }
+    const svcRows = svcs.map((sv, i) => `<tr><td>${i + 1}</td><td class="r"><b>${esc(sv.title)}</b>${sv.description ? `<br/><small>${esc(sv.description)}</small>` : ""}</td><td>${esc(sv.price_text || "—")}</td><td>${esc(sv.duration || "—")}</td></tr>`).join("");
+    const html = paperDocument({
+      theme: "legal", title: lw.full_name, subtitle: `${lw.title}${lw.is_verified ? " · موثّق ✓" : ""}`, ref: lw.bar_number ? `نقابة ${lw.bar_number}` : undefined,
+      bodyHtml: `<div class="box kv">
+          <div>التخصصات: <b>${esc(lw.specialties)}</b></div><div>الخبرة: <b>${lw.experience_y} سنة</b></div>
+          <div>الهاتف: <b>${esc(lw.phone || "—")}</b></div><div>العنوان: <b>${esc(lw.office_addr || lw.district || "—")}</b></div>
+          <div>اللغات: <b>${esc(lw.languages || "—")}</b></div><div>رسوم الاستشارة: <b>${esc(lw.consult_fee || "—")}</b></div>
+          <div>التقييم: <b>${Number(lw.avg_rating || 0).toFixed(1)} / 5 (${lw.review_count} مراجعة)</b></div></div>
+        ${lw.bio ? `<h2>نبذة</h2><p>${esc(lw.bio)}</p>` : ""}
+        ${svcs.length ? `<h2>الخدمات القانونية</h2><table><thead><tr><th>#</th><th class="r">الخدمة</th><th>الأتعاب</th><th>المدة</th></tr></thead><tbody>${svcRows}</tbody></table>` : ""}`,
+    });
+    try { await printPaper(html, `بطاقة ${lw.full_name}`); } catch (e: any) { notify("تعذّرت الطباعة", e?.message || ""); }
   };
 
-  // ── طباعة استمارة قانونية ──
+  // ── طباعة استمارة قانونية على ورق رسمي فاخر ──
+  const [printingForm, setPrintingForm] = useState<number | null>(null);
   const printForm = async (id: number) => {
+    setPrintingForm(id);
     try {
       const r = await apiFetch(`/api/legal-forms/${id}`);
-      if (!r.ok) throw new Error();
+      if (!r.ok) throw new Error("تعذّر تحميل الاستمارة");
       const f: LegalFormFull = await r.json();
-      const html = `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
-        <style>
-          body { font-family: -apple-system, "Helvetica Neue", Arial; padding: 36px; color: #111; line-height: 1.9; }
-          h2 { color: #8B5CF6; }
-          .meta { color: #666; font-size: 11px; text-align: center; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-          .footer { margin-top: 30px; text-align: center; color: #888; font-size: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-          ol li, p { font-size: 14px; }
-        </style></head><body>
-        <div class="meta">${f.category}${f.is_official ? " · استمارة معتمدة" : ""}</div>
-        ${f.content_html}
-        <div class="footer">استمارة قانونية — تطبيق حصاحيصاوي · ${new Date().toLocaleDateString("ar-SD")}</div>
-      </body></html>`;
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "حفظ / طباعة الاستمارة" });
-      else await Print.printAsync({ html });
-    } catch (e:any) { Alert.alert("تعذّر الطباعة", e?.message || "حاول مرة أخرى"); }
+      // نُزيل عنوان h1/h2 الأول إن كان يكرّر عنوان الاستمارة، والقالب يضيف عنواناً فاخراً.
+      const body = String(f.content_html || "").replace(/<h[12][^>]*>[\s\S]*?<\/h[12]>/, (m) => (m.includes(f.title) ? "" : m));
+      const html = paperDocument({
+        theme: "legal", title: f.title, subtitle: `${f.category}${f.is_official ? " · نموذج معتمد" : ""}`,
+        ref: `LF-${String(f.id).padStart(4, "0")}`,
+        bodyHtml: `${f.description ? `<p style="color:#6b6253">${esc(f.description)}</p>` : ""}${body}
+          <h2>بيانات مقدّم الاستمارة</h2><div class="grid">${blank("الاسم الرباعي")}${blank("الرقم الوطني")}${blank("رقم الهاتف")}${blank("العنوان")}</div>`,
+        signatures: ["توقيع مقدّم الطلب", "توقيع المحامي / الشاهد", "الختم"],
+        note: "هذه الاستمارة نموذج استرشادي. يُنصح بمراجعة محامٍ مرخّص قبل التوقيع أو تقديمها لأي جهة رسمية.",
+      });
+      await printPaper(html, f.title);
+    } catch (e: any) { notify("تعذّرت الطباعة", e?.message || "حاول مرة أخرى"); }
+    finally { setPrintingForm(null); }
   };
 
-  // ── طباعة عقد ──
+  // ── طباعة إيصال طلب خدمة ──
   const printContract = async (c: Contract) => {
     const status = STATUS_AR[c.status] || { label: c.status, color: "#666" };
-    const html = `<html dir="rtl"><head><meta charset="utf-8"/>
-      <style>body{font-family:-apple-system,Arial;padding:32px;color:#111;line-height:1.8}
-      .box{border:2px solid #8B5CF6;border-radius:12px;padding:24px;max-width:680px;margin:auto}
-      h2{color:#8B5CF6;margin:0 0 6px}.no{color:#666;font-size:12px;margin-bottom:18px}
-      .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}
-      .label{color:#666}.val{font-weight:700}
-      .status{display:inline-block;padding:5px 14px;border-radius:20px;background:${status.color}22;color:${status.color};font-weight:700;font-size:12px}</style>
-      </head><body><div class="box">
-      <h2>إيصال طلب خدمة قانونية</h2>
-      <div class="no">رقم العقد: ${c.contract_no}</div>
-      <div class="row"><span class="label">المحامي</span><span class="val">${c.lawyer_name}</span></div>
-      <div class="row"><span class="label">الخدمة</span><span class="val">${c.service_title || "تواصل عام"}</span></div>
-      <div class="row"><span class="label">التاريخ المطلوب</span><span class="val">${c.preferred_date || "—"}</span></div>
-      <div class="row"><span class="label">الحالة</span><span class="status">${status.label}</span></div>
-      <div class="row"><span class="label">تاريخ الطلب</span><span class="val">${new Date(c.created_at).toLocaleDateString("ar-SD")}</span></div>
-      ${c.details ? `<p style="margin-top:14px"><b>التفاصيل:</b><br/>${c.details}</p>` : ""}
-      <p style="margin-top:24px;color:#888;text-align:center;font-size:11px">تطبيق حصاحيصاوي · ${new Date().toLocaleDateString("ar-SD")}</p>
-      </div></body></html>`;
-    try {
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "حفظ / طباعة الإيصال" });
-      else await Print.printAsync({ html });
-    } catch (e:any) { Alert.alert("تعذّر الطباعة", e?.message); }
+    const html = paperDocument({
+      theme: "legal", title: "إيصال طلب خدمة قانونية", subtitle: c.service_title || "تواصل عام", ref: c.contract_no,
+      bodyHtml: `<div class="box kv">
+          <div>المحامي: <b>${esc(c.lawyer_name)}</b></div><div>هاتف المحامي: <b>${esc(c.lawyer_phone || "—")}</b></div>
+          <div>تاريخ الطلب: <b>${new Date(c.created_at).toLocaleDateString("ar-SD")}</b></div><div>الموعد المطلوب: <b>${esc(c.preferred_date || "—")}</b></div>
+          <div>الحالة: <span class="pill" style="color:${status.color}">${esc(status.label)}</span></div></div>
+        ${c.details ? `<h2>تفاصيل الطلب</h2><p>${esc(c.details)}</p>` : ""}`,
+      signatures: ["توقيع العميل", "توقيع المحامي"],
+      note: "يُحتفظ بهذا الإيصال لمتابعة الطلب. المنصة وسيط تعريفي والعلاقة المهنية والأتعاب بين العميل والمحامي مباشرة.",
+    });
+    try { await printPaper(html, "إيصال طلب خدمة"); } catch (e: any) { notify("تعذّرت الطباعة", e?.message || ""); }
   };
 
   // ── طباعة عقد الانضمام (محامي ↔ تطبيق) ──
@@ -537,21 +518,21 @@ export default function LawyersScreen() {
           }
           .draft-banner small { display:block; color:#7C2D12; font-weight:600; font-size:10px; margin-top:3px; letter-spacing:0; }
 
-          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px dashed #9CA3AF; margin-bottom: 18px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px dashed #7C7566; margin-bottom: 18px; }
           .brand { font-size: 22px; font-weight: 800; color: #6B7280; margin: 0; }
           .brand-sub { color: #6B7280; font-size: 11px; margin-top: 2px; }
           .meta { text-align: left; font-size: 10px; color: #6B7280; line-height: 1.6; }
-          .meta b { color: #374151; }
+          .meta b { color: #D8D0BE; }
 
           .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #4B5563; margin: 8px 0 4px; }
-          .doc-sub   { text-align: center; font-size: 11px; color: #9CA3AF; margin-bottom: 18px; }
+          .doc-sub   { text-align: center; font-size: 11px; color: #7C7566; margin-bottom: 18px; }
 
-          .preamble { background: #F9FAFB; border-right: 4px solid #9CA3AF; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
-          h3 { color: #4B5563; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #E5E7EB; }
+          .preamble { background: #F9FAFB; border-right: 4px solid #7C7566; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
+          h3 { color: #4B5563; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #374151; }
           .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
-          .party { background: #ffffff; border: 1px dashed #D1D5DB; border-radius: 8px; padding: 12px; }
+          .party { background: #ffffff; border: 1px dashed #4B5563; border-radius: 8px; padding: 12px; }
           .party h4 { margin: 0 0 6px; color: #6B7280; font-size: 12px; }
-          .party .row { font-size: 11px; padding: 3px 0; color: #374151; }
+          .party .row { font-size: 11px; padding: 3px 0; color: #D8D0BE; }
           .party .row b { color: #111827; }
           ol.terms { padding-right: 22px; }
           ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
@@ -559,8 +540,8 @@ export default function LawyersScreen() {
 
           .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
           .sig-box { text-align: center; }
-          .sig-line { border-top: 1.5px dashed #9CA3AF; padding-top: 6px; font-size: 11px; color: #6B7280; margin-top: 36px; }
-          .sig-pending { color:#9CA3AF; font-style:italic; font-size:11px; margin-top:6px; }
+          .sig-line { border-top: 1.5px dashed #7C7566; padding-top: 6px; font-size: 11px; color: #6B7280; margin-top: 36px; }
+          .sig-pending { color:#7C7566; font-style:italic; font-size:11px; margin-top:6px; }
 
           .notice {
             margin-top: 24px; background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px;
@@ -568,7 +549,7 @@ export default function LawyersScreen() {
           }
           .notice b { color:#78350F; }
 
-          .footer { margin-top: 24px; padding-top: 10px; border-top: 1px dashed #D1D5DB; text-align: center; color: #9CA3AF; font-size: 9px; line-height: 1.6; }
+          .footer { margin-top: 24px; padding-top: 10px; border-top: 1px dashed #4B5563; text-align: center; color: #7C7566; font-size: 9px; line-height: 1.6; }
         </style></head><body>
         <div class="page">
           <div class="draft-banner">
@@ -596,18 +577,18 @@ export default function LawyersScreen() {
 
           <div class="sigs">
             <div class="sig-box">
-              <div style="font-size:11px;color:#9CA3AF;margin-bottom:4px;">الطرف الأول</div>
+              <div style="font-size:11px;color:#7C7566;margin-bottom:4px;">الطرف الأول</div>
               <div class="sig-line">
                 <div style="font-weight:700;font-size:12px;color:#6B7280;">إدارة تطبيق حصاحيصاوي</div>
-                <div style="color:#9CA3AF;font-size:10px;margin-top:2px;">القسم القانوني</div>
+                <div style="color:#7C7566;font-size:10px;margin-top:2px;">القسم القانوني</div>
                 <div class="sig-pending">— لم يُعتمد بعد —</div>
               </div>
             </div>
             <div class="sig-box">
-              <div style="font-size:11px;color:#9CA3AF;margin-bottom:4px;">الطرف الثاني</div>
+              <div style="font-size:11px;color:#7C7566;margin-bottom:4px;">الطرف الثاني</div>
               <div class="sig-line">
                 <div style="font-weight:700;font-size:12px;color:#6B7280;">${full.full_name}</div>
-                <div style="color:#9CA3AF;font-size:10px;margin-top:2px;">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
+                <div style="color:#7C7566;font-size:10px;margin-top:2px;">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
                 <div class="sig-pending">— بانتظار اعتماد الإدارة —</div>
               </div>
             </div>
@@ -661,7 +642,7 @@ export default function LawyersScreen() {
           .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 3px double #10B981; margin-bottom: 18px; }
           .brand { font-size: 22px; font-weight: 800; color: #065F46; margin: 0; }
           .brand-sub { color: #047857; font-size: 11px; margin-top: 2px; }
-          .meta { text-align: left; font-size: 10px; color: #374151; line-height: 1.6; }
+          .meta { text-align: left; font-size: 10px; color: #D8D0BE; line-height: 1.6; }
           .meta b { color: #065F46; }
 
           .doc-title { text-align: center; font-size: 19px; font-weight: 800; color: #064E3B; margin: 8px 0 4px; letter-spacing: 0.5px; }
@@ -688,9 +669,9 @@ export default function LawyersScreen() {
           .preamble { background: #F0FDF4; border-right: 4px solid #10B981; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; }
           h3 { color: #064E3B; font-size: 14px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #D1FAE5; }
           .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
-          .party { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; }
+          .party { background: #F9FAFB; border: 1px solid #374151; border-radius: 8px; padding: 12px; }
           .party h4 { margin: 0 0 6px; color: #047857; font-size: 12px; }
-          .party .row { font-size: 11px; padding: 3px 0; color: #1F2937; }
+          .party .row { font-size: 11px; padding: 3px 0; color: #E7E1D3; }
           .party .row b { color: #000; }
           ol.terms { padding-right: 22px; }
           ol.terms li { margin-bottom: 9px; font-size: 12px; text-align: justify; }
@@ -698,7 +679,7 @@ export default function LawyersScreen() {
 
           .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
           .sig-box { text-align: center; }
-          .sig-line { border-top: 1.5px solid #065F46; padding-top: 6px; font-size: 11px; color: #1F2937; margin-top: 36px; }
+          .sig-line { border-top: 1.5px solid #065F46; padding-top: 6px; font-size: 11px; color: #E7E1D3; margin-top: 36px; }
           .sig-name { font-weight: 800; font-size: 12px; color: #065F46; }
           .sig-role { color: #047857; font-size: 10px; margin-top: 2px; }
           .sig-stamp { margin-top: 8px; color: #047857; font-size: 12px; font-weight: 800; }
@@ -753,7 +734,7 @@ export default function LawyersScreen() {
 
           <div class="sigs">
             <div class="sig-box">
-              <div style="font-size:11px;color:#374151;margin-bottom:4px;">الطرف الأول</div>
+              <div style="font-size:11px;color:#D8D0BE;margin-bottom:4px;">الطرف الأول</div>
               <div class="sig-line">
                 <div class="sig-name">إدارة تطبيق حصاحيصاوي</div>
                 <div class="sig-role">القسم القانوني</div>
@@ -761,7 +742,7 @@ export default function LawyersScreen() {
               </div>
             </div>
             <div class="sig-box">
-              <div style="font-size:11px;color:#374151;margin-bottom:4px;">الطرف الثاني</div>
+              <div style="font-size:11px;color:#D8D0BE;margin-bottom:4px;">الطرف الثاني</div>
               <div class="sig-line">
                 <div class="sig-name">${full.full_name}</div>
                 <div class="sig-role">${full.title || "محامي"} — نقابة رقم ${full.bar_number || "—"}</div>
@@ -790,10 +771,7 @@ export default function LawyersScreen() {
 
       const html = isApproved ? notarizedHtml : draftHtml;
 
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync())
-        await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "حفظ / مشاركة عقد الانضمام" });
-      else await Print.printAsync({ html });
+      await printPaper(html, "عقد الانضمام");
     } catch (e: any) {
       Alert.alert("تعذّر إصدار العقد", e?.message || "حاول لاحقاً");
     }
@@ -817,7 +795,7 @@ export default function LawyersScreen() {
             { key: "contracts" as const, label: "تعاقداتي",  icon: "handshake-outline" as const },
           ].map(t => (
             <Pressable key={t.key} onPress={() => setTab(t.key)} style={[s.tabBtn, tab === t.key && s.tabBtnActive]}>
-              <MaterialCommunityIcons name={t.icon} size={16} color={tab === t.key ? "#fff" : "#C4B5FD"} />
+              <MaterialCommunityIcons name={t.icon} size={16} color={tab === t.key ? "#fff" : "#B08D3C"} />
               <Text style={[s.tabLabel, tab === t.key && s.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           ))}
@@ -855,6 +833,22 @@ export default function LawyersScreen() {
                 </ScrollView>
               )}
 
+              {/* مركز الخدمات القانونية */}
+              <View style={s.svcHub}>
+                <Text style={s.svcHubTitle}>بماذا نساعدك اليوم؟</Text>
+                <View style={s.svcGrid}>
+                  {LEGAL_SERVICES.map(sv => (
+                    <Pressable key={sv.title} style={({ pressed }) => [s.svcTile, filter === sv.spec && s.svcTileOn, pressed && { opacity: 0.8 }]}
+                      onPress={() => { if (sv.spec === "rights") setRightsOpen(true); else if (sv.spec === "forms") setTab("forms"); else setFilter(f => (f === sv.spec ? "الكل" : sv.spec)); }}>
+                      <View style={[s.svcTileIcon, filter === sv.spec && { backgroundColor: "#B08D3C" }]}>
+                        <MaterialCommunityIcons name={sv.icon as any} size={20} color={filter === sv.spec ? "#fff" : "#14213D"} />
+                      </View>
+                      <Text style={s.svcTileText} numberOfLines={2}>{sv.title}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
               {/* انضم كمحامي */}
               <TouchableOpacity onPress={() => setJoinOpen(true)} activeOpacity={0.85} style={s.joinBanner}>
                 <View style={s.joinIcon}>
@@ -871,7 +865,7 @@ export default function LawyersScreen() {
                 {[
                   { icon: "🔓", name: "مجاني", sub: "5 تواصلات/شهر", color: "#6B7280" },
                   { icon: "⭐", name: "أساسي",  sub: "500 ج.س · تواصل غير محدود", color: "#3B82F6" },
-                  { icon: "💎", name: "محترف", sub: "1,500 ج.س · إعلانات + موثّق", color: "#8B5CF6" },
+                  { icon: "💎", name: "محترف", sub: "1,500 ج.س · إعلانات + موثّق", color: "#14213D" },
                   { icon: "👑", name: "بريميوم", sub: "3,000 ج.س · الصدارة + 8%", color: "#F59E0B" },
                 ].map(p => (
                   <View key={p.name} style={{ backgroundColor: p.color + "18", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: p.color + "44", alignItems: "center", minWidth: 110 }}>
@@ -884,7 +878,7 @@ export default function LawyersScreen() {
 
               {/* بحث */}
               <View style={s.searchBox}>
-                <Ionicons name="search" size={17} color="#9CA3AF" />
+                <Ionicons name="search" size={17} color="#7C7566" />
                 <TextInput
                   style={s.searchInput} placeholder="ابحث باسم المحامي أو التخصص أو الحي" placeholderTextColor="#6B7280"
                   value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={loadDirectory}
@@ -916,7 +910,7 @@ export default function LawyersScreen() {
             return (
               <Animated.View entering={FadeInDown.delay(40 * index).springify()}>
                 <TouchableOpacity onPress={() => openLawyer(item)} activeOpacity={0.85}
-                  style={[s.lawyerCard, isPremium && { borderColor: "#F59E0B", borderWidth: 1.5 }, isPro && { borderColor: "#8B5CF6", borderWidth: 1 }]}>
+                  style={[s.lawyerCard, isPremium && { borderColor: "#F59E0B", borderWidth: 1.5 }, isPro && { borderColor: "#14213D", borderWidth: 1 }]}>
                   {/* شارة الخطة / مميّز */}
                   <View style={{ position: "absolute", top: 10, left: 10, flexDirection: "row", gap: 5, zIndex: 2 }}>
                     {hasPlan && (
@@ -931,12 +925,13 @@ export default function LawyersScreen() {
                   </View>
                   <View style={[s.lawyerHead, hasPlan && { marginTop: 22 }]}>
                     <View style={[s.avatar, hasPlan && { borderWidth: 2, borderColor: planColor + "88" }]}>
-                      <MaterialCommunityIcons name="account-tie" size={28} color={hasPlan ? planColor : "#C4B5FD"} />
+                      {item.photo_url ? <Image source={{ uri: item.photo_url }} style={{ width: "100%", height: "100%", borderRadius: Colors.radius.md }} />
+                        : <MaterialCommunityIcons name="account-tie" size={28} color={hasPlan ? planColor : "#B08D3C"} />}
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         <Text style={s.lawyerName} numberOfLines={1}>{item.full_name}</Text>
-                        {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#3EFF9C" />}
+                        {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#0E8A5F" />}
                         {isPremium && <Text style={{ fontSize: 14 }}>👑</Text>}
                         {isPro && !isPremium && <Text style={{ fontSize: 13 }}>💎</Text>}
                         {isBasic && <Text style={{ fontSize: 13 }}>⭐</Text>}
@@ -952,7 +947,7 @@ export default function LawyersScreen() {
                   <Text style={s.lawyerSpec} numberOfLines={2}>{item.specialties}</Text>
                   <View style={s.lawyerFooter}>
                     <View style={s.lawyerLocPill}>
-                      <Ionicons name="location-outline" size={11} color="#9CA3AF" />
+                      <Ionicons name="location-outline" size={11} color="#7C7566" />
                       <Text style={s.lawyerLocText} numberOfLines={1}>{item.district || "الحصاحيصا"}</Text>
                     </View>
                     <Text style={s.lawyerFee} numberOfLines={1}>{item.consult_fee || "تواصل للتفاصيل"}</Text>
@@ -968,10 +963,10 @@ export default function LawyersScreen() {
             );
           }}
           ListEmptyComponent={loading ? (
-            <View style={s.centerBox}><ActivityIndicator color="#8B5CF6" /></View>
+            <View style={s.centerBox}><ActivityIndicator color="#14213D" /></View>
           ) : (
             <View style={s.centerBox}>
-              <MaterialCommunityIcons name="account-search" size={42} color="#4A5568" />
+              <MaterialCommunityIcons name="account-search" size={42} color="#D6CFC0" />
               <Text style={s.emptyText}>لا يوجد محامون مطابقون</Text>
             </View>
           )}
@@ -983,37 +978,60 @@ export default function LawyersScreen() {
       {/* ── FORMS ── */}
       {tab === "forms" && (
         <FlatList
-          data={forms} keyExtractor={i => String(i.id)}
+          data={forms.filter(f => (formCat === "الكل" || f.category === formCat) && (!formQ.trim() || `${f.title} ${f.description} ${f.category}`.includes(formQ.trim())))}
+          keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 14, paddingBottom: 30 }}
           ListHeaderComponent={
-            <View style={s.formsHeader}>
-              <MaterialCommunityIcons name="information-outline" size={16} color="#C4B5FD" 
-          ListFooterComponent={<OrgInviteCard />}/>
-              <Text style={s.formsHeaderText}>اختر استمارة لطباعتها أو حفظها كملف PDF — جاهزة للتعبئة بخط اليد أو رقمياً.</Text>
+            <View style={{ gap: 10, marginBottom: 12 }}>
+              <View style={s.formsHero}>
+                <View style={s.formsHeroIcon}><MaterialCommunityIcons name="file-sign" size={26} color="#B08D3C" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.formsHeroTitle}>الاستمارات والنماذج القانونية</Text>
+                  <Text style={s.formsHeroSub}>تُطبع على ورق رسمي منسّق بإطار مزخرف وخانات للتعبئة والتوقيع والختم — أو تُحفظ PDF.</Text>
+                </View>
+              </View>
+              <View style={s.searchBox}>
+                <Ionicons name="search" size={17} color="#7C7566" />
+                <TextInput style={s.searchInput} placeholder="ابحث عن استمارة: إيجار، توكيل، إقرار…" placeholderTextColor="#7C7566" value={formQ} onChangeText={setFormQ} />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {["الكل", ...Array.from(new Set(forms.map(f => f.category).filter(Boolean)))].map(c => (
+                  <Pressable key={c} onPress={() => setFormCat(c)} style={[s.chip, formCat === c && s.chipActive]}>
+                    <Text style={[s.chipText, formCat === c && s.chipTextActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
           }
+          ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(30 * index).springify()}>
-              <View style={s.formCard}>
-                <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-outline" size={24} color="#8B5CF6" /></View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <Text style={s.formTitle} numberOfLines={1}>{item.title}</Text>
-                    {item.is_official && <View style={s.officialBadge}><Text style={s.officialBadgeText}>معتمدة</Text></View>}
+              <Pressable onPress={() => printForm(item.id)} style={({ pressed }) => [s.paperCard, pressed && { opacity: 0.9 }]}>
+                <View style={s.paperFold} />
+                <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 }}>
+                  <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-edit-outline" size={24} color="#14213D" /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.formTitle} numberOfLines={2}>{item.title}</Text>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <Text style={s.formCat}>{item.category}</Text>
+                      {item.is_official && <View style={s.officialBadge}><Text style={s.officialBadgeText}>معتمدة</Text></View>}
+                    </View>
+                    {!!item.description && <Text style={s.formDesc} numberOfLines={2}>{item.description}</Text>}
                   </View>
-                  <Text style={s.formCat}>{item.category}</Text>
-                  <Text style={s.formDesc} numberOfLines={2}>{item.description}</Text>
                 </View>
-                <TouchableOpacity onPress={() => printForm(item.id)} style={s.printBtn} activeOpacity={0.8}>
-                  <Ionicons name="print-outline" size={16} color="#fff" />
-                  <Text style={s.printBtnText}>طباعة</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={s.paperActions}>
+                  <View style={s.printBtn}>
+                    {printingForm === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="print-outline" size={16} color="#fff" />}
+                    <Text style={s.printBtnText}>عرض وطباعة</Text>
+                  </View>
+                  <Text style={s.paperHint}>PDF · A4 · خانات للتعبئة والتوقيع</Text>
+                </View>
+              </Pressable>
             </Animated.View>
           )}
           ListEmptyComponent={formsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color="#8B5CF6" /></View>
-            : <View style={s.centerBox}><Text style={s.emptyText}>لا توجد استمارات</Text></View>}
+            ? <View style={s.centerBox}><ActivityIndicator color="#14213D" /></View>
+            : <View style={s.centerBox}><MaterialCommunityIcons name="file-search-outline" size={40} color="#D6CFC0" /><Text style={s.emptyText}>لا توجد استمارات مطابقة</Text></View>}
         />
       )}
 
@@ -1044,7 +1062,7 @@ export default function LawyersScreen() {
                       {a.admin_note && (
                         <View style={{ marginTop: 8, padding: 9, backgroundColor: st.color + "11", borderRadius: 8 }}>
                           <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>ملاحظة الإدارة:</Text>
-                          <Text style={{ color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 }}>{a.admin_note}</Text>
+                          <Text style={{ color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 }}>{a.admin_note}</Text>
                         </View>
                       )}
                       {a.status === "approved" && (
@@ -1054,7 +1072,7 @@ export default function LawyersScreen() {
                             <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
                           </View>
                           <TouchableOpacity onPress={() => router.push("/lawyer-portal")}
-                            style={{ marginTop: 10, backgroundColor: "#8B5CF6", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                            style={{ marginTop: 10, backgroundColor: "#14213D", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
                             <Ionicons name="grid-outline" size={16} color="#fff" />
                             <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 }}>⚖️ بوابتي — لوحة تحكم المحامي</Text>
                           </TouchableOpacity>
@@ -1092,7 +1110,7 @@ export default function LawyersScreen() {
                   <Text style={s.contractSvc}>{item.service_title || "تواصل عام"}</Text>
                   {item.preferred_date && (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-                      <Ionicons name="calendar-outline" size={12} color="#9CA3AF" />
+                      <Ionicons name="calendar-outline" size={12} color="#7C7566" />
                       <Text style={s.contractMeta}>{item.preferred_date}</Text>
                     </View>
                   )}
@@ -1100,8 +1118,8 @@ export default function LawyersScreen() {
                     <TouchableOpacity onPress={() => Linking.openURL(`tel:${item.lawyer_phone}`)} style={[s.miniBtn, { backgroundColor: "#10B981" + "22", borderColor: "#10B981" + "55" }]}>
                       <Ionicons name="call" size={13} color="#10B981" /><Text style={[s.miniBtnText, { color: "#10B981" }]}>اتصال</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={[s.miniBtn, { backgroundColor: "#8B5CF6" + "22", borderColor: "#8B5CF6" + "55" }]}>
-                      <Ionicons name="chatbubbles-outline" size={13} color="#8B5CF6" /><Text style={[s.miniBtnText, { color: "#8B5CF6" }]}>دردشة</Text>
+                    <TouchableOpacity onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={[s.miniBtn, { backgroundColor: "#14213D" + "22", borderColor: "#14213D" + "55" }]}>
+                      <Ionicons name="chatbubbles-outline" size={13} color="#14213D" /><Text style={[s.miniBtnText, { color: "#14213D" }]}>دردشة</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => printContract(item)} style={[s.miniBtn, { backgroundColor: "#3B82F6" + "22", borderColor: "#3B82F6" + "55" }]}>
                       <Ionicons name="print-outline" size={13} color="#3B82F6" /><Text style={[s.miniBtnText, { color: "#3B82F6" }]}>طباعة</Text>
@@ -1112,10 +1130,10 @@ export default function LawyersScreen() {
             );
           }}
           ListEmptyComponent={contractsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color="#8B5CF6" /></View>
+            ? <View style={s.centerBox}><ActivityIndicator color="#14213D" /></View>
             : myApps.length === 0 ? (
               <View style={s.centerBox}>
-                <MaterialCommunityIcons name="handshake-outline" size={42} color="#4A5568" />
+                <MaterialCommunityIcons name="handshake-outline" size={42} color="#D6CFC0" />
                 <Text style={s.emptyText}>لا توجد تعاقدات بعد</Text>
                 <Text style={[s.emptyText, { fontSize: 11 }]}>اختر محامياً وأرسل طلب خدمة، أو قدّم طلب الانضمام كمحامٍ</Text>
               </View>
@@ -1218,12 +1236,12 @@ export default function LawyersScreen() {
                 <>
                   <View style={s.detailHead}>
                     <View style={s.avatarLg}>
-                      <MaterialCommunityIcons name="account-tie" size={36} color="#C4B5FD" />
+                      <MaterialCommunityIcons name="account-tie" size={36} color="#B08D3C" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         <Text style={s.detailName}>{selected.full_name}</Text>
-                        {selected.is_verified && <Ionicons name="checkmark-circle" size={17} color="#3EFF9C" />}
+                        {selected.is_verified && <Ionicons name="checkmark-circle" size={17} color="#0E8A5F" />}
                       </View>
                       <Text style={s.detailTitle}>{selected.title}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -1246,7 +1264,7 @@ export default function LawyersScreen() {
                         <Ionicons name="logo-whatsapp" size={16} color="#fff" /><Text style={s.quickBtnText}>واتساب</Text>
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity onPress={() => printLawyerCard(selected, services)} style={[s.quickBtn, { backgroundColor: "#8B5CF6" }]}>
+                    <TouchableOpacity onPress={() => printLawyerCard(selected, services)} style={[s.quickBtn, { backgroundColor: "#14213D" }]}>
                       <Ionicons name="print-outline" size={16} color="#fff" /><Text style={s.quickBtnText}>طباعة</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setRateOpen(true)} style={[s.quickBtn, { backgroundColor: "#F59E0B" }]}>
@@ -1274,7 +1292,7 @@ export default function LawyersScreen() {
                   {/* الخدمات */}
                   <View style={s.section}>
                     <Text style={s.sectionTitle}>الخدمات المتاحة</Text>
-                    {detailLoading ? <ActivityIndicator color="#8B5CF6" /> : services.length === 0 ? (
+                    {detailLoading ? <ActivityIndicator color="#14213D" /> : services.length === 0 ? (
                       <Text style={s.emptyInline}>لم يضِف المحامي خدمات بعد</Text>
                     ) : services.map(svc => (
                       <View key={svc.id} style={s.svcCard}>
@@ -1295,7 +1313,7 @@ export default function LawyersScreen() {
                     {/* تواصل عام */}
                     <TouchableOpacity onPress={() => setContractFor({ id: 0, lawyer_id: selected.id, title: "تواصل عام", description: "", price_text: "", duration: "" })}
                       style={s.contactGenBtn}>
-                      <MaterialCommunityIcons name="email-plus-outline" size={16} color="#8B5CF6" />
+                      <MaterialCommunityIcons name="email-plus-outline" size={16} color="#14213D" />
                       <Text style={s.contactGenText}>طلب خدمة أخرى / تواصل عام</Text>
                     </TouchableOpacity>
                   </View>
@@ -1327,7 +1345,7 @@ export default function LawyersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalOverlay2}>
           <View style={s.contractModal}>
             <View style={s.contractHeader}>
-              <MaterialCommunityIcons name="handshake" size={20} color="#8B5CF6" />
+              <MaterialCommunityIcons name="handshake" size={20} color="#14213D" />
               <Text style={s.contractTitle}>طلب: {contractFor?.title}</Text>
             </View>
             <Text style={s.contractSubt}>سيتواصل معك المحامي لتأكيد التفاصيل والموعد.</Text>
@@ -1349,6 +1367,35 @@ export default function LawyersScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ═══ Rights Guide ═══ */}
+      <Modal visible={rightsOpen} animationType="slide" transparent onRequestClose={() => setRightsOpen(false)}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalSheet, { backgroundColor: "#FFFDF8" }]}>
+            <View style={s.modalHandle} />
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <View style={[s.svcTileIcon, { backgroundColor: "#14213D" }]}><MaterialCommunityIcons name="shield-check-outline" size={20} color="#B08D3C" /></View>
+              <Text style={[s.detailName, { flex: 1, textAlign: "right" }]}>اعرف حقوقك</Text>
+              <TouchableOpacity onPress={() => setRightsOpen(false)} style={s.closeBtn}><Ionicons name="close" size={20} color="#fff" /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30, gap: 10 }}>
+              {RIGHTS_GUIDE.map(g => (
+                <View key={g.title} style={s.rightsCard}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <MaterialCommunityIcons name={g.icon as any} size={18} color="#B08D3C" />
+                    <Text style={s.rightsTitle}>{g.title}</Text>
+                  </View>
+                  {g.points.map((pt, i) => <Text key={i} style={s.rightsPoint}>• {pt}</Text>)}
+                </View>
+              ))}
+              <Text style={s.rightsNote}>معلومات توعوية عامة وليست استشارة قانونية. لكل حالة تفاصيلها — تواصل مع محامٍ مرخّص من القائمة.</Text>
+              <TouchableOpacity onPress={() => setRightsOpen(false)} style={[s.submitBtn, { flex: 0 }]}>
+                <MaterialCommunityIcons name="account-tie" size={16} color="#fff" /><Text style={s.submitBtnText}>اختر محامياً للاستشارة</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
 
       {/* ═══ Rate Modal ═══ */}
@@ -1380,7 +1427,7 @@ export default function LawyersScreen() {
 function InfoLine({ icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <View style={s.infoLine}>
-      <Ionicons name={icon} size={14} color="#9CA3AF" />
+      <Ionicons name={icon} size={14} color="#7C7566" />
       <Text style={s.infoLineLabel}>{label}</Text>
       <Text style={s.infoLineValue} numberOfLines={2}>{value}</Text>
     </View>
@@ -1403,149 +1450,169 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 const s = StyleSheet.create({
   uploadBox: { borderWidth: 1, borderColor: "rgba(139,92,246,0.25)", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 14, padding: 12, gap: 8 },
   uploadHelp: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18, textAlign: "right" },
-  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
+  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
   uploadBtnOk: { backgroundColor: "#10B981" },
   uploadBtnWarn: { backgroundColor: "#F59E0B" },
   uploadBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   uploadFileName: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right" },
   uploadWarn: { color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right", lineHeight: 17 },
-  container: { flex: 1, backgroundColor: "#020C1B" },
+  container: { flex: 1, backgroundColor: "#F6F4EE" },
   tabsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
-  tabBtnActive: { backgroundColor: "#8B5CF6" },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C4B5FD" },
+  tabBtnActive: { backgroundColor: "#14213D" },
+  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#B08D3C" },
   tabLabelActive: { color: "#fff" },
 
   adCard: { width: 270, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   adBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   adBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Cairo_700Bold" },
-  adTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 14, marginTop: 6 },
-  adBody: { fontFamily: "Cairo_400Regular", color: "#D1D5DB", fontSize: 11, marginTop: 4, lineHeight: 16 },
+  adTitle: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 14, marginTop: 6 },
+  adBody: { fontFamily: "Cairo_400Regular", color: "#4B5563", fontSize: 11, marginTop: 4, lineHeight: 16 },
   adCtaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
   adCta: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   adCtaText: { color: "#fff", fontSize: 11, fontFamily: "Cairo_700Bold" },
-  adAuthor: { color: "#9CA3AF", fontSize: 10, fontFamily: "Cairo_400Regular", flex: 1, textAlign: "left", marginLeft: 8 },
+  adAuthor: { color: "#7C7566", fontSize: 10, fontFamily: "Cairo_400Regular", flex: 1, textAlign: "left", marginLeft: 8 },
 
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#1F2937" },
-  searchInput: { flex: 1, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, paddingVertical: 0, textAlign: "right" },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: "#0F1A14", borderWidth: 1, borderColor: "#1F2937" },
-  chipActive: { backgroundColor: "#8B5CF6", borderColor: "#8B5CF6" },
-  chipText: { color: "#9CA3AF", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#E7E1D3" },
+  searchInput: { flex: 1, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 13, paddingVertical: 0, textAlign: "right" },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E7E1D3" },
+  chipActive: { backgroundColor: "#14213D", borderColor: "#14213D" },
+  chipText: { color: "#7C7566", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   chipTextActive: { color: "#fff" },
 
-  lawyerCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: "#1F2937" },
+  lawyerCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: "#E7E1D3" },
   featBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#FBBF2422", borderColor: "#FBBF24", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   featBadgeText: { color: "#FBBF24", fontFamily: "Cairo_700Bold", fontSize: 9 },
   lawyerHead: { flexDirection: "row", gap: 12, alignItems: "center" },
-  avatar: { width: 54, height: 54, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
-  lawyerName: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 14, flexShrink: 1 },
-  lawyerTitle: { fontFamily: "Cairo_400Regular", color: "#C4B5FD", fontSize: 11, marginTop: 1 },
-  lawyerMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 10 },
-  lawyerSpec: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 10, lineHeight: 17 },
-  lawyerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#1F2937" },
-  lawyerLocPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#1F2937", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
-  lawyerLocText: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 10 },
+  avatar: { width: 54, height: 54, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  lawyerName: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 14, flexShrink: 1 },
+  lawyerTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 11, marginTop: 1 },
+  lawyerMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 10 },
+  lawyerSpec: { color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 10, lineHeight: 17 },
+  lawyerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#E7E1D3" },
+  lawyerLocPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#E7E1D3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
+  lawyerLocText: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 10 },
   lawyerFee: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11, flex: 1, textAlign: "left", marginLeft: 8 },
 
   centerBox: { paddingVertical: 60, alignItems: "center", gap: 10 },
   emptyText: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 13 },
 
-  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#8B5CF612", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#8B5CF633", marginBottom: 12 },
-  formsHeaderText: { flex: 1, color: "#C4B5FD", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18 },
-  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
-  formIconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF622", alignItems: "center", justifyContent: "center" },
-  formTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#14213D12", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#14213D33", marginBottom: 12 },
+  formsHeaderText: { flex: 1, color: "#B08D3C", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18 },
+  svcHub: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: "#E7E1D3" },
+  svcHubTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#14213D", textAlign: "right", marginBottom: 8 },
+  svcGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
+  svcTile: { width: "31%", flexGrow: 1, alignItems: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 12, backgroundColor: "#FBF8F1", borderWidth: 1, borderColor: "#EFE8D8" },
+  svcTileOn: { borderColor: "#B08D3C", backgroundColor: "#F7EFD9" },
+  svcTileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#EDE6D3", alignItems: "center", justifyContent: "center" },
+  svcTileText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1B2333", textAlign: "center", lineHeight: 16 },
+  rightsCard: { backgroundColor: "#fff", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#EFE8D8", borderRightWidth: 3, borderRightColor: "#B08D3C" },
+  rightsTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: "#14213D", textAlign: "right", flex: 1 },
+  rightsPoint: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#374151", textAlign: "right", lineHeight: 21 },
+  rightsNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#8A8270", textAlign: "center", lineHeight: 18, marginTop: 4 },
+  formsHero: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#14213D", borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#B08D3C" },
+  formsHeroIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(176,141,60,0.16)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#B08D3C" },
+  formsHeroTitle: { color: "#F6F1E4", fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" },
+  formsHeroSub: { color: "#D9CFB7", fontFamily: "Cairo_400Regular", fontSize: 11.5, lineHeight: 18, textAlign: "right", marginTop: 2 },
+  paperCard: { backgroundColor: "#FFFDF8", borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "#E7DFCB", borderRightWidth: 4, borderRightColor: "#B08D3C", overflow: "hidden",
+    shadowColor: "#5C4A12", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  paperFold: { position: "absolute", top: 0, left: 0, width: 26, height: 26, backgroundColor: "#EFE6D0", borderBottomRightRadius: 10 },
+  paperActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EFE8D8", borderStyle: "dashed" },
+  paperHint: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: "#8A8270" },
+  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
+  formIconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", alignItems: "center", justifyContent: "center" },
+  formTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" },
   officialBadge: { backgroundColor: "#10B98122", borderColor: "#10B98155", borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
   officialBadgeText: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 9 },
-  formCat: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 10, marginTop: 2 },
-  formDesc: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 16 },
-  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
+  formCat: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  formDesc: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 16 },
+  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   printBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
 
-  contractCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
-  contractNo: { color: "#9CA3AF", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  contractCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
+  contractNo: { color: "#7C7566", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 14, borderWidth: 1 },
   statusPillText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
-  contractLawyer: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
-  contractSvc: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 12, marginTop: 2 },
-  contractMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11 },
+  contractLawyer: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14 },
+  contractSvc: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 12, marginTop: 2 },
+  contractMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11 },
   contractActions: { flexDirection: "row", gap: 8, marginTop: 12 },
   miniBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
   miniBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
 
   // detail modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#020C1B", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#1F2937" },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#374151", alignSelf: "center", marginBottom: 12 },
-  detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
-  avatarLg: { width: 70, height: 70, borderRadius: Colors.radius.lg, backgroundColor: "#8B5CF622", borderWidth: 1, borderColor: "#8B5CF655", alignItems: "center", justifyContent: "center" },
-  detailName: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 16, flexShrink: 1 },
-  detailTitle: { fontFamily: "Cairo_400Regular", color: "#C4B5FD", fontSize: 12, marginTop: 2 },
-  detailMeta: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#1F2937", alignItems: "center", justifyContent: "center" },
+  modalSheet: { backgroundColor: "#F6F4EE", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#E7E1D3" },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D8D0BE", alignSelf: "center", marginBottom: 12 },
+  detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  avatarLg: { width: 70, height: 70, borderRadius: Colors.radius.lg, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center" },
+  detailName: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 16, flexShrink: 1 },
+  detailTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 12, marginTop: 2 },
+  detailMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
   quickRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
   quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.sm },
   quickBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
-  infoBox: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: "#1F2937" },
-  infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
-  infoLineLabel: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, width: 90 },
-  infoLineValue: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "left" },
+  infoBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: "#E7E1D3" },
+  infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  infoLineLabel: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, width: 90 },
+  infoLineValue: { color: "#1B2333", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "left" },
 
-  bioBox: { backgroundColor: "#1a0f2e", borderRadius: Colors.radius.md, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#8B5CF633" },
-  bioTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 12, marginBottom: 6 },
-  bioText: { color: "#E5E7EB", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 20 },
+  bioBox: { backgroundColor: "#FBF7EE", borderRadius: Colors.radius.md, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#14213D33" },
+  bioTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 12, marginBottom: 6 },
+  bioText: { color: "#374151", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 20 },
 
   section: { marginTop: 18 },
-  sectionTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 10 },
+  sectionTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 10 },
   emptyInline: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 12, fontStyle: "italic" },
 
-  svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#0F1A14", borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#1F2937" },
-  svcTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  svcDesc: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 3, lineHeight: 16 },
-  svcChip: { backgroundColor: "#1F2937", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
-  svcChipText: { color: "#D1D5DB", fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#8B5CF6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
+  svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
+  svcTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  svcDesc: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 3, lineHeight: 16 },
+  svcChip: { backgroundColor: "#E7E1D3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
+  svcChipText: { color: "#4B5563", fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
-  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#8B5CF655", borderStyle: "dashed", marginTop: 4 },
-  contactGenText: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 12 },
+  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#14213D55", borderStyle: "dashed", marginTop: 4 },
+  contactGenText: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
-  reviewCard: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.sm, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: "#1F2937" },
-  reviewName: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 11 },
-  reviewText: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 17 },
+  reviewCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: "#E7E1D3" },
+  reviewName: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 11 },
+  reviewText: { color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 17 },
 
   // contract & rate modals
   modalOverlay2: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: 20 },
-  contractModal: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 18, borderWidth: 1, borderColor: "#1F2937" },
+  contractModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 18, borderWidth: 1, borderColor: "#E7E1D3" },
   contractHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  contractTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
-  contractSubt: { color: "#9CA3AF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 6, lineHeight: 16 },
-  fieldLabel: { color: "#C4B5FD", fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 5 },
-  fieldInput: { backgroundColor: "#020C1B", borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 44, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#1F2937", textAlign: "right" },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#1F2937", alignItems: "center" },
-  cancelBtnText: { color: "#9CA3AF", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#8B5CF6" },
+  contractTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
+  contractSubt: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 6, lineHeight: 16 },
+  fieldLabel: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 5 },
+  fieldInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 44, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#E7E1D3", textAlign: "right" },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#E7E1D3", alignItems: "center" },
+  cancelBtnText: { color: "#7C7566", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
   submitBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
 
-  rateModal: { backgroundColor: "#0F1A14", borderRadius: Colors.radius.lg, padding: 22, borderWidth: 1, borderColor: "#1F2937" },
-  rateTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
-  rateInput: { backgroundColor: "#020C1B", borderRadius: Colors.radius.sm, padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#1F2937", height: 80, textAlignVertical: "top", textAlign: "right" },
+  rateModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 22, borderWidth: 1, borderColor: "#E7E1D3" },
+  rateTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
+  rateInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, padding: 12, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#E7E1D3", height: 80, textAlignVertical: "top", textAlign: "right" },
 
-  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#8B5CF6", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
+  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#14213D", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
   joinIcon: { width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   joinTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  joinSub: { color: "#EDE9FE", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 2 },
-  joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#1F2937" },
-  joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
-  joinSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
-  termsBox: { backgroundColor: "#1a0f2e", borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#8B5CF655" },
-  termsTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
-  termsText: { color: "#D1D5DB", fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 22 },
-  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#0F1A14", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#1F2937" },
-  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#8B5CF6", alignItems: "center", justifyContent: "center" },
-  checkboxOn: { backgroundColor: "#8B5CF6" },
-  agreeText: { color: "#fff", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
-  contractsSectionTitle: { color: "#C4B5FD", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#8B5CF6" },
-  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#8B5CF6" },
+  joinSub: { color: "#E9E2CF", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 2 },
+  joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
+  joinSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
+  termsBox: { backgroundColor: "#FBF7EE", borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#14213D55" },
+  termsTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
+  termsText: { color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 22 },
+  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#E7E1D3" },
+  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#14213D", alignItems: "center", justifyContent: "center" },
+  checkboxOn: { backgroundColor: "#14213D" },
+  agreeText: { color: "#1B2333", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
+  contractsSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
+  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
   contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "center" },
 });
