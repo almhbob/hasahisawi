@@ -160,7 +160,7 @@ const wrap = (fn: (req: Request, res: Response) => Promise<any>) => async (req: 
 const withFiles = (req: Request, res: Response) => new Promise<void>((resolve, reject) => {
   const ct = String(req.headers["content-type"] || "");
   if (!ct.includes("multipart/form-data")) return resolve();
-  storeFiles(req, res, (err: any) => (err ? reject(err) : resolve()));
+  storeFiles(req as any, res as any, (err: any) => (err ? reject(err) : resolve()));
 });
 
 // ── merchant: register / my store ─────────────────────────────────────────────

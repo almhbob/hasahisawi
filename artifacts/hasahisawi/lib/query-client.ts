@@ -1,7 +1,7 @@
 import { fetch } from "@/lib/net-fetch";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { installOfflineCache } from "@/lib/offline-cache";
+import { installOfflineCache } from "@/lib/offline-http-cache";
 import { canQueueRequest, isOnline, queueOfflineRequest, syncOfflineQueue } from "@/lib/offline-queue";
 
 // Must match TOKEN_KEY in lib/auth-context.tsx (the only key that is ever written on login)

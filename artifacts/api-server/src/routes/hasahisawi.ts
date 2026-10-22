@@ -16325,7 +16325,9 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
 // اتحاد الطلاب — Student Union Applications & Partnership
 // ══════════════════════════════════════════════════════════════════
 
-(async () => {
+let _unionTablesReady: Promise<void> | null = null;
+function ensureUnionTables(): Promise<void> {
+  if (!_unionTablesReady) _unionTablesReady = (async () => {
   try {
     // جدول طلبات العضوية الطلابية — الاستمارة الرسمية ذات السبعة أقسام
     await query(`
@@ -16415,11 +16417,15 @@ router.get("/admin/travel/scans", async (req: Request, res: Response) => {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_upa_status ON union_partnership_applications(status)`);
   } catch (e: any) { logger.warn({ err: e?.message }, "[union-partnership] table init failed"); }
-})();
+  })().catch((e) => { _unionTablesReady = null; throw e; });
+  return _unionTablesReady;
+}
+ensureUnionTables().catch(() => {});
 
 // POST /api/student-union/apply
 router.post("/student-union/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
+    _unionTablesReady = null; await ensureUnionTables().catch(() => {});
     const user = await getSessionUser(req);
     const b = req.body as Record<string, any>;
 
@@ -16597,6 +16603,7 @@ router.patch("/admin/student-union/managers/reset-password", async (req: Request
 // POST /api/union-partnership/apply — طلب انضمام اتحاد لخدمات التطبيق
 router.post("/union-partnership/apply", writeLimiter, async (req: Request, res: Response) => {
   try {
+    _unionTablesReady = null; await ensureUnionTables().catch(() => {});
     const b = req.body as Record<string, any>;
     if (!b.union_name?.trim())     return res.status(400).json({ error: "اسم الاتحاد مطلوب" });
     if (!b.contact_person?.trim()) return res.status(400).json({ error: "اسم المسؤول مطلوب" });

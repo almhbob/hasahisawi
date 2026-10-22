@@ -162,6 +162,14 @@ function AuthGate() {
           return;
         }
 
+        // ── تنبيه إدارة: أي طلب جديد → مركز الطلبات ──
+        if (type === "admin_alert") {
+          router.push("/admin-requests" as any);
+          return;
+        }
+        if (type === "store_review") { router.push("/store-portal" as any); return; }
+        if (type === "store_order_update") { router.push("/stores" as any); return; }
+
         // ── المؤسسات / الشراكات / المحامون → لوحة الإدارة ──
         if (
           type === "institution_application" ||

@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNetworkStatus } from "@/lib/network";
 import { useOfflineQueueStatus } from "@/lib/offline-queue";
-import { useServingOfflineCache } from "@/lib/offline-cache";
+import { useServingOfflineCache } from "@/lib/offline-http-cache";
 import Colors from "@/constants/colors";
 
 export default function NetworkBanner() {

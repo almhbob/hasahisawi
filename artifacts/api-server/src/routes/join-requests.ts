@@ -71,7 +71,8 @@ function normalizePhone(phone: unknown) {
 }
 function pickBody(req: Request, typeFallback: string) {
   const b = req.body || {};
-  const request_type = String(b.request_type || b.type || b.service_type || typeFallback || "general").slice(0, 60);
+  // نوع الطلب يحدّده المسار (رجال، تجّار…) — نوع الخدمة يبقى في التفاصيل.
+  const request_type = String(b.request_type || (typeFallback !== "general" ? typeFallback : (b.type || b.service_type)) || "general").slice(0, 60);
   const applicant_name = String(b.applicant_name || b.owner_name || b.contact_name || b.name || b.driver_name || "").trim();
   const entity_name = String(b.entity_name || b.shop_name || b.agency_name || b.business_name || b.service_name || b.name || "").trim();
   const phone = normalizePhone(b.phone || b.whatsapp || b.mobile || b.contact_phone);
