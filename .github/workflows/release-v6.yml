@@ -2,6 +2,15 @@ name: Hasahisawi Android APK AAB Release
 
 on:
   workflow_dispatch:
+    inputs:
+      play_track:
+        description: "Google Play track (internal / alpha / beta / production)"
+        required: false
+        default: ""
+      version_code:
+        description: "Override versionCode (leave empty for automatic)"
+        required: false
+        default: ""
   push:
     branches: [master, main]
     paths:
@@ -66,7 +75,14 @@ jobs:
         id: ver
         run: |
           VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
-          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          BASE_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
+          # versionCode يزيد تلقائياً مع كل بناء (شرط Google Play لقبول أي تحديث)
+          OFFSET="${{ vars.PLAY_VERSION_CODE_OFFSET }}"; OFFSET="${OFFSET:-1000}"
+          AUTO=$(( OFFSET + ${{ github.run_number }} ))
+          CODE="${{ github.event.inputs.version_code }}"
+          if [ -z "$CODE" ]; then CODE=$(( AUTO > BASE_CODE ? AUTO : BASE_CODE )); fi
+          sed -i -E "s/^([[:space:]]*)versionCode [0-9]+/\1versionCode $CODE/" artifacts/hasahisawi/android/app/build.gradle
+          grep -n "versionCode" artifacts/hasahisawi/android/app/build.gradle
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "code=$CODE" >> $GITHUB_OUTPUT
           echo "Building Hasahisawi v$VERSION build $CODE"
@@ -243,6 +259,45 @@ jobs:
           fi
           echo "APK: $APK_FILE"
           echo "AAB: $AAB_FILE"
+
+      - name: Prepare Google Play upload
+        id: play
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$PLAY_JSON" ]; then
+            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON not set — skipping Google Play upload."
+            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
+          fi
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::Google Play needs the permanent upload key (ANDROID_KEYSTORE_BASE64) — skipping Play upload for this one-off-signed build."
+            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
+          fi
+          TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-internal}"
+          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-completed}"
+          echo "track=$TRACK" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "enabled=true" >> $GITHUB_OUTPUT
+          mkdir -p play-whatsnew
+          MSG=$(git log -1 --pretty=%s | cut -c1-450)
+          printf 'نسخة %s (%s)\n%s\n' "${{ steps.ver.outputs.version }}" "${{ steps.ver.outputs.code }}" "تحسينات وإصلاحات لتجربة أفضل." > play-whatsnew/whatsnew-ar
+          printf 'Version %s (%s)\n%s\n' "${{ steps.ver.outputs.version }}" "${{ steps.ver.outputs.code }}" "$MSG" > play-whatsnew/whatsnew-en-US
+          echo "Uploading build ${{ steps.ver.outputs.code }} to Google Play track: $TRACK ($STATUS)"
+
+      - name: Upload AAB to Google Play
+        if: ${{ steps.play.outputs.enabled == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.almhbob.hasahisawi
+          releaseFiles: release-artifacts/*.aab
+          track: ${{ steps.play.outputs.track }}
+          status: ${{ steps.play.outputs.status }}
+          releaseName: "${{ steps.ver.outputs.version }} (${{ steps.ver.outputs.code }})"
+          whatsNewDirectory: play-whatsnew
+          changesNotSentForReview: false
 
       - name: Publish GitHub Release
         if: ${{ github.event_name != 'pull_request' && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
