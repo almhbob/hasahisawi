@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share,
-  Alert, Modal, useWindowDimensions, Platform,
+  Modal, useWindowDimensions, Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,16 +10,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
-import { captureRef } from "react-native-view-shot";
+import { capturePoster } from "@/lib/poster-capture";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeInDown } from "react-native-reanimated";
 import Svg, { Circle, Path, Rect, Polygon, Defs, Text as SvgText, TextPath } from "react-native-svg";
 import QRCode from "react-native-qrcode-svg";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
-import { uploadAvatar } from "@/lib/firebase/storage";
-import { isFirebaseAvailable } from "@/lib/firebase/auth";
+import { notify, confirmAction, openExternal, copyText, uploadProfilePhoto, socialShareUrl, systemShare, type SocialTarget } from "@/lib/xplatform";
 
 const MAP = require("@/assets/images/member-card/map.png");
+const SOCIALS: { key: SocialTarget; label: string; icon: string; bg: string }[] = [
+  { key: "whatsapp", label: "واتساب",  icon: "logo-whatsapp", bg: "#25D366" },
+  { key: "facebook", label: "فيسبوك", icon: "logo-facebook", bg: "#1877F2" },
+  { key: "x",        label: "إكس",     icon: "logo-twitter",  bg: "#111111" },
+  { key: "telegram", label: "تيليجرام", icon: "paper-plane",   bg: "#229ED9" },
+];
 const LOGO = require("@/assets/images/member-card/logo.png");
 
 type Tier = "admin" | "moderator" | "business" | "female" | "male";
@@ -239,6 +244,7 @@ export default function MemberCardScreen() {
   const [card, setCard] = useState<MemberCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [showBack, setShowBack] = useState(false);
@@ -281,7 +287,7 @@ export default function MemberCardScreen() {
     if (!card || busy) return;
     setBusy("photo");
     try { setCard((await call("/api/member-card/me/photo", { method: "PATCH", body: JSON.stringify({ preset: key }) })).card); Haptics.selectionAsync().catch(() => {}); }
-    catch (e: any) { Alert.alert("تعذّر ذلك", e?.message || ""); }
+    catch (e: any) { notify("تعذّر ذلك", e?.message || ""); }
     finally { setBusy(null); }
   };
 
@@ -289,59 +295,83 @@ export default function MemberCardScreen() {
   const uploadPhoto = async () => {
     if (!user || !token || busy) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") { Alert.alert("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور"); return; }
+    if (perm.status !== "granted") { notify("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 5], quality: 0.9 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     setBusy("photo");
     try {
-      let url: string;
-      if (isFirebaseAvailable()) {
-        url = await uploadAvatar(String(user.id), uri);
-        await call("/api/auth/profile", { method: "PUT", body: JSON.stringify({ avatar_url: url }) });
-      } else {
-        const form = new FormData();
-        form.append("file", { uri, type: "image/jpeg", name: "card-photo.jpg" } as any);
-        const r = await fetch(`${api}/api/auth/upload-avatar`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
-        if (!r.ok) throw new Error("تعذّر رفع الصورة");
-        url = (await r.json()).url;
-      }
+      // يُرفع عبر الخادم (Cloudinary) ويُحفظ صورةً للملف الشخصي أيضاً
+      const url = await uploadProfilePhoto(uri, token);
       setCard((await call("/api/member-card/me/photo", { method: "PATCH", body: JSON.stringify({ photo_url: url }) })).card);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (e: any) { Alert.alert("تعذّر رفع الصورة", e?.message || ""); }
+    } catch (e: any) { notify("تعذّر رفع الصورة", e?.message || ""); }
     finally { setBusy(null); }
   };
 
+  // نص قصير للمشاركة؛ الرابط يعرض معاينة البطاقة (صورة + عنوان) على مواقع التواصل
+  const shareCaption = card ? `بطاقتي في حصاحيصاوي — ${card.tier_label}\nالحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا` : "";
+
+  const shareTo = async (target: SocialTarget) => {
+    if (!card) return;
+    try { await openExternal(socialShareUrl(target, card.verify_url, shareCaption)); }
+    catch { notify("تعذّر فتح التطبيق", "تأكد من تثبيت التطبيق أو انسخ الرابط وشاركه يدوياً."); }
+  };
+
+  const copyLink = async () => {
+    if (!card) return;
+    const r = await copyText(card.verify_url);
+    if (r === "copied") { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    else if (r === "failed") notify("تعذّر النسخ", card.verify_url);
+  };
+
+  const shareMore = async () => {
+    if (!card) return;
+    const ok = await systemShare(shareCaption, card.verify_url);
+    if (!ok) await copyLink();
+  };
+
+  // صورة البطاقة: على الجوال مشاركة الصورة مباشرة، وفي المتصفح مشاركتها أو تنزيلها
   const shareImage = async () => {
     if (!posterRef.current || !card) return;
     setBusy("share");
     try {
-      const uri = await captureRef(posterRef, { format: "png", quality: 1, result: "tmpfile", width: 1080, height: 1350 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "مشاركة بطاقتي" });
+      if (Platform.OS === "web") {
+        const { blob } = await capturePoster(posterRef);
+        if (!blob) throw new Error("capture failed");
+        const file = new File([blob], "hasahisawi-card.png", { type: "image/png" });
+        const nav: any = typeof navigator !== "undefined" ? navigator : null;
+        if (nav?.canShare?.({ files: [file] })) {
+          await nav.share({ files: [file], text: `${shareCaption}\n${card.verify_url}` });
+        } else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob); a.download = "hasahisawi-card.png";
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+          notify("تم حفظ صورة البطاقة", "انشرها على مواقع التواصل مع رابط بطاقتك.");
+        }
       } else {
-        await Share.share({ url: uri, message: card.share_text });
+        const { uri } = await capturePoster(posterRef);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "مشاركة بطاقتي" });
+        } else {
+          await Share.share({ url: uri, message: `${shareCaption}\n${card.verify_url}` });
+        }
       }
-      setPosterOpen(false);
-    } catch (e: any) { if (!String(e?.message || "").includes("cancel")) Alert.alert("تعذّرت المشاركة", e?.message || ""); }
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (/cancel|abort/i.test(msg)) { /* user dismissed */ } else { console.warn("[card] image share failed:", msg); notify("تعذّرت مشاركة الصورة", "استخدم أزرار مواقع التواصل أو انسخ الرابط."); }
+    }
     finally { setBusy(null); }
   };
 
-  const shareLink = async () => {
-    if (!card) return;
-    try { await Share.share(Platform.OS === "ios" ? { message: card.share_text, url: card.verify_url } : { message: card.share_text }); } catch {}
-  };
-
-  const rotate = () => {
-    Alert.alert("إعادة إصدار رمز التحقّق", "سيتوقف الرمز الحالي عن العمل، ومن مسح بطاقتك أو تلقّى رابطها سابقاً لن يتمكن من فتحها. هل تريد المتابعة؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "إعادة الإصدار", style: "destructive", onPress: async () => {
-        setBusy("rotate");
-        try { setCard((await call("/api/member-card/me/rotate", { method: "POST" })).card); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }
-        catch (e: any) { Alert.alert("تعذّر ذلك", e?.message || ""); }
-        finally { setBusy(null); }
-      } },
-    ]);
+  const rotate = async () => {
+    const ok = await confirmAction("إعادة إصدار رمز التحقّق", "سيتوقف الرمز الحالي عن العمل، ومن مسح بطاقتك أو تلقّى رابطها سابقاً لن يتمكن من فتحها. هل تريد المتابعة؟", "إعادة الإصدار", true);
+    if (!ok) return;
+    setBusy("rotate");
+    try { setCard((await call("/api/member-card/me/rotate", { method: "POST" })).card); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }
+    catch (e: any) { notify("تعذّر ذلك", e?.message || ""); }
+    finally { setBusy(null); }
   };
 
   const selectedPreset = card?.photo.type === "preset" ? card.photo.preset : null;
@@ -406,12 +436,12 @@ export default function MemberCardScreen() {
 
             <View style={styles.actions}>
               <TouchableOpacity onPress={() => setPosterOpen(true)} accessibilityRole="button" style={styles.actionMain}>
-                <Ionicons name="image-outline" size={18} color="#F1EEE6" />
-                <Text style={styles.actionMainText}>مشاركة صورة البطاقة</Text>
+                <Ionicons name="share-social" size={18} color="#F1EEE6" />
+                <Text style={styles.actionMainText}>مشاركة البطاقة</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={shareLink} accessibilityRole="button" style={styles.actionGhost}>
-                <Ionicons name="link-outline" size={18} color="#1E1E1C" />
-                <Text style={styles.actionGhostText}>الرابط</Text>
+              <TouchableOpacity onPress={copyLink} accessibilityRole="button" accessibilityLabel="نسخ رابط البطاقة" style={styles.actionGhost}>
+                <Ionicons name={copied ? "checkmark" : "link-outline"} size={18} color={copied ? "#21423A" : "#1E1E1C"} />
+                <Text style={styles.actionGhostText}>{copied ? "تم النسخ" : "الرابط"}</Text>
               </TouchableOpacity>
             </View>
 
@@ -454,18 +484,38 @@ export default function MemberCardScreen() {
 
       <Modal visible={posterOpen && !!card} transparent animationType="fade" onRequestClose={() => setPosterOpen(false)}>
         <View style={styles.modalBg}>
+          <ScrollView contentContainerStyle={{ alignItems: "center", paddingVertical: 24 }} showsVerticalScrollIndicator={false} style={{ alignSelf: "stretch" }}>
           <View style={{ borderRadius: 18, overflow: "hidden" }}>
             <View ref={posterRef} collapsable={false}>{card && <SharePoster card={card} width={posterW} />}</View>
           </View>
-          <View style={[styles.actions, { width: posterW, marginTop: 16 }]}>
-            <TouchableOpacity onPress={shareImage} disabled={busy === "share"} accessibilityRole="button" style={styles.actionMain}>
-              {busy === "share" ? <ActivityIndicator color="#F1EEE6" /> : <Ionicons name="share-social" size={18} color="#F1EEE6" />}
-              <Text style={styles.actionMainText}>مشاركة على مواقع التواصل</Text>
+          <View style={[styles.shareSheet, { width: Math.max(posterW, 300) }]}>
+            <Text style={styles.shareTitle}>شارك بطاقتك</Text>
+            <View style={styles.socialRow}>
+              {SOCIALS.map((s) => (
+                <TouchableOpacity key={s.key} onPress={() => shareTo(s.key)} accessibilityRole="button" accessibilityLabel={`مشاركة على ${s.label}`} style={styles.socialBtn}>
+                  <View style={[styles.socialIcon, { backgroundColor: s.bg }]}><Ionicons name={s.icon as any} size={22} color="#fff" /></View>
+                  <Text style={styles.socialLabel}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={[styles.actions, { marginTop: 4 }]}>
+              <TouchableOpacity onPress={shareImage} disabled={busy === "share"} accessibilityRole="button" style={styles.actionMain}>
+                {busy === "share" ? <ActivityIndicator color="#F1EEE6" /> : <Ionicons name={Platform.OS === "web" ? "download-outline" : "image-outline"} size={18} color="#F1EEE6" />}
+                <Text style={styles.actionMainText}>{Platform.OS === "web" ? "حفظ صورة البطاقة" : "مشاركة الصورة"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={shareMore} accessibilityRole="button" accessibilityLabel="خيارات مشاركة أخرى" style={[styles.actionGhost, { paddingHorizontal: 14 }]}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#1E1E1C" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={copyLink} accessibilityRole="button" style={styles.copyRow}>
+              <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={16} color="#21423A" />
+              <Text style={styles.copyText} numberOfLines={1}>{copied ? "تم نسخ الرابط" : card?.verify_url}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setPosterOpen(false)} accessibilityRole="button" accessibilityLabel="إغلاق" style={[styles.actionGhost, { paddingHorizontal: 14 }]}>
-              <Ionicons name="close" size={20} color="#1E1E1C" />
+            <TouchableOpacity onPress={() => setPosterOpen(false)} accessibilityRole="button" style={styles.closeRow}>
+              <Text style={styles.closeText}>إغلاق</Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -513,5 +563,15 @@ const styles = StyleSheet.create({
   stateText: { fontFamily: "Cairo_400Regular", color: "#6B675F", fontSize: 14, textAlign: "center", paddingHorizontal: 24 },
   primaryBtn: { marginTop: 4, height: 48, paddingHorizontal: 28, borderRadius: 14, backgroundColor: "#21423A", alignItems: "center", justifyContent: "center" },
   primaryBtnText: { fontFamily: "Cairo_600SemiBold", color: "#F1EEE6", fontSize: 15 },
+  shareSheet: { marginTop: 14, backgroundColor: "#FFFFFF", borderRadius: 20, padding: 16, gap: 12 },
+  shareTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1E1E1C", textAlign: "center" },
+  socialRow: { flexDirection: "row-reverse", justifyContent: "space-between" },
+  socialBtn: { alignItems: "center", gap: 6, width: 64 },
+  socialIcon: { width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  socialLabel: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: "#3E3B35" },
+  copyRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#F3F1EC", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  copyText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 12, color: "#21423A", textAlign: "right" },
+  closeRow: { alignItems: "center", paddingVertical: 4 },
+  closeText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#6B675E" },
   modalBg: { flex: 1, backgroundColor: "rgba(15,15,14,0.72)", alignItems: "center", justifyContent: "center", padding: 20 },
 });

@@ -90,6 +90,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "firebase": "^12.7.0",
+    "html2canvas": "1.4.1",
     "lucide-react-native": "^0.468.0",
     "react-native-maps": "1.20.1",
     "react-native-qrcode-svg": "^6.3.21",

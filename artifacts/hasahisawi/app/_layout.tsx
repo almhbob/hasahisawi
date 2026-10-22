@@ -248,6 +248,7 @@ function RootLayoutNav() {
         <Stack.Screen name="complete-profile"   options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="member-card"     options={{ headerShown: false, animation: "slide_from_bottom", contentStyle: { backgroundColor: "#F3F1EC" } }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin"            options={{ headerShown: false, animation: "slide_from_left" }} />

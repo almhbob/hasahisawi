@@ -43,6 +43,7 @@ const GROUPS: Group[] = [
     label: "الرئيسية",
     items: [
       { title: "الرئيسية",    icon: "home-outline",       route: "/(tabs)/",            color: Colors.primary },
+      { title: "ملفي الشخصي", icon: "person-circle-outline", route: "/profile",          color: Colors.primary },
       { title: "البحث",       icon: "search-outline",     route: "/(tabs)/search",      color: Colors.cyber   },
       { title: "بطاقة العضوية", icon: "card-outline",      route: "/member-card",        color: Colors.accent  },
     ],
@@ -71,7 +72,8 @@ const GROUPS: Group[] = [
   {
     label: "تعليم وعمل",
     items: [
-      { title: "الطلاب",      icon: "school-outline",     route: "/(tabs)/student",     color: Colors.cyber   },
+      { title: "المكتبة المنهجية", icon: "library-outline", route: "/curriculum",          color: "#2A6FA8"      },
+      { title: "الطلاب والمعلمون", icon: "school-outline", route: "/(tabs)/student",     color: Colors.cyber   },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
       { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#06B6D4" },
     ],
@@ -279,15 +281,27 @@ export default function DrawerMenu() {
           </View>
 
           {/* ملف المستخدم */}
-          <View style={styles.userCard}>
+          <Pressable
+            style={({ pressed }) => [styles.userCard, pressed && !isGuest && { opacity: 0.9 }]}
+            disabled={isGuest}
+            onPress={() => navigate("/profile")}
+            accessibilityRole={isGuest ? undefined : "button"}
+            accessibilityLabel={isGuest ? undefined : "عرض ملفي الشخصي"}
+          >
             <LinearGradient
               colors={[Colors.primary + "18", Colors.cardBgElevated]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFill}
             />
-            <View style={[styles.avatar, isGuest && { backgroundColor: Colors.textMuted + "30", borderColor: Colors.textMuted + "40" }]}>
-              <Text style={[styles.avatarText, isGuest && { color: Colors.textMuted }]}>{initial}</Text>
-            </View>
+            {!isGuest && user?.avatar_url ? (
+              <View style={[styles.avatar, { overflow: "hidden" }]}>
+                <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+              </View>
+            ) : (
+              <View style={[styles.avatar, isGuest && { backgroundColor: Colors.textMuted + "30", borderColor: Colors.textMuted + "40" }]}>
+                <Text style={[styles.avatarText, isGuest && { color: Colors.textMuted }]}>{initial}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.userName} numberOfLines={2}>{displayName}</Text>
               {user?.neighborhood ? (
@@ -295,16 +309,17 @@ export default function DrawerMenu() {
                   <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
                   <Text style={styles.userDetailText}>{user.neighborhood}</Text>
                 </View>
-              ) : user?.phone ? (
-                <View style={styles.userDetail}>
-                  <Ionicons name="call-outline" size={11} color={Colors.textMuted} />
-                  <Text style={styles.userDetailText}>{user.phone}</Text>
-                </View>
               ) : null}
+              {!isGuest && (
+                <View style={styles.userDetail}>
+                  <Text style={[styles.userDetailText, { color: Colors.primary, fontFamily: "Cairo_600SemiBold" }]}>عرض ملفي وتعديل بياناتي</Text>
+                  <Ionicons name="chevron-back" size={11} color={Colors.primary} />
+                </View>
+              )}
             </View>
             {roleLabel && (
               <View style={[styles.roleBadge, { backgroundColor: Colors.primary }]}>
-                <Ionicons name="shield-checkmark" size={11} color="#000" />
+                <Ionicons name="shield-checkmark" size={11} color="#fff" />
                 <Text style={styles.roleBadgeText}>{roleLabel}</Text>
               </View>
             )}
@@ -319,7 +334,7 @@ export default function DrawerMenu() {
                 <Text style={styles.guestLoginText}>تسجيل الدخول</Text>
               </Pressable>
             )}
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.divider} />

@@ -8,7 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, router as curriculumRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -2254,6 +2254,18 @@ export default function StudentScreen() {
       {/* ── TAB: SERVICES ── */}
       {activeTab === "services" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          <AnimatedPress onPress={() => curriculumRouter.push("/curriculum" as any)} style={{ marginBottom: 16 }}>
+            <LinearGradient colors={["#1E4F7A", "#2A6FA8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="library" size={26} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right" }}>المكتبة المنهجية</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#DCE9F5", textAlign: "right", lineHeight: 20 }}>كتب المنهج السوداني لكل المراحل، امتحانات سابقة، ملخصات، وأدلة وتحضير للمعلمين — تحميل مجاني ورفع للمساهمين</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#fff" />
+            </LinearGradient>
+          </AnimatedPress>
           <Text style={s.sectionTitle}>أدوات الطالب التفاعلية</Text>
           <View style={s.svcsGrid}>
             {STUDENT_TOOLS.map((tool, i) => (
