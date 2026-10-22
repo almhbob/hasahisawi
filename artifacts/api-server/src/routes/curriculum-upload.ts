@@ -57,7 +57,7 @@ router.post("/curriculum/upload-target", async (req, res) => {
       provider: "blob",
       upload_url: presignedUrl,
       method: "PUT",
-      headers: { "x-content-type": contentType, "x-api-version": "13" },
+      headers: { "x-content-type": contentType, "x-api-version": "13", "x-vercel-blob-access": "public" },
       content_type: contentType,
       pathname,
       max_file_mb: BOOK_MAX_MB,
