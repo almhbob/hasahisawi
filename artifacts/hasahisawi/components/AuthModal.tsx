@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { GOOGLE_LOGIN_ENABLED } from "@/lib/features";
+import { router } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
@@ -452,7 +453,7 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
               {mode === "login" && (
                 <TouchableOpacity
                   style={[s.forgotLink, { alignSelf: isRTL ? "flex-start" : "flex-end" }]}
-                  onPress={() => { setMode("forgot"); setForgotEmail(identifier.includes("@") ? identifier : ""); setError(""); }}
+                  onPress={() => { handleClose(); setTimeout(() => router.push("/forgot-password" as any), 150); }}
                   activeOpacity={0.7}
                 >
                   <Text style={s.forgotLinkText}>نسيت كلمة المرور؟</Text>

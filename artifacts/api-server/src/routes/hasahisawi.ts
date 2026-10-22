@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
-import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider } from "../lib/firebase-admin";
+import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider, ensureFirebaseUserForEmail } from "../lib/firebase-admin";
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
@@ -6692,10 +6692,21 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
     // تسجيل الدخول يقبل كلمة المرور الجديدة لاحقاً بعد التحقق منها لدى Firebase.
     if (!delivered && type === "password_reset") {
       const acc = identifier.includes("@")
-        ? await query(`SELECT email, firebase_uid FROM users WHERE LOWER(email)=$1 LIMIT 1`, [identifier])
-        : await query(`SELECT email, firebase_uid FROM users WHERE phone=$1 LIMIT 1`, [identifier]);
+        ? await query(`SELECT id, name, email, firebase_uid FROM users WHERE LOWER(email)=$1 LIMIT 1`, [identifier])
+        : await query(`SELECT id, name, email, firebase_uid FROM users WHERE phone=$1 LIMIT 1`, [identifier]);
       const a = acc.rows[0];
       const accEmail = String(a?.email || "").trim().toLowerCase();
+      // حساب ببريد حقيقي لكنه غير مرتبط بـ Firebase: ننشئ/نربط حساب Firebase حتى يصله رابط الاستعادة.
+      if (a && !a.firebase_uid && accEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accEmail) && !accEmail.endsWith("@hasahisawi.local")) {
+        const uid = await ensureFirebaseUserForEmail(accEmail, a.name);
+        if (uid) {
+          const taken = await query(`SELECT id FROM users WHERE firebase_uid=$1 AND id<>$2 LIMIT 1`, [uid, a.id]);
+          if (!taken.rows.length) {
+            await query(`UPDATE users SET firebase_uid=$1 WHERE id=$2 AND firebase_uid IS NULL`, [uid, a.id]);
+            a.firebase_uid = uid;
+          }
+        }
+      }
       if (a?.firebase_uid && accEmail && !accEmail.endsWith("@hasahisawi.local") && await sendFirebaseResetLink(accEmail)) {
         return res.json({ sent: true, delivered: true, method: "firebase_link", sent_via: "email", channel: "email", sent_to: maskEmail(accEmail) });
       }
