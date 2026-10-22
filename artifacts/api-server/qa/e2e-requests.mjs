@@ -33,7 +33,7 @@ const merchant = await makeUser("عمر التاجر", { gender: "male" });
 const P = (i) => `0911${String(100000 + i).slice(-6)}`;
 const joins = [
   ["lawyer", "/lawyer-applications", male, { full_name: "أحمد المحامي", phone: P(1), bar_number: "BAR-1", specialties: "عقود", agree_terms: true, device_id: "dev1" }],
-  ["institution", "/institution-applications", male, { inst_name: "مخبز النيل", inst_type: "bakery", inst_category: "food", inst_description: "مخبز", inst_address: "السوق", inst_phone: P(2), rep_name: "عمر", rep_title: "مالك", rep_national_id: "123", rep_phone: P(2), selected_services: ["listing"], agree_terms: true, contract_accepted: true }],
+  ["institution", "/institution-applications", male, { inst_name: "مخبز النيل", inst_type: "bakery", inst_category: "food", inst_description: "مخبز", inst_address: "السوق", inst_phone: P(2), rep_name: "عمر", rep_title: "مالك", rep_national_id: "123", rep_phone: P(2), selected_services: JSON.stringify(["listing"]), agree_terms: true, contract_accepted: true }],
   ["women_service", "/women/join-request", female, { owner_name: "سلمى", service_type: "salon", phone: P(3), address: "الشرقي", description: "كوفيرة" }],
   ["women_store", "/women/stores/apply", female, { name: "بوتيك سلمى", category: "accessories", owner_name: "سلمى", phone: P(4) }],
   ["men_service", "/men/join-request", male, { owner_name: "حلاق النيل", service_type: "barber", phone: P(5), address: "السوق" }],

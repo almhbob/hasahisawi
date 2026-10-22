@@ -149,11 +149,12 @@ function canSeeWomenStore(u: SessionUser | null) {
 }
 
 const wrap = (fn: (req: Request, res: Response) => Promise<any>) => async (req: Request, res: Response) => {
-  try { await ensureStoresDb(); await fn(req, res); }
+  try { await ensureStoresDb(); await fn(req, res); return undefined; }
   catch (e: any) {
     if (e?.code === "LIMIT_FILE_SIZE") return res.status(413).json({ error: "حجم الصورة كبير (الحد 6 ميجا)" });
     logger.error({ err: e?.message }, "[stores]");
     if (!res.headersSent) res.status(500).json({ error: "حدث خطأ في الخادم" });
+    return undefined;
   }
 };
 
