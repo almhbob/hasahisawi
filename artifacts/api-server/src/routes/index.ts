@@ -12,6 +12,7 @@ import accessGuardsRouter, { womenCornerGuard, genderLockGuard } from "./access-
 import storesRouter, { ensureStoresDb } from "./stores";
 import curriculumUploadRouter from "./curriculum-upload";
 import deviceAuthRouter from "./device-auth";
+import ciPlayTokenRouter from "./ci-play-token";
 
 const router: IRouter = Router();
 
@@ -26,6 +27,7 @@ router.use(uploadRouter);
 router.use(storesRouter);
 router.use(curriculumUploadRouter);
 router.use(deviceAuthRouter);
+router.use(ciPlayTokenRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);
