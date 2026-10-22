@@ -106,7 +106,7 @@ export default function RestaurantsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const apiUrl = getApiUrl();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [activeTab, setActiveTab]           = useState<"market" | "cashier" | "invoices" | "reports">("market");
   const [query, setQuery]                   = useState("");
@@ -232,7 +232,7 @@ export default function RestaurantsScreen() {
     };
     try {
       const res = await fetchWithTimeout(`${apiUrl}/api/food/products`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           business_id: currentBusiness.id, name: product.name, category: product.category,
           description: product.description, price: product.price, cost: product.cost,
@@ -261,13 +261,13 @@ export default function RestaurantsScreen() {
     };
     try {
       const orderRes = await fetchWithTimeout(`${apiUrl}/api/food/orders`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ business_id: currentBusiness.id, order_type: orderType, items, total: subtotal }),
       });
       let order: any = null;
       if (orderRes.ok) order = await orderRes.json();
       const invRes = await fetchWithTimeout(`${apiUrl}/api/food/invoices`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ business_id: currentBusiness.id, order_id: order?.id, items, paid_amount: subtotal, payment_method: "cash" }),
       });
       if (invRes.ok) {
@@ -286,7 +286,7 @@ export default function RestaurantsScreen() {
   async function loadReport(period: "day" | "month" | "year" = reportPeriod) {
     setReportPeriod(period);
     try {
-      const res = await fetchWithTimeout(`${apiUrl}/api/food/reports?business_id=${currentBusiness?.id || ""}&period=${period}`);
+      const res = await fetchWithTimeout(`${apiUrl}/api/food/reports?business_id=${currentBusiness?.id || ""}&period=${period}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
       if (res.ok) {
         const j = await res.json();
         setReport({

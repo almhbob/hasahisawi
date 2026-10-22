@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
+import { sessionUser } from "../lib/shared-db";
+import { ownedDriver, isTransportStaff } from "../lib/ownership";
 
 const router = Router();
 
@@ -274,7 +276,9 @@ router.post("/transport/drivers/register", async (req: Request, res: Response) =
 
 router.patch("/transport/drivers/:id/online", async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
+    const driver = await ownedDriver(await sessionUser(req), Number(req.params.id));
+    if (!driver) return res.status(403).json({ error: "هذا السائق لا يتبع حسابك أو غير معتمد" });
+    const id = driver.id;
     const online = !!req.body?.is_online;
     const { rows } = await query(`
       UPDATE transport_drivers
@@ -321,6 +325,7 @@ router.post("/transport/trips", async (req: Request, res: Response) => {
 
 router.get("/transport/trips", async (req: Request, res: Response) => {
   try {
+    if (!isTransportStaff(await sessionUser(req))) return res.status(403).json({ error: "غير مصرح" });
     const status = String(req.query.status || "pending");
     const { rows } = await query(`
       SELECT * FROM transport_trips
@@ -331,50 +336,6 @@ router.get("/transport/trips", async (req: Request, res: Response) => {
     return res.json(rows);
   } catch (err) {
     logger.error({ err }, "transport trips list error");
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.get("/transport/driver/:driverId/incoming-trips", async (req: Request, res: Response) => {
-  try {
-    const driverId = Number(req.params.driverId);
-    const d = await query(`SELECT * FROM transport_drivers WHERE id=$1 AND status='approved'`, [driverId]);
-    if (!d.rows.length) return res.status(404).json({ error: "السائق غير موجود" });
-    const driver = d.rows[0];
-    const v = normalizeVehicle(driver.vehicle_type);
-    const { rows } = await query(`
-      SELECT * FROM transport_trips
-      WHERE status='pending'
-        AND (vehicle_preference=$1 OR $1='delivery' OR vehicle_preference='delivery')
-      ORDER BY created_at ASC
-      LIMIT 50
-    `, [v]);
-    return res.json(rows);
-  } catch (err) {
-    logger.error({ err }, "transport incoming trips error");
-    return res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.post("/transport/trips/:id/accept", async (req: Request, res: Response) => {
-  try {
-    const tripId = Number(req.params.id);
-    const driverId = Number(req.body?.driver_id);
-    if (!tripId || !driverId) return res.status(400).json({ error: "بيانات القبول ناقصة" });
-    const driverR = await query(`SELECT * FROM transport_drivers WHERE id=$1 AND status='approved'`, [driverId]);
-    if (!driverR.rows.length) return res.status(404).json({ error: "السائق غير معتمد" });
-    const d = driverR.rows[0];
-    const accepted = await query(`
-      UPDATE transport_trips
-      SET status='in_progress', driver_id=$1, driver_name=$2, driver_phone=$3, accepted_at=NOW()
-      WHERE id=$4 AND status='pending' AND driver_id IS NULL
-      RETURNING *
-    `, [driverId, d.name, d.phone, tripId]);
-    if (!accepted.rows.length) return res.status(409).json({ error: "تم قبول الطلب بواسطة سائق آخر" });
-    await query(`UPDATE transport_drivers SET is_online=FALSE, total_trips=total_trips+1 WHERE id=$1`, [driverId]);
-    return res.json(accepted.rows[0]);
-  } catch (err) {
-    logger.error({ err }, "transport trip accept error");
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -419,6 +380,11 @@ router.get("/transport/my-trips", async (req: Request, res: Response) => {
 router.post("/transport/trips/:id/cancel", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const trip = await query(`SELECT user_id FROM transport_trips WHERE id=$1`, [id]);
+    if (!trip.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (Number(trip.rows[0].user_id) !== Number(me.id) && !isTransportStaff(me)) return res.status(403).json({ error: "غير مصرح" });
     const { rows } = await query(`UPDATE transport_trips SET status='cancelled', cancelled_at=NOW() WHERE id=$1 AND status='pending' RETURNING *`, [id]);
     if (!rows.length) return res.status(409).json({ error: "لا يمكن إلغاء طلب بدأ أو انتهى" });
     return res.json(rows[0]);
@@ -431,7 +397,20 @@ router.post("/transport/trips/:id/cancel", async (req: Request, res: Response) =
 router.patch("/transport/trips/:id", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-    const { rating, rating_note, status } = req.body as Record<string, unknown>;
+    const { rating, rating_note } = req.body as Record<string, unknown>;
+    let { status } = req.body as Record<string, unknown>;
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    if (!isTransportStaff(me)) {
+      const trip = await query(`SELECT user_id FROM transport_trips WHERE id=$1`, [id]);
+      if (!trip.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
+      if (Number(trip.rows[0].user_id) !== Number(me.id)) return res.status(403).json({ error: "غير مصرح" });
+      if (status) return res.status(403).json({ error: "تغيير حالة الرحلة للإدارة فقط" });
+      status = undefined;
+    }
+    if (rating != null && !(Number.isInteger(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5)) {
+      return res.status(400).json({ error: "التقييم من 1 إلى 5" });
+    }
     const { rows } = await query(`
       UPDATE transport_trips
       SET rating=COALESCE($1,rating), rating_note=COALESCE($2,rating_note), status=COALESCE($3,status), completed_at=CASE WHEN $3='completed' THEN NOW() ELSE completed_at END
@@ -442,6 +421,53 @@ router.patch("/transport/trips/:id", async (req: Request, res: Response) => {
     return res.json(rows[0]);
   } catch (err) {
     logger.error({ err }, "transport trip patch error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ── Account-bound driver mode (used by the app's "كسائق" tab) ───────────────
+
+router.get("/transport/driver/me", async (req: Request, res: Response) => {
+  try {
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+    const own = await query(`SELECT * FROM transport_drivers WHERE user_id=$1 ORDER BY (status='approved') DESC, id DESC LIMIT 1`, [me.id]);
+    const driver = own.rows[0] ?? await ownedDriver(me);
+    if (!driver) return res.status(404).json({ error: "لا يوجد ملف سائق لهذا الحساب" });
+    return res.json(driver);
+  } catch (err) {
+    logger.error({ err }, "transport driver me error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/transport/driver/availability", async (req: Request, res: Response) => {
+  try {
+    const driver = await ownedDriver(await sessionUser(req));
+    if (!driver) return res.status(403).json({ error: "لا يوجد سائق معتمد مرتبط بحسابك" });
+    const { rows } = await query(`UPDATE transport_drivers SET is_online=$1 WHERE id=$2 RETURNING *`, [!!req.body?.is_online, driver.id]);
+    return res.json(rows[0]);
+  } catch (err) {
+    logger.error({ err }, "transport driver availability error");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/transport/active-trips", async (req: Request, res: Response) => {
+  try {
+    const driver = await ownedDriver(await sessionUser(req));
+    if (!driver) return res.status(403).json({ error: "لا يوجد سائق معتمد مرتبط بحسابك" });
+    const v = normalizeVehicle(driver.vehicle_type);
+    const { rows } = await query(`
+      SELECT * FROM transport_trips
+      WHERE status='pending'
+        AND (vehicle_preference=$1 OR $1='delivery' OR vehicle_preference='delivery')
+      ORDER BY created_at ASC
+      LIMIT 50
+    `, [v]);
+    return res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "transport active trips error");
     return res.status(500).json({ error: "Server error" });
   }
 });
