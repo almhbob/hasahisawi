@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import { GOOGLE_LOGIN_ENABLED } from "@/lib/features";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import Colors from "@/constants/colors";
@@ -512,6 +513,7 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
               </TouchableOpacity>
 
               {/* فاصل */}
+{GOOGLE_LOGIN_ENABLED && (<>
               <View style={s.dividerRow}>
                 <View style={s.dividerLine} />
                 <Text style={s.dividerText}>أو</Text>
@@ -541,6 +543,7 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                   </>
                 )}
               </TouchableOpacity>
+              </>)}
 
               {/* زر الزائر */}
               <TouchableOpacity style={s.guestBtn} onPress={handleGuest} activeOpacity={0.8}>

@@ -6,6 +6,7 @@ import {
   Modal,
 } from "react-native";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import { GOOGLE_LOGIN_ENABLED } from "@/lib/features";
 import Animated, {
   FadeIn, FadeInDown, FadeInUp,
   useSharedValue, useAnimatedStyle, withSpring, withTiming,
@@ -832,8 +833,8 @@ export default function LoginScreen() {
             </Animated.View>
           )}
 
-          {/* زر Google */}
-          {mode === "login" && (
+          {/* زر Google — مخفي حتى يُفعَّل تسجيل Google (مفتاح توقيع ثابت + SHA-1 في Firebase) */}
+          {GOOGLE_LOGIN_ENABLED && mode === "login" && (
             <TouchableOpacity
               style={styles.googleBtn}
               onPress={handleGoogleLogin}

@@ -155,12 +155,24 @@ jobs:
           done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
       - name: Create release signing key
+        env:
+          # مفتاح توقيع ثابت (اختياري): عند ضبط هذه الأسرار تُوقَّع كل النسخ بالمفتاح نفسه،
+          # فتُثبَّت التحديثات فوق النسخة السابقة ويعمل تسجيل Google (SHA-1 ثابت).
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
           mkdir -p artifacts/hasahisawi/android/app
-          STORE_PASSWORD="Hasahisawi2026Secure"
-          KEY_ALIAS_VALUE="hasahisawi"
-          KEY_PASSWORD_VALUE="Hasahisawi2026Secure"
+          STORE_PASSWORD="${KS_STORE_PASSWORD:-Hasahisawi2026Secure}"
+          KEY_ALIAS_VALUE="${KS_KEY_ALIAS:-hasahisawi}"
+          KEY_PASSWORD_VALUE="${KS_KEY_PASSWORD:-$STORE_PASSWORD}"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KEYSTORE_DEST"
+            echo "Using persistent signing key from secrets"
+          else
+          echo "::warning::ANDROID_KEYSTORE_BASE64 not set — generating a one-off signing key (updates will need uninstall)."
           keytool -genkeypair -v \
             -keystore "$KEYSTORE_DEST" \
             -alias "$KEY_ALIAS_VALUE" \
@@ -170,6 +182,7 @@ jobs:
             -storepass "$STORE_PASSWORD" \
             -keypass "$KEY_PASSWORD_VALUE" \
             -dname "CN=Hasahisawi, OU=Mobile, O=Hasahisawi, L=Hasahisa, ST=Gezira, C=SD"
+          fi
           {
             echo "storePassword=$STORE_PASSWORD"
             echo "keyAlias=$KEY_ALIAS_VALUE"
@@ -179,7 +192,7 @@ jobs:
             echo "android.injected.signing.key.alias=$KEY_ALIAS_VALUE"
             echo "android.injected.signing.key.password=$KEY_PASSWORD_VALUE"
           } >> artifacts/hasahisawi/android/gradle.properties
-          keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA256|Valid from' || true
+          keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA1|SHA256|Valid from' || true
 
       - name: Build release APK
         working-directory: artifacts/hasahisawi/android
