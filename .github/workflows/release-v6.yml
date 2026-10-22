@@ -307,11 +307,11 @@ jobs:
           SA_EMAIL=$(echo "$RESP" | jq -r '.client_email // empty')
           if [ -z "$TOKEN" ]; then echo "::error::Could not get a Google Play token: $(echo "$RESP" | jq -c 'del(.access_token)')"; exit 1; fi
           echo "::add-mask::$TOKEN"
-          echo "Service account: $SA_EMAIL"
+          echo "::notice::Google Play service account: ${SA_EMAIL/@/ (at) }"
           echo "sa_email=$SA_EMAIL" >> $GITHUB_OUTPUT
           BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
           AUTH="Authorization: Bearer $TOKEN"
-          fail() { echo "::error::$1"; echo "$2" | jq . 2>/dev/null || echo "$2"; exit 1; }
+          fail() { MSG=$(echo "$2" | jq -r '.error.message // .error // empty' 2>/dev/null | head -c 400); echo "::error::$1 — ${MSG:-$2}"; exit 1; }
 
           # 2) تعديل جديد
           R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits")
