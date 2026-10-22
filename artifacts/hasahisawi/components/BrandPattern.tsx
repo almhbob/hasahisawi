@@ -10,7 +10,7 @@ interface Props {
 
 const BLUE  = "#2563EB";
 const GOLD  = "#F0A500";
-const CYAN  = "#06B6D4";
+const CYAN  = "#2F8A8A";
 
 // نقطة شبكة علمية مع اتصالات
 function NetworkNode({ x, y, r = 3, color = BLUE }: { x: number; y: number; r?: number; color?: string }) {

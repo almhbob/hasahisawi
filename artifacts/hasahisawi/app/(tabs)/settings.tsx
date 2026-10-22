@@ -83,7 +83,7 @@ function AddJobModal({ visible, onClose, onSave }: {
   const TYPE_OPTIONS: { key: Job["type"]; label: string; color: string }[] = [
     { key: "fulltime", label: "دوام كامل", color: Colors.primary },
     { key: "parttime", label: "دوام جزئي", color: "#2E7D9A" },
-    { key: "freelance", label: "مستقل", color: "#6A5ACD" },
+    { key: "freelance", label: "مستقل", color: "#2F6F8F" },
     { key: "volunteer", label: "تطوع", color: Colors.accent },
   ];
   const handleSave = async () => {
@@ -596,7 +596,7 @@ function AddCulturalCenterModal({ visible, onClose, onSave }: {
               <FieldInput label={t("common", "phone") + " *"} value={phone} onChange={setPhone} placeholder="+249..." numeric />
               <FieldInput label={t("common", "hours")} value={hours} onChange={setHours} placeholder="مثال: 8 صباحاً - 8 مساءً" />
               <FieldInput label={t("common", "description")} value={description} onChange={setDescription} placeholder={t("common", "description")} multi />
-              <SaveBtn label={t("common", "save")} onPress={handleSave} color="#8E44AD" />
+              <SaveBtn label={t("common", "save")} onPress={handleSave} color="#1F5C8A" />
             </View>
           </ScrollView>
         </Pressable>
@@ -1780,7 +1780,7 @@ export default function SettingsScreen() {
     { label: "مدارس وجامعات", value: schools.length,          color: "#2E7D9A" },
     { label: "مؤسسات تعليمية",value: institutions.length,     color: "#27AE60" },
     { label: "أندية رياضية",  value: sportClubs.length,       color: "#E67E22" },
-    { label: "مراكز ثقافية",  value: culturalCenters.length,  color: "#8E44AD" },
+    { label: "مراكز ثقافية",  value: culturalCenters.length,  color: "#1F5C8A" },
     { label: "مفقود نشط",     value: lostItems.filter(i => i.status === "lost").length,  color: Colors.danger },
     { label: "وظائف",         value: jobs.length,             color: "#1E6E8A" },
     { label: "منتجات السوق",  value: familyItems.filter(i => i.status === "available").length + auctionItems.filter(i => i.status === "available").length, color: Colors.accent },
@@ -2482,7 +2482,7 @@ export default function SettingsScreen() {
                 style={[styles.subTabBtn, sportsSub === "events" && styles.subTabBtnActive]}
                 onPress={() => setSportsSub("events")}
               >
-                <Text style={[styles.subTabText, sportsSub === "events" && { color: "#8E44AD" }]}>الفعاليات ({sportEvents.length})</Text>
+                <Text style={[styles.subTabText, sportsSub === "events" && { color: "#1F5C8A" }]}>الفعاليات ({sportEvents.length})</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.subTabBtn, sportsSub === "clubs" && styles.subTabBtnActive]}
@@ -2546,13 +2546,13 @@ export default function SettingsScreen() {
                 style={[styles.subTabBtn, cultureSub === "centers" && styles.subTabBtnActive]}
                 onPress={() => setCultureSub("centers")}
               >
-                <Text style={[styles.subTabText, cultureSub === "centers" && { color: "#8E44AD" }]}>المراكز ({culturalCenters.length})</Text>
+                <Text style={[styles.subTabText, cultureSub === "centers" && { color: "#1F5C8A" }]}>المراكز ({culturalCenters.length})</Text>
               </TouchableOpacity>
             </View>
 
             {cultureSub === "centers" && (
               <>
-                <SectionBar label="المراكز الثقافية" count={culturalCenters.length} onAdd={() => setShowAddCulturalCenter(true)} addColor="#8E44AD" />
+                <SectionBar label="المراكز الثقافية" count={culturalCenters.length} onAdd={() => setShowAddCulturalCenter(true)} addColor="#1F5C8A" />
                 {culturalCenters.length === 0
                   ? <EmptySection icon="library-outline" text="لا توجد مراكز — اضغط إضافة" />
                   : culturalCenters.map(center => (
@@ -2951,7 +2951,7 @@ export default function SettingsScreen() {
                 </View>
                 <View style={sub_s.summaryDivider} />
                 <View style={sub_s.summaryItem}>
-                  <Text style={[sub_s.summaryNum, { color: "#3EFF9C" }]}>4</Text>
+                  <Text style={[sub_s.summaryNum, { color: "#2EAD6B" }]}>4</Text>
                   <Text style={sub_s.summaryLabel}>خدمات مجانية</Text>
                 </View>
                 <View style={sub_s.summaryDivider} />
@@ -2975,7 +2975,7 @@ export default function SettingsScreen() {
                     const cfg = {
                       soon:        { label: "قريباً",  color: "#FBBF24", icon: "clock-fast" },
                       maintenance: { label: "صيانة",   color: "#F87171", icon: "wrench" },
-                      available:   { label: "متاح",    color: "#3EFF9C", icon: "check-circle" },
+                      available:   { label: "متاح",    color: "#2EAD6B", icon: "check-circle" },
                     }[s];
                     const active = rideStatus === s;
                     return (
@@ -3002,7 +3002,7 @@ export default function SettingsScreen() {
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 }}>
               <TouchableOpacity
-                style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 12, backgroundColor: "#7C3AED", elevation: 2 }}
+                style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 12, backgroundColor: "#1F5C8A", elevation: 2 }}
                 onPress={() => Linking.openURL("https://railway.app/account/billing")}
                 activeOpacity={0.8}
               >
@@ -3047,7 +3047,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
               <TouchableOpacity
-                style={[sub_s.payBtn, { backgroundColor: "#7C3AED" }]}
+                style={[sub_s.payBtn, { backgroundColor: "#1F5C8A" }]}
                 onPress={() => Linking.openURL("https://railway.app/project/4e3750d2")}
                 activeOpacity={0.8}
               >
@@ -3097,7 +3097,7 @@ export default function SettingsScreen() {
 
             {/* ── قسم المجاني ── */}
             <View style={[sub_s.groupHeader, { marginTop: 8 }]}>
-              <View style={[sub_s.groupDot, { backgroundColor: "#3EFF9C" }]} />
+              <View style={[sub_s.groupDot, { backgroundColor: "#2EAD6B" }]} />
               <Text style={sub_s.groupTitle}>الخدمات المجانية</Text>
             </View>
 
@@ -3109,8 +3109,8 @@ export default function SettingsScreen() {
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
                   <Text style={sub_s.cardName}>Cloudflare Pages</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مجاني تماماً</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#2EAD6B20" }]}>
+                    <Text style={[sub_s.planText, { color: "#2EAD6B" }]}>✓ مجاني تماماً</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
@@ -3140,8 +3140,8 @@ export default function SettingsScreen() {
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
                   <Text style={sub_s.cardName}>Firebase (Storage & FCM)</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Spark مجاني</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#2EAD6B20" }]}>
+                    <Text style={[sub_s.planText, { color: "#2EAD6B" }]}>✓ Spark مجاني</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
@@ -3171,8 +3171,8 @@ export default function SettingsScreen() {
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
                   <Text style={sub_s.cardName}>Expo EAS Build</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ Free Tier</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#2EAD6B20" }]}>
+                    <Text style={[sub_s.planText, { color: "#2EAD6B" }]}>✓ Free Tier</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
@@ -3201,8 +3201,8 @@ export default function SettingsScreen() {
               <View style={sub_s.cardBody}>
                 <View style={sub_s.cardTop}>
                   <Text style={sub_s.cardName}>GitHub Actions</Text>
-                  <View style={[sub_s.planBadge, { backgroundColor: "#3EFF9C20" }]}>
-                    <Text style={[sub_s.planText, { color: "#3EFF9C" }]}>✓ مجاني</Text>
+                  <View style={[sub_s.planBadge, { backgroundColor: "#2EAD6B20" }]}>
+                    <Text style={[sub_s.planText, { color: "#2EAD6B" }]}>✓ مجاني</Text>
                   </View>
                 </View>
                 <Text style={sub_s.cardDesc}>
@@ -3238,8 +3238,8 @@ export default function SettingsScreen() {
                 <Text style={sub_s.devTitle}>إشعارات Push للمستخدمين</Text>
                 <Text style={sub_s.devDesc}>إرسال إشعارات مخصصة لمستخدمين بعينهم أو لجميع المستخدمين — البنية التحتية موجودة</Text>
               </View>
-              <View style={[sub_s.devBadge, { backgroundColor: "#3EFF9C20" }]}>
-                <Text style={[sub_s.devBadgeText, { color: "#3EFF9C" }]}>جاهز</Text>
+              <View style={[sub_s.devBadge, { backgroundColor: "#2EAD6B20" }]}>
+                <Text style={[sub_s.devBadgeText, { color: "#2EAD6B" }]}>جاهز</Text>
               </View>
             </View>
 

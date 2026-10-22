@@ -41,7 +41,7 @@ function RegisterStaff({ onDone }: { onDone: () => void }) {
 
   const TYPES: { key: StaffType; label: string; icon: any; color: string }[] = [
     { key: "doctor",     label: "طبيب",    icon: "medkit-outline",      color: "#3B82F6" },
-    { key: "lab",        label: "معمل",    icon: "flask-outline",       color: "#8B5CF6" },
+    { key: "lab",        label: "معمل",    icon: "flask-outline",       color: "#1F5C8A" },
     { key: "pharmacist", label: "صيدلاني", icon: "medical-outline",     color: "#10B981" },
     { key: "nurse",      label: "تمريض",  icon: "heart-outline",       color: "#F59E0B" },
   ];
@@ -334,12 +334,12 @@ function LabPortal({ staff }: { staff: Staff }) {
       <Text style={dr.sectionTitle}>طلبات التحاليل المعلقة ({orders.length})</Text>
       {orders.length === 0 && <Text style={dr.empty}>لا توجد طلبات معلقة ✓</Text>}
       {orders.map(o => (
-        <TouchableOpacity key={o.id} style={[dr.listCard, selected?.id === o.id && { borderColor: "#8B5CF6", borderWidth: 1.5 }]}
+        <TouchableOpacity key={o.id} style={[dr.listCard, selected?.id === o.id && { borderColor: "#1F5C8A", borderWidth: 1.5 }]}
           onPress={() => { setSelected(o === selected ? null : o); setTestName(o.tests?.split("\n")[0] || ""); }}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={dr.listTitle}>{o.patient_name}</Text>
-            <View style={[dr.badge, { backgroundColor: "#8B5CF620" }]}>
-              <Text style={{ color: "#8B5CF6", fontSize: 11, fontFamily: "Cairo_600SemiBold" }}>معلق</Text>
+            <View style={[dr.badge, { backgroundColor: "#1F5C8A20" }]}>
+              <Text style={{ color: "#1F5C8A", fontSize: 11, fontFamily: "Cairo_600SemiBold" }}>معلق</Text>
             </View>
           </View>
           <Text style={dr.listSub}>{o.tests}</Text>
@@ -371,7 +371,7 @@ function LabPortal({ staff }: { staff: Staff }) {
               </TouchableOpacity>
             ))}
           </View>
-          <TouchableOpacity style={[dr.submitBtn, { backgroundColor: "#8B5CF6" }]} onPress={uploadResult} disabled={loading}>
+          <TouchableOpacity style={[dr.submitBtn, { backgroundColor: "#1F5C8A" }]} onPress={uploadResult} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={dr.submitTxt}>رفع النتيجة</Text>}
           </TouchableOpacity>
         </View>
@@ -483,7 +483,7 @@ export default function StaffPortalScreen() {
 
   const TYPE_CONFIG: Record<StaffType, { label: string; color: string; icon: any }> = {
     doctor:     { label: "بوابة الطبيب",    color: "#3B82F6", icon: "medkit-outline" },
-    lab:        { label: "بوابة المعمل",    color: "#8B5CF6", icon: "flask-outline" },
+    lab:        { label: "بوابة المعمل",    color: "#1F5C8A", icon: "flask-outline" },
     pharmacist: { label: "بوابة الصيدلاني", color: "#10B981", icon: "medical-outline" },
     nurse:      { label: "بوابة التمريض",   color: "#F59E0B", icon: "heart-outline" },
   };

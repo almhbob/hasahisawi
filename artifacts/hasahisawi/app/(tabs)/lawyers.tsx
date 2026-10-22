@@ -1448,7 +1448,7 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 
 // ─── styles ─────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  uploadBox: { borderWidth: 1, borderColor: "rgba(139,92,246,0.25)", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 14, padding: 12, gap: 8 },
+  uploadBox: { borderWidth: 1, borderColor: "rgba(31,92,138,0.25)", backgroundColor: "rgba(31,92,138,0.08)", borderRadius: 14, padding: 12, gap: 8 },
   uploadHelp: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18, textAlign: "right" },
   uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
   uploadBtnOk: { backgroundColor: "#10B981" },

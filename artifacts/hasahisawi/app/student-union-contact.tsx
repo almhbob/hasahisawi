@@ -12,8 +12,8 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 
 const INQUIRY_TYPES = [
   "استفسار عام", "طلب معلومات عن العضوية",
@@ -215,7 +215,7 @@ export default function StudentUnionContactScreen() {
           style={[s.submitBtn, submitting && { opacity: 0.6 }]}
           activeOpacity={0.85}
         >
-          <LinearGradient colors={[UC, "#4338CA"]} style={s.submitGrad}>
+          <LinearGradient colors={[UC, "#173F5F"]} style={s.submitGrad}>
             {submitting
               ? <ActivityIndicator color="#fff" />
               : <>

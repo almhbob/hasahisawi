@@ -41,8 +41,8 @@ const TYPE_CONFIG: Record<AgencyType, { label: string; labelFull: string; icon: 
   local:         { label: "محلية",      labelFull: "وكالات سفر محلية",    icon: "map-marker-radius",    color: "#10B981", emoji: "🇸🇩", desc: "رحلات داخل السودان وقراه" },
   international: { label: "دولية",      labelFull: "وكالات دولية",         icon: "airplane",             color: "#3B82F6", emoji: "✈️",  desc: "وكالات سفر عالمية وتذاكر دولية" },
   hajj_umrah:    { label: "حج وعمرة",   labelFull: "حج وعمرة",             icon: "star-crescent",        color: "#F59E0B", emoji: "🕋",  desc: "مكاتب الحج والعمرة المعتمدة" },
-  tourism:       { label: "سياحة",      labelFull: "شركات سياحة وتراث",   icon: "camera-burst",         color: "#8B5CF6", emoji: "🌍",  desc: "برامج سياحية ورحلات استجمام" },
-  corporate:     { label: "شركات",      labelFull: "سفر الأعمال",          icon: "briefcase-variant",    color: "#EC4899", emoji: "💼",  desc: "رحلات الأعمال وحجوزات المؤسسات" },
+  tourism:       { label: "سياحة",      labelFull: "شركات سياحة وتراث",   icon: "camera-burst",         color: "#1F5C8A", emoji: "🌍",  desc: "برامج سياحية ورحلات استجمام" },
+  corporate:     { label: "شركات",      labelFull: "سفر الأعمال",          icon: "briefcase-variant",    color: "#C46A3A", emoji: "💼",  desc: "رحلات الأعمال وحجوزات المؤسسات" },
 };
 
 const TYPE_KEYS = Object.keys(TYPE_CONFIG) as AgencyType[];
@@ -52,7 +52,7 @@ const BENEFITS = [
   { icon: "account-group", color: "#10B981", title: "وصول لآلاف العملاء", desc: "اعرض خدماتك لمجتمع الحصاحيصا وضواحيها" },
   { icon: "star-circle",   color: "#F59E0B", title: "ظهور مميز",         desc: "بطاقة وكالتك في قائمة الشركاء المعتمدين" },
   { icon: "chart-line",    color: "#3B82F6", title: "تنمية الأعمال",      desc: "حجوزات مباشرة وزيادة في طلبات العملاء" },
-  { icon: "shield-check",  color: "#8B5CF6", title: "ختم الاعتماد",      desc: "شارة «شريك معتمد» تُعزز ثقة العملاء" },
+  { icon: "shield-check",  color: "#1F5C8A", title: "ختم الاعتماد",      desc: "شارة «شريك معتمد» تُعزز ثقة العملاء" },
 ];
 
 // ─── مقاصد شهيرة ─────────────────────────────────────────────────────────────
@@ -60,10 +60,10 @@ const POPULAR_DEST = [
   { name: "القاهرة", flag: "🇪🇬", color: "#EF4444" },
   { name: "مكة المكرمة", flag: "🇸🇦", color: "#F59E0B" },
   { name: "دبي", flag: "🇦🇪", color: "#3B82F6" },
-  { name: "إسطنبول", flag: "🇹🇷", color: "#8B5CF6" },
+  { name: "إسطنبول", flag: "🇹🇷", color: "#1F5C8A" },
   { name: "الخرطوم", flag: "🇸🇩", color: "#10B981" },
-  { name: "لندن", flag: "🇬🇧", color: "#EC4899" },
-  { name: "أبو ظبي", flag: "🇦🇪", color: "#06B6D4" },
+  { name: "لندن", flag: "🇬🇧", color: "#C46A3A" },
+  { name: "أبو ظبي", flag: "🇦🇪", color: "#2F8A8A" },
   { name: "أديس أبابا", flag: "🇪🇹", color: "#F97316" },
 ];
 
@@ -71,7 +71,7 @@ const BOOKING_PRODUCTS = [
   { key: "air", title: "تذاكر الطيران", desc: "طلبات سعر وحجز للرحلات الداخلية والدولية", icon: "airplane-takeoff", color: "#3B82F6" },
   { key: "hotel", title: "الفنادق والإقامة", desc: "حجوزات فنادق وشقق مفروشة وبرامج إقامة", icon: "bed-king-outline", color: "#10B981" },
   { key: "visa", title: "التأشيرات", desc: "متابعة طلبات التأشيرات والمستندات", icon: "passport", color: "#F59E0B" },
-  { key: "packages", title: "الباقات السياحية", desc: "برامج سفر وسياحة وحج وعمرة", icon: "briefcase-check-outline", color: "#8B5CF6" },
+  { key: "packages", title: "الباقات السياحية", desc: "برامج سفر وسياحة وحج وعمرة", icon: "briefcase-check-outline", color: "#1F5C8A" },
 ];
 
 const WORKSPACE_MODULES = [

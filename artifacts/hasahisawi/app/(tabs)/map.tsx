@@ -29,7 +29,7 @@ async function safeCall(number: string) {
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
 const BG     = Colors.bg   ?? "#0A1A10";
-const CYBER  = Colors.cyber ?? "#3EFF9C";
+const CYBER  = Colors.cyber ?? "#2EAD6B";
 const CARD   = "#0F2318";
 const BORDER = "#1A3A22";
 const MUTED  = Colors.textMuted ?? "#4A7A5A";
@@ -49,11 +49,11 @@ const CATEGORIES: Category[] = [
   { id: "market",   label: "سوق",      color: "#F59E0B",  icon: "storefront-outline"  },
   { id: "mosque",   label: "مساجد",    color: "#10B981",  icon: "moon-outline"        },
   { id: "landmark", label: "معالم",    color: "#D4AF37",  icon: "star-outline"        },
-  { id: "pharmacy", label: "صيدليات",  color: "#06B6D4",  icon: "medical-outline"     },
-  { id: "gov",      label: "محلية",    color: "#8B5CF6",  icon: "business-outline"    },
-  { id: "bank",     label: "بنوك",     color: "#6366F1",  icon: "card-outline"        },
+  { id: "pharmacy", label: "صيدليات",  color: "#2F8A8A",  icon: "medical-outline"     },
+  { id: "gov",      label: "محلية",    color: "#1F5C8A",  icon: "business-outline"    },
+  { id: "bank",     label: "بنوك",     color: "#1F5C8A",  icon: "card-outline"        },
   { id: "sports",   label: "رياضة",    color: "#EF4444",  icon: "football-outline"    },
-  { id: "culture",  label: "ثقافة",    color: "#A855F7",  icon: "color-palette-outline"},
+  { id: "culture",  label: "ثقافة",    color: "#3B78A6",  icon: "color-palette-outline"},
   { id: "gas",      label: "وقود",     color: "#F97316",  icon: "car-outline"         },
 ];
 
@@ -87,8 +87,8 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
   .popup-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; }
   .popup-addr { font-size:12px; color:#4A7A5A; margin-bottom:8px; }
   .popup-call {
-    display:inline-block; background:#3EFF9C22; border:1px solid #3EFF9C55;
-    color:#3EFF9C; padding:5px 12px; border-radius:8px; font-size:13px;
+    display:inline-block; background:#2EAD6B22; border:1px solid #2EAD6B55;
+    color:#2EAD6B; padding:5px 12px; border-radius:8px; font-size:13px;
     cursor:pointer; text-decoration:none; margin-top:2px;
   }
   .leaflet-control-attribution { display:none!important; }
@@ -135,7 +135,7 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
   if (user) {
     var userIcon = L.divIcon({
       className: '',
-      html: '<div style="width:20px;height:20px;border-radius:50%;background:#3EFF9C;border:3px solid #fff;box-shadow:0 0 0 6px #3EFF9C33"></div>',
+      html: '<div style="width:20px;height:20px;border-radius:50%;background:#2EAD6B;border:3px solid #fff;box-shadow:0 0 0 6px #2EAD6B33"></div>',
       iconSize: [20, 20],
       iconAnchor: [10, 10],
     });

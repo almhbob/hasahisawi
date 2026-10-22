@@ -98,7 +98,7 @@ function TicketCard({
     confirmed:   ["#16A34A","#DCFCE7"],
     rescheduled: ["#D97706","#FEF3C7"],
     cancelled:   ["#DC2626","#FEE2E2"],
-    completed:   ["#6366F1","#EEF2FF"],
+    completed:   ["#1F5C8A","#EEF2FF"],
   };
   const [sColor, sBg] = statusColors[booking.status] ?? ["#64748B","#F1F5F9"];
   const statusLabel: Record<string, string> = {

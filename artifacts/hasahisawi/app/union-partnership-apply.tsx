@@ -12,8 +12,8 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 
 const UNION_TYPES = [
   "اتحاد طلابي", "نقابة مهنية", "جمعية شبابية",
@@ -21,7 +21,7 @@ const UNION_TYPES = [
 ];
 
 const TIERS = [
-  { key: "basic",      label: "أساسي",    desc: "عرض في الدليل + صفحة تعريفية", color: "#6366F1" },
+  { key: "basic",      label: "أساسي",    desc: "عرض في الدليل + صفحة تعريفية", color: "#1F5C8A" },
   { key: "premium",   label: "متقدم",    desc: "جميع مزايا الأساسي + إشعارات + فعاليات", color: "#F59E0B" },
   { key: "enterprise",label: "مؤسسي",    desc: "جميع المزايا + لوحة تحكم + دعم مباشر", color: "#22C55E" },
 ];
@@ -244,7 +244,7 @@ export default function UnionPartnershipApplyScreen() {
           style={[s.submitBtn, submitting && { opacity: 0.6 }]}
           activeOpacity={0.85}
         >
-          <LinearGradient colors={[UC, "#4338CA"]} style={s.submitGrad}>
+          <LinearGradient colors={[UC, "#173F5F"]} style={s.submitGrad}>
             {submitting
               ? <ActivityIndicator color="#fff" />
               : <>
@@ -307,7 +307,7 @@ const s = StyleSheet.create({
   tierDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   contractBox: {
     backgroundColor: "#0B1224", borderRadius: 18, borderWidth: 1,
-    borderColor: "#6366F140", padding: 16, marginBottom: 16, gap: 10,
+    borderColor: "#1F5C8A40", padding: 16, marginBottom: 16, gap: 10,
   },
   contractTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: UC2, textAlign: "right" },
   contractText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 22 },

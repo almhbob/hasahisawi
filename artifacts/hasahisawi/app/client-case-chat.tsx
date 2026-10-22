@@ -37,10 +37,10 @@ type ContractInfo = {
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────
-const BG     = "#0F0F1A";
-const CARD   = "#1A1A2E";
-const BORDER = "#2D2D44";
-const PURPLE = "#8B5CF6";
+const BG     = "#0E1B2A";
+const CARD   = "#15263A";
+const BORDER = "#23384F";
+const PURPLE = "#B08D3C";
 const GREEN  = "#10B981";
 const BLUE   = "#3B82F6";
 const RED    = "#EF4444";
@@ -297,7 +297,7 @@ export default function ClientCaseChat() {
             }}
           />
           {/* Input */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#111122" }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={pickAndSendFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
               <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>

@@ -60,7 +60,7 @@ const INST_TYPES = [
   { key: "commercial",  label: "شركة / مشروع تجاري",    icon: "domain",             color: Colors.accent },
   { key: "sport",       label: "نادي رياضي",             icon: "basketball",         color: "#E67E22" },
   { key: "cooperative", label: "جمعية تعاونية",          icon: "handshake",          color: "#1ABC9C" },
-  { key: "media",       label: "وسيلة إعلامية",          icon: "newspaper-variant",  color: "#8E44AD" },
+  { key: "media",       label: "وسيلة إعلامية",          icon: "newspaper-variant",  color: "#1F5C8A" },
   { key: "other",       label: "أخرى",                   icon: "dots-horizontal",    color: Colors.textMuted },
 ] as const;
 

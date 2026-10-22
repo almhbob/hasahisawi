@@ -194,7 +194,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* الأمراض المزمنة */}
         <Animated.View entering={FadeInDown.delay(200)} style={sectionStyle}>
-          <SectionHeader icon="fitness-outline" label="الأمراض المزمنة" color="#6366F1" />
+          <SectionHeader icon="fitness-outline" label="الأمراض المزمنة" color="#1F5C8A" />
           <TextInput
             value={chronicConditions}
             onChangeText={setChronicConditions}

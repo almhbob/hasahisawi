@@ -32,10 +32,10 @@ const SKILLS = [
   { label: "الأمن السيبراني",   icon: "shield-checkmark-outline",color: "#EF4444", level: 88 },
   { label: "Cloud & DevOps",    icon: "cloud-outline",           color: "#0071C5", level: 85 },
   { label: "تطوير التطبيقات",   icon: "phone-portrait-outline",  color: GREEN,     level: 95 },
-  { label: "ذكاء اصطناعي",      icon: "hardware-chip-outline",   color: "#06B6D4", level: 82 },
+  { label: "ذكاء اصطناعي",      icon: "hardware-chip-outline",   color: "#2F8A8A", level: 82 },
   { label: "UI/UX Design",      icon: "color-palette-outline",   color: GOLD,      level: 90 },
   { label: "إدارة المشاريع",    icon: "briefcase-outline",       color: "#10B981", level: 87 },
-  { label: "تطوير المجتمع",     icon: "people-outline",          color: "#8B5CF6", level: 93 },
+  { label: "تطوير المجتمع",     icon: "people-outline",          color: "#1F5C8A", level: 93 },
 ];
 
 // ── Certifications ───────────────────────────────────────────────────────────
@@ -45,14 +45,14 @@ const CERTS = [
   { title: "IBM Cybersecurity Specialist",            issuer: "IBM / Coursera",               date: "فبراير 2026",  icon: "shield-checkmark-outline",  color: "#052FAD" },
   { title: "McKinsey Forward Program",                issuer: "McKinsey & Company",           date: "يوليو 2025",   icon: "trending-up-outline",       color: "#051C2C" },
   { title: "Build an AI Agent",                       issuer: "IBM SkillsBuild",              date: "سبتمبر 2025",  icon: "hardware-chip-outline",     color: "#0F62FE" },
-  { title: "Enterprise Design Thinking Practitioner", issuer: "IBM SkillsBuild",              date: "سبتمبر 2025",  icon: "bulb-outline",              color: "#8E44AD" },
+  { title: "Enterprise Design Thinking Practitioner", issuer: "IBM SkillsBuild",              date: "سبتمبر 2025",  icon: "bulb-outline",              color: "#1F5C8A" },
   { title: "UI/UX Design Capstone Project",           issuer: "IBM / Coursera",               date: "ديسمبر 2025",  icon: "color-palette-outline",     color: "#FF6900" },
   { title: "Cloud Security",                          issuer: "Intel",                        date: "أبريل 2025",   icon: "shield-outline",            color: "#0071C5" },
   { title: "Cloud DevOps",                            issuer: "Intel",                        date: "مارس 2025",    icon: "cloud-outline",             color: "#0071C5" },
   { title: "AI for Networking",                       issuer: "Cisco",                        date: "يناير 2026",   icon: "git-network-outline",       color: "#1BA0D7" },
   { title: "Cisco Network Automation Essentials",     issuer: "Cisco",                        date: "ديسمبر 2025",  icon: "code-working-outline",      color: "#049FD9" },
   { title: "Python Essentials 1",                     issuer: "Cisco / OpenEDG",              date: "ديسمبر 2025",  icon: "logo-python",               color: "#3776AB" },
-  { title: "Introduction to Design Thinking",         issuer: "Virginia Commonwealth Univ.",  date: "مارس 2025",    icon: "school-outline",            color: "#8E44AD" },
+  { title: "Introduction to Design Thinking",         issuer: "Virginia Commonwealth Univ.",  date: "مارس 2025",    icon: "school-outline",            color: "#1F5C8A" },
   { title: "IBM SkillsBuild Faculty",                 issuer: "IBM",                          date: "ديسمبر 2025",  icon: "ribbon-outline",            color: "#1F70C1" },
   { title: "Threat Landscape 2.0",                    issuer: "Fortinet",                     date: "يناير 2025",   icon: "warning-outline",           color: "#EE2222" },
 ];
@@ -65,7 +65,7 @@ const ISSUERS = [
   { name: "Intel",     color: "#0071C5" },
   { name: "McKinsey",  color: "#051C2C" },
   { name: "Fortinet",  color: "#EE2222" },
-  { name: "VCU",       color: "#8E44AD" },
+  { name: "VCU",       color: "#1F5C8A" },
 ];
 
 function openLink(url: string) {
@@ -297,7 +297,7 @@ export default function DesignerScreen() {
 
           {/* ── Principles ── */}
           <Animated.View entering={FadeInDown.delay(260).springify()}>
-            <SecHeader icon="diamond-outline" color="#8B5CF6" title="مبادئ العمل" />
+            <SecHeader icon="diamond-outline" color="#1F5C8A" title="مبادئ العمل" />
             <View style={s.principlesList}>
               {[
                 { icon: "rocket-outline",  color: "#4285F4", title: "الابتكار",      text: "تصميم حلول رقمية عصرية تواكب المعايير العالمية." },

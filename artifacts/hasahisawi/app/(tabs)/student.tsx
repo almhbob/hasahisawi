@@ -99,7 +99,7 @@ const INST_COLORS: Record<InstType, string> = {
   primary:      Colors.primary,
   secondary:    "#2E7D9A",
   university:   Colors.accent,
-  institute:    "#6A5ACD",
+  institute:    "#2F6F8F",
   training:     "#1E6E8A",
   quran:        "#27AE60",
   private:      "#C0392B",
@@ -246,12 +246,22 @@ const STUDENT_TOOLS = [
   { id:"countdown",icon:"timer-outline",            color:"#E74C3C",      title:"العداد التنازلي للشهادة",  tag:"الامتحانات" },
   { id:"timer",    icon:"hourglass-outline",        color:Colors.primary, title:"مؤقت المذاكرة",            tag:"تركيز" },
   { id:"tasks",    icon:"checkmark-circle-outline", color:"#27AE60",      title:"مهامي الدراسية",           tag:"تنظيم" },
-  { id:"shahada",  icon:"ribbon-outline",           color:"#8E44AD",      title:"حاسبة درجات الشهادة",      tag:"شهادة سودانية" },
+  { id:"shahada",  icon:"ribbon-outline",           color:"#1F5C8A",      title:"حاسبة درجات الشهادة",      tag:"شهادة سودانية" },
   { id:"tips",     icon:"bulb-outline",             color:Colors.accent,  title:"نصائح الاستذكار",          tag:"إرشادات" },
   { id:"calendar", icon:"calendar-outline",         color:"#16A085",      title:"التقويم الدراسي",           tag:"مواعيد" },
-  { id:"schedule", icon:"time-outline",             color:"#6A5ACD",      title:"جدولي اليومي",              tag:"جدول" },
+  { id:"schedule", icon:"time-outline",             color:"#2F6F8F",      title:"جدولي اليومي",              tag:"جدول" },
 ];
 type StudentTool = typeof STUDENT_TOOLS[0];
+const TOOL_DESC: Record<string, string> = {
+  gpa: "احسب معدلك الفصلي والتراكمي حسب الساعات المعتمدة",
+  countdown: "كم تبقّى على امتحانات الشهادة؟ عدّاد بالأيام والساعات",
+  timer: "جلسات مذاكرة مركّزة 25 دقيقة مع استراحات (بومودورو)",
+  tasks: "قائمة واجباتك ومهامك الدراسية — تُحفظ على جهازك",
+  shahada: "كل مادة من 100 · النسبة والتقدير وكم تحتاج لهدفك",
+  tips: "نصائح عملية لتنظيم الوقت والمذاكرة وقبل الامتحان",
+  calendar: "أهم مواعيد العام الدراسي والامتحانات",
+  schedule: "جدول يومك من الصباح حتى المساء — يُحفظ تلقائياً",
+};
 
 const INST_TYPE_FILTERS: { key: "all" | InstType; label: string }[] = [
   { key:"all",          label:"الكل" },
@@ -491,7 +501,7 @@ const CALENDAR_EVENTS = [
   { date:"يناير 2026",   event:"بداية الفصل الدراسي الثاني",          color:Colors.primary },
   { date:"مارس 2026",   event:"مراجعة نهاية الفصل الثاني",           color:Colors.accent },
   { date:"أبريل 2026",  event:"امتحانات نهاية العام للمرحلة الأساسية", color:"#E74C3C" },
-  { date:"مايو 2026",   event:"امتحانات الشهادة السودانية (ثانوي)",    color:"#8E44AD" },
+  { date:"مايو 2026",   event:"امتحانات الشهادة السودانية (ثانوي)",    color:"#1F5C8A" },
   { date:"يوليو 2026",  event:"إعلان نتائج الشهادة السودانية",        color:"#27AE60" },
   { date:"أغسطس 2026",  event:"التسجيل للعام الدراسي 2026–2027",      color:"#2E7D9A" },
 ];
@@ -1121,7 +1131,7 @@ const RELATIONS        = ["أب","أم","جد","جدة","أخ","أخت","وصي 
 const TRANSFER_REASONS = ["انتقال إقامة","تغيير بيئة دراسية","مشاكل مع الإدارة","بُعد المسافة","مستوى التعليم","الرسوم الدراسية","أسباب صحية","أخرى"];
 const STATUS_COLORS: Record<string, string> = {
   pending:"#F59E0B", accepted:"#10B981", approved:"#10B981",
-  rejected:"#EF4444", processing:"#3B82F6", waitlisted:"#8B5CF6",
+  rejected:"#EF4444", processing:"#3B82F6", waitlisted:"#1F5C8A",
 };
 const STATUS_LABELS: Record<string, string> = {
   pending:"قيد المراجعة", accepted:"مقبول", approved:"موافق عليه",
@@ -1846,11 +1856,11 @@ type StudentLibrary = {
 };
 
 const LIB_CATS: { key: "all" | LibraryCat; label: string; icon: string; color: string }[] = [
-  { key:"all",        label:"الكل",           icon:"apps-outline",         color:"#6366F1" },
+  { key:"all",        label:"الكل",           icon:"apps-outline",         color:"#1F5C8A" },
   { key:"books",      label:"كتب ومراجع",     icon:"book-outline",          color:"#3B82F6" },
   { key:"stationery", label:"قرطاسية",         icon:"pencil-outline",        color:"#F59E0B" },
   { key:"printing",   label:"طباعة وتصوير",   icon:"print-outline",         color:"#10B981" },
-  { key:"uniforms",   label:"مستلزمات مدرسية",icon:"shirt-outline",          color:"#8B5CF6" },
+  { key:"uniforms",   label:"مستلزمات مدرسية",icon:"shirt-outline",          color:"#1F5C8A" },
   { key:"tutoring",   label:"دروس خصوصية",    icon:"people-outline",         color:"#EF4444" },
   { key:"other",      label:"أخرى",            icon:"ellipsis-horizontal-outline", color:"#6B7280" },
 ];
@@ -2228,7 +2238,7 @@ export default function StudentScreen() {
           </AnimatedPress>
           <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
             {([
-              { role: "student", title: "مساحة الطالب", sub: "حاسبة الشهادة · جدول المذاكرة · بطاقات المراجعة", icon: "school", colors: ["#5B21B6", "#7C3AED"] },
+              { role: "student", title: "مساحة الطالب", sub: "حاسبة الشهادة · جدول المذاكرة · بطاقات المراجعة", icon: "school", colors: ["#173F5F", "#1F5C8A"] },
               { role: "teacher", title: "مساحة المعلم", sub: "الدرجات · الحضور · تحضير الدروس · الاختبارات", icon: "easel", colors: ["#0F3B33", "#2F7D6D"] },
             ] as const).map((b) => (
               <AnimatedPress key={b.role} onPress={() => curriculumRouter.push({ pathname: "/edu-hub", params: { role: b.role } } as any)} style={{ flex: 1 }}>
@@ -2243,23 +2253,24 @@ export default function StudentScreen() {
             ))}
           </View>
           <Text style={s.sectionTitle}>أدوات الطالب التفاعلية</Text>
-          <View style={s.svcsGrid}>
+          <View style={{ gap: 8, marginBottom: 16 }}>
             {STUDENT_TOOLS.map((tool, i) => (
-              <Animated.View key={tool.id} entering={FadeInDown.delay(i*50).springify().damping(18)} style={s.svcCardWrap}>
-                <AnimatedPress style={s.svcCard} onPress={() => {
+              <Animated.View key={tool.id} entering={FadeInDown.delay(i*40).springify().damping(18)}>
+                <AnimatedPress onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (tool.id === "shahada") { curriculumRouter.push({ pathname: "/edu-hub", params: { tool: "shahada" } } as any); return; }
                   setSelectedTool(tool); setToolModalVisible(true);
                 }}>
-                  <LinearGradient colors={[tool.color+"18", Colors.cardBg]} style={s.svcCardInner}>
-                    <View style={[s.svcIconCircle, { backgroundColor: tool.color+"22" }]}>
-                      <Ionicons name={tool.icon as any} size={28} color={tool.color} />
+                  <View style={s.toolRow}>
+                    <View style={[s.toolIcon, { backgroundColor: tool.color + "18" }]}>
+                      <Ionicons name={tool.icon as any} size={22} color={tool.color} />
                     </View>
-                    <Text style={s.svcTitle}>{tool.title}</Text>
-                    <View style={{ flex:1 }} />
-                    <View style={[s.svcTag, { backgroundColor: tool.color+"22" }]}>
-                      <Text style={[s.svcTagText, { color: tool.color }]}>{tool.tag}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.toolTitle}>{tool.title}</Text>
+                      <Text style={s.toolDesc} numberOfLines={2}>{TOOL_DESC[tool.id] ?? tool.tag}</Text>
                     </View>
-                  </LinearGradient>
+                    <View style={s.toolGo}><Ionicons name="chevron-back" size={16} color={tool.color} /></View>
+                  </View>
                 </AnimatedPress>
               </Animated.View>
             ))}
@@ -2357,7 +2368,7 @@ export default function StudentScreen() {
               steps:["المدارس (من/إلى)","بيانات الطالب","ولي الأمر وسبب النقل"],
             },
             {
-              icon:"search-outline", color:"#6366F1", bg:"#6366F120",
+              icon:"search-outline", color:"#1F5C8A", bg:"#1F5C8A20",
               title:"الاستعلام عن طلب",
               desc:"تتبّع حالة طلب التسجيل أو النقل الخاص بك عبر رقم هاتفك أو الرقم المرجعي للطلب",
               tag:"تتبّع الطلبات",
@@ -2717,9 +2728,9 @@ export default function StudentScreen() {
       {activeTab === "union" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInDown.springify()}>
-            <LinearGradient colors={["#6366F118", Colors.cardBg]} style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:Colors.radius.lg, marginBottom:20, borderWidth:1, borderColor:"#6366F130", ...Colors.shadow.card }}>
-              <View style={{ width:52, height:52, borderRadius:Colors.radius.md, backgroundColor:"#6366F120", alignItems:"center", justifyContent:"center" }}>
-                <Ionicons name="people-circle" size={32} color="#6366F1" />
+            <LinearGradient colors={["#1F5C8A18", Colors.cardBg]} style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:Colors.radius.lg, marginBottom:20, borderWidth:1, borderColor:"#1F5C8A30", ...Colors.shadow.card }}>
+              <View style={{ width:52, height:52, borderRadius:Colors.radius.md, backgroundColor:"#1F5C8A20", alignItems:"center", justifyContent:"center" }}>
+                <Ionicons name="people-circle" size={32} color="#1F5C8A" />
               </View>
               <View style={{ flex:1 }}>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" }}>إتحاد الطلاب</Text>
@@ -2729,9 +2740,9 @@ export default function StudentScreen() {
           </Animated.View>
 
           {[
-            { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#6366F1", route:"/student-union-join" },
+            { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#1F5C8A", route:"/student-union-join" },
             { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد واستفسر عن الأنشطة والعضوية",      icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
-            { title:"إدارة الإتحاد",       sub:"لوحة مشرفي الإتحاد لمراجعة طلبات الانضمام",    icon:"shield-checkmark-outline", color:"#8B5CF6", route:"/student-union-admin" },
+            { title:"إدارة الإتحاد",       sub:"لوحة مشرفي الإتحاد لمراجعة طلبات الانضمام",    icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/student-union-admin" },
           ].map((item, i) => (
             <Animated.View key={item.route} entering={FadeInDown.delay(i*80).springify()}>
               <AnimatedPress onPress={() => { if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); nav.push(item.route as any); }}>
@@ -3012,7 +3023,7 @@ export default function StudentScreen() {
                   { label:"طلبات معلقة",    value: pendingReqs.length,                      color: Colors.accent  },
                   { label:"مدارس أساسية",   value: activeInsts.filter(i=>i.type==="primary").length, color:"#27AE60" },
                   { label:"ثانويات",         value: activeInsts.filter(i=>i.type==="secondary").length, color:"#2E7D9A" },
-                  { label:"معاهد وجامعات", value: activeInsts.filter(i=>i.type==="institute"||i.type==="university").length, color:"#6A5ACD" },
+                  { label:"معاهد وجامعات", value: activeInsts.filter(i=>i.type==="institute"||i.type==="university").length, color:"#2F6F8F" },
                   { label:"قرآن ورياض",    value: activeInsts.filter(i=>i.type==="quran"||i.type==="kindergarten").length, color:Colors.accent },
                 ] as const).map((stat, i) => (
                   <Animated.View key={stat.label} entering={FadeInDown.delay(i*60).springify()} style={s.statCard}>
@@ -3097,6 +3108,11 @@ const s = StyleSheet.create({
 
   sectionTitle:{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right", marginBottom:14 },
   svcsGrid:    { flexDirection:"row-reverse", flexWrap:"wrap", gap:12, marginBottom:16 },
+  toolRow:     { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:Colors.cardBg, borderRadius:16, padding:12, borderWidth:1, borderColor:Colors.divider },
+  toolIcon:    { width:46, height:46, borderRadius:14, alignItems:"center", justifyContent:"center" },
+  toolTitle:   { fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right" },
+  toolDesc:    { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", lineHeight:18 },
+  toolGo:      { width:30, height:30, borderRadius:15, backgroundColor:Colors.bg, alignItems:"center", justifyContent:"center" },
   svcCardWrap: { width:"47%" },
   svcCard:     { borderRadius:Colors.radius.lg, overflow:"hidden", borderWidth:1, borderColor:Colors.divider, ...Colors.shadow.card },
   svcCardInner:{ padding:16, alignItems:"flex-end", minHeight:150 },

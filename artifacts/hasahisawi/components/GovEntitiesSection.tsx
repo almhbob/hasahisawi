@@ -23,7 +23,7 @@ type GovEntity = {
 const STATUS_CONFIG: Record<JoinStatus, { label: string; color: string; bg: string }> = {
   pending:  { label: "قيد التواصل",   color: "#F59E0B", bg: "#F59E0B22" },
   invited:  { label: "دعوة مُرسَلة", color: "#60A5FA", bg: "#60A5FA22" },
-  joined:   { label: "منضم رسمياً",  color: "#3EFF9C", bg: "#3EFF9C22" },
+  joined:   { label: "منضم رسمياً",  color: "#2EAD6B", bg: "#2EAD6B22" },
 };
 
 export default function GovEntitiesSection() {
@@ -98,7 +98,7 @@ export default function GovEntitiesSection() {
                       style={styles.contactBtn}
                       onPress={() => Linking.openURL(`tel:${ent.phone}`)}
                     >
-                      <Ionicons name="call-outline" size={14} color="#3EFF9C" />
+                      <Ionicons name="call-outline" size={14} color="#2EAD6B" />
                       <Text style={styles.contactBtnText}>{ent.phone}</Text>
                     </TouchableOpacity>
                   )}
@@ -245,14 +245,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     borderWidth: 1,
-    borderColor: "#3EFF9C44",
+    borderColor: "#2EAD6B44",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   contactBtnText: {
     fontSize: 12,
-    color: "#3EFF9C",
+    color: "#2EAD6B",
     fontWeight: "600",
   },
   pendingMsg: {

@@ -56,9 +56,9 @@ function normalizeGender(value: unknown): "male" | "female" | null {
 
 const CATEGORIES: { key: "all" | RetailCategory; label: string; icon: string; color: string; womenOnly?: boolean }[] = [
   { key: "all", label: "الكل", icon: "apps", color: Colors.primary },
-  { key: "women", label: "القسم النسائي", icon: "face-woman", color: "#EC4899", womenOnly: true },
-  { key: "clothing", label: "ملابس", icon: "tshirt-crew-outline", color: "#EC4899" },
-  { key: "perfume", label: "عطور", icon: "spray-bottle", color: "#A855F7" },
+  { key: "women", label: "القسم النسائي", icon: "face-woman", color: "#C46A3A", womenOnly: true },
+  { key: "clothing", label: "ملابس", icon: "tshirt-crew-outline", color: "#C46A3A" },
+  { key: "perfume", label: "عطور", icon: "spray-bottle", color: "#3B78A6" },
   { key: "shoes", label: "أحذية", icon: "shoe-sneaker", color: "#F97316" },
   { key: "boutique", label: "بوتيكات", icon: "storefront-outline", color: "#14B8A6" },
   { key: "accessories", label: "إكسسوارات", icon: "watch-variant", color: "#FBBF24" },

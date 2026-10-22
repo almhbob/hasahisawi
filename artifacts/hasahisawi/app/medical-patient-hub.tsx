@@ -36,8 +36,8 @@ function formatDate(d: string) {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, [string, string]> = {
     pending: ["قيد الانتظار", "#F59E0B"], confirmed: ["مؤكد", "#10B981"],
-    completed: ["مكتمل", "#6366F1"], cancelled: ["ملغي", "#EF4444"],
-    delivered: ["تم الصرف", "#10B981"], active: ["ساري", "#6366F1"],
+    completed: ["مكتمل", "#1F5C8A"], cancelled: ["ملغي", "#EF4444"],
+    delivered: ["تم الصرف", "#10B981"], active: ["ساري", "#1F5C8A"],
   };
   const [label, color] = map[status] || [status, "#9CA3AF"];
   return (
@@ -176,10 +176,10 @@ export default function MedicalPatientHubScreen() {
         <!DOCTYPE html><html dir="rtl" lang="ar">
         <head><meta charset="UTF-8"><style>
           body{font-family:'Arial',sans-serif;padding:30px;color:#111;direction:rtl}
-          h1{color:#6366F1;font-size:22px}
+          h1{color:#1F5C8A;font-size:22px}
           .meta{color:#6b7280;font-size:13px;margin-bottom:20px}
           table{width:100%;border-collapse:collapse;font-size:13px}
-          th{background:#f5f3ff;padding:10px;text-align:right;border-bottom:2px solid #6366F1}
+          th{background:#F1F6FA;padding:10px;text-align:right;border-bottom:2px solid #1F5C8A}
           .footer{margin-top:30px;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;text-align:center}
         </style></head>
         <body>
@@ -321,7 +321,7 @@ export default function MedicalPatientHubScreen() {
                       <Animated.View key={lr.id} entering={FadeInDown.delay(i * 25).springify()} style={s.card}>
                         <View style={s.cardRow}>
                           <View style={[s.cardIcon, { backgroundColor: "#4C1D95" }]}>
-                            <Ionicons name="flask" size={20} color="#C4B5FD" />
+                            <Ionicons name="flask" size={20} color="#9DBBD6" />
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={s.cardTitle}>نتائج تحليل — {formatDate(lr.ready_at)}</Text>
@@ -487,7 +487,7 @@ const s = StyleSheet.create({
   resultCell: { flex: 1, minWidth: "45%", backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 8 },
   resultName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
   resultVal: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right", marginTop: 2 },
-  pdfBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: "#4338CA", borderRadius: 10, flex: 1 },
+  pdfBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: "#173F5F", borderRadius: 10, flex: 1 },
   pdfBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   medList: { paddingHorizontal: 14, paddingBottom: 8, gap: 6 },
   medItem: { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" },

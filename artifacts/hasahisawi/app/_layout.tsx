@@ -12,6 +12,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
 import AdminAlertsWatcher from "@/components/AdminAlertsWatcher";
+import LaunchSplash, { SplashArt } from "@/components/LaunchSplash";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -27,7 +28,6 @@ import { initAppCheck } from "@/lib/firebase/app-check";
 import { ActivityIndicator, Image } from "react-native";
 import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 
-const APP_LOGO = require("@/assets/images/logo.png");
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
 import { vibrateForType } from "@/lib/sounds";
@@ -346,12 +346,9 @@ export default function RootLayout() {
   // شاشة الانتظار أثناء صحوة الخادم (ثوانٍ فقط)
   if (!serverReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#070D0A", alignItems: "center", justifyContent: "center", gap: 20 }}>
-        <Image source={APP_LOGO} style={{ width: 110, height: 110, borderRadius: 24 }} resizeMode="contain" />
-        <ActivityIndicator color="#2ECC71" size="large" />
-        <Text style={{ color: "#2ECC71", fontFamily: "Cairo_600SemiBold", fontSize: 15 }}>
-          جارٍ تحميل التطبيق...
-        </Text>
+      <View style={{ flex: 1 }}>
+        <SplashArt />
+        <ActivityIndicator color="#1F5C8A" size="small" style={{ position: "absolute", bottom: 60, alignSelf: "center" }} />
       </View>
     );
   }
@@ -370,6 +367,7 @@ export default function RootLayout() {
                     <RootLayoutNav />
                     <NetworkBanner />
                     <AdminAlertsWatcher />
+                    <LaunchSplash />
                     <UpdateBanner />
                   </View>
                 </KeyboardProvider>

@@ -71,7 +71,7 @@ export function getTypeIcon(type: Facility["type"]) {
   return type === "pharmacy" ? "medical-bag" : type === "hospital" ? "hospital-building" : "stethoscope";
 }
 export function getTypeColor(type: Facility["type"]) {
-  return type === "pharmacy" ? Colors.primary : type === "hospital" ? "#2E7D9A" : "#6A5ACD";
+  return type === "pharmacy" ? Colors.primary : type === "hospital" ? "#2E7D9A" : "#2F6F8F";
 }
 export function getTypeLabel(type: Facility["type"], t: any) {
   return type === "pharmacy" ? t("medical", "pharmacy") : type === "hospital" ? t("medical", "hospital") : t("medical", "clinic");
@@ -170,8 +170,8 @@ function MedicalJoinBanner() {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => Linking.openURL(waLink)} activeOpacity={0.85} style={mj.joinBtnWrap}>
             <View style={[mj.joinBtn, { backgroundColor: "#1e3a1e", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }]}>
-              <Ionicons name="logo-whatsapp" size={18} color="#3EFF9C" />
-              <Text style={[mj.joinBtnText, { color: "#3EFF9C" }]}>تواصل معنا عبر واتساب</Text>
+              <Ionicons name="logo-whatsapp" size={18} color="#2EAD6B" />
+              <Text style={[mj.joinBtnText, { color: "#2EAD6B" }]}>تواصل معنا عبر واتساب</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -1054,7 +1054,7 @@ const TABS: { key: MedTab; label: string; icon: string }[] = [
 
 const PATIENT_SERVICES = [
   { title: "رحلتي الطبية",    sub: "مواعيد · فحوصات · روشتات · صيدلية", icon: "clipboard-pulse",    color: "#10B981", route: "/medical-patient-hub" },
-  { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#6366F1", route: "/sick-leave" },
+  { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#1F5C8A", route: "/sick-leave" },
   { title: "التنويم والمرافق", sub: "متابعة التنويم وإدارة المرافقين",    icon: "bed-outline",           color: "#3B82F6", route: "/hospital-admission" },
   { title: "بوابة الكوادر الطبية", sub: "طبيب · معمل · صيدلية · تمريض",  icon: "hospital-box-outline",  color: "#F59E0B", route: "/staff-portal" },
 ] as const;

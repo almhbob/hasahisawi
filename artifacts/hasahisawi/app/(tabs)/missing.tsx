@@ -73,7 +73,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   phone: "#2E7D9A",
   keys: Colors.accent,
   wallet: Colors.primaryDim,
-  documents: "#6A5ACD",
+  documents: "#2F6F8F",
   jewelry: "#C0392B",
   bag: "#E67E22",
   other: Colors.textMuted,

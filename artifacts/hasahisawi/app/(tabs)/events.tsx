@@ -19,8 +19,8 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 // ─────────────────────────────────────────────
 const PRIMARY  = "#27AE68";
 const GOLD     = "#F0A500";
-const PURPLE   = "#8B5CF6";
-const PINK     = "#EC4899";
+const PURPLE   = "#1F5C8A";
+const PINK     = "#C46A3A";
 const BLUE     = "#3B82F6";
 const ORANGE   = "#F97316";
 const BG       = "#050E09";
@@ -38,9 +38,9 @@ const EVENT_TYPES = [
   { key: "conference",   label: "مؤتمرات",     icon: "business-outline",         color: BLUE     },
   { key: "exhibition",   label: "معارض",       icon: "easel-outline",            color: ORANGE   },
   { key: "concert",      label: "حفلات",       icon: "musical-notes-outline",    color: PINK     },
-  { key: "cultural",     label: "ثقافية",      icon: "color-palette-outline",    color: "#06B6D4" },
+  { key: "cultural",     label: "ثقافية",      icon: "color-palette-outline",    color: "#2F8A8A" },
   { key: "sports",       label: "رياضية",      icon: "football-outline",         color: "#10B981" },
-  { key: "religious",    label: "دينية",       icon: "moon-outline",             color: "#A78BFA" },
+  { key: "religious",    label: "دينية",       icon: "moon-outline",             color: "#5B8DB8" },
   { key: "other",        label: "أخرى",        icon: "ellipsis-horizontal",      color: "#6B7280" },
 ];
 

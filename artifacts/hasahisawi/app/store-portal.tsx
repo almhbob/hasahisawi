@@ -120,7 +120,7 @@ const ORDER_STATUS_COLORS: Record<Order["status"], string> = {
   pending: "#FFC20A",
   confirmed: "#3B82F6",
   preparing: "#F97316",
-  out_for_delivery: "#8B5CF6",
+  out_for_delivery: "#1F5C8A",
   delivered: "#009B67",
   cancelled: "#EF4444",
 };
@@ -491,15 +491,15 @@ function RegisterStoreView({
           textAlign="right"
         />
 
-        <View style={[styles.switchRow, { marginTop: 8, borderRadius: Colors.radius.md, backgroundColor: "#A855F710", padding: 12, borderWidth: 1, borderColor: "#A855F730" }]}>
+        <View style={[styles.switchRow, { marginTop: 8, borderRadius: Colors.radius.md, backgroundColor: "#3B78A610", padding: 12, borderWidth: 1, borderColor: "#3B78A630" }]}>
           <Switch
             value={womenOnly}
             onValueChange={setWomenOnly}
-            trackColor={{ false: Colors.divider, true: "#A855F740" }}
-            thumbColor={womenOnly ? "#A855F7" : "#999"}
+            trackColor={{ false: Colors.divider, true: "#3B78A640" }}
+            thumbColor={womenOnly ? "#3B78A6" : "#999"}
           />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.switchLabel, { color: "#A855F7" }]}>متجر نسائي خاص 🌸</Text>
+            <Text style={[styles.switchLabel, { color: "#3B78A6" }]}>متجر نسائي خاص 🌸</Text>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
               سيظهر في قسم ركن المرأة ضمن البوتيكات النسائية
             </Text>

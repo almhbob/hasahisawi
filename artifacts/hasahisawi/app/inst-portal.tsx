@@ -29,7 +29,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }
   commercial:  { label: "شركة / مشروع تجاري",  icon: "domain",            color: Colors.accent },
   sport:       { label: "نادي رياضي",           icon: "basketball",        color: "#E67E22" },
   cooperative: { label: "جمعية تعاونية",        icon: "handshake",         color: "#1ABC9C" },
-  media:       { label: "وسيلة إعلامية",        icon: "newspaper-variant", color: "#8E44AD" },
+  media:       { label: "وسيلة إعلامية",        icon: "newspaper-variant", color: "#1F5C8A" },
   other:       { label: "أخرى",                  icon: "dots-horizontal",   color: Colors.textMuted },
 };
 

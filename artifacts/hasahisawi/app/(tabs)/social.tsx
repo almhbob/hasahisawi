@@ -105,7 +105,7 @@ const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "�
 const CATEGORY_COLORS: Record<string, string> = {
   عام: Colors.primary,
   سؤال: "#2980B9",
-  خبر: "#8E44AD",
+  خبر: "#1F5C8A",
   إعلان: "#E67E22",
   نقاش: "#C0392B",
   شكر: "#27AE60",
@@ -744,8 +744,8 @@ function AddPostModal({
                   </TouchableOpacity>
                   <View style={ms.mediaDivider} />
                   <TouchableOpacity style={ms.mediaBtn} onPress={() => pickMedia("video").then(a => { if (a) { setImageItems([]); setMedia(a); } })} disabled={loading}>
-                    <Ionicons name="videocam-outline" size={22} color="#8E44AD" />
-                    <Text style={[ms.mediaBtnText, { color: "#8E44AD" }]}>فيديو</Text>
+                    <Ionicons name="videocam-outline" size={22} color="#1F5C8A" />
+                    <Text style={[ms.mediaBtnText, { color: "#1F5C8A" }]}>فيديو</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1387,7 +1387,7 @@ export default function SocialScreen() {
       >
         {/* Sort toggle */}
         <AnimatedPress
-          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#8E44AD", borderColor: "#8E44AD" }]}
+          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#1F5C8A", borderColor: "#1F5C8A" }]}
           onPress={() => setSortMode(s => s === "recent" ? "popular" : "recent")}
           scaleDown={0.92}
         >
@@ -1632,7 +1632,7 @@ function ComposeBar({ name, onPress }: { name: string; onPress: () => void }) {
       </View>
       <View style={cb.mediaIcons}>
         <Ionicons name="image-outline" size={20} color={Colors.primary} />
-        <Ionicons name="videocam-outline" size={20} color="#8E44AD" />
+        <Ionicons name="videocam-outline" size={20} color="#1F5C8A" />
       </View>
     </TouchableOpacity>
   );

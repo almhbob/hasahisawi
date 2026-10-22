@@ -26,7 +26,7 @@ import {
 
 const ACCENT  = "#F97316";
 const ACCENT2 = "#FBBF24";
-const GREEN   = "#3EFF9C";
+const GREEN   = "#2EAD6B";
 const BLUE    = "#3E9CBF";
 
 // ─── بيانات الاختبار التدريبي للسائقين ───────────────────────────────────────
@@ -193,7 +193,7 @@ function ComingSoonScreen({ note }: { note?: string }) {
             <View style={cs.smallIconRow}>
               {[
                 { icon: "rickshaw", color: BLUE },
-                { icon: "package-variant", color: "#A855F7" },
+                { icon: "package-variant", color: "#3B78A6" },
                 { icon: "map-marker-radius", color: GREEN },
               ].map((ic, i) => (
                 <View key={i} style={[cs.smallIcon, { backgroundColor: ic.color + "20", borderColor: ic.color + "40" }]}>
@@ -412,7 +412,7 @@ function FareEstimateCard({
     { key: "car"        as const, icon: "car-side",           label: "سيارة",       color: BLUE,      fare: (fares as any).car        },
     { key: "rickshaw"   as const, icon: "rickshaw",            label: "ركشة",        color: ACCENT,    fare: (fares as any).rickshaw   },
     { key: "motorcycle" as const, icon: "motorcycle",          label: "دراجة نارية", color: GREEN,     fare: (fares as any).motorcycle },
-    { key: "delivery"   as const, icon: "package-variant",    label: "توصيل طلب",   color: "#A855F7", fare: (fares as any).delivery   },
+    { key: "delivery"   as const, icon: "package-variant",    label: "توصيل طلب",   color: "#3B78A6", fare: (fares as any).delivery   },
   ];
 
   return (
@@ -452,7 +452,7 @@ type CommunityStats = { total: number; pending: number; contributors: number; re
 const ZONE_META_MOB: Record<number, { name: string; color: string; icon: string }> = {
   1: { name: "قلب المدينة",       color: "#F97316", icon: "city-variant" },
   2: { name: "الأحياء الوسطى",   color: "#3E9CBF", icon: "home-group" },
-  3: { name: "أطراف المدينة",    color: "#A855F7", icon: "map-marker-radius" },
+  3: { name: "أطراف المدينة",    color: "#3B78A6", icon: "map-marker-radius" },
   4: { name: "المناطق الفرعية",  color: "#34D399", icon: "terrain" },
   5: { name: "القرى المحيطة",    color: "#FBBF24", icon: "pine-tree" },
 };
@@ -1613,7 +1613,7 @@ export default function TransportScreen() {
                     let iconColor = Colors.textMuted;
                     if (quizRevealed) {
                       if (isCorrect) {
-                        bg = "#3EFF9C15"; border = "#3EFF9C60"; textColor = GREEN;
+                        bg = "#2EAD6B15"; border = "#2EAD6B60"; textColor = GREEN;
                         iconName = "check-circle"; iconColor = GREEN;
                       } else if (isSelected) {
                         bg = "#E0556715"; border = "#E0556760"; textColor = "#E05567";
@@ -1718,8 +1718,8 @@ export default function TransportScreen() {
                     return (
                       <View key={i} style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
                         padding: 10, borderRadius: 10, marginBottom: 6,
-                        backgroundColor: correct ? "#3EFF9C10" : "#E0556710",
-                        borderWidth: 1, borderColor: correct ? "#3EFF9C30" : "#E0556730" }}>
+                        backgroundColor: correct ? "#2EAD6B10" : "#E0556710",
+                        borderWidth: 1, borderColor: correct ? "#2EAD6B30" : "#E0556730" }}>
                         <MaterialCommunityIcons
                           name={correct ? "check-circle" : "close-circle"}
                           size={16} color={correct ? GREEN : "#E05567"}
@@ -1914,8 +1914,8 @@ export default function TransportScreen() {
                 {/* المادة الرابعة */}
                 <View style={lm.article}>
                   <View style={lm.articleHeader}>
-                    <MaterialCommunityIcons name="shield-check" size={18} color="#3EFF9C" />
-                    <Text style={[lm.articleTitle, { color: "#3EFF9C" }]}>رابعاً — حقوق المستخدم</Text>
+                    <MaterialCommunityIcons name="shield-check" size={18} color="#2EAD6B" />
+                    <Text style={[lm.articleTitle, { color: "#2EAD6B" }]}>رابعاً — حقوق المستخدم</Text>
                   </View>
                   <Text style={lm.articleBody}>
                     في حال وقوع نزاع، يحق للمستخدم التواصل مع إدارة المنصة لتقديم روايته وأدلته. تلتزم المنصة بالحياد التام والتحقيق في كلا الطرفين قبل اتخاذ أي قرار نهائي.
@@ -1973,7 +1973,7 @@ export default function TransportScreen() {
                 {[
                   { val: statsLoading ? "…" : String(communityStats?.total ?? allNeighborhoods.length), label: "حي مُسجَّل", color: ACCENT },
                   { val: statsLoading ? "…" : String(communityStats?.contributors ?? 0), label: "مساهم", color: BLUE },
-                  { val: "٥", label: "مناطق", color: "#A855F7" },
+                  { val: "٥", label: "مناطق", color: "#3B78A6" },
                 ].map(s => (
                   <View key={s.label} style={{ flex: 1, backgroundColor: s.color + "12", borderRadius: 14, borderWidth: 1, borderColor: s.color + "25", padding: 12, alignItems: "center" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: s.color }}>{s.val}</Text>

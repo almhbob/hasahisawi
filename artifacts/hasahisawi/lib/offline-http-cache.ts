@@ -128,7 +128,13 @@ export function withOfflineCache<T extends FetchLike>(base: T): T {
         const ct = String(res.headers?.get?.("content-type") || "");
         if (ct.includes("json")) {
           setServing(false);
-          res.clone().text().then((b: string) => store(key, b, ct)).catch(() => {});
+          // expo/fetch responses have no clone(): read the body once and hand back a fresh Response.
+          if (typeof res.clone === "function") {
+            try { res.clone().text().then((b: string) => store(key, b, ct)).catch(() => {}); return res; } catch { /* fall through */ }
+          }
+          const body: string = await res.text();
+          store(key, body, ct).catch(() => {});
+          return new Response(body, { status: 200, headers: { "Content-Type": ct } });
         }
       }
       return res;

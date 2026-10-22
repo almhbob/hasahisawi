@@ -122,7 +122,7 @@ function getTypeColor(type: Job["type"]) {
   switch (type) {
     case "fulltime": return Colors.primary;
     case "parttime": return "#2E7D9A";
-    case "freelance": return "#6A5ACD";
+    case "freelance": return "#2F6F8F";
     case "volunteer": return Colors.accent;
   }
 }
@@ -210,7 +210,7 @@ function AddJobModal({
   };
 
   const typeColors: Record<Job["type"], string> = {
-    fulltime: Colors.primary, parttime: "#2E7D9A", freelance: "#6A5ACD", volunteer: Colors.accent,
+    fulltime: Colors.primary, parttime: "#2E7D9A", freelance: "#2F6F8F", volunteer: Colors.accent,
   };
 
   const jobTypes = t("jobs", "jobTypes");

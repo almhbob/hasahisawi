@@ -14,8 +14,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 const GREEN = "#22C55E";
 const MGTOKEN_KEY = "union_manager_token";
 const MGINFO_KEY  = "union_manager_info";
@@ -117,7 +117,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <LinearGradient colors={["#0B0F1A", "#1E1B4B"]} style={[ls.hero, { paddingTop: insets.top + 20 }]}>
+      <LinearGradient colors={["#0B0F1A", "#16324F"]} style={[ls.hero, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={ls.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={UC2} />
         </TouchableOpacity>
@@ -258,8 +258,8 @@ function StaffTab({ token }: { token: string }) {
                 {s.committee && <Text style={t.cardSub}>{s.committee}</Text>}
               </View>
               <View style={t.cardActions}>
-                <TouchableOpacity onPress={() => setPermStaff(s)} style={[t.actionBtn, { borderColor: "#A78BFA20", backgroundColor: "#A78BFA10" }]}>
-                  <Ionicons name="shield-outline" size={16} color="#A78BFA" />
+                <TouchableOpacity onPress={() => setPermStaff(s)} style={[t.actionBtn, { borderColor: "#5B8DB820", backgroundColor: "#5B8DB810" }]}>
+                  <Ionicons name="shield-outline" size={16} color="#5B8DB8" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => openEdit(s)} style={t.actionBtn}>
                   <Ionicons name="pencil-outline" size={16} color={UC} />
@@ -278,7 +278,7 @@ function StaffTab({ token }: { token: string }) {
             {/* مؤشر الصلاحيات */}
             {s.permissions && Object.values(s.permissions).some(Boolean) && (
               <View style={sf.permRow}>
-                <Ionicons name="shield-checkmark" size={12} color="#A78BFA" />
+                <Ionicons name="shield-checkmark" size={12} color="#5B8DB8" />
                 <Text style={sf.permText}>
                   {Object.entries(s.permissions).filter(([,v]) => v).map(([k]) => PERMISSION_LABELS[k as keyof Permissions]).join(" · ")}
                 </Text>
@@ -290,7 +290,7 @@ function StaffTab({ token }: { token: string }) {
 
       {/* زر إضافة */}
       <TouchableOpacity style={t.fab} onPress={openAdd}>
-        <LinearGradient colors={[UC, "#4338CA"]} style={t.fabInner}>
+        <LinearGradient colors={[UC, "#173F5F"]} style={t.fabInner}>
           <Ionicons name="person-add-outline" size={22} color="#fff" />
           <Text style={t.fabText}>إضافة موظف</Text>
         </LinearGradient>
@@ -444,7 +444,7 @@ function MeetingsTab({ token }: { token: string }) {
       </ScrollView>
 
       <TouchableOpacity style={t.fab} onPress={openAdd}>
-        <LinearGradient colors={[UC, "#4338CA"]} style={t.fabInner}>
+        <LinearGradient colors={[UC, "#173F5F"]} style={t.fabInner}>
           <Ionicons name="calendar-outline" size={22} color="#fff" />
           <Text style={t.fabText}>نداء اجتماع</Text>
         </LinearGradient>
@@ -915,7 +915,7 @@ export default function UnionManagerPortalScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       {/* الهيدر */}
-      <LinearGradient colors={["#0B0F1A", "#1E1B4B"]} style={[ps.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient colors={["#0B0F1A", "#16324F"]} style={[ps.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={ls.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={22} color={UC2} />
         </TouchableOpacity>
@@ -1065,7 +1065,7 @@ const rq = StyleSheet.create({
 
 const sf = StyleSheet.create({
   permRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
-  permText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#A78BFA", flex: 1, textAlign: "right" },
+  permText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5B8DB8", flex: 1, textAlign: "right" },
 });
 
 const pm = StyleSheet.create({
