@@ -215,9 +215,11 @@ function AuthGate() {
     const inLogin           = segments[0] === "login";
     const inOnboarding      = segments[0] === "onboarding";
     const inCompleteProfile = segments[0] === "complete-profile";
+    // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
+    const inPublicAuth      = segments[0] === "forgot-password";
 
     if (!user) {
-      if (!inLogin && !inOnboarding) {
+      if (!inLogin && !inOnboarding && !inPublicAuth) {
         AsyncStorage.getItem(ONBOARDING_KEY).then((done) => {
           if (!done) {
             router.replace("/onboarding" as any);

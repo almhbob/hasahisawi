@@ -1,3 +1,4 @@
+import { confirmAction, notify } from "@/lib/xplatform";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, FlatList,
@@ -3923,6 +3924,23 @@ export default function AdminDashboard() {
     } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
   };
 
+  // كلمة مرور مؤقتة لمن لا يستطيع الاستعادة بنفسه (حساب بلا بريد مثلاً)
+  const handleTempPassword = async (u: AdminUser) => {
+    const ok = await confirmAction("كلمة مرور مؤقتة", `إصدار كلمة مرور مؤقتة لحساب «${u.name}»؟ ستتوقف كلمة المرور الحالية عن العمل.`, "إصدار");
+    if (!ok) return;
+    const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+    let pwd = "";
+    for (let i = 0; i < 8; i++) pwd += alphabet[Math.floor(Math.random() * alphabet.length)];
+    try {
+      const res = await apiFetch(`/api/admin/users/${u.id}/password`, token, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ new_password: pwd }),
+      });
+      const j = await safeJson(res);
+      if (!res.ok) { notify("تعذّر التحديث", j?.error || ""); return; }
+      notify("كلمة المرور المؤقتة", `${pwd}\n\nأرسلها لصاحب الحساب (${u.phone || u.email || ""}) واطلب منه تغييرها من ملفه الشخصي بعد الدخول.`);
+    } catch { notify("خطأ", "تعذّر الاتصال"); }
+  };
+
   const openPermModal = async (u: AdminUser) => {
     setPermModal(u);
     try {
@@ -4397,6 +4415,15 @@ export default function AdminDashboard() {
             >
               <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
               <Text style={[uc.secBtnTxt, { color: Colors.primary }]}>الصفة</Text>
+            </TouchableOpacity>
+
+            {/* Temp password */}
+            <TouchableOpacity
+              style={[uc.secBtn, { borderColor: "#1D66D440", backgroundColor: "#1D66D412" }]}
+              onPress={() => handleTempPassword(u)}
+            >
+              <Ionicons name="lock-open-outline" size={14} color="#1D66D4" />
+              <Text style={[uc.secBtnTxt, { color: "#1D66D4" }]}>كلمة مرور</Text>
             </TouchableOpacity>
 
             {/* Delete */}

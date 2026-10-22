@@ -115,3 +115,29 @@ export async function ensureEmailPasswordProvider(
     logger.warn({ err }, "[firebase-admin] ensureEmailPasswordProvider failed");
   }
 }
+
+/**
+ * Make sure a Firebase Auth account exists for this email so Firebase can send a
+ * password-reset email. Returns the uid (existing or newly created), or null.
+ */
+export async function ensureFirebaseUserForEmail(email: string, displayName?: string): Promise<string | null> {
+  const a = getFirebaseAdmin();
+  if (!a) return null;
+  try {
+    const u = await a.auth().getUserByEmail(email);
+    // لا نربط حساب Firebase أنشأه شخص آخر ببريد لم يُثبت ملكيته.
+    if (!u.emailVerified) { logger.warn({ uid: u.uid }, "[firebase-admin] existing unverified Firebase user — not linking"); return null; }
+    return u.uid;
+  } catch (err: any) {
+    if (err?.code !== "auth/user-not-found") { logger.warn({ err: err?.message }, "[firebase-admin] getUserByEmail failed"); return null; }
+  }
+  try {
+    const { randomBytes } = await import("node:crypto");
+    const u = await a.auth().createUser({ email, password: randomBytes(18).toString("base64url"), displayName: displayName?.slice(0, 100) || undefined });
+    logger.info({ uid: u.uid }, "[firebase-admin] created auth user for password reset");
+    return u.uid;
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "[firebase-admin] createUser failed");
+    return null;
+  }
+}
