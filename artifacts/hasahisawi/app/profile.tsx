@@ -62,7 +62,7 @@ function timeAgo(iso: string) {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { user, token, isGuest, logout, refreshUser } = useAuth();
+  const { user, token, isGuest, logout, refreshUser, biometricsAvailable, biometricsEnabled, enableBiometrics, disableBiometrics } = useAuth();
 
   const viewingId = id && /^\d+$/.test(String(id)) ? Number(id) : null;
   const profileId = viewingId ?? (isGuest ? null : user?.id ?? null);
@@ -158,6 +158,22 @@ export default function ProfileScreen() {
       notify("تعذّر رفع الصورة", e?.message || "حاول بصورة أصغر حجماً");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const toggleBiometrics = async () => {
+    try {
+      if (biometricsEnabled) {
+        if (await confirmAction("إيقاف البصمة", "سيُطلب منك كلمة المرور عند الدخول القادم.", "إيقاف", true)) {
+          await disableBiometrics();
+          notify("تم", "أُوقف الدخول بالبصمة على هذا الجهاز");
+        }
+      } else {
+        await enableBiometrics(String(user?.email || user?.phone || ""));
+        notify("تم التفعيل", "يمكنك الآن الدخول ببصمتك من شاشة تسجيل الدخول");
+      }
+    } catch (e: any) {
+      notify("تعذّر", e?.message || "تعذّر تفعيل البصمة");
     }
   };
 
@@ -326,6 +342,9 @@ export default function ProfileScreen() {
             <Quick icon="card" label="بطاقة العضوية" sub="بطاقتك الموثّقة" color="#21423A" onPress={() => router.push("/member-card" as any)} />
             <Quick icon="library" label="المكتبة المنهجية" sub="كتب المنهج السوداني" color="#2A6FA8" onPress={() => router.push("/curriculum" as any)} />
             <Quick icon="create" label="منشور جديد" sub="شارك مجتمعك" color={Colors.accentDeep} onPress={() => router.push("/(tabs)/social" as any)} />
+            {Platform.OS !== "web" && biometricsAvailable && (
+              <Quick icon="finger-print" label="الدخول بالبصمة" sub={biometricsEnabled ? "مفعّل — اضغط للإيقاف" : "اضغط للتفعيل"} color="#2F8A8A" onPress={toggleBiometrics} />
+            )}
             <Quick icon="log-out" label="تسجيل الخروج" sub="من هذا الجهاز" color="#B4232F" onPress={signOut} />
           </Animated.View>
         )}
