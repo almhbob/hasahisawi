@@ -795,7 +795,7 @@ export default function StoresScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/stores?type=restaurant`);
+      const res = await fetch(`${getApiUrl()}/api/stores`);
       if (!res.ok) throw new Error("فشل تحميل المتاجر");
       const data = await res.json();
       setStores(Array.isArray(data) ? data : data.stores ?? []);
