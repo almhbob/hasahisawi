@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
+import AdminAlertsWatcher from "@/components/AdminAlertsWatcher";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -278,6 +279,7 @@ function RootLayoutNav() {
         <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
         <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="stores"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-requests"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="store-portal"             options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>
     </>
@@ -300,7 +302,10 @@ export default function RootLayout() {
   useEffect(() => {
     initAppCheck().catch(() => {});
     if (Platform.OS === "web") {
-      wakeUpServer().finally(() => setServerReady(true));
+      // لا ننتظر أكثر من 6 ثوانٍ، ولا ننتظر إطلاقاً بدون إنترنت (وضع الأوفلاين).
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      if (offline) setServerReady(true);
+      else Promise.race([wakeUpServer(), new Promise((r) => setTimeout(r, 6000))]).finally(() => setServerReady(true));
     }
   }, []);
 
@@ -353,6 +358,7 @@ export default function RootLayout() {
                     <OfflineQueueSync />
                     <RootLayoutNav />
                     <NetworkBanner />
+                    <AdminAlertsWatcher />
                     <UpdateBanner />
                   </View>
                 </KeyboardProvider>

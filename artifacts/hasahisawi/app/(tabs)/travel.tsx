@@ -22,6 +22,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { scheduleOccasionReminder } from "@/lib/firebase/notifications";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import TicketShareModal, { type TicketData } from "@/components/travel/TicketShare";
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1089,7 +1090,15 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
 // ═══════════════════════════════════════════════════════════════
 // دوال مساعدة
 // ═══════════════════════════════════════════════════════════════
+// يُسجَّل من الشاشة الرئيسية ليفتح معاينة التذكرة كصورة احترافية.
+let openTicketShare: ((b: TravelBooking) => void) | null = null;
+
 function shareTicket(booking: TravelBooking) {
+  if (openTicketShare) { openTicketShare(booking); return; }
+  shareTicketText(booking);
+}
+
+function shareTicketText(booking: TravelBooking) {
   const dateStr = new Date(booking.travel_date).toLocaleDateString("ar-SD");
   const msg = `
 🚌 تذكرة سفر — حصاحيصاوي
@@ -1131,7 +1140,11 @@ function sendToWhatsApp(booking: TravelBooking) {
 // الشاشة الرئيسية
 // ═══════════════════════════════════════════════════════════════
 export default function TravelScreen() {
-  const { user } = useAuth();
+  const { user: authUser, token } = useAuth();
+  // المكوّنات الفرعية تقرأ رمز الجلسة من user._token — نمرّره هنا صراحةً.
+  const user = React.useMemo(() => (authUser ? { ...(authUser as any), _token: token || "" } : null), [authUser, token]);
+  const [shareT, setShareT] = useState<TravelBooking | null>(null);
+  useEffect(() => { openTicketShare = (b) => setShareT(b); return () => { openTicketShare = null; }; }, []);
   const [activeTab, setActiveTab] = useState<"book"|"tickets"|"partners">("book");
   const [myBookingsCount, setMyBookingsCount] = useState(0);
   const planeX = useSharedValue<number>(0);
@@ -1199,6 +1212,7 @@ export default function TravelScreen() {
         )}
         {activeTab === "partners" && <PartnersTab isAdmin={user?.role === "admin"} />}
       </View>
+      <TicketShareModal ticket={shareT as unknown as TicketData | null} codes={CITY_CODES} onClose={() => setShareT(null)} />
     </View>
   );
 }
