@@ -103,7 +103,8 @@ async function createJoin(req: Request, res: Response, typeFallback: string) {
 }
 
 router.post("/join-requests", (req, res) => createJoin(req, res, "general"));
-router.post("/women/join-request", (req, res) => createJoin(req, res, "women_service"));
+// /women/join-request is served by the women-corner handler (women_join_requests) so the admin panel sees it.
+router.post("/men/join-request", (req, res) => createJoin(req, res, "men_service"));
 router.post("/merchants/join-request", (req, res) => createJoin(req, res, "merchant"));
 router.post("/merchant/join-request", (req, res) => createJoin(req, res, "merchant"));
 router.post("/transport/driver/join-request", (req, res) => createJoin(req, res, "driver"));

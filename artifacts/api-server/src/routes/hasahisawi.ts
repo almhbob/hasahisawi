@@ -5961,7 +5961,7 @@ router.post("/institution-applications", async (req: Request, res: Response) => 
       ]
     );
 
-    void sendPushToAdmins("🏢 طلب انضمام مؤسسة جديد", `${inst_name} — ${inst_type}`, { type: "institution_application", id: result.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.json({ application: result.rows[0] });
   } catch (err) {
     logger.error({ err: err }, "POST /institution-applications error");
@@ -9800,7 +9800,7 @@ router.post("/external-partnerships/apply", async (req: Request, res: Response) 
         services, (target_audience || "").trim(),
       ]
     );
-    void sendPushToAdmins("🤝 طلب شراكة خارجية جديد", `${org_name.trim()} — ${(sector || "").trim() || org_type || ""}`, { type: "external_partnership", id: rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.status(201).json({ ok: true, application: rows[0], message: "تم استلام طلبكم بنجاح. سيتم مراجعته والرد خلال 48 ساعة." });
   } catch (e) { logger.error({ err: e }, "external-partnerships/apply"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -10676,7 +10676,7 @@ router.post("/lawyer-applications", async (req: Request, res: Response) => {
         userId,
       ]
     );
-    void sendPushToAdmins("⚖️ طلب انضمام محامٍ جديد", `${String(b.full_name).slice(0,60)} — ${String(b.specialties).slice(0,60)}`, { type: "lawyer_application", id: ins.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.json({ ok: true, application_id: ins.rows[0].id, created_at: ins.rows[0].created_at });
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -18185,7 +18185,7 @@ router.post("/union-manager/apply", writeLimiter, async (req: Request, res: Resp
        can_attend!=null?Boolean(can_attend):null,weekly_hours||null,
        other_commits||null,pledge_name||null]
     );
-    void sendPushToAdmins("🎓 طلب تولي إدارة اتحاد جديد", `${full_name} — ${institution||""}`.trim().replace(/\s*—\s*$/, ""), { type: "union_manager_application", id: r.rows[0].id });
+    // admin push is sent by the central admin-alerts middleware
     return res.status(201).json({ success: true, application: r.rows[0] });
   } catch (e: any) { logger.error({ err: e }, "union-manager/apply"); return res.status(500).json({ error: "Server error" }); }
 });

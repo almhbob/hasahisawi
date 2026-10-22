@@ -7,11 +7,21 @@ import lawyersAdminRouter, { ensureLawyersDb } from "./lawyers-admin";
 import transportLiveRouter, { initTransportLiveDb } from "./transport-live";
 import hasahisawiRouter, { initHasahisawiDb } from "./hasahisawi";
 import uploadRouter from "./upload";
+import adminAlertsRouter, { captureAdminAlerts, ensureAdminAlertsDb } from "./admin-alerts";
+import accessGuardsRouter, { womenCornerGuard, genderLockGuard } from "./access-guards";
+import storesRouter, { ensureStoresDb } from "./stores";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+// حواجز الوصول وتسجيل تنبيهات الإدارة قبل أي مسار.
+router.use(womenCornerGuard);
+router.use(genderLockGuard);
+router.use(captureAdminAlerts);
+router.use(adminAlertsRouter);
+router.use(accessGuardsRouter);
 router.use(uploadRouter);
+router.use(storesRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);
@@ -26,5 +36,7 @@ initExtraDb().catch(console.error);
 ensureLawyersDb().catch(console.error);
 initTransportLiveDb().catch(console.error);
 initHasahisawiDb().catch(console.error);
+ensureAdminAlertsDb().catch(console.error);
+ensureStoresDb().catch(console.error);
 
 export default router;
