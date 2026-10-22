@@ -36,6 +36,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build-android:
@@ -278,49 +279,67 @@ jobs:
           echo "APK: $APK_FILE"
           echo "AAB: $AAB_FILE"
 
-      - name: Prepare Google Play upload
+      - name: Publish to Google Play
         id: play
         if: ${{ github.event_name != 'pull_request' }}
+        continue-on-error: true
         env:
-          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
+          PKG: com.almhbob.hasahisawi
+          API: https://api-server-gilt-ten.vercel.app
+          VERSION: ${{ steps.ver.outputs.version }}
+          CODE: ${{ steps.ver.outputs.code }}
+          SHA1: ${{ steps.signing.outputs.sha1 }}
         run: |
-          if [ -z "$PLAY_JSON" ]; then
-            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON not set — skipping Google Play upload."
-            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
-          fi
-          if [ -z "$KEYSTORE_B64" ]; then
-            echo "::warning::Google Play needs the permanent upload key (ANDROID_KEYSTORE_BASE64) — skipping Play upload for this one-off-signed build."
-            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
-          fi
+          set -euo pipefail
           EXPECTED="${{ vars.PLAY_UPLOAD_SHA1 }}"; EXPECTED="${EXPECTED:-7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08}"
-          if [ "${{ steps.signing.outputs.sha1 }}" != "$EXPECTED" ]; then
-            echo "::warning::AAB signed with ${{ steps.signing.outputs.sha1 }} but Google Play expects $EXPECTED — skipping Play upload."
-            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
+          if [ "$SHA1" != "$EXPECTED" ]; then
+            echo "::warning::AAB signed with $SHA1 but Google Play expects $EXPECTED — skipping Play upload."; exit 0
           fi
-          TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-internal}"
-          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-completed}"
-          echo "track=$TRACK" >> $GITHUB_OUTPUT
-          echo "status=$STATUS" >> $GITHUB_OUTPUT
-          echo "enabled=true" >> $GITHUB_OUTPUT
-          mkdir -p play-whatsnew
-          MSG=$(git log -1 --pretty=%s | cut -c1-450)
-          printf 'نسخة %s (%s)\n%s\n' "${{ steps.ver.outputs.version }}" "${{ steps.ver.outputs.code }}" "تحسينات وإصلاحات لتجربة أفضل." > play-whatsnew/whatsnew-ar
-          printf 'Version %s (%s)\n%s\n' "${{ steps.ver.outputs.version }}" "${{ steps.ver.outputs.code }}" "$MSG" > play-whatsnew/whatsnew-en-US
-          echo "Uploading build ${{ steps.ver.outputs.code }} to Google Play track: $TRACK ($STATUS)"
+          TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-production}"
+          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-draft}"
+          AAB=$(ls release-artifacts/*.aab | head -1)
 
-      - name: Upload AAB to Google Play
-        if: ${{ steps.play.outputs.enabled == 'true' }}
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.almhbob.hasahisawi
-          releaseFiles: release-artifacts/*.aab
-          track: ${{ steps.play.outputs.track }}
-          status: ${{ steps.play.outputs.status }}
-          releaseName: "${{ steps.ver.outputs.version }} (${{ steps.ver.outputs.code }})"
-          whatsNewDirectory: play-whatsnew
-          changesNotSentForReview: false
+          # 1) رمز OIDC من GitHub ← رمز Google Play قصير العمر من خادمنا
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          RESP=$(curl -sS -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token")
+          TOKEN=$(echo "$RESP" | jq -r '.access_token // empty')
+          SA_EMAIL=$(echo "$RESP" | jq -r '.client_email // empty')
+          if [ -z "$TOKEN" ]; then echo "::error::Could not get a Google Play token: $(echo "$RESP" | jq -c 'del(.access_token)')"; exit 1; fi
+          echo "::add-mask::$TOKEN"
+          echo "Service account: $SA_EMAIL"
+          echo "sa_email=$SA_EMAIL" >> $GITHUB_OUTPUT
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
+          AUTH="Authorization: Bearer $TOKEN"
+          fail() { echo "::error::$1"; echo "$2" | jq . 2>/dev/null || echo "$2"; exit 1; }
+
+          # 2) تعديل جديد
+          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits")
+          EDIT=$(echo "$R" | jq -r '.id // empty'); [ -n "$EDIT" ] || fail "Play edit could not be created (is $SA_EMAIL invited in Play Console with release permission?)" "$R"
+
+          # 3) رفع الـ AAB
+          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/octet-stream" --data-binary @"$AAB" \
+                "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/$PKG/edits/$EDIT/bundles?uploadType=media")
+          VC=$(echo "$R" | jq -r '.versionCode // empty'); [ -n "$VC" ] || fail "AAB upload failed" "$R"
+          echo "Uploaded bundle versionCode $VC"
+
+          # 4) ربطه بالمسار
+          NOTES=$(printf 'نسخة %s — تحسينات وإصلاحات لتجربة أفضل.' "$VERSION")
+          BODY=$(jq -n --arg t "$TRACK" --arg n "$VERSION ($VC)" --arg vc "$VC" --arg s "$STATUS" --arg notes "$NOTES" \
+                 '{track:$t, releases:[{name:$n, versionCodes:[$vc], status:$s, releaseNotes:[{language:"ar", text:$notes}]}]}')
+          R=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
+          if ! echo "$R" | jq -e '.releases' >/dev/null; then
+            echo "::warning::Track update with Arabic notes failed, retrying without notes"; echo "$R"
+            BODY=$(echo "$BODY" | jq 'del(.releases[0].releaseNotes)')
+            R=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
+            echo "$R" | jq -e '.releases' >/dev/null || fail "Track update failed" "$R"
+          fi
+
+          # 5) تثبيت التعديل
+          R=$(curl -sS -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
+          echo "$R" | jq -e '.id' >/dev/null || fail "Commit failed" "$R"
+          echo "✅ Published $VERSION ($VC) to Google Play track '$TRACK' as '$STATUS'"
+          echo "### ✅ Google Play: $VERSION ($VC) → $TRACK ($STATUS)" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish GitHub Release
         if: ${{ github.event_name != 'pull_request' && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
