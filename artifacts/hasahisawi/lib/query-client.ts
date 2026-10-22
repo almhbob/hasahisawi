@@ -1,6 +1,7 @@
-import { fetch } from "expo/fetch";
+import { fetch } from "@/lib/net-fetch";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { installOfflineCache } from "@/lib/offline-cache";
 import { canQueueRequest, isOnline, queueOfflineRequest, syncOfflineQueue } from "@/lib/offline-queue";
 
 // Must match TOKEN_KEY in lib/auth-context.tsx (the only key that is ever written on login)
@@ -19,6 +20,9 @@ const API_URL =
   cleanBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL) ||
   cleanBaseUrl(process.env.VITE_API_BASE_URL) ||
   DEFAULT_PRODUCTION_API_URL;
+
+// وضع الأوفلاين: كل طلبات القراءة الناجحة تُحفظ وتُعرض عند انقطاع الإنترنت.
+installOfflineCache(API_URL);
 
 export function getApiUrl(): string {
   return API_URL;

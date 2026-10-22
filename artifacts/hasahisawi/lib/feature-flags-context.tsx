@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { fetch } from "expo/fetch";
+import { fetch } from "@/lib/net-fetch";
 import { getApiUrl } from "@/lib/query-client";
 
 export type RideStatus = "soon" | "maintenance" | "available";

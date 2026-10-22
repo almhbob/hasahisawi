@@ -7,11 +7,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNetworkStatus } from "@/lib/network";
 import { useOfflineQueueStatus } from "@/lib/offline-queue";
+import { useServingOfflineCache } from "@/lib/offline-cache";
 import Colors from "@/constants/colors";
 
 export default function NetworkBanner() {
   const { isConnected, isInternetReachable } = useNetworkStatus();
   const queue = useOfflineQueueStatus();
+  const fromCache = useServingOfflineCache();
   const insets = useSafeAreaInsets();
 
   // On web, NetInfo's isInternetReachable is unreliable — use only isConnected
@@ -21,7 +23,7 @@ export default function NetworkBanner() {
 
   const showQueue = queue.total > 0;
   const text = offline
-    ? (showQueue ? `لا يوجد إنترنت · ${queue.pending + queue.syncing} إجراء محفوظ وسيُرسل لاحقاً` : "لا يوجد اتصال بالإنترنت")
+    ? (showQueue ? `لا يوجد إنترنت · ${queue.pending + queue.syncing} إجراء محفوظ وسيُرسل لاحقاً` : (fromCache ? "وضع الأوفلاين · تعرض آخر بيانات محفوظة" : "لا يوجد اتصال بالإنترنت"))
     : queue.syncing > 0
       ? `جارٍ مزامنة ${queue.syncing} إجراء محفوظ…`
       : queue.pending > 0

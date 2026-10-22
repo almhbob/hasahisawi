@@ -279,6 +279,7 @@ function RootLayoutNav() {
         <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
         <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="stores"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-hub"                  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-requests"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="store-portal"             options={{ headerShown: false, animation: "slide_from_right" }} />
       </Stack>

@@ -10,6 +10,7 @@ import uploadRouter from "./upload";
 import adminAlertsRouter, { captureAdminAlerts, ensureAdminAlertsDb } from "./admin-alerts";
 import accessGuardsRouter, { womenCornerGuard, genderLockGuard } from "./access-guards";
 import storesRouter, { ensureStoresDb } from "./stores";
+import curriculumUploadRouter from "./curriculum-upload";
 
 const router: IRouter = Router();
 
@@ -22,6 +23,7 @@ router.use(adminAlertsRouter);
 router.use(accessGuardsRouter);
 router.use(uploadRouter);
 router.use(storesRouter);
+router.use(curriculumUploadRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);

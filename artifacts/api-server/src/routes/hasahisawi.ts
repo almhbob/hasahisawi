@@ -19137,7 +19137,7 @@ const CURRICULUM_SUBJECTS: Record<string, string[]> = {
   intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
   secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
 };
-const CURRICULUM_MAX_FILE_MB = 100;
+const CURRICULUM_MAX_FILE_MB = 300;
 
 let _curriculumReady: Promise<void> | null = null;
 function ensureCurriculumTables(): Promise<void> {
@@ -19190,6 +19190,9 @@ function classifyCurriculumUrl(raw: unknown): { url: string; source: "upload" | 
     return { url: u.toString(), source: "upload" };
   }
   if (u.hostname === "res.cloudinary.com") return null; // someone else's cloud / folder
+  if (/\.public\.blob\.vercel-storage\.com$/.test(u.hostname) && u.pathname.startsWith("/curriculum/")) {
+    return { url: u.toString(), source: "upload" };
+  }
   return { url: u.toString(), source: "link" };
 }
 

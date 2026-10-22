@@ -1,3 +1,4 @@
+import ShahadaCalculator from "@/components/edu/ShahadaCalculator";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -449,48 +450,7 @@ function TaskListTool() {
   );
 }
 
-// ─── Tool: Shahada Calculator ─────────────────────────────────────────────────
-const SHAHADA_SUBS = [
-  { key:"arabic",   label:"اللغة العربية",        max:200 },
-  { key:"english",  label:"اللغة الإنجليزية",      max:100 },
-  { key:"math",     label:"الرياضيات",             max:200 },
-  { key:"religion", label:"التربية الإسلامية",      max:100 },
-  { key:"social",   label:"الدراسات الاجتماعية",   max:100 },
-  { key:"physics",  label:"الفيزياء",               max:100 },
-  { key:"chemistry",label:"الكيمياء",               max:100 },
-  { key:"biology",  label:"الأحياء",                max:100 },
-];
-function ShahadaCalculator() {
-  const [scores, setScores] = useState<Record<string,string>>({});
-  const valid   = SHAHADA_SUBS.filter(s => scores[s.key] && !isNaN(Number(scores[s.key])));
-  const total   = valid.reduce((s,sub) => s + Math.min(Number(scores[sub.key]), sub.max), 0);
-  const maxTotal= valid.reduce((s,sub) => s + sub.max, 0);
-  const pct     = maxTotal > 0 ? total / maxTotal * 100 : 0;
-  const pctColor= pct>=85?"#27AE60":pct>=75?Colors.primary:pct>=65?Colors.accent:pct>=50?"#E67E22":Colors.danger;
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ paddingBottom:16 }}>
-      <Text style={[tl.cdHint, { marginBottom:12, textAlign:"right" }]}>أدخل درجاتك في كل مادة:</Text>
-      {SHAHADA_SUBS.map(sub => (
-        <View key={sub.key} style={tl.shahadaRow}>
-          <Text style={tl.shahadaMax}>/{sub.max}</Text>
-          <TextInput style={tl.shahadaInput} value={scores[sub.key]||""}
-            onChangeText={v => setScores(s => ({...s, [sub.key]:v}))}
-            placeholder="0" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="center" maxLength={3} />
-          <Text style={tl.shahadaLabel}>{sub.label}</Text>
-        </View>
-      ))}
-      {valid.length > 0 && (
-        <View style={[tl.resultBox, { borderColor:pctColor+"50", backgroundColor:pctColor+"12", marginTop:12 }]}>
-          <Text style={tl.resultLabel}>المجموع الكلي</Text>
-          <Text style={[tl.resultValue, { color:pctColor }]}>{total} / {maxTotal}</Text>
-          <Text style={[tl.resultSub, { color:pctColor }]}>
-            {pct.toFixed(1)}% — {pct>=85?"ممتاز":pct>=75?"جيد جداً":pct>=65?"جيد":pct>=50?"مقبول":"دون المتوسط"}
-          </Text>
-        </View>
-      )}
-    </ScrollView>
-  );
-}
+// ─── Tool: Shahada Calculator — components/edu/ShahadaCalculator (كل مادة من 100)
 
 // ─── Tool: Study Tips ────────────────────────────────────────────────────────
 const TIPS_DATA: Record<string, string[]> = {
@@ -2266,6 +2226,22 @@ export default function StudentScreen() {
               <Ionicons name="chevron-back" size={20} color="#fff" />
             </LinearGradient>
           </AnimatedPress>
+          <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
+            {([
+              { role: "student", title: "مساحة الطالب", sub: "حاسبة الشهادة · جدول المذاكرة · بطاقات المراجعة", icon: "school", colors: ["#5B21B6", "#7C3AED"] },
+              { role: "teacher", title: "مساحة المعلم", sub: "الدرجات · الحضور · تحضير الدروس · الاختبارات", icon: "easel", colors: ["#0F3B33", "#2F7D6D"] },
+            ] as const).map((b) => (
+              <AnimatedPress key={b.role} onPress={() => curriculumRouter.push({ pathname: "/edu-hub", params: { role: b.role } } as any)} style={{ flex: 1 }}>
+                <LinearGradient colors={b.colors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 18, padding: 14, minHeight: 128, gap: 6 }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
+                    <Ionicons name={b.icon} size={22} color="#fff" />
+                  </View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" }}>{b.title}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 18 }}>{b.sub}</Text>
+                </LinearGradient>
+              </AnimatedPress>
+            ))}
+          </View>
           <Text style={s.sectionTitle}>أدوات الطالب التفاعلية</Text>
           <View style={s.svcsGrid}>
             {STUDENT_TOOLS.map((tool, i) => (
