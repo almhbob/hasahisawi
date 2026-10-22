@@ -171,21 +171,33 @@ jobs:
           done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
       - name: Create release signing key
+        id: signing
         env:
           # مفتاح توقيع ثابت (اختياري): عند ضبط هذه الأسرار تُوقَّع كل النسخ بالمفتاح نفسه،
           # فتُثبَّت التحديثات فوق النسخة السابقة ويعمل تسجيل Google (SHA-1 ثابت).
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KS_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # الأولوية لمفتاح الرفع المسجّل في Google Play (SHA1 7B:C4:A4:FC…) المحفوظ باسم KEYSTORE_BASE64
+          PLAY_KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          PLAY_KS_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          PLAY_KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PLAY_KS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ANDROID_KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          if [ -n "$PLAY_KS_B64" ]; then
+            KEYSTORE_B64="$PLAY_KS_B64"; KS_STORE_PASSWORD="$PLAY_KS_PASSWORD"; KS_KEY_ALIAS="$PLAY_KS_ALIAS"; KS_KEY_PASSWORD="$PLAY_KS_KEY_PASSWORD"
+            echo "Signing with the Google Play upload key (KEYSTORE_BASE64)"
+          else
+            KEYSTORE_B64="$ANDROID_KS_B64"; KS_STORE_PASSWORD="$ANDROID_KS_PASSWORD"; KS_KEY_ALIAS="$ANDROID_KS_ALIAS"; KS_KEY_PASSWORD="$ANDROID_KS_KEY_PASSWORD"
+          fi
           KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
           mkdir -p artifacts/hasahisawi/android/app
           STORE_PASSWORD="${KS_STORE_PASSWORD:-Hasahisawi2026Secure}"
           KEY_ALIAS_VALUE="${KS_KEY_ALIAS:-hasahisawi}"
           KEY_PASSWORD_VALUE="${KS_KEY_PASSWORD:-$STORE_PASSWORD}"
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$KEYSTORE_DEST"
+            printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$KEYSTORE_DEST"
             echo "Using persistent signing key from secrets"
           else
           echo "::warning::ANDROID_KEYSTORE_BASE64 not set — generating a one-off signing key (updates will need uninstall)."
@@ -209,6 +221,12 @@ jobs:
             echo "android.injected.signing.key.password=$KEY_PASSWORD_VALUE"
           } >> artifacts/hasahisawi/android/gradle.properties
           keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA1|SHA256|Valid from' || true
+          SHA1=$(keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" 2>/dev/null | grep -m1 'SHA1:' | awk '{print $2}')
+          if [ -n "$KEYSTORE_B64" ] && [ -z "$SHA1" ]; then
+            echo "::error::Could not open the keystore from secrets — check KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD."; exit 1
+          fi
+          echo "sha1=$SHA1" >> $GITHUB_OUTPUT
+          echo "Signing SHA1: $SHA1"
 
       - name: Build release APK
         working-directory: artifacts/hasahisawi/android
@@ -265,7 +283,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$PLAY_JSON" ]; then
             echo "::notice::PLAY_SERVICE_ACCOUNT_JSON not set — skipping Google Play upload."
@@ -273,6 +291,11 @@ jobs:
           fi
           if [ -z "$KEYSTORE_B64" ]; then
             echo "::warning::Google Play needs the permanent upload key (ANDROID_KEYSTORE_BASE64) — skipping Play upload for this one-off-signed build."
+            echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
+          fi
+          EXPECTED="${{ vars.PLAY_UPLOAD_SHA1 }}"; EXPECTED="${EXPECTED:-7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08}"
+          if [ "${{ steps.signing.outputs.sha1 }}" != "$EXPECTED" ]; then
+            echo "::warning::AAB signed with ${{ steps.signing.outputs.sha1 }} but Google Play expects $EXPECTED — skipping Play upload."
             echo "enabled=false" >> $GITHUB_OUTPUT; exit 0
           fi
           TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-internal}"
