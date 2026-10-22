@@ -11,7 +11,8 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { capturePoster } from "@/lib/poster-capture";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeInDown } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeInDown, runOnJS } from "react-native-reanimated";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Svg, { Circle, Path, Rect, Polygon, Defs, Text as SvgText, TextPath } from "react-native-svg";
 import QRCode from "react-native-qrcode-svg";
 import { getApiUrl } from "@/lib/query-client";
@@ -19,6 +20,29 @@ import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction, openExternal, copyText, uploadProfilePhoto, socialShareUrl, systemShare, type SocialTarget } from "@/lib/xplatform";
 
 const MAP = require("@/assets/images/member-card/map.png");
+// ألوان مسبقة للشعار والخريطة: tintColor لا يظهر عند حفظ الصورة في المتصفح
+const LOGOS: Record<string, any> = {
+  f1eee6: require("@/assets/images/member-card/logo-f1eee6.png"),
+  "2f2624": require("@/assets/images/member-card/logo-2f2624.png"),
+  efece6: require("@/assets/images/member-card/logo-efece6.png"),
+  eef1f4: require("@/assets/images/member-card/logo-eef1f4.png"),
+  f3efe6: require("@/assets/images/member-card/logo-f3efe6.png"),
+  c9b68c: require("@/assets/images/member-card/logo-c9b68c.png"),
+  "96685a": require("@/assets/images/member-card/logo-96685a.png"),
+  cdb98f: require("@/assets/images/member-card/logo-cdb98f.png"),
+  b7c1cc: require("@/assets/images/member-card/logo-b7c1cc.png"),
+  c9a45c: require("@/assets/images/member-card/logo-c9a45c.png"),
+  "21423a": require("@/assets/images/member-card/logo-21423a.png"),
+};
+const MAPS: Record<string, any> = {
+  c9b68c: require("@/assets/images/member-card/map-c9b68c.png"),
+  "96685a": require("@/assets/images/member-card/map-96685a.png"),
+  cdb98f: require("@/assets/images/member-card/map-cdb98f.png"),
+  b7c1cc: require("@/assets/images/member-card/map-b7c1cc.png"),
+  c9a45c: require("@/assets/images/member-card/map-c9a45c.png"),
+};
+const logoIn = (color: string) => LOGOS[color.replace("#", "").toLowerCase()] ?? LOGO;
+const mapIn = (color: string) => MAPS[color.replace("#", "").toLowerCase()] ?? MAP;
 const SOCIALS: { key: SocialTarget; label: string; icon: string; bg: string }[] = [
   { key: "whatsapp", label: "واتساب",  icon: "logo-whatsapp", bg: "#25D366" },
   { key: "facebook", label: "فيسبوك", icon: "logo-facebook", bg: "#1877F2" },
@@ -102,7 +126,7 @@ function Seal({ color, size, id }: { color: string; size: number; id: string }) 
           <TextPath href={`#${id}`}>HASAHISAWI · VERIFIED · 2026 ·</TextPath>
         </SvgText>
       </Svg>
-      <Image source={LOGO} resizeMode="contain" style={{ position: "absolute", left: size * 0.34, top: size * 0.35, width: size * 0.32, height: size * 0.3, tintColor: color }} />
+      <Image source={logoIn(color)} resizeMode="contain" style={{ position: "absolute", left: size * 0.34, top: size * 0.35, width: size * 0.32, height: size * 0.3 }} />
     </View>
   );
 }
@@ -134,7 +158,7 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
         <View style={styles.rowTop}>
           <View>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 * s }}>
-              <Image source={LOGO} resizeMode="contain" style={{ width: 22 * s, height: 21 * s, tintColor: t.text }} />
+              <Image source={logoIn(t.text)} resizeMode="contain" style={{ width: 22 * s, height: 21 * s }} />
               <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15 * s, color: t.text }}>حصاحيصاوي</Text>
             </View>
             <Text style={[styles.en, { fontSize: 8.5 * s, letterSpacing: 4 * s, color: t.accent }]}>HASAHISAWI</Text>
@@ -160,7 +184,13 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
               ))}
             </View>
           </View>
-          <CardPhotoView photo={card.photo} t={t} s={s} />
+          <View>
+            <CardPhotoView photo={card.photo} t={t} s={s} />
+            {/* ختم حصاحيصاوي — على زاوية الصورة كختم الوثائق الرسمية */}
+            <View style={{ position: "absolute", left: -14 * s, bottom: -16 * s, opacity: t.seal }} pointerEvents="none">
+              <Seal color={t.accent} size={50 * s} id={sealId} />
+            </View>
+          </View>
         </View>
 
         <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10 * s }}>
@@ -173,9 +203,6 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
         <Text numberOfLines={1} style={[styles.mono, { fontSize: 8.5 * s, letterSpacing: 1.5 * s, color: t.muted, opacity: 0.55, textAlign: "left" }]}>{card.mrz}</Text>
       </View>
 
-      <View style={{ position: "absolute", left: 74 * s, top: 150 * s, opacity: t.seal }} pointerEvents="none">
-        <Seal color={t.accent} size={58 * s} id={sealId} />
-      </View>
     </LinearGradient>
   );
 }
@@ -186,7 +213,7 @@ function CardBack({ card, width }: { card: MemberCard; width: number }) {
   return (
     <LinearGradient colors={t.bg} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
       style={[styles.card, { width, height: width * RATIO, borderRadius: 20 * s }, t.light && styles.lightBorder]}>
-      <Image source={MAP} resizeMode="contain" style={{ position: "absolute", left: 133 * s, top: 76 * s, width: 250 * s, height: 228 * s, tintColor: t.accent, opacity: t.light ? 0.22 : 0.2 }} />
+      <Image source={mapIn(t.accent)} resizeMode="contain" style={{ position: "absolute", left: 133 * s, top: 76 * s, width: 250 * s, height: 228 * s, opacity: t.light ? 0.22 : 0.2 }} />
       <View style={{ position: "absolute", left: 293 * s, top: 198 * s, width: 14 * s, height: 14 * s, borderRadius: 7 * s, borderWidth: 1, borderColor: t.accent, alignItems: "center", justifyContent: "center" }}>
         <View style={{ width: 5 * s, height: 5 * s, borderRadius: 3 * s, backgroundColor: t.accent }} />
       </View>
@@ -210,30 +237,119 @@ function CardBack({ card, width }: { card: MemberCard; width: number }) {
   );
 }
 
-// صورة جاهزة للنشر على مواقع التواصل (نسبة 4:5 المناسبة لإنستغرام وفيسبوك وحالات واتساب)
+// صورة جاهزة للنشر على مواقع التواصل (4:5 — إنستغرام وفيسبوك وحالات واتساب)
+// إطار ثابت النسبة بأقسام موزّعة، وأسطر بارتفاع محدد حتى لا يُقص المحتوى عند الحفظ.
 function SharePoster({ card, width }: { card: MemberCard; width: number }) {
   const s = width / 360;
+  const cardW = width - 44 * s;
   return (
-    <View collapsable={false} style={{ width, height: width * 1.25, backgroundColor: "#ECEAE5", alignItems: "center", paddingTop: 26 * s, paddingHorizontal: 18 * s }}>
-      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 * s }}>
-        <Image source={LOGO} resizeMode="contain" style={{ width: 24 * s, height: 23 * s, tintColor: "#21423A" }} />
-        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16 * s, color: "#21423A" }}>حصاحيصاوي</Text>
-      </View>
-      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22 * s, color: "#1E1E1C", marginTop: 10 * s }}>بطاقتي في حصاحيصاوي</Text>
-      <View style={{ marginTop: 14 * s, ...styles.posterShadow }}>
-        <CardFront card={card} width={width - 36 * s} sealId="seal-poster" />
-      </View>
-      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 16 * s, color: "#21423A", marginTop: 18 * s }}>الحصاحيصا… في القلب دائماً</Text>
-      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 * s, marginTop: 14 * s, backgroundColor: "#F6F5F1", borderRadius: 14 * s, padding: 10 * s, alignSelf: "stretch" }}>
-        <View style={{ backgroundColor: "#FFFFFF", padding: 4 * s, borderRadius: 6 * s }}>
-          <QRCode value={card.verify_url} size={52 * s} color="#1A352E" backgroundColor="#FFFFFF" ecl="M" />
+    <View collapsable={false} style={{ width, height: width * 1.25, backgroundColor: "#ECEAE5", paddingVertical: 24 * s, paddingHorizontal: 22 * s, justifyContent: "space-between", alignItems: "center", overflow: "hidden" }}>
+      <View style={{ alignItems: "center" }}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 * s, height: 26 * s }}>
+          <Image source={logoIn("#21423A")} resizeMode="contain" style={{ width: 24 * s, height: 23 * s }} />
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15 * s, lineHeight: 24 * s, color: "#21423A" }}>حصاحيصاوي</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13 * s, color: "#1E1E1C", textAlign: "right" }}>احصل على بطاقتك مجاناً</Text>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11 * s, color: "#6B675F", textAlign: "right" }}>حمّل تطبيق حصاحيصاوي · امسح الرمز للتحقّق</Text>
+        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 21 * s, lineHeight: 34 * s, color: "#1E1E1C", marginTop: 4 * s }}>بطاقتي في حصاحيصاوي</Text>
+      </View>
+
+      <View style={styles.posterShadow}>
+        <CardFront card={card} width={cardW} sealId="seal-poster" />
+      </View>
+
+      <View style={{ alignItems: "center", alignSelf: "stretch", gap: 10 * s }}>
+        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15 * s, lineHeight: 26 * s, color: "#21423A" }}>الحصاحيصا… في القلب دائماً</Text>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 * s, backgroundColor: "#F6F5F1", borderRadius: 14 * s, paddingVertical: 9 * s, paddingHorizontal: 12 * s, alignSelf: "stretch" }}>
+          <View style={{ backgroundColor: "#FFFFFF", padding: 4 * s, borderRadius: 6 * s }}>
+            <QRCode value={card.verify_url} size={50 * s} color="#1A352E" backgroundColor="#FFFFFF" ecl="M" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13 * s, lineHeight: 22 * s, color: "#1E1E1C", textAlign: "right" }}>احصل على بطاقتك مجاناً</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10.5 * s, lineHeight: 18 * s, color: "#6B675F", textAlign: "right" }}>حمّل تطبيق حصاحيصاوي · امسح الرمز للتحقّق</Text>
+          </View>
         </View>
       </View>
     </View>
+  );
+}
+
+// عارض البطاقة: ملء الشاشة مع تكبير/تصغير (قرص بإصبعين، نقر مزدوج، أو الأزرار) وسحب عند التكبير
+const MIN_ZOOM = 1, MAX_ZOOM = 4;
+function CardViewer({ card, visible, onClose, onSave, saving }: { card: MemberCard; visible: boolean; onClose: () => void; onSave: () => void; saving: boolean }) {
+  const { width: sw } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [back, setBack] = useState(false);
+  const [zoomLabel, setZoomLabel] = useState(100);
+  const cardW = Math.min(sw - 24, 560);
+  const scale = useSharedValue(1), saved = useSharedValue(1);
+  const tx = useSharedValue(0), ty = useSharedValue(0), sx = useSharedValue(0), sy = useSharedValue(0);
+
+  const clampPan = (v: number, sc: number, size: number) => { "worklet"; const lim = Math.max(0, (size * sc - size) / 2); return Math.min(lim, Math.max(-lim, v)); };
+  const report = (v: number) => setZoomLabel(Math.round(v * 100));
+
+  const setZoom = (z: number) => {
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+    scale.value = withTiming(next, { duration: 180 }); saved.value = next;
+    if (next === 1) { tx.value = withTiming(0); ty.value = withTiming(0); }
+    report(next);
+  };
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => { scale.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, saved.value * e.scale)); })
+    .onEnd(() => { saved.value = scale.value; if (scale.value <= 1.01) { tx.value = withTiming(0); ty.value = withTiming(0); } runOnJS(report)(scale.value); });
+  const pan = Gesture.Pan()
+    .averageTouches(true)
+    .onStart(() => { sx.value = tx.value; sy.value = ty.value; })
+    .onUpdate((e) => {
+      if (scale.value <= 1) return;
+      tx.value = clampPan(sx.value + e.translationX, scale.value, cardW);
+      ty.value = clampPan(sy.value + e.translationY, scale.value, cardW * RATIO);
+    });
+  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd(() => {
+    const next = scale.value > 1.2 ? 1 : 2.5;
+    scale.value = withTiming(next, { duration: 200 }); saved.value = next;
+    if (next === 1) { tx.value = withTiming(0); ty.value = withTiming(0); }
+    runOnJS(report)(next);
+  });
+  const gestures = Gesture.Simultaneous(pinch, pan, doubleTap);
+  const zoomStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
+
+  const close = () => { setZoom(1); setBack(false); onClose(); };
+
+  return (
+    <Modal visible={visible} animationType="fade" onRequestClose={close} statusBarTranslucent>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0E0F0E" }}>
+        <View style={[styles.viewerBar, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity onPress={close} style={styles.viewerIcon} accessibilityRole="button" accessibilityLabel="إغلاق"><Ionicons name="close" size={22} color="#F1EEE6" /></TouchableOpacity>
+          <View style={styles.viewerSeg}>
+            {[["الوجه", false], ["رمز التحقّق", true]].map(([label, b]) => (
+              <TouchableOpacity key={String(label)} onPress={() => { setBack(b as boolean); setZoom(1); }} style={[styles.viewerSegBtn, back === b && styles.viewerSegOn]} accessibilityRole="tab" accessibilityState={{ selected: back === b }}>
+                <Text style={[styles.viewerSegText, back === b && { color: "#0E0F0E" }]}>{label as string}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <GestureDetector gesture={gestures}>
+            <Animated.View style={[{ width: cardW, height: cardW * RATIO }, zoomStyle]} collapsable={false}>
+              {back ? <CardBack card={card} width={cardW} /> : <CardFront card={card} width={cardW} sealId="seal-viewer" />}
+            </Animated.View>
+          </GestureDetector>
+          <Text style={styles.viewerHint}>{Platform.OS === "web" ? "استخدم الأزرار للتكبير والتصغير · انقر مرتين للتكبير السريع" : "باعد بإصبعين للتكبير · انقر مرتين للتكبير السريع"}</Text>
+        </View>
+
+        <View style={[styles.viewerTools, { paddingBottom: insets.bottom + 14, maxWidth: Math.min(sw, 560) }]}>
+          <TouchableOpacity onPress={() => setZoom(saved.value - 0.5)} style={styles.viewerIcon} accessibilityRole="button" accessibilityLabel="تصغير"><Ionicons name="remove" size={22} color="#F1EEE6" /></TouchableOpacity>
+          <TouchableOpacity onPress={() => setZoom(1)} style={styles.viewerZoom} accessibilityRole="button" accessibilityLabel="الحجم الأصلي"><Text style={styles.viewerZoomText}>{zoomLabel}%</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setZoom(saved.value + 0.5)} style={styles.viewerIcon} accessibilityRole="button" accessibilityLabel="تكبير"><Ionicons name="add" size={22} color="#F1EEE6" /></TouchableOpacity>
+          <TouchableOpacity onPress={onSave} disabled={saving} style={styles.viewerSave} accessibilityRole="button">
+            {saving ? <ActivityIndicator color="#0E0F0E" /> : <Ionicons name={Platform.OS === "web" ? "download-outline" : "share-social"} size={18} color="#0E0F0E" />}
+            <Text style={styles.viewerSaveText}>{Platform.OS === "web" ? "حفظ الصورة" : "مشاركة الصورة"}</Text>
+          </TouchableOpacity>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
   );
 }
 
@@ -245,6 +361,7 @@ export default function MemberCardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [showBack, setShowBack] = useState(false);
@@ -439,6 +556,9 @@ export default function MemberCardScreen() {
                 <Ionicons name="share-social" size={18} color="#F1EEE6" />
                 <Text style={styles.actionMainText}>مشاركة البطاقة</Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => setViewerOpen(true)} accessibilityRole="button" accessibilityLabel="عرض البطاقة وتكبيرها" style={[styles.actionGhost, { paddingHorizontal: 13 }]}>
+                <Ionicons name="expand-outline" size={18} color="#1E1E1C" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={copyLink} accessibilityRole="button" accessibilityLabel="نسخ رابط البطاقة" style={styles.actionGhost}>
                 <Ionicons name={copied ? "checkmark" : "link-outline"} size={18} color={copied ? "#21423A" : "#1E1E1C"} />
                 <Text style={styles.actionGhostText}>{copied ? "تم النسخ" : "الرابط"}</Text>
@@ -482,6 +602,15 @@ export default function MemberCardScreen() {
         )}
       </ScrollView>
 
+      {card && (
+        <CardViewer
+          card={card}
+          visible={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          onSave={() => { setViewerOpen(false); setPosterOpen(true); }}
+          saving={busy === "share"}
+        />
+      )}
       <Modal visible={posterOpen && !!card} transparent animationType="fade" onRequestClose={() => setPosterOpen(false)}>
         <View style={styles.modalBg}>
           <ScrollView contentContainerStyle={{ alignItems: "center", paddingVertical: 24 }} showsVerticalScrollIndicator={false} style={{ alignSelf: "stretch" }}>
@@ -563,6 +692,18 @@ const styles = StyleSheet.create({
   stateText: { fontFamily: "Cairo_400Regular", color: "#6B675F", fontSize: 14, textAlign: "center", paddingHorizontal: 24 },
   primaryBtn: { marginTop: 4, height: 48, paddingHorizontal: 28, borderRadius: 14, backgroundColor: "#21423A", alignItems: "center", justifyContent: "center" },
   primaryBtnText: { fontFamily: "Cairo_600SemiBold", color: "#F1EEE6", fontSize: 15 },
+  viewerBar: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 10 },
+  viewerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" },
+  viewerSeg: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 12, padding: 3 },
+  viewerSegBtn: { paddingHorizontal: 14, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  viewerSegOn: { backgroundColor: "#E9E3D3" },
+  viewerSegText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#E9E3D3" },
+  viewerHint: { position: "absolute", bottom: 14, fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(241,238,230,0.55)", textAlign: "center", paddingHorizontal: 20 },
+  viewerTools: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 12, alignSelf: "center", width: "100%" },
+  viewerZoom: { minWidth: 64, height: 44, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  viewerZoomText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F1EEE6" },
+  viewerSave: { flex: 1, height: 44, borderRadius: 14, backgroundColor: "#E9E3D3", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6 },
+  viewerSaveText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#0E0F0E" },
   shareSheet: { marginTop: 14, backgroundColor: "#FFFFFF", borderRadius: 20, padding: 16, gap: 12 },
   shareTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1E1E1C", textAlign: "center" },
   socialRow: { flexDirection: "row-reverse", justifyContent: "space-between" },
