@@ -42,7 +42,8 @@ export default function ForgotPasswordScreen() {
   const [sentChannel,    setSentChannel]     = useState<"email" | "sms">("sms");
   const [sentTo,         setSentTo]          = useState("");
 
-  const isEmail = identifier.includes("@");
+  const [mode,           setMode]            = useState<"email" | "phone">("email");
+  const isEmail = mode === "email";
   const base    = getApiUrl();
 
   // ── عداد إعادة الإرسال ───────────────────────────────────────────────────
@@ -55,7 +56,8 @@ export default function ForgotPasswordScreen() {
   // ── Step 1: التحقق من وجود الحساب واختيار المسار ─────────────────────────
   const handleSubmitIdentifier = async () => {
     const id = identifier.trim();
-    if (!id) { setError("أدخل رقم الهاتف أو البريد الإلكتروني"); return; }
+    if (!id) { setError(isEmail ? "أدخل بريدك الإلكتروني" : "أدخل رقم الهاتف"); return; }
+    if (isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) { setError("صيغة البريد الإلكتروني غير صحيحة"); return; }
     setError(""); setLoading(true);
     try {
       // تحقق من وجود الحساب في الخادم
@@ -222,16 +224,16 @@ export default function ForgotPasswordScreen() {
 
               {/* بطاقات توضيح المسار */}
               <View style={styles.methodRow}>
-                <View style={[styles.methodCard, isEmail && styles.methodCardActive]}>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => { setMode("email"); setIdentifier(""); setError(""); }} style={[styles.methodCard, isEmail && styles.methodCardActive]}>
                   <Ionicons name="mail-outline" size={18} color={isEmail ? Colors.primary : Colors.textMuted} />
                   <Text style={[styles.methodText, isEmail && { color: Colors.primary }]}>بريد إلكتروني</Text>
                   <Text style={[styles.methodSub, isEmail && { color: Colors.primary + "aa" }]}>رابط إعادة تعيين</Text>
-                </View>
-                <View style={[styles.methodCard, !isEmail && styles.methodCardActive]}>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => { setMode("phone"); setIdentifier(""); setError(""); }} style={[styles.methodCard, !isEmail && styles.methodCardActive]}>
                   <Ionicons name="phone-portrait-outline" size={18} color={!isEmail ? Colors.primary : Colors.textMuted} />
                   <Text style={[styles.methodText, !isEmail && { color: Colors.primary }]}>رقم الهاتف</Text>
                   <Text style={[styles.methodSub, !isEmail && { color: Colors.primary + "aa" }]}>رمز OTP</Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               <View style={[styles.inputWrap, error ? { borderColor: Colors.danger + "88" } : null]}>
@@ -243,11 +245,14 @@ export default function ForgotPasswordScreen() {
                   style={styles.input}
                   value={identifier}
                   onChangeText={t => { setIdentifier(t); setError(""); }}
-                  placeholder="09XXXXXXXX أو البريد الإلكتروني"
+                  key={mode}
+                  placeholder={isEmail ? "example@gmail.com" : "09XXXXXXXX"}
                   placeholderTextColor={Colors.textMuted}
                   keyboardType={isEmail ? "email-address" : "phone-pad"}
+                  autoCorrect={false}
+                  textContentType={isEmail ? "emailAddress" : "telephoneNumber"}
                   autoCapitalize="none"
-                  textAlign="right"
+                  textAlign={isEmail ? "left" : "right"}
                   returnKeyType="done"
                   onSubmitEditing={handleSubmitIdentifier}
                 />

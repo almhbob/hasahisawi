@@ -11,6 +11,7 @@ import adminAlertsRouter, { captureAdminAlerts, ensureAdminAlertsDb } from "./ad
 import accessGuardsRouter, { womenCornerGuard, genderLockGuard } from "./access-guards";
 import storesRouter, { ensureStoresDb } from "./stores";
 import curriculumUploadRouter from "./curriculum-upload";
+import deviceAuthRouter from "./device-auth";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ router.use(accessGuardsRouter);
 router.use(uploadRouter);
 router.use(storesRouter);
 router.use(curriculumUploadRouter);
+router.use(deviceAuthRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);

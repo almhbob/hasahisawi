@@ -1,6 +1,28 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+import {
+  isBiometricsAvailable, isBiometricsEnabled, setBiometricsEnabled,
+  saveBiometricIdentifier, authenticate,
+} from "@/lib/biometrics";
+
+const DEVICE_KEY = "hsh_device_key_v1";
+export const GOOGLE_BRIDGE_URL = "https://hasahisawi.pages.dev/google-auth";
+
+async function secureGet(k: string): Promise<string | null> {
+  try { return Platform.OS === "web" ? null : await SecureStore.getItemAsync(k); } catch { return null; }
+}
+async function secureSet(k: string, v: string) {
+  if (Platform.OS === "web") return;
+  await SecureStore.setItemAsync(k, v, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+}
+async function secureDel(k: string) {
+  try { if (Platform.OS !== "web") await SecureStore.deleteItemAsync(k); } catch {}
+}
 
 export type AuthUser = {
   id: number;
@@ -28,6 +50,7 @@ type AuthContextValue = {
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithGoogleWeb: () => Promise<void>;
   loginWithBiometrics: () => Promise<boolean>;
+  loginWithToken: (sessionToken: string) => Promise<void>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   loginModerator: (phoneOrEmail: string, password: string) => Promise<void>;
   register: (
@@ -86,6 +109,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const canPost = !isGuest && !!user;
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const avail = await isBiometricsAvailable();
+        setBioAvailable(avail);
+        const flag = await isBiometricsEnabled();
+        const key = await secureGet(DEVICE_KEY);
+        setBioEnabled(avail && flag && !!key);
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -271,19 +308,118 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (_idToken: string) => { throw new Error("تسجيل Google غير متاح في هذه النسخة"); };
-  const loginWithGoogleWeb = async () => { throw new Error("تسجيل Google غير متاح في هذه النسخة"); };
-  const loginWithBiometrics = async () => false;
-  const enableBiometrics = async (_identifier: string) => {};
-  const disableBiometrics = async () => {};
+  // يستقبل توكن جلسة جاهزاً (من جسر Google) ويُكمل الدخول
+  const loginWithToken = async (sessionToken: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser }>(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${sessionToken}` } });
+    if (!data?.user) throw new Error("تعذّر إكمال الدخول");
+    await saveSession(data.user, sessionToken);
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const data = await safeJson<{ user: AuthUser; token: string }>(`${base}/api/auth/firebase-exchange`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }),
+    });
+    await saveSession(data.user, data.token);
+  };
+
+  // Google عبر صفحة آمنة على موقعنا (تعمل مع أي توقيع للتطبيق، بلا SHA-1)
+  const loginWithGoogleWeb = async () => {
+    if (Platform.OS === "web") {
+      const { firebaseLoginGoogleWeb } = await import("@/lib/firebase/auth");
+      const fbUser = await firebaseLoginGoogleWeb();
+      if (!fbUser) throw new Error("تعذّر الدخول عبر Google");
+      await loginWithGoogle(await fbUser.getIdToken(true));
+      return;
+    }
+    const returnUrl = Linking.createURL("auth-callback");
+    const url = `${GOOGLE_BRIDGE_URL}?return=${encodeURIComponent(returnUrl)}`;
+    const result = await WebBrowser.openAuthSessionAsync(url, returnUrl);
+    if (result.type !== "success" || !("url" in result) || !result.url) {
+      throw new Error("أُلغي تسجيل الدخول عبر Google");
+    }
+    const parsed = Linking.parse(result.url);
+    const tok = String((parsed.queryParams as any)?.token || "");
+    if (!tok) throw new Error("أُلغي تسجيل الدخول عبر Google");
+    await loginWithToken(tok);
+  };
+
+  // ── البصمة ──────────────────────────────────────────────────────────────
+  // تفعيل: نطلب من الخادم مفتاح جهاز سرّياً ونحفظه في Keystore/Keychain
+  const enableBiometrics = async (identifier: string) => {
+    try {
+      if (Platform.OS === "web") return;
+      if (!(await isBiometricsAvailable())) throw new Error("لا توجد بصمة مسجّلة على هذا الجهاز");
+      const ok = await authenticate("أكّد بصمتك لتفعيل الدخول السريع");
+      if (!ok) return;
+      const base = getApiUrl();
+      const tk = token || (await AsyncStorage.getItem(TOKEN_KEY));
+      if (!base || !tk) throw new Error("سجّل الدخول أولاً");
+      const prev = await secureGet(DEVICE_KEY);
+      const data = await safeJson<{ device_key: string }>(`${base}/api/auth/device-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ device_name: `${Platform.OS} ${String(Platform.Version ?? "")}`.trim(), previous_key: prev || undefined }),
+      });
+      await secureSet(DEVICE_KEY, data.device_key);
+      await setBiometricsEnabled(true);
+      if (identifier) await saveBiometricIdentifier(identifier);
+      setBioEnabled(true);
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  const loginWithBiometrics = async (): Promise<boolean> => {
+    if (Platform.OS === "web") return false;
+    const key = await secureGet(DEVICE_KEY);
+    if (!key) { setBioEnabled(false); return false; }
+    const ok = await authenticate("سجّل الدخول ببصمتك");
+    if (!ok) return false;
+    const base = getApiUrl();
+    if (!base) throw new Error("الخادم غير متاح");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const res = await fetch(`${base}/api/auth/device-login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_key: key }), signal: ctrl.signal,
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data?.code === "DEVICE_KEY_INVALID") {
+          await secureDel(DEVICE_KEY); await setBiometricsEnabled(false); setBioEnabled(false);
+        }
+        throw new Error(data?.error || "تعذّر الدخول بالبصمة");
+      }
+      await saveSession(data.user, data.token);
+      return true;
+    } finally { clearTimeout(timer); }
+  };
+
+  const disableBiometrics = async () => {
+    const key = await secureGet(DEVICE_KEY);
+    const base = getApiUrl();
+    if (key && base) {
+      fetch(`${base}/api/auth/device-key/revoke`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device_key: key }),
+      }).catch(() => {});
+    }
+    await secureDel(DEVICE_KEY);
+    await setBiometricsEnabled(false);
+    setBioEnabled(false);
+  };
   const refreshBackendToken = async () => token;
 
   return (
     <AuthContext.Provider value={{
       user, token, isLoading, isGuest, canPost,
-      biometricsAvailable: false,
-      biometricsEnabled: false,
-      login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics,
+      biometricsAvailable: bioAvailable,
+      biometricsEnabled: bioEnabled,
+      login, loginWithGoogle, loginWithGoogleWeb, loginWithBiometrics, loginWithToken,
       loginAdmin, loginModerator, register, setUserGender, completeProfile, registerAdmin,
       enterAsGuest, logout, refreshUser, refreshBackendToken,
       enableBiometrics, disableBiometrics, updateProfile,

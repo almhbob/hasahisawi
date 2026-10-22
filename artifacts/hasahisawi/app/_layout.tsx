@@ -216,7 +216,7 @@ function AuthGate() {
     const inOnboarding      = segments[0] === "onboarding";
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
-    const inPublicAuth      = segments[0] === "forgot-password";
+    const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback";
 
     if (!user) {
       if (!inLogin && !inOnboarding && !inPublicAuth) {
@@ -262,6 +262,7 @@ function RootLayoutNav() {
         <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="member-card"     options={{ headerShown: false, animation: "slide_from_bottom", contentStyle: { backgroundColor: "#F3F1EC" } }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="auth-callback"      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="admin"            options={{ headerShown: false, animation: "slide_from_left" }} />
         <Stack.Screen name="admin-transport" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="conversation"    options={{ headerShown: false, animation: "slide_from_left" }} />

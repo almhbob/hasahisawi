@@ -219,7 +219,9 @@ export default function LoginScreen() {
   const handleBiometricLogin = async () => {
     setBioLoading(true);
     try {
-      const success = await loginWithBiometrics();
+      let success = false;
+      try { success = await loginWithBiometrics(); }
+      catch (e: any) { setError(e?.message || "تعذّر الدخول بالبصمة"); }
       if (!success) {
         if (Platform.OS !== "web")
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -240,26 +242,16 @@ export default function LoginScreen() {
     const safetyTimer = setTimeout(() => {
       setLoading(false);
       setError("استغرق تسجيل الدخول وقتاً طويلاً. تحقق من اتصالك وأعد المحاولة.");
-    }, 30000);
+    }, 180000);
     try {
-      // على الويب نستخدم نافذة Firebase المنبثقة (لا حاجة لـ Play Services)
-      if (Platform.OS === "web") {
-        await loginWithGoogleWeb();
-        return;
-      }
-
-      // على الموبايل نستخدم Google Sign-In الأصلي
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const response = await GoogleSignin.signIn();
-      // استخراج idToken بطريقة تدعم كلا الإصدارين من المكتبة
-      const idToken = (response as any)?.data?.idToken ?? (response as any)?.idToken;
-      if (!idToken) throw new Error("تعذّر الحصول على رمز Google");
-      await loginWithGoogle(idToken);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // الويب: نافذة Firebase المنبثقة — الموبايل: صفحة دخول Google الآمنة ثم العودة للتطبيق
+      await loginWithGoogleWeb();
+      if (Platform.OS !== "web")
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const code = e?.code ?? "";
       // إلغاء النافذة المنبثقة من المستخدم — تجاهل بصمت
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || String(e?.message || "").startsWith("أُلغي")) {
         return;
       }
       if (code === "auth/unauthorized-domain" || e?.message?.includes("unauthorized-domain")) {
@@ -407,7 +399,7 @@ export default function LoginScreen() {
       `هل تريد استخدام ${bioLabel} لتسجيل الدخول بسرعة في المرة القادمة؟`,
       [
         { text: "لا شكراً", style: "cancel" },
-        { text: "نعم، فعّل", onPress: () => enableBiometrics(id) },
+        { text: "نعم، فعّل", onPress: () => { enableBiometrics(id).catch((e: any) => Alert.alert("تعذّر تفعيل البصمة", e?.message || "حاول لاحقاً من الملف الشخصي")); } },
       ],
     );
   };
