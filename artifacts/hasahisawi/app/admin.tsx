@@ -321,7 +321,7 @@ function AdminLegalSuggestionsTab({ token, apiBase }: { token: string; apiBase: 
           </TouchableOpacity>
         ))}
       </View>
-      {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : suggestions.length === 0 ? (
+      {loading ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : suggestions.length === 0 ? (
         <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد اقتراحات</Text>
       ) : suggestions.map(s => (
         <View key={s.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
@@ -467,7 +467,7 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
       {/* View toggle + Export */}
       <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14, alignItems: "center" }}>
         {(["apps", "active"] as const).map(v => (
-          <TouchableOpacity key={v} onPress={() => setView(v)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: view === v ? "#8B5CF6" : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: view === v ? "#8B5CF6" : "#FFFFFF10" }}>
+          <TouchableOpacity key={v} onPress={() => setView(v)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: view === v ? "#1F5C8A" : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: view === v ? "#1F5C8A" : "#FFFFFF10" }}>
             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: view === v ? "#fff" : "#9CA3AF" }}>
               {v === "apps" ? "الطلبات" : "المحامون"}
             </Text>
@@ -489,7 +489,7 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
               </TouchableOpacity>
             ))}
           </View>
-          {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : apps.length === 0 ? (
+          {loading ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : apps.length === 0 ? (
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
           ) : apps.map(a => (
             <View key={a.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14, borderRightWidth: 4, borderRightColor: SC[a.status] ?? "#888" }}>
@@ -507,7 +507,7 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
                   <TouchableOpacity onPress={() => rejectApp(a.id)} style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
                     <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 13 }}>رفض</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => approveApp(a.id)} style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#8B5CF6", alignItems: "center" }}>
+                  <TouchableOpacity onPress={() => approveApp(a.id)} style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#1F5C8A", alignItems: "center" }}>
                     <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>قبول وتفعيل</Text>
                   </TouchableOpacity>
                 </View>
@@ -519,7 +519,7 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
 
       {view === "active" && (
         <>
-          {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : lawyers.length === 0 ? (
+          {loading ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : lawyers.length === 0 ? (
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا يوجد محامون مسجلون</Text>
           ) : lawyers.map(l => (
             <View key={l.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14 }}>
@@ -730,8 +730,8 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{sl.doctor_name || "طبيب"}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 6, alignItems: "center" }}>
-              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#6366F120" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#6366F1" }}>{typeLabel(sl.leave_type)}</Text>
+              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#1F5C8A20" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#1F5C8A" }}>{typeLabel(sl.leave_type)}</Text>
               </View>
               <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: statusColor(sl.status || "pending") + "20" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: statusColor(sl.status || "pending") }}>{statusLabel(sl.status || "pending")}</Text>
@@ -840,7 +840,7 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
 
 // ─── Admin Zawajil Tab ────────────────────────────────────────────────────────
 function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string }) {
-  const PINK = "#EC4899";
+  const PINK = "#C46A3A";
   const [subTab, setSubTab] = React.useState<"orders" | "applications">("orders");
   const [orders, setOrders] = React.useState<any[]>([]);
   const [apps, setApps] = React.useState<any[]>([]);
@@ -908,7 +908,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
 
   const STATUS_NEXT: Record<string, string> = { approved: "preparing", preparing: "sending", sending: "completed" };
   const STATUS_LABEL: Record<string, string> = { pending_review: "قيد المراجعة", approved: "مقبول", preparing: "جارٍ التجهيز", sending: "في الطريق", completed: "مكتمل", rejected: "مرفوض" };
-  const STATUS_COLOR: Record<string, string> = { pending_review: "#F59E0B", approved: "#22C55E", preparing: "#0EA5E9", sending: "#C084FC", completed: "#3EFF9C", rejected: "#EF4444" };
+  const STATUS_COLOR: Record<string, string> = { pending_review: "#F59E0B", approved: "#22C55E", preparing: "#0EA5E9", sending: "#5B8DB8", completed: "#2EAD6B", rejected: "#EF4444" };
   const roleLabel = (r: string) => ({ zaajil:"زاجل", krowan:"كروان", khattaat:"خطاط", gift_store:"متجر هدايا", service_girl:"مُقدِّمة خدمة", service_boy:"مُقدِّم خدمة" } as any)[r] || r;
 
   const ORD_FILTERS = [["pending_review","معلقة"], ["approved","مقبولة"], ["preparing","تجهيز"], ["sending","إرسال"], ["completed","مكتملة"], ["all","الكل"]];
@@ -1085,7 +1085,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
 
 // ─── Admin Student Union Tab ──────────────────────────────────────────────────
 function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: string }) {
-  const UC = "#6366F1";
+  const UC = "#1F5C8A";
   const [apps, setApps] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [acting, setActing] = React.useState<number | null>(null);
@@ -1333,7 +1333,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
               <TouchableOpacity
                 onPress={() => grantManager(a.id)}
                 disabled={granting === a.id}
-                style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#1F5C8A", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
                 {granting === a.id ? <ActivityIndicator size="small" color="#fff" /> : (
                   <>
                     <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
@@ -1351,7 +1351,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
 
 // ─── Admin Unions Tab ─────────────────────────────────────────────────────────
 function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) {
-  const UC = "#8B5CF6";
+  const UC = "#1F5C8A";
   const [subTab, setSubTab] = React.useState<"members" | "unions" | "announcements">("members");
   const [unions, setUnions]       = React.useState<any[]>([]);
   const [members, setMembers]     = React.useState<any[]>([]);
@@ -2027,9 +2027,9 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       {/* مودال بيانات دخول مدير الاتحاد */}
       <Modal visible={!!grantResult2} transparent animationType="fade" onRequestClose={() => setGrantResult2(null)}>
         <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
-          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 14, borderWidth: 1, borderColor: "#6366F140" }}>
+          <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 14, borderWidth: 1, borderColor: "#1F5C8A40" }}>
             <View style={{ alignItems: "center", gap: 6 }}>
-              <Ionicons name="shield-checkmark" size={40} color="#6366F1" />
+              <Ionicons name="shield-checkmark" size={40} color="#1F5C8A" />
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "center" }}>تم منح صلاحيات إدارة الإتحاد</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>{grantResult2?.full_name}</Text>
             </View>
@@ -2037,7 +2037,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>بيانات دخول بوابة إدارة الاتحاد</Text>
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>اسم المستخدم</Text>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#6366F1" }}>{grantResult2?.username}</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1F5C8A" }}>{grantResult2?.username}</Text>
               </View>
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>كلمة المرور المؤقتة</Text>
@@ -2048,7 +2048,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               أرسل هذه البيانات للعضو — لا يمكن استعادة كلمة المرور لاحقاً
             </Text>
             <TouchableOpacity onPress={() => setGrantResult2(null)}
-              style={{ backgroundColor: "#6366F1", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
+              style={{ backgroundColor: "#1F5C8A", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>حسناً — تم التسجيل</Text>
             </TouchableOpacity>
           </View>
@@ -2128,7 +2128,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               {/* زر منح صلاحيات الاتحاد للمقبولين - طلبات الطلاب */}
               {sub === "student_union" && isApproved && (
                 <TouchableOpacity onPress={() => grantStudentUnionManager(item.id)} disabled={granting2 === item.id}
-                  style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: "#7C3AED", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                  style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: "#1F5C8A", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
                   {granting2 === item.id ? <ActivityIndicator size="small" color="#fff" /> : (
                     <>
                       <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
@@ -2585,7 +2585,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
               <TouchableOpacity onPress={() => setAddProductStore(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.bg, alignItems: "center" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", color: Colors.textMuted }}>إلغاء</Text>
               </TouchableOpacity>
-              <TouchableOpacity disabled={addProdSending} onPress={addProduct} style={{ flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: "#A855F7", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+              <TouchableOpacity disabled={addProdSending} onPress={addProduct} style={{ flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: "#3B78A6", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
                 {addProdSending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontFamily: "Cairo_700Bold", color: "#fff" }}>إضافة المنتج</Text>}
               </TouchableOpacity>
             </View>
@@ -2604,8 +2604,8 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             key={k}
             onPress={() => setSubView(k)}
             style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", gap: 2,
-              backgroundColor: subView === k ? "#A855F7" : Colors.bg,
-              borderWidth: 1, borderColor: subView === k ? "#A855F7" : Colors.divider }}
+              backgroundColor: subView === k ? "#3B78A6" : Colors.bg,
+              borderWidth: 1, borderColor: subView === k ? "#3B78A6" : Colors.divider }}
           >
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: subView === k ? "#fff" : Colors.textMuted }}>{label}</Text>
             {cnt > 0 && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: subView === k ? "#ffffffCC" : Colors.textSubtle }}>{cnt}</Text>}
@@ -2618,11 +2618,11 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        {loading && <ActivityIndicator color="#A855F7" style={{ marginTop: 30 }} />}
+        {loading && <ActivityIndicator color="#3B78A6" style={{ marginTop: 30 }} />}
 
         {/* ── المتاجر ── */}
         {subView === "stores" && !loading && stores.map(store => (
-          <View key={store.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: "#A855F730", padding: 14, gap: 8 }}>
+          <View key={store.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: "#3B78A630", padding: 14, gap: 8 }}>
             {/* رأس */}
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
               <View style={{ flex: 1 }}>
@@ -2660,8 +2660,8 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                   setExpandedStore(expandedStore === store.id ? null : store.id);
                   if (expandedStore !== store.id && !products[store.id]) loadProducts(store.id);
                 }}
-                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#A855F710", borderWidth: 1, borderColor: "#A855F740" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" }}>{expandedStore === store.id ? "إخفاء المنتجات" : `المنتجات (${store.product_count})`}</Text>
+                style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#3B78A610", borderWidth: 1, borderColor: "#3B78A640" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#3B78A6" }}>{expandedStore === store.id ? "إخفاء المنتجات" : `المنتجات (${store.product_count})`}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setAddProductStore(store); setNewProdName(""); setNewProdPrice(""); setNewProdEmoji("🛍️"); setNewProdDesc(""); }}
                 style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#10B98110", borderWidth: 1, borderColor: "#10B98140" }}>
@@ -2683,7 +2683,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                     <Text style={{ fontSize: 20 }}>{prod.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{prod.name}</Text>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#A855F7" }}>{prod.price.toLocaleString("en-US")} ج</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3B78A6" }}>{prod.price.toLocaleString("en-US")} ج</Text>
                     </View>
                     <TouchableOpacity onPress={() => deleteProduct(store.id, prod.id)}>
                       <Ionicons name="trash-outline" size={16} color="#EF4444" />
@@ -2707,7 +2707,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>🏪 {order.store_name}</Text>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>👤 {order.customer_name} · {order.customer_phone}</Text>
             {order.customer_address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>📍 {order.customer_address}</Text> : null}
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7", textAlign: "right" }}>الإجمالي: {Number(order.total).toLocaleString("en-US")} ج</Text>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3B78A6", textAlign: "right" }}>الإجمالي: {Number(order.total).toLocaleString("en-US")} ج</Text>
             {order.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>📝 {order.notes}</Text> : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {["pending","confirmed","preparing","delivered","cancelled"].map(s => (
@@ -4291,16 +4291,16 @@ export default function AdminDashboard() {
     { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
-    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#6366F1",      adminOnly: true, badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
-    { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#7C3AED",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
+    { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#1F5C8A",      adminOnly: true, badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
+    { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#1F5C8A",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
-    { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#8B5CF6",      adminOnly: true },
+    { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#1F5C8A",      adminOnly: true },
     { key: "sick_leaves",      label: "الإجازات المرضية",   icon: "medical",            color: "#10B981",      adminOnly: true },
     { key: "admissions",       label: "التنويم",            icon: "bed",                color: "#3B82F6",      adminOnly: true },
-    { key: "zawajil",          label: "زواجل",              icon: "gift",               color: "#EC4899",      adminOnly: true },
-    { key: "student_union",    label: "إتحاد الطلاب",       icon: "people-circle",      color: "#6366F1",      adminOnly: true },
+    { key: "zawajil",          label: "زواجل",              icon: "gift",               color: "#C46A3A",      adminOnly: true },
+    { key: "student_union",    label: "إتحاد الطلاب",       icon: "people-circle",      color: "#1F5C8A",      adminOnly: true },
     { key: "partners",         label: "بوابة الشركاء",      icon: "handshake-outline" as any, color: "#F97316", adminOnly: true },
-    { key: "lawyers_admin",    label: "المحامون",           icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
+    { key: "lawyers_admin",    label: "المحامون",           icon: "briefcase",          color: "#1F5C8A",      adminOnly: true },
     { key: "designers_admin",  label: "المصممون",           icon: "color-palette",      color: "#F472B6",      adminOnly: true },
     { key: "join_requests",    label: "طلبات الانضمام",     icon: "person-add",         color: "#F59E0B",      adminOnly: true },
     { key: "reports_admin",    label: "البلاغات",            icon: "warning",            color: "#EF4444",      adminOnly: true },
@@ -4309,10 +4309,10 @@ export default function AdminDashboard() {
     { key: "factories_admin",  label: "المصانع",             icon: "business-outline" as any, color: "#6B7280", adminOnly: true },
     { key: "farmers_admin",    label: "السوق الزراعي",       icon: "leaf",               color: "#16A34A",      adminOnly: true },
     { key: "rentals_admin",    label: "الإيجارات",           icon: "home",               color: "#0EA5E9",      adminOnly: true },
-    { key: "jobs_admin",       label: "الوظائف",             icon: "briefcase",          color: "#8B5CF6",      adminOnly: true },
+    { key: "jobs_admin",       label: "الوظائف",             icon: "briefcase",          color: "#1F5C8A",      adminOnly: true },
     { key: "ratings_admin",      label: "التقييمات",           icon: "star",               color: "#F59E0B",      adminOnly: true },
-    { key: "feedback_admin",     label: "الشكاوى والمقترحات",  icon: "chatbubbles",        color: "#06B6D4",      adminOnly: true },
-    { key: "women_stores_admin", label: "متاجر ركن المرأة",    icon: "bag-personal-outline" as any, color: "#A855F7", adminOnly: true },
+    { key: "feedback_admin",     label: "الشكاوى والمقترحات",  icon: "chatbubbles",        color: "#2F8A8A",      adminOnly: true },
+    { key: "women_stores_admin", label: "متاجر ركن المرأة",    icon: "bag-personal-outline" as any, color: "#3B78A6", adminOnly: true },
   ];
 
   const TABS = ALL_TABS.filter(t => {
@@ -4527,11 +4527,11 @@ export default function AdminDashboard() {
                   <StatCard icon="briefcase-outline"      label="وظائف نشطة"       value={stats.sections.jobs_active}     color="#10B981" />
                   <StatCard icon="warning-outline"        label="بلاغات معلقة"      value={stats.sections.reports_pending} color="#EF4444" />
                   <StatCard icon="search-outline"         label="مفقودون"           value={stats.sections.missing_lost}    color="#F59E0B" />
-                  <StatCard icon="business-outline"       label="مصانع نشطة"        value={stats.sections.factories_active} color="#8B5CF6" />
-                  <StatCard icon="home-outline"           label="إيجارات نشطة"      value={stats.sections.rentals_active}  color="#06B6D4" />
+                  <StatCard icon="business-outline"       label="مصانع نشطة"        value={stats.sections.factories_active} color="#1F5C8A" />
+                  <StatCard icon="home-outline"           label="إيجارات نشطة"      value={stats.sections.rentals_active}  color="#2F8A8A" />
                   <StatCard icon="chatbubble-outline"     label="مقترحات معلقة"     value={stats.sections.feedback_pending} color="#F97316" />
                   <StatCard icon="star-outline"           label="التقييمات"         value={stats.sections.ratings_total}   color="#FBBF24" />
-                  <StatCard icon="airplane-outline"       label="وكالات بانتظار"    value={stats.sections.travel_pending}  color="#EC4899" />
+                  <StatCard icon="airplane-outline"       label="وكالات بانتظار"    value={stats.sections.travel_pending}  color="#C46A3A" />
                 </Animated.View>
               )}
 
@@ -4545,7 +4545,7 @@ export default function AdminDashboard() {
                 const statusColors: Record<string, string> = {
                   healthy: "#10B981", needs_sync: "#F59E0B",
                   firebase_error: "#EF4444", missing_env: "#6B7280",
-                  invalid_json: "#EF4444", configured: "#06B6D4", loading: "#6B7280",
+                  invalid_json: "#EF4444", configured: "#2F8A8A", loading: "#6B7280",
                 };
                 const statusLabels: Record<string, string> = {
                   healthy: "مزامَن بالكامل ✓", needs_sync: "يحتاج مزامنة",
@@ -6701,7 +6701,7 @@ export default function AdminDashboard() {
           {!loadingAdminMerchants && adminMerchants.length > 0 && (
             <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
               {[
-                { label: "الكل",            val: adminMerchants.length,                                       color: "#6366F1" },
+                { label: "الكل",            val: adminMerchants.length,                                       color: "#1F5C8A" },
                 { label: "بانتظار الموافقة", val: adminMerchants.filter(m => m.status === "pending").length,  color: "#F59E0B" },
                 { label: "معتمدة",          val: adminMerchants.filter(m => m.status === "approved").length, color: "#10B981" },
               ].map(stat => (
@@ -6713,7 +6713,7 @@ export default function AdminDashboard() {
             </View>
           )}
           {loadingAdminMerchants ? (
-            <ActivityIndicator color="#6366F1" style={{ marginTop: 60 }} />
+            <ActivityIndicator color="#1F5C8A" style={{ marginTop: 60 }} />
           ) : adminMerchants.length === 0 ? (
             <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: "center", paddingVertical: 60 }}>
               <MaterialCommunityIcons name="store-outline" size={56} color={Colors.textMuted} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -6729,7 +6729,7 @@ export default function AdminDashboard() {
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                       <Text style={[s.cardTitle, { fontSize: 15 }]}>{m.shop_name}</Text>
-                      {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#6366F1" />}
+                      {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#1F5C8A" />}
                       {m.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
                     </View>
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
@@ -6761,9 +6761,9 @@ export default function AdminDashboard() {
                   <TouchableOpacity
                     onPress={() => toggleMerchantVerified(m.id, m.is_verified)}
                     style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
-                      backgroundColor: m.is_verified ? Colors.bg : "#6366F115",
-                      borderWidth: 1, borderColor: m.is_verified ? Colors.divider : "#6366F140" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_verified ? Colors.textMuted : "#6366F1" }}>
+                      backgroundColor: m.is_verified ? Colors.bg : "#1F5C8A15",
+                      borderWidth: 1, borderColor: m.is_verified ? Colors.divider : "#1F5C8A40" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_verified ? Colors.textMuted : "#1F5C8A" }}>
                       {m.is_verified ? "إلغاء التوثيق" : "توثيق"}
                     </Text>
                   </TouchableOpacity>
@@ -6802,7 +6802,7 @@ export default function AdminDashboard() {
             </Text>
           ) : (
             marketOrders.map((o, i) => (
-              <Animated.View key={o.id} entering={FadeInDown.delay(i * 50).springify()} style={[s.card, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#6366F1" : "#F59E0B" }]}>
+              <Animated.View key={o.id} entering={FadeInDown.delay(i * 50).springify()} style={[s.card, { marginBottom: 12, borderLeftWidth: 3, borderLeftColor: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#1F5C8A" : "#F59E0B" }]}>
                 <View style={[s.cardHeaderRow, { marginBottom: 8 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.cardTitle, { fontSize: 14 }]}>{o.order_number}{o.shop_name ? ` · ${o.shop_name}` : ""}</Text>
@@ -6810,8 +6810,8 @@ export default function AdminDashboard() {
                       {o.customer_name} · {o.customer_phone}
                     </Text>
                   </View>
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: o.status === "delivered" ? "#10B98120" : o.status === "cancelled" ? Colors.danger + "20" : o.status === "confirmed" ? "#6366F120" : "#F59E0B20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#6366F1" : "#F59E0B" }}>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: o.status === "delivered" ? "#10B98120" : o.status === "cancelled" ? Colors.danger + "20" : o.status === "confirmed" ? "#1F5C8A20" : "#F59E0B20" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#1F5C8A" : "#F59E0B" }}>
                       {o.status === "delivered" ? "تم التسليم" : o.status === "cancelled" ? "ملغي" : o.status === "confirmed" ? "مؤكد" : "بانتظار التأكيد"}
                     </Text>
                   </View>
@@ -6823,8 +6823,8 @@ export default function AdminDashboard() {
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                   {o.status === "pending" && (
                     <TouchableOpacity onPress={() => updateOrderStatus(o.id, "confirmed")}
-                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#6366F115", borderWidth: 1, borderColor: "#6366F140" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#6366F1" }}>تأكيد الطلب</Text>
+                      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#1F5C8A15", borderWidth: 1, borderColor: "#1F5C8A40" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1F5C8A" }}>تأكيد الطلب</Text>
                     </TouchableOpacity>
                   )}
                   {(o.status === "pending" || o.status === "confirmed") && (
@@ -6852,7 +6852,7 @@ export default function AdminDashboard() {
           {/* Summary bar */}
           <View style={{ flexDirection:"row-reverse", gap:10, marginBottom:16 }}>
             {[
-              { label:"الكل",      val: adminPhoneShops.length,                             color:"#7C3AED" },
+              { label:"الكل",      val: adminPhoneShops.length,                             color:"#1F5C8A" },
               { label:"بانتظار الموافقة", val: adminPhoneShops.filter(s=>!s.is_approved).length, color:"#F59E0B" },
               { label:"مفعّلة",    val: adminPhoneShops.filter(s=>s.is_approved).length,    color:"#10B981" },
             ].map(stat=>(
@@ -6863,7 +6863,7 @@ export default function AdminDashboard() {
             ))}
           </View>
           {loadingPhoneShops ? (
-            <ActivityIndicator color="#7C3AED" style={{ marginTop: 40 }} />
+            <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} />
           ) : adminPhoneShops.length === 0 ? (
             <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems:"center", paddingVertical:60 }}>
               <MaterialCommunityIcons name="cellphone-off" size={56} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
@@ -6874,13 +6874,13 @@ export default function AdminDashboard() {
               <Animated.View key={shop.id} entering={FadeInDown.delay(i*60).springify()} style={[s.card, { marginBottom:12, borderLeftWidth:3, borderLeftColor: shop.is_approved?"#10B981":"#F59E0B" }]}>
                 {/* Header */}
                 <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, marginBottom:12 }}>
-                  <View style={{ width:52,height:52,borderRadius:16,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center" }}>
+                  <View style={{ width:52,height:52,borderRadius:16,backgroundColor:"#1F5C8A15",alignItems:"center",justifyContent:"center" }}>
                     <Text style={{ fontSize:26 }}>{shop.logo_emoji}</Text>
                   </View>
                   <View style={{ flex:1 }}>
                     <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                       <Text style={[s.cardTitle, { fontSize:15 }]}>{shop.shop_name}</Text>
-                      {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#7C3AED" />}
+                      {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#1F5C8A" />}
                       {shop.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
                     </View>
                     <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>
@@ -6898,8 +6898,8 @@ export default function AdminDashboard() {
                 {shop.specialties?.length > 0 && (
                   <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
                     {shop.specialties.slice(0,5).map((sp: string)=>(
-                      <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#7C3AED12" }}>
-                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                      <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#1F5C8A12" }}>
+                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
                       </View>
                     ))}
                   </View>
@@ -6929,9 +6929,9 @@ export default function AdminDashboard() {
                   </TouchableOpacity>
                   <TouchableOpacity onPress={()=>verifyPhoneShop(shop.id, shop.is_verified)}
                     style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
-                      backgroundColor: shop.is_verified?Colors.bg:"#7C3AED15", borderWidth:1,
-                      borderColor: shop.is_verified?Colors.divider:"#7C3AED40" }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_verified?Colors.textMuted:"#7C3AED" }}>
+                      backgroundColor: shop.is_verified?Colors.bg:"#1F5C8A15", borderWidth:1,
+                      borderColor: shop.is_verified?Colors.divider:"#1F5C8A40" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_verified?Colors.textMuted:"#1F5C8A" }}>
                       {shop.is_verified?"إلغاء التوثيق":"توثيق"}
                     </Text>
                   </TouchableOpacity>
@@ -7521,8 +7521,8 @@ export default function AdminDashboard() {
               return (
                 <TouchableOpacity key={f} onPress={() => setJobsFilter(f)}
                   style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-                    backgroundColor: jobsFilter === f ? "#8B5CF6" : "#FFFFFF0A",
-                    borderWidth: 1, borderColor: jobsFilter === f ? "#8B5CF6" : "#FFFFFF15" }}>
+                    backgroundColor: jobsFilter === f ? "#1F5C8A" : "#FFFFFF0A",
+                    borderWidth: 1, borderColor: jobsFilter === f ? "#1F5C8A" : "#FFFFFF15" }}>
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: jobsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
                 </TouchableOpacity>
               );
@@ -7533,7 +7533,7 @@ export default function AdminDashboard() {
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminJobs.length} وظيفة</Text>
           </ScrollView>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            {loadingJobs ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} /> : (() => {
+            {loadingJobs ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : (() => {
               const filtered = jobsFilter === "all" ? adminJobs
                 : jobsFilter === "active" ? adminJobs.filter(j => j.is_active)
                 : adminJobs.filter(j => !j.is_active);
@@ -7542,17 +7542,17 @@ export default function AdminDashboard() {
                 <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد وظائف</Text>
               ) : filtered.map(job => (
                 <View key={job.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1,
-                  borderColor: job.is_active ? "#8B5CF640" : "#6B728040", borderRightWidth: 4, borderRightColor: job.is_active ? "#8B5CF6" : "#6B7280",
+                  borderColor: job.is_active ? "#1F5C8A40" : "#6B728040", borderRightWidth: 4, borderRightColor: job.is_active ? "#1F5C8A" : "#6B7280",
                   padding: 14, marginBottom: 12 }}>
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{job.title}</Text>
-                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: job.is_active ? "#8B5CF620" : "#6B728020" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: job.is_active ? "#8B5CF6" : "#9CA3AF" }}>{job.is_active ? "● نشطة" : "◌ معطّلة"}</Text>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: job.is_active ? "#1F5C8A20" : "#6B728020" }}>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: job.is_active ? "#1F5C8A" : "#9CA3AF" }}>{job.is_active ? "● نشطة" : "◌ معطّلة"}</Text>
                     </View>
                   </View>
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 2 }}>{job.company}</Text>
                   <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 4 }}>
-                    {job.type && <View style={{ backgroundColor: "#8B5CF615", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#A78BFA" }}>{TYPE_LABEL[job.type] || job.type}</Text></View>}
+                    {job.type && <View style={{ backgroundColor: "#1F5C8A15", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5B8DB8" }}>{TYPE_LABEL[job.type] || job.type}</Text></View>}
                     {job.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>📍 {job.location}</Text>}
                   </View>
                   {job.salary && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#10B981", textAlign: "right", marginBottom: 2 }}>💰 {job.salary}</Text>}
@@ -7650,7 +7650,7 @@ export default function AdminDashboard() {
           {/* مودال الرد */}
           <Modal visible={!!replyingTo} transparent animationType="fade" onRequestClose={() => { setReplyingTo(null); setReplyText(""); }}>
             <View style={{ flex: 1, backgroundColor: "#000000BB", justifyContent: "center", alignItems: "center", padding: 24 }}>
-              <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 12, borderWidth: 1, borderColor: "#06B6D440" }}>
+              <View style={{ backgroundColor: Colors.cardBg, borderRadius: 20, padding: 24, width: "100%", gap: 12, borderWidth: 1, borderColor: "#2F8A8A40" }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" }}>رد على: {replyingTo?.title}</Text>
                 <TextInput
                   value={replyText} onChangeText={setReplyText}
@@ -7676,7 +7676,7 @@ export default function AdminDashboard() {
                         } else { const d = await safeJson(res); Alert.alert("خطأ", d.error || "تعذّر إرسال الرد"); }
                       } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setFeedbackActing(null); }
                     }}
-                    style={{ flex: 2, paddingVertical: 11, borderRadius: 12, backgroundColor: "#06B6D4", alignItems: "center", opacity: replyText.trim() ? 1 : 0.5 }}>
+                    style={{ flex: 2, paddingVertical: 11, borderRadius: 12, backgroundColor: "#2F8A8A", alignItems: "center", opacity: replyText.trim() ? 1 : 0.5 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>إرسال الرد</Text>
                   </TouchableOpacity>
                 </View>
@@ -7691,7 +7691,7 @@ export default function AdminDashboard() {
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            {loadingFeedback ? <ActivityIndicator color="#06B6D4" style={{ marginTop: 40 }} /> :
+            {loadingFeedback ? <ActivityIndicator color="#2F8A8A" style={{ marginTop: 40 }} /> :
              adminFeedback.length === 0 ? (
               <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد شكاوى أو مقترحات</Text>
              ) : adminFeedback.map(fb => {
@@ -7719,17 +7719,17 @@ export default function AdminDashboard() {
                    {fb.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>🏷️ {fb.category}</Text>}
                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{fb.body}</Text>
                    {fb.admin_reply && (
-                     <View style={{ backgroundColor: "#06B6D410", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#06B6D430" }}>
-                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#06B6D4", textAlign: "right", marginBottom: 4 }}>✅ ردّ الإدارة:</Text>
+                     <View style={{ backgroundColor: "#2F8A8A10", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#2F8A8A30" }}>
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#2F8A8A", textAlign: "right", marginBottom: 4 }}>✅ ردّ الإدارة:</Text>
                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{fb.admin_reply}</Text>
                      </View>
                    )}
                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(fb.created_at).toLocaleDateString("ar-EG")}</Text>
                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                      <TouchableOpacity onPress={() => { setReplyingTo(fb); setReplyText(fb.admin_reply || ""); }}
-                       style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#06B6D415", borderWidth: 1, borderColor: "#06B6D440", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
-                       <Ionicons name="chatbubble-outline" size={14} color="#06B6D4" />
-                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#06B6D4" }}>{fb.admin_reply ? "تعديل الرد" : "ردّ"}</Text>
+                       style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#2F8A8A15", borderWidth: 1, borderColor: "#2F8A8A40", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                       <Ionicons name="chatbubble-outline" size={14} color="#2F8A8A" />
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#2F8A8A" }}>{fb.admin_reply ? "تعديل الرد" : "ردّ"}</Text>
                      </TouchableOpacity>
                    </View>
                  </View>
@@ -7812,9 +7812,9 @@ export default function AdminDashboard() {
                   { icon: "chatbubble-outline",     label: "التعليقات",    value: st.comments_count,     color: "#3B82F6"       },
                   { icon: "heart-outline",          label: "الإعجابات",   value: st.likes_count,        color: "#E74C6F"       },
                   { icon: "megaphone-outline",      label: "البلاغات",     value: st.reports_count,      color: "#F59E0B"       },
-                  { icon: "chatbubbles-outline",    label: "الرسائل",      value: st.messages_count,     color: "#06B6D4"       },
+                  { icon: "chatbubbles-outline",    label: "الرسائل",      value: st.messages_count,     color: "#2F8A8A"       },
                   { icon: "pricetag-outline",       label: "الإعلانات",    value: st.ads_count,          color: "#F0A500"       },
-                  { icon: "calendar-outline",       label: "المواعيد",     value: st.appointments_count, color: "#8B5CF6"       },
+                  { icon: "calendar-outline",       label: "المواعيد",     value: st.appointments_count, color: "#1F5C8A"       },
                 ];
 
                 return (

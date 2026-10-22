@@ -62,14 +62,14 @@ type Stats = {
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────
-const PURPLE = "#8B5CF6";
+const PURPLE = "#B08D3C";
 const GOLD   = "#F59E0B";
 const GREEN  = "#10B981";
 const RED    = "#EF4444";
 const BLUE   = "#3B82F6";
-const BG     = "#0F0F1A";
-const CARD   = "#1A1A2E";
-const BORDER = "#2D2D44";
+const BG     = "#0E1B2A";
+const CARD   = "#15263A";
+const BORDER = "#23384F";
 
 const STATUS_CONF: Record<string, { ar: string; color: string; icon: string }> = {
   pending:     { ar: "قيد المراجعة",  color: GOLD,   icon: "time-outline" },
@@ -214,7 +214,7 @@ function LegalFormsTab({ token }: { token: string }) {
   return (
     <View style={{ flex: 1 }}>
       {/* inner tab bar */}
-      <View style={{ flexDirection: "row", backgroundColor: "#0D0D1F", borderBottomWidth: 1, borderBottomColor: "#1E1E3A" }}>
+      <View style={{ flexDirection: "row", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: "#1E1E3A" }}>
         {[["browse","استمارات الاقتراح"], ["mine","اقتراحاتي"]].map(([k, lbl]) => (
           <TouchableOpacity key={k} onPress={() => setInnerTab(k as any)}
             style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: innerTab === k ? PURPLE : "transparent" }}>
@@ -234,7 +234,7 @@ function LegalFormsTab({ token }: { token: string }) {
           </Text>
           {forms.map(f => (
             <TouchableOpacity key={f.id} onPress={() => setSelected(selected?.id === f.id ? null : f)}
-              style={{ backgroundColor: selected?.id === f.id ? PURPLE + "22" : "#0F0F24", borderRadius: 14, borderWidth: 1, borderColor: selected?.id === f.id ? PURPLE : "#1E1E3A", padding: 14, marginBottom: 10 }}>
+              style={{ backgroundColor: selected?.id === f.id ? PURPLE + "22" : "#15263A", borderRadius: 14, borderWidth: 1, borderColor: selected?.id === f.id ? PURPLE : "#1E1E3A", padding: 14, marginBottom: 10 }}>
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
                 <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: PURPLE + "20", alignItems: "center", justifyContent: "center" }}>
                   <Ionicons name="document-text-outline" size={20} color={PURPLE} />
@@ -249,7 +249,7 @@ function LegalFormsTab({ token }: { token: string }) {
           ))}
 
           {selected && (
-            <View style={{ backgroundColor: "#0F0F24", borderRadius: 16, borderWidth: 1, borderColor: PURPLE + "40", padding: 16, marginTop: 8 }}>
+            <View style={{ backgroundColor: "#15263A", borderRadius: 16, borderWidth: 1, borderColor: PURPLE + "40", padding: 16, marginTop: 8 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right", marginBottom: 10 }}>اقتراح تعديل: {selected.title}</Text>
               <TextInput value={suggText} onChangeText={setSuggText} placeholder="اكتب ملاحظتك أو التعديل المقترح..." placeholderTextColor="#4B5563" multiline
                 style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", textAlign: "right", minHeight: 80, marginBottom: 10 }} />
@@ -273,7 +273,7 @@ function LegalFormsTab({ token }: { token: string }) {
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center" }}>ستظهر هنا اقتراحاتك المُرسَلة للمشرف</Text>
             </View>
           ) : suggestions.map(s => (
-            <View key={s.id} style={{ backgroundColor: "#0F0F24", borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLORS[s.status] || "#1E1E3A") + "44", padding: 14, marginBottom: 12 }}>
+            <View key={s.id} style={{ backgroundColor: "#15263A", borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLORS[s.status] || "#1E1E3A") + "44", padding: 14, marginBottom: 12 }}>
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", flex: 1, textAlign: "right" }}>{s.form_title}</Text>
                 <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: (STATUS_COLORS[s.status] || "#6B7280") + "20" }}>
@@ -572,7 +572,7 @@ export default function LawyerPortal() {
       </LinearGradient>
 
       {/* Tabs */}
-      <View style={{ flexDirection: "row", backgroundColor: "#111122", borderBottomWidth: 1, borderBottomColor: BORDER }}>
+      <View style={{ flexDirection: "row", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: BORDER }}>
         {([ ["dashboard","grid-outline","لوحتي"], ["cases","briefcase-outline","القضايا"], ["forms","document-text-outline","الاستمارات"], ["settings","settings-outline","الإعدادات"] ] as [Tab, string, string][]).map(([key, icon, label]) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)} style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: tab === key ? PURPLE : "transparent" }}>
             <Ionicons name={icon as any} size={18} color={tab === key ? PURPLE : "#6B7280"} />
@@ -1242,7 +1242,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
             />
           )}
           {/* Input */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#111122" }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={onSendWithFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
               <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -1341,13 +1341,13 @@ function buildPdfHtml(data: any): string {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Arial', sans-serif; background: #f8f9fa; color: #1a1a2e; direction: rtl; font-size: 13px; }
   .page { max-width: 800px; margin: 0 auto; background: #fff; }
-  .header { background: linear-gradient(135deg, #1a0a2e, #8B5CF6); color: #fff; padding: 30px 40px; }
+  .header { background: linear-gradient(135deg, #1a0a2e, #1F5C8A); color: #fff; padding: 30px 40px; }
   .header h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
   .header .sub { font-size: 14px; opacity: 0.8; }
   .meta { display: flex; gap: 20px; margin-top: 16px; flex-wrap: wrap; }
   .meta span { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 14px; font-size: 12px; }
   .section { padding: 24px 40px; border-bottom: 1px solid #e5e7eb; }
-  .section h2 { font-size: 16px; color: #8B5CF6; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section h2 { font-size: 16px; color: #1F5C8A; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .field label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 3px; }
   .field value, .field .val { font-size: 13px; color: #1a1a2e; font-weight: 600; }
@@ -1359,7 +1359,7 @@ function buildPdfHtml(data: any): string {
   .footer { background: #f9fafb; padding: 20px 40px; text-align: center; font-size: 11px; color: #9ca3af; }
   .star { color: #F59E0B; }
   .stat-box { background: #f3f4f6; border-radius: 10px; padding: 14px; text-align: center; }
-  .stat-val { font-size: 24px; font-weight: 800; color: #8B5CF6; }
+  .stat-val { font-size: 24px; font-weight: 800; color: #1F5C8A; }
   .stat-lbl { font-size: 11px; color: #6b7280; margin-top: 3px; }
   .svc-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
   @media print { body { background: #fff; } .page { max-width: 100%; } }
@@ -1417,7 +1417,7 @@ ${services.length ? `
   ${services.map((s:any) => `
     <div class="svc-card">
       <strong>${s.title}</strong>
-      ${s.price_text ? `<span style="color:#8B5CF6;margin-right:12px;font-size:12px">${s.price_text}</span>` : ""}
+      ${s.price_text ? `<span style="color:#1F5C8A;margin-right:12px;font-size:12px">${s.price_text}</span>` : ""}
       ${s.duration ? `<span style="color:#6b7280;font-size:12px"> | ${s.duration}</span>` : ""}
       ${s.description ? `<p style="color:#6b7280;margin-top:6px;font-size:12px;line-height:1.6">${s.description}</p>` : ""}
     </div>

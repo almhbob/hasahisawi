@@ -10,8 +10,8 @@ import Colors from "@/constants/colors";
 const SECTORS = [
   { emoji: "🏥", label: "مستشفيات",  color: "#EF4444" },
   { emoji: "🎓", label: "جامعات",    color: "#3B82F6" },
-  { emoji: "🏛️", label: "حكومية",    color: "#6366F1" },
-  { emoji: "🏢", label: "شركات",     color: "#8B5CF6" },
+  { emoji: "🏛️", label: "حكومية",    color: "#1F5C8A" },
+  { emoji: "🏢", label: "شركات",     color: "#1F5C8A" },
   { emoji: "🤝", label: "منظمات",    color: "#10B981" },
   { emoji: "📡", label: "إعلام",     color: "#F59E0B" },
 ];

@@ -55,7 +55,7 @@ type Stats = { drivers: any[]; trips: any[]; pendingDrivers: number; revenue?: a
 type TransportView = "overview" | "fares" | "drivers" | "trips" | "reports" | "operators" | "settings";
 
 const ZONE_NAMES  = ["قلب المدينة", "الأحياء الوسطى", "أطراف المدينة", "المناطق الفرعية", "القرى المحيطة"];
-const ZONE_COLORS = ["#F97316", "#3E9CBF", "#A855F7", "#3EFF9C", "#FBBF24"];
+const ZONE_COLORS = ["#F97316", "#3E9CBF", "#3B78A6", "#2EAD6B", "#FBBF24"];
 
 function fmt(n: number) {
   return n.toLocaleString("ar-SD");
@@ -544,7 +544,7 @@ export default function AdminTransportScreen() {
   const opRevenue = revenue ? Number(revenue.operator_revenue) : 0;
   const totalRevenue = revenue ? Number(revenue.total_fare) : 0;
 
-  const statusColor = transportStatus === "available" ? "#3EFF9C" : transportStatus === "maintenance" ? "#F59E0B" : "#6366F1";
+  const statusColor = transportStatus === "available" ? "#2EAD6B" : transportStatus === "maintenance" ? "#F59E0B" : "#1F5C8A";
   const statusLabel = transportStatus === "available" ? "متاحة" : transportStatus === "maintenance" ? "قيد الصيانة" : "قريباً";
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -584,7 +584,7 @@ export default function AdminTransportScreen() {
           <View style={[s.revDivider]} />
           <View style={s.revCard}>
             <Text style={s.revLabel}>أرباحي</Text>
-            <Text style={[s.revVal, { color: "#3EFF9C" }]}>{fmt(myRevenue)}</Text>
+            <Text style={[s.revVal, { color: "#2EAD6B" }]}>{fmt(myRevenue)}</Text>
             <Text style={s.revCur}>جنيه</Text>
           </View>
           <View style={s.revDivider} />
@@ -600,7 +600,7 @@ export default function AdminTransportScreen() {
       <View style={s.statsBar}>
         {[
           { label: "طلبات انضمام", val: stats?.pendingDrivers || 0, color: "#F97316", icon: "account-clock" },
-          { label: "سائق معتمد",   val: Number(approvedCount),       color: "#3EFF9C", icon: "steering" },
+          { label: "سائق معتمد",   val: Number(approvedCount),       color: "#2EAD6B", icon: "steering" },
           { label: "إجمالي رحلات", val: totalTrips,                  color: "#3E9CBF", icon: "map-marker-path" },
           { label: "رحلة انتظار",  val: Number(pendingTrips),        color: "#FBBF24", icon: "clock-outline" },
         ].map((st, i) => (
@@ -642,14 +642,14 @@ export default function AdminTransportScreen() {
               {/* توزيع السائقين */}
               <View style={s.card}>
                 <View style={s.cardRow}>
-                  <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                    <MaterialCommunityIcons name="steering" size={18} color="#3EFF9C" />
+                  <View style={[s.cardIcon, { backgroundColor: "#2EAD6B20" }]}>
+                    <MaterialCommunityIcons name="steering" size={18} color="#2EAD6B" />
                   </View>
                   <Text style={s.cardTitle}>توزيع السائقين</Text>
                 </View>
                 {[
                   { label: "في انتظار المراجعة", status: "pending",  color: "#F97316" },
-                  { label: "معتمدون",             status: "approved", color: "#3EFF9C" },
+                  { label: "معتمدون",             status: "approved", color: "#2EAD6B" },
                   { label: "مرفوضون",             status: "rejected", color: "#E05567" },
                 ].map(r => {
                   const cnt = Number(stats?.drivers.find((d: any) => d.status === r.status)?.cnt || 0);
@@ -684,7 +684,7 @@ export default function AdminTransportScreen() {
                 {[
                   { label: "انتظار",  status: "pending",   color: "#FBBF24" },
                   { label: "جارية",  status: "accepted",  color: "#3E9CBF" },
-                  { label: "مكتملة", status: "completed", color: "#3EFF9C" },
+                  { label: "مكتملة", status: "completed", color: "#2EAD6B" },
                   { label: "ملغاة",  status: "cancelled", color: "#E05567" },
                 ].map(r => {
                   const cnt = Number(stats?.trips.find((t: any) => t.status === r.status)?.cnt || 0);
@@ -699,16 +699,16 @@ export default function AdminTransportScreen() {
                   );
                 })}
                 <TouchableOpacity onPress={() => { setTripFilter("pending"); setView("trips"); }} style={{ alignSelf: "flex-end", marginTop: 10 }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3EFF9C" }}>عرض الرحلات ←</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#2EAD6B" }}>عرض الرحلات ←</Text>
                 </TouchableOpacity>
               </View>
 
               {/* روابط سريعة */}
               <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                 <TouchableOpacity onPress={() => setView("reports")}
-                  style={{ flex: 1, backgroundColor: "#3EFF9C15", borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C30", gap: 6 }}>
-                  <MaterialCommunityIcons name="chart-line" size={24} color="#3EFF9C" />
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>التقارير المالية</Text>
+                  style={{ flex: 1, backgroundColor: "#2EAD6B15", borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#2EAD6B30", gap: 6 }}>
+                  <MaterialCommunityIcons name="chart-line" size={24} color="#2EAD6B" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#2EAD6B" }}>التقارير المالية</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView("operators")}
                   style={{ flex: 1, backgroundColor: "#F9731615", borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#F9731630", gap: 6 }}>
@@ -723,7 +723,7 @@ export default function AdminTransportScreen() {
           {view === "reports" && (
             <View style={{ gap: 12 }}>
               {loadingReport ? (
-                <ActivityIndicator color="#3EFF9C" style={{ marginTop: 30 }} />
+                <ActivityIndicator color="#2EAD6B" style={{ marginTop: 30 }} />
               ) : !report ? (
                 <Text style={s.emptyText}>تعذّر تحميل التقارير</Text>
               ) : (
@@ -731,15 +731,15 @@ export default function AdminTransportScreen() {
                   {/* ملخص المالي */}
                   <View style={s.card}>
                     <View style={s.cardRow}>
-                      <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                        <MaterialCommunityIcons name="chart-line" size={18} color="#3EFF9C" />
+                      <View style={[s.cardIcon, { backgroundColor: "#2EAD6B20" }]}>
+                        <MaterialCommunityIcons name="chart-line" size={18} color="#2EAD6B" />
                       </View>
                       <Text style={s.cardTitle}>الملخص المالي الكامل</Text>
                     </View>
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
                       {[
                         { label: "إجمالي المبيعات", val: report.overall.total_revenue, color: "#FBBF24" },
-                        { label: "أرباحي (حصة المنصة)", val: report.overall.platform_revenue, color: "#3EFF9C" },
+                        { label: "أرباحي (حصة المنصة)", val: report.overall.platform_revenue, color: "#2EAD6B" },
                         { label: "حصة الشركاء",     val: report.overall.operator_revenue, color: "#F97316" },
                       ].map((k, i) => (
                         <View key={i} style={{ flex: 1, backgroundColor: k.color + "12", borderRadius: 12, padding: 10, alignItems: "center", borderWidth: 1, borderColor: k.color + "30" }}>
@@ -756,7 +756,7 @@ export default function AdminTransportScreen() {
                           توزيع الإيرادات
                         </Text>
                         {[
-                          { label: "أرباحي",       val: report.overall.platform_revenue, total: report.overall.total_revenue, color: "#3EFF9C" },
+                          { label: "أرباحي",       val: report.overall.platform_revenue, total: report.overall.total_revenue, color: "#2EAD6B" },
                           { label: "حصة الشركاء", val: report.overall.operator_revenue,  total: report.overall.total_revenue, color: "#F97316" },
                         ].map(r => {
                           const pct = r.total > 0 ? Math.round((r.val / r.total) * 100) : 0;
@@ -778,7 +778,7 @@ export default function AdminTransportScreen() {
                     {/* إحصائيات الرحلات */}
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
                       {[
-                        { label: "مكتملة", val: report.overall.completed_trips, color: "#3EFF9C" },
+                        { label: "مكتملة", val: report.overall.completed_trips, color: "#2EAD6B" },
                         { label: "ملغاة",  val: report.overall.cancelled_trips, color: "#E05567" },
                         { label: "متوسط الأجرة", val: report.overall.avg_fare, color: "#FBBF24", suffix: " ج" },
                       ].map((k, i) => (
@@ -829,8 +829,8 @@ export default function AdminTransportScreen() {
                         <View key={i} style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.divider }}>
                           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 6 }}>{op.name}</Text>
                           <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                            <View style={{ flex: 1, backgroundColor: "#3EFF9C12", borderRadius: 8, padding: 8, alignItems: "center" }}>
-                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>{fmt(op.platform_share)}</Text>
+                            <View style={{ flex: 1, backgroundColor: "#2EAD6B12", borderRadius: 8, padding: 8, alignItems: "center" }}>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#2EAD6B" }}>{fmt(op.platform_share)}</Text>
                               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary }}>حصتي</Text>
                             </View>
                             <View style={{ flex: 1, backgroundColor: "#F9731612", borderRadius: 8, padding: 8, alignItems: "center" }}>
@@ -862,7 +862,7 @@ export default function AdminTransportScreen() {
                           <View key={i} style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.divider }}>
                             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary }}>{day}</Text>
                             <View style={{ flexDirection: "row-reverse", gap: 12 }}>
-                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>{fmt(d.platform_revenue)} ج</Text>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#2EAD6B" }}>{fmt(d.platform_revenue)} ج</Text>
                               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{d.trips} رحلة</Text>
                             </View>
                           </View>
@@ -927,9 +927,9 @@ export default function AdminTransportScreen() {
                       </View>
                       <View style={[{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
                         op.status === "active"
-                          ? { backgroundColor: "#3EFF9C20", borderWidth: 1, borderColor: "#3EFF9C40" }
+                          ? { backgroundColor: "#2EAD6B20", borderWidth: 1, borderColor: "#2EAD6B40" }
                           : { backgroundColor: "#E0556720", borderWidth: 1, borderColor: "#E0556740" }]}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: op.status === "active" ? "#3EFF9C" : "#E05567" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: op.status === "active" ? "#2EAD6B" : "#E05567" }}>
                           {op.status === "active" ? "نشط" : "موقوف"}
                         </Text>
                       </View>
@@ -937,8 +937,8 @@ export default function AdminTransportScreen() {
 
                     {/* نسب الأرباح */}
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
-                      <View style={{ flex: 1, backgroundColor: "#3EFF9C12", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C25" }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#3EFF9C" }}>{op.platform_share_pct}٪</Text>
+                      <View style={{ flex: 1, backgroundColor: "#2EAD6B12", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: "#2EAD6B25" }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#2EAD6B" }}>{op.platform_share_pct}٪</Text>
                         <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary }}>حصتي (المنصة)</Text>
                       </View>
                       <View style={{ flex: 1, backgroundColor: "#F9731612", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: "#F9731625" }}>
@@ -958,8 +958,8 @@ export default function AdminTransportScreen() {
                           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3E9CBF" }}>{op.total_trips}</Text>
                           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary }}>رحلة مكتملة</Text>
                         </View>
-                        <View style={{ flex: 1, backgroundColor: "#A855F712", borderRadius: 8, padding: 8, alignItems: "center" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" }}>{op.active_drivers}</Text>
+                        <View style={{ flex: 1, backgroundColor: "#3B78A612", borderRadius: 8, padding: 8, alignItems: "center" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3B78A6" }}>{op.active_drivers}</Text>
                           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textSecondary }}>سائق معتمد</Text>
                         </View>
                       </View>
@@ -986,8 +986,8 @@ export default function AdminTransportScreen() {
                       )}
                       {op.phone ? (
                         <TouchableOpacity onPress={() => Linking.openURL(`tel:${op.phone}`)}
-                          style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#3EFF9C30" }}>
-                          <Ionicons name="call-outline" size={15} color="#3EFF9C" />
+                          style={{ backgroundColor: "#2EAD6B15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#2EAD6B30" }}>
+                          <Ionicons name="call-outline" size={15} color="#2EAD6B" />
                         </TouchableOpacity>
                       ) : null}
                       {isPlatformAdmin && (
@@ -1095,7 +1095,7 @@ export default function AdminTransportScreen() {
                 ? <Text style={s.emptyText}>لا يوجد سائقون في هذه الفئة</Text>
                 : drivers.map(driver => (
                   <Animated.View entering={FadeInDown.springify()} key={driver.id}
-                    style={[s.driverCard, { borderColor: driver.status === "approved" ? "#3EFF9C30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }]}>
+                    style={[s.driverCard, { borderColor: driver.status === "approved" ? "#2EAD6B30" : driver.status === "rejected" ? "#E0556730" : "#F9731630" }]}>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 }}>
                       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#F9731620", alignItems: "center", justifyContent: "center" }}>
                         <MaterialCommunityIcons name={driver.vehicle_type === "ركشة" ? "rickshaw" : "steering"} size={20} color="#F97316" />
@@ -1105,9 +1105,9 @@ export default function AdminTransportScreen() {
                         <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>{driver.vehicle_type} · {driver.phone}</Text>
                       </View>
                       <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10,
-                        backgroundColor: driver.status === "approved" ? "#3EFF9C20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
+                        backgroundColor: driver.status === "approved" ? "#2EAD6B20" : driver.status === "rejected" ? "#E0556720" : "#F9731620" }}>
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11,
-                          color: driver.status === "approved" ? "#3EFF9C" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
+                          color: driver.status === "approved" ? "#2EAD6B" : driver.status === "rejected" ? "#E05567" : "#F97316" }}>
                           {driver.status === "approved" ? "معتمد" : driver.status === "rejected" ? "مرفوض" : "انتظار"}
                         </Text>
                       </View>
@@ -1117,8 +1117,8 @@ export default function AdminTransportScreen() {
                     <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                       {driver.status !== "approved" && (
                         <TouchableOpacity onPress={() => approveDriver(driver, "approved")}
-                          style={{ flex: 1, backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C40" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3EFF9C" }}>✓ قبول</Text>
+                          style={{ flex: 1, backgroundColor: "#2EAD6B20", borderRadius: 8, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "#2EAD6B40" }}>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#2EAD6B" }}>✓ قبول</Text>
                         </TouchableOpacity>
                       )}
                       {driver.status !== "rejected" && (
@@ -1129,8 +1129,8 @@ export default function AdminTransportScreen() {
                       )}
                       {driver.phone ? (
                         <TouchableOpacity onPress={() => Linking.openURL(`tel:${driver.phone}`)}
-                          style={{ backgroundColor: "#3EFF9C15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#3EFF9C30" }}>
-                          <Ionicons name="call-outline" size={15} color="#3EFF9C" />
+                          style={{ backgroundColor: "#2EAD6B15", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#2EAD6B30" }}>
+                          <Ionicons name="call-outline" size={15} color="#2EAD6B" />
                         </TouchableOpacity>
                       ) : null}
                       <TouchableOpacity onPress={() => deleteDriver(driver.id)}
@@ -1147,8 +1147,8 @@ export default function AdminTransportScreen() {
           {view === "trips" && (
             <View style={s.card}>
               <View style={s.cardRow}>
-                <View style={[s.cardIcon, { backgroundColor: "#3EFF9C20" }]}>
-                  <MaterialCommunityIcons name="map-marker-path" size={18} color="#3EFF9C" />
+                <View style={[s.cardIcon, { backgroundColor: "#2EAD6B20" }]}>
+                  <MaterialCommunityIcons name="map-marker-path" size={18} color="#2EAD6B" />
                 </View>
                 <Text style={s.cardTitle}>مراقبة الرحلات</Text>
               </View>
@@ -1156,8 +1156,8 @@ export default function AdminTransportScreen() {
                 contentContainerStyle={{ gap: 6, marginBottom: 12, flexDirection: "row-reverse" }}>
                 {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
                   <TouchableOpacity key={f} onPress={() => setTripFilter(f)}
-                    style={[s.filterChip, tripFilter === f && { backgroundColor: "#3EFF9C20", borderColor: "#3EFF9C" }]}>
-                    <Text style={[s.filterChipText, { color: tripFilter === f ? "#3EFF9C" : Colors.textSecondary }]}>
+                    style={[s.filterChip, tripFilter === f && { backgroundColor: "#2EAD6B20", borderColor: "#2EAD6B" }]}>
+                    <Text style={[s.filterChipText, { color: tripFilter === f ? "#2EAD6B" : Colors.textSecondary }]}>
                       {f === "all" ? "الكل" : f === "pending" ? "انتظار" : f === "accepted" ? "جارية" : f === "completed" ? "مكتملة" : "ملغاة"}
                     </Text>
                   </TouchableOpacity>
@@ -1166,7 +1166,7 @@ export default function AdminTransportScreen() {
               {trips.length === 0
                 ? <Text style={s.emptyText}>لا توجد رحلات في هذه الفئة</Text>
                 : trips.map(trip => {
-                  const sc = trip.status === "completed" ? "#3EFF9C" : trip.status === "cancelled" ? "#E05567" : trip.status === "accepted" ? "#3E9CBF" : "#F97316";
+                  const sc = trip.status === "completed" ? "#2EAD6B" : trip.status === "cancelled" ? "#E05567" : trip.status === "accepted" ? "#3E9CBF" : "#F97316";
                   const sl = trip.status === "pending" ? "انتظار" : trip.status === "accepted" ? "جارية" : trip.status === "completed" ? "مكتملة" : "ملغاة";
                   return (
                     <Animated.View entering={FadeInDown.springify()} key={trip.id}
@@ -1185,7 +1185,7 @@ export default function AdminTransportScreen() {
                       </View>
                       <View style={{ gap: 4, marginBottom: 8 }}>
                         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#3EFF9C" }} />
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#2EAD6B" }} />
                           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right" }}>
                             {trip.from_zone ? `منطقة ${trip.from_zone} — ` : ""}{trip.from_location}
                           </Text>
@@ -1208,8 +1208,8 @@ export default function AdminTransportScreen() {
                       {/* الأجرة الفعلية (للرحلات المكتملة) */}
                       {trip.actual_fare ? (
                         <View style={{ flexDirection: "row-reverse", gap: 6, marginBottom: 8 }}>
-                          <View style={{ flex: 1, backgroundColor: "#3EFF9C12", borderRadius: 8, padding: 6, alignItems: "center" }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#3EFF9C" }}>{fmt(trip.platform_revenue ?? 0)} ج</Text>
+                          <View style={{ flex: 1, backgroundColor: "#2EAD6B12", borderRadius: 8, padding: 6, alignItems: "center" }}>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#2EAD6B" }}>{fmt(trip.platform_revenue ?? 0)} ج</Text>
                             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted }}>حصتي</Text>
                           </View>
                           <View style={{ flex: 1, backgroundColor: "#F9731612", borderRadius: 8, padding: 6, alignItems: "center" }}>
@@ -1232,8 +1232,8 @@ export default function AdminTransportScreen() {
                       ) : null}
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-                          <MaterialCommunityIcons name="steering" size={13} color={trip.driver_name ? "#3EFF9C" : Colors.textMuted} />
-                          <Text style={{ fontFamily: trip.driver_name ? "Cairo_600SemiBold" : "Cairo_400Regular", fontSize: 12, color: trip.driver_name ? "#3EFF9C" : Colors.textMuted }}>
+                          <MaterialCommunityIcons name="steering" size={13} color={trip.driver_name ? "#2EAD6B" : Colors.textMuted} />
+                          <Text style={{ fontFamily: trip.driver_name ? "Cairo_600SemiBold" : "Cairo_400Regular", fontSize: 12, color: trip.driver_name ? "#2EAD6B" : Colors.textMuted }}>
                             {trip.driver_name ?? "لم يُعيَّن سائق"}
                           </Text>
                         </View>
@@ -1253,17 +1253,17 @@ export default function AdminTransportScreen() {
                         {trip.status === "accepted" && (
                           <TouchableOpacity onPress={() => openCompleteTrip(trip)}
                             style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5,
-                              backgroundColor: "#3EFF9C20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#3EFF9C40" }}>
-                            <Ionicons name="checkmark-circle-outline" size={13} color="#3EFF9C" />
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#3EFF9C" }}>إتمام الرحلة</Text>
+                              backgroundColor: "#2EAD6B20", borderRadius: 8, paddingVertical: 8, borderWidth: 1, borderColor: "#2EAD6B40" }}>
+                            <Ionicons name="checkmark-circle-outline" size={13} color="#2EAD6B" />
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#2EAD6B" }}>إتمام الرحلة</Text>
                           </TouchableOpacity>
                         )}
                         {trip.status === "accepted" && (
                           <TouchableOpacity onPress={() => openReassign(trip.id)}
                             style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4,
-                              backgroundColor: "#A855F715", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#A855F730" }}>
-                            <MaterialCommunityIcons name="swap-horizontal" size={13} color="#A855F7" />
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" }}>تحويل</Text>
+                              backgroundColor: "#3B78A615", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#3B78A630" }}>
+                            <MaterialCommunityIcons name="swap-horizontal" size={13} color="#3B78A6" />
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#3B78A6" }}>تحويل</Text>
                           </TouchableOpacity>
                         )}
                         {(trip.status === "pending" || trip.status === "accepted") && (
@@ -1300,7 +1300,7 @@ export default function AdminTransportScreen() {
                 {([
                   { key: "available",   label: "متاحة",    icon: "checkmark-circle", color: "#22C55E" },
                   { key: "maintenance", label: "صيانة",     icon: "construct",        color: "#F59E0B" },
-                  { key: "coming_soon", label: "قريباً",    icon: "time",             color: "#6366F1" },
+                  { key: "coming_soon", label: "قريباً",    icon: "time",             color: "#1F5C8A" },
                 ] as const).map(opt => {
                   const active = transportStatus === opt.key;
                   return (
@@ -1348,7 +1348,7 @@ export default function AdminTransportScreen() {
             <Pressable onPress={e => e.stopPropagation()}>
               <View style={s.handle} />
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                <MaterialCommunityIcons name={isReassigning ? "swap-horizontal" : "steering"} size={22} color={isReassigning ? "#A855F7" : "#3E9CBF"} />
+                <MaterialCommunityIcons name={isReassigning ? "swap-horizontal" : "steering"} size={22} color={isReassigning ? "#3B78A6" : "#3E9CBF"} />
                 <View>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>
                     {isReassigning ? "تحويل الرحلة لسائق آخر" : "تعيين سائق للرحلة"}
@@ -1394,7 +1394,7 @@ export default function AdminTransportScreen() {
             <Pressable onPress={e => e.stopPropagation()}>
               <View style={s.handle} />
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <Ionicons name="checkmark-circle" size={24} color="#3EFF9C" />
+                <Ionicons name="checkmark-circle" size={24} color="#2EAD6B" />
                 <View>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary }}>إتمام الرحلة</Text>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>أدخل الأجرة الفعلية لتسجيل الأرباح</Text>
@@ -1420,7 +1420,7 @@ export default function AdminTransportScreen() {
 
               <Text style={s.fieldLabel}>الأجرة الفعلية (جنيه سوداني)</Text>
               <TextInput
-                style={[s.fieldInput, { fontSize: 18, textAlign: "center", color: "#3EFF9C", fontFamily: "Cairo_700Bold" }]}
+                style={[s.fieldInput, { fontSize: 18, textAlign: "center", color: "#2EAD6B", fontFamily: "Cairo_700Bold" }]}
                 value={actualFareInput}
                 onChangeText={setActualFareInput}
                 keyboardType="numeric"
@@ -1458,8 +1458,8 @@ export default function AdminTransportScreen() {
                 const opShare  = Math.round(fare * opPct);
                 return (
                   <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
-                    <View style={{ flex: 1, backgroundColor: "#3EFF9C12", borderRadius: 10, padding: 10, alignItems: "center", borderWidth: 1, borderColor: "#3EFF9C30" }}>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#3EFF9C" }}>{fmt(myShare)}</Text>
+                    <View style={{ flex: 1, backgroundColor: "#2EAD6B12", borderRadius: 10, padding: 10, alignItems: "center", borderWidth: 1, borderColor: "#2EAD6B30" }}>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#2EAD6B" }}>{fmt(myShare)}</Text>
                       <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>أرباحي</Text>
                     </View>
                     {op && (
@@ -1473,7 +1473,7 @@ export default function AdminTransportScreen() {
               })()}
 
               <TouchableOpacity onPress={confirmCompleteTrip} disabled={savingComplete}
-                style={[s.saveBtn, { backgroundColor: "#3EFF9C" }]}>
+                style={[s.saveBtn, { backgroundColor: "#2EAD6B" }]}>
                 {savingComplete
                   ? <ActivityIndicator color="#000" />
                   : <>
@@ -1523,7 +1523,7 @@ export default function AdminTransportScreen() {
                   <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.fieldLabel}>حصتي (المنصة) ٪</Text>
-                      <TextInput style={[s.fieldInput, { color: "#3EFF9C", fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "center" }]}
+                      <TextInput style={[s.fieldInput, { color: "#2EAD6B", fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "center" }]}
                         value={opForm.platform_share_pct}
                         onChangeText={v => {
                           const n = parseFloat(v) || 0;

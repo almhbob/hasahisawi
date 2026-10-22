@@ -83,7 +83,7 @@ export function getCenterTypeLabel(type: CulturalCenter["type"]) {
 export function getCenterTypeColor(type: CulturalCenter["type"]) {
   switch (type) {
     case "library":        return "#2980B9";
-    case "cultural_center":return "#8E44AD";
+    case "cultural_center":return "#1F5C8A";
     case "art_center":     return "#D35400";
     case "theater":        return "#C0392B";
     case "museum":         return "#16A085";
@@ -121,7 +121,7 @@ export function getEventTypeColor(type: CulturalEvent["type"]) {
     case "exhibition": return "#D35400";
     case "workshop":   return "#27AE60";
     case "lecture":    return "#2980B9";
-    case "festival":   return "#8E44AD";
+    case "festival":   return "#1F5C8A";
     case "book_fair":  return Colors.accent;
     case "theater":    return "#C0392B";
     case "other":      return Colors.textSecondary;

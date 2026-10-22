@@ -16,7 +16,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
 const MED = "#10B981";
 const LEAVE_TYPES = [
-  { key: "student",  label: "طالب",    icon: "school-outline",   color: "#6366F1" },
+  { key: "student",  label: "طالب",    icon: "school-outline",   color: "#1F5C8A" },
   { key: "military", label: "عسكري",   icon: "shield-outline",   color: "#F59E0B" },
   { key: "employee", label: "موظف",    icon: "briefcase-outline", color: "#10B981" },
 ];

@@ -19,7 +19,7 @@ type ToolId = "shahada" | "planner" | "cards" | "classes" | "lessons" | "exams";
 type Tool = { id: ToolId | "library" | "upload"; title: string; sub: string; icon: keyof typeof Ionicons.glyphMap; color: string };
 
 const STUDENT: Tool[] = [
-  { id: "shahada", title: "حاسبة الشهادة", sub: "كل مادة من 100 · النسبة والتقدير والهدف", icon: "ribbon-outline", color: "#7C3AED" },
+  { id: "shahada", title: "حاسبة الشهادة", sub: "كل مادة من 100 · النسبة والتقدير والهدف", icon: "ribbon-outline", color: "#1F5C8A" },
   { id: "planner", title: "جدول المذاكرة", sub: "خطة أسبوعية مع متابعة الإنجاز", icon: "calendar-outline", color: "#0E8A5F" },
   { id: "cards", title: "بطاقات المراجعة", sub: "احفظ القوانين والمصطلحات بسرعة", icon: "albums-outline", color: "#C2580A" },
   { id: "library", title: "المكتبة المنهجية", sub: "كتب المنهج السوداني لكل المراحل", icon: "library-outline", color: "#1D66D4" },

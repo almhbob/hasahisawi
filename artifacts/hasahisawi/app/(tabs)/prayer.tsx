@@ -29,12 +29,12 @@ const SETTINGS_KEY  = "prayer_settings_v2";
 const NOTIF_CHANNEL = "adhan-channel";
 
 const PRAYER_LIST = [
-  { key: "Fajr",    name: "الفجر",   icon: "moon-outline"         as const, color: "#818CF8" },
+  { key: "Fajr",    name: "الفجر",   icon: "moon-outline"         as const, color: "#5B8DB8" },
   { key: "Sunrise", name: "الشروق",  icon: "sunny-outline"        as const, color: "#F0A500" },
   { key: "Dhuhr",   name: "الظهر",   icon: "sunny"                as const, color: "#27AE68" },
   { key: "Asr",     name: "العصر",   icon: "partly-sunny-outline" as const, color: "#3E9CBF" },
   { key: "Maghrib", name: "المغرب",  icon: "sunset-outline"       as const, color: "#F97316" },
-  { key: "Isha",    name: "العشاء",  icon: "moon"                 as const, color: "#A78BFA" },
+  { key: "Isha",    name: "العشاء",  icon: "moon"                 as const, color: "#5B8DB8" },
 ];
 
 const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -271,7 +271,7 @@ const TASBIH_PRESETS = [
   { text: "سُبْحَانَ اللهِ",           target: 33,  color: "#22C55E", label: "تسبيح" },
   { text: "الْحَمْدُ لِلَّهِ",         target: 33,  color: "#F59E0B", label: "تحميد" },
   { text: "اللهُ أَكْبَرُ",            target: 33,  color: "#E05567", label: "تكبير" },
-  { text: "لَا إِلَٰهَ إِلَّا اللهُ", target: 100, color: "#818CF8", label: "تهليل" },
+  { text: "لَا إِلَٰهَ إِلَّا اللهُ", target: 100, color: "#5B8DB8", label: "تهليل" },
   { text: "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ", target: 100, color: "#F97316", label: "صلاة" },
 ];
 
@@ -434,7 +434,7 @@ export default function PrayerScreen() {
     // بعد العشاء → الفجر غداً
     const fajrMins = parseTime(t["Fajr"]);
     const diff     = ((24 * 60 - nowMins) + fajrMins) * 60 - now.getSeconds();
-    setNextPrayer({ key: "Fajr", name: "الفجر", color: "#818CF8", time: t["Fajr"], secsLeft: diff });
+    setNextPrayer({ key: "Fajr", name: "الفجر", color: "#5B8DB8", time: t["Fajr"], secsLeft: diff });
     setCountdown(diff);
   }, []);
 
@@ -603,7 +603,7 @@ export default function PrayerScreen() {
       {/* Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabRowContent}>
         {([
-          { key: "prayer",  label: "مواقيت الآذان", icon: "time-outline",            color: "#818CF8" },
+          { key: "prayer",  label: "مواقيت الآذان", icon: "time-outline",            color: "#5B8DB8" },
           { key: "adhkar",  label: "الأذكار",        icon: "leaf-outline",            color: "#22C55E" },
           { key: "tasbih",  label: "المسبحة",        icon: "radio-button-on-outline", color: "#F59E0B" },
           { key: "hijri",   label: "التقويم الهجري", icon: "moon-outline",            color: Colors.accent },
@@ -833,7 +833,7 @@ export default function PrayerScreen() {
               <View style={s.adhkarCatRow}>
                 {([
                   { key: "morning", label: "🌅 صباحية", color: "#F59E0B" },
-                  { key: "evening", label: "🌙 مسائية",  color: "#818CF8" },
+                  { key: "evening", label: "🌙 مسائية",  color: "#5B8DB8" },
                   { key: "post",    label: "🕌 بعد الصلاة", color: "#22C55E" },
                 ] as const).map(cat => (
                   <Pressable
@@ -1083,7 +1083,7 @@ const s = StyleSheet.create({
   },
   verseLabel: {
     fontFamily: "Cairo_600SemiBold", fontSize: 11,
-    color: "#818CF8", textAlign: "right",
+    color: "#5B8DB8", textAlign: "right",
   },
   verseText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17,
@@ -1092,7 +1092,7 @@ const s = StyleSheet.create({
   },
   verseSurah: {
     fontFamily: "Cairo_400Regular", fontSize: 12,
-    color: "#818CF880", textAlign: "right",
+    color: "#5B8DB880", textAlign: "right",
   },
 
   // ── شريط التبويبات القابل للتمرير ──

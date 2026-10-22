@@ -37,11 +37,11 @@ const TYPE_CONFIG: Record<OrgType, { label: string; icon: string; color: string;
   hospital:    { label: "مستشفى / مركز طبي", icon: "hospital-building",  color: "#EF4444", emoji: "🏥" },
   university:  { label: "جامعة / أكاديمية",  icon: "school",             color: "#3B82F6", emoji: "🎓" },
   ngo:         { label: "منظمة / جمعية",     icon: "hand-heart",         color: "#10B981", emoji: "🤝" },
-  government:  { label: "جهة حكومية",       icon: "city-variant",       color: "#6366F1", emoji: "🏛️" },
-  company:     { label: "شركة / قطاع خاص",  icon: "office-building",    color: "#8B5CF6", emoji: "🏢" },
+  government:  { label: "جهة حكومية",       icon: "city-variant",       color: "#1F5C8A", emoji: "🏛️" },
+  company:     { label: "شركة / قطاع خاص",  icon: "office-building",    color: "#1F5C8A", emoji: "🏢" },
   media:       { label: "وسيلة إعلامية",     icon: "broadcast",          color: "#F59E0B", emoji: "📡" },
-  supplier:    { label: "مورّد / تجاري",     icon: "truck-delivery",     color: "#06B6D4", emoji: "🚛" },
-  research:    { label: "مركز أبحاث",        icon: "microscope",         color: "#EC4899", emoji: "🔬" },
+  supplier:    { label: "مورّد / تجاري",     icon: "truck-delivery",     color: "#2F8A8A", emoji: "🚛" },
+  research:    { label: "مركز أبحاث",        icon: "microscope",         color: "#C46A3A", emoji: "🔬" },
   other:       { label: "أخرى",              icon: "domain",             color: "#64748B", emoji: "✨" },
 };
 

@@ -63,7 +63,7 @@ const GROUPS: Group[] = [
       { title: "المفقودات",   icon: "eye-outline",        route: "/(tabs)/missing",     color: Colors.cyber   },
       { title: "المجتمع",     icon: "chatbubbles-outline",route: "/(tabs)/social",      color: Colors.primary },
       { title: "الدردشة",     icon: "chatbubble-outline", route: "/(tabs)/chat",        color: Colors.primary },
-      { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#C084FC", femaleOnly: true },
+      { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#5B8DB8", femaleOnly: true },
       { title: "قسم الرجال",  icon: "man-outline",        route: "/(tabs)/men",         color: "#38BDF8"      },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
       { title: "الجاليات",    icon: "earth-outline",      route: "/(tabs)/communities", color: Colors.cyber   },
@@ -77,7 +77,7 @@ const GROUPS: Group[] = [
       { title: "مساحة الطالب والمعلم", icon: "school-outline", route: "/edu-hub",          color: "#2F7D6D"      },
       { title: "الطلاب والمعلمون", icon: "school-outline", route: "/(tabs)/student",     color: Colors.cyber   },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
-      { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#06B6D4" },
+      { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#2F8A8A" },
     ],
   },
   {
@@ -95,7 +95,7 @@ const GROUPS: Group[] = [
       { title: "السوق الزراعي", icon: "leaf-outline",           route: "/(tabs)/farmers",     color: "#4ADE80"      },
       { title: "الإعلانات",     icon: "megaphone-outline",      route: "/(tabs)/ads",         color: "#F0A500"      },
       { title: "الرياضة",       icon: "football-outline",       route: "/(tabs)/sports",      color: Colors.primary },
-      { title: "الثقافة",       icon: "color-palette-outline",  route: "/(tabs)/culture",     color: "#C084FC"      },
+      { title: "الثقافة",       icon: "color-palette-outline",  route: "/(tabs)/culture",     color: "#5B8DB8"      },
       { title: "التأجير — عقارات ومعدات", icon: "home-outline", route: "/(tabs)/rental",     color: "#3E9CBF"      },
     ],
   },
@@ -105,8 +105,8 @@ const GROUPS: Group[] = [
       { title: "الفعاليات والتأجير", icon: "calendar-outline",  route: "/(tabs)/events",    color: "#F0A500"  },
       { title: "مساحة التهنئة",    icon: "sparkles-outline",  route: "/(tabs)/greetings", color: "#D4AF37"  },
       { title: "مناسبتي",          icon: "gift-outline",       route: "/(tabs)/occasions", color: "#D97706"  },
-      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#C084FC"  },
-      { title: "زواجل — أرسل هديتك", icon: "gift-outline",    route: "/(tabs)/zawajil",   color: "#EC4899"  },
+      { title: "قاعة التكريم",     icon: "trophy-outline",    route: "/(tabs)/honored",   color: "#5B8DB8"  },
+      { title: "زواجل — أرسل هديتك", icon: "gift-outline",    route: "/(tabs)/zawajil",   color: "#C46A3A"  },
     ],
   },
   {
@@ -121,8 +121,8 @@ const GROUPS: Group[] = [
     items: [
       { title: "شركات الاتصالات", icon: "cellular-outline", route: "/(tabs)/telecom", color: "#0EA5E9" },
       { title: "المصانع والإنتاج المحلي", icon: "hardware-chip-outline", route: "/(tabs)/factories", color: "#F97316" },
-      { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#8B5CF6" },
-      { title: "معرض التصاميم", icon: "color-palette-outline", route: "/(tabs)/design-gallery", color: "#A855F7" },
+      { title: "النقابات المهنية", icon: "people-circle-outline", route: "/(tabs)/unions", color: "#1F5C8A" },
+      { title: "معرض التصاميم", icon: "color-palette-outline", route: "/(tabs)/design-gallery", color: "#3B78A6" },
     ],
   },
   {
@@ -131,7 +131,7 @@ const GROUPS: Group[] = [
     label: "بوابات الشركاء",
     items: [
       { title: "بوابة التاجر",     icon: "storefront-outline", route: "/store-portal",           color: Colors.primary },
-      { title: "بوابة مدير زواجل", icon: "shield-outline",     route: "/(tabs)/zawajil-manager", color: "#EC4899" },
+      { title: "بوابة مدير زواجل", icon: "shield-outline",     route: "/(tabs)/zawajil-manager", color: "#C46A3A" },
     ],
   },
   {
@@ -139,7 +139,7 @@ const GROUPS: Group[] = [
     items: [
       { title: "خريطة المدينة",         icon: "map-outline",              route: "/(tabs)/map",        color: "#0EA5E9"       },
       { title: "التقويم الميلادي",       icon: "calendar-number-outline",  route: "/(tabs)/calendar",   color: Colors.cyber   },
-      { title: "الآذان والتقويم الهجري", icon: "moon-outline",             route: "/(tabs)/prayer",     color: "#818CF8"      },
+      { title: "الآذان والتقويم الهجري", icon: "moon-outline",             route: "/(tabs)/prayer",     color: "#5B8DB8"      },
       { title: "أرقام مهمة",            icon: "call-outline",             route: "/(tabs)/numbers",    color: Colors.primary },
       { title: "المساعد الذكي",         icon: "sparkles",                  route: "/(tabs)/ai-support", color: Colors.accent  },
       { title: "الإعدادات",             icon: "settings-outline",          route: "/(tabs)/settings",   color: Colors.textMuted },

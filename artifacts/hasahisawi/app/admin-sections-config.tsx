@@ -141,7 +141,7 @@ export default function AdminSectionsConfigScreen() {
         <Ionicons name="lock-closed-outline" size={48} color={Colors.textMuted} />
         <Text style={s.emptyTitle}>غير مصرح</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A5B4FC", textDecorationLine: "underline" }}>العودة</Text>
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9DBBD6", textDecorationLine: "underline" }}>العودة</Text>
         </TouchableOpacity>
       </View>
     );
@@ -156,24 +156,24 @@ export default function AdminSectionsConfigScreen() {
       {/* الهيدر */}
       <LinearGradient colors={["#0B1224", "#172554"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color="#A5B4FC" />
+          <Ionicons name="chevron-back" size={24} color="#9DBBD6" />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={s.headerTitle}>إدارة أقسام التطبيق</Text>
           <Text style={s.headerSub}>إخفاء وإظهار وإدارة التصاريح والعقود</Text>
         </View>
         <TouchableOpacity onPress={() => { setRefreshing(true); load(); }} style={s.iconBtn} hitSlop={12}>
-          <Ionicons name="refresh-outline" size={20} color="#A5B4FC" />
+          <Ionicons name="refresh-outline" size={20} color="#9DBBD6" />
         </TouchableOpacity>
       </LinearGradient>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#6366F1" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#1F5C8A" />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       >
         {loading ? (
-          <View style={[s.center, { paddingTop: 60 }]}><ActivityIndicator color="#6366F1" size="large" /></View>
+          <View style={[s.center, { paddingTop: 60 }]}><ActivityIndicator color="#1F5C8A" size="large" /></View>
         ) : (
           <>
             {/* ─ الأقسام الحكومية ─ */}
@@ -199,8 +199,8 @@ export default function AdminSectionsConfigScreen() {
             {/* ─ الأقسام الأخرى ─ */}
             <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginTop: 24 }}>
               <View style={s.groupHeader}>
-                <Ionicons name="apps-outline" size={18} color="#6366F1" />
-                <Text style={[s.groupTitle, { color: "#6366F1" }]}>الأقسام العامة</Text>
+                <Ionicons name="apps-outline" size={18} color="#1F5C8A" />
+                <Text style={[s.groupTitle, { color: "#1F5C8A" }]}>الأقسام العامة</Text>
               </View>
               <View style={{ gap: 10 }}>
                 {otherSections.map((sec, i) => (
@@ -345,11 +345,11 @@ function SectionCard({
         </View>
         {/* تبديل الإظهار / الإخفاء */}
         {isSaving
-          ? <ActivityIndicator color="#6366F1" size="small" />
+          ? <ActivityIndicator color="#1F5C8A" size="small" />
           : <Switch
               value={section.is_visible}
               onValueChange={onToggle}
-              trackColor={{ false: Colors.borderSubtle, true: "#6366F1" }}
+              trackColor={{ false: Colors.borderSubtle, true: "#1F5C8A" }}
               thumbColor="#fff"
             />
         }
@@ -357,7 +357,7 @@ function SectionCard({
 
       {/* زر التعديل */}
       <TouchableOpacity onPress={onEdit} style={card.editBtn}>
-        <Ionicons name="create-outline" size={15} color="#A5B4FC" />
+        <Ionicons name="create-outline" size={15} color="#9DBBD6" />
         <Text style={card.editBtnText}>تعديل بيانات العقد والتصريح</Text>
       </TouchableOpacity>
 
@@ -392,7 +392,7 @@ const card = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 14,
     backgroundColor: "#FFFFFF05",
   },
-  editBtnText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A5B4FC" },
+  editBtnText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9DBBD6" },
   warnBanner: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: "#F59E0B18", paddingVertical: 8, paddingHorizontal: 14,
@@ -407,7 +407,7 @@ const s = StyleSheet.create({
   },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#A5B4FC", textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9DBBD6", textAlign: "center", marginTop: 2 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, marginTop: 12 },
   groupHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10 },
@@ -438,6 +438,6 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   cancelBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted },
-  saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: "#6366F1", alignItems: "center", justifyContent: "center" },
+  saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: "#1F5C8A", alignItems: "center", justifyContent: "center" },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });

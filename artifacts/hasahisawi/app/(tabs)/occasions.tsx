@@ -17,7 +17,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 // ── ثوابت ───────────────────────────────────────────────────────────────────
 const GOLD   = "#D97706";
 const GOLD2  = "#F59E0B";
-const PURPLE = "#7C3AED";
+const PURPLE = "#1F5C8A";
 const BG     = "#0A1A10";
 const CARD   = "#0E2318";
 
@@ -32,9 +32,9 @@ const CATEGORIES: Category[] = [
   { key: "tent",       label: "صيوانات",    icon: "tent",               color: GOLD   },
   { key: "chairs",     label: "كراسي",      icon: "chair-rolling",      color: "#22C55E" },
   { key: "tables",     label: "ترابيز",     icon: "table-furniture",    color: Colors.cyber },
-  { key: "sound",      label: "صوتيات",     icon: "speaker",            color: "#EC4899" },
+  { key: "sound",      label: "صوتيات",     icon: "speaker",            color: "#C46A3A" },
   { key: "lighting",   label: "إضاءة",      icon: "lightbulb-on",       color: GOLD2  },
-  { key: "decoration", label: "ديكور",      icon: "flower",             color: "#A855F7" },
+  { key: "decoration", label: "ديكور",      icon: "flower",             color: "#3B78A6" },
   { key: "catering",   label: "تقديم",      icon: "food-fork-drink",    color: "#F97316" },
   { key: "generator",  label: "مولدات",     icon: "engine",             color: "#6B7280" },
   { key: "coolers",    label: "كولرات",     icon: "air-conditioner",    color: "#38BDF8" },

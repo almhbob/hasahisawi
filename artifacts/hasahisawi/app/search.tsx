@@ -86,7 +86,7 @@ export default function SearchScreen() {
             section: "medical",
             sectionLabel: lang === "ar" ? "الدليل الطبي" : "Medical",
             icon: f.type === "pharmacy" ? "medical-bag" : f.type === "hospital" ? "hospital-building" : "stethoscope",
-            color: f.type === "pharmacy" ? Colors.primary : f.type === "hospital" ? "#2E7D9A" : "#6A5ACD",
+            color: f.type === "pharmacy" ? Colors.primary : f.type === "hospital" ? "#2E7D9A" : "#2F6F8F",
             phone: f.phone,
             route: "/(tabs)/medical",
           });
@@ -182,7 +182,7 @@ export default function SearchScreen() {
             section: "culture",
             sectionLabel: lang === "ar" ? "الثقافة" : "Culture",
             icon: "color-palette-outline",
-            color: "#8E44AD",
+            color: "#1F5C8A",
             phone: c.phone,
             route: "/(tabs)/culture",
           });
@@ -437,7 +437,7 @@ export default function SearchScreen() {
               { label: lang === "ar" ? "🛒 سوق" : "🛒 Market", color: "#7B3F00" },
               { label: lang === "ar" ? "🎓 تعليم" : "🎓 Education", color: "#4A3F9F" },
               { label: lang === "ar" ? "⚽ رياضة" : "⚽ Sports", color: "#27AE60" },
-              { label: lang === "ar" ? "🎨 ثقافة" : "🎨 Culture", color: "#8E44AD" },
+              { label: lang === "ar" ? "🎨 ثقافة" : "🎨 Culture", color: "#1F5C8A" },
             ].map((chip, i) => (
               <View key={i} style={[styles.chip, { borderColor: chip.color + "40", backgroundColor: chip.color + "10" }]}>
                 <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>

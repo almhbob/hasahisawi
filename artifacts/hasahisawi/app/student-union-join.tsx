@@ -13,8 +13,8 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 const TOTAL_SECTIONS = 7;
 
 // ── قوائم الخيارات ─────────────────────────────────────────────────
@@ -540,7 +540,7 @@ export default function StudentUnionJoinScreen() {
             <View style={{ flex: 1 }} />
             {section < TOTAL_SECTIONS ? (
               <TouchableOpacity onPress={goNext} style={s.nextBtn}>
-                <LinearGradient colors={[UC, "#4338CA"]} style={s.nextGrad}>
+                <LinearGradient colors={[UC, "#173F5F"]} style={s.nextGrad}>
                   <Text style={s.nextText}>التالي</Text>
                   <Ionicons name="chevron-back" size={18} color="#fff" />
                 </LinearGradient>
@@ -605,7 +605,7 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: Colors.borderSubtle, marginVertical: 18 },
   pledgeBox: {
     backgroundColor: "#0B1224", borderRadius: 16, borderWidth: 1,
-    borderColor: "#6366F140", padding: 16, gap: 12, marginBottom: 4,
+    borderColor: "#1F5C8A40", padding: 16, gap: 12, marginBottom: 4,
   },
   pledgeTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: UC2, textAlign: "right" },
   pledgeText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 22 },

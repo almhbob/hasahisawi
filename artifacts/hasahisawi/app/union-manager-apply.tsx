@@ -12,8 +12,8 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 const TOTAL = 7;
 
 const SKILLS_LIST = [
@@ -249,7 +249,7 @@ export default function UnionManagerApplyScreen() {
   if (submitted) {
     return (
       <View style={[s.center, { backgroundColor: Colors.bg, paddingTop: insets.top }]}>
-        <LinearGradient colors={[UC, "#4338CA"]} style={s.successIcon}>
+        <LinearGradient colors={[UC, "#173F5F"]} style={s.successIcon}>
           <Ionicons name="checkmark-circle" size={60} color="#fff" />
         </LinearGradient>
         <Text style={s.successTitle}>تم تقديم الاستمارة بنجاح!</Text>
@@ -266,7 +266,7 @@ export default function UnionManagerApplyScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       {/* الهيدر */}
-      <LinearGradient colors={["#0B1224", "#1E1B4B"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={["#0B1224", "#16324F"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => section > 1 ? goBack() : router.back()} style={s.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={UC2} />
         </TouchableOpacity>
@@ -480,7 +480,7 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "center" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)", textAlign: "center", marginTop: 2 },
-  progressBar: { height: 4, backgroundColor: "rgba(99,102,241,0.2)" },
+  progressBar: { height: 4, backgroundColor: "rgba(31,92,138,0.2)" },
   progressFill: { height: 4, backgroundColor: UC, borderRadius: 2 },
   notice: { flexDirection: "row-reverse", gap: 10, backgroundColor: UC + "18", borderRadius: 12, padding: 14, marginBottom: 16, alignItems: "flex-start" },
   noticeText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC2, flex: 1, textAlign: "right", lineHeight: 22 },

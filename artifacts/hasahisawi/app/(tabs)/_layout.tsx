@@ -46,7 +46,7 @@ type TabItem = {
 // ── تبويبات رئيسية (4 + زر مركزي) ────────────────────────────
 const TAB_ITEMS: TabItem[] = [
   { name: "index",        label: "الرئيسية", icon: "home-outline",        activeIcon: "home",        color: Colors.primary },
-  { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: "#818CF8"       },
+  { name: "prayer",       label: "الآذان",   icon: "moon-outline",        activeIcon: "moon",        color: "#5B8DB8"       },
   { name: "chat",         label: "الدردشة",  icon: "chatbubbles-outline", activeIcon: "chatbubbles", color: "#38BDF8"       },
   { name: "appointments", label: "مواعيد",   icon: "calendar-number-outline", activeIcon: "calendar-number", color: "#F0A500" },
 ];

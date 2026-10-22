@@ -83,7 +83,7 @@ export function getSportLabel(sport: SportClub["sport"]) {
   return m[sport];
 }
 export function getSportColor(sport: SportClub["sport"]) {
-  const m: Record<SportClub["sport"],string> = { football:"#27AE60", basketball:"#E67E22", volleyball:"#2980B9", athletics:"#8E44AD", swimming:"#16A085", boxing:"#C0392B", other:Colors.textSecondary };
+  const m: Record<SportClub["sport"],string> = { football:"#27AE60", basketball:"#E67E22", volleyball:"#2980B9", athletics:"#1F5C8A", swimming:"#16A085", boxing:"#C0392B", other:Colors.textSecondary };
   return m[sport];
 }
 export function getSportIcon(sport: SportClub["sport"]) {
@@ -95,11 +95,11 @@ export function getSportIcon(sport: SportClub["sport"]) {
 const POSITIONS: PlayerPosition[] = ["حارس مرمى","مدافع أيمن","مدافع أيسر","قلب دفاع","وسط دفاعي","وسط","وسط مهاجم","جناح أيمن","جناح أيسر","مهاجم","مهاجم ثانٍ"];
 const POS_COLOR: Record<PlayerPosition,string> = {
   "حارس مرمى":"#E67E22","مدافع أيمن":Colors.primary,"مدافع أيسر":Colors.primary,"قلب دفاع":Colors.primary,
-  "وسط دفاعي":"#2980B9","وسط":"#2980B9","وسط مهاجم":"#8E44AD",
-  "جناح أيمن":"#8E44AD","جناح أيسر":"#8E44AD","مهاجم":"#E74C3C","مهاجم ثانٍ":"#E74C3C",
+  "وسط دفاعي":"#2980B9","وسط":"#2980B9","وسط مهاجم":"#1F5C8A",
+  "جناح أيمن":"#1F5C8A","جناح أيسر":"#1F5C8A","مهاجم":"#E74C3C","مهاجم ثانٍ":"#E74C3C",
 };
 const CAT_META: Record<PostCategory,{color:string;icon:string}> = {
-  "نقل":    { color:"#8E44AD", icon:"swap-horizontal-outline" },
+  "نقل":    { color:"#1F5C8A", icon:"swap-horizontal-outline" },
   "منافسة": { color:"#E74C3C", icon:"trophy-outline" },
   "خبر":    { color:Colors.primary, icon:"newspaper-outline" },
   "نتيجة":  { color:"#E67E22", icon:"stats-chart-outline" },

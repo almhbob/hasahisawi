@@ -50,13 +50,13 @@ const CATEGORY_META: Record<string, { title: string; icon: string; color: string
   طوارئ:    { title: "الطوارئ",           icon: "warning-outline",   color: "#EF4444" },
   صحة:      { title: "الصحة",             icon: "heart-outline",     color: "#2D8A96" },
   خدمات:    { title: "الخدمات العامة",    icon: "construct-outline", color: "#E07830" },
-  حكومي:    { title: "جهات الاتصال المحلية",  icon: "business-outline",  color: "#6366F1" },
-  قانوني:   { title: "القانون",              icon: "hammer-outline",    color: "#8B5CF6" },
+  حكومي:    { title: "جهات الاتصال المحلية",  icon: "business-outline",  color: "#1F5C8A" },
+  قانوني:   { title: "القانون",              icon: "hammer-outline",    color: "#1F5C8A" },
   general:   { title: "عامة",                icon: "apps-outline",      color: Colors.primary },
   health:    { title: "الصحة",               icon: "heart-outline",     color: "#2D8A96" },
   services:  { title: "الخدمات العامة",      icon: "construct-outline", color: "#E07830" },
-  government:{ title: "جهات الاتصال المحلية", icon: "business-outline",  color: "#6366F1" },
-  education: { title: "التعليم",          icon: "school-outline",    color: "#8B5CF6" },
+  government:{ title: "جهات الاتصال المحلية", icon: "business-outline",  color: "#1F5C8A" },
+  education: { title: "التعليم",          icon: "school-outline",    color: "#1F5C8A" },
   other:     { title: "أخرى",            icon: "apps-outline",      color: Colors.primary },
 };
 
@@ -69,7 +69,7 @@ const ICON_OPTIONS = [
   "hammer-outline","shield-outline",
 ];
 
-const COLOR_OPTIONS = ["#EF4444","#2D8A96","#27AE68","#E07830","#6366F1","#8B5CF6","#F97316","#EAB308","#EC4899","#10B981","#06B6D4","#3B82F6"];
+const COLOR_OPTIONS = ["#EF4444","#2D8A96","#27AE68","#E07830","#1F5C8A","#1F5C8A","#F97316","#EAB308","#C46A3A","#10B981","#2F8A8A","#3B82F6"];
 
 function groupByCategory(entries: NumberEntry[]): Category[] {
   const map: Record<string, NumberEntry[]> = {};

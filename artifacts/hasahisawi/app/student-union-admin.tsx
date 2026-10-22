@@ -13,8 +13,8 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 
-const UC  = "#6366F1";
-const UC2 = "#A5B4FC";
+const UC  = "#1F5C8A";
+const UC2 = "#9DBBD6";
 
 type Application = {
   id: number;
@@ -237,7 +237,7 @@ export default function StudentUnionAdminScreen() {
           {/* إحصائيات */}
           <Animated.View entering={FadeInDown.springify()} style={s.statsRow}>
             {([
-              ["الكل", stats.total, "#6366F1"],
+              ["الكل", stats.total, "#1F5C8A"],
               ["قيد المراجعة", stats.pending, "#F59E0B"],
               ["مقبول", stats.approved, "#22C55E"],
               ["مرفوض", stats.rejected, "#EF4444"],

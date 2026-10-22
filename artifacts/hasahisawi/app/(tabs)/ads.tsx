@@ -65,7 +65,7 @@ const AD_TYPES: Record<AdType, { label: string; icon: keyof typeof Ionicons.glyp
   promotion:    { label: "عرض خاص",   icon: "pricetag",           color: "#E67E22" },
   announcement: { label: "إعلان",     icon: "megaphone",          color: EMERALD   },
   event:        { label: "فعالية",    icon: "calendar",           color: "#3B82F6" },
-  surprise:     { label: "مفاجأة",    icon: "gift",               color: "#8B5CF6" },
+  surprise:     { label: "مفاجأة",    icon: "gift",               color: "#1F5C8A" },
   banner:       { label: "إعلان عام", icon: "information-circle", color: "#2980B9" },
 };
 
@@ -101,7 +101,7 @@ const PACKAGES: PackageDef[] = [
     features: ["كل مزايا الأسبوع", "أولوية الظهور أعلى القائمة", "إشعار للمستخدمين"] },
   { days: 30, label: "شهر",     badge: "أفضل قيمة", badgeColor: "#27AE60",
     features: ["كل مزايا الأسبوعين", "ظهور مميز في الواجهة", "تقرير أداء شهري"] },
-  { days: 60, label: "شهران",   badge: "مميز", badgeColor: "#8B5CF6",
+  { days: 60, label: "شهران",   badge: "مميز", badgeColor: "#1F5C8A",
     features: ["كل مزايا الشهر", "دعم مباشر من الإدارة", "تجديد تلقائي اختياري"] },
 ];
 

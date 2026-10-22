@@ -43,10 +43,10 @@ type Product = {
 // ── فئات التصاميم ────────────────────────────────────────────────
 const CATEGORIES = [
   { key: "all",         label: "كل الفئات",    icon: "grid",              color: Colors.primary },
-  { key: "invitations", label: "دعوات الأفراح", icon: "heart",             color: "#EC4899" },
+  { key: "invitations", label: "دعوات الأفراح", icon: "heart",             color: "#C46A3A" },
   { key: "certificates",label: "شهادات",        icon: "ribbon",            color: "#F59E0B" },
-  { key: "marbled",     label: "ورق مروس",      icon: "color-palette",     color: "#8B5CF6" },
-  { key: "logos",       label: "لوجوهات",       icon: "prism",             color: "#06B6D4" },
+  { key: "marbled",     label: "ورق مروس",      icon: "color-palette",     color: "#1F5C8A" },
+  { key: "logos",       label: "لوجوهات",       icon: "prism",             color: "#2F8A8A" },
   { key: "social",      label: "سوشيال ميديا",  icon: "share-social",      color: "#F97316" },
   { key: "banners",     label: "لافتات",        icon: "megaphone",         color: "#EF4444" },
 ];
@@ -58,10 +58,10 @@ const CAT_LABEL: Record<string, string> = {
 
 // ── تدرجات الفئات ────────────────────────────────────────────────
 const CAT_GRAD: Record<string, [string,string]> = {
-  invitations:  ["#EC4899","#BE185D"],
+  invitations:  ["#C46A3A","#BE185D"],
   certificates: ["#F59E0B","#D97706"],
-  marbled:      ["#8B5CF6","#6D28D9"],
-  logos:        ["#06B6D4","#0891B2"],
+  marbled:      ["#1F5C8A","#173F5F"],
+  logos:        ["#2F8A8A","#0891B2"],
   social:       ["#F97316","#C2410C"],
   banners:      ["#EF4444","#B91C1C"],
   all:          ["#22C55E","#15803D"],
@@ -410,7 +410,7 @@ export default function DesignGalleryScreen() {
 
         <Animated.View entering={FadeIn.delay(100).duration(600)} style={styles.heroContent}>
           <View style={styles.heroIconRow}>
-            <LinearGradient colors={["#A855F7","#EC4899"]} style={styles.heroIconWrap}>
+            <LinearGradient colors={["#3B78A6","#C46A3A"]} style={styles.heroIconWrap}>
               <MaterialCommunityIcons name="palette-swatch" size={28} color="#fff" />
             </LinearGradient>
           </View>
@@ -449,7 +449,7 @@ export default function DesignGalleryScreen() {
           <Pressable key={t.key} style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
             onPress={() => setActiveTab(t.key as any)}>
             <Ionicons name={t.icon as any} size={18}
-              color={activeTab === t.key ? "#A855F7" : Colors.textMuted} />
+              color={activeTab === t.key ? "#3B78A6" : Colors.textMuted} />
             <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>
               {t.label}
             </Text>
@@ -477,7 +477,7 @@ export default function DesignGalleryScreen() {
 
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator color="#A855F7" size="large" />
+              <ActivityIndicator color="#3B78A6" size="large" />
             </View>
           ) : products.length === 0 ? (
             <View style={styles.emptyWrap}>
@@ -543,7 +543,7 @@ export default function DesignGalleryScreen() {
               { n: "4", t: "استقبل الطلبات", s: "يتواصل معك الزبائن مباشرة" },
             ].map((s, i) => (
               <Animated.View key={i} entering={FadeInDown.delay(i * 80)} style={styles.howStep}>
-                <LinearGradient colors={["#A855F7","#6D28D9"]} style={styles.howNum}>
+                <LinearGradient colors={["#3B78A6","#173F5F"]} style={styles.howNum}>
                   <Text style={styles.howNumText}>{s.n}</Text>
                 </LinearGradient>
                 <View style={{ flex: 1 }}>
@@ -619,7 +619,7 @@ export default function DesignGalleryScreen() {
                 onPress={submitSubscription}
                 disabled={subLoading}
               >
-                <LinearGradient colors={["#A855F7","#7C3AED"]} style={styles.submitBtnGrad}>
+                <LinearGradient colors={["#3B78A6","#1F5C8A"]} style={styles.submitBtnGrad}>
                   {subLoading
                     ? <ActivityIndicator color="#fff" />
                     : <>
@@ -635,7 +635,7 @@ export default function DesignGalleryScreen() {
           {/* رسالة النجاح */}
           {subDone && (
             <Animated.View entering={FadeIn} style={styles.successCard}>
-              <LinearGradient colors={["#A855F7","#4C1D95"]} style={styles.successGrad}>
+              <LinearGradient colors={["#3B78A6","#4C1D95"]} style={styles.successGrad}>
                 <Text style={styles.successIcon}>🎉</Text>
                 <Text style={styles.successTitle}>تم إرسال طلبك!</Text>
                 <Text style={styles.successText}>
@@ -659,7 +659,7 @@ export default function DesignGalleryScreen() {
             {orderProduct && (
               <View style={styles.orderProductInfo}>
                 <LinearGradient
-                  colors={CAT_GRAD[orderProduct.category] ?? ["#A855F7","#6D28D9"]}
+                  colors={CAT_GRAD[orderProduct.category] ?? ["#3B78A6","#173F5F"]}
                   style={styles.orderProductGrad}
                 >
                   <Ionicons name={(CATEGORIES.find(c=>c.key===orderProduct.category)?.icon ?? "color-palette") as any} size={22} color="#fff" />
@@ -692,7 +692,7 @@ export default function DesignGalleryScreen() {
 
             <Pressable style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
               onPress={submitOrder} disabled={submitting}>
-              <LinearGradient colors={["#A855F7","#7C3AED"]} style={styles.submitBtnGrad}>
+              <LinearGradient colors={["#3B78A6","#1F5C8A"]} style={styles.submitBtnGrad}>
                 {submitting
                   ? <ActivityIndicator color="#fff" />
                   : <>
@@ -759,11 +759,11 @@ const styles = StyleSheet.create({
   hero: { paddingBottom: 16, overflow: "hidden" },
   heroBubble1: {
     position: "absolute", width: 200, height: 200, borderRadius: 100,
-    backgroundColor: "#A855F720", top: -60, right: -60,
+    backgroundColor: "#3B78A620", top: -60, right: -60,
   },
   heroBubble2: {
     position: "absolute", width: 150, height: 150, borderRadius: 75,
-    backgroundColor: "#EC489920", bottom: -30, left: -30,
+    backgroundColor: "#C46A3A20", bottom: -30, left: -30,
   },
   heroContent: { paddingHorizontal: 20, paddingTop: 10 },
   heroIconRow: { alignItems: "center", marginBottom: 12 },
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
   },
   heroStat: { alignItems: "center", flex: 1 },
-  heroStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#A855F7" },
+  heroStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#3B78A6" },
   heroStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   heroStatDivider: { width: 1, height: 30, backgroundColor: "rgba(255,255,255,0.10)" },
 
@@ -799,9 +799,9 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: "center", paddingVertical: 10, gap: 3,
     borderBottomWidth: 2, borderBottomColor: "transparent",
   },
-  tabItemActive: { borderBottomColor: "#A855F7" },
+  tabItemActive: { borderBottomColor: "#3B78A6" },
   tabLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted },
-  tabLabelActive: { color: "#A855F7", fontFamily: "Cairo_700Bold" },
+  tabLabelActive: { color: "#3B78A6", fontFamily: "Cairo_700Bold" },
 
   /* ── فئات ── */
   catsScroll: { flexGrow: 0 },
@@ -841,10 +841,10 @@ const styles = StyleSheet.create({
   deliveryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
   designerRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   designerAvatar: {
-    width: 20, height: 20, borderRadius: 7, backgroundColor: "#A855F730",
+    width: 20, height: 20, borderRadius: 7, backgroundColor: "#3B78A630",
     alignItems: "center", justifyContent: "center",
   },
-  designerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#A855F7" },
+  designerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#3B78A6" },
   designerName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, flex: 1 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   ratingText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#F59E0B" },

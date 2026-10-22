@@ -100,14 +100,14 @@ type MerchantSpace = {
 };
 
 const MERCHANT_CATS: { key: "all" | MerchantCat; label: string; emoji: string; color: string }[] = [
-  { key:"all",         label:"الكل",          emoji:"🏪", color:"#6366F1" },
+  { key:"all",         label:"الكل",          emoji:"🏪", color:"#1F5C8A" },
   { key:"grocery",     label:"بقالة وأسواق",  emoji:"🛒", color:"#10B981" },
   { key:"restaurant",  label:"مطاعم وكافيهات",emoji:"🍽️", color:"#F97316" },
   { key:"pharmacy",    label:"صيدليات",        emoji:"💊", color:"#EF4444" },
-  { key:"clothing",    label:"ملابس وأزياء",  emoji:"👗", color:"#EC4899" },
+  { key:"clothing",    label:"ملابس وأزياء",  emoji:"👗", color:"#C46A3A" },
   { key:"electronics", label:"إلكترونيات",    emoji:"📱", color:"#3B82F6" },
   { key:"services",    label:"خدمات عامة",    emoji:"🔧", color:"#F59E0B" },
-  { key:"crafts",      label:"حرف ومصنوعات",  emoji:"🎨", color:"#8B5CF6" },
+  { key:"crafts",      label:"حرف ومصنوعات",  emoji:"🎨", color:"#1F5C8A" },
   { key:"other",       label:"أخرى",          emoji:"📦", color:"#6B7280" },
 ];
 
@@ -119,7 +119,7 @@ const MERCHANT_TAGS = [
 
 // ─── Phone Shops Types & Constants ──────────────────────────────────────────
 const PHONE_COLOR = "#0F172A";
-const PHONE_ACCENT = "#6366F1";
+const PHONE_ACCENT = "#1F5C8A";
 
 type PhoneCondition = "new" | "used" | "refurbished";
 
@@ -238,7 +238,7 @@ const AUCTION_CAT_COLORS: Record<AuctionItem["category"], string> = {
   agricultural: "#27AE60",
   construction: "#E67E22",
   electronics: "#2980B9",
-  furniture: "#8E44AD",
+  furniture: "#1F5C8A",
   appliances: "#16A085",
   clothing: "#C0392B",
   other: Colors.textSecondary,
@@ -290,7 +290,7 @@ const CONDITION_COLORS: Record<AuctionItem["condition"], string> = {
 const FAMILY_CAT_COLORS: Record<FamilyItem["category"], string> = {
   food: "#C0392B",
   sweets: "#D35400",
-  crafts: "#8E44AD",
+  crafts: "#1F5C8A",
   clothing: "#2980B9",
   other: Colors.textSecondary,
 };
@@ -1730,20 +1730,20 @@ export default function MarketScreen() {
           <Text style={[styles.switchTabText, tab === "family" && { color: Colors.primary }]}>{t("market", "familySector")}</Text>
         </AnimatedPress>
         <AnimatedPress
-          style={[styles.switchTab, tab === "merchants" && styles.switchTabActive, tab === "merchants" && { borderColor: "#6366F1" }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+          style={[styles.switchTab, tab === "merchants" && styles.switchTabActive, tab === "merchants" && { borderColor: "#1F5C8A" }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
           onPress={() => setTab("merchants")}
           scaleDown={0.92}
         >
-          <MaterialCommunityIcons name="store-marker-outline" size={15} color={tab === "merchants" ? "#6366F1" : Colors.textMuted} />
-          <Text style={[styles.switchTabText, tab === "merchants" && { color: "#6366F1" }]}>مساحة التجار</Text>
+          <MaterialCommunityIcons name="store-marker-outline" size={15} color={tab === "merchants" ? "#1F5C8A" : Colors.textMuted} />
+          <Text style={[styles.switchTabText, tab === "merchants" && { color: "#1F5C8A" }]}>مساحة التجار</Text>
         </AnimatedPress>
         <AnimatedPress
-          style={[styles.switchTab, tab === "phones" && styles.switchTabActive, tab === "phones" && { borderColor: "#7C3AED" }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
+          style={[styles.switchTab, tab === "phones" && styles.switchTabActive, tab === "phones" && { borderColor: "#1F5C8A" }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
           onPress={() => setTab("phones")}
           scaleDown={0.92}
         >
-          <MaterialCommunityIcons name="cellphone-marker" size={15} color={tab === "phones" ? "#7C3AED" : Colors.textMuted} />
-          <Text style={[styles.switchTabText, tab === "phones" && { color: "#7C3AED" }]}>محلات الهواتف</Text>
+          <MaterialCommunityIcons name="cellphone-marker" size={15} color={tab === "phones" ? "#1F5C8A" : Colors.textMuted} />
+          <Text style={[styles.switchTabText, tab === "phones" && { color: "#1F5C8A" }]}>محلات الهواتف</Text>
         </AnimatedPress>
       </View>
 
@@ -1875,8 +1875,8 @@ export default function MarketScreen() {
                 <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:28, borderTopRightRadius:28, padding:24, maxHeight:"92%", borderTopWidth:1, borderColor:Colors.divider }}>
                   <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                     <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
-                      <View style={{ width:42,height:42,borderRadius:12,backgroundColor:"#6366F120",justifyContent:"center",alignItems:"center" }}>
-                        <MaterialCommunityIcons name="store-plus-outline" size={22} color="#6366F1" />
+                      <View style={{ width:42,height:42,borderRadius:12,backgroundColor:"#1F5C8A20",justifyContent:"center",alignItems:"center" }}>
+                        <MaterialCommunityIcons name="store-plus-outline" size={22} color="#1F5C8A" />
                       </View>
                       <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>
                         {merchantRegSuccess ? "تم الإرسال!" : "تسجيل محلك التجاري"}
@@ -1909,8 +1909,8 @@ export default function MarketScreen() {
                         {["🏪","🛒","🍽️","💊","👗","📱","🔧","🎨","📦","🧁","🌿","🏗️"].map(em=>(
                           <TouchableOpacity key={em} onPress={()=>setMerchantForm(f=>({...f,logo_emoji:em}))}
                             style={{ width:44,height:44,borderRadius:12,alignItems:"center",justifyContent:"center",
-                              backgroundColor: merchantForm.logo_emoji===em ? "#6366F120" : Colors.cardBg,
-                              borderWidth:2, borderColor: merchantForm.logo_emoji===em ? "#6366F1" : Colors.divider }}>
+                              backgroundColor: merchantForm.logo_emoji===em ? "#1F5C8A20" : Colors.cardBg,
+                              borderWidth:2, borderColor: merchantForm.logo_emoji===em ? "#1F5C8A" : Colors.divider }}>
                             <Text style={{ fontSize:22 }}>{em}</Text>
                           </TouchableOpacity>
                         ))}
@@ -1960,9 +1960,9 @@ export default function MarketScreen() {
                               ...f, tags: on ? f.tags.filter(t=>t!==tag) : [...f.tags, tag]
                             }))}
                               style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:8,
-                                backgroundColor: on ? "#6366F120" : Colors.cardBg,
-                                borderWidth:1, borderColor: on ? "#6366F160" : Colors.divider }}>
-                              <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color: on ? "#6366F1" : Colors.textMuted }}>{tag}</Text>
+                                backgroundColor: on ? "#1F5C8A20" : Colors.cardBg,
+                                borderWidth:1, borderColor: on ? "#1F5C8A60" : Colors.divider }}>
+                              <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color: on ? "#1F5C8A" : Colors.textMuted }}>{tag}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -1979,7 +1979,7 @@ export default function MarketScreen() {
 
                       <TouchableOpacity onPress={submitMerchantReg} disabled={merchantSubmitting}
                         style={{ borderRadius:14, overflow:"hidden" }}>
-                        <View style={{ backgroundColor:"#6366F1", paddingVertical:14, alignItems:"center", borderRadius:14 }}>
+                        <View style={{ backgroundColor:"#1F5C8A", paddingVertical:14, alignItems:"center", borderRadius:14 }}>
                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>
                             {merchantSubmitting ? "جارٍ الإرسال..." : "إرسال طلب التسجيل"}
                           </Text>
@@ -2003,7 +2003,7 @@ export default function MarketScreen() {
                 {merchantSearch.length>0 && <TouchableOpacity onPress={()=>setMerchantSearch("")}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
               </View>
               <TouchableOpacity onPress={()=>{ setMerchantRegSuccess(false); setMerchantRegModal(true); }}
-                style={{ backgroundColor:"#6366F1", borderRadius:12, paddingHorizontal:14, paddingVertical:10, flexDirection:"row-reverse", alignItems:"center", gap:5 }}>
+                style={{ backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10, flexDirection:"row-reverse", alignItems:"center", gap:5 }}>
                 <Ionicons name="add" size={18} color="#fff" />
                 <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
               </TouchableOpacity>
@@ -2030,15 +2030,15 @@ export default function MarketScreen() {
               </View>
             ) : merchants.length === 0 ? (
               <Animated.View entering={FadeInDown.springify()} style={{ alignItems:"center", paddingVertical:60 }}>
-                <View style={{ width:92,height:92,borderRadius:28,backgroundColor:"#6366F115",justifyContent:"center",alignItems:"center",marginBottom:16 }}>
-                  <MaterialCommunityIcons name="store-outline" size={48} color="#6366F1" />
+                <View style={{ width:92,height:92,borderRadius:28,backgroundColor:"#1F5C8A15",justifyContent:"center",alignItems:"center",marginBottom:16 }}>
+                  <MaterialCommunityIcons name="store-outline" size={48} color="#1F5C8A" />
                 </View>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textSecondary, marginBottom:8, textAlign:"center" }}>لا يوجد تجار مسجّلون بعد</Text>
                 <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:20, maxWidth:260 }}>
                   سجّل محلك التجاري وكن ضمن أول التجار في دليل الحصاحيصا
                 </Text>
                 <TouchableOpacity onPress={()=>{ setMerchantRegSuccess(false); setMerchantRegModal(true); }}
-                  style={{ marginTop:20, backgroundColor:"#6366F1", borderRadius:14, paddingVertical:12, paddingHorizontal:28, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
+                  style={{ marginTop:20, backgroundColor:"#1F5C8A", borderRadius:14, paddingVertical:12, paddingHorizontal:28, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
                   <Ionicons name="add-circle-outline" size={18} color="#fff" />
                   <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#fff" }}>سجّل محلك الآن</Text>
                 </TouchableOpacity>
@@ -2065,7 +2065,7 @@ export default function MarketScreen() {
                           <View style={{ flex:1 }}>
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                               <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary }}>{m.shop_name}</Text>
-                              {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#6366F1" />}
+                              {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#1F5C8A" />}
                             </View>
                             <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", marginTop:2 }}>{m.owner_name}</Text>
                             <View style={{ flexDirection:"row-reverse", gap:6, marginTop:4, flexWrap:"wrap" }}>
@@ -2145,10 +2145,10 @@ export default function MarketScreen() {
           <Modal visible={phoneRegModal} transparent animationType="slide" onRequestClose={()=>{ setPhoneRegModal(false); setPhoneRegSuccess(false); }}>
             <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
               <Animated.View entering={FadeIn.duration(200)}>
-                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, padding:24, maxHeight:"94%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, padding:24, maxHeight:"94%", borderTopWidth:1, borderColor:"#1F5C8A30" }}>
                   {phoneRegSuccess ? (
                     <View style={{ alignItems:"center", paddingVertical:36, gap:16 }}>
-                      <View style={{ width:90,height:90,borderRadius:26,backgroundColor:"#7C3AED20",justifyContent:"center",alignItems:"center" }}>
+                      <View style={{ width:90,height:90,borderRadius:26,backgroundColor:"#1F5C8A20",justifyContent:"center",alignItems:"center" }}>
                         <Text style={{ fontSize:42 }}>📱</Text>
                       </View>
                       <Text style={{ fontFamily:"Cairo_700Bold", fontSize:20, color:Colors.textPrimary, textAlign:"center" }}>طلبك في الطريق!</Text>
@@ -2156,7 +2156,7 @@ export default function MarketScreen() {
                         ستراجع الإدارة طلبك وتنشط متجرك قريباً. يمكنك إضافة منتجاتك فور التفعيل.
                       </Text>
                       <TouchableOpacity onPress={()=>{ setPhoneRegModal(false); setPhoneRegSuccess(false); }}
-                        style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:14, paddingHorizontal:40 }}>
+                        style={{ backgroundColor:"#1F5C8A", borderRadius:16, paddingVertical:14, paddingHorizontal:40 }}>
                         <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>حسناً، شكراً!</Text>
                       </TouchableOpacity>
                     </View>
@@ -2164,8 +2164,8 @@ export default function MarketScreen() {
                     <>
                       <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                         <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
-                          <View style={{ width:44,height:44,borderRadius:14,backgroundColor:"#7C3AED20",justifyContent:"center",alignItems:"center" }}>
-                            <MaterialCommunityIcons name="cellphone-cog" size={22} color="#7C3AED" />
+                          <View style={{ width:44,height:44,borderRadius:14,backgroundColor:"#1F5C8A20",justifyContent:"center",alignItems:"center" }}>
+                            <MaterialCommunityIcons name="cellphone-cog" size={22} color="#1F5C8A" />
                           </View>
                           <View>
                             <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>تسجيل متجر هواتف</Text>
@@ -2183,8 +2183,8 @@ export default function MarketScreen() {
                           {["📱","🍎","🌟","🔵","⚡","🌸","🔴","🔧","🏪"].map(em=>(
                             <TouchableOpacity key={em} onPress={()=>setPhoneRegForm(f=>({...f,logo_emoji:em}))}
                               style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
-                                backgroundColor: phoneRegForm.logo_emoji===em?"#7C3AED20":Colors.cardBg,
-                                borderWidth:2, borderColor: phoneRegForm.logo_emoji===em?"#7C3AED":Colors.divider }}>
+                                backgroundColor: phoneRegForm.logo_emoji===em?"#1F5C8A20":Colors.cardBg,
+                                borderWidth:2, borderColor: phoneRegForm.logo_emoji===em?"#1F5C8A":Colors.divider }}>
                               <Text style={{ fontSize:22 }}>{em}</Text>
                             </TouchableOpacity>
                           ))}
@@ -2215,8 +2215,8 @@ export default function MarketScreen() {
                               <TouchableOpacity key={sp} onPress={()=>setPhoneRegForm(pf=>({
                                 ...pf, specialties: on ? pf.specialties.filter(s=>s!==sp) : [...pf.specialties, sp]
                               }))} style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
-                                backgroundColor: on?"#7C3AED20":Colors.cardBg, borderWidth:1, borderColor: on?"#7C3AED60":Colors.divider }}>
-                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: on?"#7C3AED":Colors.textMuted }}>{sp}</Text>
+                                backgroundColor: on?"#1F5C8A20":Colors.cardBg, borderWidth:1, borderColor: on?"#1F5C8A60":Colors.divider }}>
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: on?"#1F5C8A":Colors.textMuted }}>{sp}</Text>
                               </TouchableOpacity>
                             );
                           })}
@@ -2228,7 +2228,7 @@ export default function MarketScreen() {
                           placeholder="أذكر أبرز الماركات والخدمات التي تقدمها..." placeholderTextColor={Colors.textMuted}
                           style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right", minHeight:80, textAlignVertical:"top", marginBottom:18 }} />
                         <TouchableOpacity onPress={submitPhoneReg} disabled={phoneRegSubmitting}
-                          style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
+                          style={{ backgroundColor:"#1F5C8A", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>
                             {phoneRegSubmitting?"جارٍ الإرسال...":"إرسال طلب التسجيل"}
                           </Text>
@@ -2245,18 +2245,18 @@ export default function MarketScreen() {
           <Modal visible={myShopVisible} transparent animationType="slide" onRequestClose={()=>setMyShopVisible(false)}>
             <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
               <Animated.View entering={FadeIn.duration(200)}>
-                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#1F5C8A30" }}>
                   {/* Header */}
                   <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
                     <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
                       <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:10 }}>
-                        <View style={{ width:50,height:50,borderRadius:16,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center" }}>
+                        <View style={{ width:50,height:50,borderRadius:16,backgroundColor:"#1F5C8A15",alignItems:"center",justifyContent:"center" }}>
                           <Text style={{ fontSize:26 }}>{myShop?.logo_emoji ?? "📱"}</Text>
                         </View>
                         <View>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                             <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>{myShop?.shop_name}</Text>
-                            {myShop?.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#7C3AED" />}
+                            {myShop?.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#1F5C8A" />}
                           </View>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4, marginTop:2 }}>
                             <View style={{ width:8,height:8,borderRadius:4,backgroundColor: myShop?.is_approved?"#10B981":"#F59E0B" }} />
@@ -2273,7 +2273,7 @@ export default function MarketScreen() {
                     {/* Stats row */}
                     <View style={{ flexDirection:"row-reverse", gap:12, marginTop:14 }}>
                       {[
-                        { label:"المنتجات", val: myProducts.length, icon:"package-variant", color:"#7C3AED" },
+                        { label:"المنتجات", val: myProducts.length, icon:"package-variant", color:"#1F5C8A" },
                         { label:"جديد", val: myProducts.filter(p=>p.condition==="new").length, icon:"star-circle", color:"#10B981" },
                         { label:"مستعمل", val: myProducts.filter(p=>p.condition==="used").length, icon:"refresh-circle", color:"#F59E0B" },
                       ].map(stat=>(
@@ -2290,7 +2290,7 @@ export default function MarketScreen() {
                     <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                       <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>منتجاتي</Text>
                       <TouchableOpacity onPress={()=>{ setEditingProduct(null); resetProdForm(); setProdModal(true); }}
-                        style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:8 }}>
+                        style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:8 }}>
                         <Ionicons name="add" size={18} color="#fff" />
                         <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#fff" }}>منتج جديد</Text>
                       </TouchableOpacity>
@@ -2311,7 +2311,7 @@ export default function MarketScreen() {
                         return (
                           <Animated.View key={p.id} entering={FadeInDown.delay(i*40).springify()}>
                             <View style={{ flexDirection:"row-reverse", gap:12, backgroundColor:Colors.bg, borderRadius:16, padding:14, marginBottom:10, borderWidth:1, borderColor:Colors.divider }}>
-                              <View style={{ width:52,height:52,borderRadius:14,backgroundColor:"#7C3AED10",alignItems:"center",justifyContent:"center" }}>
+                              <View style={{ width:52,height:52,borderRadius:14,backgroundColor:"#1F5C8A10",alignItems:"center",justifyContent:"center" }}>
                                 <Text style={{ fontSize:26 }}>{p.emoji}</Text>
                               </View>
                               <View style={{ flex:1 }}>
@@ -2323,7 +2323,7 @@ export default function MarketScreen() {
                                 </View>
                                 {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right" }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
                                 <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
-                                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED" }}>
+                                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#1F5C8A" }}>
                                     {p.price ? `${p.price.toLocaleString()} ج.س` : "غير محدد"}
                                   </Text>
                                   <View style={{ flexDirection:"row-reverse", gap:6 }}>
@@ -2364,7 +2364,7 @@ export default function MarketScreen() {
           <Modal visible={prodModal} transparent animationType="slide" onRequestClose={()=>{ setProdModal(false); setEditingProduct(null); }}>
             <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
               <Animated.View entering={FadeIn.duration(200)}>
-                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:28, borderTopRightRadius:28, height:"90%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:28, borderTopRightRadius:28, height:"90%", borderTopWidth:1, borderColor:"#1F5C8A30" }}>
                   <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider, flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
                     <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>
                       {editingProduct?"تعديل المنتج":"إضافة منتج جديد"}
@@ -2380,7 +2380,7 @@ export default function MarketScreen() {
                       {PRODUCT_EMOJIS.map(em=>(
                         <TouchableOpacity key={em} onPress={()=>setProdForm(f=>({...f,emoji:em}))}
                           style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
-                            backgroundColor: prodForm.emoji===em?"#7C3AED20":Colors.cardBg, borderWidth:2, borderColor: prodForm.emoji===em?"#7C3AED":Colors.divider }}>
+                            backgroundColor: prodForm.emoji===em?"#1F5C8A20":Colors.cardBg, borderWidth:2, borderColor: prodForm.emoji===em?"#1F5C8A":Colors.divider }}>
                           <Text style={{ fontSize:22 }}>{em}</Text>
                         </TouchableOpacity>
                       ))}
@@ -2416,7 +2416,7 @@ export default function MarketScreen() {
                         <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>السعر (ج.س)</Text>
                         <TextInput value={prodForm.price} onChangeText={v=>setProdForm(f=>({...f,price:v}))} keyboardType="numeric"
                           placeholder="85000" placeholderTextColor={Colors.textMuted}
-                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED", borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
+                          style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_700Bold", fontSize:15, color:"#1F5C8A", borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
                       </View>
                       <View style={{ flex:1 }}>
                         <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>السعر الأصلي</Text>
@@ -2433,8 +2433,8 @@ export default function MarketScreen() {
                       {PHONE_COLORS_LIST.map(cl=>(
                         <TouchableOpacity key={cl} onPress={()=>setProdForm(f=>({...f,color:f.color===cl?"":cl}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
-                            backgroundColor: prodForm.color===cl?"#7C3AED20":Colors.cardBg, borderWidth:1, borderColor: prodForm.color===cl?"#7C3AED60":Colors.divider }}>
-                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: prodForm.color===cl?"#7C3AED":Colors.textMuted }}>{cl}</Text>
+                            backgroundColor: prodForm.color===cl?"#1F5C8A20":Colors.cardBg, borderWidth:1, borderColor: prodForm.color===cl?"#1F5C8A60":Colors.divider }}>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: prodForm.color===cl?"#1F5C8A":Colors.textMuted }}>{cl}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -2479,7 +2479,7 @@ export default function MarketScreen() {
                       placeholder="معلومات إضافية عن المنتج..." placeholderTextColor={Colors.textMuted}
                       style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right", minHeight:70, textAlignVertical:"top", marginBottom:20 }} />
                     <TouchableOpacity onPress={submitProduct} disabled={prodSubmitting}
-                      style={{ backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
+                      style={{ backgroundColor:"#1F5C8A", borderRadius:16, paddingVertical:15, alignItems:"center" }}>
                       <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#fff" }}>
                         {prodSubmitting?"جارٍ الحفظ...":editingProduct?"حفظ التعديلات":"إضافة المنتج"}
                       </Text>
@@ -2494,26 +2494,26 @@ export default function MarketScreen() {
           <Modal visible={shopDetailVisible} transparent animationType="slide" onRequestClose={()=>setShopDetailVisible(false)}>
             <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.75)", justifyContent:"flex-end" }}>
               <Animated.View entering={FadeIn.duration(200)}>
-                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#7C3AED30" }}>
+                <View style={{ backgroundColor:Colors.cardBgElevated, borderTopLeftRadius:30, borderTopRightRadius:30, height:"92%", borderTopWidth:1, borderColor:"#1F5C8A30" }}>
                   {selectedShop && (
                     <>
                       {/* Shop header */}
                       <View style={{ padding:20, borderBottomWidth:1, borderBottomColor:Colors.divider }}>
                         <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12 }}>
-                            <View style={{ width:60,height:60,borderRadius:18,backgroundColor:"#7C3AED15",alignItems:"center",justifyContent:"center",borderWidth:2,borderColor:selectedShop.is_featured?"#7C3AED40":"transparent" }}>
+                            <View style={{ width:60,height:60,borderRadius:18,backgroundColor:"#1F5C8A15",alignItems:"center",justifyContent:"center",borderWidth:2,borderColor:selectedShop.is_featured?"#1F5C8A40":"transparent" }}>
                               <Text style={{ fontSize:30 }}>{selectedShop.logo_emoji}</Text>
                             </View>
                             <View>
                               <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>{selectedShop.shop_name}</Text>
-                                {selectedShop.is_verified && <MaterialCommunityIcons name="check-decagram" size={18} color="#7C3AED" />}
+                                {selectedShop.is_verified && <MaterialCommunityIcons name="check-decagram" size={18} color="#1F5C8A" />}
                               </View>
                               <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"right" }}>{selectedShop.owner_name}</Text>
                               <View style={{ flexDirection:"row-reverse", gap:4, flexWrap:"wrap", marginTop:4 }}>
                                 {selectedShop.specialties?.slice(0,3).map(sp=>(
-                                  <View key={sp} style={{ paddingHorizontal:8, paddingVertical:2, borderRadius:6, backgroundColor:"#7C3AED15" }}>
-                                    <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                                  <View key={sp} style={{ paddingHorizontal:8, paddingVertical:2, borderRadius:6, backgroundColor:"#1F5C8A15" }}>
+                                    <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
                                   </View>
                                 ))}
                               </View>
@@ -2585,16 +2585,16 @@ export default function MarketScreen() {
                               const hasDiscount = p.original_price && p.price && p.original_price > p.price;
                               return (
                                 <Animated.View key={p.id} entering={FadeInDown.delay(i*50).springify()}
-                                  style={{ width:"47%", backgroundColor:Colors.cardBg, borderRadius:18, borderWidth:1, borderColor: p.is_featured?"#7C3AED50":Colors.divider, overflow:"hidden" }}>
+                                  style={{ width:"47%", backgroundColor:Colors.cardBg, borderRadius:18, borderWidth:1, borderColor: p.is_featured?"#1F5C8A50":Colors.divider, overflow:"hidden" }}>
                                   {p.is_featured && (
-                                    <View style={{ backgroundColor:"#7C3AED18", paddingVertical:4, alignItems:"center" }}>
-                                      <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:"#7C3AED" }}>⭐ مميّز</Text>
+                                    <View style={{ backgroundColor:"#1F5C8A18", paddingVertical:4, alignItems:"center" }}>
+                                      <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:"#1F5C8A" }}>⭐ مميّز</Text>
                                     </View>
                                   )}
                                   <View style={{ padding:12 }}>
                                     {/* Product emoji */}
                                     <View style={{ alignItems:"center", marginBottom:10 }}>
-                                      <View style={{ width:64,height:64,borderRadius:18,backgroundColor:"#7C3AED10",alignItems:"center",justifyContent:"center" }}>
+                                      <View style={{ width:64,height:64,borderRadius:18,backgroundColor:"#1F5C8A10",alignItems:"center",justifyContent:"center" }}>
                                         <Text style={{ fontSize:32 }}>{p.emoji}</Text>
                                       </View>
                                     </View>
@@ -2617,7 +2617,7 @@ export default function MarketScreen() {
                                     <View style={{ flexDirection:"row-reverse", alignItems:"baseline", gap:6 }}>
                                       {p.price ? (
                                         <>
-                                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#7C3AED" }}>{p.price.toLocaleString()}</Text>
+                                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#1F5C8A" }}>{p.price.toLocaleString()}</Text>
                                           <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color:Colors.textMuted }}>ج.س</Text>
                                           {hasDiscount && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:10, color:Colors.textMuted, textDecorationLine:"line-through" }}>{p.original_price?.toLocaleString()}</Text>}
                                         </>
@@ -2652,13 +2652,13 @@ export default function MarketScreen() {
               {/* My shop or register button */}
               {myShop ? (
                 <TouchableOpacity onPress={()=>{ loadMyPhoneShop(); setMyShopVisible(true); }}
-                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
                   <MaterialCommunityIcons name="store-cog-outline" size={18} color="#fff" />
                   <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>متجري</Text>
                 </TouchableOpacity>
               ) : !auth.isGuest ? (
                 <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}
-                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#7C3AED", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
+                  style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
                   <Ionicons name="add" size={18} color="#fff" />
                   <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
                 </TouchableOpacity>
@@ -2669,10 +2669,10 @@ export default function MarketScreen() {
               {PHONE_BRANDS.map(brand=>(
                 <TouchableOpacity key={brand.key} onPress={()=>setPhoneBrand(brand.key)}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
-                    backgroundColor: phoneBrand===brand.key?"#7C3AED20":Colors.cardBg,
-                    borderWidth:1, borderColor: phoneBrand===brand.key?"#7C3AED60":Colors.divider }}>
+                    backgroundColor: phoneBrand===brand.key?"#1F5C8A20":Colors.cardBg,
+                    borderWidth:1, borderColor: phoneBrand===brand.key?"#1F5C8A60":Colors.divider }}>
                   <Text style={{ fontSize:12 }}>{brand.emoji}</Text>
-                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: phoneBrand===brand.key?"#7C3AED":Colors.textMuted }}>{brand.label}</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: phoneBrand===brand.key?"#1F5C8A":Colors.textMuted }}>{brand.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2687,8 +2687,8 @@ export default function MarketScreen() {
               </View>
             ) : phoneShops.length === 0 ? (
               <Animated.View entering={FadeInDown.springify()} style={{ alignItems:"center", paddingVertical:60 }}>
-                <View style={{ width:100,height:100,borderRadius:30,backgroundColor:"#7C3AED15",justifyContent:"center",alignItems:"center",marginBottom:20 }}>
-                  <MaterialCommunityIcons name="cellphone-off" size={52} color="#7C3AED" />
+                <View style={{ width:100,height:100,borderRadius:30,backgroundColor:"#1F5C8A15",justifyContent:"center",alignItems:"center",marginBottom:20 }}>
+                  <MaterialCommunityIcons name="cellphone-off" size={52} color="#1F5C8A" />
                 </View>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textSecondary, marginBottom:10, textAlign:"center" }}>لا توجد متاجر هواتف بعد</Text>
                 <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"center", lineHeight:22, maxWidth:270 }}>
@@ -2696,7 +2696,7 @@ export default function MarketScreen() {
                 </Text>
                 {!auth.isGuest && !myShop && (
                   <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}
-                    style={{ marginTop:20, backgroundColor:"#7C3AED", borderRadius:16, paddingVertical:13, paddingHorizontal:30, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
+                    style={{ marginTop:20, backgroundColor:"#1F5C8A", borderRadius:16, paddingVertical:13, paddingHorizontal:30, flexDirection:"row-reverse", alignItems:"center", gap:8 }}>
                     <MaterialCommunityIcons name="cellphone-cog" size={18} color="#fff" />
                     <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#fff" }}>سجّل متجرك الآن</Text>
                   </TouchableOpacity>
@@ -2707,30 +2707,30 @@ export default function MarketScreen() {
                 <Animated.View key={shop.id} entering={FadeInDown.delay(i*70).springify().damping(18)}>
                   <TouchableOpacity onPress={()=>openShop(shop)} activeOpacity={0.85}>
                     <View style={{ backgroundColor:Colors.cardBg, borderRadius:22, borderWidth:1,
-                      borderColor: shop.is_featured?"#7C3AED50":Colors.divider, overflow:"hidden" }}>
+                      borderColor: shop.is_featured?"#1F5C8A50":Colors.divider, overflow:"hidden" }}>
                       {shop.is_featured && (
-                        <View style={{ backgroundColor:"#7C3AED18", paddingVertical:6, paddingHorizontal:14, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
-                          <MaterialCommunityIcons name="star-circle" size={14} color="#7C3AED" />
-                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:"#7C3AED" }}>متجر مميّز</Text>
+                        <View style={{ backgroundColor:"#1F5C8A18", paddingVertical:6, paddingHorizontal:14, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                          <MaterialCommunityIcons name="star-circle" size={14} color="#1F5C8A" />
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:"#1F5C8A" }}>متجر مميّز</Text>
                         </View>
                       )}
                       <View style={{ padding:16 }}>
                         {/* Header */}
                         <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:14, marginBottom:12 }}>
-                          <View style={{ width:64,height:64,borderRadius:20,backgroundColor:"#7C3AED12",alignItems:"center",justifyContent:"center",borderWidth:1.5,borderColor:"#7C3AED25" }}>
+                          <View style={{ width:64,height:64,borderRadius:20,backgroundColor:"#1F5C8A12",alignItems:"center",justifyContent:"center",borderWidth:1.5,borderColor:"#1F5C8A25" }}>
                             <Text style={{ fontSize:32 }}>{shop.logo_emoji}</Text>
                           </View>
                           <View style={{ flex:1 }}>
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:7 }}>
                               <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>{shop.shop_name}</Text>
-                              {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={17} color="#7C3AED" />}
+                              {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={17} color="#1F5C8A" />}
                             </View>
                             <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>{shop.owner_name}</Text>
                             {/* Specialties */}
                             <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:4, marginTop:6 }}>
                               {shop.specialties?.slice(0,4).map(sp=>(
-                                <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#7C3AED12", borderWidth:1, borderColor:"#7C3AED25" }}>
-                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#7C3AED" }}>{sp}</Text>
+                                <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#1F5C8A12", borderWidth:1, borderColor:"#1F5C8A25" }}>
+                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
                                 </View>
                               ))}
                             </View>
@@ -2756,8 +2756,8 @@ export default function MarketScreen() {
                         {/* Bottom row: product count + action */}
                         <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
-                            <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:"#7C3AED15", borderWidth:1, borderColor:"#7C3AED30" }}>
-                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color:"#7C3AED" }}>
+                            <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:"#1F5C8A15", borderWidth:1, borderColor:"#1F5C8A30" }}>
+                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color:"#1F5C8A" }}>
                                 {shop.product_count} منتج
                               </Text>
                             </View>
@@ -2770,9 +2770,9 @@ export default function MarketScreen() {
                                 <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#10B981" }}>اتصال</Text>
                               </TouchableOpacity>
                             )}
-                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#7C3AED15", borderWidth:1, borderColor:"#7C3AED30" }}>
-                              <MaterialCommunityIcons name="cellphone" size={14} color="#7C3AED" />
-                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#7C3AED" }}>عرض المنتجات</Text>
+                            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#1F5C8A15", borderWidth:1, borderColor:"#1F5C8A30" }}>
+                              <MaterialCommunityIcons name="cellphone" size={14} color="#1F5C8A" />
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#1F5C8A" }}>عرض المنتجات</Text>
                             </View>
                           </View>
                         </View>

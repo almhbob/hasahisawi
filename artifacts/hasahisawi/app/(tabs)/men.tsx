@@ -37,7 +37,7 @@ type MenService = {
 // ══════════════════════════════════════════════════════
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
   barber:  { label: "حلاقة",          icon: "content-cut",        color: "#38BDF8" },
-  fashion: { label: "أزياء",          icon: "tshirt-crew-outline", color: "#8B5CF6" },
+  fashion: { label: "أزياء",          icon: "tshirt-crew-outline", color: "#1F5C8A" },
   perfume: { label: "عطور",           icon: "spray-bottle",        color: "#FBBF24" },
   fitness: { label: "رياضة ولياقة",  icon: "dumbbell",             color: "#22C55E" },
   craft:   { label: "حرف وصيانة",    icon: "tools",                color: "#F97316" },
@@ -162,7 +162,7 @@ export default function MenScreen() {
         <View style={s.statsRow}>
           {[
             { num: `${countByType("barber")}`,  label: "حلاقة",   color: "#38BDF8" },
-            { num: `${countByType("fashion")}`, label: "أزياء",   color: "#8B5CF6" },
+            { num: `${countByType("fashion")}`, label: "أزياء",   color: "#1F5C8A" },
             { num: `${countByType("fitness")}`, label: "رياضة",   color: "#22C55E" },
             { num: `${countByType("craft")}`,   label: "حرف",     color: "#F97316" },
           ].map((st, i) => (

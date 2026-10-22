@@ -77,7 +77,7 @@ interface RentalSettings {
 const RENTAL_TYPES: { key: RentalType; label: string; icon: string; color: string }[] = [
   { key: "real_estate",       label: "عقارات",          icon: "home",               color: "#3E9CBF" },
   { key: "event_tools",       label: "أدوات مناسبات",   icon: "party-popper",       color: "#F97316" },
-  { key: "construction_tools",label: "معدات بناء",      icon: "hammer-wrench",      color: "#8B5CF6" },
+  { key: "construction_tools",label: "معدات بناء",      icon: "hammer-wrench",      color: "#1F5C8A" },
 ];
 
 const REAL_ESTATE_SUBTYPES = ["شقة", "منزل", "محل تجاري", "مكتب", "أرض", "مستودع", "أخرى"];
@@ -380,7 +380,7 @@ export default function RentalScreen() {
         </View>
         {item.is_verified && (
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#3EFF9C" />
+            <Ionicons name="checkmark-circle" size={14} color="#2EAD6B" />
             <Text style={styles.verifiedText}>موثّق</Text>
           </View>
         )}
@@ -404,7 +404,7 @@ export default function RentalScreen() {
   const ContractCard = ({ c }: { c: Contract }) => {
     const isOwner  = c.owner_name === user?.name;
     const canSign  = (isOwner && !c.owner_signed) || (!isOwner && !c.renter_signed);
-    const statusColor = c.status === "active" ? "#3EFF9C" : c.status === "disputed" ? Colors.danger : c.status === "completed" ? "#A3A3A3" : "#FBBF24";
+    const statusColor = c.status === "active" ? "#2EAD6B" : c.status === "disputed" ? Colors.danger : c.status === "completed" ? "#A3A3A3" : "#FBBF24";
     const statusLabel = c.status === "active" ? "نشط" : c.status === "disputed" ? "نزاع" : c.status === "completed" ? "منتهي" : "قيد الإنجاز";
     return (
       <View style={styles.contractCard}>
@@ -426,11 +426,11 @@ export default function RentalScreen() {
         </View>
         <View style={styles.sigRow}>
           <View style={styles.sigItem}>
-            <Ionicons name={c.owner_signed ? "checkmark-circle" : "ellipse-outline"} size={16} color={c.owner_signed ? "#3EFF9C" : Colors.textMuted} />
+            <Ionicons name={c.owner_signed ? "checkmark-circle" : "ellipse-outline"} size={16} color={c.owner_signed ? "#2EAD6B" : Colors.textMuted} />
             <Text style={styles.sigText}>المؤجر</Text>
           </View>
           <View style={styles.sigItem}>
-            <Ionicons name={c.renter_signed ? "checkmark-circle" : "ellipse-outline"} size={16} color={c.renter_signed ? "#3EFF9C" : Colors.textMuted} />
+            <Ionicons name={c.renter_signed ? "checkmark-circle" : "ellipse-outline"} size={16} color={c.renter_signed ? "#2EAD6B" : Colors.textMuted} />
             <Text style={styles.sigText}>المستأجر</Text>
           </View>
         </View>
@@ -758,7 +758,7 @@ export default function RentalScreen() {
               </View>
               {!contractForm.from_app && (
                 <View style={styles.exemptNote}>
-                  <Ionicons name="checkmark-circle-outline" size={14} color="#3EFF9C" />
+                  <Ionicons name="checkmark-circle-outline" size={14} color="#2EAD6B" />
                   <Text style={styles.exemptText}>معفى من العمولة</Text>
                 </View>
               )}
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   typeBadge:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm },
   typeBadgeText:   { fontSize: 11, fontWeight: "600" },
   verifiedBadge:   { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  verifiedText:    { fontSize: 11, color: "#3EFF9C" },
+  verifiedText:    { fontSize: 11, color: "#2EAD6B" },
   cardTitle:       { fontSize: 15, fontWeight: "700", color: Colors.text, textAlign: "right", marginBottom: 3 },
   cardSub:         { fontSize: 12, color: Colors.accent, textAlign: "right", marginBottom: 4 },
   cardDesc:        { fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18, marginBottom: 8 },
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
   boolBtnText:     { fontSize: 12, color: Colors.textMuted },
   boolBtnTextActive: { color: Colors.accent, fontWeight: "600" },
   exemptNote:      { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10 },
-  exemptText:      { fontSize: 12, color: "#3EFF9C" },
+  exemptText:      { fontSize: 12, color: "#2EAD6B" },
   legalNote:       { flexDirection: "row-reverse", backgroundColor: "#FBBF2415", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
   legalText:       { flex: 1, color: Colors.textMuted, fontSize: 11, lineHeight: 18, textAlign: "right" },
   contractDoc:     { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.borderSubtle },
