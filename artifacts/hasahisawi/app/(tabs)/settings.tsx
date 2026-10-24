@@ -35,6 +35,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 const ADMIN_PIN_KEY = "admin_pin";
 const ADMIN_NAME_KEY = "admin_name";
 const ADMIN_KEY = "admin_logged_in";
@@ -1826,7 +1827,7 @@ export default function SettingsScreen() {
                     textAlign="right"
                     autoFocus
                   />
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
                     <TouchableOpacity
                       style={[profileSty.saveBtn, profileSaving && { opacity: 0.6 }]}
                       onPress={handleSaveProfile}
@@ -1850,7 +1851,7 @@ export default function SettingsScreen() {
                   {(auth.user.phone || auth.user.email) && (
                     <Text style={profileSty.contact}>{auth.user.phone || auth.user.email}</Text>
                   )}
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
                     <TouchableOpacity
                       style={profileSty.editBtn}
                       onPress={() => { setProfileName(auth.user?.name || ""); setShowProfileEdit(true); }}
@@ -2160,7 +2161,7 @@ export default function SettingsScreen() {
             <View style={instPortalSty.textCol}>
               <Text style={instPortalSty.title}>بوابة المؤسسات</Text>
               <Text style={instPortalSty.sub}>إدارة خدمات مؤسستك المعتمدة</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 }}>
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success }} />
                 <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.success }}>متاحة للمؤسسات المسجّلة</Text>
               </View>
@@ -2357,7 +2358,7 @@ export default function SettingsScreen() {
       </ModernHeader>
 
       {/* Tab Bar */}
-      <ScrollView
+      <HScroll
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.tabBar}
@@ -2373,7 +2374,7 @@ export default function SettingsScreen() {
             <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </HScroll>
 
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
@@ -2707,7 +2708,7 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <Text style={styles.sectionTitle}>{t("admin", "userManagement")}</Text>
-              <View style={{ flexDirection: "row", gap: 6 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 6 }}>
                 <TouchableOpacity onPress={loadUsers} style={{ padding: 8 }}>
                   <Ionicons name="refresh" size={22} color={Colors.primary} />
                 </TouchableOpacity>
@@ -2795,7 +2796,7 @@ export default function SettingsScreen() {
                         {isMod && (
                           <View>
                             <Text style={{ color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 13, marginBottom: 10, textAlign: isRTL ? "right" : "left" }}>{t("admin", "assignSections")}</Text>
-                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
                               {SECTION_OPTIONS.map(sec => {
                                 const active = userPerms.includes(sec.key);
                                 return (
@@ -3491,7 +3492,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
   },
   adminBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.92)" },
-  langToggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  langToggleRow: { flexDirection: "row-reverse", gap: 8, marginTop: 8 },
   langBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary, alignItems: "center" },
   langBtnActive: { backgroundColor: Colors.primary },
   langBtnText: { color: Colors.primary, fontFamily: "Cairo_600SemiBold" },
@@ -3540,9 +3541,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14,
   },
   tabBar: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  tabBarContent: { flexDirection: "row", paddingHorizontal: 12, paddingVertical: 6, gap: 4 },
+  tabBarContent: { flexDirection: "row-reverse", paddingHorizontal: 12, paddingVertical: 6, gap: 4 },
   tabBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
     borderWidth: 1, borderColor: "transparent",
   },
@@ -3904,7 +3905,7 @@ const profileSty = StyleSheet.create({
     color: Colors.textSecondary,
   },
   editBtn: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 14,
@@ -3920,7 +3921,7 @@ const profileSty = StyleSheet.create({
     color: Colors.primary,
   },
   dividerWrap: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     marginHorizontal: 20,
     marginBottom: 16,

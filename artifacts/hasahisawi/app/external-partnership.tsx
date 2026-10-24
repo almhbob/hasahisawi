@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 type OrgType =
   | "hospital" | "university" | "ngo" | "government"
   | "company" | "media" | "supplier" | "research" | "other";
@@ -160,7 +161,7 @@ export default function ExternalPartnershipScreen() {
         </View>
 
         {/* فلاتر */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}>
           <TouchableOpacity
             style={[s.filterChip, filter === "all" && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
             onPress={() => setFilter("all")}
@@ -181,7 +182,7 @@ export default function ExternalPartnershipScreen() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </HScroll>
 
         <View style={{ marginTop: 16, gap: 14 }}>
           {loading && (
@@ -413,7 +414,7 @@ function ApplicationFormModal({
               </View>
 
               <Field label="القطاع / التخصص" value={sector} onChangeText={setSector} placeholder="مثال: طب القلب، تعليم تقني..." />
-              <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                 <View style={{ flex: 1 }}><Field label="المدينة" value={city} onChangeText={setCity} placeholder="الرياض" /></View>
                 <View style={{ flex: 1 }}><Field label="الدولة" value={country} onChangeText={setCountry} placeholder="السعودية" /></View>
               </View>
@@ -515,57 +516,57 @@ function Field({
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { paddingHorizontal: 16, paddingBottom: 18, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerTopRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8, marginBottom: 16 },
+  headerTopRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 8, marginBottom: 16 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   headerIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#fff", fontSize: 18, fontWeight: "800", textAlign: "right" },
   headerSubtitle: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 3, textAlign: "right" },
-  statsRow: { flexDirection: "row", gap: 8 },
+  statsRow: { flexDirection: "row-reverse", gap: 8 },
   statBox: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 12, padding: 10, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
   statNum: { color: "#fff", fontSize: 18, fontWeight: "800", marginTop: 4 },
   statLabel: { color: "rgba(255,255,255,0.75)", fontSize: 10, marginTop: 2 },
 
-  ctaCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 18, gap: 14, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  ctaCard: { flexDirection: "row-reverse", alignItems: "center", padding: 16, borderRadius: 18, gap: 14, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   ctaIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.12)", alignItems: "center", justifyContent: "center" },
   ctaTitle: { fontSize: 16, fontWeight: "800", color: "#000", textAlign: "right" },
   ctaDesc: { fontSize: 11, color: "rgba(0,0,0,0.7)", marginTop: 3, textAlign: "right", lineHeight: 16 },
 
   infoCard: { marginTop: 16, padding: 14, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderGlow },
-  infoHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  infoHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10 },
   infoTitle: { fontSize: 14, fontWeight: "700", color: Colors.text },
-  infoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  infoChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  infoGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
+  infoChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
   infoChipEmoji: { fontSize: 13 },
   infoChipText: { fontSize: 11, fontWeight: "600" },
 
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 10 },
-  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sectionHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 10 },
+  sectionTitleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   sectionDot: { width: 4, height: 18, borderRadius: 2, backgroundColor: Colors.primary },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: Colors.text },
   sectionCount: { fontSize: 12, fontWeight: "700", color: Colors.primary, backgroundColor: Colors.primary + "15", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
 
-  filterChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
+  filterChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
   filterChipText: { fontSize: 12, color: Colors.text, fontWeight: "600" },
   filterChipEmoji: { fontSize: 12 },
 
   partnerCard: { borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden" },
-  featuredBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2 },
+  featuredBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2 },
   featuredText: { fontSize: 10, fontWeight: "800", color: "#000" },
-  partnerHeader: { flexDirection: "row", gap: 12, marginBottom: 10 },
+  partnerHeader: { flexDirection: "row-reverse", gap: 12, marginBottom: 10 },
   partnerIconCircle: { width: 56, height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   partnerName: { fontSize: 15, fontWeight: "800", color: Colors.text, textAlign: "right", marginBottom: 6 },
   typeBadge: { alignSelf: "flex-end", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontSize: 10, fontWeight: "700" },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, justifyContent: "flex-end" },
+  locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 6, justifyContent: "flex-end" },
   locationText: { fontSize: 11, color: Colors.textMuted },
   partnerDesc: { fontSize: 12.5, color: Colors.textMuted, lineHeight: 19, textAlign: "right", marginBottom: 10 },
   scopeBox: { padding: 10, borderRadius: 10, backgroundColor: Colors.bg, marginBottom: 10, borderRightWidth: 3, borderRightColor: Colors.primary },
   scopeLabel: { fontSize: 11, fontWeight: "700", color: Colors.primary, marginBottom: 4, textAlign: "right" },
   scopeText: { fontSize: 12, color: Colors.text, lineHeight: 18, textAlign: "right" },
-  servicesWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 10 },
+  servicesWrap: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 10 },
   serviceChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
   serviceChipText: { fontSize: 10.5, fontWeight: "600" },
-  websiteBtn: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, backgroundColor: Colors.primary + "10", borderWidth: 1, borderColor: Colors.primary + "30" },
+  websiteBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, backgroundColor: Colors.primary + "10", borderWidth: 1, borderColor: Colors.primary + "30" },
   websiteText: { flex: 1, fontSize: 12, color: Colors.primary, fontWeight: "600", textAlign: "right" },
 
   emptyBox: { alignItems: "center", padding: 40, gap: 10 },
@@ -575,11 +576,11 @@ const s = StyleSheet.create({
 
 const m = StyleSheet.create({
   header: { paddingBottom: 12, paddingHorizontal: 16 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff" },
   headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 2 },
-  progressRow: { flexDirection: "row", gap: 6, marginTop: 14 },
+  progressRow: { flexDirection: "row-reverse", gap: 6, marginTop: 14 },
   progressBar: { flex: 1, height: 4, borderRadius: 2 },
 
   stepTitle: { fontSize: 18, fontWeight: "800", color: Colors.text, textAlign: "right", marginBottom: 4 },
@@ -588,17 +589,17 @@ const m = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "700", color: Colors.text, marginBottom: 6, textAlign: "right" },
   input: { backgroundColor: Colors.cardBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: Colors.text, borderWidth: 1, borderColor: Colors.borderGlow },
 
-  typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
-  typeBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
+  typeGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 14 },
+  typeBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
   typeEmoji: { fontSize: 14 },
   typeBtnText: { fontSize: 12, color: Colors.text },
 
-  notice: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, backgroundColor: Colors.primary + "10", borderRadius: 10, borderWidth: 1, borderColor: Colors.primary + "30", marginTop: 8 },
+  notice: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 10, backgroundColor: Colors.primary + "10", borderRadius: 10, borderWidth: 1, borderColor: Colors.primary + "30", marginTop: 8 },
   noticeText: { flex: 1, fontSize: 11.5, color: Colors.primary, textAlign: "right" },
 
-  footer: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
-  prevBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 18, paddingVertical: 13, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderGlow },
+  footer: { flexDirection: "row-reverse", gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderGlow, backgroundColor: Colors.cardBg },
+  prevBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 18, paddingVertical: 13, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderGlow },
   prevBtnText: { fontSize: 14, fontWeight: "700", color: Colors.textMuted },
-  nextBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, overflow: "hidden" },
+  nextBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, overflow: "hidden" },
   nextBtnText: { fontSize: 15, fontWeight: "800", color: "#fff" },
 });

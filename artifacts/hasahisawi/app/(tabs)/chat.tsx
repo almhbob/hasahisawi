@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
 
   chatCard: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 14,
     paddingHorizontal: 16,
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     ...Colors.shadow.card,
   },
   chatInfo: { flex: 1 },
-  chatRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  chatRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
   chatTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   lastMsg: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   emptyWrap: { alignItems: "center", paddingVertical: 40, gap: 10 },
   startBtn: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
     marginTop: 8,
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     marginTop: 8, marginBottom: 4,
   },
   modalHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,

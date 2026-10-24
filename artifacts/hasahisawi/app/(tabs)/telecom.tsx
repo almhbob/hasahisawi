@@ -15,6 +15,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 const { width: W } = Dimensions.get("window");
 
 const TC   = "#0EA5E9";
@@ -407,7 +408,7 @@ export default function TelecomScreen() {
                       <Text style={styles.promoBannerLogoText}>{promo.logo_initial}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 3 }}>
                         <Text style={[styles.promoBannerName, { color: promo.brand_color }]}>{promo.name}</Text>
                         <View style={[styles.pkgBadge, { backgroundColor: GOLD + "30", borderColor: GOLD + "60" }]}>
                           <Text style={[styles.pkgBadgeText, { color: GOLD }]}>★ بريميوم</Text>
@@ -524,7 +525,7 @@ export default function TelecomScreen() {
                 <Text style={styles.sectionSub}>خدمات الشركات — اضغط لعرض الرمز أو الرابط المباشر</Text>
               </Animated.View>
               {/* فلاتر فئات الخدمات */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
                 {svcCategories.map(k => {
                   const cat = k === "all" ? { label: "الكل", color: TC } : { label: SVC_CATS[k]?.label || k, color: SVC_CATS[k]?.color || "#6B7280" };
                   return (
@@ -534,7 +535,7 @@ export default function TelecomScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </HScroll>
               {filteredServices.length === 0 ? (
                 <View style={styles.emptyWrap}>
                   <Ionicons name="construct-outline" size={52} color={TC + "50"} />
@@ -556,7 +557,7 @@ export default function TelecomScreen() {
                   <Text style={styles.sectionTitle}>العروض والباقات</Text>
                 </View>
               </Animated.View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
                 {OFFER_CATS.map(c => (
                   <TouchableOpacity key={c.key} style={[styles.catChip, offerCat === c.key && styles.catChipActive]} onPress={() => setOfferCat(c.key)}>
                     {offerCat === c.key && <LinearGradient colors={[TC, TC2]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />}
@@ -564,7 +565,7 @@ export default function TelecomScreen() {
                     <Text style={[styles.catChipText, offerCat === c.key && { color: "#fff" }]}>{c.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
               {filteredOffers.length === 0 ? (
                 <View style={styles.emptyWrap}><MaterialCommunityIcons name="tag-off-outline" size={52} color={TC + "50"} /><Text style={styles.emptyTitle}>لا توجد عروض بعد</Text><Text style={styles.emptySub}>ستظهر العروض هنا فور إضافتها</Text></View>
               ) : filteredOffers.map((o, i) => <OfferCard key={o.id} offer={o} index={i} />)}
@@ -600,15 +601,15 @@ export default function TelecomScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  tabBar: { flexDirection: "row", gap: 6, paddingTop: 10, paddingBottom: 4 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  tabBar: { flexDirection: "row-reverse", gap: 6, paddingTop: 10, paddingBottom: 4 },
+  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
   tabBtnActive: { borderColor: TC + "60" },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
   tabLabelActive: { color: "#fff" },
   scrollContent: { paddingHorizontal: 16, paddingTop: 12 },
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   loadingText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 14 },
-  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  sectionHeaderRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 4 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
   sectionSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 14, lineHeight: 20 },
 
@@ -617,13 +618,13 @@ const styles = StyleSheet.create({
   companyCardPremium: { borderColor: GOLD + "50" },
   companyCardGrad: { ...StyleSheet.absoluteFillObject },
   companyStripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
-  companyCardContent: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, paddingLeft: 20 },
+  companyCardContent: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16, paddingLeft: 20 },
   companyLogo: { width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center" },
   companyLogoText: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff" },
   companyName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, marginBottom: 2 },
   companySub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginBottom: 6 },
-  companyStats: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: Colors.surface3 },
+  companyStats: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
+  statChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: Colors.surface3 },
   statText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
 
   // Premium ribbon
@@ -631,64 +632,64 @@ const styles = StyleSheet.create({
   premiumRibbonText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
 
   // Promo
-  promoBanner: { borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: TC + "20", ...Colors.shadow.card },
+  promoBanner: { borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, flexDirection: "row-reverse", alignItems: "center", gap: 12, borderWidth: 1, borderColor: TC + "20", ...Colors.shadow.card },
   promoBannerLogo: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   promoBannerLogoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
   promoBannerName: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   promoBannerTagline: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
   promoTagline: { fontFamily: "Cairo_600SemiBold", fontSize: 12, marginBottom: 4 },
-  promoBadgePill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, marginTop: 4, alignSelf: "flex-start" },
+  promoBadgePill: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, marginTop: 4, alignSelf: "flex-start" },
   promoBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   pkgBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, alignSelf: "flex-start" },
   pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
 
   // Service card
-  svcCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, backgroundColor: Colors.surface2, overflow: "hidden", ...Colors.shadow.card },
+  svcCard: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, backgroundColor: Colors.surface2, overflow: "hidden", ...Colors.shadow.card },
   svcIcon: { width: 44, height: 44, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
   svcTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 2 },
   svcCompany: { fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 3 },
   svcDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginBottom: 6 },
-  svcFooter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  svcFooter: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   svcPrice: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   ussdBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
   ussdText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   // Offer card
   offerCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, ...Colors.shadow.card },
-  offerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  offerCatBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+  offerHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  offerCatBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   offerCatText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   companyBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   companyBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   offerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, marginBottom: 4 },
   offerDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginBottom: 10 },
-  offerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  offerFooter: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   offerPrice: { fontFamily: "Cairo_700Bold", fontSize: 16 },
   offerValidity: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   offerDetailsBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
   offerDetailsBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // Event card
-  eventCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, flexDirection: "row", gap: 14, alignItems: "flex-start", ...Colors.shadow.card },
+  eventCard: { borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface2, padding: 14, flexDirection: "row-reverse", gap: 14, alignItems: "flex-start", ...Colors.shadow.card },
   eventDateBox: { width: 50, height: 56, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   eventDay: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff", lineHeight: 24 },
   eventMonth: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffffCC", lineHeight: 14 },
   eventTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, marginBottom: 2 },
   eventCompany: { fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 4 },
   eventDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginBottom: 6 },
-  eventLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
+  eventLocation: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   eventLocationText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   // Info card
   infoCard: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: TC + "30", padding: 16, marginTop: 4, marginBottom: 8, ...Colors.shadow.card },
-  infoCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  infoCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
   infoCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  infoRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  infoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 },
   infoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, lineHeight: 20 },
 
   // Category filter
   catScroll: { marginBottom: 14 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
+  catChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden" },
   catChipActive: { borderColor: TC + "60" },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
@@ -701,7 +702,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   modalSheet: { maxHeight: "90%", backgroundColor: Colors.surface2, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, overflow: "hidden", flex: 1, ...Colors.shadow.raised },
   dragBar: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 6 },
-  modalHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, paddingTop: 8 },
+  modalHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16, paddingTop: 8 },
   modalLogo: { width: 54, height: 54, borderRadius: 27, justifyContent: "center", alignItems: "center" },
   modalLogoText: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#fff" },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
@@ -709,27 +710,27 @@ const styles = StyleSheet.create({
   modalCloseBtn: { padding: 8 },
   modalSection: { paddingHorizontal: 16, marginBottom: 20 },
   modalSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 12 },
-  contactGrid: { flexDirection: "row", gap: 10 },
+  contactGrid: { flexDirection: "row-reverse", gap: 10 },
   contactCard: { flex: 1, alignItems: "center", gap: 6, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.surface3 },
   contactLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center" },
   contactVal: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
-  statsRow: { flexDirection: "row", gap: 10 },
+  statsRow: { flexDirection: "row-reverse", gap: 10 },
   statBlock: { flex: 1, alignItems: "center", gap: 5, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.surface3 },
   statBlockVal: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   statBlockLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  websiteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, paddingVertical: 14, borderRadius: Colors.radius.lg, borderWidth: 1, marginBottom: 4 },
+  websiteBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, paddingVertical: 14, borderRadius: Colors.radius.lg, borderWidth: 1, marginBottom: 4 },
   websiteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   // ── قسم التعاقد ──
   contractSection: { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 16, marginTop: 12, marginBottom: 8, overflow: "hidden", ...Colors.shadow.card },
-  contractHeader:  { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  contractHeader:  { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 14 },
   contractIconWrap:{ width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   contractTitle:   { fontSize: 16, fontFamily: "Cairo_700Bold" },
   contractSub:     { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  contractPackages:{ flexDirection: "row", gap: 10, marginBottom: 14 },
+  contractPackages:{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 },
   contractPkg:     { flex: 1, borderRadius: 12, borderWidth: 1, padding: 12, alignItems: "center", gap: 4 },
   contractPkgIcon: { fontSize: 20 },
   contractPkgLabel:{ fontSize: 13, fontFamily: "Cairo_700Bold" },
   contractPkgFeats:{ fontSize: 10, color: Colors.textMuted, textAlign: "center" as const },
-  contractBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 12 },
+  contractBtn:     { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 12 },
   contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

@@ -294,7 +294,7 @@ const s = StyleSheet.create({
   refreshBtn:  { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
 
   quotaBanner: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
     backgroundColor: "#F5A62318", borderLeftWidth: 3, borderLeftColor: "#F5A623",
     paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 12, marginBottom: 8,
     borderRadius: Colors.radius.md,
@@ -302,7 +302,7 @@ const s = StyleSheet.create({
   quotaTxt:    { flex: 1, fontSize: 12, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
 
   messagesList: { padding: 16, gap: 12, paddingBottom: 8 },
-  msgRow:      { flexDirection: "row", alignItems: "flex-end", gap: 4 },
+  msgRow:      { flexDirection: "row-reverse", alignItems: "flex-end", gap: 4 },
   msgRowUser:  { justifyContent: "flex-start", flexDirection: isRTL ? "row" : "row-reverse" },
   msgRowAi:    { justifyContent: "flex-end",   flexDirection: isRTL ? "row-reverse" : "row" },
 
@@ -316,11 +316,11 @@ const s = StyleSheet.create({
   timeUser:    { color: "#000000AA", textAlign: "left" },
   timeAi:      { color: Colors.textMuted, textAlign: "right" },
 
-  typingRow:   { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  typingBubble: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 12, ...Colors.shadow.card },
+  typingRow:   { flexDirection: "row-reverse", alignItems: "center", marginTop: 8 },
+  typingBubble: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 12, ...Colors.shadow.card },
   typingText:  { color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_400Regular" },
 
-  inputBar:    { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.divider },
+  inputBar:    { flexDirection: "row-reverse", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.divider },
   input:       { flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.pill, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Cairo_400Regular", color: Colors.textPrimary, maxHeight: 120 },
   sendBtn:     { width: 44, height: 44 },
   sendBtnDisabled: { opacity: 0.5 },

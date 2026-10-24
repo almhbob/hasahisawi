@@ -27,6 +27,7 @@ import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
 import { ActivityIndicator, Image } from "react-native";
 import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
+import { reloadAppAsync } from "expo";
 
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -52,11 +53,25 @@ try {
   };
 } catch {}
 
-// ── إعداد RTL متزامن قبل أي render ─────────────────────────────
-// التطبيق عربي بالأساس — يُطبَّق RTL مباشرةً عند تحميل الموديول
+// ── اتجاه التخطيط ─────────────────────────────────────────────
+// الشاشات مكتوبة بتخطيط يدوي من اليمين لليسار (row-reverse + textAlign: "right"
+// + مواضع left/right صريحة). تشغيل محرك RTL فوقها كان يعكسها مرة ثانية: تنتقل
+// الأيقونات والأسهم للجهة الخطأ، ويُرسم textAlign: "right" على اليسار في الهاتف.
+// لذا يبقى المحرك من اليسار لليمين على كل المنصات (يُضبط في الهاتف قبل التحميل
+// عبر expo-localization في app.json و strings.xml، وفي الويب في الـ View الجذري).
+// ترتيب الكلمات العربية يبقى صحيحاً: اتجاه كل فقرة يُحدَّد من أول حرف فيها.
 if (Platform.OS !== "web") {
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(true);
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+  // نسخ سابقة حفظت RTL مفعّلاً، والإلغاء يسري بعد إعادة التشغيل: نعيد التحميل مرة
+  // واحدة، والعلامة تمنع أي حلقة إن بقي isRTL مفعّلاً لسبب خارجي.
+  if (I18nManager.isRTL) {
+    AsyncStorage.getItem("@layout_ltr_reload_done").then(async (done) => {
+      if (done) return;
+      await AsyncStorage.setItem("@layout_ltr_reload_done", "1");
+      await reloadAppAsync();
+    }).catch(() => {});
+  }
 }
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
@@ -363,7 +378,7 @@ export default function RootLayout() {
               <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                  <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? "ltr" : undefined }}>
                     <OfflineQueueSync />
                     <RootLayoutNav />
                     <NetworkBanner />

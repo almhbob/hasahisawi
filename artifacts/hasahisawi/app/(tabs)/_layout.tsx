@@ -365,7 +365,8 @@ const styles = StyleSheet.create({
 
   // الشريط السفلي
   tabBar: {
-    flexDirection: "row",
+    // Arabic order: الرئيسية on the right (the layout engine is left-to-right, see app/_layout.tsx).
+    flexDirection: "row-reverse",
     alignItems: "center",
     backgroundColor: Colors.bg,
     borderTopWidth: 0,

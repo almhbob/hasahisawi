@@ -49,6 +49,7 @@ import UserAvatar from "@/components/UserAvatar";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
+import HScroll from "@/components/HScroll";
 const { width: SCREEN_W } = Dimensions.get("window");
 const IMG_MAX_W = SCREEN_W - 28;
 const IMG_MAX_H = SCREEN_W * 1.25;
@@ -424,7 +425,7 @@ function MultiMediaPreview({ items, onRemove, onAddMore }: { items: MediaAsset[]
           </TouchableOpacity>
         )}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={mp.multiList}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={mp.multiList}>
         {items.map((item, index) => (
           <View key={item.uri + index} style={mp.thumbWrap}>
             <Image source={{ uri: item.uri }} style={mp.thumbImg} resizeMode="cover" />
@@ -433,7 +434,7 @@ function MultiMediaPreview({ items, onRemove, onAddMore }: { items: MediaAsset[]
             </TouchableOpacity>
           </View>
         ))}
-      </ScrollView>
+      </HScroll>
     </View>
   );
 }
@@ -459,7 +460,7 @@ const mp = StyleSheet.create({
   multiWrap: { marginTop: 8, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface1, padding: 10 },
   multiHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   multiTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  addMoreBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary + "15" },
+  addMoreBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary + "15" },
   addMoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
   multiList: { gap: 8, paddingVertical: 2 },
   thumbWrap: { width: 104, height: 104, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "#000" },
@@ -498,13 +499,13 @@ function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null;
             <Text style={pmd.countText}>{images.length}</Text>
           </View>
         </TouchableOpacity>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={pmd.multiThumbs}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={pmd.multiThumbs}>
           {images.map((img, index) => (
             <TouchableOpacity key={img + index} activeOpacity={0.85} onPress={() => setViewer(img)} style={pmd.postThumb}>
               <Image source={{ uri: img }} style={pmd.img} resizeMode="cover" />
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </HScroll>
         <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
           <View style={pmd.viewerOverlay}>
             <TouchableOpacity style={pmd.viewerClose} onPress={() => setViewer(null)}>
@@ -570,7 +571,7 @@ const pmd = StyleSheet.create({
   multiHero: { height: IMG_MAX_W * 0.72, borderRadius: Colors.radius.xl, overflow: "hidden", backgroundColor: Colors.surface1 },
   multiThumbs: { gap: 8, paddingHorizontal: 2 },
   postThumb: { width: 86, height: 86, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: Colors.surface1 },
-  countBadge: { position: "absolute", top: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.55)" },
+  countBadge: { position: "absolute", top: 10, right: 10, flexDirection: "row-reverse", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.55)" },
   countText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
   viewerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", alignItems: "center", justifyContent: "center" },
   viewerClose: { position: "absolute", top: 48, right: 22, zIndex: 2, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
@@ -684,7 +685,7 @@ function AddPostModal({
                       placeholderTextColor={Colors.textMuted}
                       maxLength={50}
                     />
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
                       {CATEGORIES.map((c) => (
                         <TouchableOpacity
                           key={c}
@@ -695,7 +696,7 @@ function AddPostModal({
                           <Text style={[ms.catChipText, category === c && { color: "#fff" }]}>{c}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
                   </View>
                 </View>
 
@@ -1380,7 +1381,7 @@ export default function SocialScreen() {
       </ModernHeader>
 
       {/* Category filter */}
-      <ScrollView
+      <HScroll
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filters}
@@ -1426,7 +1427,7 @@ export default function SocialScreen() {
             </AnimatedPress>
           );
         })}
-      </ScrollView>
+      </HScroll>
 
       <GuestGate
         title="ساحة المجتمع"
@@ -1584,7 +1585,7 @@ function StoriesRow({ posts }: { posts: Post[] }) {
   if (authors.length < 3) return null;
 
   return (
-    <ScrollView
+    <HScroll
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={sr.row}
@@ -1600,7 +1601,7 @@ function StoriesRow({ posts }: { posts: Post[] }) {
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </HScroll>
   );
 }
 
@@ -1652,7 +1653,7 @@ const cb = StyleSheet.create({
     justifyContent: "center", paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider,
   },
   inputFakePlaceholder: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted, textAlign: "right" },
-  mediaIcons: { flexDirection: "row", gap: 10, paddingHorizontal: 4 },
+  mediaIcons: { flexDirection: "row-reverse", gap: 10, paddingHorizontal: 4 },
 });
 
 // ─── Styles ────────────────────────────────────────────────────────────────────

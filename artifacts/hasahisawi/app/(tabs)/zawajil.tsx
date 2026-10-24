@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
   },
   introTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, textAlign: "center" },
   introBody:  { fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textSecondary, textAlign: "center", lineHeight: 26, paddingHorizontal: 8 },
-  introDots: { flexDirection: "row", gap: 6, marginBottom: 20 },
+  introDots: { flexDirection: "row-reverse", gap: 6, marginBottom: 20 },
   introDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.surface3 },
   introButtons: { width: "100%", paddingHorizontal: 24 },
   introNextBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14 },
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
   introSkipTxt: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary },
 
   // ── Header (handled by ModernHeader) ──
-  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  statusBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
   statusDot:   { width: 7, height: 7, borderRadius: 4 },
   statusTxt:   { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 

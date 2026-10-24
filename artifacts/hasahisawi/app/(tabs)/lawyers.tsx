@@ -21,6 +21,7 @@ import { paperDocument, printPaper, esc, blank } from "@/lib/paper";
 import { notify } from "@/lib/xplatform";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Lawyer = {
   id: number; full_name: string; title: string; specialties: string;
@@ -91,7 +92,7 @@ const STATUS_AR: Record<string,{label:string;color:string}> = {
 // ─── Star ─────────────────────────────────────────────────────────────────────
 function Stars({ value, size = 13, color = "#F59E0B" }: { value: number; size?: number; color?: string }) {
   return (
-    <View style={{ flexDirection: "row", gap: 1 }}>
+    <View style={{ flexDirection: "row-reverse", gap: 1 }}>
       {[1,2,3,4,5].map(s => (
         <Ionicons key={s} name={s <= Math.round(value) ? "star" : "star-outline"} size={size}
           color={s <= Math.round(value) ? color : "#D6CFC0"} />
@@ -101,7 +102,7 @@ function Stars({ value, size = 13, color = "#F59E0B" }: { value: number; size?: 
 }
 function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>void }) {
   return (
-    <View style={{ flexDirection: "row", gap: 10, justifyContent: "center" }}>
+    <View style={{ flexDirection: "row-reverse", gap: 10, justifyContent: "center" }}>
       {[1,2,3,4,5].map(s => (
         <Pressable key={s} onPress={() => { onChange(s); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
           <Ionicons name={s <= value ? "star" : "star-outline"} size={42} color={s <= value ? "#F59E0B" : "#D6CFC0"} />
@@ -811,7 +812,7 @@ export default function LawyersScreen() {
             <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
               {/* بانر إعلاني */}
               {ads.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 12 }}>
+                <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 12 }}>
                   {ads.map(ad => (
                     <TouchableOpacity key={ad.id} activeOpacity={0.85}
                       onPress={() => ad.cta_phone && Linking.openURL(`tel:${ad.cta_phone}`)}
@@ -830,7 +831,7 @@ export default function LawyersScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </HScroll>
               )}
 
               {/* مركز الخدمات القانونية */}
@@ -861,7 +862,7 @@ export default function LawyersScreen() {
                 <Ionicons name="chevron-back" size={18} color="#fff" />
               </TouchableOpacity>
               {/* بانر الخطط المدمج */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 2, gap: 8 }} style={{ marginHorizontal: -2, marginBottom: 4 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 2, gap: 8 }} style={{ marginHorizontal: -2, marginBottom: 4 }}>
                 {[
                   { icon: "🔓", name: "مجاني", sub: "5 تواصلات/شهر", color: "#6B7280" },
                   { icon: "⭐", name: "أساسي",  sub: "500 ج.س · تواصل غير محدود", color: "#3B82F6" },
@@ -874,7 +875,7 @@ export default function LawyersScreen() {
                     <Text style={{ fontSize: 9, color: "#6B7280", textAlign: "center", marginTop: 2 }}>{p.sub}</Text>
                   </View>
                 ))}
-              </ScrollView>
+              </HScroll>
 
               {/* بحث */}
               <View style={s.searchBox}>
@@ -891,14 +892,14 @@ export default function LawyersScreen() {
               </View>
 
               {/* فلاتر */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
                 {SPECIALTIES.map(sp => (
                   <Pressable key={sp} onPress={() => setFilter(sp)}
                     style={[s.chip, filter === sp && s.chipActive]}>
                     <Text style={[s.chipText, filter === sp && s.chipTextActive]}>{sp}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </HScroll>
             </View>
           }
           renderItem={({ item, index }) => {
@@ -912,9 +913,9 @@ export default function LawyersScreen() {
                 <TouchableOpacity onPress={() => openLawyer(item)} activeOpacity={0.85}
                   style={[s.lawyerCard, isPremium && { borderColor: "#F59E0B", borderWidth: 1.5 }, isPro && { borderColor: "#14213D", borderWidth: 1 }]}>
                   {/* شارة الخطة / مميّز */}
-                  <View style={{ position: "absolute", top: 10, left: 10, flexDirection: "row", gap: 5, zIndex: 2 }}>
+                  <View style={{ position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", gap: 5, zIndex: 2 }}>
                     {hasPlan && (
-                      <View style={{ backgroundColor: planColor + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: planColor + "66" }}>
+                      <View style={{ backgroundColor: planColor + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row-reverse", alignItems: "center", gap: 3, borderWidth: 1, borderColor: planColor + "66" }}>
                         <Text style={{ fontSize: 11 }}>{item.plan_icon}</Text>
                         <Text style={{ fontSize: 10, fontWeight: "800", color: planColor }}>{item.plan_name_ar}</Text>
                       </View>
@@ -929,7 +930,7 @@ export default function LawyersScreen() {
                         : <MaterialCommunityIcons name="account-tie" size={28} color={hasPlan ? planColor : "#B08D3C"} />}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                         <Text style={s.lawyerName} numberOfLines={1}>{item.full_name}</Text>
                         {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#0E8A5F" />}
                         {isPremium && <Text style={{ fontSize: 14 }}>👑</Text>}
@@ -937,7 +938,7 @@ export default function LawyersScreen() {
                         {isBasic && <Text style={{ fontSize: 13 }}>⭐</Text>}
                       </View>
                       <Text style={s.lawyerTitle} numberOfLines={1}>{item.title}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4 }}>
                         <Stars value={item.avg_rating} size={12} />
                         <Text style={s.lawyerMeta}>{item.avg_rating.toFixed(1)} ({item.review_count})</Text>
                         <Text style={s.lawyerMeta}>· {item.experience_y} سنة خبرة</Text>
@@ -954,7 +955,7 @@ export default function LawyersScreen() {
                   </View>
                   {/* شريط أسفل البطاقة للبريميوم */}
                   {isPremium && (
-                    <View style={{ marginTop: 8, backgroundColor: "#F59E0B22", borderRadius: 6, padding: 6, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View style={{ marginTop: 8, backgroundColor: "#F59E0B22", borderRadius: 6, padding: 6, flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                       <Text style={{ fontSize: 10, color: "#B45309", fontWeight: "700" }}>👑 محامي بريميوم — أعلى مستوى من الخدمة القانونية</Text>
                     </View>
                   )}
@@ -994,13 +995,13 @@ export default function LawyersScreen() {
                 <Ionicons name="search" size={17} color="#7C7566" />
                 <TextInput style={s.searchInput} placeholder="ابحث عن استمارة: إيجار، توكيل، إقرار…" placeholderTextColor="#7C7566" value={formQ} onChangeText={setFormQ} />
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {["الكل", ...Array.from(new Set(forms.map(f => f.category).filter(Boolean)))].map(c => (
                   <Pressable key={c} onPress={() => setFormCat(c)} style={[s.chip, formCat === c && s.chipActive]}>
                     <Text style={[s.chipText, formCat === c && s.chipTextActive]}>{c}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </HScroll>
             </View>
           }
           ListFooterComponent={<OrgInviteCard />}
@@ -1048,8 +1049,8 @@ export default function LawyersScreen() {
                   const st = STATUS_AR[a.status] || { label: a.status, color: "#888" };
                   return (
                     <View key={a.id} style={[s.contractCard, { borderColor: st.color + "55" }]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                           <MaterialCommunityIcons name="briefcase-plus" size={14} color={st.color} />
                           <Text style={s.contractNo}>طلب #{a.id}</Text>
                         </View>
@@ -1067,12 +1068,12 @@ export default function LawyersScreen() {
                       )}
                       {a.status === "approved" && (
                         <>
-                          <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <View style={{ marginTop: 8, flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                             <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                             <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11 }}>تم تفعيل ملفك في قائمة المحامين</Text>
                           </View>
                           <TouchableOpacity onPress={() => router.push("/lawyer-portal")}
-                            style={{ marginTop: 10, backgroundColor: "#14213D", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                            style={{ marginTop: 10, backgroundColor: "#14213D", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}>
                             <Ionicons name="grid-outline" size={16} color="#fff" />
                             <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 }}>⚖️ بوابتي — لوحة تحكم المحامي</Text>
                           </TouchableOpacity>
@@ -1100,7 +1101,7 @@ export default function LawyersScreen() {
             return (
               <Animated.View entering={FadeInDown.delay(30 * index).springify()}>
                 <View style={s.contractCard}>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <Text style={s.contractNo}>#{item.contract_no}</Text>
                     <View style={[s.statusPill, { backgroundColor: st.color + "22", borderColor: st.color + "55" }]}>
                       <Text style={[s.statusPillText, { color: st.color }]}>{st.label}</Text>
@@ -1109,7 +1110,7 @@ export default function LawyersScreen() {
                   <Text style={s.contractLawyer}>{item.lawyer_name}</Text>
                   <Text style={s.contractSvc}>{item.service_title || "تواصل عام"}</Text>
                   {item.preferred_date && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 6 }}>
                       <Ionicons name="calendar-outline" size={12} color="#7C7566" />
                       <Text style={s.contractMeta}>{item.preferred_date}</Text>
                     </View>
@@ -1211,7 +1212,7 @@ export default function LawyersScreen() {
                 <Text style={s.agreeText}>أوافق على شروط التعاقد أعلاه وأؤكد صحة بياناتي</Text>
               </Pressable>
 
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 16 }}>
                 <TouchableOpacity onPress={() => setJoinOpen(false)} style={s.cancelBtn}>
                   <Text style={s.cancelBtnText}>إلغاء</Text>
                 </TouchableOpacity>
@@ -1239,12 +1240,12 @@ export default function LawyersScreen() {
                       <MaterialCommunityIcons name="account-tie" size={36} color="#B08D3C" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                         <Text style={s.detailName}>{selected.full_name}</Text>
                         {selected.is_verified && <Ionicons name="checkmark-circle" size={17} color="#0E8A5F" />}
                       </View>
                       <Text style={s.detailTitle}>{selected.title}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 6 }}>
                         <Stars value={selected.avg_rating} size={14} />
                         <Text style={s.detailMeta}>{selected.avg_rating.toFixed(1)} ({selected.review_count} مراجعة)</Text>
                       </View>
@@ -1299,7 +1300,7 @@ export default function LawyersScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={s.svcTitle}>{svc.title}</Text>
                           {svc.description && <Text style={s.svcDesc}>{svc.description}</Text>}
-                          <View style={{ flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                          <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
                             {svc.price_text && <View style={s.svcChip}><Text style={s.svcChipText}>💰 {svc.price_text}</Text></View>}
                             {svc.duration   && <View style={s.svcChip}><Text style={s.svcChipText}>⏱ {svc.duration}</Text></View>}
                           </View>
@@ -1324,7 +1325,7 @@ export default function LawyersScreen() {
                       <Text style={s.sectionTitle}>آخر المراجعات</Text>
                       {reviews.slice(0, 8).map(r => (
                         <View key={r.id} style={s.reviewCard}>
-                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                             <Text style={s.reviewName}>{r.user_name}</Text>
                             <Stars value={r.rating} size={11} />
                           </View>
@@ -1355,7 +1356,7 @@ export default function LawyersScreen() {
             <Field label="الموعد المطلوب" value={contract.date} onChange={(v: string) => setContract(c => ({ ...c, date: v }))} placeholder="YYYY-MM-DD (اختياري)" />
             <Field label="تفاصيل" value={contract.details} onChange={(v: string) => setContract(c => ({ ...c, details: v }))} placeholder="اكتب وصفاً موجزاً للقضية أو الخدمة المطلوبة" multiline />
 
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 14 }}>
               <TouchableOpacity onPress={() => setContractFor(null)} style={s.cancelBtn}>
                 <Text style={s.cancelBtnText}>إلغاء</Text>
               </TouchableOpacity>
@@ -1408,7 +1409,7 @@ export default function LawyersScreen() {
               style={s.rateInput} placeholder="اكتب رأيك (اختياري)" placeholderTextColor="#6B7280"
               value={rateComment} onChangeText={setRateComment} multiline maxLength={500}
             />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 14 }}>
               <TouchableOpacity onPress={() => setRateOpen(false)} style={s.cancelBtn}>
                 <Text style={s.cancelBtnText}>إلغاء</Text>
               </TouchableOpacity>
@@ -1450,15 +1451,15 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 const s = StyleSheet.create({
   uploadBox: { borderWidth: 1, borderColor: "rgba(31,92,138,0.25)", backgroundColor: "rgba(31,92,138,0.08)", borderRadius: 14, padding: 12, gap: 8 },
   uploadHelp: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18, textAlign: "right" },
-  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
+  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center", flexDirection: "row-reverse", gap: 8, paddingHorizontal: 14 },
   uploadBtnOk: { backgroundColor: "#10B981" },
   uploadBtnWarn: { backgroundColor: "#F59E0B" },
   uploadBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   uploadFileName: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right" },
   uploadWarn: { color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 11, textAlign: "right", lineHeight: 17 },
   container: { flex: 1, backgroundColor: "#F6F4EE" },
-  tabsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
+  tabsRow: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
   tabBtnActive: { backgroundColor: "#14213D" },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#B08D3C" },
   tabLabelActive: { color: "#fff" },
@@ -1468,12 +1469,12 @@ const s = StyleSheet.create({
   adBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Cairo_700Bold" },
   adTitle: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 14, marginTop: 6 },
   adBody: { fontFamily: "Cairo_400Regular", color: "#4B5563", fontSize: 11, marginTop: 4, lineHeight: 16 },
-  adCtaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
-  adCta: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
+  adCtaRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
+  adCta: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   adCtaText: { color: "#fff", fontSize: 11, fontFamily: "Cairo_700Bold" },
   adAuthor: { color: "#7C7566", fontSize: 10, fontFamily: "Cairo_400Regular", flex: 1, textAlign: "left", marginLeft: 8 },
 
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#E7E1D3" },
+  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#E7E1D3" },
   searchInput: { flex: 1, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 13, paddingVertical: 0, textAlign: "right" },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E7E1D3" },
   chipActive: { backgroundColor: "#14213D", borderColor: "#14213D" },
@@ -1481,23 +1482,23 @@ const s = StyleSheet.create({
   chipTextActive: { color: "#fff" },
 
   lawyerCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: "#E7E1D3" },
-  featBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#FBBF2422", borderColor: "#FBBF24", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  featBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: "#FBBF2422", borderColor: "#FBBF24", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   featBadgeText: { color: "#FBBF24", fontFamily: "Cairo_700Bold", fontSize: 9 },
-  lawyerHead: { flexDirection: "row", gap: 12, alignItems: "center" },
+  lawyerHead: { flexDirection: "row-reverse", gap: 12, alignItems: "center" },
   avatar: { width: 54, height: 54, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   lawyerName: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 14, flexShrink: 1 },
   lawyerTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 11, marginTop: 1 },
   lawyerMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 10 },
   lawyerSpec: { color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 10, lineHeight: 17 },
-  lawyerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#E7E1D3" },
-  lawyerLocPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#E7E1D3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
+  lawyerFooter: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#E7E1D3" },
+  lawyerLocPill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#E7E1D3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
   lawyerLocText: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 10 },
   lawyerFee: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 11, flex: 1, textAlign: "left", marginLeft: 8 },
 
   centerBox: { paddingVertical: 60, alignItems: "center", gap: 10 },
   emptyText: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 13 },
 
-  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#14213D12", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#14213D33", marginBottom: 12 },
+  formsHeader: { flexDirection: "row-reverse", gap: 8, padding: 12, backgroundColor: "#14213D12", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#14213D33", marginBottom: 12 },
   formsHeaderText: { flex: 1, color: "#B08D3C", fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 18 },
   svcHub: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: "#E7E1D3" },
   svcHubTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#14213D", textAlign: "right", marginBottom: 8 },
@@ -1519,14 +1520,14 @@ const s = StyleSheet.create({
   paperFold: { position: "absolute", top: 0, left: 0, width: 26, height: 26, backgroundColor: "#EFE6D0", borderBottomRightRadius: 10 },
   paperActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EFE8D8", borderStyle: "dashed" },
   paperHint: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: "#8A8270" },
-  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
+  formCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
   formIconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", alignItems: "center", justifyContent: "center" },
   formTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" },
   officialBadge: { backgroundColor: "#10B98122", borderColor: "#10B98155", borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
   officialBadgeText: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 9 },
   formCat: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   formDesc: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4, lineHeight: 16 },
-  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
+  printBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   printBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
 
   contractCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
@@ -1536,26 +1537,26 @@ const s = StyleSheet.create({
   contractLawyer: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14 },
   contractSvc: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 12, marginTop: 2 },
   contractMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11 },
-  contractActions: { flexDirection: "row", gap: 8, marginTop: 12 },
-  miniBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
+  contractActions: { flexDirection: "row-reverse", gap: 8, marginTop: 12 },
+  miniBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
   miniBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
 
   // detail modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: "#F6F4EE", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: "#E7E1D3" },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D8D0BE", alignSelf: "center", marginBottom: 12 },
-  detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  detailHead: { flexDirection: "row-reverse", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
   avatarLg: { width: 70, height: 70, borderRadius: Colors.radius.lg, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center" },
   detailName: { fontFamily: "Cairo_700Bold", color: "#1B2333", fontSize: 16, flexShrink: 1 },
   detailTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 12, marginTop: 2 },
   detailMeta: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
-  quickRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
-  quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.sm },
+  quickRow: { flexDirection: "row-reverse", gap: 8, marginTop: 14, flexWrap: "wrap" },
+  quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.sm },
   quickBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   infoBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: "#E7E1D3" },
-  infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  infoLine: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
   infoLineLabel: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, width: 90 },
   infoLineValue: { color: "#1B2333", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "left" },
 
@@ -1567,14 +1568,14 @@ const s = StyleSheet.create({
   sectionTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 10 },
   emptyInline: { color: "#6B7280", fontFamily: "Cairo_400Regular", fontSize: 12, fontStyle: "italic" },
 
-  svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
+  svcCard: { flexDirection: "row-reverse", gap: 10, alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#E7E1D3" },
   svcTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 13 },
   svcDesc: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 3, lineHeight: 16 },
   svcChip: { backgroundColor: "#E7E1D3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
   svcChipText: { color: "#4B5563", fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
+  contractBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
   contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 11 },
-  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#14213D55", borderStyle: "dashed", marginTop: 4 },
+  contactGenBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#14213D55", borderStyle: "dashed", marginTop: 4 },
   contactGenText: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   reviewCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: "#E7E1D3" },
@@ -1584,35 +1585,35 @@ const s = StyleSheet.create({
   // contract & rate modals
   modalOverlay2: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: 20 },
   contractModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 18, borderWidth: 1, borderColor: "#E7E1D3" },
-  contractHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  contractHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   contractTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
   contractSubt: { color: "#7C7566", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 6, lineHeight: 16 },
   fieldLabel: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 11, marginBottom: 5 },
   fieldInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 44, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: "#E7E1D3", textAlign: "right" },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#E7E1D3", alignItems: "center" },
   cancelBtnText: { color: "#7C7566", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
+  submitBtn: { flex: 1.4, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
   submitBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
 
   rateModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 22, borderWidth: 1, borderColor: "#E7E1D3" },
   rateTitle: { color: "#1B2333", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
   rateInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, padding: 12, color: "#1B2333", fontFamily: "Cairo_400Regular", fontSize: 12, borderWidth: 1, borderColor: "#E7E1D3", height: 80, textAlignVertical: "top", textAlign: "right" },
 
-  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#14213D", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
+  joinBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#14213D", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
   joinIcon: { width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   joinTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
   joinSub: { color: "#E9E2CF", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 2 },
-  joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
+  joinHead: { flexDirection: "row-reverse", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E7E1D3" },
   joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
   joinSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
   termsBox: { backgroundColor: "#FBF7EE", borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#14213D55" },
   termsTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
   termsText: { color: "#4B5563", fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 22 },
-  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#E7E1D3" },
+  agreeRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#E7E1D3" },
   checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#14213D", alignItems: "center", justifyContent: "center" },
   checkboxOn: { backgroundColor: "#14213D" },
   agreeText: { color: "#1B2333", fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1 },
   contractsSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
-  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
+  contractDownloadBtn: { marginTop: 10, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
   contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "center" },
 });

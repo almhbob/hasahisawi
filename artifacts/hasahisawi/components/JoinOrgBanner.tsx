@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   bgDot3: { position: "absolute", width: 80,  height: 80,  borderRadius: 40, backgroundColor: "#3E9CBF10", top: 20, left: 80 },
 
   badge: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     backgroundColor: Colors.accent + "20", borderWidth: 1, borderColor: Colors.accent + "40",
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 14, alignSelf: "flex-end",
   },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
 
   statsRow: {
-    flexDirection: "row", backgroundColor: "#ffffff08", borderRadius: 14,
+    flexDirection: "row-reverse", backgroundColor: "#ffffff08", borderRadius: 14,
     paddingVertical: 14, paddingHorizontal: 8,
     borderWidth: 1, borderColor: Colors.primary + "20",
   },
@@ -245,27 +245,27 @@ const styles = StyleSheet.create({
 
   // ── قسم عام
   section: { padding: 16 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  sectionHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 14 },
   sectionBar:    { width: 4, height: 22, borderRadius: 2 },
   sectionTitle:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
 
   // ── شبكة أنواع المؤسسات
-  orgTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  orgTypesGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   orgTypeChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
   },
   orgTypeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // ── مزايا
-  benefitRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  benefitRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 12 },
   benefitIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   benefitText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
 
   // ── خطوات
   stepsSection: { padding: 16, paddingTop: 4 },
   stepsWrap: { gap: 0 },
-  stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, position: "relative", minHeight: 52 },
+  stepRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12, position: "relative", minHeight: 52 },
   stepBubble: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", marginTop: 2 },
   stepNum:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" },
   stepLine: {
@@ -285,12 +285,12 @@ const styles = StyleSheet.create({
   ctaSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginBottom: 16, textAlign: "center" },
 
   joinFormBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16, borderRadius: 14, width: "100%",
   },
-  btnRow: { flexDirection: "row", gap: 10, width: "100%" },
+  btnRow: { flexDirection: "row-reverse", gap: 10, width: "100%" },
   whatsappBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 12, borderRadius: 14,
     borderWidth: 1, borderColor: "#25D36640", backgroundColor: "#25D36612",
   },

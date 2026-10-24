@@ -15,6 +15,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { uploadPostImage } from "@/lib/firebase/storage";
 
+import HScroll from "@/components/HScroll";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FoodBusiness = {
@@ -358,7 +359,7 @@ export default function RestaurantsScreen() {
 
           {/* ── اختيار المحل (للكاشير والتقارير) ────────────────────────── */}
           {(activeTab === "cashier" || activeTab === "reports") && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
               {businesses.map(b => (
                 <TouchableOpacity
                   key={String(b.id)}
@@ -370,14 +371,14 @@ export default function RestaurantsScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           )}
 
           {/* ══ السوق ════════════════════════════════════════════════════════ */}
           {activeTab === "market" && (
             <>
               {/* فلتر نوع المؤسسة */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
                 {(["all", "restaurant", "cafe", "bakery", "juice"] as const).map(key => {
                   const meta   = key === "all" ? { label: "الكل", color: Colors.primary, icon: "apps" } : TYPE_META[key];
                   const active = businessFilter === key;
@@ -392,10 +393,10 @@ export default function RestaurantsScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </HScroll>
 
               {/* فلتر الفئة */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
                 {(["all", "meals", "drinks", "dessert", "bakery", "offers"] as const).map(key => {
                   const meta   = key === "all" ? { label: "كل المنتجات", color: Colors.primary, icon: "apps" } : CAT_META[key];
                   const active = categoryFilter === key;
@@ -410,7 +411,7 @@ export default function RestaurantsScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </HScroll>
 
               {/* قائمة المنتجات */}
               {filteredProducts.map((item, index) => (
@@ -537,9 +538,9 @@ export default function RestaurantsScreen() {
 
             <TouchableOpacity onPress={pickProductImages} style={s.imagePick}>
               {newImages.length
-                ? <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
+                ? <HScroll horizontal contentContainerStyle={{ gap: 8 }}>
                     {newImages.map((uri, i) => <Image key={uri + i} source={{ uri }} style={s.pickThumb} />)}
-                  </ScrollView>
+                  </HScroll>
                 : <>
                     <Ionicons name="images-outline" size={28} color={Colors.textMuted} />
                     <Text style={s.muted}>رفع صور المنتج حتى 5 صور</Text>
@@ -553,7 +554,7 @@ export default function RestaurantsScreen() {
             <TextInput style={s.modalInput} value={newStock} onChangeText={setNewStock} placeholder="المخزون"                placeholderTextColor={Colors.textMuted} keyboardType="numeric" />
             <TextInput style={[s.modalInput, { height: 76 }]} value={newDesc} onChangeText={setNewDesc} placeholder="وصف المنتج" placeholderTextColor={Colors.textMuted} multiline />
 
-            <ScrollView horizontal contentContainerStyle={s.filterRow}>
+            <HScroll horizontal contentContainerStyle={s.filterRow}>
               {Object.entries(CAT_META).map(([k, v]) => (
                 <TouchableOpacity
                   key={k}
@@ -563,7 +564,7 @@ export default function RestaurantsScreen() {
                   <Text style={[s.filterText, newCat === k && { color: v.color }]}>{v.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
 
             <View style={s.modalActions}>
               <TouchableOpacity onPress={() => setProductModal(false)} style={s.cancelBtn}>
@@ -710,19 +711,19 @@ const s = StyleSheet.create({
   body:       { padding: 18, gap: 14 },
 
   // Search
-  searchBox:  { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox:  { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   searchInput: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
 
   // Tabs
   tabs:        { flexDirection: "row-reverse", gap: 8 },
-  tab:         { flex: 1, minHeight: 42, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5, ...Colors.shadow.card },
+  tab:         { flex: 1, minHeight: 42, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", flexDirection: "row-reverse", gap: 5, ...Colors.shadow.card },
   tabOn:       { backgroundColor: Colors.primary, borderColor: Colors.primary },
   tabText:     { fontFamily: "Cairo_700Bold", color: Colors.textSecondary, fontSize: 11 },
   tabTextOn:   { color: Colors.white },
 
   // Filters
   filterRow:   { gap: 8, paddingVertical: 2 },
-  filterChip:  { flexDirection: "row", gap: 6, alignItems: "center", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.pill },
+  filterChip:  { flexDirection: "row-reverse", gap: 6, alignItems: "center", borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.pill },
   filterText:  { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12 },
   chip:        { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.pill },
   chipOn:      { backgroundColor: Colors.primary, borderColor: Colors.primary },
@@ -738,7 +739,7 @@ const s = StyleSheet.create({
   productDesc:   { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, textAlign: "right", marginTop: 4 },
   productActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10 },
   price:         { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  addToCart:     { flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: Colors.radius.md },
+  addToCart:     { flexDirection: "row-reverse", gap: 6, alignItems: "center", backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: Colors.radius.md },
   addToCartText: { fontFamily: "Cairo_700Bold", color: Colors.white, fontSize: 12 },
 
   // Cashier
@@ -764,7 +765,7 @@ const s = StyleSheet.create({
   floatingCart: { position: "absolute", left: 14, right: 14, bottom: 18, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: Colors.radius.lg, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 10, ...Colors.shadow.raised },
 
   // Primary button (unified)
-  primaryBtn:     { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: Colors.radius.md },
+  primaryBtn:     { flexDirection: "row-reverse", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: Colors.radius.md },
   primaryBtnText: { fontFamily: "Cairo_700Bold", color: Colors.white, fontSize: 13 },
 
   // Invoices

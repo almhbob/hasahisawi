@@ -15,6 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction, openExternal } from "@/lib/xplatform";
 
+import HScroll from "@/components/HScroll";
 type Grade = { n: number; label: string; count: number };
 type Stage = { key: string; label: string; grades: Grade[] };
 type Meta = { stages: Stage[]; tracks: string[]; kinds: Record<string, string>; subjects: Record<string, string[]>; max_file_mb: number };
@@ -210,7 +211,7 @@ export default function CurriculumScreen() {
             <Chips label="المادة" items={[{ key: "", label: "كل المواد" }, ...subjects.map((s) => ({ key: s, label: s }))]} value={subject ?? ""} onChange={(k) => setSubject(k || null)} />
 
             <Text style={styles.section}>خدمات الطلاب والمعلمين</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.servicesRow}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.servicesRow}>
               {SERVICES.map((s) => {
                 const on = kind === s.kind;
                 return (
@@ -224,7 +225,7 @@ export default function CurriculumScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </HScroll>
 
             <BookList books={books} loading={loading} onDownload={download} emptyText="لا توجد ملفات هنا بعد — كن أول من يرفع كتاباً لهذا الصف." onEmptyAction={() => setTab("upload")} />
           </>
@@ -264,7 +265,7 @@ function Chips({ label, items, value, onChange }: { label: string; items: { key:
   return (
     <>
       <Text style={styles.section}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
         {items.map((it) => {
           const on = value === it.key;
           return (
@@ -274,7 +275,7 @@ function Chips({ label, items, value, onChange }: { label: string; items: { key:
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </HScroll>
     </>
   );
 }
@@ -520,7 +521,7 @@ function Pill({ on, label, onPress }: { on: boolean; label: string; onPress: () 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
+  header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: 40, alignItems: "center" },

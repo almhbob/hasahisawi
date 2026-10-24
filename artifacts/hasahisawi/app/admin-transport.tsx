@@ -11,6 +11,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TransportStatus = "available" | "coming_soon" | "maintenance";
 
@@ -613,7 +614,7 @@ export default function AdminTransportScreen() {
       </View>
 
       {/* ── Nav Tabs ── (مشرف الشركة لا يرى الشركاء/التعرفة/الإعدادات العامة) */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navBar}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navBar}>
         {(([
           { v: "overview",   label: "نظرة عامة",    icon: "view-dashboard-outline", platformOnly: false },
           { v: "reports",    label: "التقارير",      icon: "chart-line",             platformOnly: false },
@@ -629,7 +630,7 @@ export default function AdminTransportScreen() {
             <Text style={[s.navTabText, { color: view === nav.v ? "#fff" : Colors.textSecondary }]}>{nav.label}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </HScroll>
 
       {loading ? (
         <ActivityIndicator color="#F97316" style={{ marginTop: 40 }} />
@@ -1152,7 +1153,7 @@ export default function AdminTransportScreen() {
                 </View>
                 <Text style={s.cardTitle}>مراقبة الرحلات</Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              <HScroll horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 6, marginBottom: 12, flexDirection: "row-reverse" }}>
                 {(["all", "pending", "accepted", "completed", "cancelled"] as const).map(f => (
                   <TouchableOpacity key={f} onPress={() => setTripFilter(f)}
@@ -1162,7 +1163,7 @@ export default function AdminTransportScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
               {trips.length === 0
                 ? <Text style={s.emptyText}>لا توجد رحلات في هذه الفئة</Text>
                 : trips.map(trip => {
@@ -1433,7 +1434,7 @@ export default function AdminTransportScreen() {
               {actualFareInput && Number(actualFareInput) > 0 && operators.length > 0 && (
                 <>
                   <Text style={[s.fieldLabel, { marginTop: 8 }]}>تعيين للشريك (اختياري)</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                  <HScroll horizontal showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ gap: 6, flexDirection: "row-reverse", marginBottom: 10 }}>
                     <TouchableOpacity onPress={() => setSelectedOpId(null)}
                       style={[s.filterChip, !selectedOpId && { backgroundColor: Colors.primary + "20", borderColor: Colors.primary }]}>
@@ -1445,7 +1446,7 @@ export default function AdminTransportScreen() {
                         <Text style={[s.filterChipText, { color: selectedOpId === op.id ? "#F97316" : Colors.textSecondary }]}>{op.name}</Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </HScroll>
                 </>
               )}
 

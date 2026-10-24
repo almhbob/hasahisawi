@@ -402,7 +402,7 @@ const card = StyleSheet.create({
 
 const s = StyleSheet.create({
   header: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row-reverse", alignItems: "center",
     paddingHorizontal: 16, paddingBottom: 16, gap: 8,
   },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center" },

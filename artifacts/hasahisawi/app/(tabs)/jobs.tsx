@@ -32,6 +32,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 export type Job = {
   id: string;
   title: string;
@@ -466,7 +467,7 @@ export default function JobsScreen() {
           </AnimatedPress>
         }
       >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {TYPE_OPTIONS.map((opt) => (
             <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
               <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
@@ -474,7 +475,7 @@ export default function JobsScreen() {
               </View>
             </AnimatedPress>
           ))}
-        </ScrollView>
+        </HScroll>
       </ModernHeader>
 
       <GuestGate

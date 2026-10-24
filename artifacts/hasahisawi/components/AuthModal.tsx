@@ -597,7 +597,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.accent, opacity: 0.1,
   },
   logoRow: {
-    flexDirection: "row", alignItems: "center", marginBottom: 14,
+    flexDirection: "row-reverse", alignItems: "center", marginBottom: 14,
     paddingLeft: 40,
   },
   logoWrap: {
@@ -617,7 +617,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2,
   },
   modeChip: {
-    flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center",
+    flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "center",
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 1,
   },
@@ -682,7 +682,7 @@ const s = StyleSheet.create({
 
   /* Error */
   errorBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
     backgroundColor: Colors.danger + "15", borderRadius: 12, padding: 12,
     borderWidth: 1, borderColor: Colors.danger + "30",
   },
@@ -694,7 +694,7 @@ const s = StyleSheet.create({
   submitBtn: {
     borderRadius: 16, paddingVertical: 15,
     alignItems: "center", marginTop: 4,
-    flexDirection: "row", justifyContent: "center", gap: 8,
+    flexDirection: "row-reverse", justifyContent: "center", gap: 8,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
@@ -702,7 +702,7 @@ const s = StyleSheet.create({
 
   /* Divider */
   dividerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 4,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, marginVertical: 4,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: {
@@ -711,7 +711,7 @@ const s = StyleSheet.create({
 
   /* Google */
   googleBtn: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBgElevated, borderRadius: 14, padding: 14,
     borderWidth: 1.5, borderColor: "#4285F4" + "40",
     minHeight: 54,
@@ -728,7 +728,7 @@ const s = StyleSheet.create({
 
   /* Guest */
   guestBtn: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: Colors.bg, borderRadius: 14, padding: 14,
     borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed",
     marginBottom: 8,
@@ -749,7 +749,7 @@ const s = StyleSheet.create({
     textDecorationLine: "underline",
   },
   forgotInfoBox: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
     backgroundColor: Colors.primary + "12", borderRadius: 12,
     padding: 14, borderWidth: 1, borderColor: Colors.primary + "25",
   },
@@ -758,7 +758,7 @@ const s = StyleSheet.create({
     flex: 1, textAlign: "right", lineHeight: 22,
   },
   backToLoginBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 6, paddingVertical: 10,
   },
   backToLoginText: {

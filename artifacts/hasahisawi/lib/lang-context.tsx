@@ -29,9 +29,11 @@ export function LangProvider({ children, initialLang }: { children: React.ReactN
 
   const setLanguage = async (newLang: Lang) => {
     await AsyncStorage.setItem(LANG_KEY, newLang);
-    const shouldBeRTL = newLang === "ar";
+    // The layout engine stays left-to-right in both languages: screens mirror
+    // themselves for Arabic (see app/_layout.tsx), so forcing native RTL here
+    // would flip every screen a second time.
     if (Platform.OS !== "web") {
-      I18nManager.forceRTL(shouldBeRTL);
+      I18nManager.forceRTL(false);
     }
     await reloadAppAsync();
   };

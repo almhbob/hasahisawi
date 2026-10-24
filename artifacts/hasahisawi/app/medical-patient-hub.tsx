@@ -467,7 +467,7 @@ function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: strin
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
+  header: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF18", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "center" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: MED2, textAlign: "center", marginTop: 2 },

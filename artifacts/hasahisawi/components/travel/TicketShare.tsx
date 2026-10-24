@@ -85,7 +85,7 @@ export function TicketPoster({ ticket, width, codes }: { ticket: TicketData; wid
             </View>
             <View style={{ width: 92 * s, alignItems: "center" }}>
               <MaterialCommunityIcons name="bus-side" size={22 * s} color={GOLD} />
-              <View style={{ flexDirection: "row", gap: 3 * s, marginTop: 4 * s }}>
+              <View style={{ flexDirection: "row-reverse", gap: 3 * s, marginTop: 4 * s }}>
                 {Array.from({ length: 9 }).map((_, i) => <View key={i} style={{ width: 4 * s, height: 2 * s, borderRadius: 1, backgroundColor: "#5F7397" }} />)}
               </View>
             </View>
@@ -111,7 +111,7 @@ export function TicketPoster({ ticket, width, codes }: { ticket: TicketData; wid
         <View style={{ height: notch * 2, justifyContent: "center", marginTop: 4 * s }}>
           <View style={{ position: "absolute", right: -notch, width: notch * 2, height: notch * 2, borderRadius: notch, backgroundColor: "#E9E4D8" }} />
           <View style={{ position: "absolute", left: -notch, width: notch * 2, height: notch * 2, borderRadius: notch, backgroundColor: "#E9E4D8" }} />
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 5 * s, paddingHorizontal: notch + 4 * s }}>
+          <View style={{ flexDirection: "row-reverse", justifyContent: "center", gap: 5 * s, paddingHorizontal: notch + 4 * s }}>
             {Array.from({ length: 22 }).map((_, i) => <View key={i} style={{ width: 7 * s, height: 1.5 * s, backgroundColor: "#CFC6B2" }} />)}
           </View>
         </View>

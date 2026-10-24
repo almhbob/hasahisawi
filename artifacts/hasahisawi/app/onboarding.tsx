@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   langToggle: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     backgroundColor: Colors.cardBg,
     borderRadius: 20,
     borderWidth: 1,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   dotsRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "center",
     gap: 8,
   },
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBtn: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 4,
     paddingVertical: 8,

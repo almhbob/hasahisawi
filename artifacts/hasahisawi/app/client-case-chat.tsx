@@ -220,7 +220,7 @@ export default function ClientCaseChat() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       {/* Header */}
       <LinearGradient colors={["#1A0A2E", BG]} style={{ paddingTop: insets.top + 4, paddingBottom: 14, paddingHorizontal: 18 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
             <Ionicons name="arrow-back" size={22} color="#9CA3AF" />
           </TouchableOpacity>
@@ -236,7 +236,7 @@ export default function ClientCaseChat() {
         </View>
 
         {/* Inner Tabs */}
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row-reverse", gap: 8 }}>
           {([ ["chat","💬 الدردشة"], ["docs","📎 المستندات"], ["info","ℹ️ التفاصيل"] ] as ["chat"|"docs"|"info", string][]).map(([key, lbl]) => (
             <TouchableOpacity key={key} onPress={() => setTab(key)}
               style={{ flex: 1, backgroundColor: tab === key ? PURPLE : "rgba(255,255,255,0.06)", borderRadius: 8, paddingVertical: 8, alignItems: "center" }}>
@@ -282,7 +282,7 @@ export default function ClientCaseChat() {
                     {m.body ? <Text style={{ color: "#fff", fontSize: 14, lineHeight: 20 }}>{m.body}</Text> : null}
                     {m.file_url ? (
                       <TouchableOpacity onPress={() => Linking.openURL(m.file_url)}
-                        style={{ marginTop: m.body ? 8 : 0, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 10 }}>
+                        style={{ marginTop: m.body ? 8 : 0, flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 10 }}>
                         <Text style={{ fontSize: 22 }}>{fileIcon(m.file_type)}</Text>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: "#D1D5DB", fontSize: 12, fontWeight: "600" }} numberOfLines={1}>{m.file_name || "ملف مرفق"}</Text>
@@ -297,7 +297,7 @@ export default function ClientCaseChat() {
             }}
           />
           {/* Input */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={pickAndSendFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
               <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -326,7 +326,7 @@ export default function ClientCaseChat() {
               style={{ color: "#fff", backgroundColor: CARD, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, fontSize: 13 }}
             />
             <TouchableOpacity onPress={uploadDoc} disabled={docUploading}
-              style={{ backgroundColor: BLUE + "22", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: BLUE, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10 }}>
+              style={{ backgroundColor: BLUE + "22", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: BLUE, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 10 }}>
               {docUploading ? <ActivityIndicator color={BLUE} /> : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={20} color={BLUE} />
@@ -345,12 +345,12 @@ export default function ClientCaseChat() {
               </View>
             )}
             renderItem={({ item: d }: { item: Document }) => (
-              <View style={{ backgroundColor: CARD, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BORDER, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ backgroundColor: CARD, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BORDER, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
                 <Text style={{ fontSize: 28 }}>{fileIcon(d.file_type)}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: "#fff", fontWeight: "700" }} numberOfLines={1}>{d.title}</Text>
                   <Text style={{ color: "#9CA3AF", fontSize: 11 }} numberOfLines={1}>{d.file_name}</Text>
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 3 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 3 }}>
                     <Text style={{ color: d.uploaded_by === "lawyer" ? PURPLE : GREEN, fontSize: 10, fontWeight: "600" }}>
                       {d.uploaded_by === "lawyer" ? "📤 من المحامي" : "📥 منك"}
                     </Text>

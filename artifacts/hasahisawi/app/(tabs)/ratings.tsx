@@ -20,6 +20,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EntityType = "institution" | "employee" | "service_seeker";
 
@@ -91,7 +92,7 @@ async function getDeviceId(): Promise<string> {
 // ─── Star Row ─────────────────────────────────────────────────────────────────
 function StarRow({ rating, size = 14, color = Colors.accent }: { rating: number; size?: number; color?: string }) {
   return (
-    <View style={{ flexDirection: "row", gap: 2 }}>
+    <View style={{ flexDirection: "row-reverse", gap: 2 }}>
       {[1, 2, 3, 4, 5].map((s) => (
         <Ionicons
           key={s}
@@ -107,7 +108,7 @@ function StarRow({ rating, size = 14, color = Colors.accent }: { rating: number;
 // ─── Interactive Stars ────────────────────────────────────────────────────────
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
-    <View style={{ flexDirection: "row", gap: 8, justifyContent: "center" }}>
+    <View style={{ flexDirection: "row-reverse", gap: 8, justifyContent: "center" }}>
       {[1, 2, 3, 4, 5].map((s) => (
         <Pressable key={s} onPress={() => { onChange(s); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
           <Ionicons
@@ -132,7 +133,7 @@ function RatingBars({ reviews }: { reviews: Review[] }) {
   return (
     <View style={{ gap: 5 }}>
       {counts.map(({ s, count }) => (
-        <View key={s} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View key={s} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
           <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, width: 14, textAlign: "right" }}>{s}</Text>
           <Ionicons name="star" size={11} color={Colors.accent} />
           <View style={{ flex: 1, height: 7, backgroundColor: Colors.cardBg, borderRadius: 4, overflow: "hidden" }}>
@@ -170,7 +171,7 @@ function EntityCard({ entity, onPress, index }: { entity: RatedEntity; onPress: 
 
             {/* Info */}
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                 <Text style={s.cardName} numberOfLines={1}>{entity.name}</Text>
                 {entity.is_verified && <Ionicons name="checkmark-circle" size={15} color={Colors.primary} />}
               </View>
@@ -398,7 +399,7 @@ export default function RatingsScreen() {
             </Pressable>
           )}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
           {cats.map((cat) => (
             <TouchableOpacity
               key={cat}
@@ -408,7 +409,7 @@ export default function RatingsScreen() {
               <Text style={[s.catChipText, catFilter === cat && { color: "#000" }]}>{cat}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </HScroll>
       </View>
 
       {/* ── List ── */}
@@ -456,7 +457,7 @@ export default function RatingsScreen() {
                 <View style={[s.detailIcon, { backgroundColor: TYPE_CONFIG[detailEntity.type].color + "20", borderColor: TYPE_CONFIG[detailEntity.type].color + "40" }]}>
                   <MaterialCommunityIcons name={TYPE_CONFIG[detailEntity.type].icon as any} size={36} color={TYPE_CONFIG[detailEntity.type].color} />
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10 }}>
                   <Text style={s.detailName}>{detailEntity.name}</Text>
                   {detailEntity.is_verified && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
                 </View>
@@ -681,17 +682,17 @@ const s = StyleSheet.create({
 
   addBtn: { width: 38, height: 38, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
 
-  statsRow: { flexDirection: "row", justifyContent: "space-around" },
+  statsRow: { flexDirection: "row-reverse", justifyContent: "space-around" },
   statItem: { alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.78)", marginTop: 1 },
 
-  tabRow: { flexDirection: "row", gap: 8 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  tabRow: { flexDirection: "row-reverse", gap: 8 },
+  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.75)" },
 
   filterSection: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
 
   catChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
@@ -700,20 +701,20 @@ const s = StyleSheet.create({
   card: { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 14, overflow: "hidden", backgroundColor: Colors.cardBg, ...Colors.shadow.card },
   rankBadge: { position: "absolute", top: 10, left: 10, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
   rankBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
-  cardBody: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  cardBody: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   cardIcon: { width: 48, height: 48, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
-  cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" },
+  cardMeta: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" },
   catBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   catBadgeText: { fontFamily: "Cairo_500Medium", fontSize: 11 },
-  distRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  distRow: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
   distText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   cardRating: { alignItems: "center", gap: 3, minWidth: 56 },
   cardAvg: { fontFamily: "Cairo_700Bold", fontSize: 20 },
   cardReviews: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
-  emptyAddBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md, marginTop: 8 },
+  emptyAddBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md, marginTop: 8 },
   emptyAddText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
 
   // Modal
@@ -728,29 +729,29 @@ const s = StyleSheet.create({
   detailAvg: { fontFamily: "Cairo_700Bold", fontSize: 42, color: Colors.accent, lineHeight: 50 },
   detailReviewCount: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
-  detailInfoRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, padding: 12, borderRadius: Colors.radius.md },
+  detailInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, padding: 12, borderRadius: Colors.radius.md },
   detailInfoText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   detailNotes: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
 
   reviewsTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
   reviewCard: { borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, padding: 14, overflow: "hidden", gap: 6, ...Colors.shadow.card },
-  reviewTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  reviewTop: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   reviewerIcon: { width: 30, height: 30, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
   reviewerName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   reviewComment: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 21, textAlign: "right" },
   reviewDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" },
 
   detailFooter: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
-  rateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: Colors.radius.lg },
+  rateBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: Colors.radius.lg },
   rateBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   starLabel: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.accent },
   commentBox: { width: "100%", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, overflow: "hidden" },
   commentInput: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, padding: 16, minHeight: 110 },
 
-  addTypeRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
+  addTypeRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   addTypeText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   addLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 6, textAlign: "right" },
   addInput: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 16, paddingVertical: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
-  catsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  catsGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
 });

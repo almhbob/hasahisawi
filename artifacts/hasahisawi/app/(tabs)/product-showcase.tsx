@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadMarketImage } from "@/lib/firebase/storage";
 
+import HScroll from "@/components/HScroll";
 type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories" | "women";
 type MerchantStatus = "pending" | "approved";
 
@@ -392,7 +393,7 @@ export default function ProductShowcaseScreen() {
 
           <View style={styles.searchBox}><Ionicons name="search" size={18} color={Colors.textMuted} /><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر..." placeholderTextColor={Colors.textMuted} style={styles.input} /></View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
             {visibleCategories.map(cat => {
               const active = category === cat.key;
               return <TouchableOpacity key={cat.key} onPress={() => setCategory(cat.key)} style={[styles.categoryChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}>
@@ -400,15 +401,15 @@ export default function ProductShowcaseScreen() {
                 <Text style={[styles.categoryText, active && { color: "#001" }]}>{cat.label}</Text>
               </TouchableOpacity>;
             })}
-          </ScrollView>
+          </HScroll>
 
           <Text style={styles.sectionTitle}>المتاجر المعتمدة</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.merchantRow}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.merchantRow}>
             {approvedMerchants.map(m => {
               const meta = CATEGORIES.find(c => c.key === m.category) || CATEGORIES[0];
               return <View key={m.id} style={styles.merchantCard}><MaterialCommunityIcons name={meta.icon as any} size={25} color={meta.color} /><Text style={styles.merchantName}>{m.shopName}</Text><Text style={styles.merchantMeta}>{meta.label} · {m.address}</Text></View>;
             })}
-          </ScrollView>
+          </HScroll>
 
           <Text style={styles.sectionTitle}>معرض المنتجات</Text>
           {filtered.map((item, index) => {
@@ -441,7 +442,7 @@ export default function ProductShowcaseScreen() {
           <TextInput style={styles.modalInput} value={ownerName} onChangeText={setOwnerName} placeholder="اسم المسؤول" placeholderTextColor={Colors.textMuted} />
           <TextInput style={styles.modalInput} value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
           <TextInput style={styles.modalInput} value={address} onChangeText={setAddress} placeholder="العنوان" placeholderTextColor={Colors.textMuted} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{visibleCategories.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</ScrollView>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{visibleCategories.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</HScroll>
           <View style={styles.modalActions}><TouchableOpacity onPress={() => setJoinOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={addMerchant} style={styles.saveBtn}><Text style={styles.saveText}>إرسال الطلب</Text></TouchableOpacity></View>
         </View></View>
       </Modal>
@@ -449,7 +450,7 @@ export default function ProductShowcaseScreen() {
       <Modal visible={productOpen} transparent animationType="slide" onRequestClose={() => setProductOpen(false)}>
         <View style={styles.modalBackdrop}><View style={styles.modalCard}>
           <Text style={styles.modalTitle}>إضافة منتج للتاجر</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{approvedMerchants.map(m => <TouchableOpacity key={m.id} onPress={() => setSelectedMerchantId(m.id)} style={[styles.categoryChip, selectedMerchantId === m.id && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Text style={[styles.categoryText, selectedMerchantId === m.id && { color: "#001" }]}>{m.shopName}</Text></TouchableOpacity>)}</ScrollView>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{approvedMerchants.map(m => <TouchableOpacity key={m.id} onPress={() => setSelectedMerchantId(m.id)} style={[styles.categoryChip, selectedMerchantId === m.id && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Text style={[styles.categoryText, selectedMerchantId === m.id && { color: "#001" }]}>{m.shopName}</Text></TouchableOpacity>)}</HScroll>
           <TouchableOpacity onPress={pickImage} style={styles.imagePick}>{imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : <><Ionicons name="image-outline" size={26} color={Colors.textMuted} /><Text style={styles.imagePickText}>رفع صورة المنتج</Text></>}</TouchableOpacity>
           <TextInput style={styles.modalInput} value={productName} onChangeText={setProductName} placeholder="اسم المنتج" placeholderTextColor={Colors.textMuted} />
           <TextInput style={styles.modalInput} value={productPrice} onChangeText={setProductPrice} placeholder="السعر" placeholderTextColor={Colors.textMuted} keyboardType="numeric" />
@@ -466,9 +467,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   body: { padding: 18, gap: 14 },
   actionsRow: { flexDirection: "row-reverse", gap: 10 },
-  primaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  primaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6 },
   primaryText: { fontFamily: "Cairo_700Bold", color: "#001", fontSize: 13 },
-  secondaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  secondaryBtn: { flex: 1, height: 46, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6 },
   secondaryText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 13 },
   cartBar: { borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap", ...Colors.shadow.card },
   cartTitle: { flex: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
@@ -482,13 +483,13 @@ const styles = StyleSheet.create({
   removeBtn: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
   cartItemName: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" },
   cartItemSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 },
-  qtyBox: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.bg, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  qtyBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.bg, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   qtyBtn: { color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 18 },
   qtyText: { color: Colors.textPrimary, fontFamily: "Cairo_700Bold" },
-  searchBox: { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { height: 48, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   input: { flex: 1, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", textAlign: "right" },
   categoryRow: { gap: 8, paddingVertical: 2 },
-  categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, borderRadius: Colors.radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
+  categoryChip: { flexDirection: "row-reverse", alignItems: "center", gap: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, borderRadius: Colors.radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
   categoryText: { fontFamily: "Cairo_600SemiBold", color: Colors.textSecondary, fontSize: 12 },
   sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
   merchantRow: { gap: 10 },
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
   bottomRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 8 },
   price: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" },
   oldPrice: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textDecorationLine: "line-through", fontSize: 11, textAlign: "right" },
-  productActions: { flexDirection: "row", gap: 8 },
+  productActions: { flexDirection: "row-reverse", gap: 8 },
   editBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   cartBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   modalBackdrop: { flex: 1, backgroundColor: "#0008", justifyContent: "flex-end" },

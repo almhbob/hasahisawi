@@ -19,6 +19,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction, openExternal, copyText, uploadProfilePhoto, socialShareUrl, systemShare, type SocialTarget } from "@/lib/xplatform";
 
+import HScroll from "@/components/HScroll";
 const MAP = require("@/assets/images/member-card/map.png");
 // ألوان مسبقة للشعار والخريطة: tintColor لا يظهر عند حفظ الصورة في المتصفح
 const LOGOS: Record<string, any> = {
@@ -195,7 +196,7 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
 
         <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10 * s }}>
           <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: "Cairo_500Medium", fontSize: 11.5 * s, color: t.accent, textAlign: "right" }}>الحصاحيصا ليست مكاناً نسكنه… بل وطنٌ يسكننا</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 * s }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 * s }}>
             <Text style={[styles.en, { fontSize: 8 * s, letterSpacing: 2.5 * s, color: t.accent }]}>SUDAN</Text>
             <SudanFlag w={18 * s} />
           </View>
@@ -570,7 +571,7 @@ export default function MemberCardScreen() {
                 <Text style={styles.panelTitle}>صورتك على البطاقة</Text>
                 {busy === "photo" ? <ActivityIndicator size="small" color="#21423A" /> : <Text style={styles.panelHint}>صورة أو رمز</Text>}
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
                 <TouchableOpacity onPress={uploadPhoto} disabled={!!busy} accessibilityRole="button" accessibilityLabel="رفع صورة شخصية" style={[styles.tile, styles.uploadTile, usingPhoto && styles.tileOn]}>
                   <Ionicons name="camera-outline" size={20} color="#3E3B35" />
                   <Text style={styles.tileText}>صورتي</Text>
@@ -583,7 +584,7 @@ export default function MemberCardScreen() {
                     <Text style={[styles.tileLabel, selectedPreset === p.key && { color: "#1E1E1C", fontFamily: "Cairo_600SemiBold" }]}>{p.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
               <Text style={styles.panelNote}>الصورة المرفوعة تصبح أيضاً صورة ملفك الشخصي.</Text>
             </View>
 

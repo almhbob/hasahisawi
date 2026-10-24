@@ -14,6 +14,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ── ثوابت ───────────────────────────────────────────────────────────────────
 const GOLD   = "#D97706";
 const GOLD2  = "#F59E0B";
@@ -470,7 +471,7 @@ function JoinTab() {
             {/* نوع المركبة */}
             <View style={j.fieldBlock}>
               <Text style={j.fieldLabel}>نوع المركبة *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
                 {VEHICLE_TYPES.map(v => (
                   <TouchableOpacity
                     key={v.key}
@@ -481,7 +482,7 @@ function JoinTab() {
                     <Text style={[j.vTypeBtnText, vType === v.key && { color: v.color }]}>{v.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
             </View>
 
             {[
@@ -604,7 +605,7 @@ export default function OccasionsScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* ── فلتر الأصناف ── */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
             <TouchableOpacity
               style={[s.catChip, !filterCat && { borderColor: GOLD, backgroundColor: GOLD + "18" }]}
               onPress={() => setFilterCat(null)}
@@ -621,7 +622,7 @@ export default function OccasionsScreen() {
                 <Text style={[s.catChipText, filterCat === c.key && { color: c.color }]}>{c.label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           {loadShops ? (
             <ActivityIndicator color={GOLD} style={{ marginTop: 60 }} />
@@ -693,7 +694,7 @@ export default function OccasionsScreen() {
 
 // رأس الصفحة
 const h = StyleSheet.create({
-  statsRow: { flexDirection: "row", gap: 10 },
+  statsRow: { flexDirection: "row-reverse", gap: 10 },
   statCard: {
     flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
@@ -706,11 +707,11 @@ const h = StyleSheet.create({
 // شاشة
 const s = StyleSheet.create({
   tabsRow: {
-    flexDirection: "row", backgroundColor: CARD,
+    flexDirection: "row-reverse", backgroundColor: CARD,
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
   tabBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 5, paddingVertical: 12, borderBottomWidth: 2.5, borderBottomColor: "transparent",
   },
   tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
@@ -721,7 +722,7 @@ const s = StyleSheet.create({
     borderColor: Colors.divider, marginBottom: 14, overflow: "hidden",
     ...Colors.shadow.card,
   },
-  shopHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  shopHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14 },
   shopAvatar: {
     width: 50, height: 50, borderRadius: Colors.radius.md,
     backgroundColor: GOLD + "18", borderWidth: 1.5, borderColor: GOLD + "40",
@@ -739,7 +740,7 @@ const s = StyleSheet.create({
   itemsGrid: { paddingHorizontal: 14, paddingBottom: 10, gap: 7 },
   noItems:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 12 },
   itemChip: {
-    flexDirection: "row", alignItems: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
     backgroundColor: BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider,
     paddingHorizontal: 12, paddingVertical: 10,
   },
@@ -747,9 +748,9 @@ const s = StyleSheet.create({
   itemName:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   itemPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
   availDot:  { width: 9, height: 9, borderRadius: 5 },
-  shopActions: { flexDirection: "row", gap: 10, padding: 12, paddingTop: 8 },
+  shopActions: { flexDirection: "row-reverse", gap: 10, padding: 12, paddingTop: 8 },
   actionBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
     borderWidth: 1.5, borderRadius: Colors.radius.md, paddingVertical: 10,
   },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
@@ -757,7 +758,7 @@ const s = StyleSheet.create({
   // كرت مواصلات
   transportCard: {
     backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1,
-    borderColor: Colors.divider, marginBottom: 14, flexDirection: "row", overflow: "hidden",
+    borderColor: Colors.divider, marginBottom: 14, flexDirection: "row-reverse", overflow: "hidden",
     ...Colors.shadow.card,
   },
   transportLeft: {
@@ -768,7 +769,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   availPill: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, paddingHorizontal: 5, paddingVertical: 3,
   },
   availPillText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
@@ -776,9 +777,9 @@ const s = StyleSheet.create({
   transportName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   transportType: { fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right" },
   transportDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
-  transportMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, justifyContent: "flex-end" },
+  transportMeta: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 6, justifyContent: "flex-end" },
   metaTag: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: BG, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider,
     paddingHorizontal: 8, paddingVertical: 4,
   },
@@ -787,13 +788,13 @@ const s = StyleSheet.create({
 
   // أخرى
   catChip: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.pill,
     paddingHorizontal: 12, paddingVertical: 6, backgroundColor: CARD,
   },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   infoBanner: {
-    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
     borderWidth: 1, borderRadius: Colors.radius.md, padding: 12,
     backgroundColor: Colors.cyber + "08", marginBottom: 12,
   },
@@ -807,9 +808,9 @@ const s = StyleSheet.create({
 
 // نموذج الانضمام
 const j = StyleSheet.create({
-  typeRow:    { flexDirection: "row", gap: 12, marginBottom: 16, marginTop: 8 },
+  typeRow:    { flexDirection: "row-reverse", gap: 12, marginBottom: 16, marginTop: 8 },
   typeBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     borderWidth: 2, borderColor: Colors.divider, borderRadius: Colors.radius.lg,
     paddingVertical: 14, backgroundColor: CARD,
   },
@@ -829,13 +830,13 @@ const j = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
   },
   vTypeBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: BG,
   },
   vTypeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   submitBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: Colors.radius.lg, paddingVertical: 16, marginTop: 8,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },

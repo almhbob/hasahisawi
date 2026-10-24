@@ -796,7 +796,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               onPress={() => router.push("/forgot-password" as any)}
               activeOpacity={0.7}
-              style={{ alignSelf: "center", marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
+              style={{ alignSelf: "center", marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row-reverse", alignItems: "center", gap: 6 }}
             >
               <Ionicons name="lock-open-outline" size={15} color={Colors.primary} />
               <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary, textDecorationLine: "underline" }}>
@@ -1140,7 +1140,7 @@ const styles = StyleSheet.create({
 
   /* Mode tabs */
   modeTabs: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     margin: 16,
     marginBottom: 10,
     backgroundColor: Colors.bg,
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   modeTab: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 7, paddingVertical: 12, borderRadius: 13, overflow: "hidden",
   },
   modeTabActive: {
@@ -1186,7 +1186,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 2,
   },
   fieldWrap: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     borderWidth: 1.5, borderColor: Colors.divider,
     borderRadius: 16, backgroundColor: Colors.bg,
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
 
   /* Biometric */
   bioBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 12, borderRadius: 16, paddingVertical: 13,
     borderWidth: 1.5, borderColor: Colors.primary + "40",
     backgroundColor: Colors.primary + "0A",
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
 
   /* Divider */
   dividerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 2,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, marginVertical: 2,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
@@ -1342,7 +1342,7 @@ const otpS = StyleSheet.create({
     textAlign: "center", lineHeight: 22,
   },
   timerRow: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: Colors.bg, borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 1, borderColor: Colors.divider,
@@ -1392,7 +1392,7 @@ const otpS = StyleSheet.create({
     fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000",
   },
   resendBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     paddingVertical: 10, paddingHorizontal: 16,
   },
   resendText: {

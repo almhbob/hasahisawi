@@ -21,6 +21,7 @@ import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
+import HScroll from "@/components/HScroll";
 const { width: SW } = Dimensions.get("window");
 const CARD_W = SW - 32;
 
@@ -484,7 +485,7 @@ function GreetingCardModal({
             {/* اختيار النمط */}
             <View style={cm.section}>
               <Text style={cm.sectionLabel}>🎨 نمط البطاقة</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cm.styleRow}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cm.styleRow}>
                 {CARD_STYLES.map((cs2, i) => (
                   <TouchableOpacity
                     key={i}
@@ -495,7 +496,7 @@ function GreetingCardModal({
                     <Text style={[cm.stylePillText, selectedStyle===i && { color: cs2.accent }]}>{cs2.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
             </View>
 
             {/* اسم المرسِل */}
@@ -776,14 +777,14 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
             <Text style={b.composeTitle}>شارك تهنئتك مع أهل الحصاحيصا</Text>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={b.tagsRow}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={b.tagsRow}>
             {OCCASION_TAGS.map(o => (
               <TouchableOpacity key={o} onPress={()=>setOccasion(o)}
                 style={[b.tag, occasion===o&&{backgroundColor:(OCC_COLORS[o]||GOLD)+"20",borderColor:(OCC_COLORS[o]||GOLD)+"60"}]}>
                 <Text style={[b.tagText, occasion===o&&{color:OCC_COLORS[o]||GOLD}]}>{o}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           <TextInput style={b.composeInput} value={text} onChangeText={setText}
             placeholder="اكتب كلمات تهنئتك من القلب..." placeholderTextColor="rgba(255,255,255,0.2)"

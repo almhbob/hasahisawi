@@ -26,6 +26,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import ModernHeader from "@/components/ui/ModernHeader";
 
+import HScroll from "@/components/HScroll";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type StoreType =
@@ -825,7 +826,7 @@ function ProductsTab({
       </View>
 
       {/* Category filter */}
-      <ScrollView
+      <HScroll
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.categoryStrip, { flexDirection: "row-reverse" }]}
@@ -860,7 +861,7 @@ function ProductsTab({
           <Ionicons name="add" size={14} color={Colors.primary} />
           <Text style={[styles.categoryChipText, { color: Colors.primary }]}>تصنيف</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </HScroll>
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />

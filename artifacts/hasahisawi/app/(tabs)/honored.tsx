@@ -479,12 +479,12 @@ const s = StyleSheet.create({
 
   /* المكرَّم الحالي */
   sectionHeader: {
-    flexDirection: "row", alignItems: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
     paddingHorizontal: 16, marginBottom: 12, marginTop: 8,
   },
   sectionLine: { flex: 1, height: 1, backgroundColor: GOLD + "30" },
   sectionChip: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     backgroundColor: GOLD, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Colors.radius.pill,
   },
   sectionChipText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#1A0F00" },
@@ -514,7 +514,7 @@ const s = StyleSheet.create({
   /* مجموعة سنوية */
   yearGroup: { marginBottom: 8 },
   yearHeader: {
-    flexDirection: "row", alignItems: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
     paddingHorizontal: 16, marginVertical: 10,
   },
   yearLine: { flex: 1, height: 1, backgroundColor: GOLD_DIM + "30" },
@@ -527,14 +527,14 @@ const s = StyleSheet.create({
 
   /* لود المزيد */
   loadMoreRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 16,
   },
   loadMoreText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: GOLD_DIM },
 
   /* نهاية القائمة */
   endBanner: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 20,
   },
   endText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: GOLD_DIM, opacity: 0.7 },
@@ -596,7 +596,7 @@ const dm = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#050E04" },
   header: {
     paddingHorizontal: 16, paddingVertical: 12,
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     overflow: "hidden",
   },
   headerDecor: { ...StyleSheet.absoluteFillObject },
@@ -611,7 +611,7 @@ const dm = StyleSheet.create({
   photo: { width: "100%", height: "100%", backgroundColor: Colors.cardBg },
   currentChip: { position: "absolute", top: 16, alignSelf: "center" },
   currentChipGrad: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill,
   },
   currentChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1A0F00" },
@@ -621,7 +621,7 @@ const dm = StyleSheet.create({
     fontFamily: "Cairo_700Bold", fontSize: 26, color: "#FFFFFF",
     textAlign: "center", lineHeight: 34,
   },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 10, width: "100%" },
+  titleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, width: "100%" },
   titleLine: { flex: 1, height: 1, backgroundColor: GOLD + "50" },
   titleText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: GOLD_LITE },
   role: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },

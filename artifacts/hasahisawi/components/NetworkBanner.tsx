@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     backgroundColor: "#C0392B",
     borderRadius: 12,
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
