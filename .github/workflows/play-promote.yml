@@ -1,0 +1,68 @@
+name: Google Play — roll out waiting release
+
+# Rolls out the newest draft on a Google Play track (default: production) to users.
+# Runs when .play-promote changes on master (or by hand). Uses the same keyless
+# GitHub OIDC → short-lived Play token flow as the release workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Track to roll out (production / beta / alpha / internal)"
+        required: false
+        default: "production"
+  push:
+    branches: [master, main]
+    paths:
+      - '.play-promote'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: play-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Roll out the draft release
+        env:
+          PKG: com.almhbob.hasahisawi
+          API: https://api-server-gilt-ten.vercel.app
+        run: |
+          set -euo pipefail
+          TRACK="${{ github.event.inputs.track }}"; TRACK="${TRACK:-production}"
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          TOKEN=$(curl -sS -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token" | jq -r '.access_token // empty')
+          [ -n "$TOKEN" ] || { echo "::error::Could not get a Google Play token"; exit 1; }
+          echo "::add-mask::$TOKEN"
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
+          AUTH="Authorization: Bearer $TOKEN"
+          err() { echo "::error::$1 — $(echo "$2" | jq -r '.error.message // .' 2>/dev/null | head -c 400)"; exit 1; }
+
+          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits")
+          EDIT=$(echo "$R" | jq -r '.id // empty'); [ -n "$EDIT" ] || err "Could not open a Play edit" "$R"
+
+          R=$(curl -sS -H "$AUTH" "$BASE/edits/$EDIT/tracks/$TRACK")
+          echo "$R" | jq -e '.releases' >/dev/null || err "Could not read track $TRACK" "$R"
+          echo "Current releases on $TRACK:"; echo "$R" | jq -c '.releases[] | {name, status, versionCodes}'
+
+          DRAFT=$(echo "$R" | jq -c '[.releases[] | select(.status=="draft")] | max_by(.versionCodes | map(tonumber) | max) // empty')
+          if [ -z "$DRAFT" ] || [ "$DRAFT" = "null" ]; then
+            echo "::notice::No draft release on $TRACK — nothing to roll out."
+            curl -sS -X DELETE -H "$AUTH" "$BASE/edits/$EDIT" >/dev/null || true
+            exit 0
+          fi
+          NAME=$(echo "$DRAFT" | jq -r '.name')
+          BODY=$(echo "$DRAFT" | jq --arg t "$TRACK" '{track:$t, releases:[ (. | .status="completed" | del(.userFraction)) ]}')
+          R=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
+          echo "$R" | jq -e '.releases' >/dev/null || err "Could not set the release to completed" "$R"
+
+          R=$(curl -sS -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
+          echo "$R" | jq -e '.id' >/dev/null || err "Commit failed" "$R"
+          echo "::notice::Rolled out $NAME on $TRACK (sent to Google review if required)."
+          echo "### ✅ Google Play: $NAME rolled out on $TRACK" >> $GITHUB_STEP_SUMMARY
