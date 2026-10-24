@@ -232,18 +232,23 @@ export default function DrawerMenu() {
   const adminUnread = useAdminUnread();
   const roleLabel   = user?.role === "admin" ? "مسؤول" : user?.role === "moderator" ? "مشرف" : null;
 
-  const EDGE_ZONE = 28;
+  // The edge strip sits on top of everything at that edge and swallows taps
+  // (it only handles swipes), so it covered the rightmost tab, back buttons and
+  // row icons. Keep it narrow and clear of the header and the tab bar.
+  const EDGE_ZONE = 16;
+  const EDGE_TOP = insets.top + 72;
+  const EDGE_BOTTOM = 76 + Math.max(insets.bottom, 10);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
 
       {/* ── شريط الحافة الشفاف لاكتشاف السحب (دائم الظهور) ── */}
-      {!isOpen && (
+      {!isOpen && Platform.OS !== "web" && (
         <View
           style={[
             styles.edgeStrip,
             DRAWER_IS_RTL ? { left: 0 } : { right: 0 },
-            { width: EDGE_ZONE },
+            { width: EDGE_ZONE, top: EDGE_TOP, bottom: EDGE_BOTTOM },
           ]}
           {...edgePan.panHandlers}
         />
