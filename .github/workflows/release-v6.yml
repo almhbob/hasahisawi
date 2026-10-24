@@ -296,7 +296,7 @@ jobs:
             echo "::warning::AAB signed with $SHA1 but Google Play expects $EXPECTED — skipping Play upload."; exit 0
           fi
           TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-production}"
-          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-draft}"
+          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-completed}"
           AAB=$(ls release-artifacts/*.aab | head -1)
 
           # 1) رمز OIDC من GitHub ← رمز Google Play قصير العمر من خادمنا
