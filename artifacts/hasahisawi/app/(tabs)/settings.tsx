@@ -1939,6 +1939,59 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           )}
 
+          {/* ─── اللغة ─── */}
+          <View style={langSty.card}>
+            <View style={langSty.headerRow}>
+              <View style={langSty.iconWrap}>
+                <Ionicons name="language-outline" size={22} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={langSty.title}>اللغة · Language</Text>
+                <Text style={langSty.sub}>
+                  {lang === "ar" ? "لغة واجهة التطبيق — يُعاد تشغيله لتطبيق التغيير" : "App language — the app restarts to apply it"}
+                </Text>
+              </View>
+            </View>
+            <View style={langSty.segment} accessibilityRole="radiogroup">
+              {([
+                { key: "ar", label: "العربية" },
+                { key: "en", label: "English" },
+              ] as const).map((opt) => {
+                const active = lang === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[langSty.option, active && langSty.optionActive]}
+                    activeOpacity={0.85}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => {
+                      if (active) return;
+                      const toEn = opt.key === "en";
+                      const apply = () => { setLanguage(opt.key).catch(() => {}); };
+                      if (Platform.OS === "web") {
+                        // Alert.alert is a no-op on web.
+                        if (window.confirm(toEn ? "Switch to English? The app will reload." : "التحويل إلى العربية؟ سيُعاد تحميل التطبيق.")) apply();
+                        return;
+                      }
+                      Alert.alert(
+                        toEn ? "Switch to English?" : "التحويل إلى العربية؟",
+                        toEn ? "The app will restart to apply the new language." : "سيُعاد تشغيل التطبيق لتطبيق اللغة الجديدة.",
+                        [
+                          { text: toEn ? "Cancel" : "إلغاء", style: "cancel" },
+                          { text: toEn ? "Switch" : "تحويل", onPress: apply },
+                        ],
+                      );
+                    }}
+                  >
+                    {active && <Ionicons name="checkmark-circle" size={16} color="#fff" />}
+                    <Text style={[langSty.optionText, active && langSty.optionTextActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
           {/* ─── دعم التطبيق ─── */}
           <View style={contactSty.card}>
             {/* رأس البطاقة */}
@@ -4093,6 +4146,32 @@ const contactSty = StyleSheet.create({
     color: Colors.textMuted,
   },
   infoDot: { fontSize: 12, color: Colors.textMuted, marginHorizontal: 2 },
+});
+
+const langSty = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface2,
+    borderRadius: 22, borderWidth: 1, borderColor: Colors.primary + "25",
+    padding: 18, gap: 14,
+  },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 14 },
+  iconWrap: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center",
+  },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  segment: {
+    flexDirection: "row-reverse", gap: 8, padding: 4, borderRadius: 16,
+    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
+  },
+  option: {
+    flex: 1, minHeight: 46, borderRadius: 12,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  optionActive: { backgroundColor: Colors.primary },
+  optionText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  optionTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
 });
 
 const legalSty = StyleSheet.create({
