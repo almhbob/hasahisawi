@@ -54,6 +54,15 @@ jobs:
         run: |
           mkdir -p release-artifacts
           echo "sdk.dir=$ANDROID_HOME" > artifacts/hasahisawi/android/local.properties
+          # *.keystore is gitignored, so the debug signing key build.gradle expects
+          # (android / androiddebugkey) never exists on a fresh runner and
+          # :app:validateSigningDebug failed every run. Create the standard one.
+          KS=artifacts/hasahisawi/android/app/debug.keystore
+          if [ ! -f "$KS" ]; then
+            keytool -genkeypair -noprompt -keystore "$KS" -storepass android \
+              -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
+              -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
           NDK_VER=$(ls "$ANDROID_HOME/ndk/" | sort -V | tail -1)
           if [ -z "$NDK_VER" ]; then echo "No NDK found" && exit 1; fi
           PROPS=artifacts/hasahisawi/android/gradle.properties
