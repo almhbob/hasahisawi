@@ -4128,7 +4128,7 @@ const langSty = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface2,
     borderRadius: 22, borderWidth: 1, borderColor: Colors.primary + "25",
-    padding: 18, gap: 14,
+    padding: 18, gap: 14, marginBottom: 14,
   },
   headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 14 },
   iconWrap: {
