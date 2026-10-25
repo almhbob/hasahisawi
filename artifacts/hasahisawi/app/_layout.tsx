@@ -171,6 +171,12 @@ function AuthGate() {
           router.push("/admin-requests" as any);
           return;
         }
+        // ── المطاعم: طلب جديد للمالك، وتحديث حالة للعميل ──
+        if ((type === "food_order" || type === "food_business") && data?.business_id) {
+          router.push({ pathname: type === "food_order" ? "/restaurant-manage" : "/restaurant", params: { id: String(data.business_id) } } as any);
+          return;
+        }
+        if (type === "food_order_status") { router.push("/my-food-orders" as any); return; }
         if (type === "store_review") { router.push("/store-portal" as any); return; }
         if (type === "store_order_update") { router.push("/stores" as any); return; }
 
@@ -267,6 +273,9 @@ function RootLayoutNav() {
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="sports-club"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="restaurant"      options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="restaurant-manage" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="my-food-orders"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="member-card"     options={{ headerShown: false, animation: "slide_from_bottom", contentStyle: { backgroundColor: "#F3F1EC" } }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="auth-callback"      options={{ headerShown: false, animation: "fade" }} />
