@@ -84,8 +84,8 @@ async function pushToStaff(title: string, body: string, data: Record<string, unk
      WHERE u.role IN ('admin','moderator') AND pt.token LIKE 'ExponentPushToken[%'`);
   if (!rows.length) return;
   const messages = rows.map((r: any) => ({
-    to: r.token, title, body, sound: "hasahisawi_urgent", channelId: "hasahisawi-urgent", priority: "high",
-    badge: 1, data: { ...data, channelId: "hasahisawi-urgent" },
+    to: r.token, title, body, sound: "hasahisawi_urgent", channelId: "hasahisawi-urgent-s2", priority: "high",
+    badge: 1, data: { ...data, channelId: "hasahisawi-urgent-s2" },
   }));
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 2500);

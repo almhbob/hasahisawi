@@ -3,25 +3,25 @@ import { getApiUrl } from "@/lib/query-client";
 
 // ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
 // Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
-const CHANNEL_VERSION     = "5";
+const CHANNEL_VERSION     = "6";
 const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
 
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
 export const CHANNELS = {
-  DEFAULT:   "hasahisawi-default",
-  CHAT:      "hasahisawi-chat",
-  URGENT:    "hasahisawi-urgent",
-  TRANSPORT: "hasahisawi-transport",
-  PRAYER:    "hasahisawi-prayer",
+  DEFAULT:   "hasahisawi-default-s2",
+  CHAT:      "hasahisawi-chat-s2",
+  URGENT:    "hasahisawi-urgent-s2",
+  TRANSPORT: "hasahisawi-transport-s2",
+  PRAYER:    "hasahisawi-prayer-s2",
 } as const;
 
 // نغمة مخصصة لكل قناة (اسم الملف بدون امتداد)
 const CHANNEL_SOUNDS: Record<string, string> = {
-  "hasahisawi-default":   "hasahisawi_notif",
-  "hasahisawi-chat":      "hasahisawi_chat",
-  "hasahisawi-urgent":    "hasahisawi_urgent",
-  "hasahisawi-transport": "hasahisawi_urgent",
-  "hasahisawi-prayer":    "hasahisawi_prayer",
+  "hasahisawi-default-s2":   "hasahisawi_notif",
+  "hasahisawi-chat-s2":      "hasahisawi_chat",
+  "hasahisawi-urgent-s2":    "hasahisawi_urgent",
+  "hasahisawi-transport-s2": "hasahisawi_urgent",
+  "hasahisawi-prayer-s2":    "hasahisawi_prayer",
 };
 
 // للتوافق مع الكود القديم
@@ -44,9 +44,9 @@ async function ensureAndroidChannels(
     const stored = await AsyncStorage.getItem(CHANNEL_VERSION_KEY).catch(() => null);
 
     if (stored !== CHANNEL_VERSION) {
-      // حذف القنوات القديمة — Android يجمّد صوت القناة عند الإنشاء الأول
-      // الحذف ثم الإنشاء من جديد يضمن تطبيق الصوت الجديد
-      for (const id of Object.values(CHANNELS)) {
+      // Android يستعيد إعدادات القناة المحذوفة إذا أُعيد إنشاؤها بنفس المعرّف (ومنها كتم الصوت)،
+      // لذلك انتقلنا لمعرّفات جديدة (-s2) ونحذف القديمة فقط حتى لا تتكرر في الإعدادات.
+      for (const id of ["hasahisawi-default", "hasahisawi-chat", "hasahisawi-urgent", "hasahisawi-transport", "hasahisawi-prayer"]) {
         await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
       }
     }

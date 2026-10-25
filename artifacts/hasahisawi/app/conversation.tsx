@@ -1,9 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Image,
-  Alert, Linking,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Platform, ActivityIndicator, Image, Alert, Linking, Keyboard,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInUp } from "react-native-reanimated";
@@ -143,6 +142,14 @@ export default function ConversationScreen() {
     }, [chatIdNum, token]),
   );
 
+  // عند فتح الكيبورد: انزل لآخر رسالة حتى يظل ما تكتبه وآخر المحادثة ظاهرين
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidShow", () => {
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 60);
+    });
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
@@ -236,7 +243,7 @@ export default function ConversationScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       {/* الرأس */}
       <View style={styles.header}>

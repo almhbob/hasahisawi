@@ -125,9 +125,9 @@ function AuthGate() {
         // اهتزاز مخصص بحسب القناة عند وصول الإشعار في الـ Foreground
         const channelId = (n.request.content.data as any)?.channelId as string | undefined;
         const soundType: SoundType =
-          channelId === "hasahisawi-chat"      ? "message"
-          : (channelId === "hasahisawi-urgent" || channelId === "hasahisawi-transport") ? "alert"
-          : channelId === "hasahisawi-prayer"  ? "prayer"
+          String(channelId).startsWith("hasahisawi-chat")      ? "message"
+          : (String(channelId).startsWith("hasahisawi-urgent") || String(channelId).startsWith("hasahisawi-transport")) ? "alert"
+          : String(channelId).startsWith("hasahisawi-prayer")  ? "prayer"
           : "success";
         vibrateForType(soundType).catch(() => {});
       },

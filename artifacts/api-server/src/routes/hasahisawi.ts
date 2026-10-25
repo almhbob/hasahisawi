@@ -143,8 +143,14 @@ const CHANNEL_SOUND_MAP: Record<string, string> = {
   "hasahisawi-default":   "hasahisawi_notif",
 };
 
+// قنوات Android بنغمات (الإصدار s2). أي معرّف قديم يُحوَّل لنظيره الجديد.
+function chanV2(id?: string): string {
+  const base = String(id || "hasahisawi-default").replace(/-s2$/, "");
+  const known = ["hasahisawi-default", "hasahisawi-chat", "hasahisawi-urgent", "hasahisawi-transport", "hasahisawi-prayer"];
+  return (known.includes(base) ? base : "hasahisawi-default") + "-s2";
+}
 function pushSound(channelId: string): string {
-  return CHANNEL_SOUND_MAP[channelId] ?? "hasahisawi_notif";
+  return CHANNEL_SOUND_MAP[String(channelId).replace(/-s2$/, "")] ?? "hasahisawi_notif";
 }
 
 async function sendPushToUser(
@@ -168,9 +174,9 @@ async function sendPushToUser(
 
     const messages = tokens.map(to => ({
       to, title, body,
-      data: { ...data, channelId },
+      data: { ...data, channelId: chanV2(channelId) },
       sound: pushSound(channelId),
-      channelId,
+      channelId: chanV2(channelId),
       badge: 1,
     }));
 
@@ -193,9 +199,9 @@ async function sendPushToAdmins(title: string, body: string, data: Record<string
     if (!rows.length) return;
     const messages = rows.map(r => ({
       to: r.token as string, title, body,
-      data: { ...data, channelId },
+      data: { ...data, channelId: chanV2(channelId) },
       sound: pushSound(channelId),
-      channelId,
+      channelId: chanV2(channelId),
       badge: 1,
     }));
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -215,9 +221,9 @@ async function sendPushToUnionManagers(title: string, body: string, data: Record
     if (!rows.length) return;
     const messages = rows.map(r => ({
       to: r.token as string, title, body,
-      data: { ...data, channelId },
+      data: { ...data, channelId: chanV2(channelId) },
       sound: pushSound(channelId),
-      channelId,
+      channelId: chanV2(channelId),
       badge: 1,
     }));
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -10407,9 +10413,9 @@ async function sendExpoPushToUser(userId: number, title: string, body: string, d
       .filter((r: any) => r.token && r.token.startsWith("ExponentPushToken"))
       .map((r: any) => ({
         to: r.token, title, body,
-        data: { ...(data ?? {}), channelId },
+        data: { ...(data ?? {}), channelId: chanV2(channelId) },
         sound: pushSound(channelId),
-        channelId,
+        channelId: chanV2(channelId),
         badge: 1,
       }));
     if (!messages.length) return;
@@ -10430,9 +10436,9 @@ async function sendExpoPushBroadcast(title: string, body: string, data?: any, ch
     for (const chunk of chunks) {
       const messages = chunk.map((r: any) => ({
         to: r.token, title, body,
-        data: { ...(data ?? {}), channelId },
+        data: { ...(data ?? {}), channelId: chanV2(channelId) },
         sound: pushSound(channelId),
-        channelId,
+        channelId: chanV2(channelId),
       }));
       await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
@@ -12809,7 +12815,7 @@ router.post("/admin/push/segment", async (req: Request, res: Response) => {
     for (let i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
     let sent = 0;
     for (const chunk of chunks) {
-      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: extraData ?? {}, sound: "default" }));
+      const messages = chunk.map((r: any) => ({ to: r.token, title, body, data: { ...(extraData ?? {}), channelId: chanV2("hasahisawi-default") }, sound: "hasahisawi_notif", channelId: chanV2("hasahisawi-default"), priority: "high" }));
       await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
