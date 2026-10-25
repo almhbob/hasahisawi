@@ -1,3 +1,4 @@
+import { withRTLBlock } from "@/components/RTLScope";
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,7 +17,7 @@ const SECTORS = [
   { emoji: "📡", label: "إعلام",     color: "#F59E0B" },
 ];
 
-export default function ExternalPartnershipBanner() {
+function ExternalPartnershipBanner() {
   const router = useRouter();
 
   const handlePress = () => {
@@ -127,3 +128,5 @@ const s = StyleSheet.create({
   },
   ctaBtnText: { fontSize: 13, fontWeight: "800", color: "#000" },
 });
+
+export default withRTLBlock(ExternalPartnershipBanner);

@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, TextInput,
@@ -552,7 +553,7 @@ function AddModal({ visible, tab, onClose, onSaved, token }: {
 }
 
 // ── الشاشة الرئيسية ──────────────────────────────────────────────
-export default function FarmersScreen() {
+function FarmersScreen() {
   const insets = useSafeAreaInsets();
   const { token, isGuest } = useAuth();
 
@@ -798,3 +799,5 @@ const styles = StyleSheet.create({
   saveBtn: { borderRadius: Colors.radius.md, padding: 14, alignItems: "center", marginTop: 12 },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
+
+export default withRTLScreen(FarmersScreen);

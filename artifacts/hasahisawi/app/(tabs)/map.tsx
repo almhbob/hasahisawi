@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
@@ -184,7 +185,7 @@ function WebMapFrame({ html, onReady }: { html: string; onReady: () => void }) {
 }
 
 // ── الشاشة الرئيسية ──────────────────────────────────────────────────────────
-export default function MapScreen() {
+function MapScreen() {
   const insets    = useSafeAreaInsets();
   const webRef    = useRef<WebView>(null);
   const [places,  setPlaces]  = useState<Place[]>([]);
@@ -361,3 +362,5 @@ const s = StyleSheet.create({
   legendDot:    { width: 10, height: 10, borderRadius: 5 },
   legendTxt:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
 });
+
+export default withRTLScreen(MapScreen);

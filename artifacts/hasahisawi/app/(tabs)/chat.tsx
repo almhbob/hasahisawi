@@ -17,9 +17,13 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import { LoadError } from "@/components/ui/LoadState";
 
 import {
-  useApiChats, apiGetUsers, apiGetOrCreateChat, apiMarkRead,
-  getOtherUser, getMyUnread, ApiChat, ApiUser,
+  apiGetUsers, apiGetOrCreateChat, apiMarkRead,
+  getOtherUser, ApiUser,
 } from "@/lib/api-chat";
+import { useChatList, chatApi, type ChatListItem } from "@/lib/chat-plus";
+
+type ApiChat = ChatListItem;
+const getMyUnread = (c: ChatListItem, _myId: number) => c.unread || 0;
 
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 
@@ -44,30 +48,35 @@ function ChatCard({
   onPress: () => void;
   onLongPress?: () => void;
 }) {
-  const other = getOtherUser(chat, myId);
+  const other = getOtherUser(chat as any, myId);
   const unread = getMyUnread(chat, myId);
   const isMe = chat.last_sender_id === myId;
 
   return (
-    <TouchableOpacity
-      style={styles.chatCard}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.75}
-      delayLongPress={400}
-    >
-      <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
+    <TouchableOpacity style={[styles.chatCard, chat.pinned && { backgroundColor: Colors.primary + "08" }]} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.75} delayLongPress={350}>
+      <View>
+        <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
+        {chat.other_online ? <View style={styles.onlineDot} /> : null}
+      </View>
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
-          <Text style={styles.chatName} numberOfLines={1}>{other.name}</Text>
-          <Text style={styles.chatTime}>{formatTime(chat.last_message_at)}</Text>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, flex: 1 }}>
+            <Text style={[styles.chatName, { flexShrink: 1 }]} numberOfLines={1}>{other.name}</Text>
+            {chat.pinned ? <Ionicons name="pin" size={12} color={Colors.textMuted} /> : null}
+            {chat.muted ? <Ionicons name="notifications-off" size={12} color={Colors.textMuted} /> : null}
+          </View>
+          <Text style={[styles.chatTime, unread > 0 && { color: Colors.primary }]}>{formatTime(chat.last_message_at)}</Text>
         </View>
         <View style={styles.chatRow}>
-          <Text style={[styles.lastMsg, unread > 0 && styles.lastMsgUnread]} numberOfLines={1}>
-            {isMe ? "أنت: " : ""}{chat.last_message || "ابدأ المحادثة"}
-          </Text>
+          {chat.other_typing ? (
+            <Text style={[styles.lastMsg, { color: Colors.primary, fontFamily: "Cairo_600SemiBold" }]} numberOfLines={1}>يكتب الآن…</Text>
+          ) : (
+            <Text style={[styles.lastMsg, unread > 0 && styles.lastMsgUnread]} numberOfLines={1}>
+              {isMe ? "أنت: " : ""}{chat.blocked_by_me ? "محظور" : chat.last_message || "ابدأ المحادثة"}
+            </Text>
+          )}
           {unread > 0 && (
-            <View style={styles.badge}>
+            <View style={[styles.badge, chat.muted && { backgroundColor: Colors.textMuted }]}>
               <Text style={styles.badgeText}>{unread > 99 ? "99+" : unread}</Text>
             </View>
           )}
@@ -208,20 +217,24 @@ export default function ChatScreen() {
   const { user, token, isGuest } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterTab, setFilterTab] = useState<"all" | "unread">("all");
+  const [filterTab, setFilterTab] = useState<"all" | "unread" | "hidden">("all");
+  const [sheet, setSheet] = useState<ApiChat | null>(null);
 
   const myId = user?.id ?? 0;
-  const { chats, loading, refresh } = useApiChats(isGuest ? null : token);
+  const { chats: allChats, setChats, loading, refresh } = useChatList(isGuest ? null : token);
+  const chats = allChats.filter((c) => (filterTab === "hidden" ? c.hidden : !c.hidden));
+  const hiddenCount = allChats.filter((c) => c.hidden).length;
+  const hiddenUnread = allChats.filter((c) => c.hidden).reduce((s2, c) => s2 + (c.unread || 0), 0);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const totalUnread = chats.reduce((sum, c) => sum + getMyUnread(c, myId), 0);
 
   const filteredChats = chats.filter((c) => {
-    const other = getOtherUser(c, myId);
+    const other = getOtherUser(c as any, myId);
     const q = search.trim().toLowerCase();
     const matchSearch = !q || other.name.toLowerCase().includes(q) || (c.last_message || "").toLowerCase().includes(q);
-    const matchTab = filterTab === "all" || getMyUnread(c, myId) > 0;
+    const matchTab = filterTab !== "unread" || getMyUnread(c, myId) > 0;
     return matchSearch && matchTab;
   });
 
@@ -238,24 +251,31 @@ export default function ChatScreen() {
   }
 
   function openConversation(chat: ApiChat) {
-    const other = getOtherUser(chat, myId);
+    const other = getOtherUser(chat as any, myId);
     router.push({
       pathname: "/conversation",
       params: { chatId: String(chat.id), otherName: other.name, otherAvatar: other.avatar ?? "" },
     } as any);
   }
 
-  function handleLongPress(chat: ApiChat) {
-    const other = getOtherUser(chat, myId);
-    const unread = getMyUnread(chat, myId);
-    Alert.alert(other.name, "خيارات المحادثة", [
-      { text: "فتح المحادثة", onPress: () => openConversation(chat) },
-      ...(unread > 0 ? [{
-        text: "تعليم كمقروء",
-        onPress: () => { if (token) apiMarkRead(token, chat.id).catch(() => {}); refresh(); },
-      }] : []),
-      { text: "إلغاء", style: "cancel" as const },
-    ]);
+  function handleLongPress(chat: ApiChat) { setSheet(chat); }
+
+  async function chatAction(chat: ApiChat, kind: "read" | "pinned" | "muted" | "hidden" | "clear") {
+    setSheet(null);
+    if (!token) return;
+    try {
+      if (kind === "read") { await apiMarkRead(token, chat.id); setChats((l) => l.map((c) => c.id === chat.id ? { ...c, unread: 0 } : c)); return; }
+      if (kind === "clear") {
+        const go = async () => { await chatApi.clear(token, chat.id); refresh(); };
+        if (Platform.OS === "web") { if ((globalThis as any).confirm?.("مسح رسائل المحادثة لديك؟")) await go(); return; }
+        Alert.alert("مسح المحادثة", "ستُمسح الرسائل من جهازك فقط.", [{ text: "إلغاء", style: "cancel" }, { text: "مسح", style: "destructive", onPress: () => { go().catch(() => {}); } }]);
+        return;
+      }
+      const v = !chat[kind];
+      setChats((l) => l.map((c) => c.id === chat.id ? { ...c, [kind]: v } : c));
+      await chatApi.state(token, chat.id, { [kind]: v });
+      refresh();
+    } catch (e: any) { Alert.alert("تعذّر التنفيذ", e?.message || "حاول مجدداً"); refresh(); }
   }
 
   return (
@@ -317,11 +337,24 @@ export default function ChatScreen() {
             </View>
           )}
         </TouchableOpacity>
+        {hiddenCount > 0 || filterTab === "hidden" ? (
+          <TouchableOpacity style={[styles.tabBtn, filterTab === "hidden" && styles.tabBtnActive]} onPress={() => setFilterTab("hidden")} activeOpacity={0.75}>
+            <Ionicons name="eye-off-outline" size={14} color={filterTab === "hidden" ? "#fff" : Colors.textSecondary} />
+            <Text style={[styles.tabText, filterTab === "hidden" && styles.tabTextActive]}>المخفية ({hiddenCount})</Text>
+            {hiddenUnread > 0 ? <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{hiddenUnread}</Text></View> : null}
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.primary} size="large" />
+        </View>
+      ) : chats.length === 0 && filterTab === "hidden" ? (
+        <View style={styles.center}>
+          <Ionicons name="eye-off-outline" size={56} color={Colors.textMuted} />
+          <Text style={styles.emptyTitle}>لا توجد محادثات مخفية</Text>
+          <TouchableOpacity style={styles.startBtn} onPress={() => setFilterTab("all")}><Text style={styles.startBtnText}>عرض الكل</Text></TouchableOpacity>
         </View>
       ) : chats.length === 0 ? (
         <View style={styles.center}>
@@ -381,6 +414,30 @@ export default function ChatScreen() {
         </TouchableOpacity>
       )}
 
+      <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSheet(null)}>
+          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            {sheet ? (<>
+              <Text style={styles.sheetTitle}>{getOtherUser(sheet as any, myId).name}</Text>
+              {[
+                ["chatbubble-outline", "فتح المحادثة", () => { const c = sheet; setSheet(null); openConversation(c); }],
+                ...(sheet.unread > 0 ? [["checkmark-done-outline", "تعليم كمقروء", () => chatAction(sheet, "read")]] : []),
+                [sheet.pinned ? "pin-outline" : "pin", sheet.pinned ? "إلغاء التثبيت" : "تثبيت أعلى القائمة", () => chatAction(sheet, "pinned")],
+                [sheet.muted ? "notifications-outline" : "notifications-off-outline", sheet.muted ? "إلغاء الكتم" : "كتم الإشعارات", () => chatAction(sheet, "muted")],
+                [sheet.hidden ? "eye-outline" : "eye-off-outline", sheet.hidden ? "إظهار المحادثة" : "إخفاء المحادثة", () => chatAction(sheet, "hidden")],
+                ["brush-outline", "مسح الرسائل لديّ", () => chatAction(sheet, "clear")],
+              ].map(([icon, label, fn]: any) => (
+                <TouchableOpacity key={label} onPress={fn} style={styles.sheetBtn}>
+                  <Ionicons name={icon} size={20} color={label.startsWith("مسح") ? "#C62828" : Colors.textPrimary} />
+                  <Text style={[styles.sheetBtnTxt, label.startsWith("مسح") && { color: "#C62828" }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </>) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {token && (
         <NewChatModal
           visible={modalVisible}
@@ -397,6 +454,13 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
+  onlineDot: { position: "absolute", bottom: 0, left: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: "#22C55E", borderWidth: 2, borderColor: Colors.bg },
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: Colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 12 },
+  sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 6 },
+  sheetBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  sheetBtnTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   newBtn: {
     width: 38, height: 38,
     borderRadius: Colors.radius.pill,
@@ -469,7 +533,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
 
   chatCard: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 14,
     paddingHorizontal: 16,
@@ -483,10 +547,10 @@ const styles = StyleSheet.create({
     ...Colors.shadow.card,
   },
   chatInfo: { flex: 1 },
-  chatRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  chatRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   chatTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  lastMsg: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  lastMsg: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
   lastMsgUnread: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold" },
   badge: {
     minWidth: 20, height: 20,
@@ -545,7 +609,7 @@ const styles = StyleSheet.create({
     marginTop: 8, marginBottom: 4,
   },
   modalHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,

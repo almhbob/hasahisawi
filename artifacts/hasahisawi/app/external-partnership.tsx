@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -47,7 +48,7 @@ const TYPE_CONFIG: Record<OrgType, { label: string; icon: string; color: string;
 
 const TYPE_KEYS = Object.keys(TYPE_CONFIG) as OrgType[];
 
-export default function ExternalPartnershipScreen() {
+function ExternalPartnershipScreen() {
   const insets = useSafeAreaInsets();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -602,3 +603,5 @@ const m = StyleSheet.create({
   nextBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, overflow: "hidden" },
   nextBtnText: { fontSize: 15, fontWeight: "800", color: "#fff" },
 });
+
+export default withRTLScreen(ExternalPartnershipScreen);

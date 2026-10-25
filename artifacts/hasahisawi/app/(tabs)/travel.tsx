@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 // @ts-ignore
 import QRCode from "react-native-qrcode-svg";
@@ -1139,7 +1140,7 @@ function sendToWhatsApp(booking: TravelBooking) {
 // ═══════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ═══════════════════════════════════════════════════════════════
-export default function TravelScreen() {
+function TravelScreen() {
   const { user: authUser, token } = useAuth();
   // المكوّنات الفرعية تقرأ رمز الجلسة من user._token — نمرّره هنا صراحةً.
   const user = React.useMemo(() => (authUser ? { ...(authUser as any), _token: token || "" } : null), [authUser, token]);
@@ -1407,3 +1408,5 @@ const styles = StyleSheet.create({
   modalConfirmBtn: { flex:1, backgroundColor:ACCENT, borderRadius:10, padding:12, alignItems:"center" },
   modalConfirmTxt: { color:"#fff", fontWeight:"700" },
 });
+
+export default withRTLScreen(TravelScreen);

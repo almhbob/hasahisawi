@@ -61,7 +61,7 @@ export function TicketPoster({ ticket, width, codes }: { ticket: TicketData; wid
   );
   const notch = 14 * s;
   return (
-    <View collapsable={false} style={{ width, height: width * 1.25, backgroundColor: "#E9E4D8", padding: 18 * s, justifyContent: "center" }}>
+    <View collapsable={false} style={{ direction: "ltr", width, height: width * 1.25, backgroundColor: "#E9E4D8", padding: 18 * s, justifyContent: "center" }}>
       <View style={{ flex: 1, backgroundColor: PAPER, borderRadius: 18 * s, overflow: "hidden" }}>
         {/* header */}
         <View style={{ backgroundColor: NAVY, paddingHorizontal: 16 * s, paddingTop: 14 * s, paddingBottom: 16 * s }}>
@@ -159,7 +159,7 @@ export default function TicketShareModal({ ticket, codes, onClose }: { ticket: T
 
   return (
     <Modal visible={!!ticket} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={st.bg}>
+      <View style={[st.bg, { direction: "ltr" }]}>
         <ScrollView contentContainerStyle={{ alignItems: "center", paddingVertical: 28 }} style={{ alignSelf: "stretch" }} showsVerticalScrollIndicator={false}>
           <View style={{ borderRadius: 16, overflow: "hidden" }}>
             <View ref={ref} collapsable={false}>{ticket && <TicketPoster ticket={ticket} width={w} codes={codes} />}</View>

@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -58,7 +59,7 @@ const PRIMARY = "#38BDF8";
 // ══════════════════════════════════════════════════════
 // SCREEN
 // ══════════════════════════════════════════════════════
-export default function MenScreen() {
+function MenScreen() {
   const { user } = useAuth();
 
   const [services,   setServices]   = useState<MenService[]>([]);
@@ -524,3 +525,5 @@ const jm = StyleSheet.create({
   successBtnGrad: { paddingVertical: 14, alignItems: "center" },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
+
+export default withRTLScreen(MenScreen);

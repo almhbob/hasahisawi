@@ -45,7 +45,7 @@ export default function GuestGate({ children, preview, title, features }: Props)
   const lockTitle   = title ?? tr("محتوى حصري للأعضاء", "Members-Only Content");
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: "ltr" }]}>
       {/* علامة مائية بنمط الشعار */}
       <BrandPattern variant="diagonal" opacity={0.035} />
 

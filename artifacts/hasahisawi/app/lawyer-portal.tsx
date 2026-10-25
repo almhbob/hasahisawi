@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 /**
  * lawyer-portal.tsx
  * بوابة المحامي الشاملة — لوحة التحكم، القضايا، الدردشة، المستندات، الإعدادات
@@ -300,7 +301,7 @@ function LegalFormsTab({ token }: { token: string }) {
 // ══════════════════════════════════════════════════════════════════════════════
 type Tab = "dashboard" | "cases" | "chat" | "docs" | "forms" | "settings";
 
-export default function LawyerPortal() {
+function LawyerPortal() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
@@ -1506,3 +1507,5 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "System" : undefined,
   },
 });
+
+export default withRTLScreen(LawyerPortal);

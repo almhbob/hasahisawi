@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -540,7 +541,7 @@ function JoinTab() {
 // ══════════════════════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════════════════
-export default function OccasionsScreen() {
+function OccasionsScreen() {
   const [activeTab, setActiveTab] = useState<"shops" | "transport" | "join">("shops");
   const [shops,      setShops]     = useState<OccasionShop[]>([]);
   const [transport,  setTransport] = useState<OccasionTransport[]>([]);
@@ -851,3 +852,5 @@ const j = StyleSheet.create({
   successBtn:   { backgroundColor: GOLD, borderRadius: Colors.radius.md, paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 },
   successBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
+
+export default withRTLScreen(OccasionsScreen);

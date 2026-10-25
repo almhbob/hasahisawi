@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal,
@@ -276,7 +277,7 @@ const TASBIH_PRESETS = [
 ];
 
 // ─── المكوّن الرئيسي ───────────────────────────────────────────────────────────
-export default function PrayerScreen() {
+function PrayerScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -1414,3 +1415,5 @@ const ms = StyleSheet.create({
   saveBtn:   { flex: 2, paddingVertical: 13, borderRadius: Colors.radius.md, alignItems: "center", backgroundColor: Colors.primary },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
+
+export default withRTLScreen(PrayerScreen);

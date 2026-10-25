@@ -16,6 +16,7 @@ import LaunchSplash, { SplashArt } from "@/components/LaunchSplash";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
+import { usePresencePing } from "@/lib/chat-plus";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -60,7 +61,7 @@ try {
 if (Platform.OS !== "web") {
   I18nManager.allowRTL(false);
   I18nManager.forceRTL(false);
-  I18nManager.swapLeftAndRightInRTL(false);
+  I18nManager.swapLeftAndRightInRTL(true);
 }
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
@@ -258,12 +259,20 @@ function AuthGate() {
   return null;
 }
 
+// نبض «نشط الآن» للدردشة ما دام التطبيق مفتوحاً
+function PresenceBeat() {
+  const { token, isGuest } = useAuth();
+  usePresencePing(isGuest ? null : token);
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
       {/* Dark icons: most screens use the light #F7F9F8 background */}
       <StatusBar style="dark" />
       <AuthGate />
+      <PresenceBeat />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }} />
         <Stack.Screen name="login"           options={{ headerShown: false, animation: "fade" }} />

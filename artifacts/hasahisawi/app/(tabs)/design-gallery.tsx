@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
@@ -251,7 +252,7 @@ function PackageCard({
 // ══════════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
-export default function DesignGalleryScreen() {
+function DesignGalleryScreen() {
   const insets = useSafeAreaInsets();
   const { user, token, isGuest } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -1011,3 +1012,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textSecondary },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
 });
+
+export default withRTLScreen(DesignGalleryScreen);

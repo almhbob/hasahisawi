@@ -1,3 +1,4 @@
+import { withRTLBlock } from "@/components/RTLScope";
 import React from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, Linking, Alert, Platform,
@@ -32,7 +33,7 @@ const BENEFITS = [
 const CONTACT_PHONE    = PLATFORM.whatsapp;
 const CONTACT_WHATSAPP = PLATFORM.whatsapp;
 
-export default function JoinOrgBanner() {
+function JoinOrgBanner() {
   const pulse = useSharedValue(1);
   const router = useRouter();
 
@@ -308,3 +309,5 @@ const styles = StyleSheet.create({
     marginTop: 12, textAlign: "center",
   },
 });
+
+export default withRTLBlock(JoinOrgBanner);

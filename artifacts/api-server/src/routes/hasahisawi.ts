@@ -4383,10 +4383,15 @@ router.get("/chats/:chatId/messages", async (req: Request, res: Response) => {
     const chat = await query(`SELECT * FROM chats WHERE id=$1 AND (user1_id=$2 OR user2_id=$2)`, [chatId, me.id]);
     if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
     const since = req.query.since as string | undefined;
+    await (await import("./chat-plus")).ensureChatPlus();
+    // النسخ القديمة من التطبيق: الرسالة المحذوفة للجميع تظهر كنص «حُذفت»
     const result = await query(
-      `SELECT m.*, u.name AS sender_name FROM chat_messages m
+      `SELECT m.id, m.chat_id, m.sender_id, m.type, m.created_at, m.is_read, m.image_url,
+              CASE WHEN m.deleted_at IS NOT NULL THEN '🚫 تم حذف هذه الرسالة' ELSE m.content END AS content,
+              u.name AS sender_name FROM chat_messages m
        JOIN users u ON u.id=m.sender_id
        WHERE m.chat_id=$1 ${since ? "AND m.id > $2" : ""}
+         AND NOT EXISTS (SELECT 1 FROM chat_message_hidden h WHERE h.message_id=m.id AND h.user_id=${Number(me.id)})
        ORDER BY m.created_at ASC LIMIT 200`,
       since ? [chatId, parseInt(since)] : [chatId]
     );
@@ -4407,6 +4412,18 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     if (!chat.rows[0]) return res.status(403).json({ error: "غير مصرح" });
     const { content, image_url } = req.body;
     if (!content?.trim() && !image_url) return res.status(400).json({ error: "الرسالة فارغة" });
+    const chatPlus = await import("./chat-plus");
+    await chatPlus.ensureChatPlus();
+    const cc = chat.rows[0];
+    const otherIdForBlock = me.id === cc.user1_id ? cc.user2_id : cc.user1_id;
+    const blocks = await chatPlus.isBlockedBetween(me.id, otherIdForBlock);
+    if (blocks.includes(me.id)) return res.status(403).json({ error: "لقد حظرت هذا المستخدم — ألغِ الحظر لإرسال الرسائل" });
+    if (blocks.includes(otherIdForBlock)) return res.status(403).json({ error: "لا يمكنك مراسلة هذا المستخدم" });
+    let replyTo: number | null = null;
+    if (req.body.reply_to_id) {
+      const rr = await query(`SELECT id FROM chat_messages WHERE id=$1 AND chat_id=$2`, [Number(req.body.reply_to_id), chatId]);
+      replyTo = rr.rows[0]?.id ?? null;
+    }
 
     if (content?.trim()) {
       const mod = await checkContent(content.trim());
@@ -4423,9 +4440,11 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     const msgType = image_url ? "image" : "text";
     const msgContent = content?.trim() || "";
     const result = await query(
-      `INSERT INTO chat_messages (chat_id, sender_id, content, image_url, type) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [chatId, me.id, msgContent, image_url || null, msgType]
+      `INSERT INTO chat_messages (chat_id, sender_id, content, image_url, type, reply_to_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [chatId, me.id, msgContent, image_url || null, msgType, replyTo]
     );
+    chatPlus.touchPresence(me.id);
+    await query(`UPDATE chat_user_state SET typing_until=NULL WHERE chat_id=$1 AND user_id=$2`, [chatId, me.id]).catch(() => {});
     const c = chat.rows[0];
     const isUser1 = me.id === c.user1_id;
     await query(`
@@ -4437,8 +4456,9 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     `, [image_url ? "📷 صورة" : msgContent, me.id, isUser1, chatId]);
     const msg = { ...result.rows[0], sender_name: me.name };
 
-    // ── إرسال إشعار Push للمستقبِل ──
+    // ── إرسال إشعار Push للمستقبِل (إلا إن كتم المحادثة) ──
     const recipientId = isUser1 ? c.user2_id : c.user1_id;
+    if (await chatPlus.isMuted(chatId, recipientId)) return res.json(msg);
     const notifBody = image_url ? "📷 أرسل لك صورة" : (msgContent.length > 60 ? msgContent.slice(0, 60) + "…" : msgContent);
     // ننتظر الإشعار (بحد أقصى 2.5 ث) — على Vercel تتوقف الدالة بعد الرد فيضيع الإشعار
     await Promise.race([
@@ -4473,6 +4493,14 @@ router.post("/chats/:chatId/read", async (req: Request, res: Response) => {
       `UPDATE chats SET ${isUser1 ? "unread_user1=0" : "unread_user2=0"} WHERE id=$1`,
       [chatId]
     );
+    // إشعارات القراءة: تُعلَّم رسائل الطرف الآخر كمقروءة (✓✓)
+    const chatPlus = await import("./chat-plus");
+    await chatPlus.ensureChatPlus();
+    await query(
+      `UPDATE chat_messages SET is_read=TRUE, read_at=NOW(), updated_at=NOW() WHERE chat_id=$1 AND sender_id<>$2 AND is_read=FALSE`,
+      [chatId, me.id]
+    );
+    chatPlus.touchPresence(me.id);
     return res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "route error");

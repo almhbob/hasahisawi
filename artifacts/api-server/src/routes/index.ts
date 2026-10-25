@@ -15,6 +15,7 @@ import deviceAuthRouter from "./device-auth";
 import ciPlayTokenRouter from "./ci-play-token";
 import sportsClubsRouter from "./sports-clubs";
 import providerListingsRouter from "./provider-listings";
+import chatPlusRouter from "./chat-plus";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ router.use(deviceAuthRouter);
 router.use(ciPlayTokenRouter);
 router.use(sportsClubsRouter);
 router.use(providerListingsRouter);
+router.use(chatPlusRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);

@@ -1,3 +1,4 @@
+import { withRTLBlock } from "@/components/RTLScope";
 import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView,
@@ -26,7 +27,7 @@ const STATUS_CONFIG: Record<JoinStatus, { label: string; color: string; bg: stri
   joined:   { label: "منضم رسمياً",  color: "#2EAD6B", bg: "#2EAD6B22" },
 };
 
-export default function GovEntitiesSection() {
+function GovEntitiesSection() {
   const [entities, setEntities] = useState<GovEntity[]>([]);
   const [loading,  setLoading]  = useState(true);
 
@@ -279,3 +280,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+export default withRTLBlock(GovEntitiesSection);

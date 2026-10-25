@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -189,7 +190,7 @@ function normalizeWomenGender(value: string | null | undefined) {
   return null;
 }
 
-export default function WomenScreen() {
+function WomenScreen() {
   const { user, isGuest, setUserGender, token } = useAuth();
   // ركن المرأة معزول على الخادم: كل طلب يجب أن يحمل جلسة المستخدمة.
   const wFetch = (url: string, init: RequestInit = {}) =>
@@ -2256,3 +2257,5 @@ const bt = StyleSheet.create({
   },
   addStoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A855F7", flex: 1, textAlign: "center" },
 });
+
+export default withRTLScreen(WomenScreen);

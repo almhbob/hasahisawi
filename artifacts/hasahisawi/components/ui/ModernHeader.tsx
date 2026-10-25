@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   topRow: {
+    direction: "ltr", // ثابت في كل الشاشات (بما فيها ذات النطاق RTL)
     flexDirection: "row-reverse",
     alignItems: "flex-start",
     justifyContent: "space-between",
