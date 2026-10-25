@@ -1,0 +1,33 @@
+name: Google Play — track status
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - '.play-status'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read all tracks
+        env:
+          PKG: com.almhbob.hasahisawi
+          API: https://api-server-gilt-ten.vercel.app
+        run: |
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          TOKEN=$(curl -sS -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token" | jq -r '.access_token // empty')
+          echo "::add-mask::$TOKEN"
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
+          EDIT=$(curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' "$BASE/edits" | jq -r .id)
+          R=$(curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/edits/$EDIT/tracks")
+          echo "$R" | jq -r '.tracks[] | .track as $t | (.releases // [])[] | "\($t): \(.name // "-") | status=\(.status) | codes=\((.versionCodes // []) | join(",")) | fraction=\(.userFraction // "-")"' | while read -r line; do echo "::notice::$line"; done
+          echo "::notice::raw=$(echo "$R" | jq -c '[.tracks[] | {track, releases: [(.releases // [])[] | {name, status, versionCodes}]}]' | head -c 900)"
+          curl -sS -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/edits/$EDIT" >/dev/null || true
