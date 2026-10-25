@@ -4343,6 +4343,9 @@ router.post("/chats", async (req: Request, res: Response) => {
     if (!me) return res.status(401).json({ error: "غير مصرح" });
     const { other_user_id } = req.body;
     if (!other_user_id) return res.status(400).json({ error: "other_user_id مطلوب" });
+    if (Number(other_user_id) === Number(me.id)) return res.status(400).json({ error: "لا يمكنك مراسلة نفسك" });
+    const other = await query(`SELECT id FROM users WHERE id=$1`, [Number(other_user_id)]);
+    if (!other.rows[0]) return res.status(404).json({ error: "المستخدم غير موجود" });
     const u1 = Math.min(Number(me.id), Number(other_user_id));
     const u2 = Math.max(Number(me.id), Number(other_user_id));
     await query(
@@ -4431,13 +4434,17 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     // ── إرسال إشعار Push للمستقبِل ──
     const recipientId = isUser1 ? c.user2_id : c.user1_id;
     const notifBody = image_url ? "📷 أرسل لك صورة" : (msgContent.length > 60 ? msgContent.slice(0, 60) + "…" : msgContent);
-    void sendPushToUser(
-      recipientId,
-      `رسالة من ${me.name as string}`,
-      notifBody,
-      { chatId, otherName: me.name, screen: "chat" },
-      "hasahisawi-chat"
-    );
+    // ننتظر الإشعار (بحد أقصى 2.5 ث) — على Vercel تتوقف الدالة بعد الرد فيضيع الإشعار
+    await Promise.race([
+      sendPushToUser(
+        recipientId,
+        `رسالة من ${me.name as string}`,
+        notifBody,
+        { chatId, otherName: me.name, screen: "chat" },
+        "hasahisawi-chat"
+      ),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]).catch(() => {});
 
     return res.json(msg);
   } catch (err) {
