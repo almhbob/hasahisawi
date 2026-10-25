@@ -83,7 +83,17 @@ export default function AdminRequestsScreen() {
         setAlerts(d.alerts || []); setLastSeen(Number(d.last_seen_id) || 0);
         if (d.latest_id) { await call("/api/admin/alerts/seen", { method: "POST", body: JSON.stringify({ last_id: d.latest_id }) }).catch(() => {}); setAdminUnread(0); }
       } else if (tab === "stores") setStores(await call("/api/admin/stores"));
-      else if (tab === "women") setWomen(await call("/api/admin/women/join-requests"));
+      else if (tab === "women") {
+        // طلبات خدمات ركن المرأة + طلبات فتح متاجر ركن المرأة (كانت لا تظهر هنا)
+        const [reqs, shops] = await Promise.all([
+          call("/api/admin/women/join-requests"),
+          call("/api/admin/women/stores").catch(() => []),
+        ]);
+        const shopRows = (Array.isArray(shops) ? shops : []).map((x: any) => ({ ...x, _kind: "wstore" }));
+        const all = [...shopRows, ...(Array.isArray(reqs) ? reqs : [])];
+        all.sort((a: any, b: any) => Number(["new", "pending"].includes(b.status)) - Number(["new", "pending"].includes(a.status)) || String(b.created_at).localeCompare(String(a.created_at)));
+        setWomen(all);
+      }
       else { const d = await call("/api/admin/join-requests"); setGeneral(d.requests || []); }
     } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     finally { setLoading(false); }
@@ -92,13 +102,17 @@ export default function AdminRequestsScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   useEffect(() => { load(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const review = async (kind: "store" | "women" | "general", id: number, status: string, label: string) => {
+  const review = async (kind: "store" | "women" | "general" | "wstore", id: number, status: string, label: string) => {
     const ok = await confirmAction(label, "هل تريد تأكيد هذا الإجراء؟ سيصل إشعار لصاحب الطلب عند توفّره.", label, status === "rejected" || status === "suspended");
     if (!ok) return;
     try {
-      if (kind === "store") await call(`/api/admin/stores/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      else if (kind === "women") await call(`/api/admin/women/join-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      else await call(`/api/admin/join-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      let d: any = null;
+      if (kind === "store") d = await call(`/api/admin/stores/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      else if (kind === "wstore") d = await call(`/api/admin/women/stores/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      else if (kind === "women") d = await call(`/api/admin/women/join-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      else d = await call(`/api/admin/join-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      const where = d?.published || (kind === "store" && status === "active" ? "المتجر ظاهر الآن في قسم المتاجر" : kind === "wstore" && status === "approved" ? "المتجر ظاهر الآن في ركن المرأة ← المتاجر" : null);
+      if (where) notify("تم ✅", where);
       load();
     } catch (e: any) { notify("تعذّر التنفيذ", e?.message); }
   };
@@ -166,6 +180,28 @@ export default function AdminRequestsScreen() {
         </View>
       );
     }
+    if (item._kind === "wstore") {
+      return (
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={s.icon}><Ionicons name="bag-handle-outline" size={18} color={Colors.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>{item.name} · متجر نسائي</Text>
+              <Text style={s.body}>{item.owner_name || "—"} · {item.phone}{item.product_count ? ` · ${item.product_count} منتج` : ""}</Text>
+              {!!item.address && <Text style={s.meta}>{item.address}</Text>}
+              <Text style={s.meta}>{ago(item.created_at)}</Text>
+            </View>
+            <Pill status={item.status} />
+          </View>
+          <View style={s.actions}>
+            <Act label="اتصال" color="#00966A" icon="call-outline" onPress={() => Linking.openURL(`tel:${item.phone}`)} />
+            {item.status !== "approved" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("wstore", item.id, "approved", "اعتماد المتجر")} />}
+            {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("wstore", item.id, "rejected", "رفض الطلب")} />}
+            {item.status === "approved" && <Act label="إيقاف" color="#6B7280" icon="pause-circle-outline" onPress={() => review("wstore", item.id, "suspended", "إيقاف المتجر")} />}
+          </View>
+        </View>
+      );
+    }
     const isWomen = tab === "women";
     const name = isWomen ? item.owner_name : item.applicant_name;
     const sub = isWomen ? item.service_type : (item.entity_name || item.request_type);
@@ -205,7 +241,7 @@ export default function AdminRequestsScreen() {
       </ModernHeader>
       <FlatList
         data={data}
-        keyExtractor={(i) => `${tab}-${i.id}`}
+        keyExtractor={(i) => `${tab}-${i._kind || "r"}-${i.id}`}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 14, paddingBottom: 40, gap: 10 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}

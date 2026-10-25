@@ -84,7 +84,9 @@ router.patch("/admin/women/join-requests/:id", async (req, res) => {
     if (!["new", "contacted", "approved", "rejected"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
     const r = await query(`UPDATE women_join_requests SET status=$1 WHERE id=$2 RETURNING *`, [status, Number(req.params.id)]);
     if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
-    return res.json(r.rows[0]);
+    const { onWomenRequestReviewed } = await import("./provider-listings");
+    const published = await onWomenRequestReviewed(r.rows[0], status);
+    return res.json({ ...r.rows[0], published });
   } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
 });
 

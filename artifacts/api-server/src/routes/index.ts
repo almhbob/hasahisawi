@@ -14,6 +14,7 @@ import curriculumUploadRouter from "./curriculum-upload";
 import deviceAuthRouter from "./device-auth";
 import ciPlayTokenRouter from "./ci-play-token";
 import sportsClubsRouter from "./sports-clubs";
+import providerListingsRouter from "./provider-listings";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,7 @@ router.use(curriculumUploadRouter);
 router.use(deviceAuthRouter);
 router.use(ciPlayTokenRouter);
 router.use(sportsClubsRouter);
+router.use(providerListingsRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);
